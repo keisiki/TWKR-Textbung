@@ -1,0 +1,261 @@
+﻿;FileName_SHOP.ERB -------------------------------- Rev1. 00
+;기상 전메뉴 화면 표시
+;CALL		SYSTEM
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;----------------------------------------------------------
+@SHOW_SHOP
+#DIM 임시플래그1
+;첫 날에 돈 설정, 턴 끝날때에 보정을 하지만 첫날에는 지갑이 텅텅 빈 상태이므로 해둔다
+임시플래그1 = 0
+FOR LOCAL, 1, CHARANUM
+	IF CFLAG:LOCAL:시작소지금 == 0
+		임시플래그1 = 1
+	ENDIF
+NEXT
+IF 임시플래그1 == 1
+	CALL 시작소지금 설정
+	임시플래그1 = 0
+ENDIF
+;기상 전화면 표시중 플래그
+TFLAG:100 = 0
+;---------------------
+;기상시간 자동 보정, 최저 수면 시간은 4시간
+LOCAL:1 = CFLAG:MASTER:취침시간 - DAY * 1440
+IF (TIME:3 >= LOCAL:1 && (TIME:3 - LOCAL:1) < 240) || (TIME:3 < 240 && (1440 + TIME:3 - LOCAL:1) < 240)
+	PRINTL 수면 시간이 너무 짧습니다. 적어도 4시간 이상은 자야 합니다
+	CALL 최저수면시간설정()
+	PRINTFORMW 기상시간을 (%시각표시(TIME:3)%)로 설정했습니다
+ENDIF
+;---------------------
+DRAWLINE
+PRINTFORML {DAY}일째 (%GET_DAY()%) 소지금 :\\%TOSTR(MONEY,"#,###")%
+PRINTL
+
+CALL BASE_BAR(MASTER, "체력", 28, "초록")
+PRINTFORM 　　
+CALL BASE_BAR(MASTER, "기력", 28, "파랑", "「개행」")
+CALL BASE_BAR(MASTER, "TSP", 28, "물색")
+PRINTFORM 　　
+SIF TALENT:MASTER:2 & 2
+	CALL BASE_BAR(MASTER, "정력", 28, "노랑")
+PRINTFORML 
+
+;PRINT 체력
+;CALL PRINT_COLORBAR, BASE:MASTER:0, MAXBASE:MASTER:0, 26, UNICODE(0x2585), UNICODE(0x2585), BARCOLORSET("빨강"), RESULT:1
+;PRINTFORML  ({BASE:MASTER:체력, 5}/{MAXBASE:MASTER:체력, 5})  
+;PRINT 기력
+;CALL PRINT_COLORBAR, BASE:MASTER:1, MAXBASE:MASTER:1, 26, UNICODE(0x2585), UNICODE(0x2585), BARCOLORSET("초록"), RESULT:1
+;PRINTFORML  ({BASE:MASTER:1, 5}/{MAXBASE:MASTER:1, 5})  
+PRINTFORML 
+PRINTBUTTON "자택위치", 110
+PRINTFORM ：%GET_MAPNAME(MAIN_MAP)%
+IF FLAG:기절중단
+	PRINTFORML 기절중	
+ELSE
+	PRINTFORML 
+ENDIF
+PRINTBUTTON "[기상시간]", 2400
+PRINTFORML ：%시각표시(TIME:3)%
+;CALL INFO_CLOCK_IMAGE(TIME:3, 500, "left")
+PRINTFORML 
+CALL TW_TIPS
+PRINTFORML 
+
+SETCOLOR 103,228,126
+PRINTL 【메인 메뉴】
+RESETCOLOR
+PRINTLC [100] - 기상
+PRINTLC [102] - 생활환경 설정
+SIF CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	PRINTLC [110] - 자택 이사
+PRINTL
+PRINTL
+
+PRINTLC [101] - 능력 표시
+PRINTLC [103] - 스키마 통신 판매
+IF MAIN_MAP == 14 ;KR판 저택용 설정
+	PRINTFORML [104] - 주거 설정
+ELSE
+	PRINTL
+ENDIF
+PRINTLC [105] - 실적 해제
+SIF FLAG:700
+	PRINTLC [106] - 콜렉션
+;PRINTLC [108] - 손에 넣은 악보 ;TODO KR판 악보기능 이식시 주석 해제
+PRINTL
+;PRINTLC [109] - 잡은 물고기 리스트;TODO KR판 낚시 컬랙션 기능 이식시 주석 해제
+PRINTLC [111] - 다누키 은행
+PRINTL
+PRINTL
+
+SETCOLOR 103,228,126
+PRINTL 【시스템 메뉴】
+RESETCOLOR
+PRINTLC [107] - 의뢰 리셋
+PRINTLC [700] - 의상 리셋
+PRINTL
+PRINTLC [400] - OPTION
+
+SIF SAVESTR:본체버전 != eraTW_Version
+	SETCOLOR C_RED
+PRINTLC [500] - UPDATE
+PRINTL
+;PRINTLC [420] - TUTORIAL
+RESETCOLOR
+
+PRINTL
+PRINTL
+
+PRINTLC [200] - SAVE
+PRINTLC [300] - LOAD
+PRINTL
+
+SIF MONEY:2
+	PRINTFORML [600] - 카리스마 매각
+	
+SIF FLAG:엔딩여부 ;KR판 구잔재 또는 오리지날
+	PRINTFORML [800] - 강하게 뉴게임
+
+DRAWLINE
+
+;FileName_SHOP.ERB -------------------------------- Rev1. 00
+;기상 전메뉴 RESULT 처리
+;CALL		SYSTEM
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;----------------------------------------------------------
+@USERSHOP
+;기상
+IF RESULT == 100
+	BEGIN TRAIN
+	RETURN 1
+ELSEIF RESULT == 410
+	CALL SHOW_GATHERING_LIST
+;능력표시
+ELSEIF RESULT == 101
+	DEBUGCLEAR
+	CALL SHOW_CHARA_LIST("존재하는 캐릭터리스트", "체력 기력", "「정보 표시」 「조건 변경」")
+;	CALL SHOW_CHARADATA
+;콜렉션
+ELSEIF RESULT == 106 && FLAG:700 && !FLAG:기절중단
+	CALL SHOW_COLLECTION
+;통신 판매
+ELSEIF RESULT == 103 && !FLAG:기절중단
+	CALL ITEM_BUY
+;설정
+ELSEIF RESULT == 102 && !FLAG:기절중단
+	CALL SCHEDULE
+;KR판 저택용
+ELSEIF RESULT == 104 && !FLAG:기절중단 && MAIN_MAP==14
+	CALL 주거설정함수
+ELSEIF RESULT == 105 && !FLAG:기절중단
+	CALL BONUS
+ELSEIF RESULT == 107 && !FLAG:기절중단
+	CALL IRAI_RESET
+;108 - 악보, 109 - 낚시 기능 완전 이식시 주석해제
+; ELSEIF RESULT == 108
+; 	CALL SHOW_COLLECTION_SCORE
+; ELSEIF RESULT == 109
+; 	CALL SHOW_COLLECTION_FISH
+ELSEIF RESULT == 110 && CFLAG:MASTER:현재위치 != OMANEKIBEYA()&& !FLAG:기절중단
+	CALL SET_MAINHOME
+;너굴너굴
+ELSEIF RESULT == 111
+	CALL 다누키은행
+;SAVE
+ELSEIF RESULT == 200
+	SAVEGAME
+;LOAD
+ELSEIF RESULT == 300
+	LOADGAME
+;OPTION
+ELSEIF RESULT == 400
+	CALL OPTION
+ELSEIF RESULT == 420
+	CALL TUTORIAL_MAIN
+ELSEIF RESULT == 500
+	CALL UPDATE
+ELSEIF RESULT == 600
+	CALL CM_BALANCE
+ELSEIF RESULT == 700
+	CALL RESET_ALL_CLOTHES
+ELSEIF RESULT == 2400
+	CALL 기상시간설정()
+ELSEIF RESULT == 800 ;KR판 구잔재 또는 오리지날
+	IF FLAG:엔딩여부
+		PRINTFORML 시간을 날려버리고 첫날로 되돌아가겠습니까?
+		PRINTL 
+		PRINTL [0] 아직 할 게 남았어
+		PRINTL [1] 좋아! 지금이다!
+		INPUT
+		IF RESULT == 1
+			CALL 강하게뉴게임
+		ELSE
+;			PRINTW 「스위치」를 누르는 것은 멈출 수 없었지만, 행운에도 옵션 선택까지 밖에 돌아오지 않았다.
+			RESTART
+		ENDIF
+	ENDIF
+ENDIF
+
+
+@TW_TIPS
+SETCOLOR C_YELLOW
+PRINTPLAIN TIPS:
+PRINTDATA
+	DATAFORM 시간정지 능력은 사용할수록 성장한다.
+	DATAFORM 유실물을 찾고 싶으면 물건 찾는 게 특기인 캐릭터한테 부탁해라.
+	DATAFORM 술은 술집에서 사준다.
+	DATAFORM 운세 뽑기 및 점의 결과에 따라서는 일부 판정에 보정이 붙는다. 제비뽑기에도…
+	DATAFORM 눈이 내리면 작물이 자라기 어려워진다.
+	DATAFORM 카리스마는 홍마관의 카지노 등에서 쓸 수 있는 통화.
+	DATAFORM 대개 현금보다 카리스마로 지불하는 게 싼 편.
+	DATAFORM 일부 캐릭터는 고유 커맨드가 있다.
+	DATAFORM 전투능력 및 교양이 낮으면 호감도가 올라가기 어려워질 때가 있다.
+	DATAFORM 웬만한 건 신한테 비는 걸로 해결할 수 있다.
+	DATAFORM 인간 마을 광장에서는 랜덤 캐릭터를 낚을 수 있다.
+	DATAFORM 랜덤 캐릭터는 첫날만 능력이 많이 오른다.
+	DATAFORM 랜덤 캐릭터를 망각했을 경우 두 번 다시 재등장하지 않지만, 임신 판정을 하는 것은 망각했을 경우만.
+	DATAFORM 랜덤 캐릭터가 재등장시키는 경우, 능력 상승 보정을 잃어 임신하지 않게 된다.
+	DATAFORM 랜덤 캐릭터를 두 명 이상 동시에 출현시킬 수 없다.
+	DATAFORM 금욕이 힘들어지면 순순히 싸거나 마음의 평안을 소원으로 빌어라.
+	DATAFORM 주야역전 생활하는 캐릭터도 있다. 친해지고 싶으면 기상 시간을 늦추자.
+	DATAFORM 커맨드가 표시되지 않는다? 필터가 걸렸는지 봐봐.
+	DATAFORM 무능력자라면 다양한 커맨드를 사용할 수 없지만 덮쳐지기 쉬워진다.
+	DATAFORM 캐릭터의 업무는 돕는 데에 조건이 있거나 애초에 돕지 못하는 것도 있다.
+	DATAFORM 요리하려면 식재료가 필요.
+	DATAFORM 술벌레 병에 물을 넣으면 술이 생긴다.
+	DATAFORM 로터는 텃밭에서 만들 수 있다.
+	DATAFORM 더러움 내성이 높으면 청소가 엉성하게 된다.
+	DATAFORM 카지노에서 많이 놀면 회원 랭크가 오른다.
+	DATAFORM 시간각인은 같은 레벨의 쾌락·괘씸각인에 준한 효과가 있다. 뻣뻣한 캐릭터라면 몸부터 친해지는 것도 한 방편.
+	DATAFORM 콜렉션의 스키마 등은 현실 날짜가 바뀌면 보충된다. 소지수 상한이 있으니 적극적으로 사용하자.
+	DATAFORM 당신의 능력 및 특정 인물과의 친교 등, 조건을 충족해야 들어갈 수 있는 장소가 있다.
+	DATAFORM 공부나 훈련은 다른 사람과 함께 하는 편이 효율적.
+	DATAFORM 애태우기 모드는 부위 쾌락이 들어가기 어려워지는 대신에 절정을 억제한다. 다중 절정에 다소 도움이 된다.
+	DATAFORM 스즈나안에서 책을 빌리면 대응기능의 경험이 들어가기 쉬워진다.
+	DATAFORM 미라다의 돌은 욕망을 올리기 쉽고 덮치기가 먹히기 쉬워지지만, 친밀과 신뢰는 올라가기 어려워진다.
+	DATAFORM 1년 이상 플레이하면 옵션의 바이처 더스트로 일부 능력을 계승해 주회 가능하다.
+	DATAFORM 동시 절정하면 호감도 상승치나 절정·피사정에 따른 소스 추가에 보너스가 들어간다.
+	DATAFORM 3일 금욕하면 【농후정액】이 되어 사정이 강화되지만, 사정한 다음 날에는 【농후정액】을 상실한다.
+	DATAFORM 계속 금욕하면 스트레스를 받거나 몽정한다.
+	DATAFORM 요리평가가 80점 이상이라면 기분이 좋아지고, 35점 이하라면 나빠진다.
+	DATAFORM 츠쿠모가미는 욕정이 올라가기 어렵고, 임신 확률이 낮은 편이지만 플레이어의 도구사용경험이 완화된다.
+	DATAFORM 신뢰도가 너무 낮으면 호감도가 올라가기 어려워진다. 데이트 중이라면 이 제약은 사라진다.
+	DATAFORM 육아중은 욕구 불만도에 상한이 걸린다. 아이가 자거나 통학중이라면…
+	DATAFORM 조제 세트를 소지하고 있지 않아도, 조제 가능한 장소가 몇개인가 있다.
+	DATAFORM 조제 성공율에는 조제 Lv 외에 교양도 영향을 준다.
+	DATAFORM 특정 계절에만 채집할 수 있는 소재가 있다.
+	DATAFORM 고급 재료를 채집하고 싶다면, 채집 레벨을 올려라.
+	DATAFORM 일하는 사람 앞에서 연주하지 말자.
+	DATAFORM 연회 중에 연주하면 쌈짓돈을 받을 수도 있지만, 솜씨가 모자라면 혼난다.
+	DATAFORM 발원해서 인연 맺기를 원하면, 다음날 그 캐릭터가 내방해 온다.
+	DATAFORM 일등의 예정은 능력 화면이나 캘린더에서 확인할 수 있다.
+	DATAFORM resource 폴더 내에 다른 사람판 및 교체 화상의 압축 파일이 있다.
+	DATAFORM 타깃으로 하고 있는 캐릭터를 클릭하면 버튼 하나로 스탠딩과 얼굴 화상을 전환할 수 있다。
+	DATAFORM 일부 캐릭터에게서 소재를 살 수 있다.
+ENDDATA
+PRINTFORML 
+

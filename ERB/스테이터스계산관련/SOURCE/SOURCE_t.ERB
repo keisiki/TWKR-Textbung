@@ -1,0 +1,980 @@
+﻿@SOURCE_CHECK
+#DIM 키스마크반감
+#DIM 욕구불만도상승
+#DIM 경험증가량
+#DIM 체위보존
+#DIM V섹스보존
+#DIM PLAYER체위보존
+#DIM PLAYERV섹스보존
+
+#DIM 중독보정
+VARSET LOCAL
+SELECTCOM = TFLAG:3
+중독보정 = 0
+
+;조교 SELECTCOM의 시간경과
+CALL TRACHECK_TIME
+
+;-------------------------------------------------
+;몸 접촉의 계속, 해제
+;-------------------------------------------------
+CALL TOUCH_SUCCESSION(TARGET)
+
+;-------------------------------------------------
+;TRYCALLFORM TOUCH_SUCCESSION_{SELECTCOM}(TARGET)
+;TOUCH_SUCCESSION로 가고 있는 처리를 각 커맨드 파일에 분산시키는 것으로, 커맨드 추가를 손쉽게 하고 싶다
+;-------------------------------------------------
+
+IF !카운터우타즈커맨드(SELECTCOM)
+	;카운터
+	FOR LOCAL, 1, GET_TARGETNUM() + 1
+		SIF TARGET:LOCAL <= 0
+			CONTINUE
+		CALL EVENT_COUNTER(TARGET:LOCAL, LOCAL)
+		CALL EVENT_COUNTER_SOURCE(TARGET:LOCAL, LOCAL)
+	NEXT
+	;CALL EVENT_COUNTER_COMBINATION
+ENDIF
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:현재위치 != CFLAG:MASTER:현재위치
+		CONTINUE
+	;성교 플래그의 설정
+	IF TEQUIP:LOCAL:V접촉부위 == 1
+		TEQUIP:LOCAL:50 = MASTER
+	ELSE
+		TEQUIP:LOCAL:50 = -1
+	ENDIF
+	IF TEQUIP:LOCAL:A접촉부위 == 1
+		TEQUIP:LOCAL:51 = MASTER
+	ELSE
+		TEQUIP:LOCAL:51 = -1
+	ENDIF
+	IF TEQUIP:LOCAL:P접촉부위 == 6
+		TEQUIP:PLAYER:50 = LOCAL
+	ELSE
+		TEQUIP:PLAYER:50 = -1
+	ENDIF
+	IF TEQUIP:LOCAL:P접촉부위 == 7
+		TEQUIP:PLAYER:51 = LOCAL
+	ELSE
+		TEQUIP:PLAYER:51 = -1
+	ENDIF
+NEXT
+
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:현재위치 != CFLAG:MASTER:현재위치
+		CONTINUE
+	;P가 들어 있지 않으면 체위 리셋
+	IF TEQUIP:LOCAL:50 < 0 && TEQUIP:LOCAL:51 < 0
+		TEQUIP:LOCAL:체위 = 0
+	;V성교중 또한 전회 V성교라면 TEQUIP는 복귀
+	ELSEIF TEQUIP:LOCAL:50 >= 0 && TEQUIP:LOCAL:116
+		SIF TEQUIP:LOCAL:116 != 3	;指挿入でない場合のみ適用
+			TEQUIP:LOCAL:106 = TEQUIP:LOCAL:116
+	;A성교중 또한 전회 A성교라면 TEQUIP는 복귀
+	ELSEIF TEQUIP:LOCAL:51 >= 0 && TEQUIP:LOCAL:117
+		SIF TEQUIP:LOCAL:117 != 3	;指挿入でない場合のみ適用
+			TEQUIP:LOCAL:107 = TEQUIP:LOCAL:117
+	ENDIF
+	;내친 김에 발기도의 보존
+	CFLAG:LOCAL:발기도 = BASE:LOCAL:발기
+NEXT
+;-------------------------------------------------
+;카운터 탈의의 열매 처리
+;-------------------------------------------------
+CALL DATUI_LATE
+
+;-------------------------------------------------
+;@COM의 호출
+;-------------------------------------------------
+;TARGET 마다 COMF 호출
+CALL CALL_COM(TARGET)
+
+체위보존 = TEQUIP:체위
+V섹스보존 = TEQUIP:V섹스
+PLAYER체위보존 = TEQUIP:MASTER:체위
+PLAYERV섹스보존 = TEQUIP:PLAYER:V섹스
+
+TFLAG:전회커맨드결과 = RESULT
+;RESULT가-1이라면 캔슬 판정
+SIF TFLAG:전회커맨드결과 < 0
+	RETURN 0
+;RESULT가 0이라면 SOURCE 계산 SKIP
+SIF !TFLAG:전회커맨드결과
+	GOTO SOURCE_SKIP
+
+IF OAZUKE(TARGET)
+	PRINTFORML 미뤄짐을 당한 %타겟은% 불만스러운 듯 하다…
+	SOURCE:반감 += 3000
+	SOURCE:굴종 += 500
+	SOURCE:복종 -= 1500
+ENDIF
+
+CALL PEARL_CHK_MASTER
+
+FOR LOCAL,0,CHARANUM
+	키스마크반감 = 0
+	SIF CFLAG:LOCAL:현재위치 == SUKIMA()
+		CONTINUE
+	;로터삽입
+	IF CFLAG:LOCAL:로터삽입
+		SOURCE:LOCAL:쾌V += TIME_PROGRESS(TIME:1) * 10
+		CFLAG:LOCAL:로터삽입 = MAX(CFLAG:LOCAL:로터삽입 - TIME_PROGRESS(TIME:1),0)
+		IF CFLAG:LOCAL:로터삽입 == 0
+			PRINTFORMW %CALLNAME:LOCAL%가 장착하고 있던 로터의 전지가 끊어졌다
+			IF TALENT:LOCAL:처녀 < 1
+				EXP:LOCAL:V경험 += 9
+			ELSE
+				TFLAG:2 = 1
+			ENDIF
+		ENDIF
+	ENDIF
+	IF CFLAG:LOCAL:로터A삽입
+		SOURCE:LOCAL:쾌A += TIME_PROGRESS(TIME:1) * 10
+		CFLAG:LOCAL:로터A삽입 = MAX(CFLAG:LOCAL:로터A삽입 - TIME_PROGRESS(TIME:1),0)
+		IF CFLAG:LOCAL:로터A삽입 == 0
+			PRINTFORMW %CALLNAME:LOCAL%가 장착하고 있던 로터의 전지가 끊어졌다
+			EXP:LOCAL:A경험 += 9
+		ENDIF
+	ENDIF
+	IF TFLAG:키스마크 && LOCAL > 0 && !TFLAG:붕대 && !FLAG:70 && !CFLAG:LOCAL:수면
+		IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치 && TFLAG:키스마크 != LOCAL
+			PRINTFORMW %CALLNAME:LOCAL%는 %CALLNAME:MASTER%의 키스마크를 보고 비난했다…
+			IF TALENT:LOCAL:연모
+				키스마크반감 = 500
+			ELSEIF TALENT:LOCAL:사모
+				키스마크반감 = 300
+			ENDIF
+			키스마크반감 = 키스마크반감 * (TALENT:LOCAL:정조 + 2) / 2
+			SOURCE:LOCAL:반감 += 키스마크반감
+		ENDIF
+	ENDIF
+;입지 않으면 노출이 증가
+	SIF !EQUIP:LOCAL:하반신속옷1 && !EQUIP:LOCAL:하반신속옷2 && !TALENT:LOCAL:음란
+		SOURCE:LOCAL:노출 += TIME_PROGRESS(TIME:1)
+
+	SIF IsInsenceValid(LOCAL) || IsGardenValid(LOCAL)
+		SOURCE:LOCAL:욕정 += TIME_PROGRESS(TIME:1) * (RAND:((ABL:LOCAL:욕망) + 1) + 3)
+
+	SIF TEQUIP:LOCAL:유두빨기
+		CALL EQUIP_COM11(LOCAL)
+	SIF TEQUIP:LOCAL:가슴주무르기
+		CALL EQUIP_COM12(LOCAL)
+	SIF TEQUIP:LOCAL:계속키스
+		CALL EQUIP_COM19(LOCAL)
+	;장착계는 다음에 생각한다
+	SIF LOCAL > 0 && !CFLAG:LOCAL:동실
+		CONTINUE
+	;-------------------------------------------------
+	;주인, 동성, 조교자의 능력의 처리
+	;-------------------------------------------------
+	CALL SOURCE_SEX_CHECK(LOCAL)
+	CALL PLAYER_SKILL_CHECK(LOCAL)
+
+	;-------------------------------------------------
+	;기교, 호감도, 무드, 이성의 체크
+	;-------------------------------------------------
+	FOR LOCAL:1,0,100
+		SOURCE:LOCAL:(LOCAL:1) = SOURCE:LOCAL:(LOCAL:1) *  MASTER_FAVOR_CHECK(LOCAL,LOCAL:1) * TECHNIQUE_CHECK(LOCAL,LOCAL:1) / 10000
+		SOURCE:LOCAL:(LOCAL:1) = SOURCE:LOCAL:(LOCAL:1) *  MOOD_CHECK(LOCAL,LOCAL:1) * REASON_CHECK(LOCAL,LOCAL:1) / 10000
+	NEXT
+
+	;-------------------------------------------------
+	;중독 충족의 체크
+	;-------------------------------------------------
+	;자위중독
+	IF EXP_UP(22,LOCAL)
+		FOR LOCAL:1,0,100
+			;쾌감, 성행동, 욕정, 복종, 노출, 굴종
+			SIF (LOCAL:1 >= 0 && LOCAL:1 <= 9) || LOCAL:1 == 11 || (LOCAL:1 >= 15 && LOCAL:1 <= 18) 
+				SOURCE:LOCAL:(LOCAL:1) = SOURCE:LOCAL:(LOCAL:1) * (100 + GET_REVISION(ABL:LOCAL:자위중독, 500, 15)) / 100
+		NEXT
+	ENDIF
+	;-------------------------------------------------
+	;바이브 등 붙이고 있을 뿐 아이템의 체크
+	;-------------------------------------------------
+	CALL EQUIP_CHECK(LOCAL)
+	;-------------------------------------------------
+	;경험 가산
+	;-------------------------------------------------
+	CALL SOURCE_EXP(LOCAL)
+	;-------------------------------------------------
+	;처녀, 동정상실의 처리
+	;-------------------------------------------------
+	CALL LOST_VIRGIN(LOCAL)
+	CALL 동정키스미경험상실(LOCAL)
+	;-------------------------------------------------
+	;쾌C의 소스
+	;-------------------------------------------------
+	CALL SOURCE_쾌C(LOCAL)
+	;-------------------------------------------------
+	;쾌V의 소스
+	;-------------------------------------------------
+	CALL SOURCE_쾌V(LOCAL)
+	;-------------------------------------------------
+	;쾌A의 소스
+	;-------------------------------------------------
+	CALL SOURCE_쾌A(LOCAL)
+	;-------------------------------------------------
+	;쾌B의 소스
+	;-------------------------------------------------
+	CALL SOURCE_쾌B(LOCAL)
+	;-------------------------------------------------
+	;-------------------------------------------------
+	;쾌M의 소스
+	;-------------------------------------------------
+	CALL SOURCE_쾌M(LOCAL)
+	;-------------------------------------------------
+	;여쾌C의 소스
+	;-------------------------------------------------
+	SIF !(TALENT:PLAYER:2 & 2)
+	CALL SOURCE_여쾌C(LOCAL)
+	;-------------------------------------------------
+	;여쾌V의 소스
+	;-------------------------------------------------
+	CALL SOURCE_여쾌V(LOCAL)
+	;-------------------------------------------------
+	;여쾌A의 소스
+	;-------------------------------------------------
+	CALL SOURCE_여쾌A(LOCAL)
+	;-------------------------------------------------
+	;여쾌B의 소스
+	;-------------------------------------------------
+	CALL SOURCE_여쾌B(LOCAL)
+	;-------------------------------------------------
+	;여쾌M의 소스
+	;-------------------------------------------------
+	CALL SOURCE_여쾌M(LOCAL)
+	;-------------------------------------------------
+NEXT
+
+;-------------------------------------------------
+;같은 커맨드의 연속실행에 의한 상하의 처리(쾌락계)
+;-------------------------------------------------
+IF SELECTCOM == PREVCOM && TFLAG:50 == TFLAG:151 && (SELECTCOM < 350 || SELECTCOM >= 500) && 연속실행()
+	;UP:0,1,2,3은 절정에 관련되므로 먼저 처리되어 있다
+	CUP:TARGET:쾌C /= 2
+	CUP:TARGET:쾌V /= 2
+	CUP:TARGET:쾌A /= 2
+	CUP:TARGET:쾌B /= 2
+	CUP:TARGET:쾌M /= 2
+ENDIF
+IF TCVAR:TARGET:억지로
+	TIMES CUP:TARGET:쾌C, 0.75
+	TIMES CUP:TARGET:쾌V, 0.75
+	TIMES CUP:TARGET:쾌A, 0.75
+	TIMES CUP:TARGET:쾌B, 0.75
+	TIMES CUP:TARGET:쾌M, 0.75
+ENDIF
+IF TEQUIP:TARGET:애태우기모드
+	TIMES CUP:TARGET:쾌C, 0.90
+	TIMES CUP:TARGET:쾌V, 0.90
+	TIMES CUP:TARGET:쾌A, 0.90
+	TIMES CUP:TARGET:쾌B, 0.90
+	TIMES CUP:TARGET:쾌M, 0.90
+ENDIF
+IF TCVAR:TARGET:만취
+	TIMES CUP:TARGET:쾌C, 0.70
+	TIMES CUP:TARGET:쾌V, 0.70
+	TIMES CUP:TARGET:쾌A, 0.70
+	TIMES CUP:TARGET:쾌B, 0.70
+	TIMES CUP:TARGET:쾌M, 0.70
+ENDIF
+
+FOR LOCAL,0,CHARANUM
+	;장착계는 다음에 생각한다
+	SIF LOCAL > 0 && !CFLAG:LOCAL:동실
+		CONTINUE
+	;그 외계 소스 계산 처리
+	CALL SOURCE_CVAB_EXTRA(LOCAL)
+	
+	BASE:LOCAL:발기 = BASE:LOCAL:발기 + CUP:LOCAL:쾌C / 5 + CUP:LOCAL:쾌V / 10 + CUP:LOCAL:쾌A / 10 + CUP:LOCAL:쾌B / 10
+	;-------------------------------------------------
+	;절정 처리
+	;-------------------------------------------------
+	CALL ORGASM_ADD(LOCAL)
+NEXT
+
+;-------------------------------------------------
+;사정 체크(양성·남자)
+;-------------------------------------------------
+;요점 검토
+CALL EVENT_SHOOT
+
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:현재위치 == SUKIMA()
+		CONTINUE
+	;장착계는 다음에 생각한다
+	IF LOCAL > 0 && !CFLAG:LOCAL:동실
+		SIF IsGardenValid(LOCAL)
+			CALL SOURCE_욕정(LOCAL)
+		CONTINUE
+	ENDIF
+	;-------------------------------------------------
+	;조교 대상의 분유체크
+	;-------------------------------------------------
+	CALL TARGET_MILK_CHECK(LOCAL)
+	;-------------------------------------------------
+	;중독 충족 체크 ;KR판 구잔재 또는 오리지날
+	;-------------------------------------------------
+	;정액중독, 질내사정중독, 항내사정중독
+	IF FLAG:70 == 1 && CFLAG:TARGET:344 == 0
+	ELSE
+		IF EXP_UP(14, LOCAL)
+			IF TALENT:MASTER:농후정액 == 1
+				중독보정 = 100 + GET_REVISION(ABL:LOCAL:정액중독 * EXP_UP(14, LOCAL), 500, 25)
+			ELSE
+				중독보정 = 100 + GET_REVISION(ABL:LOCAL:정액중독 * EXP_UP(14, LOCAL), 500, 50)
+			ENDIF
+			SOURCE:LOCAL:사랑 = SOURCE:LOCAL:사랑 * 중독보정 / 100
+			SOURCE:LOCAL:성행동 = SOURCE:LOCAL:성행동 * 중독보정 / 100
+			SOURCE:LOCAL:달성 = SOURCE:LOCAL:달성 * 중독보정 / 100
+			SOURCE:LOCAL:욕정 = SOURCE:LOCAL:욕정 * 중독보정 / 100
+			SOURCE:LOCAL:복종 = SOURCE:LOCAL:복종 * 중독보정 / 100
+			SOURCE:LOCAL:굴종 = SOURCE:LOCAL:굴종 * 중독보정 / 100
+		ENDIF
+		IF EXP_UP(17, LOCAL)
+			IF TALENT:MASTER:농후정액 == 1
+				중독보정 = 100 + GET_REVISION(ABL:LOCAL:항내사정중독 * EXP_UP(17, LOCAL), 500, 25)
+			ELSE
+				중독보정 = 100 + GET_REVISION(ABL:LOCAL:항내사정중독 * EXP_UP(17, LOCAL), 500, 50)
+			ENDIF
+			SIF TALENT:LOCAL:동물귀 && TEQUIP:LOCAL:체위 == 2
+				중독보정 = 중독보정 * 11 / 10
+			SOURCE:LOCAL:사랑 = SOURCE:LOCAL:사랑 * 중독보정 / 100
+			SOURCE:LOCAL:성행동 = SOURCE:LOCAL:성행동 * 중독보정 / 100
+			SOURCE:LOCAL:달성 = SOURCE:LOCAL:달성 * 중독보정 / 100
+			SOURCE:LOCAL:욕정 = SOURCE:LOCAL:욕정 * 중독보정 / 100
+			SOURCE:LOCAL:복종 = SOURCE:LOCAL:복종 * 중독보정 / 100
+			SOURCE:LOCAL:굴종 = SOURCE:LOCAL:굴종 * 중독보정 / 100
+		ENDIF
+		IF EXP_UP(16, LOCAL)
+			IF TALENT:MASTER:농후정액 == 1
+				중독보정 = 100 + GET_REVISION(ABL:LOCAL:질내사정중독 * EXP_UP(16, LOCAL), 500, 25)
+			ELSE
+				중독보정 = 100 + GET_REVISION(ABL:LOCAL:질내사정중독 * EXP_UP(16, LOCAL), 500, 50)
+			ENDIF
+			SIF TALENT:LOCAL:동물귀 && TEQUIP:LOCAL:체위 == 2
+				중독보정 = 중독보정 * 11 / 10
+			SIF CFLAG:LOCAL:생리주기 == 7
+				중독보정 = 중독보정 * 12 / 10
+			SOURCE:LOCAL:사랑 = SOURCE:LOCAL:사랑 * 중독보정 / 100
+			SOURCE:LOCAL:성행동 = SOURCE:LOCAL:성행동 * 중독보정 / 100
+			SOURCE:LOCAL:달성 = SOURCE:LOCAL:달성 * 중독보정 / 100
+			SOURCE:LOCAL:욕정 = SOURCE:LOCAL:욕정 * 중독보정 / 100
+			SOURCE:LOCAL:복종 = SOURCE:LOCAL:복종 * 중독보정 / 100
+			SOURCE:LOCAL:굴종 = SOURCE:LOCAL:굴종 * 중독보정 / 100
+		ENDIF
+	ENDIF
+	;-------------------------------------------------
+	;수간으로부터의 복귀 사전 처리
+	;-------------------------------------------------
+	CALL DRUNK_RECOVER_BEFORE(TARGET)
+	;-------------------------------------------------
+	;사랑의 소스
+	;-------------------------------------------------
+	CALL SOURCE_사랑(LOCAL)
+	;-------------------------------------------------
+	;성행동의 소스
+	;-------------------------------------------------
+	CALL SOURCE_성행동(LOCAL)
+	;-------------------------------------------------
+	;달성의 소스
+	;-------------------------------------------------
+	CALL SOURCE_달성(LOCAL)
+	;-------------------------------------------------
+	;아픔의 소스
+	;-------------------------------------------------
+	CALL SOURCE_고통(LOCAL)
+	;-------------------------------------------------
+	;우려의 소스
+	;-------------------------------------------------
+	CALL SOURCE_공포(LOCAL)
+	;-------------------------------------------------
+	;액체의 소스
+	;-------------------------------------------------
+	CALL SOURCE_액체(LOCAL)
+	;-------------------------------------------------
+	;욕정의 소스
+	;-------------------------------------------------
+	CALL SOURCE_욕정(LOCAL)
+	;-------------------------------------------------
+	;복종의 소스
+	;-------------------------------------------------
+	CALL SOURCE_복종(LOCAL)
+	;-------------------------------------------------
+	;노출의 소스
+	;-------------------------------------------------
+	CALL SOURCE_노출(LOCAL)
+	;-------------------------------------------------
+	;굴종의 소스
+	;-------------------------------------------------
+	CALL SOURCE_굴종(LOCAL)
+	
+	;-------------------------------------------------
+	;환락의 소스
+	;-------------------------------------------------
+	CALL SOURCE_환락(LOCAL)
+	;-------------------------------------------------
+	;정복의 소스
+	;-------------------------------------------------
+	CALL SOURCE_정복(LOCAL)
+	;-------------------------------------------------
+	;수동의 소스
+	;-------------------------------------------------
+	CALL SOURCE_수동(LOCAL)
+	;-------------------------------------------------
+	;유혹의 소스
+	;-------------------------------------------------
+	CALL SOURCE_유혹(LOCAL)
+	;-------------------------------------------------
+	;송구스러운 소스
+	;-------------------------------------------------
+	CALL SOURCE_송구스러운(LOCAL)
+	;-------------------------------------------------
+	;도발의 소스
+	;-------------------------------------------------
+	CALL SOURCE_도발(LOCAL)
+	;-------------------------------------------------
+	;봉사의 소스
+	;-------------------------------------------------
+	CALL SOURCE_봉사(LOCAL)
+	;-------------------------------------------------
+	;강요의 소스
+	;-------------------------------------------------
+	CALL SOURCE_강요(LOCAL)
+	;-------------------------------------------------
+	;가학의 소스
+	;-------------------------------------------------
+	CALL SOURCE_가학(LOCAL)
+	
+	;-------------------------------------------------
+	;불결의 소스
+	;-------------------------------------------------
+	CALL SOURCE_불결(LOCAL)
+	;-------------------------------------------------
+	;울굴의 소스
+	;-------------------------------------------------
+	CALL SOURCE_울굴(LOCAL)
+	;-------------------------------------------------
+	;일탈의 소스
+	;-------------------------------------------------
+	CALL SOURCE_일탈(LOCAL)
+	;-------------------------------------------------
+	;반감의 소스
+	;-------------------------------------------------
+	CALL SOURCE_반감(LOCAL)
+	;-------------------------------------------------
+	;소질등에 의한 상하의 처리
+	;-------------------------------------------------
+	CALL SOURCE_EXTRA(LOCAL)
+	;-------------------------------------------------
+	;수면심도의 감소 처리
+	;-------------------------------------------------
+	CALL 수면심도감소(LOCAL)
+NEXT
+;-------------------------------------------------
+;같은 커맨드의 연속실행에 의한 상하의 처리
+;-------------------------------------------------
+IF SELECTCOM == PREVCOM && TFLAG:50 == TFLAG:151 && (SELECTCOM < 350 || SELECTCOM >= 500) && 연속실행()
+	;UP:0,1,2는 절정에 관련되므로 먼저 처리되어 있다
+	UP:욕정 /= 2
+	UP:복종 /= 2
+	UP:굴복 /= 2
+	UP:습득 /= 2
+	UP:치정 /= 2
+	UP:공포 /= 2
+	UP:고통 /= 2
+	UP:호의 /= 2
+	UP:우월 /= 2
+ENDIF
+
+LOCAL:1 = 0
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:현재위치 == SUKIMA()
+		CONTINUE
+	LOCAL:1 += CUP:LOCAL:욕정 / 5
+	LOCAL:1 += MAX(5,(ABL:LOCAL:마조끼 - 3)) * (CUP:LOCAL:고통 + CUP:LOCAL:고통) / 2
+	LOCAL:1 += MAX(5,(ABL:LOCAL:마조끼 - 1)) * CUP:LOCAL:치정 / 2
+	LOCAL:1 = MIN(500,LOCAL:1)
+	BASE:LOCAL:발기 = BASE:LOCAL:발기 + LOCAL:1
+	;장착계는 다음에 생각한다
+	SIF LOCAL > 0 && !CFLAG:LOCAL:동실
+		CONTINUE
+	;-------------------------------------------------
+	;체력·기력의 감소
+	;-------------------------------------------------
+	CALL SOURCE_DOWNBASE(LOCAL)
+	;-------------------------------------------------
+	;고통쾌락경험, 봉사쾌락경험의 체크
+	;-------------------------------------------------
+	CALL EXP_GOT_CHECK(LOCAL)
+NEXT
+
+$SOURCE_SKIP
+;-------------------------------------------------
+;조교 말
+;-------------------------------------------------
+;CALL KOJO_MESSAGE_COM
+CALL KOJO_MESSAGE_SEND("COMMAND",-1,TARGET,-1,-1)
+;삽화 정면계 고무 있는 사정시, 체위도 없어지는 것은 어째서다
+IF V섹스보존 != -1 && GROUPMATCH(체위보존,1,2,3,4,5) && !FLAG:삽입애니메이션필터 & 아니메필터_삽입
+	SIF FLAG:그림표시 && FLAG:삽화표시
+		PRINTL
+	SELECTCASE 체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_정상위("正常位_挿入")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_후배위("後背位_挿入")
+	ENDSELECT
+ENDIF
+
+IF PLAYERV섹스보존 != -1 && GROUPMATCH(PLAYER체위보존, 1,2,3,4,5) && !FLAG:삽입애니메이션필터 & 아니메필터_삽입
+	SIF FLAG:그림표시 && FLAG:삽화표시
+		PRINTL
+	SELECTCASE PLAYER체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_정상위("正常位_挿入")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_후배위("後背位_挿入")
+	ENDSELECT
+ENDIF
+	
+
+;카운터
+IF TARGET
+	LOCAL:4 = TARGET
+	DRAWLINE
+	FOR LOCAL, 1, GET_TARGETNUM() + 1
+		SIF TCVAR:(TARGET:LOCAL):30 > 1
+			CONTINUE
+		SIF TCVAR:(TARGET:LOCAL):20 && TFLAG:193 != 99 && !CFLAG:TARGET:동침중
+			CALL KOJO_MESSAGE_SEND("COUNTER",2,TARGET:LOCAL,0,0)
+	NEXT
+	TARGET = LOCAL:4
+ENDIF
+
+;-------------------------------------------------
+;수간으로부터의 복귀 처리
+;-------------------------------------------------
+CALL DRUNK_RECOVER(TARGET)
+
+;-------------------------------------------------
+;EXP 취득 표시
+;-------------------------------------------------
+LOCAL:2 = 0
+LOCAL:3 = 0
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:현재위치 != CFLAG:MASTER:현재위치
+		CONTINUE
+	SIF TCVAR:LOCAL:표시컷
+		CONTINUE
+	FOR LOCAL:1,0,100
+		IF EXP_UP(LOCAL:1,LOCAL)
+			경험증가량 = EXP_UP(LOCAL:1,LOCAL)
+			LOCAL:2 ++
+			LOCAL:3 ++
+			SIF LOCAL:2 == 1
+				PRINTL
+			IF LOCAL:1 == FLAG:가호 && FLAG:가호 && LOCAL == MASTER
+				EXP:MASTER:(LOCAL:1) ++
+				경험증가량 ++
+			ENDIF
+			PRINTFORML %EXPNAME:(LOCAL:1)% +{경험증가량}(%CALLNAME:LOCAL%)
+			;당신은 무자각경험을 얻지 않게
+			IF LOCAL:1 >= 0 && LOCAL:1 <= 3 && LOCAL && (FLAG:70 || CFLAG:장난)
+				EXP:LOCAL:((LOCAL:1) + 60) += 1
+			ENDIF
+		ENDIF
+	NEXT
+	LOCAL:2 = 0
+NEXT
+SIF LOCAL:3
+	WAIT
+;-------------------------------------------------
+;ABLUP
+;-------------------------------------------------
+IF !FLAG:ABLUP생략
+	FOR LOCAL,0,CHARANUM
+		SIF CFLAG:LOCAL:현재위치 != CFLAG:MASTER:현재위치
+			CONTINUE
+		SIF TCVAR:LOCAL:표시컷
+			CONTINUE
+		CALL SOURCE_ABLUP(LOCAL)
+	NEXT
+ENDIF
+;-------------------------------------------------
+;촉수의 사정시의 말
+;-------------------------------------------------
+;DEBUG	CALL KOJO_MESSAGE_PALAMCNG_E
+CALL KOJO_MESSAGE_SEND("PALAM",5,TARGET,-1,-1)
+;-------------------------------------------------
+;노예의 절정시의 말
+;-------------------------------------------------
+; CALL MESSAGE_PALAMCNG_B2
+
+CALL KOJO_MESSAGE_SEND("PALAM",2,TARGET,-1,-1)
+;삽화 삽입∨절정
+IF NOWEX:V절정 && V섹스보존 != -1 && GROUPMATCH(체위보존, 1,2,3,4,5)
+	IF !GETBIT(TCVAR:50,1)
+		SELECTCASE 체위보존
+			CASE 1,3,4
+				CALL PRINT_IMAGE_ANIMATION_정상위("正常位_絶頂")
+			CASE 2,5
+				CALL PRINT_IMAGE_ANIMATION_후배위("後背位_絶頂")
+		ENDSELECT
+	ENDIF
+ENDIF
+
+;挿絵　PALYER삽입∨절정
+IF NOWEX:MASTER:V절정 && PLAYERV섹스보존 != -1 && GROUPMATCH(PLAYER체위보존,1,2,3,4,5)
+	IF NOWEX:TARGET:사정 == 0
+		SELECTCASE PLAYER체위보존
+			CASE 1,3,4
+				CALL PRINT_IMAGE_ANIMATION_정상위("正常位_絶頂")
+			CASE 2,5
+				CALL PRINT_IMAGE_ANIMATION_후배위("後背位_絶頂")
+		ENDSELECT
+	ENDIF
+ENDIF
+;DEBUG	CALL KOJO_MESSAGE_PALAMCNG_B
+
+
+;-------------------------------------------------
+;노예의 초조하게 해 때의 말
+;-------------------------------------------------
+IF (EX:TARGET:C절정직전 + EX:TARGET:V절정직전 + EX:TARGET:A절정직전 + EX:TARGET:M절정직전 + EX:TARGET:B절정직전) > 0 && TEQUIP:TARGET:애태우기모드
+	CALL KOJO_MESSAGE_SEND("PALAM",6,TARGET,-1,-1)
+	;우후후시 계 장비 리셋
+	FOR LOCAL,10, 80
+		SELECTCASE LOCAL
+			CASE 18 TO 20, 25 TO 40, 49 TO 51
+				CONTINUE
+		ENDSELECT
+		TEQUIP:TARGET:LOCAL = 0
+	NEXT
+ENDIF
+;-------------------------------------------------
+;조교자의 사정시의 말
+;-------------------------------------------------
+CALL 사정절정표기(MASTER)
+CALL 사정절정표기(TARGET)
+CALL MESSAGE_PALAMCNG_B2
+
+;DEBUG	CALL KOJO_MESSAGE_PALAMCNG_A
+CALL KOJO_MESSAGE_SEND("PALAM",1,TARGET,-1,-1)
+
+;삽화 삽입 사정 정상위 계열
+IF GETBIT(TCVAR:50,1) && TEQUIP:V섹스 != -1 && !TCVAR:PLAYER:콘돔 && GROUPMATCH(체위보존,1,2,3,4,5)
+	SIF FLAG:그림표시 && FLAG:삽화표시
+		PRINTL
+	SELECTCASE 체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_정상위("正常位_射精")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_후배위("後背位_射精")
+	ENDSELECT
+ENDIF
+
+;삽화 삽입 사정
+;相手がコンドーム付けることあるのかな？
+IF NOWEX:TARGET:사정 > 0 && PLAYERV섹스보존 != -1 && !TCVAR:TARGET:콘돔 && GROUPMATCH(PLAYER체위보존,1,2,3,4,5)
+	SIF FLAG:그림표시 && FLAG:삽화표시
+		PRINTL
+	SELECTCASE PLAYER체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_正常位("正常位_射精")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_後背位("後背位_射精", 1)
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+;조교 후의 말
+;-------------------------------------------------
+;DEBUG	CALL KOJO_MESSAGE_PALAMCNG_C
+CALL KOJO_MESSAGE_SEND("PALAM",3,TARGET,-1,-1)
+;-------------------------------------------------
+;파라미터 변동에 의한 말
+;-------------------------------------------------
+;DEBUG	CALL KOJO_MESSAGE_PALAMCNG_D
+CALL KOJO_MESSAGE_SEND("PALAM",4,TARGET,-1,-1)
+;-------------------------------------------------
+;각인 취득의 체크(장난중은 금지)
+;-------------------------------------------------
+IF !CFLAG:TARGET:장난
+	CALL MARK_GOT_CHECK(TARGET)
+;-------------------------------------------------
+;각인 취득에 의한 말(장난중은 금지)
+;-------------------------------------------------
+;DEBUG	CALL KOJO_MESSAGE_MARKCNG
+	CALL KOJO_MESSAGE_SEND("MARK",-1,TARGET,-1,-1)
+;-------------------------------------------------
+;분유메시지
+;-------------------------------------------------
+SIF NOWEX:분유
+	CALL TARGET_MILK_MESSAGE(TARGET)
+;-------------------------------------------------
+;순종 상승에 의한[저항]의 소멸 체크(장난중은 금지)
+;-------------------------------------------------
+	CALL JUJUN_UP_CHECK
+ENDIF
+RESETCOLOR
+;-------------------------------------------------
+;조교 소스의 표시
+;-------------------------------------------------
+CALL SHOW_SOURCE
+;-------------------------------------------------
+;수치 변동의 표시
+;-------------------------------------------------
+SETCOLOR C_YELLOW
+;궁합
+R = NO:PLAYER
+SIF RELATION:R != 0
+	PRINTFORML ＜궁합{RELATION:R/100}.{RELATION:R%100}배＞
+
+SIF TCVAR:TARGET:마음대로해
+	PRINTFORML ＜농락중＞
+
+SIF SELECTCOM == 21
+	PRINTFORML ＜【아무것도 하지 않는】의 효과로 %CALLNAME:MASTER%의 쾌입수량 증가＞
+SIF SELECTCOM == 22
+	PRINTFORML ＜【권해 받는】의 효과로 우월 증가＞
+
+SIF TCVAR:커맨드C보정 && SOURCE:쾌C
+	PRINTFORML ＜커맨드 보정에 의해 쾌C{ABS(TCVAR:커맨드C보정)}\%\@ TCVAR:커맨드C보정 > 0 ?  업# 다운\@＞
+SIF TCVAR:커맨드B보정 && SOURCE:쾌B
+	PRINTFORML ＜커맨드 보정에 의해 쾌B{ABS(TCVAR:커맨드B보정)}\%\@ TCVAR:커맨드B보정 > 0 ?  업# 다운\@＞
+SIF TCVAR:커맨드V보정 && SOURCE:쾌V
+	PRINTFORML ＜커맨드 보정에 의해 쾌V{ABS(TCVAR:커맨드V보정)}\%\@ TCVAR:커맨드V보정 > 0 ?  업# 다운\@＞
+SIF TCVAR:커맨드A보정 && SOURCE:쾌A
+	PRINTFORML ＜커맨드 보정에 의해 쾌A{ABS(TCVAR:커맨드A보정)}\%\@ TCVAR:커맨드A보정 > 0 ?  업# 다운\@＞
+SIF TCVAR:커맨드M보정 && SOURCE:쾌M
+	PRINTFORML ＜커맨드 보정에 의해 쾌M{ABS(TCVAR:커맨드M보정)}\%\@ TCVAR:커맨드M보정 > 0 ?  업# 다운\@＞
+SIF SELECTCOM == PREVCOM && TFLAG:50 == TFLAG:151 && (SELECTCOM < 350 || SELECTCOM >= 500) && 연속실행()
+	PRINTL ＜동일 커맨드 연속실행＞
+;기력 0
+SIF BASE:1 <= 0
+	PRINTL ★기력 0★
+RESETCOLOR
+LOCAL:1 = 0
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:현재위치 == SUKIMA()
+		CONTINUE
+	IF DOWNBASE:LOCAL:체력
+		IF DOWNBASE:LOCAL:체력 > 0
+			SETCOLOR C_YELLOW
+			SIF DOWNBASE:LOCAL:체력 > 150
+				SETCOLOR C_RED
+			PRINTFORM 체력-{DOWNBASE:LOCAL:체력} 
+		ELSE
+			SETCOLOR C_GREEN
+			PRINTFORM 체력+{-DOWNBASE:LOCAL:체력}
+		ENDIF
+		LOCAL:1 ++
+	ENDIF
+	IF DOWNBASE:LOCAL:기력
+		IF DOWNBASE:LOCAL:기력 > 0
+			SETCOLOR C_YELLOW
+			SIF DOWNBASE:LOCAL:기력 > 150
+				SETCOLOR C_RED
+			PRINTFORM 기력-{DOWNBASE:LOCAL:기력} 
+		ELSE
+			SETCOLOR C_GREEN
+			PRINTFORM 기력+{-DOWNBASE:LOCAL:기력}
+		ENDIF
+		LOCAL:1 ++
+	ENDIF
+	RESETCOLOR
+	SIF LOCAL:1
+		PRINTFORML (%CALLNAME:LOCAL%)
+	LOCAL:1 = 0
+NEXT
+SIF TIME_PROGRESS(TIME:1) > 0 && SELECTCOM != 400 && SELECTCOM != 402 && SELECTCOM != 604 && !CFLAG:MASTER:우후후
+	PRINTFORML +{TIME_PROGRESS(TIME:1)}분
+SIF TIME_PROGRESS(TIME:1) >= 40
+	TCVAR:TARGET:가능한한움직이지않는다 = 1
+PRINTL 
+
+;-------------------------------------------------
+;파라미터의 상승＆표시(DOWN도 여기서)
+;-------------------------------------------------
+VARSET LOCAL
+FOR LOCAL:1,0,CHARANUM
+	SIF TCVAR:표시컷
+		CONTINUE
+	LOCAL:3 = 0
+	FOR LOCAL,0,100
+		SIF PALAMNAME:LOCAL == ""
+			CONTINUE
+		SIF CUP:(LOCAL:1):LOCAL - CDOWN:(LOCAL:1):LOCAL == 0
+			CONTINUE
+		IF !LOCAL:3
+			PRINTL
+			PRINTFORML %CALLNAME:(LOCAL:1)%
+		ENDIF
+		LOCAL:3 ++
+		LOCAL:2 = CUP:(LOCAL:1):LOCAL - CDOWN:(LOCAL:1):LOCAL
+		SIF CFLAG:(LOCAL:1):현재위치 == CFLAG:MASTER:현재위치
+			PRINTFORML %PALAMNAME:LOCAL,8,LEFT% {PALAM:(LOCAL:1):LOCAL,10,LEFT} + {CUP:(LOCAL:1):LOCAL,10,LEFT} =   {PALAM:(LOCAL:1):LOCAL + CUP:(LOCAL:1):LOCAL,10,LEFT}
+		PALAM:(LOCAL:1):LOCAL += CUP:(LOCAL:1):LOCAL - CDOWN:(LOCAL:1):LOCAL
+		CUP:(LOCAL:1):LOCAL = 0
+		CDOWN:(LOCAL:1):LOCAL = 0
+	NEXT
+NEXT
+PRINTL
+
+IF GETBIT(TCVAR:50,1) && TEQUIP:V섹스 != -1 && !TCVAR:PLAYER:콘돔 && GROUPMATCH(체위보존,1,2,3,4,5)
+	SELECTCASE 체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_사정후("正常位_中出し")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_사정후("後背位_中出し")
+	ENDSELECT
+	IF FLAG:그림표시 && FLAG:삽화표시
+		WAIT
+		PRINTL
+	ENDIF
+ENDIF
+
+IF NOWEX:TARGET:사정 > 0 && PLAYERV섹스보존 != -1 && !TCVAR:TARGET:콘돔 && GROUPMATCH(PLAYER체위보존,1,2,3,4,5)
+	SELECTCASE PLAYER체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_사정후("正常位_中出し")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_사정후("後背位_中出し", 1)
+	ENDSELECT
+	IF FLAG:그림표시 && FLAG:삽화표시
+		WAIT
+		PRINTL
+	ENDIF
+ENDIF
+DRAWLINE
+;-------------------------------------------------
+;욕구불만도상승
+;-------------------------------------------------
+IF TCVAR:TARGET:욕구불만도관리 < GETPALAMLV(PALAM:욕정,15) && TARGET
+
+	IF TCVAR:TARGET:미약
+		욕구불만도상승 = (GETPALAMLV(PALAM:욕정,15) - TCVAR:TARGET:욕구불만도관리) * (30 + TCVAR:TARGET:발정 * 20 + TCVAR:TARGET:미약 * 20)
+	ELSE
+		욕구불만도상승 = (GETPALAMLV(PALAM:욕정,15) - TCVAR:TARGET:욕구불만도관리) * (30 + TCVAR:TARGET:발정 * 20 + TFLAG:선향옥토 * 10)
+	ENDIF
+	욕구불만도상승 = 욕구불만소질보정(TARGET, 욕구불만도상승)
+	SIF TALENT:TARGET:스침 == 1
+		욕구불만도상승 *= 3
+	CFLAG:TARGET:욕구불만도 = LIMIT(욕구불만도상승 + CFLAG:TARGET:욕구불만도, 0, 1000)
+	TCVAR:TARGET:욕구불만도관리 = GETPALAMLV(PALAM:욕정,15)
+ENDIF
+;-------------------------------------------------
+;호감도 상승
+;-------------------------------------------------
+CALL FAVOR_CALC(TARGET)
+
+;-------------------------------------------------
+;신뢰도 상승(우후후 이외＆상승 대상 커맨드 실행시)
+;-------------------------------------------------
+SIF (TFLAG:98 && !CFLAG:TARGET:우후후) && !CFLAG:TARGET:수면
+	CALL TRUST_CALC(TARGET)
+;-------------------------------------------------
+;수면심도 0에 의한 각성 처리
+;-------------------------------------------------
+SIF CFLAG:MASTER:장난 == 2 && (TCVAR:TARGET:수면심도 <= 0 || !수면시간(TARGET))
+	CALL 수면간발각(TARGET)
+
+;-------------------------------------------------
+;껴안기모드의 해제
+;-------------------------------------------------
+IF TFLAG:102 == 3 && TFLAG:껴안기모드
+	TFLAG:껴안기해방포인트 --
+	IF TFLAG:껴안기해방포인트 <= 0
+		PRINTFORML %조사처리(CALLNAME,"는")% 만족해 %CALLNAME:MASTER%의 몸으로부터 멀어졌다…
+		CALL 덮쳐지기종료
+		TFLAG:껴안기모드 = 0
+		TCVAR:안아다하고금지시간 = 90 + MAX(10 - ABL:욕망, 0) * 3 - MAX((CFLAG:적극성 + CFLAG:수줍음) * 5, 30)
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;변수의 리셋
+;-------------------------------------------------
+CVARSET TCVAR, GETNUM(TCVAR, "봉사플래그"), 0
+CVARSET TCVAR, GETNUM(TCVAR, "사정게이지증가량"), 0
+CVARSET TCVAR, GETNUM(TCVAR, "만취간들킴"), 0
+CVARSET TCVAR, GETNUM(TCVAR, "요리총평가치"), 0
+CVARSET TCVAR, GETNUM(TCVAR, "요리호평가치"), 0
+CVARSET TCVAR, GETNUM(TCVAR, "요리악평가치"), 0
+;-------------------------------------------------
+;조교 소스의 표시(DOWN도 여기서)
+;-------------------------------------------------
+@SHOW_SOURCE
+SIF TCVAR:표시컷
+	RETURN 0
+;PRINTL 　
+SIF SOURCE:쾌C > 0
+	PRINTFORM 쾌C({SOURCE:쾌C})
+SIF SOURCE:쾌V > 0
+	PRINTFORM 쾌V({SOURCE:쾌V})
+SIF SOURCE:쾌A > 0
+	PRINTFORM 쾌A({SOURCE:쾌A})
+SIF SOURCE:쾌B > 0
+	PRINTFORM 쾌B({SOURCE:쾌B})
+SIF SOURCE:쾌M > 0
+	PRINTFORM 쾌M({SOURCE:쾌M})
+SIF SOURCE:사랑 > 0
+	PRINTFORM 사랑({SOURCE:사랑})
+SIF SOURCE:성행동 > 0
+	PRINTFORM 성행동({SOURCE:성행동})
+SIF SOURCE:달성 > 0
+	PRINTFORM 달성감({SOURCE:달성})
+SIF SOURCE:고통 > 0
+	PRINTFORM 아픔({SOURCE:고통})
+SIF SOURCE:공포 > 0
+	PRINTFORM 우려({SOURCE:공포})
+SIF SOURCE:액체 > 0
+	PRINTFORM 액체({SOURCE:액체})
+SIF SOURCE:욕정 > 0
+	PRINTFORM 욕정({SOURCE:욕정})
+SIF SOURCE:복종 > 0
+	PRINTFORM 복종({SOURCE:복종})
+SIF SOURCE:노출 > 0
+	PRINTFORM 노출({SOURCE:노출})
+SIF SOURCE:굴종 > 0
+	PRINTFORM 굴복({SOURCE:굴종})
+SIF SOURCE:환락 > 0
+	PRINTFORM 환락({SOURCE:환락})
+SIF SOURCE:정복 > 0
+	PRINTFORM 정복({SOURCE:정복})
+SIF SOURCE:강요 > 0
+	PRINTFORM 정복({SOURCE:강요})
+SIF SOURCE:수동 > 0
+	PRINTFORM 수동({SOURCE:수동})
+SIF SOURCE:불결 > 0
+	PRINTFORM 불결({SOURCE:불결})
+SIF SOURCE:울굴 > 0
+	PRINTFORM 울굴({SOURCE:울굴})
+SIF SOURCE:일탈 > 0
+	PRINTFORM 일탈({SOURCE:일탈})
+SIF SOURCE:반감 > 0
+	PRINTFORM 반발({SOURCE:반감})
+PRINTL 　
+
+@OAZUKE(ARG)
+#FUNCTION
+SIF CFLAG:ARG:우후후 != 2
+	RETURNF 0
+SELECTCASE TCVAR:ARG:20
+	CASE 41
+	;정상위 V
+		SIF SELECTCOM != 320
+			RETURNF 1
+	CASE 43
+	;백 V
+		SIF SELECTCOM != 322
+			RETURNF 1
+	CASE 44
+	;백 A
+		SIF SELECTCOM != 323
+			RETURNF 1
+ENDSELECT
+RETURNF 0

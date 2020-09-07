@@ -1,0 +1,261 @@
+﻿;-------------------------------------------------
+;특수지역간이동
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM464
+#DIM FEE
+VARSET LOCAL
+FEE = 0
+FOR LOCAL,1,CHARANUM
+	IF CFLAG:(LOCAL):동행
+		LOCAL:1 ++
+		SIF CFLAG:LOCAL:쇠약 || BASE:LOCAL:기력 == 0
+			LOCAL:2 ++
+		SIF !CHARA_HOLIDAY(LOCAL) && BASE:LOCAL:일량
+			LOCAL:3 ++
+	ENDIF
+NEXT
+IF NEMUKE() >= 720
+	PRINTL 졸음기가 있으니 외출하지 않는 편이 나을 것입니다
+	RETURN -1
+ELSEIF LOCAL:1 > 1
+PRINTL 두 명 이상 데리고 나갈 수는 없습니다
+	RETURN -1
+ELSEIF LOCAL:2 || BASE:MASTER:기력 == 0
+	PRINTFORML 몸 상태가 좋지 못하기에 외출할 수는 없습니다 \@ BASE:MASTER:기력 == 0 ? (기력 제로) # (동행자가 몸 상태 안 좋음)\@
+	RETURN -1
+ELSEIF LOCAL:3 && FESTIVAL() == ""
+	PRINTL 동행자가 일하는 날이기에 외출할 수는 없습니다
+	RETURN -1
+ELSEIF TIME:5 == 9 || TIME:5 == 5
+	PRINTL 악천후이기에 외출할 수는 없습니다
+	RETURN -1
+ELSEIF TALENT:MASTER:100 < -4 
+	PRINTL 이 몸으로 외출하는 건 위험하다
+	RETURN -1
+ENDIF
+SELECTCASE CFLAG:MASTER:현재위치
+	CASE 205, 210, 803, 820
+		IF !INRANGE(TIME, 540, 1020)
+			PRINTFORML 영업 시간이 아니다
+			RETURN -1
+		ENDIF
+		;守矢キャラたちと同行時は敷設者割引運賃
+		IF CFLAG:31:동행 || CFLAG:32:동행 || CFLAG:33:동행
+			FEE = 1
+		ELSEIF CFLAG:MASTER:동행
+			FEE = 10
+		ELSE
+			FEE = 5
+		ENDIF
+		;상대가 오니나 텐구라면 비위 맞추는 웃음
+		IF GROUPMATCH(TARGET, 10, 29, 31, 32, 33, 42, 64, 65)
+			PRINTFORML 「이거이거 %CALLNAME:TARGET% 씨, 이용하시려고요?」
+			PRINTFORM %CALLNAME:TARGET%의 모습을 확인한
+			;人里側に河童が常駐してるのもアレかなと
+			IF CFLAG:MASTER:현재위치 / 100 == 2
+				PRINTFORM 접수 담당은
+			ELSE
+				PRINTFORM 접수 담당의 캇파는
+			ENDIF
+			PRINTFORML 비위 맞추는 웃음을 띠었다
+		ELSE
+			;人里側では一応丁寧対応に
+			IF CFLAG:MASTER:현재위치 / 100 == 2
+				PRINTFORML 「케이블카를 타실건가요？　요금은 \\{FEE * 200}이에요. {FEE}카리스마도 됩니다.」
+			ELSE
+				PRINTFORML 「……왜? 케이블카 타고 싶어? {FEE}카리스마. 아니면 \\{FEE * 200}이라도 되고」
+			ENDIF
+		ENDIF
+		CALL PAY_YEN_OR_CM(FEE * 200, FEE)
+		SELECTCASE RESULT
+			CASE 0
+				RETURN -1
+			CASE 1
+				IF CFLAG:31:동행 || CFLAG:32:동행 || CFLAG:33:동행
+					PRINTFORML 「싸게 해드릴게요～」
+				ELSE
+					PRINTFORML 「감사함다.」
+				ENDIF
+			CASE 2
+				IF CFLAG:MASTER:현재위치 / 100 == 2
+					PRINTFORML 「카리스마로 지불하시는 건가요... 예, 그럼.」
+				ELSE
+					PRINTFORML 「헤―, 손님 인간인데 카리스마 가지고 있어? 대단하네.」
+				ENDIF
+		ENDSELECT
+ENDSELECT
+;住み込み先からの特殊移動 or 住み込み先でない場所への特殊移動はデート扱い
+IF AT_HOME(MASTER) || MAIN_MAP != SPECIAL_AREAMOVE() / 100
+	LOCAL:2 = 0
+	LOCALS = %STR:(6000 + SPECIAL_AREAMOVE() / 10)%
+	FOR LOCAL,1,CHARANUM
+		IF CFLAG:(LOCAL):동행
+			CFLAG:LOCAL:데이트중 = SPECIAL_AREAMOVE() / 100
+			CFLAG:LOCAL:현재위치 = SPECIAL_AREAMOVE()
+			LOCAL:2 = LOCAL
+			FLAG:데이트상대 = LOCAL
+		ENDIF
+	NEXT
+	CFLAG:MASTER:데이트중 = SPECIAL_AREAMOVE() / 100
+	CFLAG:MASTER:현재위치 = SPECIAL_AREAMOVE()
+
+	IF CFLAG:MASTER:데이트중 == 2
+		CALL EX_COSTUME(FLAG:데이트상대, "마을 데이트")
+		SIF RESULT
+			PRINTFORMW %CALLNAME:(FLAG:데이트상대)%는 인간 마을에 적당한 옷으로 갈아입었습니다
+	ENDIF
+	PRINTFORML %조사처리(LOCALS,"으로")% 외출합니다
+	TIME += SPECIAL_AREAMOVE_TIME()
+
+;住み込み先でないところから住み込み先への移動はデート終了扱い
+ELSEIF !AT_HOME(MASTER) && MAIN_MAP == SPECIAL_AREAMOVE() / 100
+	IF CFLAG:패배자 && TALENT:스침 == 1
+		PRINTFORML %타겟을% 기억했습니다.
+	ELSE
+		PRINTFORMW \@ CFLAG:MASTER:데이트중 != CFLAG:TARGET:데이트중 || TARGET == MASTER ? 외출 겸 데이트에서 돌아왔습니다.
+	ENDIF
+	CFLAG:MASTER:현재위치 = SPECIAL_AREAMOVE()
+
+	CALL 모리야복권데이트상대의리셋()
+	FOR LOCAL,1,CHARANUM
+		IF CHK_DATENOW(CFLAG:LOCAL:데이트중)
+			CALL DATE_EVENT(LOCAL)
+			CFLAG:LOCAL:현재위치 = SPECIAL_AREAMOVE()
+			CALL SET_DATE(99,LOCAL)
+		ENDIF
+	NEXT
+	SIF CHK_DATENOW(CFLAG:MASTER:데이트중)
+		CALL SET_DATE(99,MASTER)
+
+	TIME += SPECIAL_AREAMOVE_TIME()
+ENDIF
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE464
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+SIF !TFLAG:100
+	RETURN 0
+SIF HALFWAY()
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(464)
+	RETURN RESULT
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+SIF !SPECIAL_AREAMOVE()
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+@SPECIAL_AREAMOVE()
+#FUNCTION
+SELECTCASE CFLAG:MASTER:현재위치
+;하쿠레이 신사 모리야 분사
+	CASE 21
+	;모리야 캐릭터와 동행중
+		SIF CFLAG:31:동행 || CFLAG:32:동행 || CFLAG:33:동행
+			RETURNF 840
+;마을 기타도리
+	CASE 205
+		RETURNF 820
+;広場
+	CASE 210
+		IF MAIN_MAP == 8
+			RETURNF 803
+		ELSE
+			RETURNF 820
+		ENDIF
+;무연총
+	CASE 506
+		RETURNF 610
+;無縁塚（外出先から）
+	CASE 570
+		;メインマップが三途の川～冥界のときは中有の道へ
+		SIF MAIN_MAP == 6
+			RETURNF 601
+		;今後のことを考えて弾いておく 中有の道(外出)へ
+		SIF MAIN_MAP != 5
+			RETURNF 610
+;간헐천지하센터
+	CASE 712
+		RETURNF 970
+;間欠泉地下センター(外出先から)
+	CASE 760
+		;メインマップが地底のときは灼熱地獄跡へ
+		SIF MAIN_MAP == 9
+			RETURNF 928
+		;今後のことを考えて弾いておく 灼熱地獄跡(外出)へ
+		SIF MAIN_MAP != 7
+			RETURNF 970
+;산정에의 길
+	CASE 732
+		RETURNF 810
+;삭도역
+	CASE 803
+		RETURNF 210
+;絶景の丘
+	CASE 820
+		;メインマップが人里のときは人里北通りへ
+		SIF MAIN_MAP == 2
+			RETURNF 205
+		;守矢神社・早苗私室(820)を弾き広場へ
+		SIF MAIN_MAP != 8
+			RETURNF 210
+;작열지옥터
+	CASE 928
+		RETURNF 760
+;灼熱地獄跡（外出先から）
+	CASE 970
+		;メインマップが妖怪の山（山麓）のときは間欠泉地下センターへ
+		SIF MAIN_MAP == 7
+			RETURNF 712
+		;今後のことを考えて弾いておく 灼熱地獄跡(外出)へ
+		SIF MAIN_MAP != 9
+			RETURNF 760
+ENDSELECT
+RETURNF 0
+;-------------------------------------------------
+@SPECIAL_AREAMOVE_TIME()
+#FUNCTION
+SELECTCASE CFLAG:MASTER:현재위치
+;하쿠레이 신사 모리야 분사
+	CASE 21
+		RETURNF 1
+;마을 기타도리
+	CASE 205
+		RETURNF 15
+;広場
+	CASE 210
+		RETURNF 15
+;무연총
+	CASE 506, 570
+		SIF SHORTCUT(3)
+			RETURNF 3
+		RETURNF 5
+;간헐천지하센터
+	CASE 712, 760
+		RETURNF 10
+;산정에의 길
+	CASE 732
+		RETURNF 5
+;삭도역
+	CASE 803
+		RETURNF 15
+;絶景の丘
+	CASE 820
+		RETURNF 15
+;작열지옥터
+	CASE 928, 970
+		RETURNF 5
+ENDSELECT

@@ -1,0 +1,155 @@
+﻿;-------------------------------------------------
+;읽어들려주고
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM363
+SELECTCASE TFLAG:192
+	;통상
+	CASE 0
+		LOCAL = RAND:100
+		LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+		SIF LOCAL:1 > 99
+			LOCAL:1 = 99
+		IF LOCAL <= 9
+			;10％で대성공
+			EXP:MASTER:회화경험 ++
+			TFLAG:193 = 1
+			TFLAG:98 = 2
+		ELSEIF LOCAL >= LOCAL:1
+			;10～1％で실패
+			TFLAG:193 = -1
+			TFLAG:98 = -2
+		ELSE
+			;나머지는 성공
+			TFLAG:193 = 0
+			TFLAG:98 = 0
+		ENDIF
+	;강제성공 or 대성공
+	CASE 1
+		IF RAND:100 <= 9
+			EXP:MASTER:회화경험 ++
+			TFLAG:193 = 1
+			TFLAG:98 = 2
+		ELSE
+			TFLAG:193 = 0
+			TFLAG:98 = 0
+		ENDIF
+	;강제실패
+	CASE -1
+		TFLAG:193 = -1
+		TFLAG:98 = -2
+	;커맨드종료
+	CASE -2
+		TFLAG:193 = -1
+		RETURN 0
+ENDSELECT
+
+
+DOWNBASE:MASTER:기력 += 150
+DOWNBASE:MASTER:체력 += 50
+
+;신뢰
+TFLAG:98 += 3
+
+;그 자리에 있는 TARGET 전원이 돌린다
+LOCAL:1 = TARGET
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	SIF !TALENT:(TARGET:LOCAL):유치
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):수면
+		CONTINUE
+	TARGET = TARGET:LOCAL
+	CALL COM363_1
+NEXT
+TARGET = LOCAL:1
+
+TIME += 30
+RETURN 1
+
+@COM363_1
+
+DOWNBASE:기력 += 50
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 1000
+
+;ABL:순종을 본다
+IF ABL:순종 <= 1
+	SOURCE:환락 += (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 3
+	SOURCE:환락 += 200 + (ABL:순종 * 65)
+ELSEIF ABL:순종 <= 5
+	SOURCE:환락 += 500 + (ABL:순종 * 65)
+ELSEIF ABL:순종 <= 8
+	SOURCE:환락 += 750 + (ABL:순종 * 85)
+ELSEIF ABL:순종 <= 11
+	SOURCE:환락 += 1000 + (ABL:순종 * 85)
+ELSE
+	SOURCE:환락 += 2000 + (ABL:순종 * 40)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+
+SOURCE:수동 = 300 + 150 * ABL:순종
+SOURCE:정복 = 300 + 100 * ABL:새드끼
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:정복 , 0.50
+	TIMES SOURCE:수동 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:정복 , 1.00
+	TIMES SOURCE:수동 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:정복 , 2.00
+	TIMES SOURCE:수동 , 2.00
+ENDIF
+CALL SET_DERAY(6,TARGET)
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE363
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+SIF !TFLAG:100
+	RETURN 0
+SIF !TALENT:유치
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(301)
+	RETURN RESULT
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+;목욕탕
+;SIF CFLAG:MASTER:현재위치 == 13 || CFLAG:MASTER:현재위치 == 24 || CFLAG:MASTER:현재위치 == 30 || CFLAG:MASTER:현재위치 == 39
+SIF BATHCHECK(CFLAG:MASTER:현재위치) && GET_MAPID(CFLAG:MASTER:현재위치) == MAIN_MAP
+	RETURN 0
+;데이트중
+SIF CHK_DATENOW(CFLAG:데이트중) && CFLAG:현재위치 != OMANEKIBEYA()
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF !ITEM:104
+	RETURN 0
+RETURN 1
+

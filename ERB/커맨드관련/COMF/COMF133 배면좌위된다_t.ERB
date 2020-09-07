@@ -1,0 +1,281 @@
+﻿;-------------------------------------------------
+;후배위된다
+;섹스계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM133
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = TARGET
+;봉사 쾌락 플래그
+TCVAR:108 = 1
+
+CSTR:PLAYER:10 += @"{TARGET}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:PLAYER:2 = 13
+TCVAR:동정상실 = 1
+;강도
+TCVAR:PLAYER:4 = 900 + (1800 * MIN(ABL:PLAYER:V감각, 5))
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 1
+;강도
+TCVAR:TARGET:4 = 1800
+
+DOWNBASE:PLAYER:체력 += 20
+DOWNBASE:PLAYER:기력 += 50
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 100
+	SOURCE:PLAYER:쾌V = 350
+	SOURCE:PLAYER:쾌B = 250
+	SOURCE:PLAYER:성행동=20
+	SOURCE:쾌C = 400
+ELSE
+	;소비 체력, 기력
+	DOWNBASE:체력 += 40
+	DOWNBASE:기력 += 220
+	SOURCE:PLAYER:쾌V = 350
+	SOURCE:PLAYER:쾌B = 250
+	SOURCE:PLAYER:성행동=20
+
+	SOURCE:쾌C = 400
+	SOURCE:성행동 = 500
+	SOURCE:굴종 = 1000
+	SOURCE:일탈 = 500
+	SOURCE:반감 = 500
+
+	;위 쪽으로 계산한 더러운 데이터
+	SOURCE:불결 = Y*10 + 60
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 700
+	[SKIPSTART]
+	;조교자가 처녀(1회만)
+	IF TALENT:PLAYER:처녀 && TALENT:처녀 == -1 && !GETBIT(CFLAG:3, 10)
+		TIMES SOURCE:일탈 , 20.00
+		TIMES SOURCE:굴종 , 3.00
+		PRINTFORML ＜%조교자는% 처녀를 잃었습니다＞
+		;이상경험 추가
+		IF TALENT:PLAYER:처녀 == 1
+			EXP:이상경험 += 1
+			SETBIT CFLAG:3, 10
+		ENDIF
+		TALENT:PLAYER:처녀 = 0
+	ENDIF
+	[SKIPEND]
+ENDIF
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+IF HAS_PENIS(TARGET)
+	;노예의 P⇔조교자의 질내의 더러움이 이동
+	STAIN:2 |= STAIN:PLAYER:3
+	STAIN:2 |= STAIN:PLAYER:6
+	STAIN:PLAYER:3 |= STAIN:2
+	STAIN:PLAYER:6 |= STAIN:2
+
+ENDIF
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:PLAYER:V성교경험 ++
+EXP:삽입경험 ++
+
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+ENDIF
+
+
+RETURN 1
+
+@CAN_COMF133(ARG)
+SKIPDISP ARG
+PRINTL 후배위된다
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+A = 0
+S = 0
+
+;모든 명령에 공통의 요소를 고려
+;(순종이 높다고 명령에 따르기 쉬운 등)
+CALL COM_ORDER
+
+
+;ABL:욕망
+IF ABL:욕망
+	SIF S
+		PRINT  + 
+	A += ABL:욕망 * 2
+	PRINT 욕망
+	PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 2, ')
+	S = 1
+ENDIF
+
+IF MARK:쾌락각인
+	SIF S
+		PRINT  + 
+	A += MARK:쾌락각인 * 2
+	PRINT 쾌락각인
+	PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 2, ')
+	S = 1
+ENDIF
+
+;쾌감에 솔직
+IF TALENT:쾌감응답 > 0
+	SIF S
+		PRINT  + 
+	A += 2
+	PRINT 쾌감에 솔직
+	PRINTV '(, 2, ')
+	S = 1
+ENDIF
+;쾌감에 부정(음란, 창부로 무효)
+IF TALENT:쾌감응답 < 0 && !TALENT:음란
+	PRINT  - 
+	A -= 2
+	PRINT 쾌감에 부정
+	PRINTV '(, 2, ')
+	S = 1
+ENDIF
+;음란
+IF TALENT:음란 && ASSIPLAY == 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 음란
+	PRINTV '(, 5, ')
+	S = 5
+ENDIF
+;창부
+IF TALENT:음란 > 1 && ASSIPLAY == 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 창부
+	PRINTV '(, 5, ')
+	S = 5
+ENDIF
+
+;조교자가 처녀
+IF TALENT:PLAYER:처녀 && TALENT:PLAYER:처녀 == -1
+	PRINT  - 
+	A -= 15
+	PRINTFORM %NAME:PLAYER%가 처녀
+	PRINTV '(, 15, ')
+	S = 1
+ENDIF
+
+;조교자가 정조 관념
+IF TALENT:PLAYER:정조 > 0
+	PRINT  - 
+	A -= 10
+	PRINTFORM %NAME:PLAYER%가 정조 관념
+	PRINTV '(, 10, ')
+	S = 1
+ENDIF
+
+;조교자가 정조무관심
+IF TALENT:PLAYER:정조 < 0
+	PRINT  + 
+	A += 5
+	PRINTFORM %NAME:PLAYER%가 정조무관심
+	PRINTV '(, 5, ')
+	S = 1
+ENDIF
+
+;조교자의 ABL:기교
+IF ABL:PLAYER:기교
+	SIF S
+		PRINT  + 
+	A += ABL:PLAYER:기교 * 4
+	PRINTFORM %NAME:PLAYER%의 기교
+	PRINTV 'LV, ABL:PLAYER:기교, '(, ABL:PLAYER:기교 * 4, ')
+	S = 1
+ENDIF
+
+;합계를 표시(15이상으로 실행)
+PRINT  = 
+PRINTV A
+
+V = 15
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 실행치
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;실행할 수 없다
+SIF A < V
+	RETURN 0
+RETURN 1
+
+
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE133
+;후배위 되는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+SIF GLOBAL_COMABLE(133)
+	RETURN RESULT
+;어느 정도 발기하고 있지 않으면 안 돼
+SIF BASE:발기 < 1000
+	RETURN 0
+;조교자가 남자라면 안 돼
+SIF !(TALENT:PLAYER:2 & 1)
+	RETURN 0
+;체격 차이가 있는 경우는 경험이 없으면 안 돼
+SIF 삽입불가(TARGET) == 1 && EXP:V경험 < 50 && !TALENT:PLAYER:금단의지식
+	RETURN 0
+;한층 더 체격 차이가 있으면(자) 금단의지식이 필요
+SIF 삽입불가(TARGET) == 2 && (!TALENT:PLAYER:금단의지식 || EXP:V경험 < 50)
+	RETURN 0
+SIF 삽입불가(TARGET) == 3
+	RETURN 0
+
+;남자, 반인반요, 양성이 아니면 안 돼
+SIF !(HAS_PENIS(TARGET)) 
+	RETURN 0
+;하반신착의(TARGET);바지는 불가가 되어 있지만, 바지라면 자지 낼 수 있어도 문제인이군요?
+;SIF TEQUIP:0 & 4
+	;RETURN 0
+;하반신착의(PLAYER);넣을 수 있는 (분)편은 과연 바지입고 있다면 무리겠네요
+SIF TEQUIP:PLAYER:0 & 4
+	RETURN 0
+
+;목욕탕플레이중은 플레이매트가 없으면 안 돼
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+;새댁플레이중은 안 돼
+SIF TEQUIP:33
+	RETURN 0
+;수면간중
+SIF CFLAG:장난 > 1
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+RETURN 1
+

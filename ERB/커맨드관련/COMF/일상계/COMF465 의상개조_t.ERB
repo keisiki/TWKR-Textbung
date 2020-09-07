@@ -1,0 +1,61 @@
+﻿@COM370
+#DIM 개조부위
+PRINTFORML %CALLNAME:TARGET%의 무엇을 개조합니까?
+
+FOR LOCAL, 1,23
+	SIF EQUIP:TARGET:LOCAL
+	PRINTFORML [{LOCAL}]- %CLOTHNAME(LOCAL, EQUIP:TARGET:LOCAL)%
+NEXT
+PRINTFORML [999]- 그만둔다
+$LOOP
+INPUT
+SELECTCASE RESULT
+	CASE 1 TO 22
+		IF !EQUIP:TARGET:RESULT
+			GOTO LOOP
+		ELSE
+			개조부위 = RESULT
+		ENDIF
+	CASE 999
+		RETURN -1
+	CASEELSE
+		GOTO LOOP
+ENDSELECT
+PRINTFORML %조사처리(CLOTHNAME(개조부위, EQUIP:TARGET:개조부위),"를")% 어떻게 합니까?
+CALL ASK_YN("바탕으로 되돌리는","고쳐 짓는다")
+IF !RESULT
+	CSTR:TARGET:(50 + 개조부위) =
+	PRINTFORML 원래대로 되돌렸습니다.
+ELSE
+	PRINTFORML 어떻게 짓습니까? (앞에 붙이는 수식어를 입력)
+	INPUTS
+	IF RESULTS == ""
+		GOTO LOOP
+	ELSE
+		CSTR:TARGET:(50 + 개조부위) = %RESULTS%%CLOTHNAME(개조부위, EQUIP:TARGET:개조부위)%
+	ENDIF
+	PRINTFORML %조사처리(CLOTHNAME(개조부위, EQUIP:TARGET:개조부위),"는")% %조사처리(CSTR:TARGET:(50 + 개조부위),"가")% 되었습니다.
+ENDIF
+TIME += 60
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE370
+;실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(370)
+	RETURN RESULT
+;앨리스가 없으면 안 돼
+SIF CFLAG:17:현재위치 != CFLAG:MASTER:현재위치
+	RETURN 0
+;업무중
+SIF CFLAG:행동 == 5
+	RETURN 0
+;기력 0
+SIF BASE:17:기력 <= 0
+	RETURN 0
+RETURN 1

@@ -1,0 +1,183 @@
+﻿;-------------------------------------------------
+;뺨을집는다
+;일상계 커맨드 레벨 2
+;-------------------------------------------------
+@COM307
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 20
+	SOURCE:고통 = 150
+ELSE
+	TIME += 10
+
+	SELECTCASE TFLAG:192
+		;通常
+		CASE 0
+			LOCAL = RAND:110
+			LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+			SIF LOCAL:1 > 109
+				LOCAL:1 = 109
+			IF LOCAL <= 9
+				;大成功
+				TFLAG:193 = 1
+				TFLAG:98 = 2
+			ELSEIF LOCAL >= LOCAL:1
+				;失敗
+				TFLAG:193 = -1
+				TFLAG:98 = -2
+			ELSE
+				;残りは成功
+				TFLAG:193 = 0
+				TFLAG:98 = 0
+			ENDIF
+		;強制成功or大成功
+		CASE 1
+			IF RAND:100 <= 9
+				;大成功
+				TFLAG:193 = 1
+				TFLAG:98 = 2
+			ELSE
+				;残りは成功
+				TFLAG:193 = 0
+				TFLAG:98 = 0
+			ENDIF
+		;強制失敗
+		CASE -1
+			TFLAG:193 = -1
+			TFLAG:98 = -2
+		;コマンド終了
+		CASE -2
+			TFLAG:193 = -1
+			RETURN 0
+	ENDSELECT
+
+	;선제 발생시는 실패하지 않는다
+	SIF TFLAG:102 == 3 && TFLAG:192 != -1
+		TFLAG:193 = MAX(TFLAG:193,0)
+		
+	IF CFLAG:TARGET:수면
+		DOWNBASE:MASTER:기력 += 50
+	ELSE
+		DOWNBASE:체력 += 20
+		DOWNBASE:기력 += 50
+		DOWNBASE:MASTER:기력 += 50
+	ENDIF
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 100
+SOURCE:고통 = 150
+SOURCE:반감 = 120
+
+;ABL:친밀을 본다
+IF ABL:친밀 <= 3
+	SOURCE:환락 += 100 + (ABL:친밀 * 20)
+	SOURCE:사랑 += 150 + (ABL:친밀 * 30)
+ELSEIF ABL:친밀 <= 5
+	SOURCE:환락 += 300 + (ABL:친밀 * 40)
+	SOURCE:사랑 += 350 + (ABL:친밀 * 30)
+ELSEIF ABL:친밀 <= 8
+	SOURCE:환락 += 600 + (ABL:친밀 * 50)
+	SOURCE:사랑 += 500 + (ABL:친밀 * 40)
+ELSEIF ABL:친밀 <= 11
+	SOURCE:환락 += 800 + (ABL:친밀 * 70)
+	SOURCE:사랑 += 700 + (ABL:친밀 * 60)
+ELSE
+	SOURCE:환락 += 1200 + (ABL:친밀 * 40)
+	SOURCE:사랑 += 1500 + (ABL:친밀 * 20)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 200 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 1000 + (CFLAG:2 - 5000) / 5
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+;자고 있는 경우 효과
+IF CFLAG:수면 && SOURCE:환락 > 0
+	SOURCE:환락 = SOURCE:환락 / 2
+	SOURCE:사랑 = SOURCE:사랑 / 2
+	SOURCE:반감 = SOURCE:반감 * 2
+ENDIF
+
+LOCAL = 0
+;수면중은 호감도 변화 없음
+IF !CFLAG:수면
+	;친밀이 낮으면 호감도 저하
+	IF ABL:친밀 == 0
+		LOCAL -= 3
+	ELSEIF ABL:친밀 == 1
+		LOCAL -= 2
+	ELSEIF ABL:친밀 == 2
+		LOCAL -= 1
+	ENDIF
+	;호감도가 낮으면 호감도 저하
+	IF CFLAG:2 <= 50
+		LOCAL -= 3
+	ELSEIF CFLAG:2 <= 100
+		LOCAL -= 2
+	ELSEIF CFLAG:2 <= 250
+		LOCAL -= 1
+	ENDIF
+ENDIF
+
+;호감도 변화
+TFLAG:97 += LOCAL
+
+;신뢰도 변화
+;TFLAG:98 += 1
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:사랑 , 0.50
+	TIMES SOURCE:수동 , 0.50
+	TIMES SOURCE:굴종 , 1.50
+	TIMES SOURCE:반감 , 1.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:사랑 , 1.00
+	TIMES SOURCE:수동 , 1.00
+	TIMES SOURCE:굴종 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:사랑 , 2.00
+	TIMES SOURCE:수동 , 2.00
+	TIMES SOURCE:굴종 , 0.50
+	TIMES SOURCE:반감 , 0.75
+ENDIF
+
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE307
+;실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(307)
+	RETURN RESULT
+SIF TARGET == 0
+	RETURN 0
+;시간정지중은 스킵
+IF !FLAG:70
+	;친해져 강도 1
+	SIF (TCVAR:MASTER:친해져 < 1)
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5
+		RETURN 0
+	;데이트중
+	SIF CHK_DATENOW(CFLAG:데이트중) && CFLAG:현재위치 != OMANEKIBEYA()
+		RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+		RETURN 0
+RETURN 1
+

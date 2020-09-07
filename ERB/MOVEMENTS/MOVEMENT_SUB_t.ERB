@@ -1,0 +1,375 @@
+﻿;----------------------------
+;여기서 1을 돌려주는 캐릭터는 MOVEMENT 관계의 처리를 일절 실시하지 않는다
+;----------------------------
+@MOVEMENT스킵판정(ARG)
+#FUNCTION
+SIF TALENT:ARG:망상의산물
+	RETURNF 1
+SIF FLAG:모리야복권데이트상대 == ARG && GET_MAPID(CFLAG:MASTER:현재위치) != MAIN_MAP
+	RETURNF 1
+SIF CFLAG:ARG:출금
+	RETURNF 1
+RETURNF 0
+
+;----------------------------
+;MASTER 포함한 모든 캐릭터에게 적용
+;시간경과에 의한 자연 변동, 회화 누적도, 목욕탕의 처리
+;----------------------------
+@MOVEMENT공통처리(ARG)
+;BASE의 자연 변동
+CALL BASE자연변동(ARG)
+
+;회화 누적치(100이상 회화하면(자) 시간경과 100분 경과까지 회화불능)
+SIF TCVAR:ARG:301 > 100
+	TCVAR:ARG:302 = 1
+TCVAR:ARG:301 = MAX(TCVAR:ARG:301 - TIME_PROGRESS(TIME:1) , 0)
+;시각 경과로 누적치가 0이 되면 회화 가능
+SIF TCVAR:ARG:301 == 0
+	TCVAR:ARG:302 = 0
+
+;몸의 청결도
+LOCAL = CFLAG:ARG:목욕탕
+
+;DEBUGPRINTFORML 【MOVEMENT】BATH_NO:{ARG} , {LOCAL} , \@ CFLAG:ARG:현재위치 == BATHROOM() ?  in_BATH # {CFLAG:ARG:현재위치} \@
+
+
+;IF BATHCHECK(CFLAG:ARG:현재위치) && GET_MAPID(CFLAG:ARG:현재위치) == MAIN_MAP
+IF BATHROOM(CFLAG:ARG:현재위치) && GET_MAPID(CFLAG:ARG:현재위치) == MAIN_MAP
+	;악취내성이 낮을 정도(수록) 오래도록 목욕을 즐김(목욕탕 플래그가 내리기 어렵다), 하루 분의 더러움은 대체로 30분에 세정
+	CFLAG:ARG:목욕탕 = MAX(CFLAG:ARG:목욕탕 - TIME_PROGRESS(TIME:1) * (50 + TALENT:ARG:악취내성 * 15), 0)
+ELSE
+	;이틀분약까지 축적
+	CFLAG:ARG:목욕탕 = MIN(CFLAG:ARG:목욕탕 + TIME_PROGRESS(TIME:1), 2500)
+ENDIF
+
+;안아다하고금지시간의 감소
+IF TCVAR:ARG:안아다하고금지시간 > 0
+	TCVAR:ARG:안아다하고금지시간 = MAX(TCVAR:ARG:안아다하고금지시간 - TIME_PROGRESS(TIME:1), 0)
+ENDIF
+
+
+;----------------------------
+;부적절한 위치에 있는 캐릭터를 다른 장소에 이동시킨다
+;----------------------------
+@강제이동(ARG)
+;시간정지중은 처리하지 않는다
+IF !FLAG:70
+	;벌레 바구니에 들어가지 않는 캐릭터를 벌레 바구니로부터 내쫓는다
+	IF CFLAG:ARG:현재위치 == 54 && TALENT:ARG:체형 > -5
+		CFLAG:ARG:현재위치 = 9
+	ENDIF
+
+	;거점의 밖으로 쇠약중의 캐릭터가 있는 경우 스키마에 보낸다
+	IF CFLAG:ARG:쇠약
+		SIF GET_MAPID(CFLAG:ARG:현재위치) != MAIN_MAP
+			CFLAG:ARG:현재위치 = SUKIMA()
+	ENDIF
+ENDIF
+
+;----------------------------
+;캐릭터가 수면시간대인가 어떤가를 취득 ※낮잠 등도 포함한다
+;@수면시간(ARG)과는 거동이 다르므로 주의
+;----------------------------
+@캐릭터별취침판정(ARG)
+TRYCCALLFORM CHARAMOVE_DATA_{ARG}(3, ARG)
+;대상의 캐릭터데이터참조 할 수 있고 없으면 Default 처리
+CATCH
+	;AM1~AM7까지 수면
+	RETURN TIME > 60 && TIME < 420
+ENDCATCH
+RETURN RESULT
+
+
+;----------------------------
+;동행중의 캐릭터를 당신에 맞추어 이동시킨다
+;----------------------------
+@동행처리(ARG)
+;※만취중은 가능
+SIF FLAG:시간정지 || CFLAG:ARG:쇠약 || CFLAG:ARG:초대 || CFLAG:ARG:수면
+	RETURN
+
+;업무중은 기본적으로 무리, 다만 연회에서 만취하고 있는 경우는 예외
+SIF CFLAG:ARG:행동 == 5 && CFLAG:ARG:직종 != 51
+	RETURN
+
+;동행 플래그는 1시간 지속
+SIF !CHK_DATENOW(CFLAG:ARG:데이트중) && CFLAG:ARG:동행
+	CFLAG:ARG:동행 = MAX(CFLAG:ARG:동행 - TIME_PROGRESS(TIME:1), 0)
+SIF CFLAG:ARG:동행 || CHK_DATENOW(CFLAG:ARG:데이트중)
+	CFLAG:ARG:현재위치 = CFLAG:MASTER:현재위치
+
+
+;@캐릭터 이동 사전 처리(ARG)
+;;쇠약중
+;IF CFLAG:ARG:쇠약 || TCVAR:ARG:만취 || CFLAG:ARG:초대
+;	RETURN
+;ENDIF
+;
+;;초대중(수면등을 독자 처리)
+;IF 
+;	CALL MOVEMENT_OMANEKI(ARG)
+;	RETURN
+;ENDIF
+;
+;;낮잠을 제외한 수면시간중
+;IF !CFLAG:ARG:수면 && 수면시간(ARG)
+;	;더부살이캐릭터의 집에 묵었을 때 는 돌아가지 않게 97 + MAIN_MAP * 100에 피난
+;	IF CFLAG:(ARG):현재위치 != 97 + MAIN_MAP * 100
+;		;데이트중이라면 강제적으로 중지해 귀가
+;		CALL 수면시데이트중단(ARG)
+;	ENDIF
+;ENDIF
+
+;------------------------------------------
+;시간에 맞추어 캐릭터를 일으키는/재운다
+;------------------------------------------
+@기상취침처리(ARG)
+SIF FLAG:시간정지 || CFLAG:ARG:쇠약 || TCVAR:ARG:만취
+	RETURN
+SIF CFLAG:ARG:우후후 && CFLAG:ARG:욕구불만도 > 0
+	RETURN
+CALL 캐릭터별취침판정(ARG)
+;수면시간대의 경우
+IF RESULT
+	;일어나고 있으면(자) 재운다
+	IF !CFLAG:ARG:수면 && !CFLAG:ARG:우후후
+		;데이트중이라면 낮잠은 무시한다
+		IF !(CHK_DATENOW(CFLAG:ARG:데이트중) && !수면시간(ARG))
+			;더부살이캐릭터의 집에 묵었을 때 는 돌아가지 않게 97 + MAIN_MAP * 100에 피난
+			IF CFLAG:ARG:현재위치 != 97 + MAIN_MAP * 100
+				;데이트중에 취침시간이 되면 강제적으로 중지해 귀가
+				CALL 수면시데이트중단(ARG)
+			ENDIF
+			IF !CFLAG:ARG:초대 && !(CFLAG:ARG:신사거주 && CFLAG:ARG:현재위치 == CFLAG:ARG:초기위치)
+				SIF CFLAG:MASTER:현재위치 == CFLAG:ARG:현재위치 && !CFLAG:MASTER:수면
+					PRINTFORMW %ARG는% 작별 인사를 하며, 졸린 듯이 떠나 갔습니다
+			ENDIF
+		ENDIF
+	ENDIF
+	;주인공이 기상중이라면 메시지 표시
+	CALL CHARA_SLEEP, ARG, !CFLAG:MASTER:수면
+;수면시간대부터 빗나가고 있는 경우
+ELSE
+	;자고 있으면(자) 일으킨다
+	IF CFLAG:ARG:수면
+		CALL CHARA_AWAKE, ARG
+		;더부살이캐릭터가 자신의 집에서 일어났을 경우, 참배길저편에 이동시킨다
+		SIF CFLAG:ARG:신사거주 && CFLAG:ARG:현재위치 == 97 + MAIN_MAP * 100
+			CFLAG:ARG:현재위치 = MAXROOM
+	ENDIF
+ENDIF
+
+;------------------------------------------
+;방문 플래그가 서 있는 캐릭터를 당신의 거점 물건에 이동시킨다
+;캐릭터를 자신의 집에 돌려주는/재택안의 처리를 실시한다
+;------------------------------------------
+@방문귀가처리(ARG)
+SIF FLAG:시간정지 || CFLAG:ARG:쇠약 || TCVAR:ARG:만취 || CFLAG:ARG:초대 || CFLAG:ARG:우후후
+	RETURN
+
+;더부살이캐릭터·연회에 참가하는 캐릭터는 내방·귀가의 처리를 실시하지 않는다
+IF !CFLAG:ARG:신사거주 && !CFLAG:ARG:연회참가
+	;활동시 마우치
+	IF VISIT(ARG)
+		IF CFLAG:ARG:거점내방
+			;내방플래그가 있다면 주인공의 거점에 출현시킨다(업무중은 무리)
+			IF !AT_HOME(ARG) && !업무중체크(ARG)
+				CALL 주인공물건으로향한다(ARG)
+			ENDIF
+		ENDIF
+	;활동시간외
+	ELSE
+		;귀가·재택 처리
+		CALL KITAKU(ARG)
+	ENDIF
+ENDIF
+
+;------------------------------------------
+;일이 없는 캐릭터를 외출시킨다
+;------------------------------------------
+@휴일이동처리(ARG)
+SIF FLAG:시간정지 || CFLAG:ARG:쇠약 || TCVAR:ARG:만취 || CFLAG:ARG:수면 || CFLAG:ARG:초대 || CFLAG:ARG:우후후
+	RETURN
+
+;신사에 갈 예정의 캐릭터, 당일 일이 있는 캐릭터, 신사에 살고 있는 캐릭터는 무시
+SIF CFLAG:ARG:거점내방 || 일일체크(ARG) || CFLAG:ARG:신사거주
+	RETURN
+
+;방문시간에 아직 이동하고 있지 않는 경우
+IF VISIT(ARG) && !CFLAG:ARG:휴일이동완료
+	CFLAG:ARG:휴일이동완료 = 1
+	LOCAL = 0
+	IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+		;묵으면(자) 일어나는 현상(연동 캐릭터를 고려하면(자) 귀찮은 일로)
+		LOCAL = 1
+	ENDIF
+	;전원 공통의 처리
+	CFLAG:ARG:현재위치 = CFLAG:ARG:만난위치 ?  CFLAG:ARG:만난위치 # SUKIMA()
+	CFLAG:ARG:동행 = 0
+	;연동이나 예외가 있는 캐릭터용의 처리
+	TRYCALLFORM CHARAMOVE_DATA_{ARG}(1, ARG)
+	IF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치 && LOCAL
+		PRINTFORMW %ARG는% 어딘가에 나간 것 같다
+	ENDIF
+ENDIF
+
+
+;------------------------------------------
+;업무중이라면 1을 돌려준다
+;@WORKING와는 거동이 다르므로 주의
+;------------------------------------------
+@업무중체크(ARG)
+#FUNCTION
+SIF TCVAR:ARG:일개시 >= 0 && BETWEENTIME(TCVAR:ARG:일개시, TCVAR:ARG:일종료) && BASE:ARG:일량 > 0
+	RETURNF 1
+RETURNF 0
+
+;------------------------------------------
+;당일에 일의 예정이 있다면 1을 돌려준다
+;@WORKING와는 거동이 다르므로 주의
+;------------------------------------------
+@일일체크(ARG)
+#FUNCTION
+SIF TCVAR:ARG:일개시 >= 0
+	RETURNF 1
+RETURNF 0
+
+
+@주인공물건으로향한다(ARG)
+;묵으면(자) 일어나는 현상
+IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치 && !CHK_DATENOW(CFLAG:ARG:데이트중)
+	IF CFLAG:태도 && !FLAG:데이트상대
+		PRINTFORMW %ARG는% %GET_MAPNAME(MAIN_MAP)%에 가고 싶은 것 같다
+		PRINTL [0] - 함께 간다　[1] - 전송한다
+		INPUT
+		IF !RESULT
+			PRINTFORMW %CALLNAME:ARG%를 데려 돌아가기로 했다
+			CALL 귀가의시간경과
+			CALL SET_DATE(99, ARG)
+			CFLAG:ARG:현재위치 = ENTRANCE
+			CFLAG:MASTER:현재위치 = ENTRANCE
+			CFLAG:ARG:데이트중 = MAIN_MAP
+			CFLAG:MASTER:데이트중 = MAIN_MAP
+			CFLAG:ARG:동행 = 60
+			CFLAG:MASTER:동행 = 60
+			IF TARGET == 93 && !GETBIT (FLAG:풀장, 0)
+				TIME += 30
+				BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 500,500)
+			ENDIF
+		ELSE
+			PRINTFORMW %ARG는% %GET_MAPNAME(MAIN_MAP)%에 나갔다
+			IF CFLAG:ARG:(450 + MAIN_MAP)
+				CFLAG:ARG:현재위치 = CFLAG:ARG:(450 + MAIN_MAP)
+			ELSE
+				CFLAG:ARG:현재위치 = MAXROOM
+			ENDIF
+		ENDIF
+	ELSE
+		PRINTFORMW %ARG는% %GET_MAPNAME(MAIN_MAP)%에 나간 것 같다
+		IF CFLAG:ARG:(450 + MAIN_MAP)
+			CFLAG:ARG:현재위치 = CFLAG:ARG:(450 + MAIN_MAP)
+		ELSE
+			CFLAG:ARG:현재위치 = MAXROOM
+		ENDIF
+	ENDIF
+ELSE
+	IF CFLAG:ARG:(450 + MAIN_MAP)
+		CFLAG:ARG:현재위치 = CFLAG:ARG:(450 + MAIN_MAP)
+	ELSE
+		CFLAG:ARG:현재위치 = MAXROOM
+	ENDIF
+	SIF GETBIT(TALENT:MASTER:위치짐작, 1) && AT_HOME(MASTER) == 1 && !CFLAG:MASTER:수면 && !CFLAG:MASTER:우후후
+		PRINTFORMW 【%ARG가% 방문해 온 것 같다】
+ENDIF
+CALL EX_COSTUME(ARG, "집 데이트")
+
+
+
+;------------------------------------------
+;일이나 연회의 개시/경과/종료나 메시지의 표시를 실시한다
+;------------------------------------------
+@일연회처리(ARG)
+SIF FLAG:시간정지 || CFLAG:ARG:쇠약 || CFLAG:ARG:초대 || CFLAG:ARG:수면
+	RETURN
+
+IF TCVAR:ARG:만취
+	;연회에서 만취했을 경우는 메시지만 표시해 돌아간다
+	IF CFLAG:ARG:직종 == 51 && CFLAG:ARG:현재위치 == TFLAG:연회장 && CFLAG:MASTER:현재위치 == CFLAG:ARG:현재위치
+		CALL 연회묘사(ARG)
+	ENDIF
+	RETURN
+ENDIF
+
+IF !CFLAG:ARG:우후후 || WORKING(ARG) || (CFLAG:ARG:우후후 == 2 && CFLAG:ARG:연회참가 == 2)
+	;연회 시간대 호출
+	IF CFLAG:ARG:연회참가 == 1 || CFLAG:ARG:연회참가 == 2
+		CALL ENKAI_WORK(ARG)
+
+	;연회회장에 들르거나 가까워진 캐릭터는 일정 확률로 연회에 참가한다
+	ELSEIF FLAG:참가인수 >= 2 && (CFLAG:ARG:현재위치 == TFLAG:연회장 || CAN_MOVE(CFLAG:ARG:현재위치, TFLAG:연회장) >= 2) && !CFLAG:ARG:우후후
+		IF CFLAG:ARG:연회참가 == 0 && RAND:5 < 4 && FLAG:30 >= 98 && TIME_PROGRESS(TIME:1)
+			IF CFLAG:MASTER:현재위치 == TFLAG:연회장
+				IF FLAG:참가인수 >= 8
+					PRINTFORMW 즐거운 모습에, %ARG가% 연회에 참가했다!
+				ELSE
+					PRINTFORMW 상태를 보고 있던%ARG는%, 그대로 연회에 참가했다!
+				ENDIF
+			ENDIF
+			CFLAG:ARG:연회참가 = 1
+			CALL ENKAI_START(ARG)
+		ENDIF
+	ENDIF
+
+	;데이트상대가 연회나 그 준비에 참가했을 경우, 데이트는 강제적으로 중지
+	IF GROUPMATCH(CFLAG:ARG:직종, 48, 49, 50, 51) && CHK_DATENOW(CFLAG:ARG:데이트중)
+		PRINTFORMW %ARG와%의 데이트는 일단 연회의 끝으로 하기로 했다
+		CFLAG:ARG:데이트중 = MAIN_MAP
+		FLAG:데이트상대 = 0
+		TFLAG:데이트전호감도 = 0
+		CFLAG:ARG:동행 = 0
+	ENDIF
+
+	;연회의정리 예정이 들어가 있는 캐릭터는 시간이 나는 대로 정리 개시
+	IF CFLAG:ARG:정리일량
+		IF CFLAG:ARG:행동 == 0 && FLAG:참가인수 == 0
+			CALL ENKAI_KATAZUKE(ARG)
+			CFLAG:ARG:정리일량 = 0
+			CFLAG:ARG:정리장소 = 0
+		ENDIF
+	ENDIF
+
+	;일시간중, 연회참가중, 연회준비중이라면 CHARA_JOBSTR(ARG)
+	IF WORKING(ARG) || (GROUPMATCH(CFLAG:ARG:직종, 48, 49, 50) && BASE:ARG:일량 > 0) || GROUPMATCH(CFLAG:ARG:직종, 51)
+		CALL CHARA_JOBSTR(ARG)
+	;일종료하고 있으면 종료 처리
+	ELSEIF CFLAG:ARG:행동 == 5
+		CALL CHARA_JOBEND(ARG)
+	ENDIF
+ENDIF
+
+
+@수면시데이트중단(ARG)
+IF CHK_DATENOW(CFLAG:ARG:데이트중)
+	IF CFLAG:ARG:쇠약
+		PRINTFORMW %ARG는% 녹초가 되어 졸린 것 같다…
+	ELSE
+		PRINTFORMW %ARG는% 이제 돌아가 자는 시간입니다…
+	ENDIF
+	IF GET_MAPID(CFLAG:ARG:자택위치) == MAIN_MAP
+		PRINTFORMW 함께 %GET_MAPNAME(MAIN_MAP)%로 돌아가기로 했습니다
+		CALL SET_DATE(99, ARG)
+	ELSE
+		CALL ASK_YN("집까지 바래다준다","그 자리에서 헤어진다")
+		IF RESULT == 0
+			PRINTFORMW %ARG를% 집까지 데려다 주기로 했습니다
+			CALL SET_DATE(99, ARG)
+		ELSE
+			PRINTFORMW %ARG와%의 데이트는 그 자리에서 연회의 끝이 되었습니다
+			FLAG:데이트상대 = 0
+			TFLAG:데이트전호감도 = 0
+			CFLAG:ARG:데이트중 = MAIN_MAP
+		ENDIF
+		CFLAG:ARG:현재위치 = CFLAG:ARG:자택위치
+	ENDIF
+	CFLAG:ARG:동행 = 0
+ENDIF

@@ -1,0 +1,116 @@
+﻿@M_KOJO_IRAI_K96(ROLE, SCENE, IRAI_ID)
+#DIMS ROLE     ;캐릭터의 입장, 의뢰자인가 그렇지 않은가
+#DIMS SCENE    ;대사의 표시되는 타이밍
+#DIM  IRAI_ID  ;의뢰 자체의 ID
+#DIM  CLIENT_ID;의뢰자 ID만 뽑아낸 것
+#DIM  CHK_ID   ;의뢰 ID만 뽑아낸 것
+CHK_ID    = IRAI_ID % 1000
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE ROLE
+CASE "CLIENT"
+	;일반의뢰
+	IF IS_COMMON_IRAI(IRAI_ID)
+		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+		CASE "일반의뢰명"
+			SELECTCASE SCENE
+			CASE "의뢰 제시시"
+			;의뢰를 걸 수 있을 때
+			CASE "의뢰비수탁시"
+			;내용만 봐 수탁하지 않았던 때
+			CASE "의뢰 수탁시"
+			;의뢰를 수탁했을 때
+			CASE "의뢰 확인시"
+			;[366]으로 의뢰내용을 의뢰인에게 확인했을 때
+			CASE "의뢰 파기시"
+			;수탁한 의뢰를 파기할 때
+			CASE "의뢰실행 직전"
+			;[367]으로 의뢰를 실행할 때, 실행 처리의 앞에 불려 간다
+			CASE "의뢰실행 직후"
+			;[367]으로 의뢰를 실행할 때, 실행 처리의 뒤에 불려 간다
+			CASE "성공 보고시"
+			;보고시(성공)
+			CASE "실패 보고시"
+			;보고시(실패)
+			;이 외, 보고 잊음나 기한 마감에 실패 취급이 되어 후일 의뢰인에게 조우했을 때에도 표시
+			ENDSELECT
+		ENDSELECT
+		RETURN
+	ENDIF
+	
+	;고유 의뢰
+	SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+	;개개의 의뢰명으로 분기
+	;SCENE의 WAIT에 관한 사양
+	;WAIT 없음으로 좋다　　　　："의뢰 제시시", "의뢰비수탁시", "의뢰 확인시", "의뢰 파기시", "성공 보고시", "실패 보고시"
+	;
+	;이하의 2개는 실제로는 CARRYOUT에서의 지문 처리라는 비교 검토가 필요
+	;WAIT를 넣는 편이 적절："의뢰실행 직전", "의뢰실행 직후"
+	CASE "고유 의뢰명"
+		SELECTCASE SCENE
+		CASE "의뢰 제시시"
+		;의뢰를 걸 수 있을 때
+		CASE "의뢰비수탁시"
+		;내용만 봐 수탁하지 않았던 때
+		CASE "의뢰 수탁시"
+		;의뢰를 수탁했을 때
+		CASE "의뢰 확인시"
+		;[366]으로 의뢰내용을 의뢰인에게 확인했을 때
+		CASE "의뢰 파기시"
+		;수탁한 의뢰를 파기할 때
+		CASE "의뢰실행 직전"
+		;[367]으로 의뢰를 실행할 때, 실행 처리의 앞에 불려 간다
+		CASE "의뢰실행 직후"
+		;[367]으로 의뢰를 실행할 때, 실행 처리의 뒤에 불려 간다
+		CASE "성공 보고시"
+		;보고시(성공)
+		CASE "실패 보고시"
+		;보고시(실패)
+		;이 외, 보고 잊음나 기한 마감에 실패 취급이 되어 후일 의뢰인에게 조우했을 때에도 표시
+		ENDSELECT
+	ENDSELECT
+CASE "TARGET"
+	;여기서 표시되는 SCENE는"의뢰실행 직전", "의뢰실행 직후"뿐입니다
+	;일반의뢰
+	IF IS_COMMON_IRAI(IRAI_ID)
+		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+		;개개의 의뢰명으로 분기 해 주세요
+		CASE "일반의뢰명"
+		;인물이 열쇠가 되어 있던·혹은 장소에 우연히 마침 있었다
+			SELECTCASE SCENE
+			;TARGET가 불리는 것은 이 타이밍만
+			CASE "의뢰실행 직전"
+			CASE "의뢰실행 직후"
+			ENDSELECT
+		ENDSELECT
+		RETURN
+	ENDIF
+	SELECTCASE CSVCALLNAME(CLIENT_ID)
+	;의뢰자의 CALLNAME에 의한 분기(CSV 준거)
+	CASE "의뢰자"
+		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+		CASE "고유 의뢰명"
+			SELECTCASE SCENE
+			CASE "의뢰실행 직전"
+			CASE "의뢰실행 직후"
+			ENDSELECT
+		ENDSELECT
+	ENDSELECT
+CASE "NO_REPORT"
+	;날짜 경과시, 보고 불필요 의뢰를 달성 하고 있었을 경우에 불리는 말
+	;여기서 표시되는 SCENE는"의뢰 보고 불필요"뿐입니다
+	;SCENE가 1개 밖에 없기 때문에 분기는 불요
+	;또, 반드시 의뢰주의 말이 불립니다
+	;일반의뢰
+	IF IS_COMMON_IRAI(IRAI_ID)
+		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+		;개개의 의뢰명으로 분기 해 주세요
+		CASE "일반의뢰명"
+		CASE "꽃에 물을 줘"
+		CASE "누군가의 유실물"
+		ENDSELECT
+		RETURN
+	ENDIF
+	SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+	CASE "고유 의뢰명"
+	ENDSELECT
+ENDSELECT

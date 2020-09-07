@@ -1,0 +1,110 @@
+﻿;-------------------------------------------------
+;귀이개
+;-------------------------------------------------
+@SCOM60
+CALL SUC_FAIL(110, MIN(90 + GET_SUCCESS_RATE() / 5, 109))
+SELECTCASE TFLAG:193
+	;실패
+	CASE -1
+		SIF TFLAG:192 == -2
+			RETURN 0
+		TFLAG:98 = -2
+	;대성공
+	CASE 1
+		TFLAG:98 = 3
+ENDSELECT
+;선제 발생시는 실패하지 않는다
+SIF TFLAG:102 == 3
+	TFLAG:193 = MAX(TFLAG:193, 0)
+DOWNBASE:기력 += 100
+DOWNBASE:MASTER:기력 += 50
+
+;고정으로 획득하는 소스
+SOURCE:사랑 = 170
+SOURCE:환락 = 100
+SOURCE:복종 = 85
+SOURCE:반감 = 50
+SIF TFLAG:193 == -1
+	SOURCE:반감 += 30
+
+;ABL:친밀을 본다
+IF ABL:친밀 <= 1
+	SOURCE:사랑 += (ABL:친밀 * 20)
+	SOURCE:복종 += (ABL:친밀 * 10)
+ELSEIF ABL:친밀 <= 3
+	SOURCE:사랑 += 200 + (ABL:친밀 * 20)
+	SOURCE:복종 += 150 + (ABL:친밀 * 10)
+ELSEIF ABL:친밀 <= 5
+	SOURCE:사랑 += 400 + (ABL:친밀 * 20)
+	SOURCE:복종 += 200 + (ABL:친밀 * 10)
+ELSEIF ABL:친밀 <= 8
+	SOURCE:사랑 += 600 + (ABL:친밀 * 30)
+	SOURCE:복종 += 250 + (ABL:친밀 * 10)
+	SOURCE:환락 += 100 + (ABL:봉사정신 * 10)
+ELSEIF ABL:친밀 <= 11
+	SOURCE:사랑 += 800 + (ABL:친밀 * 30)
+	SOURCE:복종 += 300 + (ABL:친밀 * 10)
+	SOURCE:환락 += 200 + (ABL:봉사정신 * 10)
+ELSE
+	SOURCE:사랑 += 1000 + (ABL:친밀 * 20)
+	SOURCE:복종 += 500 + (ABL:친밀 * 10)
+	SOURCE:환락 += 300 + (ABL:봉사정신 * 10)
+ENDIF
+
+LOCAL = 0
+;호감도가 낮으면 호감도 저하
+IF CFLAG:2 <= 50
+	LOCAL -= 3
+ELSEIF CFLAG:2 <= 100
+	LOCAL -= 2
+ELSEIF CFLAG:2 <= 250
+	LOCAL -= 1
+ENDIF
+
+
+SOURCE:수동 = 150 + 250 * ABL:순종
+
+;호감도 변화
+TFLAG:97 += LOCAL
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:사랑 , 0.50
+	TIMES SOURCE:복종 , 0.50
+	TIMES SOURCE:수동 , 0.50
+	TIMES SOURCE:환락 , 0.40
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:사랑 , 1.00
+	TIMES SOURCE:복종 , 1.00
+	TIMES SOURCE:수동 , 1.00
+	TIMES SOURCE:환락 , 0.80
+ELSE
+	TIMES SOURCE:사랑 , 1.50
+	TIMES SOURCE:복종 , 1.50
+	TIMES SOURCE:수동 , 2.00
+	TIMES SOURCE:환락 , 1.30
+ENDIF
+TIME += 30
+CALL SET_DERAY(6, TARGET)
+
+RETURN 1
+
+;-------------------------------------------------
+;선택 가능 판정
+;-------------------------------------------------
+;귀이개
+@COM_ABLE560
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(560)
+	RETURN RESULT
+;상대가 없으면 안 돼
+SIF !TARGET
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+SIF TFLAG:103 != TARGET
+	RETURN 0
+RETURN 1
+

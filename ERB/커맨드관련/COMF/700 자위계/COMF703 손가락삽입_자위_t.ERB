@@ -1,0 +1,94 @@
+﻿;-------------------------------------------------
+;손가락 삽입
+;자위계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM703
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+
+;파과 억제
+TFLAG:2 = 1
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+DOWNBASE:PLAYER:체력 += 30
+DOWNBASE:PLAYER:기력 += 80
+
+IF !TALENT:PLAYER:처녀 || TALENT:PLAYER:처녀 == -1
+	SOURCE:PLAYER:쾌V = 120
+	SOURCE:PLAYER:고통 = 15
+	SOURCE:PLAYER:노출 = 10
+	SOURCE:PLAYER:일탈 = 20
+	SOURCE:PLAYER:반감 = 20
+;V경험이 0때는 V경험을 수반하지 않는 것에 파생
+;V의 구슬은 들어가지 않지만, 쾌V가 높으면 길들여 있기 (위해)때문에 처녀상실시에 영향
+ELSE
+	SOURCE:PLAYER:쾌V = 60
+	SOURCE:PLAYER:고통 = 10
+	SOURCE:PLAYER:노출 = 30
+	SOURCE:PLAYER:일탈 = 30
+	SOURCE:PLAYER:반감 = 30
+ENDIF
+
+SIF TALENT:PLAYER:능숙한손가락
+	SOURCE:PLAYER:쾌V += 20
+SOURCE:PLAYER:쾌V += ABL:PLAYER:손가락 * 5
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;억압, 저항 소유에는, 억울소스 추가
+IF TALENT:PLAYER:자기애 < 0 || TALENT:PLAYER:저항
+	SOURCE:PLAYER:울굴 += 20
+	;처녀
+	SIF TALENT:PLAYER:처녀
+		SOURCE:PLAYER:울굴 += 10
+ENDIF
+;V에의 고통
+CALL PAIN_CHECK_V(PLAYER)
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;노예의 질내⇔조교자의 손가락의 더러움이 이동
+	STAIN:PLAYER:질내 |= STAIN:PLAYER:손
+	STAIN:PLAYER:손 |= STAIN:PLAYER:질내
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+SIF !FLAG:시간정지
+	TIME += 5
+;자위경험
+CFLAG:PLAYER:자위했다 ++
+EXP:PLAYER:V경험 ++
+EXP:PLAYER:수음경험 ++
+RETURN 1
+
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+@COM_ABLE703
+;손가락 삽입실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(703)
+	RETURN RESULT
+;남자라면 안 돼
+SIF !(TALENT:2 & 1)
+	RETURN 0
+;윤활 부족해, 순종 3 이하·레즈끼 3 이하의 ASSI의 경우 애널애무는 할 수 없다(새드라면 OK)
+IF PALAM:윤활 < PALAMLV:2 && ASSIPLAY
+	SIF (ABL:ASSI:순종 <= 3 || ABL:ASSI:레즈끼 <= 3) && !TALENT:ASSI:새드
+		RETURN 0
+ENDIF
+
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+RETURN 1
+

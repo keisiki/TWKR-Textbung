@@ -1,0 +1,97 @@
+﻿;-------------------------------------------------
+;고백한다
+;일상계 커맨드, 레벨 2
+;-------------------------------------------------
+@COM352
+LOCAL = 0
+IF FLAG:생활능력무
+	DRAWLINE
+	PRINTFORMW %CALLNAME:MASTER%에겐 그런 배짱이 없다
+	RETURN -1
+ENDIF
+;고백 대상 확인
+PRINTFORM %CALLNAME:TARGET%에 고백합니다.
+IF FLAG:스침연인수 == 100 && TALENT:스침
+	PRINTFORML 　- 포말의 사랑의 상대는 100명까지밖에 기억할 수 없습니다
+	PRINTFORML 　　【연인】이 되었을 경우, 지금까지 함께 한 누군가의 이름을 잊어버립니다 -
+ELSE
+	PRINTFORML 　- 【연인】의 수에 제한은 없습니다 -
+ENDIF
+PRINTW 괜찮겠습니까?
+PRINTL [0] - 그만둔다
+PRINTL [1] - 고백한다
+$INPUT_LOOP
+INPUT
+IF RESULT < 0 || RESULT > 1
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ELSEIF RESULT == 0
+	RETURN -1
+ENDIF
+
+;파라미터에 의해 성공 기초치 판정
+
+SELECTCASE TFLAG:192
+	;통상
+	CASE 0
+		IF  CFLAG:합의판정 > 700 + TALENT:일선을넘지않음 * 1000
+			TFLAG:193 = 1
+		ELSE
+			TFLAG:193 = 0
+		ENDIF
+	;강제 성공 or대성공
+	CASE 1
+		TFLAG:193 = 1
+	;강제 실패
+	CASE -1
+		TFLAG:193 = 0
+	;커맨드 종료
+	CASE -2
+		TFLAG:193 = 0
+		RETURN 0
+ENDSELECT
+
+IF TFLAG:193 == 1
+	SOURCE:환락 = 1000
+	SOURCE:수동 = 500 + 100 * ABL:순종
+	SOURCE:정복 = 500 + 100 * ABL:새드끼
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE352
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+;망상중은 고백할 수 없다
+SIF TFLAG:망상중 == 1
+	RETURN 0
+;고백하는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(352)
+	RETURN RESULT
+;둘이서 없으면 안 돼
+SIF GET_TARGETNUM() > 1
+	RETURN 0
+;친해져 강도 2
+SIF TCVAR:MASTER:친해져 < 2
+	RETURN 0
+;벌써 연인의 경우는 안 돼
+SIF TALENT:연인
+	RETURN 0
+SIF TALENT:TARGET:스침
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+RETURN 1

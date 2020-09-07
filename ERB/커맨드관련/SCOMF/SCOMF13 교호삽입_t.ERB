@@ -1,0 +1,450 @@
+﻿;-------------------------------------------------
+;교호 삽입
+;섹스, 조수계 파생 커맨드
+;-------------------------------------------------
+@SCOM13
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;TCVAR:0 사정 대상 플래그(비트 0=TARGET 1=PLAYER 2=MASTER 3=ASSI)
+;TCVAR:1 예비 사정 대상 플래그(비트를 사용하고 싶지 않은 인용, CFLAG:100으로 번역됩니다)	(1=TARGET 2=PLAYER 3=MASTER 4=ASSI 5=TARGET+ASSI 6=MASTER+ASSI)
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수)
+;두 명째
+LOCAL = MASTER_POSE(SET_V, SET_P, 1)
+
+LOCALS = {TARGET}/{LOCAL}/
+CSTR:PLAYER:10 += LOCALS
+TCVAR:MASTER:2 = 1
+;강도
+TCVAR:MASTER:4 = 2500
+
+;봉사 쾌락 플래그
+TCVAR:PLAYER:108 = 1
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 55
+	SOURCE:MASTER:쾌C = 690
+
+	SOURCE:PLAYER:성행동 =35
+	SOURCE:쾌V = 460
+	SOURCE:고통 = 260
+
+	SOURCE:LOCAL:쾌V = 230
+	SOURCE:LOCAL:고통 = 260
+
+	FOR LOCAL:1, 0,2
+		IF LOCAL:1 == 0
+			LOCAL:2 = TARGET
+		ELSE
+			LOCAL:2 = LOCAL
+		ENDIF
+		;처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+		IF TALENT:(LOCAL:2):처녀 == 1
+			SOURCE:(LOCAL:2):고통 += 1020
+		ENDIF
+
+		;재생 처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+		IF TALENT:(LOCAL:2):처녀 == 2
+			SOURCE:(LOCAL:2):고통 += 260
+
+		ENDIF
+
+		;V에의 고통은 먼저 처리해 둔다
+		CALL PAIN_CHECK_V(LOCAL:2)
+	NEXT
+
+ELSE
+
+	DOWNBASE:체력 += 50
+	DOWNBASE:기력 += 110
+	SOURCE:MASTER:쾌C = 690
+
+	SOURCE:쾌V = 460
+	SOURCE:사랑 = 210
+	SOURCE:고통 = 510
+	SOURCE:노출 = 80
+	SOURCE:반감 = 350
+
+	SOURCE:LOCAL:쾌V = 230
+	SOURCE:LOCAL:사랑 = 100
+	SOURCE:LOCAL:고통 = 510
+	SOURCE:LOCAL:노출 = 40
+	SOURCE:LOCAL:반감 = 350
+	;위 쪽으로 계산한 더러운 데이터
+	SOURCE:불결 = Y*10 + 60
+	SOURCE:LOCAL:불결 = Y*10 + 60
+
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	FOR LOCAL:1, 0,2
+		IF LOCAL:1 == 0
+			LOCAL:2 = TARGET
+		ELSE
+			LOCAL:2 = LOCAL
+		ENDIF
+		;억압, 저항 소유에는, 억울소스 추가
+		SIF TALENT:(LOCAL:2):자기애 < 0 || TALENT:(LOCAL:2):저항
+			SOURCE:(LOCAL:2):울굴 += 310
+
+		;정조 관념 소유로 연모, 친애 가져 이외에는 항상 반발의 소스를 추가한다(섹스계만)
+		SIF TALENT:(LOCAL:2):정조 > 0 && !TALENT:(LOCAL:2):연모
+			SOURCE:(LOCAL:2):반감 += 1300
+
+		;처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+		IF TALENT:(LOCAL:2):처녀 == 1
+			SOURCE:(LOCAL:2):고통 += 2040
+			SOURCE:(LOCAL:2):반감 += 3500
+		ENDIF
+
+		;재생 처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+		IF TALENT:(LOCAL:2):처녀 == 2
+			SOURCE:(LOCAL:2):고통 += 510
+			SOURCE:(LOCAL:2):반감 += 1100
+		ENDIF
+
+		;V에의 고통은 먼저 처리해 둔다
+		CALL PAIN_CHECK_V(LOCAL:2)
+	NEXT
+ENDIF
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;사정에 관계없이 행해지는 처리는 여기에서
+;질내에 파과의 피의 더러움을 부가
+SIF TALENT:처녀 && TALENT:처녀 != -1
+	STAIN:6 |= 64
+;노예의 V⇔조교자의 P의 더러움이 이동
+STAIN:PLAYER:2 |= STAIN:3
+STAIN:PLAYER:2 |= STAIN:6
+STAIN:3 |= STAIN:PLAYER:2
+STAIN:6 |= STAIN:PLAYER:2
+;조수의 V⇔조교자의 P의 더러움이 이동
+STAIN:PLAYER:2 |= STAIN:LOCAL:3
+STAIN:PLAYER:2 |= STAIN:LOCAL:6
+STAIN:LOCAL:3 |= STAIN:PLAYER:2
+STAIN:LOCAL:6 |= STAIN:PLAYER:2
+;노예의 V⇔조교자의 P의 더러움이 이동
+STAIN:PLAYER:2 |= STAIN:3
+STAIN:PLAYER:2 |= STAIN:6
+STAIN:3 |= STAIN:PLAYER:2
+STAIN:6 |= STAIN:PLAYER:2
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:PLAYER:삽입경험 ++
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+ENDIF
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(TARGET, LOCAL)
+	EXP:LOCAL:(50 + HETEROSEX(TARGET, LOCAL)) += 3
+	EXP:TARGET:(50 + HETEROSEX(TARGET, LOCAL)) += 3
+ENDIF
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(LOCAL, PLAYER)
+	EXP:LOCAL:(50 + HETEROSEX(LOCAL, PLAYER)) += 3
+	EXP:PLAYER:(50 + HETEROSEX(LOCAL, PLAYER)) += 3
+ENDIF
+
+IF FLAG:70 == 1
+	EXP:MASTER:시간경험 += 1
+ELSE
+	EXP:V성교경험 ++
+	EXP:LOCAL:V성교경험 ++
+	IF !ASSIPLAY
+		EXP:애정경험 += TALENT:연모 * 2
+		;처녀
+		SIF TALENT:처녀 && TALENT:연모 && TALENT:처녀 != -1
+			EXP:애정경험 += 4
+	ENDIF
+ENDIF
+RETURN 1
+
+@CAN_SCOM13(ARG)
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+IF FLAG:70 == 1
+	SKIPDISP ARG
+	PRINTL 교호 삽입
+ELSE
+
+	;밧줄로 묶여 있을 경우는 무시(밧줄이 없을 때만 실행 판정을 실시한다)
+	IF TEQUIP:밧줄 == 0
+		SKIPDISP ARG
+		PRINTL 교호 삽입
+		A = 0
+		S = 0
+		;모든 명령에 공통의 요소를 고려
+		;(순종이 높다고 명령에 따르기 쉬운 등)
+		CALL COM_ORDER
+
+		;ABL:욕망
+		IF ABL:욕망
+			SIF S
+				PRINT  + 
+			A += ABL:욕망 * 3
+			PRINT 욕망
+			PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 3, ')
+			S = 1
+		ENDIF
+		;ABL:V감각
+		IF ABL:V감각
+			SIF S
+				PRINT  + 
+			A += ABL:V감각 * 2
+			PRINT V감각
+			PRINTV 'LV, ABL:V감각, '(, ABL:V감각 * 2, ')
+			S = 1
+		ENDIF
+		;쾌락각인
+		IF MARK:쾌락각인
+			SIF S
+				PRINT  + 
+			A += MARK:쾌락각인 * 3
+			PRINT 쾌락각인
+			PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 3, ')
+			S = 1
+		ENDIF
+		;PALAM:윤활(의 부족)
+		IF PALAM:윤활 < PALAMLV:3
+			PRINT  - 
+			A -= 5
+			PRINT 윤활 부족
+			PRINTV '(, 5, ')
+			S = 1
+		ENDIF
+		;PALAM:욕정
+		IF GETPALAMLV(PALAM:욕정, 5)
+			SIF S
+				PRINT  + 
+			A += GETPALAMLV(PALAM:욕정, 5) * 3
+			PRINT 욕정
+			PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 3, ')
+			S = 1
+		ENDIF
+		;수줍음
+		IF TALENT:수치심 > 0
+			PRINT  - 
+			A -= 2
+			PRINT 수줍음
+			PRINTV '(, 2, ')
+			S = 1
+		ENDIF
+		;쾌감에 부정
+		IF TALENT:쾌감응답 < 0 && !TALENT:연모
+			PRINT  - 
+			A -= 5
+			PRINT 쾌감에 부정
+			PRINTV '(, 5, ')
+			S = 1
+		ENDIF
+		;남성기피(연모, 친애로 무효)
+		IF OTOKOGIRAI(TARGET)
+			PRINT  - 
+			A -= 12
+			PRINT 남성기피
+			PRINTV '(, 12, ')
+			S = 1
+		ENDIF
+		;연모
+		IF TALENT:연모 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 12
+			PRINT 연모
+			PRINTV '(, 12, ')
+			S = 12
+		ENDIF
+		;친애
+		IF TALENT:연모 > 1 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 2
+			PRINT 친애
+			PRINTV '(, 2, ')
+			S = 2
+		ENDIF
+		;음란
+		IF TALENT:음란 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 3
+			PRINT 음란
+			PRINTV '(, 3, ')
+			S = 3
+		ENDIF
+		;창부
+		IF TALENT:음란 > 1 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 3
+			PRINT 창부
+			PRINTV '(, 3, ')
+			S = 1
+		ENDIF
+		;처녀
+		LOCAL = MAX(10,40 - EXP:V경험)
+		IF TALENT:처녀 && TALENT:처녀 != -1
+			PRINT  - 
+			A -= LOCAL
+			PRINT 처녀
+			PRINTV '(, LOCAL, ')
+			S = 1
+		;V경험
+		ELSEIF EXP:V경험 < EXPLV:2
+			PRINT  - 
+			A -= 15
+			PRINT V경험
+			PRINT 부족
+			PRINTV '(, 15, ')
+			S = 1
+		ENDIF
+
+		;조교자가 후타나리
+		IF (TALENT:PLAYER:2 & 3) == 3
+			SIF S
+				PRINT  + 
+			A += 4
+			PRINT 후타나리
+			PRINTV '(, 4, ')
+			S = 1
+		ENDIF
+
+		;미약
+		IF TCVAR:미약
+			SIF S
+				PRINT  + 
+			A += 6
+			PRINT 미약
+			PRINTV '(, 6, ')
+			S = 1
+		ENDIF
+
+		Y = 0
+		;애액의 더러움
+		SIF STAIN:PLAYER:2 & 1
+			Y += 1
+		;정액의 더러움
+		SIF STAIN:PLAYER:2 & 4
+			Y += 3
+		;애널의 더러움
+		SIF STAIN:PLAYER:2 & 8
+			Y += 7
+		SIF STAIN:PLAYER:2 & 16
+			Y += 15
+		Y = Y * (2 - TALENT:악취내성) / 2
+
+		;서로 더러워져
+		IF Y
+			PRINT  - 
+			A -= Y
+			PRINT 서로 더러워져
+			;악취 둔감
+			IF TALENT:악취내성 > 0
+				PRINT , 악취 둔감
+			ELSEIF TALENT:악취내성 < 0
+				PRINT , 악취 민감
+			ENDIF
+			PRINTV '(, Y, ')
+			S = 1
+		ENDIF
+
+		;합계를 표시(25이상으로 실행)
+		PRINT  = 
+		PRINTV A
+
+		V = 25
+		SIF A < V
+			PRINT  < 
+		SIF A == V
+			PRINT  = 
+		SIF A > V
+			PRINT  > 
+		PRINT 실행치
+		PRINTV V
+
+		WAIT
+
+		SKIPDISP 0
+		;실행할 수 없다
+		SIF A < V
+			RETURN 0
+	ELSE
+		SKIPDISP ARG
+		PRINTL 교호 삽입
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;선택 가능 판정
+;-------------------------------------------------
+@COM_ABLE513
+;교호 삽입
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(513)
+	RETURN RESULT
+LOCAL = MASTER_POSE(SET_V, SET_P, 1)
+;바이브 삽입중은 안 돼
+SIF TEQUIP:13
+	RETURN 0
+SIF TEQUIP:LOCAL:13
+	RETURN 0
+;남자라면 안 돼
+SIF !(TALENT:2 & 1)
+	RETURN 0
+SIF !(TALENT:LOCAL:2 & 1)
+	RETURN 0
+;체격 차이가 있는 경우는 주인이 금단의지식 소유가 아니면 안 돼
+SIF ABS(TALENT:체형 - TALENT:PLAYER:체형) > 2 && !TALENT:PLAYER:금단의지식
+	RETURN 0
+SIF ABS(TALENT:LOCAL:체형 - TALENT:PLAYER:체형) > 2 && !TALENT:PLAYER:금단의지식
+	RETURN 0
+;조교자가 남자, 반인반요, 후타나리, 혹은 페니스밴드가 없으면 안 돼
+SIF !(TALENT:PLAYER:2 & 2) && ITEM:PBAND == 0
+	RETURN 0
+;처녀로, 순종 4 이하·레즈끼 4 이하의 ASSI의 경우는 할 수 없다(새드라면 OK)
+IF TALENT:처녀 && ASSIPLAY
+	SIF (ABL:ASSI:순종 <= 4 || ABL:ASSI:레즈끼 <= 4) && TALENT:ASSI:새드 == 0
+		RETURN 0
+ENDIF
+;시간정지중은 허가
+IF FLAG: 70 != 1
+	;처녀 또한 윤활 부족은 안 돼
+	SIF PALAM:윤활 < PALAMLV:2 && TALENT:처녀 && TALENT:처녀 != -1
+		RETURN 0
+	SIF PALAM:LOCAL:윤활 < PALAMLV:2 && TALENT:LOCAL:처녀 && TALENT:LOCAL:처녀 != -1
+		RETURN 0
+ENDIF
+
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+SIF TEQUIP:LOCAL:0 & 4
+	RETURN 0
+;목욕탕플레이중은 플레이매트가 없으면 안 돼
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+
+;조수가 기승위로부터는 안 돼
+SIF TEQUIP:LOCAL:체위2 == 3
+	RETURN 0
+
+RETURN 1
+

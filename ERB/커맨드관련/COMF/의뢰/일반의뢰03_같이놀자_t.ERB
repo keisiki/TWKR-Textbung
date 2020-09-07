@@ -1,0 +1,96 @@
+﻿;존부 함수
+;F함수는 TRYCALL계를 사용할 수 없기 때문에 통상 함수로 존부 배열을 만들어버린다
+@EXIST_일반의뢰3
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;오브젝트 본체
+;여기서 ARG로 건네받는 것은 CLIENT_ID입니다
+@일반의뢰3(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "의뢰명"
+	CALLF MAKE_STR(V_NAME, "함께 놀자")
+CASE "의뢰내용 표시"
+	CALLF MAKE_STR(V_NAME, @"%ARG와% 함께 논다")
+CASE "의뢰 보수 표시"
+	CALLF MAKE_STR(V_NAME, "사이가 좋아진다")
+CASE "의뢰실행 커맨드 이름"
+	CALLF MAKE_STR(V_NAME, "논다")
+
+CASE "의뢰내용"
+	CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "작업"))
+CASE "의뢰 서브"
+CASE "의뢰기한"
+;발생시는 아니고 수탁시에 확정합니다
+CASE "의뢰 발생율"
+;이것은 다른 일반의뢰와의 상대 확률 어째서 15%가 아닙니다
+	CALLF MAKE_INT(V_NAME, 15)
+CASE "의뢰 발생 조건"
+;유치 캐릭터 한정
+;레밀리아에서도 발생해 버리지만 신경쓰지 말아라
+	SIF TALENT:ARG:유치
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰 수탁 가능 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰실행 가능 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+;성공/실패 처리는 CARRYOUT로 직접 쓴다
+;SOURCE나 ITEM 입수, 소비가 번잡하게 되므로
+CASE "의뢰 소멸 조건"
+	SIF RAND:100 < 30
+		CALLF MAKE_INT(V_NAME, 1)
+ENDSELECT
+
+
+
+@IRAI_일반3(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE SCENE
+CASE "의뢰 조건 표시"
+;무엇인가 전용의 표시 정보를 마련하고 싶을 시용
+;수탁 끝난 의뢰 표시로 사용됩니다
+;
+;PRINT계만으로 SOURCE라든지는 넣으면 안 돼, WAIT도 없음으로
+;여기 이외의표시 항목은
+;PRINTFORML 　　　　　：
+;되고 있으므로 스페이스를 가지런히 하는 편이 보기에 좋습니다
+
+CASE "의뢰실행시"
+;이 CASE에 한정해, RESULT가 의미를 가집니다
+;의뢰실행시의 RESULT에는 IRAI_CONST_RESULT()를 사용해 주세요
+;가능한 인수는"캔슬", "실행해 성공", "실행해 실패", "실행해 미해결"입니다
+;독자 처리를 가르치고 싶을 때는"실행해 미해결"로 유보하자 마자 해 주세요
+;
+;"의뢰실행시"에 한정하고 말하면, CHARA는 TARGET와 동일하고, 반드시 CLIENT_ID와 일치한다고는 할 수 없습니다
+;개개의 케이스로 확인할 필요가 있습니다
+;이 의뢰는 「작업」취급이며, CLIENT가 TARGET가 되어 있을 때 마셔 실행할 수 있습니다
+;
+;
+	SOURCE:환락 = 1500
+	PRINTFORMW %마스터는% %타겟과% 놀았다
+	PRINTFORML 
+	TIME += 20
+	DOWNBASE:체력 = 150
+	DOWNBASE:기력 = 100
+	DOWNBASE:MASTER:체력 = 150
+	DOWNBASE:MASTER:기력 = 100
+	RETURN IRAI_CONST_RESULT("실행해 성공")
+CASE "의뢰 성공시"
+;성공 보고시의 보수 등
+	TALENT:TARGET:기분 = LIMIT(TALENT:기분 + 1, -1, 1)
+	CALL CHANGE_CFLAG(2, TARGET, 30)
+	CALL CHANGE_CFLAG(4, TARGET, 5)
+CASE "의뢰 실패시"
+;실패 보고시의 처리
+	CALL CHANGE_CFLAG(2, TARGET, -10)
+	CALL CHANGE_CFLAG(4, TARGET, -5)
+ENDSELECT

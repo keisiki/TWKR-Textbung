@@ -1,0 +1,264 @@
+﻿;FileName_TRACHECK.ERB ----------------------------- Rev1. 00
+;신뢰도 상승 계산 처리
+;CALL		USER
+;ARG		0:캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@TRUST_CALC(ARG)
+#DIM 신뢰도상승치
+DEBUGPRINTFORML 【TRUST_CALC】TRAST_CALC_START ,{ARG}
+;COMABLE 범위외 억제
+SIF !TFLAG:102
+	RETURN 0
+;대상이 MASTER 이외의때 기동
+SIF !ARG
+	RETURN 0
+
+;실패 커맨드 플래그
+SIF TFLAG:98 < 0
+	TFLAG:99 ++
+
+신뢰도상승치 = TFLAG:98
+
+;친밀도에 맞추어 상승 수정
+신뢰도상승치 += ABL:ARG:친밀 / 5
+DEBUGPRINTFORML 【TRUST_CALC】초기치 TFLAG98={신뢰도상승치} 실패 플래그 {TFLAG:99}
+
+;분노치에 의해 신뢰도 DOWN
+SIF BASE:ARG:분노 > 0 && TFLAG:98 < 0
+	신뢰도상승치 -= (BASE:ARG:분노 / 100)
+DEBUGPRINTFORML 【TRUST_CALC】분노 변동 TFLAG98={신뢰도상승치}
+
+;소질에 의한 증감
+
+;반항적
+SIF TALENT:ARG:태도 > 0 && !TALENT:ARG:연모
+	신뢰도상승치 -= 1
+;기분
+신뢰도상승치 += TALENT:ARG:15
+;솔직함
+SIF TALENT:ARG:태도 < 0 && TFLAG:98 > 0
+	신뢰도상승치 += 1
+;명랑끼리
+SIF TALENT:ARG:명랑／음침 > 0 && TALENT:MASTER:명랑／음침 > 0
+	신뢰도상승치 += 1
+
+;음침끼리
+SIF TALENT:ARG:명랑／음침 < 0 && TALENT:MASTER:명랑／음침 < 0
+	신뢰도상승치 += 1
+
+;감정결여
+SIF TALENT:ARG:감정결여
+	신뢰도상승치 -= 1
+;저항
+SIF TALENT:ARG:저항
+	신뢰도상승치 -= 2
+;헌신적
+SIF TALENT:ARG:헌신적 && TFLAG:98 > 0
+	신뢰도상승치 += 1
+;남성기피, 여성기피
+SIF OTOKOGIRAI(ARG)
+	신뢰도상승치 -= 1
+;주인의 수수께끼의매력
+SIF TALENT:MASTER:수수께끼의매력
+	신뢰도상승치 += 1
+SIF TALENT:ARG:스침 == 1
+	신뢰도상승치 += 10
+;연모
+SIF TALENT:ARG:연모
+	신뢰도상승치 += 2
+;사모
+SIF TALENT:ARG:사모
+	신뢰도상승치 += 1
+SIF TALENT:ARG:동물귀 && TALENT:ARG:동물귀 == TFLAG:귀보정
+	신뢰도상승치 += 3
+DEBUGPRINTFORML 【TRUST_CALC】소질 변동 TFLAG98={신뢰도상승치}
+
+LOCAL = 0
+LOCAL:1 = 0
+;사랑
+LOCAL += (50 - 250000 / (SOURCE:ARG:사랑 + 5000))
+;달성감
+LOCAL += (30 - 30000 / (SOURCE:ARG:달성 + 1000))
+;복종
+LOCAL += (20 - 20000 / (SOURCE:ARG:복종 + 1000))
+LOCAL:2 += (20 - 20000 / (SOURCE:ARG:복종 + 1000))
+;굴복
+LOCAL += (15 - 15000 / (SOURCE:ARG:굴종 + 1000))
+LOCAL:2 += (10 - 10000 / (SOURCE:ARG:굴종 + 1000))
+;환락
+LOCAL += (30 - 150000 / (SOURCE:ARG:환락 + 5000))
+;정복
+LOCAL += (30 - 90000 / (SOURCE:ARG:정복 + 3000))
+;수동
+LOCAL += (30 - 90000 / (SOURCE:ARG:수동 + 3000))
+LOCAL:1 += LOCAL
+;욕정
+;LOCAL:2 += (30 - 90000 / (SOURCE:ARG:욕정 + 3000))
+;쾌VACB
+;LOCAL:2 += (20 - 200000 / (SOURCE:ARG:쾌V + 10000))
+;LOCAL:2 += (20 - 200000 / (SOURCE:ARG:쾌A + 10000))
+;LOCAL:2 += (10 - 100000 / (SOURCE:ARG:쾌C + 10000))
+;LOCAL:2 += (10 - 100000 / (SOURCE:ARG:쾌B + 10000))
+DEBUGPRINTFORML 【TRUST_CALC】UPPER 소스 변동 계산 {LOCAL}
+
+;굴복
+;LOCAL -= (50 - 50000 / (SOURCE:ARG:굴종 + 1000))
+;LOCAL:2 += (50 - 50000 / (SOURCE:ARG:굴종 + 1000))
+;공포
+LOCAL -= (50 - 20000 / (SOURCE:ARG:공포 + 400)) * (ABL:ARG:순종 - 3) / 3
+LOCAL:2 += (100 - 40000 / (SOURCE:ARG:공포 + 400)) * (ABL:ARG:순종 - 3) / 3
+;고통
+LOCAL -= (50 - 20000 / (SOURCE:ARG:고통 + 400)) * (ABL:ARG:마조끼 - 3) / 3
+LOCAL:2 += (100 - 40000 / (SOURCE:ARG:고통 + 400)) * (ABL:ARG:마조끼 - 3) / 3
+;불결
+LOCAL -= (50 - 25000 / (SOURCE:ARG:불결 + 500)) * (2 - TALENT:ARG:악취내성) / 2
+;울굴
+LOCAL -= (50 - 15000 / (SOURCE:ARG:울굴 + 300))
+;일탈
+LOCAL -= (50 - 25000 / (SOURCE:ARG:일탈 + 500))
+;반발
+LOCAL -= (30 - 10000 / (SOURCE:ARG:반감 + 500))
+
+
+DEBUGPRINTFORML 【TRUST_CALC】DOWNER 소스 변동 계산 {LOCAL:1 - LOCAL} ,{LOCAL}
+
+신뢰도상승치 += LOCAL / 10
+DEBUGPRINTFORML 【TRUST_CALC】소스 변동 TFLAG98={신뢰도상승치}
+
+;기능이 낮으면 마이나스 보정
+IF (TALENT:ARG:성적흥미 == -1 || TALENT:ARG:자존심 > 0) && 신뢰도상승치 > 0
+	SIF ABL:ARG:교양 > ABL:MASTER:교양 || ABL:ARG:전투능력 > ABL:MASTER:전투능력
+		신뢰도상승치 -= 1
+ELSE
+SIF (ABL:ARG:교양 > ABL:MASTER:교양 + 2 || ABL:ARG:전투능력 > ABL:MASTER:전투능력 + 2) && 신뢰도상승치 > 0
+	신뢰도상승치 -= 1
+ENDIF
+IF GETBIT (CFLAG:ARG:인계, 1)
+	신뢰도상승치 += 2
+ELSEIF GETBIT (CFLAG:ARG:인계, 0)
+	신뢰도상승치 += 1
+ENDIF
+;반발각인 보정
+신뢰도상승치 -= (FLAG:4 + 1) * MARK:ARG:반발각인
+
+;결과가 일정수미만의 경우
+;IF MARK:반발각인 >= 3 && 신뢰도상승치 < -3
+;	신뢰도상승치 = -3
+;ELSEIF MARK:반발각인 == 2 && 신뢰도상승치 < -2
+;	신뢰도상승치 = -2
+;ELSEIF MARK:반발각인 == 1 && 신뢰도상승치 < -1
+;	신뢰도상승치 = -1
+;ENDIF
+
+;동성은 신뢰도가 오르기 쉽고.
+SIF HETEROSEX(ARG, PLAYER) && !OTOKOGIRAI(ARG)
+	신뢰도상승치 += 1
+
+;무관심한가 일선을넘지않음의 경우, 연모가 없으면 신뢰도가 오르기 어렵다
+IF (TALENT:ARG:무관심 || TALENT:ARG:일선을넘지않음) && !TALENT:ARG:연모
+	IF 신뢰도상승치 > 1
+		신뢰도상승치 /= 2
+	ELSEIF 신뢰도상승치 > 0
+		신뢰도상승치 = 1
+	ENDIF
+ENDIF
+
+
+IF FLAG:70
+;	SIF 신뢰도상승치 > 0
+;		신뢰도상승치 = 0
+;	IF MARK:반발각인 >= 3
+;		CFLAG:ARG:344 += TFLAG:98
+;	ELSEIF MARK:반발각인 == 2
+;		CFLAG:ARG:344 += TFLAG:98 / 2
+;	ELSEIF MARK:반발각인 == 1
+;		CFLAG:ARG:344 += TFLAG:98 / 3
+;	ELSE
+;		CFLAG:ARG:344 += TFLAG:98 / 4
+;	ENDIF
+ELSE
+[SKIPSTART]
+;불성실 때마다 밤페널티
+SELECTCASE TCVAR:ARG:불성실도
+	CASE IS <= 10
+		 신뢰도상승치 ++
+	CASE 11 TO 20
+	CASE 21 TO 50
+		신뢰도상승치 -= 1
+	CASE 51 TO 100
+		신뢰도상승치 -= 3
+	CASE 101 TO 300
+		신뢰도상승치 -= 5
+	CASEELSE
+		신뢰도상승치 -= 7
+ENDSELECT
+[SKIPEND]
+IF CFLAG:ARG:몸목적
+	SIF 신뢰도상승치 > 0
+		신뢰도상승치 /= 2
+ENDIF
+
+;이성과 무드로 수정
+IF BASE:ARG:무드 == MAXBASE:ARG:무드
+	신뢰도상승치 += 2
+	;무드가 전개라면 신뢰도 마이나스 없음
+	SIF 신뢰도상승치 < 0
+		신뢰도상승치 = 0
+ELSEIF BASE:ARG:무드 >= (MAXBASE:ARG:무드 / 5 * 4) || BASE:ARG:이성 <= (MAXBASE:ARG:이성 / 2)
+	신뢰도상승치 += 1
+	;무드가4/5이상 또는 이성이1/2이하때, 신뢰도 마이나스가 반
+	SIF 신뢰도상승치 < 0
+		신뢰도상승치 += ABS(신뢰도상승치) / 2
+ENDIF
+DEBUGPRINTFORML 【TRUST_CALC】무드 변동 {신뢰도상승치}
+
+SIF TFLAG:호감도보너스 && 신뢰도상승치 > 0
+	;신뢰도상승치 = 신뢰도상승치 * TFLAG:호감도보너스
+	신뢰도상승치 = 신뢰도상승치 * (100 + TFLAG:호감도보너스) / 100
+
+;신뢰도 상승이 낮은 경우, 거점 거주자이며 모브가 같은 장소에 있으면 보너스
+SIF 신뢰도상승치 < 3 && WITH_MOB() && MAP_거주자(MAIN_MAP, ARG)
+	신뢰도상승치 ++
+;실패 플래그가 서지 않으면 신뢰는 내리지 않는다
+SIF !TFLAG:99 && 신뢰도상승치 < 0
+	신뢰도상승치 = 0
+SIF TFLAG:99 && 신뢰도상승치 > 0
+	신뢰도상승치 = 0
+;소프트 우후후시는 플러스 없음
+SIF SELECTCOM >= 313 && SELECTCOM <= 330 && 신뢰도상승치 > 0
+	신뢰도상승치 = 0
+;아무것도 하지 않는을 사용했을 경우는 상한을 0으로 한다
+SIF 신뢰도상승치 > 0 && SELECTCOM == 21
+	신뢰도상승치 = 0
+;조수 조교중
+SIF ASSIPLAY == 1
+	신뢰도상승치 = 0
+;수면중은 상승치 0
+SIF CFLAG:ARG:수면 || TCVAR:TARGET:만취
+	신뢰도상승치 = 0
+
+;신뢰도 상승의 하한 설정. (반발각인의 레벨에 기분의 수정을 더한다)×-5(이)가 하한)
+신뢰도상승치 = MAX(신뢰도상승치 , MAX(MARK:ARG:반발각인 - TALENT:ARG:15 , 0) * -5)
+신뢰도상승치=신뢰도상승치*(1+FLAG:호감신뢰상승률)
+DEBUGPRINTFORML 【TRUST_CALC】신뢰도 변동 {신뢰도상승치}
+SIF LOCAL:1
+	CFLAG:ARG:신뢰도 += 신뢰도상승치
+;신뢰도는 0 이하에도 100만 이상이나 되지 않는다
+CFLAG:ARG:신뢰도 = LIMIT(CFLAG:ARG:신뢰도, 0, 999999)
+LOCAL:1 = 0
+FOR LOCAL, 0,100
+	SIF SOURCE:ARG:LOCAL
+		LOCAL:1 ++
+NEXT
+SIF !LOCAL:1
+	신뢰도상승치 = 0
+
+;신뢰도 표시
+SIF 신뢰도상승치
+PRINTFORML \@(신뢰도상승치 >= 0) ?  신뢰도＋{신뢰도상승치} # 신뢰도-{-신뢰도상승치}\@(%CALLNAME:TARGET%)
+ENDIF
+TFLAG:98 = 0
+TFLAG:99 = 0
+신뢰도상승치 = 0

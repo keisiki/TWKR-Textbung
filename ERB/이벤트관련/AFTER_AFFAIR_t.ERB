@@ -1,0 +1,263 @@
+﻿@AFTER_AFFAIR
+#DIM SPENT_TIME
+SPENT_TIME = (TIME-UFUFU_START_TIME) / 60 
+IF SPENT_TIME < 0
+	SPENT_TIME += 24
+ENDIF
+;ブチギレと無理矢理状態とTSP切れと泥酔姦と風呂場プレイと睡眠時間中は表示しない
+SIF CFLAG:빡침 || TCVAR:억지로 || !SHIRAHU(TARGET)
+	RETURN 0
+	;ほんのちょっとのうふふでは表示されないよう、潤滑、欲情、体力、溜まってる度、その日の絶頂回数に条件をつける（大した意味はない）
+SIF !(PALAM:윤활 >= PALAMLV:3 && PALAM:욕정 >= PALAMLV:3 && BASE:체력 < MAXBASE:체력 * 9 / 10 && CFLAG:욕구불만도 < 300 && EX:C절정 + EX:V절정 + EX:A절정 + EX:B절정 + EX:M절정 >= 4)
+	RETURN 0
+
+PRINTFORMD %마스터와% %CALLNAME:TARGET%\@ GET_TARGETNUM() > 1? 들은, # %조사만처리(CALLNAME:TARGET,"는")%, \@
+;経過時間表示
+IF SPENT_TIME
+	PRINTFORMD {SPENT_TIME} 시간에 이르는 
+	SIF SPENT_TIME > 5
+		PRINTFORMD 장렬한 
+ENDIF
+;ここまで
+IF TALENT:연모 || TALENT:연인
+	PRINTFORMD 애정으로 가득 찬 인연을 
+ELSEIF TALENT:애욕
+	PRINTFORMD 육욕으로 되는대로 서로 탐닉하는 듯한 성관계를 
+ELSEIF TALENT:사모
+	PRINTFORMD 서로의 관계를 깊게 만드는 밀회를 
+ELSEIF TALENT:섹프 == 1
+	PRINTFORMD 쾌락만을 목적으로 한 성행위를 
+ELSE
+	PRINTFORMD 기세에 맡긴 경솔한 정사를 
+ENDIF
+PRINTFORMW 끝냈다.
+
+SIF BATHROOM() 
+	RETURN 0
+
+;-------------------------------------------------------------------------------------
+;以下、精液漏れ・愛液による濡れの描写（精液漏れの描写が優先）
+
+;膣충전율が水準以上もしくはアナル충전율が水準以上
+IF SOAKED_OR_NOT("V_SEMINAL") || SOAKED_OR_NOT("A_SEMINAL")
+	PRINTFORMD 대량으로 %TEXTR("쏟아부어진/풀어진/주입된")% %조사처리(EXPR_VAR("SPERM"),"가")%, %CALLNAME:TARGET%의 
+	SIF SOAKED_OR_NOT("V_SEMINAL")
+		PRINTFORMD %EXPR_VAR("VULVA")%
+	SIF SOAKED_OR_NOT("A_SEMINAL")
+		PRINTFORMD \@ SOAKED_OR_NOT("V_SEMINAL") ? %조사만처리(EXPR_VAR("VULVA"),"와")%  # \@%EXPR_VAR("ANUS")%
+	PRINTFORMDL %TEXTR("에서 넘치려 하고 있다/에서 새어 나오고 있다/에서 흘러나오려 하고있다")%.
+	IF TALENT:MASTER:농후정액
+		PRINTFORML 그래도 반고형의 %조사처리(EXPR_VAR("SPERM"),"는")% 떨어지지 않고 끈 모양으로 늘어져, %CALLNAME:TARGET%의 허벅지에 달라붙었다.
+	ELSE
+		PRINTFORMD %타겟이% %TEXTR("화장지로/손수건으로/수건으로")% 
+		PRINTFORMDL %조사처리(EXPR_VAR("CROTCH"),"를")% 닦아도, 잠시 후 %조사처리(EXPR_VAR("SPERM"),"가")% %TEXTR("똑똑 늘어지며 떨어졌다/방울져 떨어지기 시작했다/흘러내려서, 허벅지에 쭉하고 선을 그었다/찔끔찔끔 넘쳐 나왔다")%.
+	ENDIF
+	;--------------------------------------------
+	;垂れ口上呼び出し
+	;--------------------------------------------
+	CALL WEAREDPANTIES_TRANSPARENCY("SPERM")
+	CALL KOJO_MESSAGE_SEND("EVENT",15,TARGET,3,1)
+;膣・アナル충전율がともに水準未満だが潤滑が必要LV以上
+ELSEIF SOAKED_OR_NOT("SECRETIONAL")
+	PRINTFORMD %타겟은%、흠뻑 젖은 %조사처리(EXPR_VAR("CROTCH"),"를")% %TEXTR("화장지로/손수건으로/수건으로")% 
+	PRINTFORMDL 닦았지만, 흥분이 완전히 식지 않은 육체에서는 아직 꿀이 넘쳐나는 것 같다.
+	;--------------------------------------------
+	;溢れ口上呼び出し
+	;--------------------------------------------
+	CALL WEAREDPANTIES_TRANSPARENCY("JUICE")
+	CALL KOJO_MESSAGE_SEND("EVENT",15,TARGET,3,2)
+ENDIF
+;-------------------------------------------------------------------------------------------------------
+;以下、事後のムードの描写
+;複数TARGETがいる場合非表示
+IF GET_TARGETNUM() == 1
+	PRINTFORMD 정사의 뒤처리를 끝낸 두 사람
+	IF TALENT:연모 || TALENT:연인
+		PRINTFORMDL 였지만, 여전히 정담을 주고받았다.
+	ELSEIF TALENT:애욕
+		PRINTFORMDL 였지만, 성관계의 격렬함 때문에, 좀 더 숨을 고를 시간이 필요했다.
+	ELSEIF TALENT:사모
+		PRINTFORMDL 은, 약간 부끄럽고, 서로 수줍어했다.
+	ELSEIF TALENT:섹프 == 1
+		PRINTFORMDL 은, 나른한 분위기 속에서, 잠시 말없이 서로 몸을 맞댔다.
+	ELSE
+		PRINTFORMDL  사이에, 뭐라 말할 수 없이 어색한 공기가 흘렀다.
+	ENDIF
+	PRINTFORMW
+ENDIF
+
+CALL KOJO_MESSAGE_SEND("EVENT",15,TARGET,3,3)
+
+;---------------------------------------------------------------------------------------------------------
+;以下、事後に服等を着なおす描写		
+;上半身上着、ワンピース、着物、外衣のどれかを着たままだったばあい
+IF EQUIP:상반신윗도리1 || EQUIP:상반신윗도리2 || EQUIP:원피스 || EQUIP:기모노 || EQUIP:외투
+	PRINTFORMDL 옷을 입은 채로 있던 %타겟은%, 이쪽을 등지고 흐트러진 옷을 정돈하고 있다.
+	IF PALAM:욕정 >= PALAMLV:7
+		PRINTFORMD 땀을 흘리고 하얀 피부가 분홍색으로 달아오른 
+	ELSE
+		PRINTFORMD 땀을 흘린 
+	ENDIF
+	PRINTFORMW 목덜미가 선정적이다.
+;現在上半身が裸でかつ普段着の상반신속옷がブラジャーかマイクロブラのばあい
+ELSEIF TEQUIP:상반신착의상황 == 0 && (CFLAG:TARGET:207 == CLOTHES_ID("상반신속옷1", "브래지어") || CFLAG:TARGET:208 == CLOTHES_ID("상반신속옷2", "마이크로브라"))
+	PRINTFORMDL 정사를 마친 %타겟은%, %마스터를% 등지고, 브래지어의 후크를 끼우고 있다.
+	PRINTFORMW  뒷짐진 등에 도드라지는 견갑골이 아름답다.
+ENDIF
+
+CALL KOJO_MESSAGE_SEND("EVENT",15,TARGET,3,4)
+
+;----------------------------------------------------------------------------------------------------------
+;以下、残り香の描写
+
+;濃厚な残り香の表示に必要な射精数、噴乳数、放尿数の設定
+LOCAL:5 = 5 ;必要射精数
+LOCAL:6 = 5 ;必要噴乳数
+LOCAL:7 = 1 ;必要放尿数
+
+;残り香を表示するのは屋内のときだけ
+IF OPENPLACE(CFLAG:MASTER:현재위치) < 2
+	;その日のふたりの射精数、噴乳数、放尿数によって分岐
+	IF EX:사정 + EX:MASTER:사정 >= LOCAL:5 || EX:분유 + EX:MASTER:분유 >= LOCAL:6 || EX:방뇨 + EX:MASTER:방뇨 >= LOCAL:7
+		PRINTFORMD 뭉클한 열기 속에, 
+		SIF EX:사정 + EX:MASTER:사정 >= LOCAL:5
+			PRINTFORMD 정액의 독특한 냄새
+		SIF EX:분유 + EX:MASTER:분유 >= LOCAL:6
+			PRINTFORMD \@ EX:사정 + EX:MASTER:사정 >= LOCAL:5 ? 와  # \@달콤한 모유 향기
+		SIF EX:방뇨 + EX:MASTER:방뇨 >= LOCAL:7
+			PRINTFORMD \@ EX:사정 + EX:MASTER:사정 >= LOCAL:5 || EX:분유 + EX:MASTER:분유 >= LOCAL:6 ? 와  # \@소변의 악취
+		PRINTFORMDL 가 섞인 음미한 잔향이 농후하게 감돌고, 
+		PRINTFORMW 그 곳에서 행해진 비밀스러운 행위를 분명하게 말해준다.
+	ELSE
+		PRINTFORMW  새콤달콤한 체액 냄새와 뜨거운 공기가 방금까지의 정사 흔적을 남기고 있다.
+	ENDIF
+ENDIF
+;----------------------------------------------------------------------------------------------------------
+
+
+@WEAREDPANTIES_TRANSPARENCY(ARGS)
+#DIM 팬티상황
+
+;パンツを奪ったorもらったor元から穿いてない場合
+IF CFLAG:노팬티 || (CFLAG:205 == 0 && CFLAG:206 == 0)
+	팬티상황 = 0
+;パンツを一旦脱いでいた場合
+ELSEIF !EQUIP:하반신속옷1 && !EQUIP:하반신속옷2
+	팬티상황 = 1
+ELSE
+	팬티상황 = 2
+ENDIF
+
+
+IF !팬티상황
+	PRINTFORMDL %CALLNAME:TARGET%에게는 입을 팬티가 없다.
+	IF ARGS == "SPERM"
+		PRINTFORMDL 오늘은, 노팬티로 %조사처리(EXPR_VAR("SPERM"),"를")% 늘어뜨린 채 지내게 될 것 같다.
+	ELSE
+		PRINTFORMDL 오늘은, %조사처리(EXPR_VAR("CROTCH"),"를")% 촉촉히 적신 후에 노팬티로 지내게 될 것 같다.
+	ENDIF
+;パンツがある場合
+ELSE
+	SIF 팬티상황 == 1
+		PRINTFORMDL %타겟은% 벗었던 속옷을 다시 입었다.
+	IF ARGS == "SPERM"
+		PRINTFORMD 흘러나온 %조사처리(EXPR_VAR("SPERM"),"가")%
+	ELSE
+		PRINTFORMD 끝없이 흘러나오는 애액이
+	ENDIF
+	PRINTFORMD \@ 팬티상황 == 1?  그# \@ 속옷을 %TEXTR("질척질척하게/흠뻑 축축하게/흠뻑 적시게")%
+	;パンツが透けうる場合
+	IF PANTIES_TRANSPARENCY(TARGET)
+		PRINTFORMDL  해서, 비렬의 형태가 훤히 들여다보일 정도였다.
+	ELSE
+		PRINTFORMDL  했다.
+	ENDIF
+ENDIF
+
+
+;### びしょ濡れ判定用式中関数 ################
+;ARG=キャラ番号
+@SOAKED_OR_NOT(ARGS,ARG)
+#FUNCTION
+#DIM 필요질충전율
+#DIM 필요애널충전율
+#DIM 필요윤활레벨
+
+SIF ARG == 0
+	ARG = TARGET
+
+필요질충전율 = 30
+필요애널충전율 = 30
+필요윤활레벨 = PALAMLV:5
+
+IF ARGS == "V_SEMINAL"
+	IF 충전율(ARG,1) >= 필요질충전율
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ELSEIF ARGS == "A_SEMINAL"
+	IF 충전율(ARG,2) >= 필요애널충전율
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ELSEIF ARGS == "SECRETIONAL"
+	IF PALAM:ARG:윤활 >= 필요윤활레벨
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ENDIF
+
+THROW 부정한 문자열인수
+
+
+;### 表現バリエーション用式中関数 ################
+@EXPR_VAR(ARGS)
+#FUNCTIONS
+VARSET LOCALS
+
+IF ARGS == "SPERM"
+	SELECTCASE RAND:4
+	CASE 0
+		LOCALS = 백탁액
+	CASE 1
+		LOCALS = 정액
+	CASE 2
+		LOCALS = 정액
+	CASEELSE
+		LOCALS = 정자
+	ENDSELECT
+ELSEIF ARGS == "VULVA"
+	SELECTCASE RAND:4
+	CASE 0
+		LOCALS = 은밀한 곳
+	CASE 1
+		LOCALS = 비렬
+	CASE 2
+		LOCALS = 음문
+	CASEELSE
+		LOCALS = 여성의 음부
+	ENDSELECT
+ELSEIF ARGS == "ANUS"
+	SELECTCASE RAND:3
+	CASE 0
+		LOCALS = 엉덩이의 구멍
+	CASE 1
+		LOCALS = 항문
+	CASEELSE
+		LOCALS = 아누스
+	ENDSELECT
+ELSEIF ARGS == "CROTCH"
+	SELECTCASE RAND:3
+	CASE 0
+		LOCALS = 고간
+	CASE 1
+		LOCALS = 국부
+	CASEELSE
+		LOCALS = 가랑이
+	ENDSELECT
+ENDIF
+
+RETURNF LOCALS

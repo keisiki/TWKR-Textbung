@@ -1,0 +1,338 @@
+﻿;-------------------------------------------------
+;이라마치오
+;하드한 조교 커맨드, 레벨 2
+;-------------------------------------------------
+@COM140
+
+;-------------------------------------------------
+;실행 결정
+;-------------------------------------------------
+STR:0 = 이라마치오
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = TARGET
+
+CSTR:PLAYER:10 += @"{TARGET}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:PLAYER:2 = 4
+;강도
+TCVAR:PLAYER:4 = 800
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 100
+	SOURCE:PLAYER:쾌C = 110
+
+	;PLAYER의 TALENT:새드를 본다
+	IF TALENT:PLAYER:새드
+		TIMES SOURCE:PLAYER:쾌C , 1.25
+		;PLAYER가 새드 소유의 경우는, TARGET에 가학쾌락경험을 추가
+		EXP:PLAYER:가학쾌락경험 += 1
+	ENDIF
+
+
+	;TARGET의 TALENT:고양이혀를 본다
+	SIF TALENT:고양이혀
+		TIMES SOURCE:PLAYER:쾌C , 0.50
+
+	SOURCE:고통 = 100
+
+ELSE
+
+	DOWNBASE:체력 += 150
+	DOWNBASE:기력 += 200
+	SOURCE:PLAYER:쾌C = 110
+
+	SOURCE:달성 = 500
+	SOURCE:고통 = 200
+	SOURCE:굴종 = 1500
+	SOURCE:일탈 = 700
+	SOURCE:반감 = 700
+
+	;위 쪽으로 계산한 더러운 데이터
+	SOURCE:불결 = Y*40 + 100
+
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 700
+	;성기술보정
+	IF ABL:혀 >= 4
+		SOURCE:PLAYER:쾌C += 100
+	ELSE
+		SOURCE:PLAYER:쾌C += ABL:혀 * 25
+	ENDIF
+
+	;PLAYER의 TALENT:새드를 본다
+	IF TALENT:PLAYER:새드
+		TIMES SOURCE:PLAYER:쾌C , 1.25
+		;PLAYER가 새드 소유의 경우는, TARGET에 가학쾌락경험을 추가
+		EXP:PLAYER:가학쾌락경험 += 1
+	ENDIF
+
+
+	;TARGET의 TALENT:혀놀림을 본다
+	SIF TALENT:혀놀림
+		TIMES SOURCE:PLAYER:쾌C , 1.25
+
+	;TARGET의 TALENT:고양이혀를 본다
+	SIF TALENT:고양이혀
+		TIMES SOURCE:PLAYER:쾌C , 0.50
+ENDIF
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;노예의 입⇔조교자의 P의 더러움이 이동
+STAIN:구 |= STAIN:PLAYER:2
+STAIN:PLAYER:2 |= STAIN:구
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1 || CFLAG:장난
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 7
+	ENDIF
+ELSE
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 7
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 7
+	ENDIF
+	;펠라 경험
+	EXP:펠라티오경험 ++
+	;애정경험(마조끼 5이상 한정)
+	SIF TALENT:연모 && ASSIPLAY == 0 && ABL:마조끼 >= 5
+		EXP:애정경험 += 1
+ENDIF
+TCVAR:TARGET:FK상실 = 2
+RETURN 1
+
+@CAN_COM140(ARG)
+SKIPDISP ARG
+PRINTL 이라마치오
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+IF FLAG:70 == 1 || CFLAG:장난
+
+ELSE
+
+	A = 0
+	S = 0
+
+	;모든 명령에 공통의 요소를 고려
+	;(순종이 높다고 명령에 따르기 쉬운 등)
+	CALL COM_ORDER
+
+	;ABL:욕망
+	IF ABL:욕망
+		SIF S
+			PRINT  + 
+		A += ABL:욕망 * 1
+		PRINT 욕망
+		PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 1, ')
+		S = 1
+	ENDIF
+	;ABL:봉사정신
+	IF ABL:봉사정신
+		SIF S
+			PRINT  + 
+		A += ABL:봉사정신 * 4
+		PRINT 봉사정신
+		PRINTV 'LV, ABL:봉사정신, '(, ABL:봉사정신 * 4, ')
+		S = 1
+	ENDIF
+	;ABL:정액중독
+	IF ABL:정액중독
+		SIF S
+			PRINT  + 
+		A += ABL:정액중독 * 3
+		PRINT 정액중독
+		PRINTV 'LV, ABL:정액중독, '(, ABL:정액중독 * 3, ')
+		S = 1
+	ENDIF
+
+	IF MARK:쾌락각인
+		SIF S
+			PRINT  + 
+		A += MARK:쾌락각인 * 1
+		PRINT 쾌락각인
+		PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 1, ')
+		S = 1
+	ENDIF
+	;PALAM:욕정
+	IF GETPALAMLV(PALAM:욕정, 5)
+		SIF S
+			PRINT  + 
+		A += GETPALAMLV(PALAM:욕정, 5) * 1
+		PRINT 욕정
+		PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 1, ')
+		S = 1
+	ENDIF
+
+	;수줍음
+	IF TALENT:수치심 > 0
+		PRINT  - 
+		A -= 1
+		PRINT 수줍음
+		PRINTV '(, 1, ')
+		S = 1
+	ENDIF
+	;악취 둔감
+	IF TALENT:악취내성 > 0
+		SIF S
+			PRINT  + 
+		A += 1
+		PRINT 악취 둔감
+		PRINTV '(, 1, ')
+		S = 1
+	ENDIF
+	;악취 민감
+	IF TALENT:악취내성 < 0
+		PRINT  - 
+		A -= 3
+		PRINT 악취 민감
+		PRINTV '(, 3, ')
+		S = 1
+	ENDIF
+	;헌신적
+	IF TALENT:헌신적
+		SIF S
+			PRINT  + 
+		A += 6
+		PRINT 헌신적
+		PRINTV '(, 6, ')
+		S = 1
+	ENDIF
+	;쾌감에 부정(음란, 창부로 무효)
+	IF TALENT:쾌감응답 < 0 && !TALENT:음란
+		PRINT  - 
+		A -= 1
+		PRINT 쾌감에 부정
+		PRINTV '(, 1, ')
+		S = 1
+	ENDIF
+	;연모
+	IF TALENT:연모 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 연모
+		PRINTV '(, 5, ')
+		S = 5
+	ENDIF
+	;친애
+	IF TALENT:연모 > 1 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 친애
+		PRINTV '(, 5, ')
+		S = 5
+	ENDIF
+
+	;조교자가 후타나리
+	IF (TALENT:PLAYER:2 & 3) == 3
+		SIF S
+			PRINT  + 
+		A += 8
+		PRINT 후타나리
+		PRINTV '(, 8, ')
+		S = 1
+	ENDIF
+
+	Y = 0
+	;애액의 더러움
+	SIF STAIN:PLAYER:2 & 1
+		Y += 1
+	;정액의 더러움
+	SIF STAIN:PLAYER:2 & 4
+		Y += 3
+	;애널의 더러움
+	SIF STAIN:PLAYER:2 & 8
+		Y += 7
+	SIF STAIN:PLAYER:2 & 16
+		Y += 15
+	Y = Y * (2 - TALENT:악취내성) / 2
+
+	;서로 더러워져
+	IF Y
+		PRINT  - 
+		A -= Y
+		PRINT 서로 더러워져
+		;악취 둔감
+		IF TALENT:악취내성 > 0
+			PRINT , 악취 둔감
+		ELSEIF TALENT:악취내성 < 0
+			PRINT , 악취 민감
+		ENDIF
+		PRINTV '(, Y, ')
+		S = 1
+	ENDIF
+
+	;합계를 표시(36이상으로 실행)
+	PRINT  = 
+	PRINTV A
+
+	V = 36
+	SIF A < V
+		PRINT  < 
+	SIF A == V
+		PRINT  = 
+	SIF A > V
+		PRINT  > 
+	PRINT 실행치
+	PRINTV V
+
+	WAIT
+	SKIPDISP 0
+	;실행할 수 없다
+	SIF A < V
+		RETURN 0
+ENDIF
+RETURN 1
+
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE140
+;이라마치오 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(140)
+	RETURN RESULT
+;조교자가 남자인가 후타나리이 아니면 안 돼
+SIF !(TALENT:PLAYER:2 & 2)
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;볼개그 사용중은 불가
+SIF TEQUIP:볼개그
+	RETURN 0
+;순종, 욕망의 합계가 6이상 없으면 안 돼
+SIF ABL:순종 + ABL:욕망 < 6
+	RETURN 0
+;고양이혀의 노예의 경우는 기교 Lv2 이상 필요
+SIF TALENT:고양이혀 && ABL:기교 < 2
+	RETURN 0
+;체격 차이가 있는 경우는 주인이 금단의지식 소유가 아니면 안 돼
+SIF ABS(TALENT:체형 - TALENT:PLAYER:체형) > 2 && (TALENT:PLAYER:금단의지식 == 0)
+	RETURN 0
+;새댁플레이중은 안 돼
+SIF TEQUIP:33
+	RETURN 0
+RETURN 1
+

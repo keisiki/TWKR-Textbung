@@ -1,0 +1,197 @@
+﻿;존부 함수
+;F함수는 TRYCALL계를 사용할 수 없기 때문에 통상 함수로 존부 배열을 만들어버린다
+@EXIST_일반의뢰4
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;오브젝트 본체
+;여기서 ARG로 건네받는 것은 CLIENT_ID입니다
+@일반의뢰4(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "의뢰명"
+	CALLF MAKE_STR(V_NAME, "요리를 잘하고 싶다")
+CASE "의뢰내용 표시"
+	CALLF MAKE_STR(V_NAME, @"%CALLNAME:ARG%의 요리 연습을 지도한다")
+CASE "의뢰 보수 표시"
+	CALLF MAKE_STR(V_NAME, @"\\500")
+CASE "의뢰실행 커맨드 이름"
+	CALLF MAKE_STR(V_NAME, "요리")
+CASE "의뢰 비고 표시"
+	CALLF MAKE_STR(V_NAME, "우선은 요리할 수 있는 장소로 이동하자")
+
+CASE "의뢰내용"
+	CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "작업"))
+CASE "의뢰 서브"
+CASE "의뢰기한"
+;발생시는 아니고 수탁시에 확정합니다
+CASE "의뢰 발생율"
+;이것은 다른 일반의뢰와의 상대 확률 어째서 10%가 아닙니다
+	CALLF MAKE_INT(V_NAME, 10)
+CASE "의뢰 발생 조건"
+	SIF ABL:ARG:요리기능 < ABL:MASTER:요리기능 && ABL:MASTER:요리기능 >=2 && ABL:ARG:친밀 >= 3
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰 수탁 가능 조건"
+	IF FLAG:요리
+	ELSEIF CFLAG:ARG:연회참가
+	ELSEIF GET_MAPID(CFLAG:MASTER:현재위치) == MAIN_MAP
+		CALLF MAKE_INT(V_NAME, 1)
+	ENDIF
+CASE "의뢰실행 가능 조건"
+	SIF !FLAG:요리 && KITCHEN(CFLAG:MASTER:현재위치)
+		CALLF MAKE_INT(V_NAME, 1)
+;성공/실패 처리는 CARRYOUT로 직접 쓴다
+;SOURCE나 ITEM 입수, 소비가 번잡하게 되므로
+CASE "의뢰 소멸 조건"
+	SIF RAND:100 < 30
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰인 데리고 나가 가능"
+	CALLF MAKE_INT(V_NAME, 1)
+ENDSELECT
+
+
+
+@IRAI_일반4(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE SCENE
+CASE "의뢰 조건 표시"
+;무엇인가 전용의 표시 정보를 마련하고 싶을 시용
+;수탁 끝난 의뢰 표시로 사용됩니다
+;
+;PRINT계만으로 SOURCE라든지는 넣으면 안 돼, WAIT도 없음으로
+;여기 이외의표시 항목은
+;PRINTFORML 　　　　　：
+;되고 있으므로 스페이스를 가지런히 하는 편이 보기에 좋습니다
+
+CASE "의뢰실행시"
+;이 CASE에 한정해, RESULT가 의미를 가집니다
+;의뢰실행시의 RESULT에는 IRAI_CONST_RESULT()를 사용해 주세요
+;가능한 인수는"캔슬", "실행해 성공", "실행해 실패", "실행해 미해결"입니다
+;독자 처리를 가르치고 싶을 때는"실행해 미해결"로 유보하자 마자 해 주세요
+;
+;"의뢰실행시"에 한정하고 말하면, CHARA는 TARGET와 동일하고, 반드시 CLIENT_ID와 일치한다고는 할 수 없습니다
+;개개의 케이스로 확인할 필요가 있습니다
+;이 의뢰는 「작업」취급이며, CLIENT가 TARGET가 되어 있을 때 마셔 실행할 수 있습니다
+;
+;
+	SOURCE:환락 = 500
+	PRINTFORML %마스터는% %타겟과% 함께 요리를 했다
+	TIME += 20
+	DOWNBASE:체력 = 50
+	DOWNBASE:기력 = 50
+	DOWNBASE:MASTER:체력 = 50
+	DOWNBASE:MASTER:기력 = 50
+	CALL 일반의뢰4_COOKING(TARGET)
+	RETURN IRAI_CONST_RESULT("실행해 성공")
+CASE "의뢰 성공시"
+;성공 보고시의 보수 등
+	CALL CHANGE_CFLAG(2, TARGET, 20)
+	CALL CHANGE_CFLAG(4, TARGET, 20)
+	EXP:TARGET:요리경험 += 5 * (ABL:MASTER:요리기능 - ABL:TARGET:요리기능)
+	PRINTFORML 
+	PRINTFORML 만든 요리는 둘이서 함께 먹었다
+	CALL GET_MONEY_YEN(500, 2)
+	CALL 식사(TARGET)
+	CALL 식사(MASTER)
+	CALL RESET_DISH
+CASE "의뢰 실패시"
+;실패 보고시의 처리
+	CALL CHANGE_CFLAG(2, TARGET, -10)
+	CALL CHANGE_CFLAG(4, TARGET, -10)
+	EXP:TARGET:요리경험 ++
+ENDSELECT
+
+
+
+@일반의뢰4_COOKING(CHARA)
+#DIM CHARA
+DISHQUALITY = CHARA_FOOD_QUALITY(CHARA)
+;맛설정 처리
+SELECTCASE DISHQUALITY
+CASE 1
+	ITEM:잡곡 ++
+	DISHTASTE += GET_TASTE_INGREDIENT("잡곡")
+CASE 2
+	ITEM:묵은쌀 ++
+	DISHTASTE += GET_TASTE_INGREDIENT("묵은쌀")
+CASE 3
+	ITEM:백미 ++
+	DISHTASTE += GET_TASTE_INGREDIENT("백미")
+ENDSELECT
+DISHTYPE    = CHARA_RAND_COOKING(CHARA)
+CALL COOKING(CHARA, "「요리 내용 자동 결정」")
+
+
+
+;적당으로 결정했다
+;사용하는 식재료의 수준
+@CHARA_FOOD_QUALITY(CHARA)
+#FUNCTION
+#DIM CHARA
+#DIM CONST DISH_조식 = 1
+#DIM CONST DISH_보통식 = 2
+#DIM CONST DISH_미식 = 3
+SELECTCASE CSVCALLNAME(NO:CHARA)
+CASE "루미아", "리글", "뱌쿠렌", "메디슨", "요시카"
+	RETURNF DISH_조식
+{
+CASE "사쿠야", "레밀리아", "플랑", "텐시", "이쿠", 
+	 "카구야", "유유코", "에이린", "미노리코", "아큐", 
+	 "청아", "요리히메", "토요히메", "순호"
+}
+	RETURNF DISH_미식
+CASEELSE
+	RETURNF DISH_보통식
+ENDSELECT
+
+
+;요리 메뉴 추첨
+[SKIPSTART]
+0 없음
+1 "경식", 1,
+2 "주식", ABL:MASTER:요리기능 > 1,
+3 "디저트", ABL:MASTER:요리기능 > 2,
+
+4 "금단의 요리", ABL:MASTER:요리기능 > 2,
+5 "개구리 요리", ITEM:개구리
+[SKIPEND]
+@CHARA_RAND_COOKING(CHARA)
+#FUNCTION
+#DIM CHARA
+#DIM CONST MENU_경식       = 1
+#DIM CONST MENU_주식       = 2
+#DIM CONST MENU_디저트   = 3
+#DIM CONST MENU_금단의요리 = 4
+#DIM CONST MENU_개구리요리 = 5
+#DIM MENU_HIT, 6
+VARSET MENU_HIT, 10
+MENU_HIT:0 = 0
+MENU_HIT:MENU_금단의요리 = 0
+MENU_HIT:MENU_개구리요리 = 0
+
+SELECTCASE ABL:CHARA:요리기능
+CASE 0, 1
+	MENU_HIT:MENU_경식     += 5
+	MENU_HIT:MENU_주식     += 10
+CASE 2, 3
+	MENU_HIT:MENU_주식     += 5
+	MENU_HIT:MENU_디저트 += 10
+ENDSELECT
+
+SIF ABL:CHARA:욕망 >= 5
+	MENU_HIT:MENU_금단의요리 += 5
+SIF ABL:CHARA:정액중독 >= 3
+	MENU_HIT:MENU_금단의요리 += 5
+SIF ABL:CHARA:질내사정중독 >= 3
+	MENU_HIT:MENU_금단의요리 += 5
+SIF ABL:CHARA:항내사정중독 >= 3
+	MENU_HIT:MENU_금단의요리 += 5
+RETURNF ARRAY_HIT(MENU_HIT, VARSIZE("MENU_HIT"))

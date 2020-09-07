@@ -1,0 +1,618 @@
+﻿;==================================================
+;오토 허덕이는 소리 말(참치)
+;말 아무래도 생각해 떠오르지 않기 때문에 AUTO_AEGI 개변 함수
+;부위·감도등 무시해 모순되지 않는 허덕이는 소리를 만드는 것을 목표로
+@K30_GASPING_MAGURO
+;--------------------------------------------------
+#DIM 상황
+#DIM 심신상실
+#DIM 심하다
+#DIM TEMP
+#DIM TEMP2
+심신상실 = 0
+심하다 = 0
+TEMP = 0
+TEMP2 = 0
+SIF ! CFLAG:30:우후후
+	RETURN 0
+;노멀 참치
+상황 = 0 
+;섹프
+SIF TALENT:애욕 || TALENT:섹프 || TALENT:걸레
+	상황 = 4
+;만취 참치
+IF TCVAR:만취
+	상황 = 5
+	심신상실 =1
+ENDIF
+;수면 참치
+IF CFLAG:수면
+	상황 = 9
+	심신상실 =1
+ENDIF
+;키스시
+SIF GROUPMATCH(SELECTCOM, 19, 20)
+	상황 = 1
+;페라시
+SIF GROUPMATCH(SELECTCOM, 81, 88, 89, 140, 501, 505, 508, 509, 512)
+	상황 = 2
+;개별 처리시(약
+SIF GROUPMATCH(SELECTCOM, 50, 51, 180, 181, 182, 192)
+	상황 = 6
+;SM계(SOURCE 들어가지 않는다) 때
+SIF GROUPMATCH(SELECTCOM, 100, 104, 105, 107)
+	상황 = 7
+;봉사(오토나시해) 때
+SIF GROUPMATCH(SELECTCOM, 80, 82, 83, 84, 85, 510, 511)
+	상황 = 8
+;A관련
+SIF GROUPMATCH(SELECTCOM, 4, 5, 13, 45, 62, 63, 66, 69, 70, 71, 74, 75, 514, 515)
+	상황 = 3
+PRINTFORM 「
+SIF TCVAR:억지로
+	PRINTFORM %TEXTR("나다/아니/안돼/그만두어")%! …
+;섹프, 심신상실, 약, SM는 반드시 최초로 한 마디
+IF (RAND:2 ==  0 || GROUPMATCH(상황, 4, 6, 7) || 심신상실) && ! TCVAR:억지로 
+	CALL K30_GASPING_RAND(상황)
+	;SM는 한 마디로 처리 종료
+	SIF 상황 ==  7
+		RETURN 1
+	TEMP = 1
+ENDIF
+;행중의 처리
+REPEAT 5 + RAND:2
+	SELECTCASE 상황
+	;키스·페라음
+	;심신상실·억지로 때는 빈도 반
+		CASE 1, 2
+			IF (RAND:2 ==  1 && ! (심신상실 || TCVAR:억지로)) || (RAND:4 ==  1 && (심신상실 || TCVAR:억지로))
+				IF 상황 ==  1
+					PRINTFORM …%TEXTR("응응//짠다//응무")%
+				ELSE
+					PRINTFORM …%TEXTR("////쥬풋")%
+				ENDIF
+				SIF PALAM:30:욕정 > PALAMLV:7 && ! TCVAR:억지로 && RAND:3 != 1
+					PRINTFORM %UNICODE(0x2665)%
+			ELSE
+				PRINT …
+			ENDIF
+	;통상은 거부 같은 소리	, 준강제 외설은 잠꼬대 같은 것을, 섹프·연인 동반은 긍정을 각각 2회까지
+		CASE 0, 4, 5, 9
+			IF TEMP2 < 3 && ! TCVAR:억지로
+				IF RAND:3 ==  1
+					TEMP2 ++
+					IF TCVAR:만취
+						PRINTFORM ……%TEXTR("응후후/으응/아아앙/응응응/훌쩍")%
+					ELSEIF CFLAG:수면
+						PRINTFORM ……%TEXTR("/응/응/아아앙/응응")%
+					ELSEIF 상황 ==  4 || TALENT:연모
+						PRINTFORM ……%TEXTR("기분 좋은거야/거기/아/좋은거야/아아앙/")%
+						IF (PALAM:30:욕정 > PALAMLV:3 && RAND:3 ==  1) || (PALAM:30:욕정 > PALAMLV:5 && RAND:3 != 1)
+							PRINTFORM
+						ENDIF
+						IF PALAM:30:욕정 > PALAMLV:6
+							SIF RAND:2 ==  1
+								CALL HPH_PRINT(@"HPH")
+						ELSEIF PALAM:30:욕정 > PALAMLV:3 && RAND:3 != 1
+							PRINTFORM %UNICODE(0x2665)%
+						ENDIF
+					ELSE
+						PRINTFORM ……%TEXTR("달라/안돼/이상해/느껴 뭔가/아니/이상한거야")%
+						IF (PALAM:30:욕정 > PALAMLV:2 && RAND:3 ==  1) || PALAM:30:욕정 > PALAMLV:6
+							PRINTFORM
+						ENDIF
+						IF PALAM:30:욕정 > PALAMLV:9
+							SIF RAND:4 ==  1
+								CALL HPH_PRINT(@"HPH")
+						ELSEIF PALAM:30:욕정 > PALAMLV:5 && RAND:3 ==  1
+							PRINTFORM %UNICODE(0x2665)%
+						ENDIF
+					ENDIF
+				ELSE
+					PRINT …
+				ENDIF
+			ELSE
+				PRINT …
+			ENDIF
+	;외는 무언
+		CASEELSE
+			PRINT …
+	ENDSELECT
+REND
+IF TEMP ==  0
+	;억지로·약시는 어미에 한 마디만, 뒤는 어느 쪽인가에 한 마디만 CFLAG:1600 억지로 말반영 플래그
+	IF TCVAR:억지로
+		CFLAG:1600 = 1
+	;억지로 가끔 피임했다
+		SIF GROUPMATCH(SELECTCOM, 50, 51) && TCVAR:30:기다리지않다 ==  0
+			PRINTFORM %TEXTR("무엇을 하고 싶은거야…/의미를 모른다…/장난치고 있어…/무엇 생각하고 있어…")%
+		PRINTFORM %TEXTR("… 이제(벌써)… 그만두어/… 심한/… 이제 되지요/… 믿었었는데/… 적당히 해/… 손대지 맛")%
+	ELSE
+		CALL K30_GASPING_RAND(상황)
+	ENDIF
+ENDIF
+PRINTFORMW 」
+PRINTFORML 
+;MASTER 사정 직전
+IF NOWEX:MASTER:11 && ! 심신상실 
+	;억지로 피임 없음으로 질내사정
+	IF TCVAR:억지로 && ! TCVAR:30:피임약 && TEQUIP:PLAYER:콘돔 ==  0 && TCVAR:PLAYER:2 ==  1
+		;염라님의 벌은 준비중
+		SETBIT CFLAG:1800, 0
+		심하다 ++
+		PRINTDATA
+			DATAFORM 「기다려… 부탁……
+			DATAFORM 「아니, 싫다아……
+			DATAFORM 「그만두어!! 뽑아!! ……
+			DATAFORM 「안은! 안은 안됏!! ……
+		ENDDATA
+		SELECTCASE 심하다
+			CASE 1
+				PRINTFORM %TEXTR("이제(벌써)… 그만두어…/정말로… 가능하게 되어…/정말로… 그만두어")%………
+			CASEELSE
+				PRINTFORM %TEXTR("이제(벌써)… 허락해…/… 이제(벌써)… 싫은…/… 그만두어어…")%………
+		ENDSELECT
+		PRINTFORML %TEXTR("그만두어 예네/싫어어어어어어!! /안돼에에에에!!」/아아아아아아!")%!」
+	ELSEIF 상황 ==  2
+		SIF EXP:30:정음경험 < 20 && ! TALENT:연모
+			PRINTFORMW (%TEXTR("다음에 토해내자…/마시고 싶지 않구나…/밖에 내요…")%)
+	ENDIF
+;절정 직전
+ELSEIF (NOWEX:C절정 || NOWEX:V절정 || NOWEX:A절정 || NOWEX:B절정) && ! 심신상실 && ! GROUPMATCH(상황, 1, 2, 8) 
+	PRINTFORMDW 에이키는절정을 참도록(듯이)%TEXTR("신체를 진동시킨다/고개를 젓고 있다/입을 누르고 있다/가슴을 힘껏 안고 있다/눈을 단단하게 닫고 있다")%……
+	;섹프에게는 어딘지 모르게 분하다(ry인 여파를 넣는다
+	IF 상황 ==  4
+		PRINTDATADW
+			DATAFORM 이지만 육욕에 빠진 신체는절정으로 용이하게 흐르게 되어 간다……
+			DATAFORM 그러나 신체에 새겨진 암컷의 기쁨이 얼마 안되는 저항을 흘러가게 한다……
+			DATAFORM 그런 저항을 조소하는것 같이, 저항할 수 없는 쾌락이 에이키의 안쪽으로부터 솟구친다……
+			DATAFORM 이지만절정에 저항하는 일로, 보다 감미로운 쾌락이 에이키에 불러들일 수 있다……
+			DATAFORM 이지만 그것도 발버둥질에 지나지 않고, 억누른 일로 오히려 부풀어 오른 쾌감이 에이키를 덮친다……
+		ENDDATA
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;참치 허덕여 표시
+@K30_GASPING_RAND(ARG)
+;--------------------------------------------------
+#DIM TEMP2
+TEMP2 = ARG
+SELECTCASE TEMP2
+;노멀시는 긍정 부정 반반
+	CASE 0
+		PRINTFORM %TEXTR("아/아아앙/히응/(이)나다/아니/안돼")%
+		SIF PALAM:30:욕정 > PALAMLV:5 && RAND:2 ==  1
+			PRINTFORM %UNICODE(0x2665)%
+		SIF PALAM:30:욕정 > PALAMLV:8 && RAND:2 ==  1
+			PRINTFORM
+;키스·페라음
+	CASE 1
+		PRINTFORM %TEXTR("//짠다//응무")%
+		SIF PALAM:30:욕정 > PALAMLV:7 && RAND:2 ==  1
+			PRINTFORM %UNICODE(0x2665)%
+	CASE 2
+		PRINTFORM %TEXTR("////쥬풋")%
+		SIF PALAM:30:욕정 > PALAMLV:7 && RAND:2 ==  1
+			PRINTFORM %UNICODE(0x2665)%
+;A약점인 것으로 하트마시마시
+	CASE 3
+		PRINTFORM %TEXTR("아아앙/안돼/거기는/아는/아니/엉덩이")%
+		IF PALAM:30:욕정 > PALAMLV:7 && RAND:2 ==  1
+			CALL HPH_PRINT(@"HPH")
+			SIF PALAM:30:욕정 > PALAMLV:9
+				CALL HPH_PRINT(@"HPH")
+		ELSEIF PALAM:30:욕정 > PALAMLV:4 && RAND:2 ==  1
+			PRINTFORM %UNICODE(0x2665)%
+		ENDIF
+;섹프, 만취시는 긍정만, 하트마시마시
+	CASE 4, 5
+		PRINTFORM %TEXTR("응/아아앙/히/응//응응//아/아하아")%
+		SIF PALAM:30:욕정 > PALAMLV:4 && ! RAND:3 ==  1
+			PRINTFORM
+		SIF PALAM:30:욕정 > PALAMLV:7 && RAND:2 ==  1
+			CALL HPH_PRINT(@"HPH")
+		SIF PALAM:30:욕정 > PALAMLV:9
+			CALL HPH_PRINT(@"HPH")
+;약시＠여기라든지 개별의 (분)편이 어떻게 생각해도 좋지요. 또 이번에 한다
+	CASE 6
+		IF TCVAR:만취 || CFLAG:수면
+		ELSE
+			SELECTCASE SELECTCOM
+				CASE 50, 51
+					IF TCVAR:억지로
+					ELSE
+						PRINTFORM %TEXTR("감사합니다/안심했어요/부탁합니다")%
+					ENDIF
+				CASEELSE
+					PRINTFORM %TEXTR("무엇을 해/이상한 것 사용하지 마/무엇인가… 이상해…")%
+			ENDSELECT
+		ENDIF
+;SM시＠여기도 개별이다. 또 이번
+	CASE 7
+		;스팽킹
+		IF SELECTCOM ==  100
+			IF TCVAR:만취
+				PRINTFORML %TEXTR("있었다… 이…/(이)나~다~/야읏…/그만두고… 라고…")%……」
+			ELSE
+				PRINTFORML %TEXTR("아프다/(이)나다/있었닷")%! ……%TEXTR("무엇을 해/부탁… 그만두어/그만두어… 두드리지 마")%………」
+			ENDIF
+		;그 이외
+		ELSE
+			IF TCVAR:만취
+				PRINTFORML %TEXTR("응응/응~? /응")%……」
+			ELSE
+				PRINTFORML %TEXTR("무섭다…/무엇을 해/심한 것은… 그만두어")%………」
+			ENDIF
+		ENDIF
+;봉사(오토나시해) 때
+	CASE 8
+		IF TCVAR:만취
+			PRINTFORM %TEXTR("응~?/뭐? ~? /분… 이? /칠하는… 칠해?")%
+		ELSEIF CFLAG:수면
+			PRINTFORM %TEXTR("응응/응─? /응/읏응읏")%
+		ELSE
+			PRINTDATA
+				DATAFORM 이것으로 좋습니까
+				DATAFORM 이것으로 만족입니까
+				DATAFORM 이렇게 하면 됩니까
+				DATAFORM 이렇게 움직이면 좋습니까
+				DATAFORM 이런 느낌입니까
+			ENDDATA
+		ENDIF
+ENDSELECT
+RETURN 0
+;==================================================
+;아침 페라
+;비유 구문이 더러워도 지문과 맞지 않아도 좋아하는 시츄인 것으로 쓴다
+@K30_CHECK_MORNING_FELLA
+;--------------------------------------------------
+CFLAG:1604 = 0
+;조교자가 남자나 후타나리가 아니면 안돼
+SIF ! (TALENT:PLAYER:2 & 2)
+	RETURN 1
+;오전중이 아니면 안돼
+SIF TIME > 720
+	RETURN 1
+;후키겐이나 반발각인 소유는 안돼
+SIF TALENT:기분 ==  -1 || MARK:30:반발각인 >=  1 
+	RETURN 1
+;연모가 아니면 안돼
+SIF ! TALENT:연모
+	RETURN 1
+;(만약을 위해) 완전하게 단 둘이 아니면 안돼
+SIF K30_BE_SEEN()
+	RETURN 1
+;후후 해금이 아니면 안돼
+SIF ! CFLAG:기정사실 & 합의_우후후
+	RETURN 1
+;어느 정도 경험 없으면 안돼
+SIF ABL:정액중독 < 2
+	RETURN 1
+;욕구불만도과 정액중독을 본다
+LOCAL = CFLAG:30:욕구불만도 / 50 + MIN(ABL:30:정액중독, 25) * 2 / 3
+;욕구불만도이 20%없으면 비율 감소
+SIF CFLAG:30:욕구불만도 < 200
+	LOCAL -= (20 - CFLAG:30:욕구불만도 / 10)
+;이런 소질 붙이고 있으면 화려하게 보너스
+SIF TALENT:30:정애미각
+	LOCAL += 40
+;최저 보증 10%
+SIF LOCAL < 10
+	LOCAL = 10
+LOCAL:1 = RAND:101
+SIF TALENT:MASTER:농후정액 && TALENT:30:정애미각
+	LOCAL:1 = 0
+SIF LOCAL:1 >=  LOCAL
+	RETURN 1
+CFLAG:1604 = 1
+;TINKO 함수 수식어이기 때문에 인상
+BASE:MASTER:발기 = 1500
+PRINTDATADW
+	DATAFORM 비몽사몽 속에서 오슬오슬 하는 것 같은 쾌감이 %CALLNAME:MASTER%에 달린다……
+	DATAFORM 어쩐지 사타구니가 미지근한… 이지만 몽정과는 어긋나는 것 같다……
+	DATAFORM 허리의 근처로부터 철벅철벅물소리가 들릴 생각이 든다……
+ENDDATA
+PRINTFORMW 
+IF TALENT:30:정애미각 && TALENT:MASTER:농후정액
+	PRINTFORMDL 얼굴을 올려 보면, 에이키가 %CALLNAME:MASTER%의 사타구니에 얼굴을 묻어 열심히 펠라치오를 하고 있었다.
+	PRINTFORMDW 아무래도 피니쉬 눈앞인 것처럼 에이키의 입술과 혀는 격렬하게 페니스에 휘감겨 온다…
+	PRINTFORMDL 곧바로 한계가 온 %CALLNAME:MASTER%는 정음을 애타게 기다리는 에이키에%EXPR_VAR("SPERM")%를 털어 놓았다…
+	PRINTFORMW (하아, 응푸우…… 맛있어……%CALLNAME:MASTER%태우고 역, 대좋아……%UNICODE(0x2665)%)
+	PRINTFORMDL 당분간 인내를 하고 있던 반동으로부터인가, 에이키는 황홀의 표정을 띄우고 사정 후의 페니스에 달라붙고 있다…
+	PRINTFORMDW 제일 눌러 짬의 농후한 정액을 목과 혀로 충분히 만끽하고 나서, 에이키는 간신히 눈을 맞추고 인사해 주었다.
+	PRINTFORMW 「안녕, %K30_C_NAME(MASTER)%. 그것과… 잘 먹었어요%UNICODE(0x2665)%」
+	TIME:0 += 5
+ELSE
+;랜덤 구문의 연습
+	PRINTFORMD 눈을%TEXTR("깬다/연다")%과
+	IF TALENT:30:정애미각 && RAND:3 ==  1
+		PRINTFORMDW 에이키가%TINKO(MASTER)%를 목 안까지 물고 있다. 에이키도 깨달아 마지못해 입을 떼어 놓았다…
+	ELSE
+		PRINTDATADW 
+			DATAFORM 에이키가%TINKO(MASTER)%에 끈적 혀를 기게 하고 있었다. 에이키도 깨달아 이쪽을 향했다…
+			DATAFORM %TINKO(MASTER)%에 달라붙어서 놓지 않은 에이키와 확실히 시선이 마주쳤다…
+			DATAFORM 치뜬 눈 사용의 에이키와 시선이 마주치는… 이쪽의 모습을 살피면서 펠라치오를 하고 있었던 것 같다.
+		ENDDATA
+	ENDIF
+	IF TALENT:30:정애미각 && RAND:3 ==  1
+		PRINTFORMW 「안녕하세요. 아직 자도 괜찮아요? 밥만 먼저…… 먹네요%UNICODE(0x2665)%」
+	ELSE
+		PRINTDATAW
+			DATAFORM 「… 안녕하세요… 미안해요. 인내 할 수 없어서, 무심코…」
+			DATAFORM 「엣또… 굉장히 건강해 신경이 쓰였기 때문에… 아. 그리고, 안녕하세요…」
+			DATAFORM 「안녕하세요. … 약간의 장난의 생각이, 뭔가 즐거워져 와…」
+		ENDDATA
+	ENDIF
+	IF TALENT:30:정애미각 && RAND:3 ==  1
+		PRINTFORMDL 말을 끝내자마자 에이키는 귀두에 키스를 반복해, 계속을 하고 싶으면 졸라 왔다.
+		PRINTFORMDW 에이키의 군침이 %CALLNAME:MASTER%의 페니스를 타, 이불까지 더럽히고 있다…
+	ELSE
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORMDL 보면 에이키의 입주위와 %CALLNAME:MASTER%의 페니스는 군침과 쿠퍼액으로
+				PRINTFORMDW 번들번들 빛나고 있다. 상당히 긴 시간 즐기고 있던 것 같다…
+			CASE 1
+				PRINTFORMDL 미안하다고 한 어조로 이야기하고는 있지만, 에이키의 눈은 기대와 욕망으로 가득 차 있다.
+				PRINTFORMDW 게다가 손은 음경을 훑은 채로, 행위를 그만둘 생각은 없는 것 같다…
+			CASE 2
+				PRINTFORMDL %CALLNAME:MASTER%의 페니스는 아사다츠 치노 레벨을 넘어 끙끙 서 있다.
+				PRINTFORMDW 에이키는 대단히 열심히 봉사를 계속하고 있던 것 같다…
+		ENDSELECT
+	ENDIF
+	IF TALENT:30:정애미각 && RAND:3 ==  1
+		PRINTFORMW 「이, 이제 인내 할 수 없는 것… 빠르고, 정액… 줘…%UNICODE(0x2665)%」
+		PRINTFORMW 「아므, 쥬루! … 쥬붓, 츄우우우…」
+	ELSE
+		PRINTDATAW
+			DATAFORM 「이, 이봐요, 이런 것은 남자의 동경이겠지? 그러니까, 좋지 않아, 이대로…」
+			DATAFORM 「저, 저기, 인내 같은거 좋지 않아요. 이대로에도 해 둘 수 없지요, 그러니까…」
+			DATAFORM 「조, 좋지 않아, 가끔 씩은 이런 것도, 말야… 좀 더, 기분 좋게 해 주기 때문에…」
+		ENDDATA
+		PRINTFORMW 「, 응츄… 읏, 쥬붓… 츄루…」
+	ENDIF
+	PRINTFORMDL 에이키는 %CALLNAME:MASTER%의 대답을 기다리지 않고, 다시 펠라치오를 시작했다.
+	IF TALENT:30:정애미각 && RAND:3 ==  1
+		PRINTFORMDW 마치 먹이를 요구하는 동물과 같이 눈빛을 바꾸고 페니스에 달라붙어 온다…
+	ELSE
+		PRINTDATADW 
+			DATAFORM 난처함을 숨기기 때문에(위해)인가 봉사에 한층 더 열이 들어가 있다…
+			DATAFORM 눈이 완전하게 깬 %CALLNAME:MASTER%는 한층 더 기분 좋은 쾌락에 휩싸여졌다…
+			DATAFORM 사양도 없어진 것 같아 혀와 입은 대담하게 움직임 물소리와 한숨이 방에 울린다…
+		ENDDATA
+	ENDIF
+	PRINTFORMDW %CALLNAME:MASTER%는 에이키의 구음을 충분히 만끽하고 나서, 포상의%EXPR_VAR("SPERM")%를 내 주었다…
+	PRINTFORML 
+	TIME:0 += 10
+	IF TALENT:30:정애미각 && RAND:2 ==  1
+		PRINTFORMW 「후훗, 잘 먹었어요……%UNICODE(0x2665)%」
+	ELSE
+		PRINTDATAW 
+			DATAFORM 「이봐요, 시원해져 눈을 뜸도 좋지요?」
+			DATAFORM 「당신의 일이니까, 이 정도 어떻지도 않을 것입니다?」
+			DATAFORM 「이것으로 건강도 나왔을까? 나도… 만족할 수 있었던%UNICODE(0x2665)%」
+		ENDDATA
+	ENDIF
+ENDIF
+;사출량은 초적당
+LOCAL =(ABL:MASTER:C감각 / 2 + 15) / 2 * (ABL:30:혀 / 3 * 2)
+;경험을 더한다
+EXP:M경험 ++
+EXP:펠라티오경험 += 3
+EXP:정음경험 ++
+CFLAG:30:누계정음 += LOCAL
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 7
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 7
+ENDIF
+EXP:애정 경험 ++
+;MASTER측도 경험 붙인다
+EXP:MASTER:절정경험 ++ 
+EXP:MASTER:사정 경험 ++
+[SKIPSTART]
+;정력도 줄인다. TINKO는 말랑 시킨다.
+;아침의 회복과 겹치므로 생략
+BASE:MASTER:정력 -= LOCAL
+BASE:MASTER:체력 -= LOCAL / 5
+BASE:MASTER:발기 = 700 - (RAND:250 + 1)
+[SKIPEND]
+RETURN 1
+;==================================================
+;스커트 넘기기 콤보 지문
+@K30_LIFT_UP_SKIRT_COMBO
+;--------------------------------------------------
+#DIM 노출강도
+DRAWLINE
+RESULT = 1
+TCVAR:30:374 = 0
+;카운터 받고 있으면 안돼
+SIF CFLAG:우후후 != 0
+	RETURN 1
+;연모가 아니면 안돼
+SIF ! TALENT:연모
+	RETURN 1
+노출강도 = 0
+;노 팬츠라면 노출벽 8
+IF TEQUIP:0 <=  1
+	SIF ABL:노출벽 <=  7
+		노출강도 = 2
+;팬티는 있어도 노출벽 6 필요
+ELSEIF ABL:노출벽 <=  5
+	노출강도 = 1
+ENDIF
+RESETCOLOR
+PRINTFORM %CALLNAME:TARGET%에 스커트를 들어 올린 채로 해라고 부탁해, %CALLNAME:PLAYER%는\@ TEQUIP:0 > 1? 속옷에 숨은 # 노출의\@
+SELECTCASE SELECTCOM
+	CASE 314
+		PRINTL 애널에 손을 뻗었다…
+	CASE 315
+		PRINTL 클리토리스에 손을 뻗었다…
+	CASE 316
+		PRINTL 질 구멍에 손을 뻗었다…
+ENDSELECT
+IF 노출강도 > 0
+	SELECTCASE  노출강도
+		CASE 1
+			PRINTFORML 이지만 남의 눈을 신경쓴 %CALLNAME:TARGET%에 새빨간 얼굴로 거절당해 버렸다.
+		CASE 2
+			PRINTFORML 이지만 %CALLNAME:TARGET%에 과연 그것은 할 수 없으면 거절당해 버렸다.
+	ENDSELECT
+	PRINTFORM %CALLNAME:PLAYER%는 조금 실망했지만, 기분을 고쳐 %CALLNAME:TARGET%의
+	SELECTCASE SELECTCOM
+		CASE 314
+			PRINT 애널에
+		CASE 315
+			PRINT 클리토리스에
+		CASE 316
+			PRINT 질 구멍에
+	ENDSELECT
+	PRINTL 장난을 시작했다.
+	RETURN 1
+ENDIF
+TCVAR:30:374 = 1
+PRINT 스커트를 걷어올리고 남의 앞에서
+IF TEQUIP:0 > 1
+	PRINTFORM %SHOW_하반신속옷(TARGET)%를
+ELSE
+	PRINTFORM %SLIT(TARGET)%를
+ENDIF
+PRINTFORML 드러내는 에이키는\@ TEQUIP:0 > 1? # 극도의\@수치로 얼굴이 붉게 물들어 신체를 조금씩 떨게 하고 있다…
+PRINTL
+PRINTFORM %CALLNAME:PLAYER%는
+SELECTCASE SELECTCOM
+	CASE 314
+		IF TEQUIP:0 > 1
+			IF PALAM:윤활 > PALAMLV:4
+				PRINT 흠뻑흠뻑 젖었다
+			ELSEIF PALAM:윤활 > PALAMLV:2
+				PRINT 어렴풋이 습기찼다
+			ENDIF
+			PRINTFORM %SHOW_BOTTOM(TARGET)% 위로부터,
+		ELSE
+			IF ABL:A감각 <=  1
+				PRINT 단단하게 침입을 거절한다
+			ELSEIF ABL:A감각 <=  3
+				PRINT 아직 딱딱함이 남는다
+			ELSE
+				PRINT 갖고 싶어하는 듯이 실룩거린다
+			ENDIF
+		ENDIF
+		PRINT 애널을
+		IF ABL:A감각 <=  1
+			PRINT 손가락 안쪽으로 어루만지도록(듯이)
+		ELSEIF ABL:A감각 <=  3
+			PRINT 풀도록(듯이)
+		ELSE
+			PRINT 손가락을 쑤셔 넣도록(듯이)해
+		ENDIF
+		PRINTFORML 애무했다…
+		IF TEQUIP:0 > 1
+			PRINTFORM 에이키는 수치로 신체를 떨게 함
+		ELSE
+			PRINTFORM 에이키는%SLIT(TARGET)%도 공공연하게 수치에 몸부림 해
+		ENDIF
+		IF ABL:A감각 <=  1
+			PRINTL , 거절할 수도 하지 못하고 엉덩이 구멍을 어루만져지고 있다…
+		ELSEIF ABL:A감각 <=  3
+			PRINTL 면서도 이물감에 등골을 진동시키고 있다…
+		ELSE
+			PRINTL , 남의 눈을 피하는 일도 잊고 엉덩이 구멍의 쾌락에 빠지고 있다…
+		ENDIF
+	CASE 315
+		IF TEQUIP:0 > 1
+			IF PALAM:윤활 > PALAMLV:4
+				PRINT 흠뻑흠뻑 젖었다
+			ELSEIF PALAM:윤활 > PALAMLV:2
+				PRINT 어렴풋이 습기찼다
+			ENDIF
+			PRINTFORM %SHOW_BOTTOM(TARGET)% 위로부터, 비처[秘處]의
+			IF ABL:C감각 <=  3
+				PRINTFORML 세로선[縱筋]을 쓰다듬어 올렸다……
+			ELSEIF ABL:C감각 <=  5
+				PRINTFORML 균열의 상부를 중점적으로 공격했다……
+			ELSE
+				PRINTFORML 클리의 근처를 동글동글 밀어넣었다……
+			ENDIF
+		ELSE
+			IF ABL:C감각 <=  1
+				PRINT 가죽을 감쌌다
+			ELSEIF  ABL:C감각 <=  3
+				PRINT 노출의
+			ELSEIF  ABL:C감각 <=  5
+				PRINT 핑 날카로워진다
+			ELSE
+				PRINT 볼록 부풀어 올랐다
+			ENDIF
+			PRINTFORM 클리토리스를
+			IF ABL:C감각 <=  3
+				PRINTFORML 살그머니 더듬었다……
+			ELSEIF ABL:C감각 <=  5
+				PRINTFORML 가볍게 집어올렸다……
+			ELSE
+				PRINTFORML %TEXTR("천천히 주물렀다……/타면서 비볐다……/동글동글 자극했다……")%
+			ENDIF
+		ENDIF
+		IF TEQUIP:0 > 1
+			PRINTFORM 에이키는 수치로 신체를 떨게 함
+		ELSE
+			PRINTFORM 에이키는%SLIT(TARGET)%도 공공연하게 수치에 몸부림 해
+		ENDIF
+		IF ABL:C감각 <=  3
+			PRINTFORML 면서도, 자극을 인내를 하고 있다…
+		ELSEIF ABL:C감각 <=  5
+			PRINTFORML 면서, 애무에 뜨거운 한숨을 흘리고 있다…
+		ELSE
+			PRINTFORML 라고, %CALLNAME:PLAYER%의 손가락이 움직일 때에 견디지 않고 교성을 주고 있다…
+		ENDIF
+	CASE 316
+		IF TEQUIP:0 > 1
+			IF PALAM:윤활 > PALAMLV:3
+				PRINT 흠뻑흠뻑 젖었다
+			ELSEIF PALAM:윤활 > PALAMLV:1
+				PRINT 어렴풋이 습기찼다
+			ENDIF
+			PRINTFORM %SHOW_BOTTOM(TARGET)%의 틈새로부터
+		ELSE
+			IF TALENT:처녀 ==  1
+				PRINT 딱 딱딱하게 닫았다
+			ELSEIF ABL:V감각 <=  1
+				PRINT 매우 조금 피기 시작했다
+			ELSEIF ABL:V감각 <=  4
+				PRINT 흥분으로 세키 보고를 띤다
+			ELSE
+				PRINT 권하도록(듯이) 실룩거린다
+			ENDIF
+		ENDIF
+		PRINTFORML %SLIT(TARGET)%\@ ABL:V감각 > 4? 를 강하게 휘젓도록(듯이) 손가락을 빼고 꽂기 하는 것 # 에 천천히 손가락을 삽입했다\@…
+		IF TEQUIP:0 > 1
+			PRINTFORM 에이키는 수치로 신체를 떨게 함
+		ELSE
+			PRINTFORM 에이키는%SLIT(TARGET)%도 공공연하게 수치에 몸부림 해
+		ENDIF
+		IF TALENT:처녀 ==  1
+			PRINTFORML 면서도, %CALLNAME:PLAYER%의 손가락을 거절해 허벅지를 꽉 닫고 있다…
+		ELSEIF ABL:V감각 <=  1
+			PRINTFORML 면서도, 이물감이 강한 것인지 몸을 굳어지게 하고 있다…
+		ELSEIF ABL:V감각 <=  4
+			PRINTFORML 면서, 애무에 뜨거운 한숨을 흘리기 시작하고 있다…
+		ELSE
+			PRINTFORML 라고, 남의 눈도 꺼리지 않고 희열의 소리를 지르고 쾌락을 탐내고 있다…
+		ENDIF
+ENDSELECT
+PRINTFORML 
+;주위는 확실히 반응한다
+IF K30_BE_SEEN()
+	IF GET_TARGETNUM() > 1
+		PRINTFORM 근처에 있던%K30_C_NAME(K30_FIND_AROUND())%
+		PRINTDATAL
+			DATAFORM 는 왠지 깨닫지 않았다…
+			DATAFORM 에는 능숙하게 발각되지 않았다…
+			DATAFORM 로부터는 정확히 안보였던 것 같다…
+			DATAFORM 의 눈을 속이고 즐겼다…
+		ENDDATA
+	ENDIF
+	SIF DATE_HITOGOMI() || WITH_MOB() ==  9
+		CALL DATE_HITOGOMI_MESSAGE(CFLAG:PLAYER:현재위치)
+ENDIF
+CALL K30_COMPENSATE_MESSAGE
+RETURN 1

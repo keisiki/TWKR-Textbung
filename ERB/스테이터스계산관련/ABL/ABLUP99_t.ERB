@@ -1,0 +1,114 @@
+﻿;굴복 각인을 지워 보는 테스트
+;사용하는 경우는↓을 ABL.ERB의 「PRINTL [100] 능력치 업의 종료」의 앞에 삽입하는 것
+;PRINTFORML [99]%MARKNAME:3%-{MARK:3}LV
+;
+;TRACHECK.ERB도 만지작거리면(자) 재차 굴복 각인이 붙거나 하지 않기 때문에 요시
+;●개변전
+;IF A >= 500 && A < 1200 && MARK:3 <= 0
+;	MARK:3 = 1
+;●개변 후
+;IF A >= 500 && A < 1200 && MARK:4 <= 0
+;	MARK:3 = 1
+;	MARK:4 = 1
+;●이상의 내용을 3 LV의 3개소로 하는 것
+;상기가 알지 않는 or 알아도 주지 않는 경우에 재차 굴복 각인 붙었을 경우의 폐해는 보증하기 어렵습니다
+
+
+@ISABLUP99
+IF MARK:반발각인 <= 0
+	RETURN 0
+ENDIF
+
+CALL DECIDE_ABLUP99
+
+IF Z == 0
+	RETURN 0
+ELSE
+	RETURN 1
+ENDIF
+
+
+@ABLUP99
+DRAWLINE
+IF MARK:반발각인 <= 0
+	PRINTW 반발각인은 없습니다
+	RETURN 0
+ENDIF
+
+CALL DECIDE_ABLUP99
+
+
+;반발각인 Lv와 같은 Lv의 굴복 각인이 필요
+PRINTS MARKNAME:2
+PRINTV MARK:반발각인
+PRINTL LV이상, 한편
+
+;반발각인 Lv와 같은 Lv의 순종이 필요
+PRINTS ABLNAME:0
+PRINTV MARK:반발각인
+PRINTL LV이상, 한편
+
+PRINTFORM [0] - %PALAMNAME:7%의 보주×{A}……
+IF I == 0
+	PRINT OK
+ELSE
+	SIF I & 1
+		PRINT 보주 부족 
+	SIF I & 2
+		PRINT 각인 부족 
+	SIF I & 4
+		PRINT 능력 부족 
+ENDIF
+PRINTL 
+
+PRINTL [100] - 그만둔다
+
+INPUT
+IF RESULT == 100
+	RETURN 0
+ELSE
+	PRINTFORMW 그러한 일 한다고 해 기다려버리는 아저씨가 와요.
+	RETURN 0
+ENDIF
+
+MARK:3 -= 1
+
+JUEL:7 -= A
+
+PRINTS MARKNAME:3
+PRINT 의 레벨이
+PRINTV MARK:3
+PRINTW 가 되었습니다
+
+
+;
+@DECIDE_ABLUP99
+;조건별로 OK인가 안 돼인지를 기록한다
+I = 0
+;능력 업 가능하면 1으로 한다
+Z = 0
+
+IF MARK:3 == 1
+	A = 1000
+ELSEIF MARK:3 == 2
+	A = 3000
+ELSEIF MARK:3 == 3
+	A = 5000
+ENDIF
+
+;반발각인 Lv와 같은 Lv의 굴복 각인이 필요
+SIF MARK:3 > MARK:2
+	I |= 2
+
+;반발각인 Lv와 같은 Lv의 순종이 필요
+SIF MARK:3 > ABL:0
+	I |= 4
+
+;굴복의 보주로 줄인다
+SIF JUEL:7 < A
+	I |= 1
+
+IF I == 0
+	Z = 1
+ENDIF
+

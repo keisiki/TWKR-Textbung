@@ -1,0 +1,102 @@
+﻿;-------------------------------------------------
+;배를어루만진다
+;일상계 커맨드 레벨 2
+;-------------------------------------------------
+@COM306
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;파과 억제
+TFLAG:2 = 1
+
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 10
+	CUP:쾌V = 30 + ABL:PLAYER:손가락 * 5
+	;착의 보정
+	SIF TEQUIP:1 > 1
+		TIMES SOURCE:쾌V , 0.50
+ELSE
+	DOWNBASE:체력 += 5
+	DOWNBASE:기력 += 30
+	CUP:쾌V = BASE:TARGET:무드 / 100 + 30 + ABL:PLAYER:손가락 * 5
+	SOURCE:환락 = 150
+	SOURCE:사랑 = 100
+	SOURCE:욕정 = 30
+	SOURCE:노출 = 10
+	SOURCE:반감 = 150 - BASE:TARGET:무드 / 100
+	SOURCE:수동 = 120
+	IF TALENT:임신 == 1
+		DOWNBASE:체력 += 5
+		DOWNBASE:기력 += 30
+		SOURCE:환락 = 350 + 240 * ABL:순종
+		SOURCE:사랑 = 150
+		SOURCE:반감 = 50
+		SOURCE:수동 = 120
+		SIF TALENT:연모
+			EXP:애정경험 ++
+	ENDIF
+	;착의 보정
+	IF TEQUIP:1 > 1
+		TIMES SOURCE:쾌V , 0.50
+		TIMES SOURCE:욕정 , 0.70
+		TIMES SOURCE:노출 , 0.30
+	ENDIF
+	IF !TALENT:연모 && !TALENT:사모
+		CUP:쾌V /= 2
+		SOURCE:환락 /= 2
+	ENDIF
+	;호감도 변화
+	IF ABL:친밀 <= 5
+		TFLAG:97 -= 3
+		TFLAG:193 = -1
+	ELSEIF TALENT:임신
+		TFLAG:97 += 3
+		TFLAG:193 = 1
+	ENDIF
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 20
+
+	;-------------------------------------------------
+	;경험의 처리
+	;-------------------------------------------------
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 1
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 1
+	ENDIF
+	TIME += 10
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE306
+;배 어루만지는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+SIF !TARGET
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(306)
+	RETURN RESULT
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;친해져 강도 1
+SIF TCVAR:MASTER:친해져 < 1
+	RETURN 0
+;업무중
+SIF CFLAG:행동 == 5
+	RETURN 0
+;팔사용중
+SIF TFLAG:61
+	RETURN 0
+SIF GETBIT (TCVAR:26,1)
+	RETURN 0
+RETURN 1
+

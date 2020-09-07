@@ -1,0 +1,422 @@
+﻿;--------------------------------------------------
+;	MAP_MANAGE.ERB
+;	이사 패치 관리
+;				공개 개시：2015/09/14
+;				최종 갱신：2015/10/17
+;--------------------------------------------------
+;
+;실장이 끝난 상태：
+;	"[400]이동"시 맵 표시
+;	"[400]이동"시 이동 불능 판정
+;	MASTER 원거리이동
+;	지점 관련성 응답 처리
+;	지명 캐릭터라인 취득
+;	목욕탕, 청소, 공부, 훈련의 커맨드 표시 판정
+;	CHARA 귀가 관련
+;	CHARA 목욕탕 관련
+;	일, 연회 관계
+;미실장：
+;	기색 짐작의 실장
+;	그 외
+;------------------------------------------
+;"이동하는"으로 표시되는 맵 화면을 표시시킨다
+;이사 계획에서는 MAIN_MAP 이외는 ODEKAKEMAP를 사용할 예정이었다
+;요점 참조 COMF400_이동. ERB
+;------------------------------------------
+@MAP_VIEWING
+TRYCALLFORM MAP_VIEWING_{MAIN_MAP}
+
+;------------------------------------------
+;기색 표시를 자택인가 그렇지 않은 것처럼 따라 처리를 바꿀 수 있도록(듯이) 한 GETMAP
+;요점 참조 COMF400_이동. ERB, 호출원
+;요점 참조 MAP_0.ERB
+;ARG, 장소 ID
+;------------------------------------------
+@GETMAP(ARG)
+IF MAIN_MAP == GET_MAPID(ARG)
+	IF TALENT:MASTER:위치짐작 && FLAG:짐작모드 == 1
+		SIF ROOMDATA:(ARG % 100) & 장소_모브
+			SETCOLOR C_D_PINK
+	TRYCALLFORM GETMAP_{MAIN_MAP}(ARG)
+	ENDIF
+	CALL GETMAP_YOGORE(ARG)
+ELSE
+ENDIF
+;------------------------------------------
+;사이에 얼마든지 CALL GETMAP를 사이에 둔 맵을 써 일으키는 것이 귀찮았기 때문에 만든 함수
+;------------------------------------------
+@PRINTMAP(ARGS,ARG,ARGS:1,ARG:1,ARGS:2,ARG:2,ARGS:3,ARG:3,ARGS:4)
+#DIM 지점수
+
+FOR 지점수, 0,5
+	PRINTFORM %ARGS:지점수%
+	IF !ARG:지점수
+		PRINTL
+		BREAK
+	ENDIF
+	CALL GETMAP(ARG:지점수)
+NEXT
+
+;------------------------------------------
+;초대방의 이름 캐릭터라인을 돌려준다. 초대되기 전은 TARGET의 초대방캐릭터라인을 돌려준다
+;호출원:NAME_FROM_PLACE()
+;ARG, VOID
+;------------------------------------------
+@OMANEKI_PLACE(ARG)
+#FUNCTIONS
+#DIMS PNAME
+#DIM OMANEKI_TARGET
+IF CFLAG:MASTER:초대
+	OMANEKI_TARGET = CFLAG:MASTER:초대
+ELSE
+	OMANEKI_TARGET = TARGET
+ENDIF
+SIF ARG
+	OMANEKI_TARGET = ARG
+
+PNAME = %CALLNAME:(OMANEKI_TARGET)%
+
+IF TEQUIP:목욕탕플레이
+	PNAME = %PNAME%의 욕실
+ELSE
+	SELECTCASE OMANEKI_TARGET
+		CASE 80;히에다노
+				PNAME = 히에다 저택
+		CASEELSE
+			IF OUTROOF(CFLAG:OMANEKI_TARGET:자택위치)
+				PNAME = %PNAME%의 거주지
+			ELSE
+				PNAME = %PNAME%의 방
+			ENDIF
+	ENDSELECT
+ENDIF
+RETURNF PNAME
+
+;------------------------------------------
+;참배길(출입구)의 장소 ID를 돌려준다
+;------------------------------------------
+@GET_ENTRANCE(MAPID)
+#FUNCTION
+#DIM MAPID
+;	//ODEKAKEMAP 사용시
+SIF MAPID != MAIN_MAP
+	RETURNF MAPID * 100
+
+IF GET_EXISTMAP(MAPID)
+	RETURNF ENTRANCE
+ELSE
+	RETURNF MAPID * 100
+ENDIF
+;------------------------------------------
+;장소 ID가 MAPID의 참배길(출입구)이나 판정한다
+;MAPID를 생략 했을 경우는 MAPID에 ARG의 소속 MAP를 대입한다
+;ARG:장소 ID
+;MAPID：대상 MAP
+;------------------------------------------
+@CHK_ENTRANCE(ARG, MAPID = 999)
+#FUNCTION
+#DIM MAPID
+;	// MAPID가 생략 되었을 경우
+SIF MAPID == 999
+	MAPID = GET_MAPID(ARG)
+;	//ODEKAKEMAP 사용시
+SIF ARG == GET_ENTRANCE(MAPID)
+	RETURNF 1
+;출발 전용의 현관(뒷문), 무엇인가를 위해서(때문에) 구별할 수 있도록(듯이) 2로 해 둔다
+SIF MAPID == 7 && ARG == 732
+	RETURNF 2
+RETURNF 0
+;------------------------------------------
+;	이사의 표시와 처리
+;------------------------------------------
+@SET_MAINHOME
+#DIM CHK_TRAINING
+#DIM CHK_GARDENING
+#DIM 설정전MAIN_MAP
+#DIM 설정전술벌레
+#DIM 설정전초기위치
+#DIM 설정전주인
+;
+;
+;멤버의 기상시간재설정
+;
+IF !이사
+	;KR판 NEWGAME 이식시 주석 해제
+	;IF ゲーム開始処理中 || ゲーム引き継ぎ処理中
+	;	MAIN_MAP = 0
+	; 	CALL ROOMSETTING_0
+	;ENDIF
+	설정전MAIN_MAP = MAIN_MAP
+	설정전술벌레 = 거점_술벌레
+	설정전초기위치 = Default초기위치
+	설정전주인 = 거점_주인
+	이사 = 1
+ENDIF
+IF FLAG:일시체재
+	PRINTFORMW 묵고 있는 캐릭터가 있으므로 이사할 수 없습니다
+	RETURN
+ENDIF
+DRAWLINE
+CALL DRAW_MAP("HIKKOSHI")
+DRAWLINE
+PRINTFORML ■%GET_MAPNAME(MAIN_MAP)%
+CALL 건물데이터(MAIN_MAP)
+PRINTFORM 채집가능 지점：
+CALL ShowGatheringSpots(MAIN_MAP)
+PRINTFORML 
+FONTITALIC
+CALLFORM MAP소개_{MAIN_MAP}
+FONTREGULAR
+PRINTL 
+DRAWLINEFORM =
+PRINTL 자택을 설정할 수 있습니다. 어디로 설정하겠습니까?
+PRINTBUTTON @"[프리뷰 맵변환({TFLAG:맵변환})]", 1997
+PRINTL
+FOR LOCAL, 0, 15
+	SIF MAIN_MAP == LOCAL
+		SETCOLOR C_AQUA
+	SIF GET_EXISTMAP(LOCAL)
+		PRINTFORM [{LOCAL + 2000}] %GET_MAPNAME(LOCAL), 16, LEFT%
+	SIF GROUPMATCH(LOCAL, 4, 9)
+		PRINTL
+	RESETCOLOR
+NEXT
+PRINT [1999] 결정
+;KR판 NEWGAME 이식시 주석 해제
+; SIF !ゲーム開始処理中 && !ゲーム引き継ぎ処理中
+; 	PRINT [1998] 취소
+PRINTL
+INPUT
+;거점 전환
+IF RESULT >= 2000 && GET_EXISTMAP(RESULT - 2000)
+	MAIN_MAP = RESULT - 2000
+	CALLFORM ROOMSETTING_{MAIN_MAP}
+	CALLFORM DEFAULT_OWNER_{MAIN_MAP}
+	TFLAG:맵변환 = 1
+	RESTART
+;프리뷰 전환
+ELSEIF RESULT == 1997
+	TFLAG:맵변환 += 1
+	SIF TFLAG:맵변환 > MAP_PAGES
+		TFLAG:맵변환 = 1
+	RESTART
+;キャンセル
+ELSEIF RESULT == 1998; && !ゲーム開始処理中 && !ゲーム引き継ぎ処理中 ;KR판 NEWGAME 이식시 주석 해제
+	이사 = 0
+	MAIN_MAP = 설정전MAIN_MAP
+	거점_술벌레 = 설정전술벌레
+	Default초기위치 = 설정전초기위치
+	거점_주인 = 설정전주인
+	CALLFORM ROOMSETTING_{MAIN_MAP}
+	RETURN
+;決定
+ELSEIF RESULT == 1999
+	SIF 설정전MAIN_MAP == MAIN_MAP
+	CALLFORM DEFAULT_OWNER_{MAIN_MAP}
+ELSE
+	RESTART
+ENDIF
+;결정 후
+FLAG:운세뽑기계약 = 0
+CALL SET_ENKAI_LOCATIONDISPLAY
+FOR LOCAL,1,CHARANUM
+	;내방시간
+	CFLAG:LOCAL:내방시간 = CSVCFLAG(LOCAL, 352)
+	;귀가시간
+	CFLAG:LOCAL:귀가시간 = CSVCFLAG(LOCAL, 353)
+	;취침시간
+	CFLAG:LOCAL:취침시간 = CSVCFLAG(LOCAL, 354)
+	;기상시간
+	CFLAG:LOCAL:기상시간 = CSVCFLAG(LOCAL, 355)
+	CFLAG:LOCAL:신사거주 = 0
+	CFLAG:LOCAL:초기위치 = CSVCFLAG (LOCAL, 311)
+	CFLAG:LOCAL:자택위치 = CSVCFLAG (LOCAL, 358)
+NEXT
+CALL MAP_DEFAULTRESIDENT(MAIN_MAP)
+;자물쇠를 채워 문을 잠금
+VARSET LOCK
+
+FOR LOCAL,1,CHARANUM
+	CALL CHARA_SLEEP, LOCAL, 0
+NEXT
+CHK_TRAINING = 0
+CHK_GARDENING = 0
+FOR LOCAL,1,100
+	SIF ROOMDATA:LOCAL & 장소_훈련
+		CHK_TRAINING = 1
+	SIF ROOMDATA:LOCAL & 장소_채소밭
+		CHK_GARDENING = 1
+NEXT
+SIF !CHK_TRAINING
+	CALL COLORMESSAGE(@"이 맵에서는 [전투훈련]이 불가합니다",C_YELLOW,2)
+SIF !CHK_GARDENING
+	CALL COLORMESSAGE(@"이 맵에서는 [가정텃밭]이 불가합니다",C_YELLOW,2)
+SIF FLAG:역극 && CFLAG:(FLAG:역극):출금 && MAIN_MAP == GET_MAPID(CSVCFLAG(FLAG:역극, 311))
+	CFLAG:MASTER:초기위치 = CSVCFLAG(FLAG:역극, 311)
+
+@HAS_DUPLICATE_KEY, ARG
+#FUNCTION
+	FOR LOCAL, 1, CHARANUM
+		IF CFLAG:LOCAL:311 == ARG
+			SIF TALENT:LOCAL:연모
+				RETURNF 1
+		ENDIF
+	NEXT
+
+@MAP_DEFAULTRESIDENT(ARG)
+;ARG=맵 번호
+FLAG:더부살이캐릭터 = 0
+MAIN_MAP = ARG
+FOR LOCAL,1,CHARANUM
+	IF MAP_거주자(MAIN_MAP,LOCAL)
+		;PRINTFORML %CALLNAME:LOCAL% {CFLAG:LOCAL:저택에거주}맵{MAIN_MAP}
+		IF (MAIN_MAP==13||MAIN_MAP==14)&& CFLAG:LOCAL:저택에거주>0 ;KR판 오리지날 주택/저택용
+			CFLAG:LOCAL:초기위치 = CFLAG:LOCAL:저택에거주
+			CFLAG:LOCAL:신사거주 = CFLAG:LOCAL:초기위치
+		ELSE
+			CFLAG:LOCAL:초기위치 = CSVCFLAG(LOCAL,311)
+			CFLAG:LOCAL:신사거주 = CFLAG:LOCAL:초기위치
+			DEBUGPRINTFORML %CALLNAME:LOCAL%가 거점에 삽니다
+			IF LOCAL == 57
+				CFLAG:RESULT:신사거주 = 55
+				CFLAG:RESULT:초기위치 = 55
+			ELSEIF  LOCAL == 71
+				CFLAG:71:신사거주 = 54
+				CFLAG:71:초기위치 = 54
+			ENDIF
+		ENDIF
+	ELSE
+		PRIVATEROOM:(CFLAG:LOCAL:초기위치 % 100) = 0
+		CFLAG:LOCAL:초기위치 = SUKIMA()
+		CFLAG:LOCAL:신사거주 = 0
+	ENDIF
+	CFLAG:LOCAL:현재위치 = CFLAG:LOCAL:초기위치
+	CFLAG:LOCAL:데이트중 = MAIN_MAP
+NEXT
+PRINTFORMW %조사처리(GET_MAPNAME(ARG),"으로")% 설정했습니다
+CALL ROOMSETTING
+CFLAG:MASTER:초기위치 = Default초기위치
+CFLAG:MASTER:현재위치 = CFLAG:MASTER:초기위치
+이사 = 0
+
+@ROOMSETTING
+#DIM R_ID
+#DIM 개인실후보
+개인실후보 = 0
+SUMIKOMI_ROOM = 0
+TRYCCALLFORM ROOMSETTING_{MAIN_MAP}
+	PRINTFORMW %GET_MAPNAME(MAIN_MAP)%의 방 정보를 설정했습니다
+	IF FLAG:더부살이캐릭터 && SUMIKOMI_ROOM
+		R_ID = SUMIKOMI_ROOM % 100
+		ROOMDATA:R_ID |= 장소_이불
+		ROOMDATA:R_ID |= 장소_옥내
+		ROOMDATA:R_ID |= 장소_선잠_가능
+		ROOMDATA:R_ID |= 장소_Private
+		ROOMDATA:R_ID &= ~장소_과소
+	ENDIF
+CATCH
+	PRINTFORMW 방 정보 설정에 실패했습니다
+ENDCATCH
+FOR LOCAL,1,CHARANUM
+	IF CFLAG:LOCAL:신사거주 && !CFLAG:LOCAL:출금
+		;PRIVATEROOM 변수에, 거기의 집주인의 번호를 보존
+		PRIVATEROOM:(CFLAG:LOCAL:초기위치 % 100) = LOCAL 
+	 	SIF CFLAG:LOCAL:집주인후보
+			개인실후보 ++
+	ENDIF
+NEXT
+;KR판 NEWGAME 이식시 주석 해제
+;IF (ゲーム開始処理中 || ゲーム引き継ぎ処理中) || !Default초기위치 || 이사
+IF !Default초기위치 || 이사
+	IF 개인실후보
+		CALL 이사초기위치설정
+	ELSE
+		CALL DEFAULT이사
+	ENDIF
+ENDIF
+
+@DEFAULT이사
+TRYCCALLFORM DEFAULT_OWNER_{MAIN_MAP}
+CATCH
+	PRINTFORMW 방 정보의 설정에 실패했습니다.
+ENDCATCH
+PRINTFORMW %조사처리(NAME_FROM_PLACE(Default초기위치),"는")% %CALLNAME:MASTER%의 개인방이 되었다
+
+@이사초기위치설정
+#DIM CHARA
+DRAWLINE
+CALL DRAW_MAP
+DRAWLINE
+PRINTFORML %PRINT_COLOR("이 맵에는", C_WHITE) + PRINT_COLOR(" 개인실후보", C_ORANGE) + PRINT_COLOR(" 가 다수 존재합니다。", C_WHITE)%
+SIF DAY <= 1
+	PRINTFORML 첫날 한정으로, 필요 신뢰도에 관계없이 방을 선택할 수 있습니다.
+PRINTBUTTON @"[프리뷰맵변환({TFLAG:맵변환})]", 1997
+PRINTL
+FOR CHARA, 1, CHARANUM
+	IF CFLAG:CHARA:신사거주 && CFLAG:CHARA:집주인후보
+		SIF CFLAG:CHARA:더부살이필요신뢰도 > CFLAG:CHARA:신뢰도 && DAY > 1
+			SETCOLOR C_L_GRAY
+	PRINTBUTTON @"[{CFLAG:CHARA:집주인후보 % 100, 3}] - %NAME_FROM_PLACE(CFLAG:CHARA:집주인후보), 20, LEFT%　주인:%CALLNAME:CHARA, 15, LEFT%　필요 신뢰도:{CFLAG:CHARA:더부살이필요신뢰도}", CHARA
+	PRINTL
+	RESETCOLOR
+	ENDIF
+NEXT
+PRINTFORML [  0] - ({Default초기위치 % 100, 2})%NAME_FROM_PLACE(Default초기위치)%（DEFAULT설정）
+INPUT
+IF RESULT == 0
+	CALL DEFAULT이사
+ELSEIF RESULT < CHARANUM && CFLAG:RESULT:신사거주 && CFLAG:RESULT:집주인후보
+	CHARA = RESULT
+	IF CHARA != 0 && CFLAG:RESULT:더부살이필요신뢰도 > CFLAG:RESULT:신뢰도 && DAY > 1
+		PRINTFORMW %CALLNAME:RESULT%는 그만큼 %마스터를% 신뢰하고 있지 않다
+		RESTART
+	ELSE
+		거점_주인 = CHARA
+		Default초기위치 = CFLAG:CHARA:집주인후보
+		ROOMDATA:(Default초기위치 % 100) |= 장소_이불
+		ROOMDATA:(Default초기위치 % 100) |= 장소_Private
+		PRINTFORMW %조사처리(NAME_FROM_PLACE(CFLAG:CHARA:집주인후보),"는")% %CALLNAME:MASTER%의 개인실이 되었다
+	ENDIF
+;프리뷰 전환
+ELSEIF RESULT == 1997
+	TFLAG:맵변환 += 1
+	SIF TFLAG:맵변환 > MAP_PAGES
+		TFLAG:맵변환 = 1
+	RESTART
+ELSE
+	RESTART
+ENDIF
+
+;マップ内の採集可能地点を表示する関数
+@ShowGatheringSpots(ARG)
+#DIM cStart
+#DIM cEnd
+#DIM SpotID
+#DIM Num
+#DIM Wordcount
+#DIM pCount
+
+cStart = 1 + ARG * 100
+cEnd = 99 + ARG * 100
+Num = 0
+pCount = 0
+FOR LOCAL, cStart, cEND
+	SpotID = GATHERING_SPOT(LOCAL, 1)
+	IF SpotID
+		pCount ++
+		STRLENFORM %ForagePlaceName(SpotID)%
+		Wordcount = RESULT:0
+		Num += Wordcount
+		IF Num > 110
+			PRINTL 
+			PRINTFORM 　　　　　　　
+			Num = Wordcount
+		ENDIF
+		PRINTFORM %ForagePlaceName(SpotID)%
+		SIF Num <= 106
+			PRINTFORM 　　
+	ENDIF
+NEXT
+SIF !pCount
+	PRINT 없음
+PRINTFORML 

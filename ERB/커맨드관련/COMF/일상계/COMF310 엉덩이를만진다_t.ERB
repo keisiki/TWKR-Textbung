@@ -1,0 +1,161 @@
+﻿;-------------------------------------------------
+;엉덩이를어루만진다
+;일상계 커맨드 레벨 1
+;-------------------------------------------------
+@COM310
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 10
+ELSE
+	IF FLAG:생활능력무 && !CFLAG:우후후
+		DRAWLINE
+		PRINTFORMW %CALLNAME:MASTER%에게 그런 담력은 없다
+		RETURN -1
+	ENDIF
+	DOWNBASE:기력 += 50
+	DOWNBASE:MASTER:기력 += 50
+	TFLAG:이성깎기 = 1
+	;신뢰
+	TFLAG:98 = -3
+
+	;고정으로 획득하는 소스
+	SOURCE:환락 = 100
+	SOURCE:사랑 = 100
+	SOURCE:노출 = 100
+	SOURCE:반감 = 1000
+	SOURCE:욕정 = 100
+	SOURCE:수동 = 100
+	LOCAL = RAND:110
+	LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+	SIF LOCAL:1 > 109
+		LOCAL:1 = 109
+	IF LOCAL <= 9
+		;대성공
+		TFLAG:193 = 3
+	ELSEIF LOCAL >= LOCAL:1
+		;실패
+		TFLAG:193 = 1
+	ELSE
+		;나머지 성공
+		TFLAG:193 = 2
+	ENDIF
+			
+	;ABL:친밀을 본다
+	IF ABL:친밀 <= 5
+		SOURCE:반감 -= (ABL:친밀 * 5)
+
+	ELSEIF ABL:친밀 <= 7
+		SOURCE:환락 += 400 + (ABL:친밀 * 5)
+		SOURCE:사랑 += 400 + (ABL:친밀 * 10)
+		SOURCE:반감 -= (ABL:친밀 * 10)
+		TFLAG:193 = RAND:2 + 2
+	ELSEIF ABL:친밀 <= 9
+		SOURCE:환락 += 700 + (ABL:친밀 * 10)
+		SOURCE:사랑 += 600 + (ABL:친밀 * 15)
+		SOURCE:반감 -= (ABL:친밀 * 15)
+		SOURCE:욕정 += 200 * ABL:욕망
+		SOURCE:수동 += 200 * ABL:순종
+		TFLAG:193 = RAND:2 + 2
+	ELSEIF !TALENT:연모
+		SOURCE:환락 += 1200 + (ABL:친밀 * 20)
+		SOURCE:사랑 += 800 + (ABL:친밀 * 25)
+		SOURCE:반감 -= (ABL:친밀 * 20)
+		SOURCE:욕정 += 250 * ABL:욕망
+		SOURCE:수동 += 250 * ABL:순종
+		TFLAG:193 = RAND:2 + 2
+	ELSE
+		SOURCE:환락 += 2000 + (ABL:친밀 * 20)
+		SOURCE:사랑 += 1800 + (ABL:친밀 * 30)
+		SOURCE:욕정 += 1000 + 250 * ABL:욕망
+		SOURCE:수동 += 1000 + 250 * ABL:순종
+		SOURCE:반감 -= (ABL:친밀 * 50)
+		TFLAG:193 = RAND:2 + 3
+	ENDIF
+	SIF SOURCE:반감 < 0
+		SOURCE:반감 = 0
+
+	SIF SOURCE:환락 < 0
+		SOURCE:환락 = 0
+	;선제 발생시는 실패하지 않는다
+	SIF TFLAG:102 == 3 && TFLAG:192 != -1
+		TFLAG:193 = MAX(TFLAG:193,2)
+
+	LOCAL = 0
+	;친밀이 낮으면 호감도 저하
+	IF ABL:친밀 <= 5
+		LOCAL -= 10
+	ELSEIF ABL:친밀 <= 7
+		LOCAL -= 5
+	ELSEIF ABL:친밀 <= 9
+		LOCAL -= 3
+	ELSEIF TALENT:연모
+		LOCAL -= 1
+	ENDIF
+	;호감도 변화
+	TFLAG:97 += LOCAL
+
+	IF TFLAG:193 == 1
+		TIMES SOURCE:환락 , 0.10
+		TIMES SOURCE:사랑 , 0.50
+		TIMES SOURCE:수동 , 0.50
+		TIMES SOURCE:욕정 , 0.50
+		TIMES SOURCE:반감 , 1.50
+	ELSEIF TFLAG:193 == 2
+		TIMES SOURCE:환락 , 1.00
+		TIMES SOURCE:사랑 , 1.00
+		TIMES SOURCE:수동 , 1.00
+		TIMES SOURCE:욕정 , 1.00
+	ELSEIF TFLAG:193 == 3
+		TIMES SOURCE:환락 , 1.50
+		TIMES SOURCE:사랑 , 1.50
+		TIMES SOURCE:수동 , 1.50
+		TIMES SOURCE:욕정 , 1.50
+	ELSE
+		TIMES SOURCE:환락 , 2.00
+		TIMES SOURCE:사랑 , 2.00
+		TIMES SOURCE:수동 , 2.00
+		TIMES SOURCE:욕정 , 2.00
+		TIMES SOURCE:반감 , 0.75
+	ENDIF
+	TIME += 10
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE310
+;엉덩이를 어루만지는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+SIF !TARGET
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(310)
+	RETURN RESULT
+;시간정지중은 스킵
+IF !FLAG:70
+	SIF CFLAG:수면 == 0 && GET_TARGETNUM() == 0
+		RETURN 0
+	;수면중
+	SIF CFLAG:수면 && !CFLAG:장난
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5
+		RETURN 0
+	;동침중
+	SIF CFLAG:동침중
+		RETURN 0
+	;데이트중
+	SIF CHK_DATENOW(CFLAG:데이트중) && CFLAG:현재위치 != OMANEKIBEYA()
+		RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;팔사용중
+SIF TFLAG:61
+	RETURN 0
+SIF GETBIT (TCVAR:26,1)
+	RETURN 0
+RETURN 1
+

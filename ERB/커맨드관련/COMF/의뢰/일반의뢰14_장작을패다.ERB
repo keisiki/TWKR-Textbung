@@ -1,0 +1,100 @@
+﻿;존부 함수
+;F関数はTRYCALL系が使えないので通常関数で存否配列を作っちゃう
+	;暫定的コメントアウト
+;@EXIST_일반의뢰14
+;#LOCALSIZE 1
+;#LOCALSSIZE 1
+
+;오브젝트 본체
+;여기서 ARG로 건네받는 것은 CLIENT_ID입니다
+@일반의뢰14(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "의뢰명"
+	CALLF MAKE_STR(V_NAME, "장작을 팬다")
+CASE "의뢰내용 표시"
+	CALLF MAKE_STR(V_NAME, @"목재를 전달")
+CASE "의뢰 보수 표시"
+	CALLF MAKE_STR(V_NAME, @"잡곡 3개")
+CASE "의뢰실행 커맨드 이름"
+	CALLF MAKE_STR(V_NAME, "목재를 5개 전달")
+CASE "의뢰내용"
+	CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(GETNUM(ITEM, "목재"), "조달"))
+CASE "의뢰 서브"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰기한"
+;発生時ではなく受託時に確定します
+	CALLF MAKE_INT(V_NAME, 5)
+CASE "의뢰 발생율"
+	IF DAY:2 == 4
+	;冬は発生しやすい
+		CALLF MAKE_INT(V_NAME, 10)
+	ELSE
+		CALLF MAKE_INT(V_NAME, 3)
+	ENDIF
+CASE "의뢰 발생 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰 수탁 가능 조건"
+;목재を持ってる
+	SIF ITEM:목재
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰실행 가능 조건"
+	SIF ITEM:목재 >= 5
+		CALLF MAKE_INT(V_NAME, 1)
+;成功/失敗処理はCARRYOUTで直接書く
+;SOURCEやITEM入手、消費が煩雑になるので
+CASE "의뢰 소멸 조건"
+	SIF RAND:100 < 30
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰인 데리고 나가 가능"
+ENDSELECT
+
+
+
+@IRAI_일반14(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE SCENE
+CASE "의뢰 조건 표시"
+;何か専用の表示情報を設けたい時用
+;受託済みの依頼表示で使用されます
+;
+;PRINT系だけでSOURCEとかは入れちゃダメ、WAITも無しで
+;ここ以外の表示項目は
+;PRINTFORML 　　　　　：
+;となっているのでスペースを揃えたほうが見栄えが良いです
+
+CASE "의뢰실행시"
+;このCASEに限り、RESULTが意味を持ちます
+;의뢰실행시のRESULTにはIRAI_CONST_RESULT()を使用してください
+;可能な引数は"キャンセル", "실행해 성공", "実行して失敗", "실행해 미해결"です
+;独自処理を仕込みたい時は"실행해 미해결"で先延ばしするなりしてください
+	PRINTFORML %마스터는% %CALLNAME:TARGET%에게 목재를 건네주었다
+	IF DAY:2 == 4
+	;冬はメッセージあり
+		PRINTFORML 이걸로 추위에 떨지 않고 끝나겠어, 라며 기뻐했다
+		SOURCE:TARGET:환락 += 2000
+	ELSE
+		PRINTFORML 
+		SOURCE:TARGET:환락 += 1000
+	ENDIF
+	CALL LOST_ITEM("목재", 5, 2)
+	RETURN IRAI_CONST_RESULT("실행해 성공")
+CASE "의뢰 성공시"
+;성공 보고시の報酬など
+	CALL CHANGE_CFLAG(2, TARGET, 30)
+	CALL CHANGE_CFLAG(4, TARGET, 20)
+	TALENT:기분 = LIMIT(TALENT:기분 + 1, -1, 1)
+	CALL GET_ITEM("잡곡", 3, 2)
+CASE "의뢰 실패시"
+;실패 보고시の処理
+	CALL CHANGE_CFLAG(2, TARGET, -5)
+	CALL CHANGE_CFLAG(4, TARGET, -5)
+ENDSELECT

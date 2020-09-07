@@ -1,0 +1,179 @@
+﻿@OTHERREGIONS
+#DIM 현재지점
+#DIM 소요시간
+#DIM 현재지MAPID
+#DIM GOAL	 
+
+CALL FIELDMAP
+PRINTL 어디로 가겠습니까?
+현재지MAPID = GET_MAPID(CFLAG:MASTER:현재위치)
+;	// 신사가 표시되지 않는 것은 조금 외롭기 때문에
+PRINTFORM [ 0] - %"하쿠레이 신사", 18, LEFT%
+IF 현재지MAPID == 0
+	SETCOLOR 0 , 255, 0
+	PRINTFORM 현위치\@ FLAG:70 ?  %"   "% # %" "% \@
+	RESETCOLOR
+ELSEIF FLAG:70
+	PRINTFORM 편도 {TIME_REQUIRED0(5000 + 현재지MAPID) * 3, 3, RIGHT}TSP  
+ELSE
+	PRINTFORM 편도 {TIME_REQUIRED0(5000 + 현재지MAPID), 3, RIGHT}분  
+ENDIF
+PRINTL
+;	// 여기까지 신사 표시
+FOR LOCAL, 5001, 5011
+	IF LOCAL == 현재지MAPID + 5000
+		PRINTFORM [{현재지MAPID, 2, RIGHT}] - 
+		PRINTFORM %NAME_FROM_PLACE(LOCAL), 21, LEFT%
+		SETCOLOR 0 , 255, 0
+		PRINTFORM 현위치\@ FLAG:70 ?  %"    "% # %"  "% \@
+		RESETCOLOR
+		SIF !(LOCAL % 2)
+			PRINTL
+		CONTINUE
+	ENDIF
+	PRINTFORM [{LOCAL - 5000, 2, RIGHT}] - 
+	PRINTFORM %NAME_FROM_PLACE(LOCAL), 18, LEFT%
+	PRINTFORM 편도 \@ FLAG:70 ?  {TIME_REQUIRED(현재지MAPID, LOCAL - 5000) * 3, 3, RIGHT}TSP # {TIME_REQUIRED(현재지MAPID, LOCAL - 5000), 3, RIGHT}분 \@ 
+	SIF !(LOCAL % 2)
+		PRINTL
+NEXT
+PRINT [100] - 돌아간다
+$LOOP
+INPUT
+;돌아간다
+IF RESULT == 100
+	RETURN RESULT
+;시간정지발동
+ELSEIF RESULT == 101
+
+ELSEIF RESULT == 현재지MAPID
+	;전체 맵으로부터도 이동할 수 있지만 더욱 시간 걸리는, 덤기능이므로
+	LOCAL:1 = 1
+	현재지점 = (CFLAG:MASTER:현재위치 - (CFLAG:MASTER:데이트중 * 100)) / 10
+	소요시간 = ABS(현재지점 - 0) * 3
+	FOR LOCAL,0,CHARANUM
+		SIF CHK_DATENOW(CFLAG:LOCAL:데이트중) 
+			CFLAG:LOCAL:현재위치 = (CFLAG:LOCAL:데이트중 * 100) + (LOCAL:1 * 10)
+	NEXT
+	IF FLAG:70 == 1
+		BASE:MASTER:TSP -= 소요시간 * 2
+		IF TFLAG:운반
+			BASE:MASTER:TSP -= 소요시간 / 3
+			CFLAG:(TFLAG:운반):현재위치 = CFLAG:MASTER:현재위치
+		ENDIF
+	ELSEIF GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP > 10  && !FLAG:데이트상대
+		BASE:MASTER:TSP -= 소요시간 * 2
+	ELSE
+		TIME += 소요시간
+		IF CHK_DATENOW(CFLAG:93:데이트중) && !GETBIT (FLAG:풀장, 0)
+			TIME += 소요시간 / 2
+			BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 50,500)
+		ENDIF
+	ENDIF
+	RETURN RESULT
+ELSEIF RESULT == MAIN_MAP
+	IF FLAG:70 && FLAG:데이트상대
+		PRINTFORMW 돌아가겠다면 시간정지를 해제한 다음에 하자
+		RETURN 100
+	ENDIF
+	CALL 외출처로부터귀가
+	RETURN MAIN_MAP
+ELSE
+	GOAL = RESULT
+	소요시간 = TIME_REQUIRED(현재지MAPID, GOAL)
+	;100분의 도중은 없습니다…
+	IF FLAG:데이트상대 > 0 && 소요시간 >= 100
+		PRINTW 너무 멀어서 한 번에는 못 간다
+		CLEARLINE 2
+		GOTO LOOP
+	;자택으로부터 출발하는 처리
+	ELSEIF GET_MAPID(CFLAG:MASTER:현재위치) == MAIN_MAP
+		LOCAL:1 = 0
+		FOR LOCAL,1,CHARANUM
+			SIF CFLAG:(LOCAL):동행
+				LOCAL:1 ++
+		NEXT
+		IF LOCAL:1 == 1
+			;100분의 도중은 없습니다…
+			IF 소요시간 >= 100
+				PRINTW 너무 멀어서 한 번에는 못 간다
+				CLEARLINE 2
+				RETURN 100
+			ENDIF
+			PRINTL 데이트를 하러 나갑니다
+			FOR LOCAL,1,CHARANUM
+				IF CFLAG:(LOCAL):동행
+					CALL SET_DATE(GOAL,LOCAL)
+				ENDIF
+			NEXT
+		;같은 사람 데이트 처리(미설정)
+		ELSEIF LOCAL:1 > 1
+		;한사람
+		ELSE
+			IF FLAG:70 && GETBIT(FLAG:순간이동, 0)
+				RESULT = 1
+			ELSE
+				PRINTL TSP를 소비하여 시간 경과 없이 이동할 수 있습니다.
+				PRINTL TSP를 사용하겠습니까?
+				CALL ASK_M("아니오", 1, @"예（TSP{소요시간 * 3}소비）", BASE:MASTER:TSP >= 소요시간 * 3)
+			ENDIF
+			IF RESULT == 0
+				FLAG:70 = 0
+				TIME += 소요시간
+			ELSEIF RESULT == 1
+				BASE:MASTER:TSP -= 소요시간 * 3
+			ENDIF
+			CALL SET_DATE(GOAL,0)
+			RETURN GOAL
+		ENDIF
+		RETURN GOAL
+	ELSEIF FLAG:데이트상대 > 0
+		PRINTFORML %GET_MAPNAME(GOAL)%로 갑니다
+		CALL SET_DATE(GOAL,(FLAG:데이트상대))
+		RETURN GOAL
+	ELSEIF GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP > 소요시간 * 3 && !FLAG:데이트상대
+		BASE:MASTER:TSP -= 소요시간 * 3
+	ELSEIF FLAG:70
+		IF BASE:MASTER:TSP < 소요시간 * 3
+			PRINTW TSP가 부족합니다
+			CLEARLINE 2
+			GOTO LOOP
+		ELSE
+			BASE:MASTER:TSP -= 소요시간 * 3
+		ENDIF
+	ELSE
+		TIME += 소요시간
+		IF CHK_DATENOW(CFLAG:93:데이트중) && !GETBIT (FLAG:풀장, 0)
+			TIME += 소요시간 / 2
+			BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 5 * (소요시간), 500)
+		ENDIF
+	ENDIF
+	FOR LOCAL,0,CHARANUM
+		IF CHK_DATENOW(CFLAG:LOCAL:데이트중)
+			CFLAG:LOCAL:현재위치 = GET_ENTRANCE(GOAL)
+			CFLAG:LOCAL:데이트중 = GOAL
+		ENDIF
+	NEXT
+	RETURN GOAL
+ENDIF
+
+@HappenToChild
+#DIM YOME
+#DIM CHILDNUM
+SIF RAND:10 > 0
+	RETURN
+SIF FLAG:70
+	RETURN
+CALL PickRandGrownChild
+YOME = RESULT
+CHILDNUM = RESULT:1
+VARSET RESULT
+SIF YOME <= 0
+	RETURN
+LOCALS = %CHILDNAME:YOME:CHILDNUM%
+PRINTFORMW 외출할 때 %조사처리(LOCALS,"와")% 스쳐 지나갔다.
+IF FLAG:데이트상대 != YOME && FLAG:데이트상대
+	PRINTFORMW %조사처리(CALLNAME:YOME,"가")% 아닌 여자를 데리고 있던 것에 대해 싫은 소리를 들었다…
+ELSE
+	PRINTFORMW %조사처리(LOCALS,"는")% %TEXTR("눈치채지 못한 것 같았다/인사하러 왔다/건강해 보였다")%
+ENDIF

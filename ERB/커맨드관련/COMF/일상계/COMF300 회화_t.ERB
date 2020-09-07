@@ -1,0 +1,187 @@
+﻿;-------------------------------------------------
+;회화
+;일상계 커맨드 레벨 1
+;-------------------------------------------------
+@COM300
+
+;회화 누적치가 반응을 일으키는 최소의 물리량을 넘으면(자) 실패
+IF TCVAR:302 && !TALENT:연모&&!TALENT:MASTER:달변
+	PRINTFORML %CALLNAME:TARGET%에 말을 건네려고 했지만 말이 발견되지 않는다
+	PRINTW 근처에 거북한 공기가 흘렀다…
+	TIME += 10
+	IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+		LOSEBASE:기력 += 50
+		DOWNBASE:MASTER:기력 += 50
+		TFLAG:193 = -1
+		CALL DATE_GOES_ON(1)
+	ELSE
+		LOSEBASE:기력 += 100
+		DOWNBASE:MASTER:기력 += 100
+		TFLAG:193 = -1
+	ENDIF
+	RETURN 1
+ENDIF
+IF MARK:반발각인 >= 3&&RAND:10 == 0
+	PRINTFORML %타겟은% %마스터와%는 입도 듣고 싶지 않은 것 같다
+	SOURCE:반감 = 3000
+	BASE:MASTER:기력 -= 300
+	RETURN -1
+ENDIF
+
+CALL SUC_FAIL()
+;만취시는 대성공도 실패도 하지 않는다
+SIF TCVAR:만취
+	TFLAG:193 = 0
+
+SELECTCASE TFLAG:193
+	;실패
+	CASE -1
+		SIF TFLAG:192 == -2
+			RETURN 0
+		TFLAG:98 = -1
+	;대성공
+	CASE 1
+		EXP:MASTER:회화경험 ++
+		IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+			CALL 붉은실발동
+			EXP:MASTER:데이트경험 ++
+			EXP:TARGET:데이트경험 ++
+		ENDIF
+ENDSELECT
+
+;선제 발생시는 실패하지 않는다
+SIF TCVAR:20
+	TFLAG:193 = MAX(TFLAG:193, 0)
+IF CFLAG:TARGET:동침중
+	DOWNBASE:MASTER:기력 += 10
+	SOURCE:사랑 = 200
+ELSE
+	DOWNBASE:기력 += 20
+	DOWNBASE:MASTER:기력 += 20
+ENDIF
+
+SIF ABL:교양 > ABL:MASTER:교양 + 3
+	TFLAG:193 = -2
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 200
+
+;ABL:친밀을 본다
+IF ABL:친밀 <= 1
+	SOURCE:환락 += (ABL:친밀 * 40)
+ELSEIF ABL:친밀 <= 3
+	SOURCE:환락 += 200 + (ABL:친밀 * 40)
+ELSEIF ABL:친밀 <= 5
+	SOURCE:환락 += 500 + (ABL:친밀 * 40)
+ELSEIF ABL:친밀 <= 8
+	SOURCE:환락 += 750 + (ABL:친밀 * 60)
+ELSEIF ABL:친밀 <= 10
+	SOURCE:환락 += 1000 + (ABL:친밀 * 60)
+ELSE
+	SOURCE:환락 += 1600 + (ABL:친밀 * 30)
+ENDIF
+
+;호감 도를 본다
+;IF CFLAG:2 <= 1000
+;	SOURCE:환락 += CFLAG:2
+;ELSEIF CFLAG:2 <= 5000
+;	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+;ELSE
+;	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+;ENDIF
+
+SOURCE:환락 = LIMIT(SOURCE:환락, 0,5000)
+
+
+SOURCE:수동 = 100 + 100 * ABL:순종
+SOURCE:정복 = 100 + 100 * ABL:새드끼
+
+IF TFLAG:193 == -1 || TFLAG:193 == -2
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:정복 , 0.50
+	TIMES SOURCE:수동 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:정복 , 1.00
+	TIMES SOURCE:수동 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:정복 , 2.00
+	TIMES SOURCE:수동 , 2.00
+ENDIF
+SELECTCASE ABL:MASTER:화술기능
+	CASE 0
+		TIMES SOURCE:환락 , 0.20
+		TIMES SOURCE:정복 , 0.20
+		TIMES SOURCE:수동 , 0.20
+	CASE 1
+		TIMES SOURCE:환락 , 0.40
+		TIMES SOURCE:정복 , 0.40
+		TIMES SOURCE:수동 , 0.40
+	CASE 2
+		TIMES SOURCE:환락 , 0.70
+		TIMES SOURCE:정복 , 0.70
+		TIMES SOURCE:수동 , 0.70
+	CASE 3
+		TIMES SOURCE:환락 , 1.00
+		TIMES SOURCE:정복 , 1.00
+		TIMES SOURCE:수동 , 1.00
+	CASE 4
+		TIMES SOURCE:환락 , 1.20
+		TIMES SOURCE:정복 , 1.20
+		TIMES SOURCE:수동 , 1.20
+	CASEELSE
+		TIMES SOURCE:환락 , 1.50
+		TIMES SOURCE:정복 , 1.50
+		TIMES SOURCE:수동 , 1.50
+ENDSELECT
+
+;회화 누적치
+IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+	TCVAR:301 += 150 / (2 + ABL:MASTER:화술기능)
+ELSE
+	TCVAR:301 += 250 / (2 + ABL:MASTER:화술기능)
+ENDIF
+
+TIME += 10
+;IF TARGET == 110
+;	PRINTFORML 필담했으므로 조금 시간이 걸렸다…
+;	TIME += 15
+;ENDIF
+EXP:MASTER:회화경험 ++
+IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+	CALL 붉은실발동
+	EXP:MASTER:데이트경험 ++
+	EXP:TARGET:데이트경험 ++
+	CALL DATE_GOES_ON(1)
+ENDIF
+
+;상대가 만취중이라면 효과 대폭 저감
+IF TCVAR:만취
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:정복 , 0.10
+	TIMES SOURCE:수동 , 0.10
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE300
+;회화 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(300)
+	RETURN RESULT
+;수면중
+SIF CFLAG:수면 && !CFLAG:동침중
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+

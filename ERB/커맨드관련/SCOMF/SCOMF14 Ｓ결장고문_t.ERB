@@ -1,0 +1,129 @@
+﻿;-------------------------------------------------
+;S장결장고문
+;A섹스계 파생 커맨드
+;-------------------------------------------------
+@SCOM14
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수)
+
+LOCALS = {TARGET}/
+CSTR:PLAYER:10 += LOCALS
+TCVAR:PLAYER:2 = 2
+;강도
+TCVAR:PLAYER:4 = 2000
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 12
+;강도
+TCVAR:TARGET:4 = 1600
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 80
+	SOURCE:MASTER:쾌C = 500
+	SOURCE:PLAYER:성행동 =25
+	SOURCE:쾌A = 500
+	SOURCE:고통 = 450
+
+ELSE
+
+	DOWNBASE:체력 += 100
+	DOWNBASE:기력 += 120
+	SOURCE:MASTER:쾌C = 500
+
+	SOURCE:PLAYER:성행동 =25
+
+	SOURCE:쾌A = 500
+	SOURCE:사랑 = 150
+	SOURCE:고통 = 900
+	SOURCE:노출 = 160
+	SOURCE:일탈 = 200
+	SOURCE:반감 = 700
+
+	;위 쪽으로 계산한 더러운 데이터
+	SOURCE:불결 = Y*10 + 60
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 700
+ENDIF
+;A에의 고통은 먼저 처리해 둔다
+CALL PAIN_CHECK_A(TARGET)
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;사정에 관계없이 행해지는 처리는 여기에서
+;노예의 A⇔조교자의 P의 더러움이 이동
+STAIN:PLAYER:2 |= STAIN:4
+STAIN:PLAYER:2 |= STAIN:7
+STAIN:4 |= STAIN:PLAYER:2
+STAIN:7 |= STAIN:PLAYER:2
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:PLAYER:삽입경험 ++
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+ENDIF
+IF FLAG:70 == 1
+	EXP:MASTER:시간경험 += 1
+ELSEIF CFLAG:MASTER:장난 == 2
+	EXP:MASTER:수면간경험 += 1
+	EXP:TARGET:수면간경험 += 1
+ELSE
+	EXP:A성교경험 ++
+	;애정경험
+	SIF !ASSIPLAY
+		EXP:애정경험 += TALENT:연모
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE74
+;S장결장고문
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(74)
+	RETURN RESULT
+SIF !MASTER_POSE(SET_A, SET_P, 1)
+	RETURN 0
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+SIF TEQUIP:TARGET:51 != MASTER
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;선택 가능 판정
+;-------------------------------------------------
+;S장결장고문
+@COM_ABLE514
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(514)
+	RETURN RESULT
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+RETURN 1
+

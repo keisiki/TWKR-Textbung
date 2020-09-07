@@ -1,0 +1,111 @@
+﻿@데이트종료타임업처리
+VARSET LOCAL
+;기력 제로, 쇠약시 데이트 중단
+FOR LOCAL, 0, CHARANUM
+	SIF CHK_DATENOW(CFLAG:LOCAL:데이트중) && (CFLAG:LOCAL:쇠약 || (BASE:LOCAL:기력 == 0 && CFLAG:LOCAL:현재위치 != 혼숙여관 && CFLAG:LOCAL:현재위치 != 러브호텔 && CFLAG:LOCAL:현재위치 != OMANEKIBEYA()))
+		LOCAL:1 ++
+	SIF CHK_DATENOW(CFLAG:LOCAL:데이트중) && CFLAG:LOCAL:쇠약
+		CALL ENDUFUFU(LOCAL)
+NEXT
+SIF NEMUKE() >= 720 || BASE:MASTER:술기운 >= MAXBASE:MASTER:술기운
+	LOCAL:2 ++
+;초대받았으며 연속숙박이 아니라면 묵을 수 있다
+IF CFLAG:MASTER:초대 && (LOCAL:1 || LOCAL:2) && !FLAG:70
+	IF LOCAL:1
+		PRINT 기력이 없어지기 시작했으나 
+	ELSEIF LOCAL:2
+		PRINT 이만 돌아갈 시간이나 
+	ENDIF
+	SIF !TCVAR:(CFLAG:MASTER:초대):연속숙박금지
+		PRINTFORMW 오늘은 %CALLNAME:(CFLAG:MASTER:초대)%가 묵게 해준다고 합니다
+	SIF TCVAR:(CFLAG:MASTER:초대):연속숙박금지
+		PRINTFORMW 오늘도 %CALLNAME:(CFLAG:MASTER:초대)%에 묵고 가겠습니까?
+	PRINTL [0]묵고 간다 [1]돌아간다
+	WHILE 1
+	INPUT
+	SIF RESULT == 0 || RESULT == 1
+		BREAK
+	WEND
+	IF !RESULT && !TCVAR:(CFLAG:MASTER:초대):연속숙박금지
+		PRINTFORMW 호의를 받아들여 묵고 가기로 했다
+		;데이트는 종료
+		CFLAG:MASTER:데이트중 = MAIN_MAP
+		CFLAG:TARGET:데이트중 = MAIN_MAP
+		FLAG:데이트상대 = 0
+		TFLAG:데이트전호감도 = 0
+		CALL 모리야복권데이트상대의리셋()
+		;이후의 처리를 컷
+		GOTO OTOMARI
+	ELSEIF !RESULT && TCVAR:(CFLAG:MASTER:초대):연속숙박금지
+		PRINTFORMW 아무리 그래도 연달은 숙박은 거절당했다…
+	ENDIF
+ENDIF
+IF LOCAL:1 && CFLAG:MASTER:현재위치
+	PRINTL 
+	PRINTW ***** 기력이 0이 되었기에, 귀로에 접어들었습니다 *****
+	CALL 귀가의시간경과
+	FLAG:70 = 0
+	RESETBGCOLOR
+ELSEIF LOCAL:2
+	PRINTL
+	IF BASE:MASTER:술기운 >= MAXBASE:MASTER:술기운
+		PRINTW ***** 만취했기 때문에, 갈짓자 걸음으로 귀로에 접어들었습니다 *****
+		PRINTFORMW %GET_MAPNAME(MAIN_MAP, 0)%에 돌아온 %마스터는% 그 자리에서 쓰러졌습니다
+	ELSE
+		PRINTW ***** 졸음이 엄습했기에, 귀로에 접어들었습니다 *****
+	ENDIF
+	CALL 귀가의시간경과
+ENDIF
+IF LOCAL:1 || LOCAL:2
+	FOR LOCAL, 0, CHARANUM
+		IF LOCAL && CFLAG:LOCAL:쇠약
+			IF !CFLAG:LOCAL:신사거주
+				CFLAG:LOCAL:초기위치 = SUKIMA()
+				CFLAG:LOCAL:현재위치 = SUKIMA()
+				CFLAG:LOCAL:거점내방 = 0
+				CALL KOJO_MESSAGE_SEND("EVENT", 20, LOCAL, 2,0)
+				PRINTFORMW 녹초가 된 %CALLNAME:LOCAL%는 돌아갔습니다
+			ELSE
+				PRINTFORM %CALLNAME:LOCAL%는 %NAME_FROM_PLACE(CFLAG:LOCAL:초기위치)%
+				PRINTW 에 돌아왔습니다
+				SIF CFLAG:MASTER:초기위치 != CFLAG:LOCAL:초기위치
+					LOCK:(CFLAG:LOCAL:초기위치) = 1
+				CFLAG:LOCAL:현재위치 = CFLAG:LOCAL:초기위치
+				CALL KOJO_MESSAGE_SEND("EVENT", 3,1, LOCAL, 0)
+			ENDIF
+		ENDIF
+		CALL SET_DATE(99, LOCAL)
+		IF CFLAG:LOCAL:초대
+			CFLAG:LOCAL:초대 = 0
+			IF LOCAL == 0
+			ELSEIF CFLAG:LOCAL:신사거주
+				CFLAG:LOCAL:초기위치 = CFLAG:LOCAL:신사거주
+			ELSE
+				CFLAG:LOCAL:초기위치 = SUKIMA()
+			ENDIF
+		ENDIF
+		SIF CFLAG:LOCAL:동침중 > 0
+			CFLAG:LOCAL:동침중 = 0
+		SIF CFLAG:LOCAL:우후후
+			CALL ENDUFUFU(LOCAL)
+		;장난 OFF
+		CALL SET_PRANK(0,LOCAL,1)
+
+	NEXT
+	CALL 모리야복권데이트상대의리셋()
+ENDIF
+IF ((CFLAG:MASTER:현재위치 % 100) % 10) == 0 && (CFLAG:MASTER:현재위치 % 100) == 0
+	IF CFLAG:MASTER:현재위치 == 1100
+		FOR LOCAL, 0, CHARANUM
+			SIF CHK_DATENOW(CFLAG:LOCAL:데이트중)
+				CFLAG:LOCAL:현재위치 -= 1100
+		NEXT
+	ENDIF
+	SIF CHK_DATENOW(CFLAG:MASTER:데이트중)
+		PRINTFORMW %DATENAME_PLACE()%에 도착했습니다
+	FOR LOCAL, 0, CHARANUM
+		SIF CHK_DATENOW(CFLAG:LOCAL:데이트중)
+			CFLAG:LOCAL:현재위치 += 10
+	NEXT
+ENDIF
+$OTOMARI

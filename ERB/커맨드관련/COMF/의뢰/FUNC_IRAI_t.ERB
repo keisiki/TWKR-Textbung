@@ -1,0 +1,1399 @@
+﻿;의뢰 관련의 범용 함수를 놓아둔다
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 정보 전반의 정보 취득
+;----------------------------------------------------------------------------------------------------
+@INT_DATA_IRAI(IRAI_ID, TYPE, CHARA)
+#FUNCTION
+#DIM  IRAI_ID
+#DIMS TYPE
+#DIM  CHARA
+;일반의뢰
+SIF IS_COMMON_IRAI(IRAI_ID)
+	RETURNF GET_INT(CHARA, "일반의뢰", IRAI_ID % 1000, TYPE)
+;고유 의뢰
+RETURNF GET_INT(IRAI_ID, "캐릭터데이터", CHARA, TYPE)
+
+@STR_DATA_IRAI(IRAI_ID, TYPE, CHARA)
+#FUNCTIONS
+#DIM  IRAI_ID
+#DIMS TYPE
+#DIM  CHARA
+;일반의뢰
+SIF IS_COMMON_IRAI(IRAI_ID)
+	RETURNF GET_STR(CHARA, "일반의뢰", IRAI_ID % 1000, TYPE)
+;고유 의뢰
+RETURNF GET_STR(IRAI_ID, "캐릭터데이터", CHARA, TYPE)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;고유 의뢰에 관한 캐릭터데이터취득
+;직접 사용하는 것이 아니라@INT/STR_DATA_IRAI를 사용하는 것
+;----------------------------------------------------------------------------------------------------
+@INT_UNIQUE_IRAI(CHARA, TYPE, IRAI_ID)
+#FUNCTION
+#DIM  CHARA
+#DIMS TYPE
+#DIM  IRAI_ID
+RETURNF GET_INT(IRAI_ID, "캐릭터데이터", CHARA, TYPE)
+
+@STR_UNIQUE_IRAI(CHARA, TYPE, IRAI_ID)
+#FUNCTIONS
+#DIM  CHARA
+#DIMS TYPE
+#DIM  IRAI_ID
+RETURNF GET_STR(IRAI_ID, "캐릭터데이터", CHARA, TYPE)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;일반의뢰정보 취득
+;직접 사용하는 것이 아니라@INT/STR_DATA_IRAI를 사용하는 것
+;----------------------------------------------------------------------------------------------------
+@INT_COMMON_IRAI(CHARA, TYPE, IRAI_ID)
+#FUNCTION
+#DIM  CHARA
+#DIMS TYPE
+#DIM  IRAI_ID
+RETURNF GET_INT(CHARA, "일반의뢰", IRAI_ID, TYPE)
+
+@STR_COMMON_IRAI(CHARA, TYPE, IRAI_ID)
+#FUNCTIONS
+#DIM  CHARA
+#DIMS TYPE
+#DIM  IRAI_ID
+RETURNF GET_STR(CHARA, "일반의뢰", IRAI_ID, TYPE)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰실행시의 커맨드 표시용
+;----------------------------------------------------------------------------------------------------
+@NAME_IRAI_ACT()
+#FUNCTIONS
+#DIM CHK_SLOT
+CHK_SLOT = SEARCH_ACTIVE_IRAI_SLOT()
+RETURNF IRAI_SLOT_TO_ACTNAME(CHK_SLOT)
+
+;----------------------------------------------------------------------------------------------------
+;의뢰실행시의 커맨드 표시용, SLOT 지정으로 갈 수 있어 게
+;----------------------------------------------------------------------------------------------------
+@IRAI_SLOT_TO_ACTNAME(CHK_SLOT)
+#FUNCTIONS
+#DIM CHK_SLOT
+RETURNF STR_DATA_IRAI(IRAI_SLOT:CHK_SLOT, "의뢰실행 커맨드 이름", IRAI_SLOT_TO_CLIENT(CHK_SLOT))
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 발생시의 의뢰 ID설정용
+;----------------------------------------------------------------------------------------------------
+@MAKE_IRAI_ID(CHARA, ID)
+#FUNCTION
+#DIM CHARA
+#DIM ID
+RETURNF CHARA * 1000 + ID
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 발생시의 의뢰 데이터 설정용
+;----------------------------------------------------------------------------------------------------
+@MAKE_IRAI_DATA(SUB_ID, TASK)
+#FUNCTION
+#DIM  SUB_ID
+#DIMS TASK
+RETURNF SUB_ID * 1000 + IRAI_TASK_TO_DATA(TASK)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰가 일반의뢰인가, 고유 의뢰인가
+;----------------------------------------------------------------------------------------------------
+@IS_COMMON_IRAI(IRAI_ID)
+#FUNCTION
+#DIM IRAI_ID
+SIF INRANGE(IRAI_ID % 1000, 1, 99)
+	RETURNF 1
+RETURNF 0
+
+
+
+;----------------------------------------------------------------------------------------------------
+;하늘의 슬롯 찾기
+;----------------------------------------------------------------------------------------------------
+@SEARCH_IRAI_EMPTY()
+#FUNCTION
+RETURNF SEARCH_IRAI_SLOT(0)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;몇 번 슬롯에서 의뢰 ID를 받고 있는인가
+;----------------------------------------------------------------------------------------------------
+@SEARCH_IRAI_SLOT(IRAI_ID)
+#FUNCTION
+#DIM IRAI_ID
+RETURNF MAX(0, FINDELEMENT(IRAI_SLOT, IRAI_ID, 1))
+
+
+
+;----------------------------------------------------------------------------------------------------
+;수주중의 의뢰수
+;----------------------------------------------------------------------------------------------------
+@COUNT_IRAI_SLOT()
+#FUNCTION
+LOCAL = SEARCH_IRAI_EMPTY()
+SIF !LOCAL
+	RETURNF 5
+RETURNF LOCAL - 1
+
+
+;----------------------------------------------------------------------------------------------------
+;만남용의 의뢰 수탁 가부 판정
+;난처한 나머지로 억지로 해결
+;통상의  366커맨드와 거동을 바꾸고 싶지 않기 때문에 CALL COM_ABLE366
+;CALL 하므로 FUNCTION에는 할 수 없다
+;TFLAG:100이 원인으로 RESULT가 0이 되어 있었으므로 TFLAG를 일시 퇴피해 판정시켰다
+;----------------------------------------------------------------------------------------------------
+@CAN_IRAI_START
+#DIM PREV_TFLAG
+PREV_TFLAG = TFLAG:100
+TFLAG:100 = 1
+CALL COM_ABLE366
+TFLAG:100 = PREV_TFLAG
+RETURN RESULT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 ID→의뢰자
+;----------------------------------------------------------------------------------------------------
+@IRAI_ID_TO_CLIENT(IRAI_ID)
+#FUNCTION
+#DIM IRAI_ID
+RETURNF IRAI_ID / 1000
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 SLOT→의뢰자
+;----------------------------------------------------------------------------------------------------
+@IRAI_SLOT_TO_CLIENT(CHK_SLOT)
+#FUNCTION
+#DIM CHK_SLOT
+RETURNF IRAI_ID_TO_CLIENT(IRAI_SLOT:CHK_SLOT)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 SLOT→요구 물품
+;----------------------------------------------------------------------------------------------------
+@IRAI_SLOT_TO_ITEM(CHK_SLOT)
+#FUNCTION
+#DIM IRAI_ID
+#DIM CHK_SLOT
+SIF IRAI_SLOT_TO_TASKNAME(CHK_SLOT) == "조달"
+	RETURNF IRAI_DATA:CHK_SLOT / 1000
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 SLOT→요구 인물
+;----------------------------------------------------------------------------------------------------
+@IRAI_SLOT_TO_PERSON(CHK_SLOT)
+#FUNCTION
+#DIM CHK_SLOT
+SIF GROUPMATCH(IRAI_SLOT_TO_TASKNAME(CHK_SLOT), "전령(인물)", "수색(인물)", "토벌")
+	RETURNF IRAI_DATA:CHK_SLOT / 1000
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 SLOT→목적지
+;----------------------------------------------------------------------------------------------------
+@IRAI_SLOT_TO_PLACE(CHK_SLOT)
+#FUNCTION
+#DIM CHK_SLOT
+SIF GROUPMATCH(IRAI_SLOT_TO_TASKNAME(CHK_SLOT), "전령(장소)", "수색(장소)")
+	RETURNF IRAI_DATA:CHK_SLOT / 1000
+
+
+
+;----------------------------------------------------------------------------------------------------
+;어느 캐릭터가 의뢰로 데리고 나갈 수 있을지 어떨지
+;----------------------------------------------------------------------------------------------------
+@CAN_IRAI_CHARA_GO_TOGATHER(CHARA)
+#FUNCTION
+#DIM CHARA
+#DIM IRAI_NUM
+#DIM CHK_SLOT
+IRAI_NUM = COUNT_IRAI_SLOT()
+FOR CHK_SLOT, 1, IRAI_NUM + 1
+	SIF CAN_IRAI_SLOT_GO_TOGATHER(CHARA, CHK_SLOT)
+		RETURNF 1
+NEXT
+RETURNF 0
+
+
+;----------------------------------------------------------------------------------------------------
+;어느 캐릭터가 의뢰로 데리고 나갈 수 있을지 어떨지
+;개개의 의뢰슬롯의 판정
+;----------------------------------------------------------------------------------------------------
+@CAN_IRAI_SLOT_GO_TOGATHER(CHARA, CHK_SLOT)
+#FUNCTION
+#DIM CHARA
+#DIM CHK_SLOT
+#DIM CLIENT_ID
+CLIENT_ID = IRAI_SLOT_TO_CLIENT(CHK_SLOT)
+SIF IRAI_CHARA_TO_PROGRESS(CLIENT_ID) != "의뢰중"
+	RETURNF 0
+SIF CHARA == CLIENT_ID && INT_DATA_IRAI(IRAI_SLOT:CHK_SLOT, "의뢰인 데리고 나가 가능", CLIENT_ID)
+	RETURNF 1
+SIF CHARA == INT_DATA_IRAI(IRAI_SLOT:CHK_SLOT, "의뢰 데리고 나가 대상", CLIENT_ID)
+	RETURNF 1
+RETURNF 0
+
+
+
+;----------------------------------------------------------------------------------------------------
+;[697]방을 방문하는 커맨드의 기능확장
+;----------------------------------------------------------------------------------------------------
+;CHARA가 CHK_SLOT의 의뢰자로서 보고 대상이 될까
+;----------------------------------------------------------------------------------------------------
+@CAN_IRAI_VISIT_HOME_CLIENT(CHARA, CHK_SLOT)
+#FUNCTION
+#DIM CHARA
+#DIM CHK_SLOT
+#DIM CLIENT_ID
+CLIENT_ID = IRAI_SLOT_TO_CLIENT(CHK_SLOT)
+SIF CHARA != CLIENT_ID
+	RETURNF 0
+SIF !GROUPMATCH(IRAI_CHARA_TO_PROGRESS(CLIENT_ID), "의뢰 달성", "기한 마감", "보고 잊음", "의뢰 실패")
+	RETURNF 0
+RETURNF 1
+
+;----------------------------------------------------------------------------------------------------
+;CHARA가 CHK_SLOT의 대상자로서 실행 대상이 될까
+;----------------------------------------------------------------------------------------------------
+@CAN_IRAI_VISIT_HOME_PERSON(CHARA, CHK_SLOT)
+#FUNCTION
+#DIM CHARA
+#DIM CHK_SLOT
+SIF !CAN_IRAI_SLOT_DO(CHK_SLOT)
+	RETURNF 0
+SIF IRAI_SLOT_TO_PERSON(CHK_SLOT) != CHARA
+	RETURNF 0
+SIF IRAI_SLOT_TO_TASKNAME(CHK_SLOT) == "토벌"
+	RETURNF 0
+RETURNF 1
+
+
+
+;----------------------------------------------------------------------------------------------------
+;현재 실행 가능한 의뢰슬롯을 돌려준다
+;----------------------------------------------------------------------------------------------------
+@SEARCH_ACTIVE_IRAI_SLOT()
+#FUNCTION
+#DIM IRAI_NUM
+#DIM CHK_SLOT
+#DIM CLIENT_ID
+IRAI_NUM = COUNT_IRAI_SLOT()
+FOR CHK_SLOT, 1, IRAI_NUM + 1
+	SIF CAN_IRAI_SLOT_DO(CHK_SLOT)
+		RETURNF CHK_SLOT
+NEXT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;각 의뢰슬롯의 실행 가부 판정
+;----------------------------------------------------------------------------------------------------
+@CAN_IRAI_SLOT_DO(CHK_SLOT)
+#FUNCTION
+#DIM CHK_SLOT
+#DIM CLIENT_ID
+CLIENT_ID = IRAI_SLOT_TO_CLIENT(CHK_SLOT)
+SIF IRAI_CHARA_TO_PROGRESS(CLIENT_ID) != "의뢰중"
+	RETURNF 0
+SELECTCASE IRAI_SLOT_TO_TASKNAME(CHK_SLOT)
+CASE "작업"
+	SIF !TARGET
+		RETURNF 0
+	SIF TARGET != CLIENT_ID
+		RETURNF 0
+	SIF SHIRAHU(TARGET) != 1
+		RETURNF 0
+CASE "전령(인물)", "수색(인물)", "토벌"
+	SIF !TARGET
+		RETURNF 0
+	SIF TARGET != IRAI_SLOT_TO_PERSON(CHK_SLOT)
+		RETURNF 0
+	;시간정지/수면/동침/우후후 안은 불가
+	SIF SHIRAHU(TARGET) != 1
+		RETURNF 0
+CASE "전령(장소)", "수색(장소)"
+	;장소 일치
+	SIF CFLAG:MASTER:현재위치 != GET_MAP_REPLACEMENT(IRAI_SLOT_TO_PLACE(CHK_SLOT))
+		RETURNF 0
+CASE "조달"
+	SIF !TARGET
+		RETURNF 0
+	SIF TARGET != CLIENT_ID
+		RETURNF 0
+	SIF SHIRAHU(TARGET) != 1
+		RETURNF 0
+	SIF ITEM:IRAI_SLOT_TO_ITEM(CHK_SLOT) < IRAI_SUB:CHK_SLOT
+		RETURNF 0
+ENDSELECT
+SIF !INT_DATA_IRAI(IRAI_SLOT:CHK_SLOT, "의뢰실행 가능 조건", CLIENT_ID)
+	RETURNF 0
+RETURNF 1
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 결과의 정의(그대로 RETURN라고 성공 여부와의 대응을 모르기 때문에)
+;----------------------------------------------------------------------------------------------------
+@IRAI_CONST_RESULT(TYPE)
+#FUNCTION
+#DIMS TYPE
+#DIM  CONST 의뢰결과_실행해미해결 = 3
+#DIM  CONST 의뢰결과_실행해실패   = 2
+#DIM  CONST 의뢰결과_실행해성공   = 1
+#DIM  CONST 의뢰결과_캔슬     = -1
+SELECTCASE TYPE
+CASE "캔슬"
+	RETURNF 의뢰결과_캔슬
+CASE "실행해 성공"
+	RETURNF 의뢰결과_실행해성공
+CASE "실행해 실패"
+	RETURNF 의뢰결과_실행해실패
+CASE "실행해 미해결"
+	RETURNF 의뢰결과_실행해미해결
+CASEELSE
+	THROW 부정한 캐릭터라인입니다 %TYPE%
+ENDSELECT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;각 캐릭터의 의뢰상황 캐릭터라인
+;----------------------------------------------------------------------------------------------------
+@IRAI_CHARA_TO_PROGRESS(CHARA)
+#FUNCTIONS
+#DIM CHARA
+SELECTCASE CFLAG:CHARA:의뢰상황
+CASE -1
+	RETURNF "의뢰 발생 직후"
+CASE 1
+	RETURNF "의뢰미수탁"
+CASE 2
+	RETURNF "의뢰중"
+CASE 3
+	RETURNF "의뢰 달성"
+CASE 4
+	RETURNF "기한 마감"
+CASE 5
+	RETURNF "보고 잊음"
+CASE 6
+	RETURNF "의뢰 실패"
+CASE 103
+	RETURNF "의뢰 종료(성공)"
+CASE 104
+	RETURNF "의뢰 종료(기한 마감)"
+CASE 105
+	RETURNF "의뢰 종료(보고 잊음)"
+CASE 106
+	RETURNF "의뢰 종료(실패)"
+ENDSELECT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 SLOT→의뢰상황 캐릭터라인
+;----------------------------------------------------------------------------------------------------
+@IRAI_SLOT_TO_PROGRESS(CHK_SLOT)
+#FUNCTIONS
+#DIM CHK_SLOT
+#DIM CLIENT_ID
+CLIENT_ID = IRAI_SLOT_TO_CLIENT(CHK_SLOT)
+RETURNF IRAI_CHARA_TO_PROGRESS(CLIENT_ID)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;캐릭터라인 각을 이용해 각 캐릭터의 의뢰상황을 설정
+;----------------------------------------------------------------------------------------------------
+@SET_IRAI_PROGRESS(CHARA, TYPE)
+#DIM  CHARA
+#DIMS TYPE
+SELECTCASE TYPE
+CASE "의뢰 발생 직후"
+	CFLAG:CHARA:의뢰상황 = -1
+CASE "의뢰미수탁"
+	CFLAG:CHARA:의뢰상황 = 1
+	;#;DEBUGPRINTFORML ＞의뢰 발생　%CALLNAME:CHARA, 20%　{CFLAG:CHARA:의뢰내용, 6}
+CASE "의뢰중"
+	CFLAG:CHARA:의뢰상황 = 2
+CASE "의뢰 달성"
+	CFLAG:CHARA:의뢰상황 = 3
+CASE "기한 마감"
+	CFLAG:CHARA:의뢰상황 = 4
+CASE "보고 잊음"
+	CFLAG:CHARA:의뢰상황 = 5
+CASE "의뢰 실패"
+	CFLAG:CHARA:의뢰상황 = 6
+CASE "의뢰 종료(성공)"
+	CFLAG:CHARA:의뢰상황 = 103
+CASE "의뢰 종료(기한 마감)"
+	CFLAG:CHARA:의뢰상황 = 104
+CASE "의뢰 종료(보고 잊음)"
+	CFLAG:CHARA:의뢰상황 = 105
+CASE "의뢰 종료(실패)"
+	CFLAG:CHARA:의뢰상황 = 106
+CASE "의뢰 소멸"
+	[IF_DEBUG]
+		IF CFLAG:CHARA:의뢰상황 == 1
+			DEBUGPRINTFORML ＞중에 대해 자연 소멸 회피　%CALLNAME:CHARA, 20%　{CFLAG:CHARA:의뢰내용, 6}
+			RETURN
+			DEBUGPRINTFORML ＞의뢰 소멸　%CALLNAME:CHARA, 20%　{CFLAG:CHARA:의뢰내용, 6}
+		ENDIF
+	[ENDIF]
+	CFLAG:CHARA:의뢰상황 = 0
+	CFLAG:CHARA:의뢰내용 = 0
+CASEELSE
+	DEBUGPRINTFORML ＞불명한 의뢰 진척 설정　%CALLNAME:CHARA, 20%　%TYPE%
+ENDSELECT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 SLOT→업종을 취득
+;----------------------------------------------------------------------------------------------------
+@IRAI_SLOT_TO_TASKNAME(CHK_SLOT)
+#FUNCTIONS
+#DIM CHK_SLOT
+SELECTCASE IRAI_DATA:CHK_SLOT % 1000
+CASE 0
+	THROW 부정한 업종{IRAI_DATA:CHK_SLOT}
+CASE 1
+	RETURNF "작업"
+;달성 곤란한 의뢰로서 생략
+;CASE 2
+;	RETURNF "면회"
+CASE 3
+	RETURNF "조달"
+CASE 4
+	RETURNF "전령(인물)"
+CASE 5
+	RETURNF "전령(장소)"
+CASE 6
+	RETURNF "수색(인물)"
+CASE 7
+	RETURNF "수색(장소)"
+CASE 8
+	RETURNF "토벌"
+CASE 99
+	RETURNF "그 외"
+ENDSELECT
+
+
+
+;의뢰의 업종별, 캐릭터라인→숫자 변환
+@IRAI_TASK_TO_DATA(TASK)
+#FUNCTION
+#DIMS TASK
+SELECTCASE TASK
+CASE "작업"
+	RETURNF 1
+;달성 곤란한 의뢰로서 생략
+;CASE "면회"
+;	RETURNF 2
+CASE "조달"
+	RETURNF 3
+CASE "전령(인물)"
+	RETURNF 4
+CASE "전령(장소)"
+	RETURNF 5
+CASE "수색(인물)"
+	RETURNF 6
+CASE "수색(장소)"
+	RETURNF 7
+CASE "토벌"
+	RETURNF 8
+CASE "그 외"
+	RETURNF 99
+ENDSELECT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;장소의 랜덤 선발 함수
+;유실물의 장소 추첨에 사용하고 있다
+;쓰는 법 조금 더 어떻게든없는 거야 감이 스스로도 있지만 우선으로 실장
+;무엇이 문제는 번호직치는 것인 것이니까 맵의 사양이 바뀌면(자) 버그
+;----------------------------------------------------------------------------------------------------
+@RAND_PLACE(ARG, TYPE)
+#FUNCTION
+#DIM  NG_MAP
+#DIM  RESULT_MAP
+#DIM  RESULT_PLACE
+#DIMS TYPE
+#DIMS CONST LOCAL_MAPNAME = "하쿠레이 신사", "명련사", "인간 마을", "안개의호수~홍마관", "미혹의 죽림", "마법의숲", "삼도천~명계", "요괴의 산 (산록)", "요괴의 산 (산정)", "지저", "꿈의 세계~달"
+SELECTCASE TYPE
+CASE "LOST_ITEM"
+	;ARG = 유실물을 한 캐릭터의 등록 번호
+	NG_MAP = GET_MAPID(GET_CHARAHOME(ARG))
+	DO
+		RESULT_MAP = RAND:11
+	LOOP RESULT_MAP == NG_MAP
+	;무한루프의 가능성이 0은 아니지만 신경 쓸 만큼도 아닐 텐데
+	;FISHER_YATES_SHAFFLE를 하는 것은 좀 과장이고
+	
+	SELECTCASE LOCAL_MAPNAME:RESULT_MAP
+	CASE "하쿠레이 신사"
+		SELECTCASE RAND:11
+		CASE 0
+		;1, 토리이
+			RESULT_PLACE = 1
+		CASE 1
+		;2, 경내
+			RESULT_PLACE = 2
+		CASE 2
+		;3, 새전함
+			RESULT_PLACE = 3
+		CASE 3
+		;5, 개수대
+			RESULT_PLACE = 5
+		CASE 4
+		;20, 본전의뒤
+			RESULT_PLACE = 20
+		CASE 5
+		;21, 모리야신사분사
+			RESULT_PLACE = 21
+		CASE 6
+		;22, 참배길
+			RESULT_PLACE = 22
+		CASE 7
+		;23, 온천·탈의실
+			RESULT_PLACE = 23
+		CASE 8
+		;24, 온천
+			RESULT_PLACE = 24
+		CASE 9
+		;25, 수호신의숲
+			RESULT_PLACE = 25
+		CASE 10
+		;36, 몽환유적앞
+			RESULT_PLACE = 36
+		ENDSELECT
+	CASE "명련사"
+		SELECTCASE RAND:6
+		CASE 0
+		;8101, 산문
+			RESULT_PLACE = 101
+		CASE 1
+		;8102, 경내
+			RESULT_PLACE = 102
+		CASE 2
+		;8121, 묘지
+			RESULT_PLACE = 121
+		CASE 3
+		;8122, 범종당
+			RESULT_PLACE = 122
+		CASE 4
+		;8123, 사당 다이몬
+			RESULT_PLACE = 123
+		CASE 5
+		;8124, 사당 광장
+			RESULT_PLACE = 124
+		ENDSELECT
+	CASE "인간 마을"
+		SELECTCASE RAND:17
+		CASE 0
+		;8201, 마을의 문
+			RESULT_PLACE = 201
+		CASE 1
+		;8202, 중앙 광장
+			RESULT_PLACE = 202
+		CASE 2
+		;8203, 미나미토리
+			RESULT_PLACE = 203
+		CASE 3
+		;8204, 히가시도리
+			RESULT_PLACE = 204
+		CASE 4
+		;8205, 기타도리
+			RESULT_PLACE = 205
+		CASE 5
+		;8206, 니시도리
+			RESULT_PLACE = 206
+		CASE 6
+		;8207, 용신 상
+			RESULT_PLACE = 207
+		CASE 7
+		;8211, 술집
+			RESULT_PLACE = 211
+		CASE 8
+		;8212, 카페
+			RESULT_PLACE = 212
+		CASE 9
+		;8213, 스즈나안
+			RESULT_PLACE = 213
+		CASE 10
+		;8214, 연립 주택앞
+			RESULT_PLACE = 214
+		CASE 11
+		;8215, 꽃집
+			RESULT_PLACE = 215
+		CASE 12
+		;8216, 식료품점
+			RESULT_PLACE = 216
+		CASE 13
+		;8217, 감미소
+			RESULT_PLACE = 217
+		CASE 14
+		;8218, 일품 요리점
+			RESULT_PLACE = 218
+		CASE 15
+		;8219, 집회소
+			RESULT_PLACE = 219
+		CASE 16
+		;8222, 서당
+			RESULT_PLACE = 222
+		ENDSELECT
+	CASE "안개의호수~홍마관"
+		SELECTCASE RAND:6
+		CASE 0
+		;8301, 정문
+			RESULT_PLACE = 301
+		CASE 1
+		;8302, 뜰
+			RESULT_PLACE = 302
+		CASE 2
+		;8306, 뒷마당
+			RESULT_PLACE = 306
+		CASE 3
+		;8309, 객실
+			RESULT_PLACE = 309
+		CASE 4
+		;8334, 폐양관·입구
+			RESULT_PLACE = 334
+		CASE 5
+		;8343, 호숫가
+			RESULT_PLACE = 343
+		ENDSELECT
+	CASE "미혹의 죽림"
+		SELECTCASE RAND:8
+		CASE 0
+		;8401, 영원정입구
+			RESULT_PLACE = 401
+		CASE 1
+		;8402, 영원정현관
+			RESULT_PLACE = 402
+		CASE 2
+		;8403, 대합실
+			RESULT_PLACE = 403
+		CASE 3
+		;8433, 사각의죽림
+			RESULT_PLACE = 433
+		CASE 4
+		;8434, 미혹의샛길
+			RESULT_PLACE = 434
+		CASE 5
+		;8436, 무명의언덕
+			RESULT_PLACE = 436
+		CASE 6
+		;8438, 태양의밭
+			RESULT_PLACE = 438
+		CASE 7
+		;8447, 죽림입구
+			RESULT_PLACE = 447
+		ENDSELECT
+	CASE "마법의숲"
+		SELECTCASE RAND:11
+		CASE 0
+		;8501, 마법의숲 입구
+			RESULT_PLACE = 501
+		CASE 1
+		;8502, 향림당
+			RESULT_PLACE = 502
+		CASE 2
+		;8503, 갈림길
+			RESULT_PLACE = 503
+		CASE 3
+		;8506, 무연총
+			RESULT_PLACE = 506
+		CASE 4
+		;8507, 버섯 군생지
+			RESULT_PLACE = 507
+		CASE 5
+		;8508, 마법의 광장
+			RESULT_PLACE = 508
+		CASE 6
+		;8509, 재고의길
+			RESULT_PLACE = 509
+		CASE 7
+		;8510, 키리사메마법점
+			RESULT_PLACE = 510
+		CASE 8
+		;8520, 인형의 관앞
+			RESULT_PLACE = 520
+		CASE 9
+		;8534, 엘렌 마법의 가게
+			RESULT_PLACE = 534
+		CASE 10
+		;8540, 고목의큰나무
+			RESULT_PLACE = 540
+		ENDSELECT
+	CASE "삼도천~명계"
+		SELECTCASE RAND:9
+		CASE 0
+		;6061, 중유의길
+			RESULT_PLACE = 610
+		CASE 1
+		;6062, 삼도천
+			RESULT_PLACE = 620
+		CASE 2
+		;6063, 마요히가
+			RESULT_PLACE = 630
+		CASE 3
+		;6064, 피안
+			RESULT_PLACE = 640
+		CASE 4
+		;6065, 백옥루정원
+			RESULT_PLACE = 650
+		CASE 5
+		;6066, 백옥루
+			RESULT_PLACE = 660
+		CASE 6
+		;6067,지옥
+			RESULT_PLACE = 670
+		CASE 7
+		;6068,축생계
+			RESULT_PLACE = 680
+		CASE 8
+		;6069,영장원
+			RESULT_PLACE = 690
+		ENDSELECT
+	CASE "요괴의 산 (산록)"
+		SELECTCASE RAND:8
+		CASE 0
+		;8701, 수해도 입구
+			RESULT_PLACE = 701
+		CASE 1
+		;8702, 산길·늪에 계속되는 길
+			RESULT_PLACE = 702
+		CASE 2
+		;8703, 현무의늪
+			RESULT_PLACE = 703
+		CASE 3
+		;8705, 산길·산 중턱
+			RESULT_PLACE = 705
+		CASE 4
+		;8707, 산길·분기점
+			RESULT_PLACE = 707
+		CASE 5
+		;8708, 큰두꺼비의연못
+			RESULT_PLACE = 708
+		CASE 6
+		;8711, 휴식 곳
+			RESULT_PLACE = 711
+		CASE 7
+		;8732, 산정에의 길
+			RESULT_PLACE = 732
+		ENDSELECT
+	CASE "요괴의 산 (산정)"
+		SELECTCASE RAND:12
+		CASE 0
+		;8801, 산정 입구
+			RESULT_PLACE = 801
+		CASE 1
+		;8802, 다리
+			RESULT_PLACE = 802
+		CASE 2
+		;8803, 삭도역
+			RESULT_PLACE = 803
+		CASE 3
+		;8804, 모리야신사 토리이
+			RESULT_PLACE = 804
+		CASE 4
+		;8805, 정상
+			RESULT_PLACE = 805
+		CASE 5
+		;8806, 폭포의 뒤
+			RESULT_PLACE = 806
+		CASE 6
+		;8811, 경내
+			RESULT_PLACE = 811
+		CASE 7
+		;8814, 호숫가
+			RESULT_PLACE = 814
+		CASE 8
+		;8830, 현운해
+			RESULT_PLACE = 830
+		CASE 9
+		;8831, 히나나위가전
+			RESULT_PLACE = 831
+		CASE 10
+		;8832, 유정천거리
+			RESULT_PLACE = 832
+		CASE 11
+		;8833, 도원
+			RESULT_PLACE = 833
+		ENDSELECT
+	CASE "지저"
+		SELECTCASE RAND:11
+		CASE 0
+		;8901, 지령전 전
+			RESULT_PLACE = 901
+		CASE 1
+		;8902, 현관
+			RESULT_PLACE = 902
+		CASE 2
+		;8926, 안뜰
+			RESULT_PLACE = 926
+		CASE 3
+		;8931, 큰 길
+			RESULT_PLACE = 931
+		CASE 4
+		;8932, 뒷골목
+			RESULT_PLACE = 932
+		CASE 5
+		;8933, 술집
+			RESULT_PLACE = 933
+		CASE 6
+		;8939, 골목길 뒤
+			RESULT_PLACE = 939
+		CASE 7
+		;8944, 대로
+			RESULT_PLACE = 944
+		CASE 8
+		;8945, 강가
+			RESULT_PLACE = 945
+		CASE 9
+		;8946, 다리
+			RESULT_PLACE = 946
+		CASE 10
+		;8948, 수혈의 바닥
+			RESULT_PLACE = 948
+		ENDSELECT
+	CASE "꿈의 세계~달"
+		SELECTCASE RAND:5
+		CASE 0
+		;6101, 회안통로
+			RESULT_PLACE = 1010
+		CASE 1
+		;6105, 달의도시
+			RESULT_PLACE = 1050
+		CASE 2
+		;6107, 옥토거리
+			RESULT_PLACE = 1070
+		CASE 3
+		;6108, 복숭아숲~모래사장
+			RESULT_PLACE = 1080
+		CASE 4
+		;6109, 고요의바다
+			RESULT_PLACE = 1090
+		ENDSELECT
+	CASEELSE
+		THROW 존재하지 않는 MAP{RESULT_MAP}
+	ENDSELECT
+ENDSELECT
+SIF !RESULT_PLACE
+	THROW 존재하지 않는 PLACE{RESULT_PLACE}
+RETURNF RESULT_PLACE
+
+
+
+
+
+;----------------------------------------------------------------------------------------------------
+;편지 왕래 가부 함수
+;역극 당신은 고려외
+;----------------------------------------------------------------------------------------------------
+;편지 왕래 상대가 혼자라도 등록되어 있으면 TRUE
+;----------------------------------------------------------------------------------------------------
+@IS_LETTER_CHARA(CHARA)
+#FUNCTION
+#DIM CHARA
+RETURNF STOCK_LETTER_TO("IS_LETTER_CHARA", CHARA)
+
+;----------------------------------------------------------------------------------------------------
+;등록상에서 2 캐릭터가 편지 왕래 가능하다면 TRUE
+;----------------------------------------------------------------------------------------------------
+@IS_PEN_FRIEND(CHARA_A, CHARA_B)
+#FUNCTION
+#DIM CHARA_A
+#DIM CHARA_B
+RETURNF STOCK_LETTER_TO("IS_PEN_FRIEND", CHARA_A, CHARA_B)
+
+;----------------------------------------------------------------------------------------------------
+;편지 왕래 상대의 추첨
+;CAN_MEET도 고려한다
+;행선지 등록과 CAN_MEET를 본 다음 CHARA를 편지를 보낼 수 있는 상대가 없으면 0
+;상대가 있다면 랜덤상대를 취득
+;의뢰 발생시와 수탁시에 출금설정을 변경하거나 하면(자) 버그
+;그 정도옆은 한계이다
+;----------------------------------------------------------------------------------------------------
+@WHO_LETTER_TO(CHARA)
+#FUNCTION
+#DIM CHARA
+RETURNF STOCK_LETTER_TO("WHO_LETTER_TO", CHARA)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;편지 왕래 행선지 설정 함수
+;캐릭터 지식이 전혀 없기 때문에 그다지 할 수 있고는 아무쪼록 없다
+;직접 있던 적 않습니다＞＜정도의 관계에서도 편지 왕래라면 부자연스럽게는 되지 않아, 일지도?
+;이것은 일방적인 것은 아니고, 발신인 설정하면 상대에게서 편지가 돌려주어질 가능성이 나옵니다
+;번호의 젊은 순서에 등록하고 있기 때문에 후의 캐릭터만큼 설정은 적어도 될 것
+;
+;이하, 이 기괴한 코드에 이른 경위
+;처리의 효율화등은 전혀  고려하고 있지 않습니다
+;
+;·CHARA_A로부터 CHARA_B의 등록과 CHARA_B로부터의 등록을 몇 번이나 하는 것이 귀찮기 때문에 쌍방이 동시에 등록되도록(듯이) 하고 싶다
+;·HOGE:CHARA:X의 다차원 배열로 관리하는 안
+;→다차원 배열에 FINDELEMENT를 사용할 수 없기 때문에 중복을 연주하는 검색 처리가 귀찮은, FOR-NEXT는 논외(코드가 길어지는적인 의미로)
+;· 각 캐릭터의 행선지 배열의 보존용 함수를 별개에 준비해 각각의 Private(사적인) 변수로 관리, 등록과 참조는 별함수로부터 실시하는 안
+;→배열을 관리하고 싶지만 유익인 만큼 함수 100개나 작은 응
+;·캐릭터라인에 돌진해 억지로 해결하기로 했다
+;----------------------------------------------------------------------------------------------------
+@SETUP_ALL_LETTERS
+#DIM LETTER_TO, 캐릭터수상한
+SIF LOCAL
+	RETURN
+;배열의 요소 0이 편지의 발신인, 그 외의요소가 수취인
+;사용하는 요소수를 지정해 건네준다
+;레이무
+VARSET LETTER_TO
+LETTER_TO = [[마리사]], [[치르노]], [[사쿠야]], [[레밀리아]], [[앨리스]], [[요우무]], [[란]], [[유카리]], [[사나에]], [[텐시]], [[카센]], [[사토리]], [[우동게]], [[뱌쿠렌]], [[미코]], [[케이네]], [[유카]], [[코스즈]], [[아큐]], [[도레미]], [[나루미]], [[시온]]
+CALL SET_LETTER_TO([[레이무]], LETTER_TO)
+;미마
+VARSET LETTER_TO
+LETTER_TO = [[유메미]], [[마리사]], [[앨리스]], [[유카리]], [[신키]]
+CALL SET_LETTER_TO([[미마]], LETTER_TO)
+;서니, 루나, 스타
+VARSET LETTER_TO
+LETTER_TO = [[마리사]], [[치르노]], [[대요정]], [[클라운피스]] 
+CALL SET_LETTER_TO([[서니]], LETTER_TO)
+CALL SET_LETTER_TO([[루나]], LETTER_TO)
+CALL SET_LETTER_TO([[스타]], LETTER_TO)
+;스이카
+VARSET LETTER_TO
+LETTER_TO = [[유카리]], [[아야]], [[텐시]], [[이쿠]], [[유기]]
+CALL SET_LETTER_TO([[스이카]], LETTER_TO)
+;마리사
+VARSET LETTER_TO
+LETTER_TO = [[치르노]], [[대요정]], [[사쿠야]], [[앨리스]], [[요우무]], [[란]], [[아야]], [[사나에]], [[플랑]], [[우동게]], [[케이네]], [[유카]], [[도레미]], [[나루미]]
+CALL SET_LETTER_TO([[마리사]], LETTER_TO)
+;대요정
+VARSET LETTER_TO
+LETTER_TO = [[릴리 W]], [[릴리 B]]
+CALL SET_LETTER_TO([[대요정]], LETTER_TO)
+;사쿠야
+VARSET LETTER_TO
+LETTER_TO = [[앨리스]], [[요우무]], [[란]], [[누에]], [[니토리]], [[우동게]]
+CALL SET_LETTER_TO([[사쿠야]], LETTER_TO)
+;레밀리아
+;적당하게 거물감을
+VARSET LETTER_TO
+LETTER_TO = [[유카리]], [[아큐]]
+CALL SET_LETTER_TO([[레밀리아]], LETTER_TO)
+;앨리스
+;TW에서는 마을 공연 하고 있기 때문에 프리리바와 조금은 교류가 있어도
+;3월정령과 안면 있는 건가?
+VARSET LETTER_TO
+LETTER_TO = [[리리카]], [[메를랑]], [[루나사]], [[파츄리]], [[메디슨]]
+CALL SET_LETTER_TO([[앨리스]], LETTER_TO)
+;리리카, 메를랑, 루나사
+;음악, 예능 관련 특화
+VARSET LETTER_TO
+LETTER_TO = [[미스티아]], [[쿄코]], [[벤벤]], [[야츠하시]], [[라이코]]
+CALL SET_LETTER_TO([[리리카]], LETTER_TO)
+CALL SET_LETTER_TO([[메를랑]], LETTER_TO)
+CALL SET_LETTER_TO([[루나사]], LETTER_TO)
+;요우무
+VARSET LETTER_TO
+LETTER_TO = [[란]], [[우동게]]
+CALL SET_LETTER_TO([[요우무]], LETTER_TO)
+;첸
+;전혀 몰랐었어요로 적당하게 케모케모 깐다
+VARSET LETTER_TO
+LETTER_TO = [[오린]], [[카게로]], [[모미지]], [[케이네]], [[아운]]
+CALL SET_LETTER_TO([[첸]], LETTER_TO)
+;란
+;독립해 움직여 그런 약간 거물감인 어느 날책의 무리
+VARSET LETTER_TO
+LETTER_TO = [[아야]], [[누에]]
+CALL SET_LETTER_TO([[란]], LETTER_TO)
+;유카리
+VARSET LETTER_TO
+LETTER_TO = [[카나코]], [[스와코]], [[텐시]], [[이쿠]], [[카센]], [[사토리]], [[뱌쿠렌]], [[미코]], [[카구야]], [[유기]], [[유유코]], [[케이네]], [[마미조]], [[코스즈]], [[에이린]], [[아큐]], [[요리히메]], [[토요히메]], [[신키]], [[도레미]], [[오키나]]
+CALL SET_LETTER_TO([[유카리]], LETTER_TO)
+;미스티아
+VARSET LETTER_TO
+LETTER_TO = [[쿄코]], [[벤벤]], [[야츠하시]], [[라이코]]
+CALL SET_LETTER_TO([[미스티아]], LETTER_TO)
+;사나에
+VARSET LETTER_TO
+LETTER_TO = [[카센]], [[아운]]
+CALL SET_LETTER_TO([[사나에]], LETTER_TO)
+;텐시
+VARSET LETTER_TO
+LETTER_TO = [[도레미]], [[시온]]
+CALL SET_LETTER_TO([[텐시]], LETTER_TO)
+;누에
+;절의외로의 교제 관계는 불명하지만
+;TW에서는 일로 홍마관에 출입하므로 적당하게
+VARSET LETTER_TO
+LETTER_TO = [[메이링]], [[소악마]]
+CALL SET_LETTER_TO([[누에]], LETTER_TO)
+;카센
+VARSET LETTER_TO
+LETTER_TO = [[미코]], [[도레미]]
+CALL SET_LETTER_TO([[카센]], LETTER_TO)
+;우동게
+VARSET LETTER_TO
+LETTER_TO = [[요리히메]], [[토요히메]], [[레이센]], [[세이란]], [[링고]], [[순호]]
+CALL SET_LETTER_TO([[우동게]], LETTER_TO)
+;뱌쿠렌
+VARSET LETTER_TO
+LETTER_TO = [[미코]], [[케이네]], [[아큐]]
+CALL SET_LETTER_TO([[뱌쿠렌]], LETTER_TO)
+;미코
+VARSET LETTER_TO
+LETTER_TO = [[케이네]], [[아큐]]
+CALL SET_LETTER_TO([[미코]], LETTER_TO)
+
+;세키반키가 정말로 안면 있는 걸까, 교미하고 있는지 라고 하는 것은 놔 두어
+;2차에서는 자주(잘) 보므로 넣으려고
+;카게로
+VARSET LETTER_TO
+LETTER_TO = [[반키]], [[와카사기히메]]
+CALL SET_LETTER_TO([[카게로]], LETTER_TO)
+;세키반키
+VARSET LETTER_TO
+LETTER_TO = [[와카사기히메]]
+CALL SET_LETTER_TO([[반키]], LETTER_TO)
+
+;에이린
+VARSET LETTER_TO
+LETTER_TO = [[요리히메]], [[토요히메]]
+CALL SET_LETTER_TO([[에이린]], LETTER_TO)
+
+LOCAL ++
+
+
+
+;----------------------------------------------------------------------------------------------------
+;각 캐릭터의 행선지 등록 함수
+;----------------------------------------------------------------------------------------------------
+
+@SET_LETTER_TO(LETTER_FROM, LETTER_TO)
+#DIM     LETTER_FROM
+#DIM REF LETTER_TO
+#DIM     L_ID
+#DIM     ID_LAST
+ID_LAST = FINDELEMENT(LETTER_TO, 0)
+FOR L_ID, 0, ID_LAST
+	CALLF STOCK_LETTER_TO("SET", LETTER_FROM, LETTER_TO:L_ID)
+NEXT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;편지 왕래 행선지 함수
+;----------------------------------------------------------------------------------------------------
+@STOCK_LETTER_TO(COMMAND, CHARA_A, CHARA_B)
+#FUNCTION
+#DIMS COMMAND
+#DIMS LETTER_TO, 캐릭터수상한
+#DIM  CHARA_A
+#DIM  CHARA_B
+#DIMS TMP_LETTER, 캐릭터수상한
+#DIM  TMP_ID
+#DIM  L_RESULT   ;RESULT 퇴피용
+#DIM  CNT_CHARA  ;등록되어 있던 행선지의 수
+SELECTCASE COMMAND
+CASE "SET"
+;SET는 CHARA_A와 CHARA_B의 양쪽 모두가 필수, 반환값 없음
+	IF CHARA_A == CHARA_B || CHARA_A <= 0 || CHARA_B <= 0
+		DEBUGPRINTFORML 무효인 등록　{CHARA_A}, {CHARA_B}
+		RETURNF 0
+	ENDIF
+	SIF !STRCOUNT(LETTER_TO:CHARA_A, @"{CHARA_B}/")
+		LETTER_TO:CHARA_A += @"{CHARA_B}/"
+	SIF !STRCOUNT(LETTER_TO:CHARA_B, @"{CHARA_A}/")
+		LETTER_TO:CHARA_B += @"{CHARA_A}/"
+CASE "IS_LETTER_CHARA"
+;편지 왕래 상대가 혼자라도 존재하면 TRUE
+	SIF !STRLENS(LETTER_TO:CHARA_A)
+		RETURNF 0
+	RETURNF 1
+CASE "IS_PEN_FRIEND"
+;2캐릭터가 편지 왕래 가능하다면 TRUE
+	SIF !STRCOUNT(LETTER_TO:CHARA_A, @"{CHARA_B}/")
+		RETURNF 0
+	RETURNF 1
+CASE "WHO_LETTER_TO"
+;랜덤행선지를 돌려준다
+;CHARA_A만 지정, 반환값 있어
+	;SIF !STRLENS(LETTER_TO:CHARA_A)
+	;	RETURNF RAND_PERSON(CHARA_A)
+	SIF !STRLENS(LETTER_TO:CHARA_A)
+		RETURNF 0
+	VARSET TMP_LETTER
+	;F함수로 RESULT를 바꾸는 것은 약간 위험하다
+	L_RESULT = RESULT
+	SPLIT LETTER_TO:CHARA_A, "/", TMP_LETTER
+	CNT_CHARA = RESULT
+	RESULT = L_RESULT
+	RETURNF RAND_LETTER_TO(TMP_LETTER, CNT_CHARA)
+ENDSELECT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;랜덤 행선지 함수
+;Shuffle를 이용해 랜덤에 캐릭터를 선택한다
+;DO-LOOP＋RAND라면 거동이 이상해질 것 같다
+;게다가, 행선지의 적은 캐릭터라면 출금으로 손쉽게 무한루프에 빠지므로
+;셔플 알고리즘을 사용한다
+;구문이 조금 복잡화 했다
+;----------------------------------------------------------------------------------------------------
+@RAND_LETTER_TO(TMP_LETTER, CNT_CHARA)
+#FUNCTION
+#DIMS REF TMP_LETTER
+#DIM  CNT_CHARA
+#DIM  LETTER_ID, 캐릭터수상한
+#DIM  CHK_ID
+#DIM  ELE_SHAFFLE
+SIF !LETTER_STOP(TMP_LETTER, 0, CNT_CHARA)
+	LETTER_ID:0 = TOINT(TMP_LETTER:0)
+SIF !CNT_CHARA
+	RETURNF 0
+SIF CNT_CHARA == 1
+	RETURNF LETTER_ID:0
+FOR CHK_ID, 1, CNT_CHARA
+	SIF !STRLENS(TMP_LETTER:CHK_ID)
+		BREAK
+	DEBUGPRINTFORML CHK_ID{CHK_ID}　CNT_CHARA{CNT_CHARA}
+	IF LETTER_STOP(TMP_LETTER, CHK_ID, CNT_CHARA)
+		SIF CNT_CHARA <= 1
+			BREAK
+		;요소를 삭제하므로 다시 한 번 같은 ID로 조사
+		CHK_ID --
+		CONTINUE
+	ELSE
+		ELE_SHAFFLE = RAND(0, CHK_ID + 1)
+		LETTER_ID:CHK_ID = LETTER_ID:ELE_SHAFFLE
+		LETTER_ID:ELE_SHAFFLE = TOINT(TMP_LETTER:CHK_ID)
+	ENDIF
+NEXT
+RETURNF LETTER_ID:0
+
+
+
+;----------------------------------------------------------------------------------------------------
+;편지 정지 함수
+;캐릭터라인의 TMP_LETTER가 출현 불능때에 그 요소를 삭제한다
+;삭제가 일어나면(자) 1
+;----------------------------------------------------------------------------------------------------
+@LETTER_STOP(TMP_LETTER, CHK_ID, CNT_CHARA)
+#FUNCTION
+#DIMS REF TMP_LETTER
+#DIM      CHK_ID
+#DIM  REF CNT_CHARA
+IF !CAN_MEET(TOINT(TMP_LETTER:CHK_ID))
+	ARRAYREMOVE TMP_LETTER, CHK_ID, 1
+	CNT_CHARA --
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+
+;----------------------------------------------------------------------------------------------------
+;토벌대상으로 적대 관계에 있는 캐릭터를 선출하는 함수
+;----------------------------------------------------------------------------------------------------
+@RAND_HANTING(ARG)
+#FUNCTION
+#DIM CHARA
+#DIM LPCOUNT
+LPCOUNT = 0
+RESULT = 0
+;相性が悪いキャラを優先する
+WHILE !RESULT
+	CHARA = RAND:CHARANUM
+	LPCOUNT ++
+	;除外条件
+	;依頼人
+	SIF CHARA == ARG
+		CONTINUE
+	;MASTER,출금,モブ子
+	SIF CHARA == MASTER || CFLAG:CHARA:출금 || TALENT:CHARA:스침
+		CONTINUE
+	;非戦闘員
+	SIF CSVABL(CHARA, GETNUM(ABL, "전투능력")) == 0
+		CONTINUE
+	;住人同士は争わない
+	SIF CFLAG:ARG:신사거주 && CFLAG:CHARA:신사거주
+		CONTINUE
+	;전투능력が高すぎる
+	SIF ABL:CHARA:전투능력 >= ABL:MASTER:전투능력 + 3
+		CONTINUE
+	IF INRANGE(RELATION:ARG:CHARA, 10, 90)
+		RESULT = CHARA
+	ELSEIF LPCOUNT > 1000
+		BREAK
+	ENDIF
+WEND
+
+LPCOUNT = 0
+WHILE !RESULT
+	CHARA = RAND:CHARANUM
+	LPCOUNT ++
+	;無限ループ防止
+	IF LPCOUNT > 1000
+		IF TALENT:ARG:인간
+			IF !RAND:2
+				RESULT = [[유카리]]
+			ELSE
+				RESULT = [[세이자]]
+			ENDIF
+		ELSE
+			IF !RAND:2
+				RESULT = [[레이무]]
+			ELSE
+				RESULT = [[마리사]]
+			ENDIF
+		ENDIF
+		;最悪自分はだめ
+		IF RESULT == ARG
+			CONTINUE
+		ELSE
+			BREAK
+		ENDIF
+	ENDIF
+	;除外条件
+	;依頼人
+	SIF CHARA == ARG
+		CONTINUE
+	;MASTER,출금,モブ子
+	SIF CHARA == MASTER || CFLAG:CHARA:출금 || TALENT:CHARA:스침
+		CONTINUE
+	;非戦闘員
+	SIF CSVABL(CHARA, GETNUM(ABL, "전투능력")) == 0
+		CONTINUE
+	;相性が良い
+	SIF RELATION:ARG:CHARA > 100
+		CONTINUE
+	;住人同士は争わない
+	SIF CFLAG:ARG:신사거주 && CFLAG:CHARA:신사거주
+		CONTINUE
+	;전투능력が高すぎる
+	SIF ABL:CHARA:전투능력 >= ABL:MASTER:전투능력 + 3
+		CONTINUE
+	
+	;相手側の相性が悪い
+	IF RELATION:CHARA:ARG < 100 && RELATION:CHARA:ARG > 0
+		RESULT = CHARA
+	;인간＞요정・妖怪
+	ELSEIF GROUPMATCH(GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:ARG:인간), "인간", "마법사", "무녀")
+		IF TALENT:CHARA:요정
+			RESULT = CHARA
+		ELSEIF !TALENT:CHARA:인간 && !TALENT:CHARA:요정 && !TALENT:CHARA:신령
+			RESULT = CHARA
+		ENDIF
+	;요정＞인간・妖怪
+	ELSEIF TALENT:ARG:요정
+		IF GROUPMATCH(GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:CHARA:인간), "인간", "마법사", "무녀")
+			RESULT = CHARA
+		ELSEIF !TALENT:CHARA:인간 && !TALENT:CHARA:요정 && !TALENT:CHARA:신령
+			RESULT = CHARA
+		ENDIF
+	;월인＞요정
+	ELSEIF GROUPMATCH(GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:ARG:인간), "월인")
+		SIF TALENT:CHARA:요정
+			RESULT = CHARA
+	;신령・천인・선인＞妖怪
+	ELSEIF TALENT:ARG:신령 || GROUPMATCH(GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:ARG:인간), "천인", "선인")
+		SIF !TALENT:CHARA:인간 && !TALENT:CHARA:요정 && !TALENT:CHARA:신령
+			RESULT = CHARA
+	;妖怪＞인간
+	ELSE
+		SIF GROUPMATCH(GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:CHARA:인간), "인간", "마법사", "무녀")
+			RESULT = CHARA
+	ENDIF
+	;二次判定,신령選出
+	IF !RESULT && ABL:ARG:전투능력 >= 3
+		;천인・선인・월인は同盟（？）
+		IF GROUPMATCH(GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:ARG:인간), "천인", "선인", "월인")
+			SIF TALENT:CHARA:신령
+				RESULT = CHARA
+		ELSE
+			IF GROUPMATCH(GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:CHARA:인간), "천인", "선인", "월인")
+				RESULT = CHARA
+			ELSEIF TALENT:CHARA:신령
+				RESULT = CHARA
+			ENDIF
+		ENDIF
+	ENDIF
+WEND
+RETURNF RESULT
+
+;----------------------------------------------------------------------------------------------------
+;（依頼用に）ランダムな素材を選出する関数
+;季節アイテムの扱いに困って未完成
+;----------------------------------------------------------------------------------------------------
+@RAND_MATERIAL
+#FUNCTION
+#DIM MATER
+#DIM LPCOUNT
+#DIM 난이도
+RESULT = 0
+LPCOUNT = 0
+;난이도の設定
+SELECTCASE RAND:100
+CASE IS < 50
+	난이도 = 1
+CASE IS < 80
+	난이도 = 2
+CASE IS < 95
+	난이도 = 3
+CASEELSE
+	난이도 = 4
+ENDSELECT
+;난이도が高い場合は난이도を下げる（最低1）
+WHILE 난이도 > ABL:MASTER:교양 + 1
+	난이도 --
+WEND
+WHILE !RESULT
+	MATER = RAND:100 + 600
+	LPCOUNT ++
+	;無限ループ防止
+	IF LPCOUNT > 1000
+		RESULT = GETNUM(ITEM, "보통버섯")
+		BREAK
+	ENDIF
+	SIF ITEMNAME:MATER == ""
+		CONTINUE
+	SELECTCASE ITEMPRICE:MATER
+	CASE IS < 1000
+		SIF 난이도 == 1
+			RESULT = MATER
+	CASE IS < 3000
+		SIF 난이도 == 2
+			RESULT = MATER
+	CASE IS < 10000
+		SIF 난이도 == 3
+			RESULT = MATER
+	CASEELSE
+		SIF 난이도 == 4
+			RESULT = MATER
+	ENDSELECT
+WEND
+RETURNF RESULT

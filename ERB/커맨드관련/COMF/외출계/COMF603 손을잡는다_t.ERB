@@ -1,0 +1,171 @@
+﻿;-------------------------------------------------
+;손을잡는다
+;외출 커맨드
+;-------------------------------------------------
+@COM603
+CALL SUC_FAIL(110, MIN(90 + GET_SUCCESS_RATE() / 5, 109))
+SELECTCASE TFLAG:193
+	;실패
+	CASE -1
+		SIF TFLAG:192 == -2
+			RETURN 0
+	;대성공
+	CASE 1
+		CALL 붉은실발동
+		EXP:MASTER:데이트경험 ++
+		EXP:TARGET:데이트경험 ++
+	;성공
+	CASE 0
+ENDSELECT
+
+;선제 발생시는 실패하지 않는다
+;SIF TFLAG:102 == 3
+;	TFLAG:193 = MAX(TFLAG:193, 0)
+DOWNBASE:기력 += 50
+DOWNBASE:MASTER:기력 += 50
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 150
+SOURCE:사랑 = 150
+SOURCE:복종 = 100
+SOURCE:반감 = 100
+SOURCE:수동 = 100
+
+;ABL:친밀을 본다
+IF ABL:친밀 <= 3
+	SOURCE:환락 += 150 + (ABL:친밀 * 50)
+	SOURCE:사랑 += 180 + (ABL:친밀 * 40)
+ELSEIF ABL:친밀 <= 5
+	SOURCE:환락 += 500 + (ABL:친밀 * 50)
+	SOURCE:사랑 += 450 + (ABL:친밀 * 30)
+ELSEIF ABL:친밀 <= 8
+	SOURCE:환락 += 800 + (ABL:친밀 * 50)
+	SOURCE:사랑 += 700 + (ABL:친밀 * 50)
+ELSEIF ABL:친밀 <= 11
+	SOURCE:환락 += 1000 + (ABL:친밀 * 90)
+	SOURCE:사랑 += 900 + (ABL:친밀 * 50)
+ELSE
+	SOURCE:환락 += 1800 + (ABL:친밀 * 40)
+	SOURCE:사랑 += 2000 + (ABL:친밀 * 20)
+ENDIF
+
+;ABL:순종을 본다
+IF ABL:순종 <= 3
+	SOURCE:복종 += 100 + (ABL:순종 * 50)
+	SOURCE:수동 += 170 + (ABL:순종 * 40)
+ELSEIF ABL:순종 <= 5
+	SOURCE:복종 += 300 + (ABL:순종 * 50)
+	SOURCE:수동 += 350 + (ABL:순종 * 30)
+ELSEIF ABL:순종 <= 8
+	SOURCE:복종 += 500 + (ABL:순종 * 50)
+	SOURCE:수동 += 600 + (ABL:순종 * 50)
+ELSEIF ABL:순종 <= 11
+	SOURCE:복종 += 800 + (ABL:순종 * 90)
+	SOURCE:수동 += 700 + (ABL:순종 * 50)
+ELSE
+	SOURCE:복종 += 1500 + (ABL:순종 * 40)
+	SOURCE:수동 += 1000 + (ABL:순종 * 20)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:사랑 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:사랑 += 200 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:사랑 += 1000 + (CFLAG:2 - 5000) / 5
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+LOCAL = 0
+;친밀이 낮으면 호감도 저하
+IF ABL:친밀 == 0
+	LOCAL -= 3
+ELSEIF ABL:친밀 == 1
+	LOCAL -= 2
+ELSEIF ABL:친밀 == 2
+	LOCAL -= 1
+ENDIF
+;순종이 낮으면 호감도 저하
+IF ABL:순종 == 0
+	LOCAL -= 5
+ELSEIF ABL:순종 == 1
+	LOCAL -= 3
+ELSEIF ABL:순종 == 2
+	LOCAL -= 1
+ENDIF
+;호감도가 낮으면 호감도 저하
+IF CFLAG:2 <= 50
+	LOCAL -= 3
+ELSEIF CFLAG:2 <= 100
+	LOCAL -= 2
+ELSEIF CFLAG:2 <= 250
+	LOCAL -= 1
+ENDIF
+
+SOURCE:욕정 = 50 + 150 * ABL:욕망
+SOURCE:굴종 = 100 + 200 * ABL:마조끼
+
+;호감도 변화
+TFLAG:97 += LOCAL
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:사랑 , 0.50
+	TIMES SOURCE:복종 , 0.50
+	TIMES SOURCE:수동 , 1.50
+	TIMES SOURCE:욕정 , 0.50
+	TIMES SOURCE:반감 , 1.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:사랑 , 1.00
+	TIMES SOURCE:복종 , 1.00
+	TIMES SOURCE:수동 , 1.00
+	TIMES SOURCE:욕정 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:사랑 , 2.00
+	TIMES SOURCE:복종 , 1.50
+	TIMES SOURCE:수동 , 2.00
+	TIMES SOURCE:욕정 , 2.00
+	TIMES SOURCE:반감 , 0.75
+ENDIF
+TIME += 10
+CALL DATE_GOES_ON(1)
+CALL 붉은실발동
+EXP:MASTER:데이트경험 ++
+EXP:TARGET:데이트경험 ++
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;손을잡는다
+@COM_ABLE603
+;일괄관리
+SIF GLOBAL_COMABLE(603)
+	RETURN RESULT
+;상대가 없다
+SIF !TARGET
+	RETURN 0
+;데이트 도중 이외
+SIF (CFLAG:현재위치 % 100) % 10 == 0
+	RETURN 0
+SIF CFLAG:MASTER:데이트중 == MAIN_MAP
+	RETURN 0
+;초대방
+SIF CFLAG:MASTER:현재위치 == OMANEKIBEYA()
+	RETURN 0
+;전회 손을 잡았다
+;SIF PREVCOM == 603
+;	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+

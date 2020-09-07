@@ -1,0 +1,1578 @@
+﻿;FileName_INFO.ERB --------------------------------- Rev1. 01
+;턴 처리
+;CALL		SYSTEM
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SHOW_STATUS
+#DIM 날씨비표시
+#DIM 원래날씨
+VARSET LOCAL
+IF CHK_PLACE(MASTER,"ADDRESS", 0,10)
+	PRINTFORML 현재위치가 이상합니다
+	PRINTFORMW 에러 빠짐 회피를 위해서(때문에) %NAME_FROM_PLACE(CFLAG:MASTER:초기위치)%로 이동합니다
+	CFLAG:MASTER:현재위치 = CFLAG:MASTER:초기위치
+	CFLAG:MASTER:데이트중 = MAIN_MAP
+ENDIF
+;-------------------------------------------------
+;TFLAG:조교중COMABLE관리 표시 제어
+;-------------------------------------------------
+TFLAG:조교중COMABLE관리 = TFLAG:조교자동실행관리
+SIF TFLAG:조교자동실행관리 == 1
+	TFLAG:조교중COMABLE관리 = 0
+SIF TFLAG:조교자동실행관리
+	TFLAG:조교자동실행관리 --
+;우후후중이라면 접촉부위 표시
+SIF TFLAG:102 == 2
+	CALL SHOW_TOUCH
+
+;-------------------------------------------------
+;요리의 시간경과
+;-------------------------------------------------
+SIF DISHNAME != ""
+	CALL CEACK_COOKING
+
+;-------------------------------------------------
+;밭의 시간경과
+;-------------------------------------------------
+SIF TIME:5 >= 4
+	FLAG:803 = 0
+	FLAG:807 = 0
+
+;-------------------------------------------------
+;캐릭터의 태도
+;-------------------------------------------------
+CALL CHARA_ATTITUDE
+
+;-------------------------------------------------
+;캐릭터의 사고
+;-------------------------------------------------
+;CALL CHARA_MIND
+
+;-------------------------------------------------
+;시간경과, 캐릭터의 이동
+;-------------------------------------------------
+CALL INFO_TIME_PASSING
+
+;-------------------------------------------------
+;데이트종료타임업처리
+;-------------------------------------------------
+SIF CHK_DATENOW(CFLAG:MASTER:데이트중)
+	CALL 데이트종료타임업처리
+;-------------------------------------------------
+;TARGET 관련의 캐릭터 변수의 갱신
+;-------------------------------------------------
+CALL INFO_RENEW_TARGET
+
+;-------------------------------------------------
+;우후후 종료 TEQUIP 처리
+;EQUIP의 갱신도 여기에 가르쳐 둔다
+;-------------------------------------------------
+CALL INFO_RENEW_EQUIP
+
+;-------------------------------------------------
+;MASTER의 동행 플래그 체크
+;-------------------------------------------------
+SIF !동행인원수()
+	CFLAG:MASTER:동행 = 0
+
+;-------------------------------------------------
+;背景色設定
+;-------------------------------------------------
+IF FLAG:시간정지
+	SETBGCOLOR 1, 24, 60
+ELSE
+	RESETBGCOLOR
+ENDIF
+
+;-------------------------------------------------
+;정보 표시
+;-------------------------------------------------
+PRINTL
+;날씨의 표시/비표시의 갱신
+;천계에의 왕래때의 날씨의 갱신
+CALL INFO_CULC_WEATHER(날씨비표시)
+
+;「하루가 끝났습니다」표시와 연회 관련의 갱신 처리 등
+CALL INFO_GO_NEXTDAY
+CALL CHANGE_TIMEZONE
+
+;여기에서 게임 화면에 표시되는 인터페이스
+CALL INFO_CLOCK_IMAGE(TIME)
+
+;ここからゲーム画面に表示されるインターフェイス
+DRAWLINEFORM *
+;일시와 축일의 표시(개행 없음)
+CALL INFO_TIME_WATCH
+
+;각종 플래그 확인용 디버그중 이외는 비표시로
+;PRINTFORM 우후후:{CFLAG:TARGET:우후후}
+;PRINTFORM 장난:{CFLAG:장난}
+;PRINTFORM 수면심도:{TCVAR:TARGET:수면심도}
+
+;날씨와 월령의 표시
+SIF !날씨비표시
+	CALL INFO_SHOW_WEATHER
+
+PRINTPLAIN
+;시간정지 상태나 MASTER의 졸음 등
+CALL INFO_SITUATION
+;時間停止関連
+CALL INFO_TIMESTOP
+
+;-------------------------------------------------
+;현재위치 정보
+;-------------------------------------------------
+CALL INFO_GPS
+PRINTL
+;-------------------------------------------------
+;TARGET 정보와 모드 변환
+;-------------------------------------------------
+VARSET LOCAL
+;TARGET 관련의 간이 정보 표시 함수군
+CALL INFO_TARGET_DATAGROUP
+CALL PRINTBUTTON_EX(TFLAG:Status비표시 ? "▽[＋][Status]--------" # "▼[－][Status]--------", 3001, TFLAG:Status비표시)
+PRINTBUTTON "[능력표시]",803
+PRINTL
+IF !TFLAG:Status비표시
+	CALL INFO_BASE(MASTER)
+	SIF TARGET
+		CALL INFO_BASE(TARGET)
+	CALL INFO_STATUS
+ENDIF
+
+SIF TARGET
+	CALL SHOW_INFO_PALAM
+
+IF !TARGET && TFLAG:껴안기모드
+	TFLAG:껴안기모드 = 0
+	TFLAG:102 = 1
+ENDIF
+
+IF CFLAG:MASTER:우후후 == 2
+	SIF !TFLAG:PALAM비표시
+		PRINTL
+	DRAWLINE
+	CALL 카운터호출처리
+ENDIF
+;FileName_INFO.ERB --------------------------------- Rev1. 00
+;더러운 표시 처리
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@STAIN_INFO
+;주인의 더러움
+CALL INFO_CHARA_STAIN(MASTER)
+SIF TARGET > 0
+	CALL INFO_CHARA_STAIN(TARGET)
+SIF ASSI > 0
+	CALL INFO_CHARA_STAIN(ASSI)
+WAIT
+
+
+;더러운 표시 처리의 범용화
+@INFO_CHARA_STAIN(C_ID)
+#DIM        C_ID
+#DIM        BODY_PARTS
+#DIMS CONST PARTS_NAME = "구", "손", "P", "V", "A", "B"
+#DIM        TYPE_STAIN
+#DIMS CONST STAIN_NAME = "애액", "페니스", "정액", "애널", "모유", "점액", "파과의 피", "초콜렛"
+PRINTFORML 【%CALLNAME:C_ID%의 더러움】
+FOR BODY_PARTS, 0, 6
+	SIF PARTS_NAME:BODY_PARTS == "P" && !(TALENT:C_ID:2 & 2)
+		CONTINUE
+	SIF GROUPMATCH(PARTS_NAME:BODY_PARTS, "V", "B") && !(TALENT:C_ID:2 & 1)
+		CONTINUE
+	PRINTFORM 　%PARTS_NAME:BODY_PARTS%：
+	FOR TYPE_STAIN, 0, 7
+		SIF GETBIT(STAIN:C_ID:BODY_PARTS, TYPE_STAIN)
+			PRINTFORM <%STAIN_NAME:TYPE_STAIN%>
+	NEXT
+	IF GETBIT(STAIN:C_ID:BODY_PARTS, FINDELEMENT(STAIN_NAME, "초콜렛"))
+		IF GETBIT(STAIN:C_ID:BODY_PARTS, FINDELEMENT(STAIN_NAME, "모유"))
+			PRINT <초콜렛 밀크>
+		ELSE
+			PRINT <초콜렛>
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+PRINTL 
+
+
+
+@SAVEINFO
+;장소는 요괴의 산(산록)으로 반각 16 문자분 , 이름은 클라운피스로 14 문자분 필요
+PUTFORM {DAY,3,RIGHT}일째 %GET_MAPNAME(MAIN_MAP), 16, LEFT% %NAME:MASTER, 14, LEFT% Ver %SAVESTR:본체버전, 9, LEFT%
+
+;FileName_INFO.ERB --------------------------------- Rev1. 00
+;플레이 상태 표시 처리
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	まとめて表示するように改良,TARGETの＜道具や使用状態＞以外の状態はここ
+;-----------------------------------------------------------
+@SHOW_EQUIP_2
+;상황의 표시
+;조교 대상에는 사용하지 않는, 특수한 착탈식의 도구를 추가했을 경우는 여기에 추가를 해 주세요
+;(장소 변경, 마스터나 조수가 사용하는 도구등 )
+LOCALS = （
+
+IF TALENT:TARGET:기분 == 1
+	LOCALS += "・ご機嫌"
+ELSEIF TALENT:TARGET:기분 == -1
+	LOCALS += "・フキゲン"
+ENDIF
+
+IF CFLAG:TARGET:수면
+	SELECTCASE TCVAR:TARGET:수면제강도
+ 	CASE 1
+		LOCALS += "・깊은 수면"
+	CASE 2
+		LOCALS += "・매우 깊은 수면"
+	CASE 3
+		LOCALS += "・혼수중"
+	CASEELSE
+		LOCALS += "・수면중"
+	ENDSELECT
+ELSEIF TCVAR:TARGET:수면제강도
+	SELECTCASE TCVAR:TARGET:수면제강도
+	CASE 1
+	LOCALS += "・졸음을 느낌"
+	CASE 2
+	LOCALS += "・강한 졸음을 느낌"
+	CASE 3
+	LOCALS += "・몽롱한 상태"
+	ENDSELECT
+ENDIF
+
+SIF TCVAR:발정
+	LOCALS += "・발정중"
+SIF TCVAR:만취
+	LOCALS += "・만취중"
+
+SELECTCASE TCVAR:발원함보정
+	CASE 23
+		LOCALS += "・성적흥미 상승중"
+	CASE 31
+		LOCALS += "・해방 상승중"
+	CASE 41
+		LOCALS += "・젖기쉬움 상승중"
+	CASE 70
+		LOCALS += "・쾌감 긍정 상승중"
+	CASE 80
+		LOCALS += "・도착적 부여중"
+	CASE 82
+		LOCALS += "・새드 부여중"
+	CASE 83
+		LOCALS += "・마조 부여중"
+	CASE 101
+		LOCALS += "・C감도 상승중"
+	CASE 102
+		LOCALS += "・V감도 상승중"
+	CASE 103
+		LOCALS += "・A감도 상승중"
+	CASE 104
+		LOCALS += "・B감도 상승중"
+	CASE 106
+		LOCALS += "・M감도 상승중"
+	ENDSELECT
+
+;カラー表示,上に行くほど優先度が高い
+IF CFLAG:TARGET:수면
+	SETCOLOR C_BLUE
+ELSEIF TCVAR:TARGET:발정
+	SETCOLOR C_H_PINK
+ELSEIF TCVAR:TARGET:만취
+	SETCOLOR C_ORANGE
+ELSEIF TCVAR:TARGET:수면제강도
+	SETCOLOR C_BLUE
+ELSEIF TALENT:TARGET:기분 == 1
+	SETCOLOR C_AQUA
+ELSEIF TALENT:TARGET:기분 == -1
+	SETCOLOR C_RED
+ENDIF
+
+;表示部分
+PRINTFORM %NAME:TARGET%
+
+;通常時
+IF LOCALS== "（"
+	RETURN
+;状態時
+ELSE
+	LOCALS += "）"
+	PRINTFORM %REPLACE(LOCALS, "（・", "（")%
+ENDIF
+RESETCOLOR
+
+;FileName_INFO.ERB --------------------------------- Rev1. 00
+;도구 상태 표시 처리
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SHOW_EQUIP_1
+;사용중의 도구를 표시한다
+;한 번 사용하면(자) 해제할 때까지 멈추지 않는 도구나 조교를
+;추가했을 경우는 여기에 추가를 해 주세요
+SIF !CHARA_EQUIP(1)
+	RETURN
+	PRINTFORM 사용중(%NAME:TARGET%) 
+
+SIF	TCVAR:TARGET:피임약 == 1
+	PRINTFORM <피임약>
+SIF TEQUIP:TARGET:클리캡
+	PRINTFORM <클리캡>
+SIF TEQUIP:TARGET:오나홀
+	PRINTFORM <오나홀>
+SIF TEQUIP:TARGET:바이브
+	PRINTFORM <바이브>
+SIF TEQUIP:TARGET:애널바이브
+	PRINTFORM <애널바이브>
+SIF TEQUIP:TARGET:애널비즈
+	PRINTFORM <애널비즈>
+SIF TEQUIP:TARGET:유두캡
+	PRINTFORM <유두캡>
+SIF TEQUIP:TARGET:착유기
+	PRINTFORM <착유기>
+SIF TEQUIP:TARGET:눈가리개
+	PRINTFORM <눈가리개>
+SIF TEQUIP:TARGET:밧줄
+	PRINTFORM <밧줄로 긴박>
+SIF TEQUIP:TARGET:볼개그
+	PRINTFORM <볼개그>
+SIF TEQUIP:TARGET:관장
+	PRINTFORM <관장＋애널 플러그>
+SIF TEQUIP:TARGET:확장벌룬
+	PRINTFORM <확장벌룬>
+SIF TEQUIP:TARGET:애널전극
+	PRINTFORM <애널전극>
+; SIF TEQUIP:TARGET:24
+; 	PRINTFORM <유방 전극 장착중>
+SIF TEQUIP:TARGET:구속
+	PRINTFORM <구속중>
+;TEQUIP를 사용하지 않는듯함
+; SIF TEQUIP:TARGET:미약
+; 	PRINT [아양 약효과발휘중]
+; SIF TEQUIP:TARGET:이뇨제
+; 	PRINT [이뇨제 효과 발휘중]
+SIF TCVAR:TARGET:미약
+	PRINTFORM <미약효과 발휘중>
+SIF TCVAR:TARGET:이뇨제
+	PRINTFORM <이뇨제효과 발휘중>
+SIF TCVAR:TARGET:포이즌게이지
+	PRINTFORM <미독침투중>
+SIF TEQUIP:TARGET:비디오촬영
+	PRINTFORM <비디오촬영중({TEQUIP:TARGET:비디오촬영})
+SIF TEQUIP:TARGET:야외플레이
+	PRINTFORM <야외플레이중>
+SIF TEQUIP:TARGET:수치플레이 == 1
+	PRINTFORM <수치플레이중>
+SIF TEQUIP:TARGET:목욕탕플레이
+	PRINTFORM <목욕탕플레이중>
+SIF TEQUIP:TARGET:샤워
+	PRINTFORM <샤워>
+SIF TEQUIP:TARGET:새댁플레이
+	PRINTFORM <새댁플레이중>
+SIF TEQUIP:TARGET:삽입금지
+	PRINTFORM <삽입금지>
+; SIF TEQUIP:TARGET:계속키스
+; 	PRINTFORM <키스중>
+
+PRINTL  
+
+;여기보다↑에 TEQUIP에 등록한 것을 기입한다
+
+;FileName_INFO.ERB --------------------------------- Rev1. 00
+;로터 표시 처리
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	あなたの使用状態
+;-----------------------------------------------------------
+@SHOW_EQUIP_3
+#DIM 키스마크의상대
+
+SIF !CHARA_EQUIP(3)
+	RETURN
+키스마크의상대 = TFLAG:키스마크
+PRINTFORM 휴대중(%CALLNAME:PLAYER%) 
+;요리의 정보
+SIF DISHTYPE
+	CALL INFO_DISH
+
+IF TFLAG:키스마크 && !TFLAG:붕대
+	PRINTFORM [%CALLNAME:키스마크의상대%가 붙인 키스마크]
+ELSEIF TFLAG:키스마크 && TFLAG:붕대
+	PRINTFORM [%CALLNAME:키스마크의상대%가 붙인 키스마크(은폐중)]
+ENDIF
+SIF TEQUIP:MASTER:콘돔
+	PRINTFORM <콘돔>
+SIF FLAG:팬티수송
+	PRINTFORM <타인의 팬티>
+SIF CFLAG:PLAYER:로터삽입
+	PRINTFORM <로터(삽입중)>
+SIF CFLAG:PLAYER:로터A삽입
+	PRINTFORM <애널로터(삽입중)>
+SIF TFLAG:펄기한
+	PRINTFORM <애널 펄({TFLAG:펄삽입개수}구슬 삽입중  \@ TFLAG:펄기한 > TIME ? 앞으로 {TFLAG:펄기한 - TIME}분# \@)>
+;エプロンはTARGET（햇갈림）
+SIF TEQUIP:TARGET:에이프런
+	PRINTFORM <에이프런>
+
+;あなたに効果を発揮している薬などを表記
+IF TFLAG:선향옥토
+	IF TFLAG:선향옥토 >= 120
+		CALL COLORMESSAGE("<선향옥토>", C_PINK, 0, 1)
+	ELSE
+		CALL COLORMESSAGE("<선향옥토>", C_D_PINK, 0, 0)
+	ENDIF
+ENDIF
+SIF TCVAR:MASTER:국사무쌍약
+	PRINTFORM <국사무쌍약×{TCVAR:MASTER:국사무쌍약}>
+
+IF TFLAG:포이즌바디
+	CALL COLORMESSAGE("<포이즌바디>", C_D_PINK, 0, TFLAG:포이즌바디 >= 120)
+ENDIF
+
+PRINTL  
+
+;FileName_INFO.ERB --------------------------------- Rev1. 00
+;장비 상태 판정
+;@SHOW_EQUIP_1, @SHOW_EQUIP_3으로 사용하므로 장비품 추가하면 덧붙여 씀의 일
+;ARG = SHOW_EQUIP_{ARG} での参照元
+;PLAYER_EQUIPを改良しました
+;-----------------------------------------------------------
+@CHARA_EQUIP(ARG)
+#FUNCTION
+IF ARG == 1
+	SIF	TCVAR:TARGET:피임약 == 1
+		RETURNF 1
+	SIF TEQUIP:TARGET:클리캡
+		RETURNF 1
+	SIF TEQUIP:TARGET:오나홀
+		RETURNF 1
+	SIF TEQUIP:TARGET:바이브
+		RETURNF 1
+	SIF TEQUIP:TARGET:애널바이브
+		RETURNF 1
+	SIF TEQUIP:TARGET:애널비즈
+		RETURNF 1
+	SIF TEQUIP:TARGET:유두캡
+		RETURNF 1
+	SIF TEQUIP:TARGET:착유기
+		RETURNF 1
+	SIF TEQUIP:TARGET:눈가리개
+		RETURNF 1
+	SIF TEQUIP:TARGET:밧줄
+		RETURNF 1
+	SIF TEQUIP:TARGET:볼개그
+		RETURNF 1
+	SIF TEQUIP:TARGET:관장
+		RETURNF 1
+	SIF TEQUIP:TARGET:확장벌룬
+		RETURNF 1
+	SIF TEQUIP:TARGET:애널전극
+		RETURNF 1
+;	SIF TEQUIP:TARGET:24
+;		RETURNF 1
+	SIF TEQUIP:TARGET:구속
+		RETURNF 1
+	;TEQUIP를 사용하지 않는듯함
+;	SIF TEQUIP:TARGET:미약
+;		RETURNF 1
+;	SIF TEQUIP:TARGET:이뇨제
+;		RETURNF 1
+	SIF TCVAR:TARGET:미약
+		RETURNF 1
+	SIF TCVAR:TARGET:이뇨제
+		RETURNF 1
+	SIF TCVAR:TARGET:포이즌게이지
+		RETURNF 1
+	SIF TEQUIP:TARGET:비디오촬영
+		RETURNF 1
+	SIF TEQUIP:TARGET:야외플레이
+		RETURNF 1
+	SIF TEQUIP:TARGET:수치플레이 == 1
+		RETURNF 1
+	SIF TEQUIP:TARGET:목욕탕플레이
+		RETURNF 1
+	SIF TEQUIP:TARGET:샤워
+		RETURNF 1
+	SIF TEQUIP:TARGET:새댁플레이
+		RETURNF 1
+	SIF TEQUIP:TARGET:삽입금지
+		RETURNF 1
+;	SIF TEQUIP:TARGET:계속키스
+;		RETURNF 1
+ELSEIF ARG == 3
+	SIF TFLAG:키스마크
+		RETURNF 1
+	SIF FLAG:팬티수송
+		RETURNF 1
+	SIF CFLAG:PLAYER:로터삽입
+		RETURNF 1
+	SIF CFLAG:PLAYER:로터A삽입
+		RETURNF 1
+	SIF TFLAG:펄기한
+		RETURNF 1
+	SIF TFLAG:선향옥토
+		RETURNF 1
+	SIF TCVAR:MASTER:국사무쌍약
+		RETURNF 1
+	SIF TFLAG:포이즌바디
+		RETURNF 1
+	SIF TEQUIP:MASTER:콘돔
+		RETURNF 1
+	;エプロンはTARGET（紛らわしい）
+	SIF TEQUIP:TARGET:에이프런
+		RETURNF 1
+	SIF DISHTYPE
+		RETURNF 1
+ENDIF
+RETURNF 0
+
+;FileName_INFO.ERB --------------------------------- Rev1. 00
+;파라미터 표시 처리
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;----------------------------------------------------------
+@SHOW_INFO_PALAM
+CALL PRINTBUTTON_EX(TFLAG:PALAM비표시 ? "▽[＋][Palam]---------" # "▼[－][Palam]---------", 3000, TFLAG:PALAM비표시)
+PRINTL
+VARSET LOCAL
+IF !TFLAG:PALAM비표시
+	FOR LOCAL, 0,100
+		SIF !STRLENS(PALAMNAME:LOCAL)
+			CONTINUE
+		SIF LOCAL <= 4 && EX:TARGET:(LOCAL + 20)
+			SETCOLOR C_YELLOW
+		PRINTFORM  %PALAMNAME:LOCAL%Lv{GETPALAMLV(PALAM:LOCAL,15),2}
+		RESETCOLOR
+		IF GETPALAMLV(PALAM:LOCAL,15) >= 15
+			CALL PRINT_COLORBAR, 0, 1, 8, UNICODE(0x2584), UNICODE(0x2584), BARCOLORSET("파랑"), RESULT:1
+		ELSE
+			;현재의 PALAMLV
+			LOCAL:1 = PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) - PALAMLV:(GETPALAMLV(PALAM:LOCAL,15))
+			LOCAL:4 = PALAM:LOCAL - PALAMLV:(GETPALAMLV(PALAM:LOCAL,15))
+			IF LOCAL < 4
+				CALL PRINT_COLORBAR, PALAM:LOCAL, 10000, 8, UNICODE(0x2584), UNICODE(0x2584), BARCOLORSET("파랑"), RESULT:1
+			ELSE
+				CALL PRINT_COLORBAR, LOCAL:4, LOCAL:1, 8, UNICODE(0x2584), UNICODE(0x2584), BARCOLORSET("파랑"), RESULT:1
+			ENDIF
+	;		NEXT
+		ENDIF
+		LOCAL:1 = PALAM:LOCAL
+		LOCAL:2 = 0
+		;이만큼 특수
+		IF LOCAL == 9 && LOCAL:1 >= 100000
+			PRINTFORM %"마찰 0",6% 
+		ELSE
+			;자리수 맞추어라
+			FOR LOCAL:10, 0,10
+				IF LOCAL:1 > 999999
+					LOCAL:1 /= 1000
+					LOCAL:2 ++
+				ENDIF
+			NEXT
+			PRINTFORM {LOCAL:1,6}
+			SELECTCASE LOCAL:2
+				CASE 0
+					PRINT  
+				CASE 1
+					PRINT k
+				CASE 2
+					PRINT M
+				CASE 3
+					PRINT G
+				CASE 4
+					PRINT T
+				CASE 5
+					PRINT P
+			ENDSELECT
+		ENDIF
+		LOCAL:3 ++
+		SIF LOCAL:3 % PRINTCPERLINE() == 0
+			PRINTL 
+	NEXT
+ENDIF
+
+;-------------------------------------------------
+;함수명 :SORT_CFLAG
+;CFLAG:ARG의 승순으로 RESULT:1에 캐릭터 번호를 대입한다
+;ARG CFLAG의 번호
+;-------------------------------------------------
+@SORT_CFLAG(ARG)
+VARSET LOCAL
+VARSET RESULT
+FOR LOCAL:10,1,CHARANUM
+	LOCAL:1 = 0
+	FOR LOCAL,1,CHARANUM
+		SIF MATCH(RESULT,LOCAL)
+			CONTINUE
+		IF CFLAG:LOCAL:ARG >= LOCAL:1
+			LOCAL:1 = CFLAG:LOCAL:ARG
+			LOCAL:2 = LOCAL
+		ENDIF
+	NEXT
+	RESULT:(LOCAL:10) = LOCAL:2
+NEXT
+;FileName_INFO.ERB --------------------------------- Rev1. 00
+;요리 선인도 체크
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@CEACK_COOKING
+;IF TIME_PROGRESS(DISHTIME) > 720
+IF TIME_PROGRESS(DISHTIME) > 720 && DISHTYPE
+	PRINTFORMW %DISHNAME%는 도저히가 아니지만 먹을 수 없다!
+	PRINTL
+	PRINTFORMW %조교자는% %DISHNAME%를 폐기했다
+	CALL RESET_DISH
+ELSEIF TIME_PROGRESS(DISHTIME) > 360 && DISHSPOIL < 2
+	PRINTFORMW %DISHNAME%로부터 싫은 냄새가 나 왔다…
+	DISHSPOIL = 2
+;보온전기밥통 가지고 있으면(자) 연장
+ELSEIF DISHSPOIL < 1 && (TIME_PROGRESS(DISHTIME) > 60 && !ITEM:35 || TIME_PROGRESS(DISHTIME) > 180 && ITEM:35)
+	PRINTFORMW %DISHNAME%는 차가워져 버렸다…
+	DISHSPOIL = 1
+ENDIF
+
+;-------------------------------------------------
+;고전 시각 함수 @CLASSICAL_TIME
+;	인수 0：대상의 변수(돼지에서는 초)
+;	인수 1：1이라면 인수 0을 초로, 2라면 때에 계산한다
+;	인수 2：표시형식(돼지 「○의0개(살)」,1=「○의 각, 0개(살)」,2=「○의0개(살)　-00-」)
+;식중에서 사용하는 함수입니다. 인수에 기록되고 있는 숫자를 초로서 현재의 시각을 캐릭터라인으로 돌려줍니다
+;고전 시각 표기이므로, 30분 단위 미만의 끝수는 버립니다.
+;-------------------------------------------------
+@CLASSICAL_TIME(ARG, ARG:1, ARG:2)
+#FUNCTIONS
+;0:00하지만 아이의 3살이므로, 60분을 더한다
+ARG += 60
+;일자도 관리하고 있는 케이스를 생각해 24시간(1440분 )에 나누어 너무를 취한다(아이 1살~2개(살)도 여기서 대응된다)
+ARG %= 1440
+;표시
+SIF GET_CLASSICAL_HOUR(ARG, 1) == "축" && (ARG%120)/30 == 2
+	RETURNF "축시 3경"
+RETURNF @"%GET_CLASSICAL_HOUR(ARG, 1)%의\@ ARG:2 == 1 ?  각, # \@%TOKANJI(((ARG%120)/30)+1)%개\@ ARG:2 == 2 ?   -%GET_CLASSICAL_HOUR(ARG, 1, 1)%- # \@"
+
+;때를 취득
+;인수 2를 실로 하면(자), 대범한 시간의 모습을 취한다
+@GET_CLASSICAL_HOUR(ARG, ARG:1, ARG:2)
+#FUNCTIONS
+;분으로 변환한다
+SELECTCASE ARG:1
+	;때에 건네주는 경우
+	CASE 2
+		ARG *= 60
+	;분에 건네주는 경우(처리 없음)
+	CASE 1
+	;초에 건네주는 경우(Default)
+	CASEELSE
+		ARG /= 60
+ENDSELECT
+
+SELECTCASE ARG/120
+	CASE 0
+		RETURNF \@ ARG:2 ?  심야 # 자 \@
+	CASE 1
+		RETURNF \@ ARG:2 ?  미명 # 축 \@
+	CASE 2
+		RETURNF \@ ARG:2 ?  동틀녁 # 인 \@
+	CASE 3
+		RETURNF \@ ARG:2 ?  새벽 # 묘 \@
+	CASE 4
+		RETURNF \@ ARG:2 ?  이른아침 # 진 \@
+	CASE 5
+		RETURNF \@ ARG:2 ?  오전 # 사 \@
+	CASE 6
+		RETURNF \@ ARG:2 ?  낮 # 오 \@
+	CASE 7
+		RETURNF \@ ARG:2 ?  한낮 # 미 \@
+	CASE 8
+		RETURNF \@ ARG:2 ?  하루끝 # 신 \@
+	CASE 9
+		RETURNF \@ ARG:2 ?  황혼 # 유 \@
+	CASE 10
+		RETURNF \@ ARG:2 ?  저녁 # 술 \@
+	CASE 11
+		RETURNF \@ ARG:2 ?  밤중 # 해 \@
+ENDSELECT
+
+;-------------------------------------------------
+;수치→한나라 숫자 변환 함수 @TOKANJI
+;TOSTR 함수 틱크에, 인수의 수치를 한나라 숫자의 캐릭터라인으로 돌려줍니다
+;변수의 최대치는 약 922경이기 (위해)때문에, 일, 만, 억, 조, 경의 5회 처리합니다
+;-------------------------------------------------
+@TOKANJI(ARG)
+#FUNCTIONS
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM LCOUNT, 1
+VARSET LOCALS
+FOR LCOUNT, 0, 5
+	LOCAL = ARG/POWER(10000, (4-LCOUNT))
+	ARG %= POWER(10000, (4-LCOUNT))
+	IF LOCAL
+		LOCALS += TOKANJIT(LOCAL)
+		SELECTCASE LCOUNT
+			CASE 0
+				LOCALS += "경"
+			CASE 1
+				LOCALS += "조"
+			CASE 2
+				LOCALS += "억"
+			CASE 3
+				LOCALS += "만"
+		ENDSELECT
+	ENDIF
+NEXT
+RETURNF \@ LOCALS != "" ?  %LOCALS% # 영 \@
+
+;내부용 or간이용
+;4자리수 이내의 한자 변환. 만이상 주면(자) 버그
+@TOKANJIT(ARG)
+#FUNCTIONS
+SIF ARG >= 10000
+	RETURNF "버그"
+LOCALS = \@ ARG/1000 ? %TOKANJIS(ARG/1000, 1)%천 # \@
+ARG %= 1000
+LOCALS += \@ ARG/100 ? %TOKANJIS(ARG/100, 1)%백 # \@
+ARG %= 100
+LOCALS += \@ ARG/10 ? %TOKANJIS(ARG/10, 1)%십 # \@
+ARG %= 10
+RETURNF LOCALS + TOKANJIS(ARG)
+
+;1자리수의 변환. 인수 1을 실로 하면(자) 1을 생략 한다. 2이상으로 하면(자) 영을 표시한다
+@TOKANJIS(ARG, ARG:1)
+#FUNCTIONS
+SELECTCASE ARG
+	CASE 0
+		RETURNF \@ ARG:1 > 1 ?  영 #  \@
+	CASE 1
+		RETURNF \@ ARG:1 ?   # 일 \@
+	CASE 2
+		RETURNF "2"
+	CASE 3
+		RETURNF "3"
+	CASE 4
+		RETURNF "4"
+	CASE 5
+		RETURNF "5"
+	CASE 6
+		RETURNF "6"
+	CASE 7
+		RETURNF "7"
+	CASE 8
+		RETURNF "8"
+	CASE 9
+		RETURNF "9"
+	CASE 10
+		RETURNF "10"
+	CASEELSE
+		RETURNF "버그"
+ENDSELECT
+
+
+
+;-------------------------------------------------
+;시간경과, 캐릭터의 이동
+;-------------------------------------------------
+@INFO_TIME_PASSING
+#DIM MOODBREAKER
+IF TFLAG:원거리이동
+	;TFLAG를 되돌린다(원거리이동 플래그)
+	TFLAG:원거리이동 = 0
+ELSEIF TIME_PROGRESS(TIME:1)
+	;캐릭터 이동
+	CALL CHARA_MOVEMENT
+	IF TCVAR:MASTER:친해져 >= 1
+		MOODBREAKER = IN_ROOM_MEMBER("MIN", CFLAG:MASTER:현재위치, "CFLAG", 6)
+		LOCAL:2 = CFLAG:MOODBREAKER:태도
+		;친해져 강도 0 이하라면 공기가 바뀐다
+		IF LOCAL:2 <= 0 && MOODBREAKER > 0 && CFLAG:MOODBREAKER:현재위치 != CFLAG:MOODBREAKER:전턴위치 && !CFLAG:MOODBREAKER:수면
+			PRINTFORMW %CALLNAME:MOODBREAKER%가 들어 온 것에 의해 공기가 바뀌어 버렸다…
+			FOR LOCAL, 0, CHARANUM
+				SIF CFLAG:LOCAL:동실 && CFLAG:LOCAL:태도 >= 1 && !CFLAG:LOCAL:수면
+					CALL KOJO_MESSAGE_SEND("EVENT",5,LOCAL,MOODBREAKER)
+				;장난 OFF
+				CALL SET_PRANK(0, LOCAL, 2)
+				;은밀중 OFF
+				CALL SET_SNEAK(0, LOCAL, 2)
+			NEXT
+		ENDIF
+	ENDIF
+ENDIF
+TIME:1 = TIME + 1440 * DAY
+CALL SET_SLEEP(0, MASTER, 0)
+
+
+
+;-------------------------------------------------
+;TARGET 관련의 캐릭터 변수의 갱신
+;-------------------------------------------------
+@INFO_RENEW_TARGET
+CALL TARGETSET_CHACK("「동실 갱신 없음」")
+;MASTER와 동실 플래그
+FOR LOCAL, 1, CHARANUM
+	;현재위치가 MASTER와 같으면 동실
+	IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+		;아직 동실 플래그가 서 있지 않은(현턴으로 동실화) 한편 자지 않았다
+		SIF !CFLAG:LOCAL:동실 && !CFLAG:LOCAL:수면
+			CALL AFFAIR_DISCLOSURE(LOCAL, 0)
+		;정사의 발각 AFFAIR_DISCLOSURE 로 떠났을 경우는 동실이 서지 않는다
+		SIF !RESULT
+			CFLAG:LOCAL:동실 = 1
+	ELSE
+		;상대에게서 이쪽이 보이고 있어, 상대인가 이쪽인가가 이동했는지 이쪽이 덮치기
+		IF CAN_MOVE(CFLAG:LOCAL:현재위치, CFLAG:MASTER:현재위치) & 2 && !CFLAG:LOCAL:수면 && PREVCOM >= 0 && FLAG:70 != 1
+			SIF (CFLAG:MASTER:전턴위치 != CFLAG:MASTER:현재위치 || CFLAG:LOCAL:전턴위치 != CFLAG:LOCAL:현재위치 || TRAINNAME:PREVCOM == "밀어넘어뜨린다")
+				CALL AFFAIR_DISCLOSURE(LOCAL, 1)
+		ENDIF
+		CFLAG:LOCAL:동실 = 0
+	ENDIF
+NEXT
+
+;친해져 강도 결정
+;TARGET측
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	;합의나 약점이 없으면 3이 되지 않는다
+	IF GETBIT(CFLAG:(TARGET:LOCAL):기정사실, 0) || CFLAG:(TARGET:LOCAL):약점잡힘
+		LOCAL:1 = CFLAG:(TARGET:LOCAL):태도
+	ELSE
+		LOCAL:1 = MIN(CFLAG:(TARGET:LOCAL):태도, 2)
+	ENDIF
+	TCVAR:(TARGET:LOCAL):친해져 = LOCAL:1
+	;TARGET:2이후는, MIN(직전의 TARGET의 TCVAR:130, 자신의 CFLAG:6)
+	SIF LOCAL >= 2
+		TCVAR:(TARGET:LOCAL):친해져 = MIN(TCVAR:(TARGET:(LOCAL - 1)):친해져, TCVAR:(TARGET:LOCAL):친해져)
+NEXT
+
+;MASTER는 TARGET:1~의 CFLAG:6의 최저치
+TCVAR:MASTER:친해져 = TCVAR:(IN_ROOM_MEMBER("MIN", CFLAG:MASTER:현재위치, "TCVAR", 130)):친해져
+
+
+;-------------------------------------------------
+;우후후 종료 TEQUIP 처리
+;EQUIP의 갱신도 여기에 가르쳐 둔다
+;-------------------------------------------------
+@INFO_RENEW_EQUIP
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:LOCAL:우후후 && !BATHROOM(CFLAG:LOCAL:현재위치) && !수면시간(LOCAL)
+		CONTINUE
+	SIF LOCAL == TARGET && CFLAG:LOCAL:현재위치 != CFLAG:LOCAL:전턴위치
+		CALL ENDUFUFU(LOCAL)
+	;복장 갱신계
+	;멘드이의 것으로 정리해
+	SIF !BATHROOM(CFLAG:LOCAL:현재위치)
+		TEQUIP:(LOCAL):목욕탕플레이 = 0
+	;목욕탕가운데라면 전라
+	IF BATHROOM(CFLAG:LOCAL:현재위치)
+		SIF EQUIP:LOCAL:0
+			CALL 탈의처리(LOCAL, "전라", "「표시 없음」")
+		IF CFLAG:LOCAL:우후후
+			; || TCVAR:LOCAL:친해져 > 2
+			TEQUIP:(LOCAL):목욕탕플레이 = 1
+		ELSE
+			TEQUIP:(LOCAL):목욕탕플레이 = 0
+		ENDIF
+	;우후후/장난중은 의상 리셋를 억제
+	ELSEIF !(CFLAG:LOCAL:우후후 || CFLAG:LOCAL:장난)
+		CALL CHANGE_CLOTHES(LOCAL, "의상 리셋")
+	ENDIF
+	CALL CLOTHES_SETTING_TRAIN(LOCAL)
+	
+	;한우산을씀 플래그(동행 의존)
+	;한우산을씀 할 수 있는 것은 타겟만
+	SIF LOCAL != 0 && !CHK_DATENOW(CFLAG:LOCAL:데이트중) && (!CFLAG:LOCAL:동행 || LOCAL != TARGET)
+		TEQUIP:LOCAL:201 = 0
+	;한우산을씀 플래그(동행 의존)
+	;데이트 나카모치속 시키는 처리＋타겟과 한우산을씀 하는 처리＋데리고 나간 후 밖으로 나왔을 때 비가 내리고 있으면(자) 한우산을씀 하는 처리
+	SIF LOCAL != 0 && (CHK_DATENOW(CFLAG:LOCAL:데이트중) || CFLAG:LOCAL:동행) && LOCAL == TARGET && TIME:5 > 3 && TIME:5 < 14 && OUTROOF(CFLAG:MASTER:현재위치) && (ITEM:36 || (TARGET == 16 || TARGET == 26 || TARGET == 40 || TARGET == 68))
+		TEQUIP:LOCAL:201 = 1
+NEXT
+
+
+;날씨의 표시/비표시의 갱신
+;천계에의 왕래때의 날씨의 갱신
+@INFO_CULC_WEATHER(날씨비표시)
+#DIM REF 날씨비표시
+#DIM     원래날씨
+날씨비표시 = 0
+IF CFLAG:MASTER:데이트중 == 9 || CFLAG:MASTER:현재위치 == 회안통로
+	날씨비표시 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	날씨비표시 = 1
+ENDIF
+IF CFLAG:MASTER:현재위치 == 천계 && !원래날씨
+	원래날씨 = TIME:5
+	TIME:5 = 1
+ELSEIF CFLAG:MASTER:현재위치 != 천계 && 원래날씨
+	TIME:5 = 원래날씨
+	원래날씨 = 0
+ENDIF
+
+
+
+;「하루가 끝났습니다」표시와 연회 관련의 갱신 처리 등
+@INFO_GO_NEXTDAY
+SIF TIME <= 1440
+	RETURN
+PRINTL  
+IF !CFLAG:MASTER:우후후
+	IF FESTIVAL() == "그믐날"
+	PRINTW HAPPY NEW YEAR!!
+	PRINTW 사자에상 시공이니까 올해도 20XX년이다！
+	ELSE
+	PRINTW 하루가 끝났습니다
+	ENDIF
+ENDIF
+PRINTL  
+;연회 당일에 하루가 끝나면(자) 연회 플래그 OFF
+IF DAY > FLAG:34 && FLAG:연회개최플래그
+	;회장이 된 장소는 몹시 황폐해지는, 거점외에서도 대상 지점의 더러운 증가시킨다
+	SIF 100 + FLAG:32 < 300
+		YOGORE:(FLAG:32) += 1000
+	FLAG:연회개최플래그 = 0
+	FLAG:31 = 0
+	FLAG:32 = 0
+	TFLAG:연회장 = 0
+	FLAG:33 = 0
+	FLAG:34 = 0
+	FLAG:35 = 0
+	FLAG:36 = 0
+	FOR LOCAL,0,CHARANUM
+		CFLAG:LOCAL:350 = 0
+		MAXBASE:LOCAL:일량 = 0
+		BASE:LOCAL:일량 = 0
+		CFLAG:LOCAL:20 = 0
+		CFLAG:LOCAL:행동 = 0
+	NEXT
+ENDIF
+;연회의 개최 판정
+SIF FLAG:3 && FLAG:연회개최플래그 == 0
+	CALL ENKAI_SETTING
+;---------------------------
+;시간의 경과
+DAY ++
+DAY:3 ++
+TIME -= 1440
+CALL CHANGE_MONTH
+;---------------------------
+;연회의 참가자 결정
+IF FLAG:3 && FLAG:연회개최플래그 != 98 && FLAG:30 != 99 && DAY >= FLAG:34
+	CALL ENKAI_ENTRY
+	FOR LOCAL, 1, CHARANUM
+		;자택 거주 캐릭터라면 참가자 내방하지 않는다
+		SIF CFLAG:LOCAL:신사거주 > 0
+			CONTINUE
+		IF CFLAG:LOCAL:연회참가
+			CFLAG:LOCAL:거점내방 = 0
+			CFLAG:LOCAL:만난위치 = 0
+		ENDIF
+	NEXT
+ENDIF
+
+
+;일시와 축일의 표시(개행 없음)
+@INFO_TIME_WATCH
+PRINTFORM %GET_MONTH()% {DAY:3}일째(%GET_DAY()%)
+SETCOLOR C_RED
+PRINTFORM %FESTIVAL()%
+RESETCOLOR
+PRINTFORM %시각표시(TIME)% 
+PRINTFORM (%CLASSICAL_TIME(TIME, 1, 2)%)
+
+;-------------------------------------------------
+;	時計画像を表示
+;
+;	ARG		：時刻
+;	iSize	：フォントに対するサイズ％数値　縦基準　縦横比維持　省略で1000(10倍)
+;	sAlign	：align属性　省略で左寄せ　left, center, rightの三種が손가락定できます
+;-------------------------------------------------
+@INFO_CLOCK_IMAGE(ARG, iSize=500,sAlign="right")
+#DIM iSize
+#DIMS sAlign
+#DIMS sPrint_Text
+#DIM iEnter_Con
+#DIM iFont_Hei_mag
+#DIM YPOS
+
+iEnter_Con = 4
+iFont_Hei_mag = GETCONFIG("一行の高さ") * iSize*10 / GETCONFIG("フォントサイズ")
+iFont_Hei_mag = (iFont_Hei_mag/10) + (iFont_Hei_mag%10 >= 5?1#0)
+YPOS = iEnter_Con * iFont_Hei_mag / 10+1
+sPrint_Text =  <p align='%sAlign%'><nobr>
+sPrint_Text += @"<img src='%GET_CLOCK_IMAGE_NAME(ARG)%' height='{iFont_Hei_mag}'"
+sPrint_Text += @"ypos='{YPOS}'>"
+sPrint_Text += @"</p>"
+
+;PRINTFORM %sPrint_Text%
+HTML_PRINT sPrint_Text
+
+;-------------------------------------------------
+;	時計画像名を取得
+;
+;	ARG	：時刻
+;-------------------------------------------------
+@GET_CLOCK_IMAGE_NAME(ARG)
+#FUNCTIONS
+#DIM HOUR
+#DIM MINUTE
+#DIMS IMAGE_NAME
+HOUR   = ARG / 60 % 12
+MINUTE = ARG % 60 / 5 * 5
+IMAGE_NAME = 時計_%TOSTR(HOUR,"00")%_%TOSTR(MINUTE,"00")%
+RETURNF IMAGE_NAME
+
+;날씨と月齢の表示
+@INFO_SHOW_WEATHER
+SIF FLAG:이상기상
+	SETCOLOR C_PINK
+PRINTFORM ― %GET_WEATHER()% ― 
+RESETCOLOR
+;06때부터 18시까지는 낮
+IF TIME:5 == 0 || TIME:5 == 1
+	IF TIME:2 >= 2 && TIME:2 <= 4
+		SETCOLOR 0xFF9640
+		PRINTFORM %UNICODE(0x2600)%
+	ELSE
+		;19시부터 06시까지는 야간
+		SETCOLOR 0xFFFF40
+		PRINTFORM %UNICODE(0x262A)%
+			;촌티 있고 것으로 보류
+			;IF MOON_WATCH(DAY:3) > 0
+			;PRINTFORM %UNICODE(0x262A)%
+			;ELSE
+			;UNICODE 0x2728
+			;PRINT ★
+			;ENDIF
+	ENDIF
+ELSEIF TIME:5 == 2 || TIME:5 == 3
+	SETCOLOR 0x9C9C9C
+	PRINTFORM %UNICODE(0x2601)%
+ELSEIF (TIME:5 == 4 || TIME:5 == 5 || TIME:5 == 6 || TIME:5 == 7) && TEQUIP:TARGET:201 && OUTROOF(CFLAG:MASTER:현재위치)
+	SETCOLOR 0xFF99CC
+	PRINTFORM %UNICODE(0x2602)% 
+	SETCOLOR 0xFFCCFF
+	CALL HEART
+	PRINTFORM 한우산을씀
+	CALL HEART
+ELSEIF TIME:5 == 4 || TIME:5 == 5 || TIME:5 == 6 || TIME:5 == 7
+	SETCOLOR 0x0000FF
+	PRINTFORM %UNICODE(0x2602)%
+ELSEIF (TIME:5 >= 8 && TIME:5 <= 13) && TEQUIP:TARGET:201 && OUTROOF(CFLAG:MASTER:현재위치)
+	SETCOLOR 0xFFCCFF
+	PRINTFORM %UNICODE(0x2603)% 
+	SETCOLOR 0xFF99CC
+	CALL HEART
+	PRINTFORM 한우산을씀
+	CALL HEART
+ELSEIF TIME:5 >= 8 && TIME:5 <= 13
+	SETCOLOR 0xFFFFFF
+	PRINTFORM %UNICODE(0x2603)%
+ENDIF
+RESETCOLOR
+IF TIME:7 == 1
+	SETCOLOR 0xFF0000
+	PRINT /
+	SETCOLOR 0xFFCC00
+	PRINT /
+	SETCOLOR 0xFFFF00
+	PRINT /
+	SETCOLOR 0x66CC00
+	PRINT /
+	SETCOLOR 0x3399FF
+	PRINT /
+	SETCOLOR 0x0033CC
+	PRINT /
+	SETCOLOR 0x990099
+	PRINT /
+ELSEIF TIME:7 == 2
+	SETCOLOR 0xFFFFFF
+	PRINTFORM +. *:˚+:
+ENDIF
+RESETCOLOR
+CALL INFO_MOON
+
+;월령의 표시
+@INFO_MOON
+#DIM MOON
+MOON = MOON_WATCH(DAY:3)
+SIF MOON <= 0
+	RETURN
+SETCOLOR 0xFFFF40
+PRINTFORM %NAME_MOON(DAY:3)%
+RESETCOLOR
+
+
+;시간정지관련
+;TSPバーとコマンドの位置はどちらが良い？
+;暫定に倣って停止解除の位置とX軸が近いのでコマンドを右側にしていますが、スペース（"　"）があるので左側にもできます。
+@INFO_TIMESTOP
+PRINT TSP
+CALL BASE_BAR(MASTER, "TSP", 30, "물색", "「종류 표기 없음」")
+;시간정지 커맨드를 참고에 조건 덧붙여 씀
+IF BASE:MASTER:기력 <= 0 || BASE:MASTER:TSP <= 0 || (!FLAG:70 && (CFLAG:우후후 || CFLAG:장난 || CFLAG:동침중))
+	SETCOLOR C_L_GRAY
+	PRINT [시간정지 불가]
+	RESETCOLOR
+ELSEIF !FLAG:70
+	IF TFLAG:망상중 == 1
+		PRINT [망상중]
+	ELSEIF CFLAG:MASTER:장난
+		SETCOLOR C_L_GRAY
+		PRINT [시간정지 불가]
+		RESETCOLOR
+	ELSE
+		CALL PRINTBUTTON_EX("[시간정지가능]", 355,0, FLAG:70, )
+	ENDIF
+ELSEIF CFLAG:우후후
+	CALL PRINTBUTTON_EX("[시간정지 해 장난중]", 999,0, FLAG:70)
+ELSE
+	CALL PRINTBUTTON_EX("[시간정지중]", 999,0, FLAG:70)
+ENDIF
+@INFO_SITUATION
+SIF TEQUIP:애태우기모드
+	PRINT 　[초조하게해중]
+PRINTFORM 　[%HUNGER(MASTER)%]　
+RESETCOLOR
+IF NEMUKE() > 720
+	LOCALS = 수면가능
+	IF NEMUKE() > 960
+		SETCOLOR C_RED
+		LOCALS = 수면요
+	ELSEIF NEMUKE() > 840
+		SETCOLOR C_YELLOW
+	ELSE
+		SETCOLOR C_P_YELLOW
+	ENDIF
+	SIF CFLAG:MASTER:졸음쫒기강도
+		LOCALS += "・졸음쫒기"
+	PRINTFORML <%LOCALS%>
+	RESETCOLOR
+ELSEIF FLAG:데이트상대
+	SETCOLOR 255,51,153
+	IF CFLAG:(FLAG:데이트상대):현재위치 == OMANEKIBEYA()
+		PRINTFORM   <%CALLNAME:(FLAG:데이트상대)%의 방에 방해중>
+	ELSE
+		PRINTFORM   <%CALLNAME:(FLAG:데이트상대)%과 데이트중>
+	ENDIF
+	RESETCOLOR
+	;MASTER의 졸음이 한계에 가까우면 경고
+	IF NEMUKE() > 660
+		PRINT (이제 끝맺는 기회입니다)
+	ENDIF
+	PRINTL
+ELSEIF CFLAG:MASTER:385
+	SELECTCASE CFLAG:MASTER:385
+		CASE IS > 240
+			PRINTL <졸음쫒기·극>
+		CASE IS > 180
+			PRINTL <졸음쫒기·강>
+		CASE IS > 120
+			PRINTL <졸음쫒기·중>
+		CASEELSE
+			PRINTL <졸음쫒기·약>
+	ENDSELECT
+ELSE
+	PRINTL
+ENDIF
+
+
+
+;현재위치 정보
+@INFO_GPS
+IF CHK_DATENOW(CFLAG:MASTER:데이트중) && GET_DATE_PLACE(CFLAG:MASTER:현재위치) && CFLAG:MASTER:데이트중 != MAIN_MAP + 1 && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	PRINTFORMS "%DATENAME_PLACE()%에의 도중"
+	PRINTFORMS "　　　(도착까지 앞으로{DATE_REMAINTIME()}분 )"
+ELSEIF CHK_DATENOW(CFLAG:MASTER:데이트중) && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	PRINTFORMS "%DATENAME_PLACE()%  - %DATENAME_SPOT()% -"
+ELSE
+	PRINTFORMS NAME_FROM_PLACE(CFLAG:MASTER:현재위치)
+	;히노끼욕조設置場所はそれとわかるように
+	SIF NEAR_BATH() == CFLAG:MASTER:현재위치
+		PRINTFORMS " <히노끼욕조Lv{ITEM:히노끼욕조}>"
+	;私室にいる時、家具シリーズの表記
+	IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치
+		SIF ITEM:오동나무침대
+			PRINTFORMS " <오동나무침대Lv{ITEM:오동나무침대}>"
+		SIF ITEM:느티책상의자
+			PRINTFORMS " <느티책상의자Lv{ITEM:느티책상의자}>"
+		SIF ITEM:참나무쇼파
+			PRINTFORMS " <참나무쇼파Lv{ITEM:참나무쇼파}>"
+	ENDIF
+ENDIF
+;우후후중은 마음이 산란해지므로 표시시키지 않는, 초대방 98은 표시시키므로 99 미만
+IF TFLAG:102 != 2 && !FLAG:1002 && AT_HOME(MASTER) == 1
+	PRINTPLAIN  
+	PRINTFORM %SEIKETU(CFLAG:MASTER:현재위치)%
+	RESETCOLOR
+ENDIF
+
+
+
+;요리의 정보
+@INFO_DISH
+PRINTFORM <%EX_DISHNAME()%
+SIF GETBIT(TCVAR:MASTER:308, 3)
+	PRINT (엄청 매운)
+SIF GETBIT(TCVAR:MASTER:308, 4)
+	PRINT (격감)
+SIF GETBIT(TCVAR:MASTER:308, 5)
+	PRINT (고추냉이)
+SIF GETBIT(TCVAR:MASTER:308, 6)
+	PRINT (레몬)
+SIF GETBIT(TCVAR:MASTER:308, 0)
+	PRINT (농)
+SIF GETBIT(TCVAR:MASTER:308, 1)
+	PRINT (박)
+SIF DISHSPOIL == 1
+	PRINT (랭)
+SIF DISHSPOIL == 2
+	PRINT (부)
+SIF GETBIT(TCVAR:MASTER:308, 21)
+	PRINT (미약)
+SIF GETBIT(TCVAR:MASTER:308, 22)
+	PRINT (이뇨제)
+SIF GETBIT(TCVAR:MASTER:308, 23)
+	PRINT (춘약)
+SIF GETBIT(TCVAR:MASTER:308, 24)
+	PRINT (수면제)
+PRINT >
+
+
+;TARGET 관련의 간이 정보 표시 함수군
+@INFO_TARGET_DATAGROUP
+IF TARGET <= 0
+	TFLAG:102 = 0
+	TFLAG:팬티수탈 = 0
+	RETURN
+ENDIF
+IF !CFLAG:수면
+	CALL 밀어넘어뜨려지고
+ELSEIF CFLAG:장난 <= 1
+	;우후후 해제
+	CVARSET CFLAG, GETNUM(CFLAG, "우후후"), 0
+ENDIF
+;타겟 전환 버튼의 설치
+CALL INFO_TARGET_BUTTON
+;TARGET 본인의 간이 정보
+CALL INFO_TARGET_SITUATION
+IF CFLAG:수면
+	IF CFLAG:장난 == 1
+		TFLAG:102 = 1
+	ELSEIF CFLAG:장난 == 2
+		CFLAG:TARGET:우후후 = 1
+		CFLAG:MASTER:우후후 = 1
+		TFLAG:102 = 2
+	ELSE
+		TFLAG:102 = 0
+	ENDIF
+ENDIF
+
+
+
+;타겟 전환 버튼의 설치&동행자와 포장판매의 표시
+;구 INFO_TARGET_GROUP 통합해 한줄로 묶음
+@INFO_TARGET_BUTTON
+#DIM 동행인수
+#DIM 表示済み, 200
+;동행자와 포장판매의 표시
+
+동행인수 = 0
+VARSET 表示済み
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	SIF TARGET:LOCAL <= 0
+		CONTINUE
+	SIF !CFLAG:(TARGET:LOCAL):동행
+		CONTINUE
+	동행인수 ++
+	表示済み:LOCAL = 1
+	SIF 동행인수 > 1
+		PRINT 、
+	IF TARGET == TARGET:LOCAL
+		SETCOLOR C_AQUA
+	ELSEIF FLAG:데이트상대
+		SETCOLOR C_PINK
+	ELSE
+		SETCOLOR 255, 200, 100
+	ENDIF
+	PRINTBUTTON "[" + CALLNAME:(TARGET:LOCAL) + "]", (1000 + TARGET:LOCAL)
+		RESETCOLOR
+NEXT
+IF 동행인수
+	IF CHK_DATENOW(CFLAG:MASTER:데이트중)
+		PRINT 데이트중
+	ELSE
+		PRINT 동행중
+	ENDIF
+ENDIF
+IF TFLAG:운반 > 0
+	IF TARGET == TFLAG:운반
+	SETCOLOR C_AQUA
+	ELSE
+		SETCOLOR 200, 50, 200
+	ENDIF
+	PRINTBUTTON "[" + CALLNAME:(TFLAG:운반) + "]", (1000 + TARGET:FINDELEMENT(TARGET, TFLAG:운반, 1))
+	RESETCOLOR
+	PRINT 포장판매중
+	表示済み:FINDELEMENT(TARGET, TFLAG:운반, 1) = 1
+ENDIF
+SIF MATCH(表示済み, 1) && GET_TARGETNUM() != MATCH(表示済み, 1)
+	PRINT ／
+
+;타겟전환버튼 부분
+TFLAG:팬티수탈 = 0
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	SIF CFLAG:(TARGET:LOCAL):현재위치 != CFLAG:MASTER:현재위치
+		CONTINUE
+	SIF 表示済み:LOCAL
+		CONTINUE
+	SIF TARGET == TARGET:LOCAL
+		SETCOLOR C_AQUA
+	PRINTBUTTON "[" + CALLNAME:(TARGET:LOCAL) + "]", (1000 + TARGET:LOCAL)
+	RESETCOLOR
+	SIF FLAG:70 == 1 && EQUIP:(TARGET:LOCAL):0 && EQUIP:(TARGET:LOCAL):하반신속옷2 != 0 && FLAG:700 >= 100
+		TFLAG:팬티수탈++
+	SIF LOCAL < GET_TARGETNUM()
+		PRINT ,
+NEXT
+PRINTL
+
+;TARGET 본인의 간이 정보
+@INFO_TARGET_SITUATION
+LOCAL = TARGET + 4000
+PRINT 【
+SIF STALKED == TARGET
+	SETCOLOR C_YELLOW
+PRINTBUTTON "★", LOCAL
+RESETCOLOR
+PRINT 】
+CALL SHOW_EQUIP_2
+PRINTFORM (호감도:
+CALL PRINT_RANK(CFLAG:2, "MAX_50000")
+PRINTFORM  {CFLAG:2}, 신뢰도:
+CALL PRINT_RANK(CFLAG:신뢰도, "MAX_20000")
+PRINTFORM  {CFLAG:신뢰도}
+IF NOTICE_LUST(TARGET)
+	PRINTFORM , 욕구 불만도:{CFLAG:TARGET:욕구불만도/10}\%)
+ELSE
+	PRINT )
+ENDIF
+
+;PRINTFORM [%HUNGER(TARGET)%]　
+DEBUGPRINTFORML  합의판정치:{CFLAG:합의판정}
+
+LOCAL = BASE:분노 / 200
+IF CFLAG:수면
+	IF CFLAG:빡침
+		SETCOLOR 255,0,0
+		PRINT 로
+		RESETCOLOR
+	ELSEIF CFLAG:MASTER:장난 == 2
+		SELECTCASE TCVAR:TARGET:수면심도
+			CASE 0 TO 500
+				SETCOLOR 255,0,0
+				PRINTFORM 수면심도: 당장이라도 일어날 것 같다
+			CASE 501 TO 1500
+				SETCOLOR 255,255,0
+				PRINTFORM 수면심도: 잘 수 없는 듯이 하고 있다
+			CASE 1501 TO 3000
+				SETCOLOR 0,255,0
+				PRINTFORM 수면심도: 자고 있다
+			CASE 3001 TO 5000
+				SETCOLOR 0,255,255
+				PRINTFORM 수면심도: 새근새근 자고 있다
+			CASE IS > 5000
+				SETCOLOR 0,0,255
+				PRINTFORM 수면심도: 푹 잠들어 있다
+			CASEELSE
+		ENDSELECT
+		RESETCOLOR
+	ELSE
+		PRINTFORML 각성:%"!" * LOCAL%
+	ENDIF
+ELSE
+	IF CFLAG:빡침
+		IF TALENT:담력 < 0
+			SETCOLOR C_BLUE
+			PRINTL 눈물
+		ELSE
+			SETCOLOR 255,0,0
+			PRINTL 로
+		ENDIF
+		RESETCOLOR
+	ELSEIF CFLAG:장난 || TCVAR:만취
+		PRINTFORML 각성:%"!" * LOCAL%
+	ELSE
+		PRINTFORM 분노:%"!" * LOCAL%
+		PRINTFORM   %"　" * (5 - LOCAL)%
+		SELECTCASE CFLAG:TARGET:385
+			CASE IS > 240
+				PRINT <졸음쫒기·극>
+			CASE IS > 180
+				PRINT <졸음쫒기·강>
+			CASE IS > 120
+				PRINT <졸음쫒기·중>
+			CASE IS > 0
+				PRINT <졸음쫒기·약>
+			CASEELSE
+				PRINT
+		ENDSELECT
+	ENDIF
+ENDIF
+PRINTL
+
+;SHOW_STATUS용의 바 함수의 공통 설정
+@INFO_BASE(CHARA)
+#DIM CHARA
+PRINTFORM %CALLNAME:CHARA, 20, LEFT%
+;BASE_BAR
+IF CFLAG:CHARA:수면
+	CALL BASE_BAR_2(CHARA, "체력", "체력", 10, "물색")
+ELSE
+	CALL BASE_BAR_2(CHARA, "체력", "체력", 10, "초록")
+ENDIF
+CALL BASE_BAR_2(CHARA, "기력", "기력", 10, "青")
+CALL BASE_BAR_2(CHARA, "술기운", "기력", 10, "赤")
+IF HAS_PENIS(CHARA)
+	CALL BASE_BAR_2(CHARA, "정력", "정력", 10, "黄")
+ELSE
+	PRINTFORM %" " * 21%
+ENDIF
+;その他の状態
+CALL COLORMESSAGE(ALCOHOL_FACE(CHARA), C_ORANGE, 0)
+SIF HAS_PENIS(CHARA)
+	CALL INFO_SHOW_BOKKI(CHARA)
+PRINTL 
+
+;발기 상태의 아날로그 표시
+@INFO_SHOW_BOKKI(CHARA)
+#DIM CHARA
+SETCOLOR C_P_PURPLE
+IF BASE:CHARA:발기 == MAXBASE:CHARA:발기
+	FONTBOLD
+	PRINTFORM Erection!!
+	FONTREGULAR
+ELSEIF BASE:CHARA:발기 >= 1000
+	PRINTFORM 딱딱하게
+ELSEIF BASE:CHARA:발기 >= 500
+	PRINTFORM 벌떡
+ELSE
+;	PRINTFORM 通常
+ENDIF
+RESETCOLOR
+
+;TARGETおよびあなたの情報・状態
+@INFO_STATUS
+IF TARGET
+	CALL INFO_EMOTION
+	SIF FLAG:생리주기가시화 && TARGET
+		CALL CYCLE_PRINT(TARGET)
+	SIF EX:TARGET:질내정액 > 0
+		PRINTFORM 질내정액량:{EX:TARGET:질내정액, 5, LEFT}
+	SIF EX:TARGET:애널내정액 > 0
+		PRINTFORM 애널내정액량:{EX:TARGET:애널내정액, 5, LEFT}
+	PRINTL
+ENDIF
+;あなたの状態
+CALL SHOW_EQUIP_3
+;TARGETの状態
+CALL SHOW_EQUIP_1
+;射精/母乳ゲージ表示関数
+CALL INFO_GAUGEGROUP
+
+;무드나 이성등의 표시
+@INFO_EMOTION
+LOCAL = LIMIT(BASE:무드 / 200,0,5)
+PRINTFORM 무드:
+SIF BASE:무드 == MAXBASE:무드
+	SETCOLOR 255,51,153
+	IF BASE:무드 == MAXBASE:무드 && CHK_DATENOW(CFLAG:TARGET:데이트중)
+		FONTBOLD
+		PRINTFORML OverDrive!!
+		FONTREGULAR
+	ELSE
+		CALL HEARTMARK(LOCAL)
+	PRINTFORM %" " * (13 - LOCAL * 2)%
+	ENDIF
+RESETCOLOR
+
+LOCAL = MAX(BASE:이성 / 200,1)
+PRINT 이성:
+SIF BASE:이성 < 100
+	SETCOLOR 255,255,0
+IF BASE:이성 == 0 && CHK_DATENOW(CFLAG:TARGET:데이트중)
+	FONTBOLD
+	PRINTFORML LimitBreak!!
+	FONTREGULAR
+ELSE
+	PRINTFORM %"★" * LOCAL%
+	PRINTFORM %" " * (14 - LOCAL * 2)%
+ENDIF
+RESETCOLOR
+
+
+;사정/모유 게이지 표시 함수
+@INFO_GAUGEGROUP
+SIF !MAXBASE:2
+	MAXBASE:2 = 10000
+IF ASSI > 0
+	SIF !MAXBASE:ASSI:2
+		MAXBASE:ASSI:2 = 10000
+ENDIF
+IF TALENT:MASTER:절륜
+	MAXBASE:MASTER:2 = 5000
+ELSE
+	MAXBASE:MASTER:2 = 10000
+ENDIF
+SIF !GROUPMATCH(TFLAG:102, 2, 3)
+	RETURN
+
+CALL SHOW_SAMEN_GAUGE(MASTER)
+CALL SHOW_SAMEN_GAUGE(TARGET)
+
+IF TALENT:TARGET:모유체질
+	IF TALENT:TARGET:음유
+		MAXBASE:3 = 5000
+	ELSE
+		MAXBASE:3 = 10000
+	ENDIF
+	CALL INFO_GAUGE_BAR(TARGET, "모유", "EXTRA")
+	PRINTFORML [{BASE:3, 5}/{MAXBASE:3, 5}]
+ENDIF
+
+
+
+;SHOW_STATUS용의 바 함수의 공통 설정, 사정/모유 게이지용
+@INFO_GAUGE_BAR(C_ID, NAME_BASE, NAME_COLOR)
+#DIM C_ID
+#DIMS NAME_BASE
+#DIMS NAME_COLOR
+LOCALS = 　%NAME_BASE%(%CALLNAME:C_ID%)
+PRINTFORM %LOCALS, 12, LEFT%
+RESETCOLOR
+CALL BASE_BAR(C_ID, NAME_BASE, 18, NAME_COLOR, "「종류 표기 없음」 「숫자 표기 없음」")
+
+@SHOW_SAMEN_GAUGE(ARG)
+SIF !HAS_PENIS(ARG)
+	RETURN
+	CALL INFO_GAUGE_BAR(ARG, "사정", "물색")
+IF TCVAR:ARG:이기초
+	SETCOLOR C_RED
+	PRINTFORML [!한계!]
+	RESETCOLOR
+ELSE
+	PRINTFORML [{BASE:ARG:2,5}/{MAXBASE:ARG:2,5}]
+ENDIF

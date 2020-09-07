@@ -1,0 +1,6250 @@
+﻿;===========================================================
+; era 명련사OverDrive!!Ver1.0+수정 패치 Ver1용
+; 안녕- 쿄코쨩 대사 Version 0.1.0
+;-------------------------------------------------
+; Copyright
+;  본말의 수정에 대해
+;   【오자·탈자 수정】【분기 조건·erb 구문에 관한 수정】【본체 Ver·Rev 변경 대응】【플래그의 관리·수정】
+;  
+;  본말의 가필·개변에 대해
+;   【미기입 부위 가필】【랜덤 분기 가필】【기입필 부위 가필】【기입필 부위 삭제】【기입필 부위 코멘트 아웃】
+;  
+;  본말에 대한 정비 금지 시한에 대해
+;   【미설정】
+;  
+;  본말에 대한 그외단서
+;   1.  Copyright와 양식에 따르고 있는 한, 수정이나 가필, 개변, 신규의 말에 파생시키는 행위에 대해,
+;      AT92G4(이하 필자로 한다)에 일절의 이치를 넣을 필요는 없다.
+;   2.  모든 수정, 가필, 개변에 대해, 필자가 개변자의 핸들을 병기 한 다음,
+;      취사 선택이나 개변을 더해 수중에 넣어 가는 일을 허가하고 있는 것으로 간주한다.
+;   
+; PS 인의 사람
+; 오리지날 작자와 연락이 되지 않는 경우, 상기 Copyright에 따라 가필 개변을 실시해 주세요
+; 또 본체 처리·타말처리등에 간섭하는 이상 처리가 있는 경우로 오리지날 작자에 의한 수정이
+; 행해지지 않는·혹은 곤란한 경우, Copyright에 상관없이 한 마음에 의한 수정을 허가합니다
+; 그 때는 원처리를 삭제하지 않고 코멘트 아웃 해 수정 처리를 삽입해 주세요
+;
+;-------------------------------------------------
+; 갱신 이력
+;  11/11/10: 버전 0.1. 0릴리스
+;  
+;-------------------------------------------------
+; 기초 정보 메모
+;  이름:카소다니 쿄코, 통칭:쿄코
+;  체력:1700, 기력:1500, 법력:1800, 일량:2100
+;  능력
+;   순종 1, 봉사정신 5, 청소기능 5, 화술기능 1, 전투능력 1, 요리기능 3
+;  경험
+;   청소경험 20, 회화경험 10, 요리경험 10
+;  소질
+;   [처녀](여성)[키스미경험]
+;   [솔직함][눈에띄고싶어함][수치심 없음][고통에 강하다]
+;   [습득 빠름][자위하기쉬움]
+;   [작은 체형][A둔감][B민감][동물귀]
+;  궁합
+;   별(200), 뱌쿠렌(150)
+;  플래그
+;   복장     CFLAG:7   = 108
+;   지위     CFLAG:310 = 170(나즈린>쿄코>코가사)
+;   개시 위치 CFLAG:311 = 99(평일은 초기위치[1]산문, 정주시켰을 경우는 초기위치[20]쿄코의 방(원 창고))
+;   직장     CFLAG:326 = [1]산문
+;   미각기호 CFLAG:322 = 0b01010010(기호:담백한 맛, 내성:단맛, 신맛)
+;  
+;-------------------------------------------------
+; 함수 메모 void=의미가 있는 반환값이 없는, int=정수를 돌려주는, str=캐릭터라인을 돌려준다
+;  식중함수
+;   int  K88_KYOKO_GET_VARSION()
+;   str  K88_KYOKO_HEART()
+;   int  K88_KYOKO_TRYENDURE(ARG = -1)
+;   int  K88_KYOKO_DIFF_BODYSIZE(ARG = -1, ARG:1 = -1)
+;   int  K88_KYOKO_RELATION(ARG)
+;   str  K88_KYOKO_CALLNAME(ARG = -1)
+;  함수
+;   void K88_KYOKO_UPDATE
+;   void K88_KYOKO_INPUT_CALLNAME
+;  
+;-------------------------------------------------
+; 변수 메모
+;  MASTERNAME:88 통칭(임의로 CSTR:20으로 동기 할 때는 CALLF K88_KYOKO_CALLNAME(MASTER))
+;  CFLAG 1100~1999
+;   1100 = 말버전
+;   1101 = 잡다한 플래그(0b1 = 통칭, )
+;  CSTR 20~30(말전용 영역이 명기되어 있지 않기 때문에, 본체 버전 업으로 호환성 상실의 염려있어)
+;   20 = 기억한 통칭
+;  TCVAR 350~399
+;   350 = 시간대 마다의 인사 플래그(0b1 = 아침, 0b10 = 낮, 0b100 = 밤)
+;   351 = 만난 회수
+;   352 = 요점 보충 항목(0b1 = 연인 한편 무시했다, 0b10 = 화나게 한, 0b100 = 기호가 아닌 요리 먹은, 
+;                        0b1000 = 타인과 네쵸비치는 것 본, 이후 미정)
+;   353 = 통칭 바꾼 플래그
+;   354 = 그 날 밀어 넘어뜨려진 회수
+;  
+;-------------------------------------------------
+; 말내용 메모
+;  기입중
+;   방에서 만남, 회화, 스킨십, 머리를 어루만지는, 키스한다
+;  기입필(잠정 포함한다)
+;   에크, 청소, 전투훈련, 공부, 요리, 이동시 스치듯 지나쳐, 식사계, 식사를 배달시키는, 식사를 대접하는, 일을 돕는, 차를넣는, 
+;   데이트 돌아오는 길 키스, 업무 중, 목욕탕에서 만남, 덮치기, 침상에 잠입해, 동침 하는, 안녕, 휴업(휴가), MASTER가 덮치기, 
+;   
+;  상황
+;   분기 뒷전으로 묻고 우선
+;  
+;===========================================================
+
+;-------------------------------------------------
+; 말존재 판정
+;-------------------------------------------------
+@M_KOJO_K88(ARG)
+;RESULTS = _ONKYO_
+RETURN 1
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"UPDATE 판정"
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+@M_KOJO_UPDATE_K88
+;말 독자적인 UPDATE용
+;ENCOUNTER 전용에 독자 분기 플래그를 가르쳤을 경우등에 부디
+;UPDATE 판정으로 CFLAG를 사용하는 경우, 캐릭터 번호의 지정이 필요하게 됩니다
+IF FIRSTTIME("U88-1", 0,88) && CFLAG:88:안면
+	PRINTFORML 통칭이 바뀌고 말았을 때의 구제 조치입니다
+	PRINTFORML 통칭이 바뀌지 않은 분이라면 번거롭게 만듭니다. 죄송합니다
+	MASTERNAME:88 = 
+	CALL K88_KYOKO_INPUT_CALLNAME
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+; "ENCOUNTER"계 이벤트(엑스트라 구문)
+;  초대면, 인사의 타이밍
+;  TALENT의 변경은 여기서 부디.
+;-------------------------------------------------
+@M_KOJO_ENCOUNTER_K88
+SELECTCASE TIME:2
+	CASE 1,2
+		PRINTFORMW 「안녕하세요―!」
+	CASE 3,4
+		PRINTFORMW 「안녕하세요―！」
+	CASEELSE
+		; 오자가 아니야 일부러야 우사이지만
+		PRINTFORMW 「안녕하세요!!1!」
+ENDSELECT
+PRINTFORML 귀를 막고 싶어질 큰소리와 함께
+PRINTFORMW 흙먼지를 피울 것만 같은 기세로 대빗자루를 든 처진 귀의 소녀가 이쪽으로 달려온다
+PRINTFORMW 「당신이 %K88_KYOKO_CALLNAME(55)%가 말하던 새 입문자구나. 이름을 가르쳐줄 수 있을까?」
+SIF FIRSTTIME("U88-1")
+	PRINTL  
+CALL K88_KYOKO_INPUT_CALLNAME
+PRINTFORMW 「%MASTERNAME:88%구나. 기억했어!」
+PRINTFORML 인사를 마치고 서로 질문을 주고받는다
+PRINTFORMW 거센 탄막 같은 질문을 보건대 무턱대고 방방 뛰는 소녀 같다
+SETBIT TCVAR:350, (TIME:2 - 1)
+CFLAG:1100 = K88_KYOKO_GET_VARSION()
+RETURN 1
+
+;===========================================================
+; "SP_EVENT"계 이벤트
+;===========================================================
+; 데이트 오는 길에 First KISS(합의도 붙는다)
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_SPEVENT_K88_1(ARG, ARG:1)
+;지문 표시
+;CALL SPEVENT_MESSAGE_1(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	PRINTFORMW 조금만 더 가면 명련사 문이 나올 지점에서 앞서 가던 쿄코가 갑자기 멈춰 섰다
+	PRINTFORML 왜 그러냐고 물었지만 대꾸가 없기에 %마스터가% 의아해서 다가가니
+	PRINTFORMW 깜짝 놀랄 새도 없이 쿄코는 \@ K88_KYOKO_DIFF_BODYSIZE(TARGET, MASTER) >= 0 ? 발돋움해 # 허리를 굽혀 \@ %CALLNAME:MASTER%에게 키스했다
+	PRINTFORMW ……당연히 생각할 겨를도 없이 입술이 빼앗겨서 놀란 나머지 시간의 감각마저 잃고 말았다
+	PRINTFORML 얼떨떨해진 %CALLNAME:MASTER%에게 쿄코는 왜 그래? 하고 방금 건넨 말을 따라하고,
+	PRINTFORMW 얼굴에 빨갛게 물들였나 싶었더니 이번엔 꺄― 꺄― 외쳐대며 명련사로 날아가버렸다
+	PRINTW 
+	PRINTFORML %마스터는% 침착함을 되찾은 뒤 새빨개져서 명련사로 도망쳐 들어간 쿄코를 서둘러 쫓아갔다
+	PRINTFORMW ……좀 더 무드가 있었으면 좋았을걸 하는 생각과 함께
+ENDIF
+RETURN 1
+
+;==================================================
+;데이트 오는 길에 고백(연인이 붙는다)
+;---------------------------------------
+; 말 주인은 TARGET
+;==================================================
+@M_KOJO_SPEVENT_K88_2(ARG, ARG:1)
+;지문 표시
+CALL SPEVENT_MESSAGE_2(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	; 고백 내용
+	; 이 고백 내용 표시 후에 받을지 어떨지의 선택분이 표시됩니다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 0
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	; 고백 성공
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	; 고백 실패
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+
+ENDIF
+RETURN 1
+
+;===========================================================
+; "EVENT"계 이벤트
+;===========================================================
+; 방에서 만남
+;=================================================
+@M_KOJO_EVENT_K88_1(ARG, ARG:1)
+;말 주인은 TARGET
+LOCAL = 1
+IF LOCAL
+	; 호환 처리 호출
+	SIF !TCVAR:351
+		CALL K88_KYOKO_UPDATE
+	; 나눠쓰기가 힘들어서 어느 쪽이 들어온 경우에도 뭉쳐둠
+	; 내부에서는 ARG로 분기할 가능성도 있다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG
+		; 업무중(아직 가득)
+		IF CFLAG:행동 == 5 && BASE:일량 > MAXBASE:일량 / 2
+			PRINTFORML 쿄코는 리듬 좋게 불경을 외우면서 청소 중이다
+			PRINTFORMW 일이 끝나려면 좀 더 시간이 필요한 것처럼 보인다
+			TCVAR:351++
+		; 업무중(이제 곧 끝난다)
+		ELSEIF CFLAG:행동 == 5 && BASE:일량 > 0
+			PRINTFORML 쿄코는 콧노래를 부르면서 청소 중이다
+			PRINTFORMW 일은 조금 더 하면 끝날 것 같다
+			TCVAR:351++
+		; 그 이외
+		ELSE
+			;아직 아침 인사하지 않았음
+			IF TIME:2 <= 2 && TCVAR:오늘만났는지 == 1
+				IF TALENT:연모 && RAND:2
+					PRINTFORML 「안녕하세요―
+					PRINTFORMW  안녕하세요―!」
+					PRINTFORML 기운찬 인사와 함께 강아지가 재롱 부리는 것처럼 쿄코가 달려들었다
+					PRINTFORMW 안녕 멍멍이라고나 이름을 붙일까? 마음속으로
+					TCVAR:오늘만났는지 = 2
+				ELSE
+					PRINTFORML 「안녕하세요―!」
+					PRINTFORML 오오, 안녕 안녕
+					PRINTFORMW 오늘도 아침부터 기운이 팔팔한 모양이다
+					TCVAR:오늘만났는지 = 2
+				ENDIF
+			; 아직 낮 인사 안 했음
+			ELSEIF TIME:2 > 2 && TIME:2 <= 4 && TCVAR:오늘만났는지 <= 2
+				IF TALENT:연모 && RAND:2
+					PRINTFORMW 「안녕합쇼―!」
+					PRINTFORML ……그 인사는 좀 아니다 싶어서 충고했더니
+					PRINTFORMW 참배하러 왔던 마을 사람이 그렇게 말하길래 흉내를 낸 거라고 한다
+					PRINTFORMW 네 이놈 순진한 애한테 뭔 인삿말을 불어넣은 거야
+					IF TCVAR:오늘만났는지 == 2
+						TCVAR:오늘만났는지 = 4
+					ELSE
+						TCVAR:오늘만났는지 = 3
+					ENDIF
+				ELSE
+					PRINTFORML 「안녕하세요!!」
+					PRINTFORMW 오늘도 절에 모두의 웃음을 부르는 듯한 인사가 울린다
+					IF TCVAR:오늘만났는지 == 2
+						TCVAR:오늘만났는지 = 4
+					ELSE
+						TCVAR:오늘만났는지 = 3
+					ENDIF
+				ENDIF
+			; 아직 밤 인사 안 했음
+			ELSEIF TIME:2 > 4 && TCVAR:오늘만났는지 <= 4
+				IF TALENT:연모 && RAND:2
+					PRINTFORML 「안녕하세요!」
+					SIF TCVAR:오늘만났는지 == 4
+						PRINTFORML 「오늘은 아침 인사부터 저녁 인사까지 컴플리트했네!」
+					PRINTFORMW 생글생글 웃는 쿄코의 모습에 그만 넋 잃으며 바라보고 말았다.
+					TCVAR:오늘만났는지 = 5
+				ELSE
+					PRINTFORML 「안녕하세아우울―!」
+					PRINTFORML 인사 도중에 들린 울음소리를 의리 있게 반사해주는 건 좋은데
+					PRINTFORML 메아리와 인사는 안 섞는 편이 낫다고 본다
+					PRINTFORMW 물론 야마비코의 정체성을 빼앗을 수는 없으니 말로 할 수는 없다
+					TCVAR:오늘만났는지 = 5
+				ENDIF
+			; 이미 인사가 끝난 상태
+			ELSE
+				IF TCVAR:351 > 8
+					PRINTFORML 「왠지 오늘은 자주 보네」
+					IF ARG == 2
+						PRINTFORML 쿄코는 갸우뚱거리고 있지만, 그 원인은 쿄코가 돌아다니고 있기 때문이 않을까?
+					ELSE
+						PRINTFORML (혹시 따라다닌 걸까?)
+						PRINTFORML 왠지 쿄코는 \@ TALENT:연모 ? 기쁜 듯한 # 복잡한\@ 표정을 짓고 있다
+					ENDIF
+				ELSEIF TCVAR:351 > 4
+					; <공사중> 뭔가 떠오르면 나중에 다시 쓸게
+					PRINTFORML ＼Google!/
+				ELSEIF TCVAR:351 > 2
+					; <공사중> 뭔가 떠오르면 나중에 다시 쓸게
+					PRINTFORML ＼Excite!/
+				ELSE
+					; <공사중> 뭔가 떠오르면 나중에 다시 쓸게
+					PRINTFORML ＼YAHOO!/
+				ENDIF
+			ENDIF
+			TCVAR:351++
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 아침에 일어 났을 때(안녕 말)
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_2(ARG, ARG:1)
+;--------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	; 호환 처리 호출
+	SIF !TCVAR:351
+		CALL K88_KYOKO_UPDATE
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;비동거(同棲) 한편 상대가 먼저 일어나고 있다
+	;기입 체크(=0, 비표시, 1, 표시)
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		;-------------------------------------------------
+		;TARGET 방에 MASTER가 들어가 있다(연모시 동침중취침시만?
+		;기입 체크(=0, 비표시, 1, 표시)
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;MASTER 방에 TARGET가 들어 오고 있다(연모 없음에서도 들어 올 가능성 있어
+		;기입 체크(=0, 비표시, 1, 표시)
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;동거(同棲) 한편 상대가 일어나고 있다
+	;기입 체크(=0, 비표시, 1, 표시)
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;동거(同棲) 한편 상대가 자고 있다
+	;기입 체크(=0, 비표시, 1, 표시)
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;MASTER가 일어나고 있어, 상대가 일어났다
+	;동침 때 TARGET 기상은 이쪽(TARGET 쇠약 or 동침중TARGET 피곤함 패배 후 그대로 MASTER가 계속 일어난 다음 상대가 기상했을 경우 한정
+	;기입 체크(=0, 비표시, 1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		;-------------------------------------------------
+		;비동거(同棲)
+		;기입 체크(=0, 비표시, 1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			PRINTFORML 「하움……, 안녕하세여―……」
+			PRINTFORML 쿄코는 졸린 듯이 작은 하품을 손으로 가리며 인사했다
+			PRINTFORMW 잠이 덜 깬 것일까? %마스터를% 잘 인식하지 못한 눈치다
+			SETBIT TCVAR:350, (TIME:2 - 1)
+			TCVAR:351++
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;동거(同棲) 안
+		;기입 체크(=0, 비표시, 1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORML 「하움……, 안녕하세여―……」
+			PRINTFORML 아직 졸린 듯이 작게 하품하면서 인사하는 쿄코의 머리를 벅벅 쓰다듬어주었다
+			PRINTFORML 「꺅, 무슨 짓이야!」
+			PRINTFORMW 부루퉁한 표정과 맞바꿔서 쿄코는 눈을 또렷하게 뜬 모양이다
+			SETBIT TCVAR:350, (TIME:2 - 1)
+			TCVAR:351++
+			RETURN 1
+		ENDIF
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 밤에 잘 때(휴업(휴가) 말)
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_3(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;자기 방에 돌아간다(정시가 되어 잔다)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「안녕히 주무세요,%MASTERNAME:88%」
+		PRINTFORMW 휴업(휴가)를 주고 받아\@ FLAG:더부살이캐릭터 == 8 ?  방으로 돌아가는 # 산에 돌아가는 \@쿄코를 전송했다
+		RETURN 1
+	ENDIF
+	
+	;졸린 듯이 하고 있다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 「저기 벗긴데 있고의―……」
+		PRINTFORML 졸릴것인가 라고 하는 질문에 꾸벅꾸벅배를 저으면서 음률의 이상한 말로 대답된다
+		PRINTFORMW 누가 어떻게 봐도 졸린 것을 무리하고 교제하고 있는 감이 배어 나오고 있었다
+		RETURN 1
+	ENDIF
+	
+	;수면중(일어나지 않기 때문에 회화 라기 보다는 잠꼬대? )
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;장난중
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 4
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;쇠약중
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 5
+		IF TALENT:연모 && FLAG:더부살이캐릭터 == 8
+			PRINTFORML 「이제(벌써) 안 돼-누군가 옮겨 주지 않을까―？」
+			PRINTFORMW 쿄코는 거치거나 붐비어 %마스터를% 힐끔힐끔 보고 있다
+			PRINTFORMW 알기 쉬운 태도에 쓴웃음하면서도 가벼운 쿄코를 안아 방까지 옮겨 넣었다
+		ELSE
+			PRINTFORML 「이제(벌써) 안 돼……무리……」
+			PRINTFORMW 흔들흔들\@ FLAG:더부살이캐릭터 == 8 ?  방 # 산 \@에 날아 가는 쿄코를 봐, 정말로 괜찮은 것인가 하고 걱정으로 되었다
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;MASTER가 다운(방까지 옮겨진다)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 6
+		PRINTFORMW 「응%MASTERNAME:88%,……는 자 버린다 것」
+		PRINTFORML 대답이 없는 것에 깨닫으면(자)%마스터는% 깊이 잠들어 버리고 있었다
+		PRINTFORMW 「, 어쩔 수 없네요」
+		PRINTFORML 과연은 약해도 요괴라고 말해야할 것인가,
+		PRINTFORMW 쿄코는\@ K88_KYOKO_DIFF_BODYSIZE(TARGET, MASTER) < 0 ?  체격차이를 물건이라고도 하지 않고 # \@%마스터를% 껴안으면(자) 방까지 날아 옮겨 갔다
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 이동시 엇갈림
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_4(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;멈춰 섰다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;가볍게 인사 해 통과했다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		; 연모
+		IF TALENT:연모
+			; 업무중이라면 대사 추가
+			PRINTFORML 「\@ CFLAG:행동 == 5 ?  업무중이니까 # \@또 다음에―！」
+			PRINTFORMW 서두르고 있기 (위해)때문에 회화하고 있을 틈은 없었지만 건강하고 최상이다
+		; 타
+		ELSE
+			PRINTFORML 「수고 하셨습니다!」
+			PRINTFORMW 콧노래를 노래하고 있는 쿄코에 인사 해 통과하면(자), 건강의 양격려의 말을 걸 수 있었다
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;무시해 통과했다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 3
+		; 연인이라고 다음에 해명 하는 이벤트를 삽입한다
+		IF TALENT:연인
+			PRINTFORML 서두르고 있었으므로 그만 쿄코를 무시해 버렸다
+			PRINTFORML 물끄러미 뒤를 되돌아 보면(자) 눈물로 귀를 늘어뜨려 낙담하고 있는 모습이 보였다
+			PRINTFORMW ……다음에 시간이 생기면(자) 해명 해 둘까
+			SETBIT TCVAR:352, 0
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 다른 사람 개입으로 무드 변화
+;---------------------------------------
+; 말 주인은 TARGET
+; ARG = 개입자 캐릭터 No.
+;=================================================
+@M_KOJO_EVENT_K88_5(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 정사를 목격했다
+;---------------------------------------
+; 말 주인은 TARGET
+; ARG에 정사 상대
+;=================================================
+@M_KOJO_EVENT_K88_6(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	;정사를 목격했다(친해져도:저)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;질 수 없어 참가(친해져도:고)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;어색한 듯이 떠난다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 3
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;MASTER에 이끌려 참가
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 4
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 정사를 볼 수 있었다
+;---------------------------------------
+; 말 주인은 TARGET
+; ARG에 목격자
+;=================================================
+@M_KOJO_EVENT_K88_7(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	;정사를 볼 수 있었다(목격자의 친해져도:저)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;목격자가 질 수 없어 참가(목격자의 친해져도:고)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;목격자가 떠난다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 3
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;MASTER에 이끌려 목격자도 참가
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 4
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 목격한 정사를 캐묻는다
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_8(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	;MASTER만 캐묻고
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;두 사람 모두 설교
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 약점을 잡았다
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_9(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	LOCAL:1 = 0
+	IF LOCAL:1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; (MASTER를) 덮치기
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_10(ARG, ARG:1)
+#LOCALSIZE 2
+LOCAL = 1
+IF LOCAL
+	;MASTER를 덮치기(개시시)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		IF NO:MASTER == 0 && !TCVAR:354
+			PRINTFORML 평상시는 밝은 성격이나 큰 소리등의 탓으로 성적 매력의 얇은 쿄코가 묘하게 요염하게 보인다
+			PRINTFORML 압도되고 있는 동안에 외관으로부터에서는 상상도 할 수 없는 힘으로 밀어 넘어뜨려져 버렸다
+			PRINTFORMW 「응 %MASTERNAME:88%……, 해%K88_KYOKO_HEART()%」
+			TCVAR:354++
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;달랠 수 있었다(종료시)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		SELECTCASE K88_KYOKO_TRYENDURE(TARGET)
+			; 확률 100이라면 또 곧바로 밀어 넘어뜨려지지요……
+			CASE 100
+				PRINTFORML 「 아직 굳이 하고 있지 않았잖아의―……」
+				PRINTFORMW 쿄코는 불만 뚝뚝이다
+			CASE IS > 50
+				PRINTFORML 「응, 좀 더 하지 않아?」
+				PRINTFORMW 어떻게도 쿄코는 아직 해 부족한 것 같다
+			CASE IS > 10
+				PRINTFORML 「으응~, 좋은가!」
+				PRINTFORML 쿄코는 조금 괴로워한 후 생긋 웃어 %CALLNAME:MASTER%에 소매치기 모인다
+				PRINTFORMW 아무래도 대개 만족해 준 것 같다
+			CASEELSE
+				PRINTFORML 「에헤헤 , 대만족일까!」
+				PRINTFORML 밀어 넘어뜨려졌을 때의 요염함이 깨끗이 물리쳐 버려, 쿄코는 언제나 대로의 덜렁이에게 돌아오고 있다
+				PRINTFORMW 기쁜 것 같은 유감인 것 같은 뭐라고 말하기 어려운 미묘한 기분이 %마스터를% 덮쳤다
+		ENDSELECT
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 목욕탕에서 만남
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_11(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	; 내쫓아졌다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 목욕탕에 들어가면(자) 몸을 씻고 있던 쿄코와 시선이 마주친다
+		PRINTFORML 서로 말도 없게 폭풍 전야의 고요가 당분간 계속되어……,
+		PRINTFORMW 고막의 다칠 것 같은 큰 소리에 내쫓아지는 처지가 되었다
+		RETURN 1
+	ENDIF
+	
+	;시선이 마주쳤다(내쫓아지지 않다)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 「함께 욕실 들어가고 싶은거야? 별로 상관없어요」
+		PRINTFORMW 간단히와 승낙되어 버려 조금 맥 빠짐이다
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 침상에 잠입해
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_12(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;침상에 침입
+	; 연모 붙이지 않으면 절에 정착하지 않기 때문에 있을 수 없어?
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;침상에 침입(상대가 연모)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG:1 == 2
+		PRINTFORML 음에 민감한 쿄코를 일으키지 않게 살금살금 걷는 걸음으로 침상에 소리없이 다가온다
+		PRINTFORML 「그냥……, 이것도……근행이야……」
+		PRINTFORMW 가끔 흘리는 잠꼬대는……이해하기 어렵다
+		RETURN 1
+	ENDIF
+	
+	;침상에 침입(상대가 연모·쇠약)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG:1 == 3
+		PRINTFORML 녹초가되고 있을 것이다 쿄코는, %CALLNAME:MASTER%의 침입에도 눈치채는 일 없이 혼들과 자고 있다
+		PRINTFORMW 가끔귀가 실룩거리는의에 놀라게 해지고면서 쿄코의 잠자는 얼굴을 잠깐 관찰했다
+		RETURN 1
+	ENDIF
+	
+	;내쫓아진다
+	; 연모 붙이지 않으면 절에 정착하지 않기 때문에 있을 수 없어? 화내고 있으면(자) 내쫓아질까?
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 4
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;내쫓아진다(쇠약)
+	; 연모 붙이지 않으면 절에 정착하지 않기 때문에 있을 수 없어? 화내고 있으면(자) 내쫓아질까?
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 5
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 업무 중(현재, 본체만의 경우별·뱌쿠렌·쿄코 마셔 유효)
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_13(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	; 일개시(직장에 이동한다)
+	; 이동 개시는 자기 방 같게 하지 않을 때 무심코  것이 아닐까……
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		IF TALENT:연모 || TALENT:연인
+			PRINTFORML 「그럼 아침의 근무에 갔다 올게요」
+			PRINTFORMW 방에 남겨지는 것은 조금 외롭지만, 어떻게 하지
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	; 업무중
+	; 말로부터 개입할 수 있게 되면(자) 진심 낸다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	; 일종료
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 식사계
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_14(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	;가지고 있던 음식을 먹을 수 있었다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		IF CFLAG:TARGET:미각기호 & TCVAR:MASTER:308
+			PRINTFORML 「아? 맛있지 않다」
+			PRINTFORMW 군것질로 칭찬할 수 있어도 곤란하지만……
+		ELSE
+			PRINTFORML 「……, 뭐야 이것―！」
+			PRINTFORML  \@ TCVAR:MASTER:308 & 8 ?  엄청 매운의 # 고추냉이 수북함의 \@요리를 먹은 쿄코는 꺄- 꺄- 비명을 올려 돌아다니고 있다
+			PRINTFORMW 울면서 재촉당해도 요리를 자주(잘) 보지 않고 군것질하는 (분)편이 나쁘면 밖에 말할 수 없다
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; MASTER가 덮치기
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_15(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;MASTER가 덮치기(우후후 개시시)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「이나-응%K88_KYOKO_HEART()%」
+		PRINTFORMW 일부러너무 인것 같은 말에 성적 매력은 없지만 쿄코의 표정은 평상시는 볼 수  없는 여자 그 자체다
+		RETURN 1
+	ENDIF
+	
+	;둘이서 만날 기회 종료(우후후 종료시)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 동침한다
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_16(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;동침을 시작했다(개시시)
+	; 뭐, 사양상 연모 다음에 있을 것
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「나는 그렇게 아이가 아니어요―」
+		PRINTFORMW 뺨을 부풀리면서 말해져도 설득력은 없지만과 웃으면서 근처에도 꾸물거려 넣었다
+		RETURN 1
+	ENDIF
+	
+	;동침을 종료했다(종료시)
+	; 뭐, 사양상 연모 다음에 있을 것
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		IF !CFLAG:수면
+			PRINTFORML 「아, 이제(벌써) 말해버린다의?」
+			PRINTFORML 마치 강아지와 같은 쿄코의 눈에 만류할 수 있는 개개도 뿌리쳐,
+			;2018/08/08 TIME:2의 상세화에 대응하고 있지 않았던 부분의 수정
+			;PRINTFORMW \@ TIME:2 == 3 ?  또 내일 # 또 다음에 \@빠져 나갔다
+			PRINTFORM 
+			IF TIME:0 >= 1140 || TIME:0 <= 240
+				PRINTFORM 또 내일
+			ELSE
+				PRINTFORM 또 다음에
+			ENDIF
+			PRINTFORMW 와 빠져 나갔다
+		ELSE
+			PRINTFORML 자고 있는 쿄코의 근처를 빠져 나가면(자) 그 표정이 쓸쓸한 듯하게 변화했다
+			PRINTFORMW 일으켜 버린 것은 아니고, 근처의 따스함이 없어졌기 때문에와 같다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+
+;===========================================================
+; 일상계 커맨드
+;===========================================================
+; 300, 회화
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_300
+;커맨드 공통 메시지(TRAIN_MESSAGE) 
+;삭제하면(자) 「~이야기를 했다.」라고 가가 사라집니다
+CALL TRAIN_MESSAGE
+;말메인 호출
+CALL M_KOJO_MESSAGE_COM_K88_300_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_300_1
+LOCAL = 1
+IF LOCAL
+	; 업무중
+	IF CFLAG:행동 == 5
+		IF TALENT:연모 || TALENT:연인
+			PRINTFORML 「이야기하는 것은 기쁘긴 하지만 일은 중요해―」
+			PRINTFORMW 「그렇지 않으면 도와주는 거야?」
+		ELSE
+			PRINTFORML 「방해 할 틈이 있다면 얌전하게 보고 있어 도와 준다면 좋은데」
+			PRINTFORMW \@ TFLAG:193 ?  반드시 싫지만은 않은 것 같지만, # \@여기는 말하는 대로 해서는 안될까
+		ENDIF
+	; 성공
+	ELSEIF TFLAG:193 != -1
+		; 아직 오늘은 한번도 인사하지 않다
+		IF !GETBIT(TCVAR:350, 0) && !GETBIT(TCVAR:350, 1) && !GETBIT(TCVAR:350, 2)
+			; <공사중> 조건. 연모도 아닐 때에 이런 일 하고 있으면(자) 이상할지도 모르니까
+			PRINTFORMW 「나로 했던 것이 인사를 잊고 있었어!」
+			PRINTFORML 쿄코가 돌연 귀를 기울여 손뼉을 치면(자), 이쪽에 다시 향한다
+			PRINTFORML 머리카락과 전부의 모에 총색의 눈동자와 잠깐 서로 응시한 후,
+			; 여기에서
+			SELECTCASE TIME:2
+				CASE 1,2
+					PRINTFORM 「안녕하세요!」라고,
+				CASE 3,4
+					PRINTFORM 「안녕하세요!」라고,
+				CASEELSE
+					PRINTFORM 「안녕하세요!」라고,
+			ENDSELECT
+			PRINTFORMW 서로 둘이서 웃으면서 인사를 주고 받았다
+			; 여기까지 일문
+			; 인사 플래그 세운다
+			SETBIT TCVAR:350, (TIME:2 - 1)
+;		; 동침중
+		ELSEIF CFLAG:동침중
+			; 통칭 변경은 여기에 던져 붐비기로 했다
+			IF TCVAR:353 == 0
+				PRINTFORML 「응%MASTERNAME:88%, 가끔 씩은 통칭 바꾸어 보지 않는다고 생각하지 않아?」
+				PRINTFORML 쿄코의 제안을 어떻게 하지?
+				$INPUT_LOOP_KYO0
+				PRINTBUTTON "[ 0] 그만둔다", 0
+				PRINTBUTTON "[ 1] 끄덕여 대답한다", 1
+				INPUT
+				SELECTCASE RESULT
+					CASE 0
+						PRINTFORML 「알겠어요」
+						PRINTFORMW 바꾸지 않아 좋으면 거절하면(자) 쿄코는 특별히 불평할 것도 없게 받아들였다
+					CASE 1
+						CALL K88_KYOKO_INPUT_CALLNAME
+						PRINTFORML 「%MASTERNAME:88%저기, 알았어요」
+						PRINTFORMW 쿄코에 통칭을 바꾸어 주었다
+					CASEELSE
+						SIF STRLENS(@"{RESULT}")
+							CLEARLINE 1
+						REUSELASTLINE 
+						GOTO INPUT_LOOP_KYO0
+				ENDSELECT
+				SETBIT TCVAR:353, 0
+			ELSE
+				; <공사중>
+;				PRINTFORML 
+			ENDIF
+		; 연모
+		ELSEIF TALENT:연모
+			; <공사중>
+;			PRINTFORML 
+		; 그 외
+		ELSE
+			SELECTCASE RAND(3)
+				CASE 0
+					PRINTFORML 「무엇으로 불경을 주창하는지라는? (이)라도 그 쪽이 입문생 「답다」가 아니다」
+					PRINTFORMW 「뭣하면 내가 가르쳐 주어도 괜찮아요」
+				CASE 1
+					PRINTFORML 「내 일은 문전의 청소야. 아침 이르는 시간이라도 이따금 인간이 오기 때문에 방심할 수 없어요」
+					PRINTFORMW 「어떤 인간이 오는지라는? 무녀라든지 마법사라든지, 나머지 칼날 휘두르는 위험한 놈!」
+				CASEELSE
+					PRINTFORML 「모두의 방은 꽤 더러워져있는 일이 많은 것이지만 나는 손은 낼 수 없네요」
+					PRINTFORMW 「%MASTERNAME:88%는 더부살이니까 가끔 씩은 깨끗이 해 주면 어때?」
+			ENDSELECT
+		ENDIF
+	; 실패
+	ELSE
+		PRINTFORML 「안녕」이라는과 「안녕」이라고 한다
+		PRINTFORML 「시무상주」라는과 「--와--종류―」(이)라고 해 잇는다
+		PRINTFORML 「놀지 않아? 」라는과 「놀지 않는다」라고 한다
+		PRINTFORML 그렇게 해서, 나중에 혼자서 외로워져,
+		PRINTFORML 「미안해」라고 하면(자) 「미안해」라는
+		PRINTFORMW 메아리입니까?　아니오, 쿄코 입니다
+		; 인사 플래그 세운다
+		SETBIT TCVAR:350, (TIME:2 - 1)
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 301, 차를넣는
+;---------------------------------------
+; 이것도 신뢰가 들어간다
+; 시간제한은 역시 처음으로 만났을 때는 괴로울 정도
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_301
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_301_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_301_1
+LOCAL = 1
+IF LOCAL
+	PRINTFORMW 「\@ CFLAG:행동 == 5 ?  일의 휴식에 # \@차? 받아요」
+	PRINTFORML 찻잔을 건네주면(자) 쿄코는 망설임 없애는 들이마셔 간다
+	; 성공
+	IF TFLAG:193 != -1
+		PRINTFORML 「\@ TFLAG:193 ?  맛있었던 # 그저였던\@원. 또 기회가 있으면 엄라고」
+		PRINTFORMW 아무래도 쿄코는\@ TFLAG:193 ?  # 그 나름대로 \@마음에 들어 준 것 같다
+	; 실패
+	ELSE
+		PRINTFORML ……의 것이지만, 안색이 순식간에 새파래져 간다
+		PRINTFORMW 「미안해요. 이것 무리」
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 302, 스킨십
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_302
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_302_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_302_1
+LOCAL = 1
+IF LOCAL
+	SIF TFLAG:193 == -1
+		RETURN 1
+	; 업무중
+	IF CFLAG:행동 == 5
+		IF TALENT:연모 || TALENT:연인
+			PRINTFORMW 「접촉할 수 있는 것은 기쁘긴 하지만 일은 중요해―」
+			PRINTFORML 스킨십을 멈추면(자) 얼굴을 밖에 째라고 보여 불만을 말하지만 , 재개와 곧에에에 와 표정이 무너진다
+			PRINTFORMW ……변화가 재미있는 것이니까 그만 놀아 방해 해 버렸다
+		ELSE
+			PRINTFORML 「방해 할 틈이 있다면 얌전하게 보고 있어 도와 준다면 좋은데」
+			PRINTFORMW \@ TFLAG:193 ?  반드시 싫지만은 않은 것 같지만, # \@여기는 말하는 대로 해서는 안될까
+		ENDIF
+	; 무시했다
+	ELSEIF GETBIT(TCVAR:352, 0)
+		PRINTFORML 무시된 것을 기억하고 있는지 쌀쌀 하고 있는 쿄코에 서두르고 있었던 것이다라고 해 (뜻)이유를 한다
+		PRINTFORML 「알고 있어도 외로워」
+		PRINTFORMW 귀를 고개 숙이게 해 중얼거리는 쿄코를 봐, 서두르고 있었다고 해도 무시는 좋지 않았던 것을 생각해 알게 되었다
+		CLEARBIT TCVAR:352, 0
+	; 욕실
+	; 내쫓아지지 않다고 하는 것은 그 나름대로 친할 것이므로
+	ELSEIF CFLAG:현재위치 == 112
+		PRINTFORML 쿄코의 머리카락을 나나 조사해 주면(자) 꺄- 꺄- 떠들기 시작한다
+		PRINTFORMW 「귀 이끌지 마―！섬세하기 때문에 쉽게 해!」
+		PRINTFORMW 머리카락이 얽혔다든가 그런 이유는 없고, 어쨌든 귀를 소중히 했으면 좋은 것 같다
+		PRINTFORMW 이번에는 상냥하게 귀의 구석구석까지 씻어 주면(자), 기분이 좋은 것인지 헐떡이는 소리가 목욕탕에 반향한다
+		PRINTFORMW ……정직\@ GETBIT(TALENT:MASTER:성별, 1) ?  발그렇기 때문에 # 이쪽이 부끄럽기 때문에 \@용서 해 주었으면 하지만
+	; 연모
+	; <공사중>
+	ELSEIF TALENT:연모
+;		PRINTFORML 
+	; 타
+	; <공사중>
+	ELSE
+;		PRINTFORML 
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 303, 사과한다
+;---------------------------------------
+; 냐옹 냐옹에서도 뒤쫓아 돌리면 좋다고 생각해
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_303
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_303_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_303_1
+LOCAL = 0
+IF LOCAL
+	
+ENDIF
+RETURN 1
+
+;=================================================
+; 304, 일을돕는다
+;----------------------------------------
+; 도울 수 있는 캐릭터라면 신뢰를 위해 도와줄게요
+; 업무중의 묵묵히 일을--의 지문이 쿄코 에 어울리지 않아서 곤란하다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_304
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_304_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_304_1
+LOCAL = 1
+IF LOCAL
+	; 성공
+	IF TFLAG:193 != -1
+		PRINTFORML 서로의 성과를 서로 보고한 결과,\@ TFLAG:193 ?  생각하고 있었던 것보다도 # \@순조롭게 진행된 것 같다
+		PRINTFORMW 「고마워요. %MASTERNAME:88%의 덕분에 진척되었어요」
+	; 실패
+	ELSE
+		PRINTFORML 「너무 진행되지 않았어요 응」
+		PRINTFORMW 약1시간 분담 해 일을 진행시켜 왔지만, 아직 마지막은 먼 것 같다
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 308, 뺨을쿡쿡 찌른다
+;---------------------------------------
+; 동침중전용의 커맨드……일까
+; 내친 김에 보통으로 동침 하면(자) 일어나 버리고 쇠약시키지 않으면 안 돼야?
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_308
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_308_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_308_1
+LOCAL = 0
+IF LOCAL
+	
+ENDIF
+RETURN 1
+
+;================================================
+; 309, 머리를어루만진다
+;---------------------------------------
+; 신뢰를 위해 특히 연모까지 사용 빈도 많은 커맨드구나
+; 그것을 고려한 만큼 기를 만들 수 있으면 좋다
+;================================================
+@M_KOJO_MESSAGE_COM_K88_309
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_309_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_309_1
+LOCAL = 1
+IF LOCAL
+	; 실패는 연주한다
+	SIF TFLAG:193 == -1
+		RETURN 1
+	; 자지 않았다
+	IF !CFLAG:수면
+		IF TALENT:연인
+			PRINTFORML 
+		ELSEIF TALENT:연모
+			PRINTFORML 
+		ELSEIF CFLAG:2 > 800 || CFLAG:4 > 400
+			PRINTFORML 
+		ELSEIF CFLAG:2 > 500 || CFLAG:4 > 250
+			PRINTFORML 
+		ELSE
+			PRINTFORML 
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 310, 엉덩이를어루만진다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_310
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_310_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_310_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 311, 달라붙는다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_311
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_311_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_311_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 312, 키스한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_312
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_312_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_312_1
+LOCAL = 0
+IF LOCAL
+	; <공사중> 우선 분기만
+	IF CFLAG:우후후 == 2
+		PRINTFORML 
+	ELSE
+		; 수면
+		IF CFLAG:수면
+			PRINTFORML 
+		; 동침중
+		ELSEIF CFLAG:동침중
+			PRINTFORML 
+		; 연모
+		ELSEIF TALENT:연모
+			PRINTFORML 
+		; 타
+		ELSE
+			PRINTFORML 
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 313, 가슴애무
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_313
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_313_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_313_1
+LOCAL = 0
+IF LOCAL
+	
+ENDIF
+RETURN 1
+
+;=================================================
+; 314, 애널애무
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_314
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_314_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_314_1
+LOCAL = 0
+IF LOCAL
+	
+ENDIF
+RETURN 1
+
+;=================================================
+; 315, 구리 애무
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_315
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_315_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_315_1
+LOCAL = 0
+IF LOCAL
+	
+ENDIF
+RETURN 1
+
+;=================================================
+; 316, 손가락 삽입
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_316
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_316_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_316_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 350, 밀어넘어뜨린다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_350
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_350_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_350_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 351, 데리고나간다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_351
+;데리고 나가에는 TRAIN_MESSAGE가 없다
+CALL M_KOJO_MESSAGE_COM_K88_351_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_351_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 352, 고백한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_352
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_352_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_352_1
+LOCAL = 0
+IF LOCAL
+	
+ENDIF
+RETURN 1
+
+;=================================================
+; 353, 장난한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_353
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_353_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_353_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 354, 동침한다
+;---------------------------------------
+; 상대는 일어나 이불에 부르는 느낌
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_354
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_354_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_354_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 360, 몸을맡긴다
+;---------------------------------------
+; 케″키류우니미마카세트″우카술
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_360
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_360_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_360_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 402, 취침
+;---------------------------------------
+; 동침 때
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_402
+;취침에 TRAIN_MESSAGE는 없다
+CALL M_KOJO_MESSAGE_COM_K88_402_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_402_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 403, 휴식
+;---------------------------------------
+; 목욕탕이라면 목욕통에 잠긴다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_403
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_403_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_403_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 410, 청소
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_410
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_410_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_410_1
+LOCAL = 1
+IF LOCAL
+	; 신령묘세 등장하고 있다고(면) 대사에 맞아 싸워 추가
+	;PRINTFORML 「청소에 밥솥\@ FLAG:17 ?  , 맞아 싸워 # \@. 모두 중요해요!」
+	;eraTWproto4. 630 시점에서는 FLAG:17이 신령묘플래그는 아니게 되고 있으므로 코멘트 아웃
+	PRINTFORML 「청소에 밥솥. 모두 중요해요!」
+	PRINTFORMW 실로 지당하다고 생각한다
+ENDIF
+RETURN 1
+
+;=================================================
+; 411, 전투훈련
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_411
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_411_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_411_1
+LOCAL = 1
+IF LOCAL
+	PRINTFORML 쿄코의 능력에 의해 경계를 반사하는 탄막은 아름다운 궤적을 그리지만……
+	PRINTFORML 「소리가 작다!」
+	PRINTFORMW 구호든지 활 넣고든지가 함께 경계를 반향하는 탓으로 시끄럽고 어쩔 수 없다
+ENDIF
+RETURN 1
+
+;=================================================
+; 412, 공부
+;---------------------------------------
+; 법력의 공부라는 것이 뾰족하게(팍하고) 오지 않기 때문에 독경과 사경으로 했다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_412
+;CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_412_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_412_1
+LOCAL = 1
+IF LOCAL
+	IF ABL:MASTER:교양 > ABL:교양
+		PRINTFORMW 「--―, ---인」
+		PRINTFORML 쿄코는 의미도 알지 못하고 불경을 주창하고 있는 것 같아서, 의미를 가르치고 있지만……
+		PRINTFORMW 법력을 몸에 댄 메아리는 것은 도대체 어떤 방법으로 되는 것일까?
+		PRINTFORMW ……메아리에 대답한 인간을 저주해 죽인다든가?
+	ELSEIF ABL:MASTER:교양 / 2 == ABL:교양 / 2
+		PRINTFORMW 「응 응, 이것은 읽어?」
+		PRINTFORML 함께 사경을 해 보면, 쿄코는 불경의 어려운 글자는 너무 읽을 수 없는 것 같다
+		PRINTFORML 음을 흉내내는 메아리에서는 어쩔 수 없는 것인지도 모르지만,
+		PRINTFORMW 자와 소리와 의미는 결합되고 있었으면 좋겠다고 아마추어의 눈에도 생각한다
+	ELSE
+		PRINTFORMW 「-일체라고 --―」
+		PRINTFORML 공부를 위해서(때문에) 쿄코가 주창하는 불경을 복창한다
+		PRINTFORMW 가끔 복창한 것을 무심코 쿄코가 또 복창 하는 것이기 때문에, 좀처럼 진척되지 않는다
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 413, 요리
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_413
+;요리에 TRAIN_MESSAGE는 없다
+CALL M_KOJO_MESSAGE_COM_K88_413_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_413_1
+LOCAL = 1
+IF LOCAL
+	PRINTFORMW 「밥솥도 중요한 근행이야. 맡겨!」
+	PRINTFORML 쿄코는 자신으로 가득 차고 가득 차고 있고, 솜씨도 웅덩이 없다
+	PRINTFORMW 굉장한 것이라면 감탄 할 수밖에 없었다
+	PRINTFORML  
+	IF ABL:MASTER:요리기능 > ABL:요리기능
+		PRINTFORMW 쿄코와 함께 화기애애하며 요리를 만들었다
+	ELSE
+		PRINTFORMW 쿄코에 다양한 어드바이스를 받으면서 요리를 만들었다
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 414, 식사를배달시킨다
+;---------------------------------------
+; 414로 415는 차이가 이해하기 어렵지요
+; 그리고, 414도 415도 많은 사람이 있을 수 있는 것
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_414
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_414_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_414_1
+LOCAL = 1
+IF LOCAL
+	; 혼합하고 것 하지 않는다
+	IF TCVAR:MASTER:308 < 8
+		; 기호의 맛(실패하지 않는다)
+		IF CFLAG:미각기호 & TCVAR:MASTER:308
+			PRINTFORML 「역시 맛내기는 담백한 맛이군요」
+			PRINTFORMW 쿄코와 요리의맛내기에 대한 반성회를 하면서 식사를 끝냈다
+		; 성공
+		ELSEIF TFLAG:193 == 1
+			PRINTFORML 부러운 듯이 보고 있던 쿄코를 식사 제의를 해 본다
+			PRINTFORMW 「어 먹어도 좋은거야? 그럼 사양말고 잘먹겠습니다」
+		; 실패
+		ELSE
+			PRINTFORML 「%MASTERNAME:88%……, 이것 맛을 보았어?」
+			PRINTFORML 하고 있지 않다고 대답하면(자), 쿄코는 굳어진 표정으로 접시를 돌려주어 왔다
+			PRINTFORMW 「다음은 분명하게 맛보기를 하는 것이 좋아요. 식재료가 아까우니까」
+		ENDIF
+	; 이·타·즈·라
+	ELSE
+		; 태연(고락)
+		IF CFLAG:TARGET:미각기호 & TCVAR:MASTER:308
+			PRINTFORML 두근 두근 하면서 장난 끝난 식사를 입에 옮기는 쿄코를 지켜본다
+			PRINTFORMW 「어이 꾸짖었어요. 라고%MASTERNAME:88%왜 그러는 거야?」
+			PRINTFORMW 태연하게 평정할 수 있었던 것에 놀라고 있었던 것이 표정에 출같다
+		; 안 돼(신고추냉이)
+		ELSE
+			PRINTFORML \@ TCVAR:MASTER:308 & 8 ?  엄청 매운의 # 고추냉이 충분히의 \@요리를 먹은 쿄코는 꺄- 꺄- 비명을 올리고 있다
+			PRINTFORML 외형으로부터 해 이상한데 설마 정말로 먹는다고는……
+			PRINTFORMW 침착한 후에 변명 해 두자
+			SETBIT TCVAR:352, 2
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 415, 식사를대접한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_415
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_415_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_415_1
+LOCAL = 1
+IF LOCAL
+	CALL M_KOJO_MESSAGE_COM_K88_414_1
+ENDIF
+RETURN 1
+
+
+;===========================================================
+;데이트계 커맨드
+;=================================================
+; 600, 데이트 회화
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_600
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_600_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_600_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 601, 데이트 스킨십
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_601
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_601_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_601_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 602, 데이트 키스
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_602
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_602_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_602_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 603, 손을잡는다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_603
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_603_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_603_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 604, 산책한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_604
+;산책하려면  TRAIN_MESSAGE가 없다
+CALL M_KOJO_MESSAGE_COM_K88_604_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_604_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 610, 식사제의를한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_610
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_610_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_610_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;=================================================
+; 613, 돈 벌어 한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_613
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_613_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_613_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;===========================================================
+; 데이트 파생 커맨드
+;=================================================
+; 80, 손을 잡아 당긴다
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_80
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_80_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K88_80_1
+LOCAL = 0
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+
+;===========================================================
+; 애무계 커맨드
+;=================================================
+; 0, 애무
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_0
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_0_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_0_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	
+	;삽입중
+	LOCAL:1 = 0
+	;V삽입
+	IF LOCAL:1 && TEQUIP:50 == PLAYER
+		;사정했다
+		IF NOWEX:PLAYER:11
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;A삽입
+	ELSEIF LOCAL:1 && TEQUIP:51 == PLAYER
+		;사정했다
+		IF NOWEX:PLAYER:11
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	
+	;후타나리
+	LOCAL:1 = 0
+	IF LOCAL:1 && (TALENT:2 & 3) == 3
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;=================================================
+; 1, 쿠니
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_1
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_1_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_1_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+
+	;질내사정 직후
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:100 == PLAYER
+		IF TCVAR:102
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	
+	;절정 했다
+	LOCAL:1 = 0
+	IF LOCAL:1 && NOWEX:0
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;그리고는 적당한 분기를 추가해 주세요
+
+;=================================================
+; 2, 펠라한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_2
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_2_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_2_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 3, 손가락 삽입
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_3
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_3_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_3_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 4, 애널빨기
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_4
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_4_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_4_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 5, 애널애무
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_5
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_5_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_5_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 6, 가슴애무
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_6
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_6_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_6_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 7, 유두고문
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_7
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_7_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_7_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 8, 음부개장
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_8
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_8_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_8_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 9, 자위
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_9
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_9_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_9_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;===========================================================
+; 소프트계 커맨드
+;=================================================
+; 20, 키스한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_20
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_20_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_20_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+
+;=================================================
+; 21, 아무것도하지않는다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_21
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_21_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_21_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;===========================================================
+; 도구계 커맨드
+;=================================================
+; 40, 로터
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_40
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_40_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_40_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 41, E마사지기
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_41
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_41_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_41_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 42, 클리캡
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_42
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_42_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_42_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:클리캡
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 43, 오나홀
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_43
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_43_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_43_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:오나홀
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 44, 바이브
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_44
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_44_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_44_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		IF TCVAR:파과 == 1
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:바이브
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 45, 애널바이브
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_45
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_45_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_45_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:애널바이브
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 46, 애널비즈
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_46
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_46_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_46_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:애널비즈
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 47, 2 프르캐프
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_47
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_47_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_47_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:유두캡
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+	ENDIF
+ENDIF
+RETURN 1
+;=================================================
+; 48, 착유기
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_48
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_48_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_48_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:착유기
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+	ENDIF
+ENDIF
+RETURN 1
+
+;===========================================================
+; 성교계 커맨드
+;=================================================
+; 60, 정상위
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_60
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_60_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_60_1
+;립 정도
+LOCAL = 0
+IF LOCAL && TFLAG:193
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;처녀
+		IF TCVAR:파과 == 1
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:100 == PLAYER
+		;전회 사정했다
+		IF TCVAR:102
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+
+;정상위
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;처녀
+		IF TCVAR:파과 == 1
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:100 == PLAYER
+		;전회 사정했다
+		IF TCVAR:102
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 61, 후배위
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_61
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_61_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_61_1
+;립 정도
+LOCAL = 0
+IF LOCAL && TFLAG:193
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;처녀
+		IF TCVAR:파과 == 1
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:100 == PLAYER
+		;전회 사정했다
+		IF TCVAR:102
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+
+;후배위
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;처녀
+		IF TCVAR:파과 == 1
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:100 == PLAYER
+		;전회 사정했다
+		IF TCVAR:102
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 62, 정상위애널
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_62
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_62_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_62_1
+;립 정도
+LOCAL = 0
+IF LOCAL && TFLAG:193
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;애널 처녀
+		IF TCVAR:A파과
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:101 == PLAYER
+		;전회 사정했다
+		IF TCVAR:104
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+
+;정상위
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;애널 처녀
+		IF TCVAR:A파과
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:101 == PLAYER
+		;전회 사정했다
+		IF TCVAR:104
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 63, 후배위애널
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_63
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_63_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_63_1
+;립 정도
+LOCAL = 0
+IF LOCAL && TFLAG:193
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;애널 처녀
+		IF TCVAR:A파과
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:101 == PLAYER
+		;전회 사정했다
+		IF TCVAR:104
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+
+;후배위
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;애널 처녀
+		IF TCVAR:A파과
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:101 == PLAYER
+		;전회 사정했다
+		IF TCVAR:104
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 64, 역강간
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_64
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_64_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_64_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;조교자가 처녀
+		IF TCVAR:PLAYER:파과 == 1
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:PLAYER:100 == TARGET
+		;전회 사정했다
+		IF TCVAR:PLAYER:102
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 65, 기승위
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_65
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_65_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_65_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;처녀
+		IF TCVAR:파과 == 1
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:100 == PLAYER
+		;전회 사정했다
+		IF TCVAR:102
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 66, 기승위애널
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_66
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_66_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_66_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;애널 처녀
+		IF TCVAR:A파과
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:101 == PLAYER
+		;전회 사정했다
+		IF TCVAR:104
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 67, 대면좌위
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_67
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_67_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_67_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;처녀
+		IF TCVAR:파과 == 1
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:100 == PLAYER
+		;전회 사정했다
+		IF TCVAR:102
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 68, 후배위
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_68
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_68_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_68_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;처녀
+		IF TCVAR:파과 == 1
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:100 == PLAYER
+		;전회 사정했다
+		IF TCVAR:102
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 69, 대면좌위애널
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_69
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_69_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_69_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;애널 처녀
+		IF TCVAR:A파과
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:101 == PLAYER
+		;전회 사정했다
+		IF TCVAR:104
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 70, 후배위애널
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_70
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_70_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_70_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		;애널 처녀
+		IF TCVAR:A파과
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;삽입 계속
+	LOCAL:1 = 0
+	IF LOCAL:1 && TCVAR:101 == PLAYER
+		;전회 사정했다
+		IF TCVAR:104
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 71, 양구멍삽입
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_71
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_71_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_71_1
+LOCAL = 0
+IF LOCAL
+	;생각할 수 있는 분기가 너무 많으므로 지문의 대범한 분기만
+	;연속
+	IF PREVCOM == SELECTCOM
+		PRINTFORMW 
+		RETURN 1
+	;주인 V삽입→조수 A삽입
+	ELSEIF TCVAR:100 == MASTER
+		PRINTFORMW 
+		RETURN 1
+	;주인 A삽입→조수 V삽입
+	ELSEIF TCVAR:101 == MASTER
+		PRINTFORMW 
+		RETURN 1
+	;조수 V삽입→주인 A삽입
+	ELSEIF TCVAR:100 == ASSI
+		PRINTFORMW 
+		RETURN 1
+	;조수 A삽입→주인 V삽입
+	ELSEIF TCVAR:101 == ASSI
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;===========================================================
+; 봉사계 커맨드
+;=================================================
+; 80, 수음
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_80
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_80_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_80_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 81, 펠라치오
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_81
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_81_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_81_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 82, 파이즈리
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_82
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_82_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_82_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 83, 가랑이
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_83
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_83_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_83_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 84, 거품춤
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_84
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_84_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_84_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 85, 다리 호된 훈련
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_85
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_85_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_85_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+
+;===========================================================
+; 가학계 커맨드
+;=================================================
+; 100, 스팬킹
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_100
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_100_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_100_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 101, 채찍
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_101
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_101_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_101_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 102, 초
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_102
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_102_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_102_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 103, 바늘
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_103
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_103_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_103_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 104, 눈가리개
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_104
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_104_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_104_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:눈가리개
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 105, 줄
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_105
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_105_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_105_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:밧줄
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 106, 볼개그
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_106
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_106_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_106_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:볼개그
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;===========================================================
+; 조수에 의한 커맨드, 및 레즈비언 플레이
+;=================================================
+; 120, 커닐링구스강제
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_120
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_120_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_120_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 121, 조개 우려라
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_121
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_121_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_121_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 123, 풋잡한다
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_123
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_123_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_123_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 126, 젖치기
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_126
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_126_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_126_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;===========================================================
+; 하드한 조교 커맨드
+;=================================================
+; 140, 이라마치오
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_140
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_140_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_140_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 141, 피스트성교
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_141
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_141_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_141_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 142, 애널피스트
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_142
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_142_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_142_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 143, 두 구멍 피스트
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_143
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_143_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_143_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 144, 방뇨
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_144
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_144_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_144_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 145, 애널 봉사 강제
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_145
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_145_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_145_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 146, 관장기＋플러그
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_146
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_146_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_146_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;관장액주입
+	IF TEQUIP:관장
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+; 147, 확장벌룬
+;==================================================
+@M_KOJO_MESSAGE_COM_K88_147
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_147_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_147_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:확장벌룬
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 148, 애널전극
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_148
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_148_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_148_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;장착
+	IF TEQUIP:애널전극
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;해제
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 특수 커맨드
+;=================================================
+; 180, 로션
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_180
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_180_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_180_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 181, 미약,
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_181
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_181_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_181_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 182, 이뇨제,
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_182
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_182_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_182_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 183, 비디오카메라,
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_183
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_183_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_183_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;개시
+	IF TEQUIP:비디오촬영
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;종료
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 187, 목욕탕플레이
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_187
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_187_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_187_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;개시
+	IF TEQUIP:목욕탕플레이
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;종료
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 188, 샤워
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_188
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_188_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_188_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;개시
+	IF TEQUIP:샤워
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;종료
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;=================================================
+; 189, 새댁플레이
+;=================================================
+@M_KOJO_MESSAGE_COM_K88_189
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K88_189_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K88_189_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;개시
+	IF TEQUIP:새댁플레이
+		;연모
+		IF TALENT:연모
+			PRINTFORMW 
+			RETURN 1
+		;굴복 3
+		ELSEIF MARK:괘씸각인 == 3
+			PRINTFORMW 
+			RETURN 1
+		;그 이외
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;종료
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;===========================================================
+; 파생 커맨드
+;=================================================
+; 1, 식스나인
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_1
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_1_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K88_1_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+;=================================================
+;2, 이와시미즈
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_2
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_2_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K88_2_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+;=================================================
+; 3, G 스폿 자극
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_3
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_3_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K88_3_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+;=================================================
+; 4, 흐트러지고 모란
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_4
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_4_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K88_4_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+;=================================================
+; 5, 수음 펠라
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_5
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_5_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K88_5_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+;=================================================
+; 6, 삽입 G스포 고문
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_6
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_6_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K88_6_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+;=================================================
+; 7, 삽입자궁입구고문
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_7
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_7_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K88_7_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+;=================================================
+; 8, 69파이즈리
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_8
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_8_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K88_8_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+;=================================================
+; 509, 더블 펠라
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_9
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_9_1
+;반환값과 TARGET를 보존, TARGET를 두 명째에 일시적으로 교대해 두 명째 말을 호출한 후, TARGET도 어째서 보존한 반환값으로 RETURN 한다
+;두 명째 들어가지 않는 경우는 여기서 처리
+;두 명째
+LOCAL = MASTER_POSE(SET_M, SET_P, 1)
+LOCAL:1 = RESULT
+LOCAL:2 = TARGET
+TARGET = LOCAL
+TRYCALLFORM M_KOJO_MESSAGE_SCOM_K{TARGET}_9_2
+TARGET = LOCAL:2
+RETURN LOCAL:1
+
+;한사람 눈과 입상
+@M_KOJO_MESSAGE_SCOM_K88_9_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+;두 명째 말
+@M_KOJO_MESSAGE_SCOM_K88_9_2
+VARSET LOCAL
+;일인눈
+LOCAL:101 = MASTER_POSE(SET_M, SET_P)
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+
+;=================================================
+; 10, 더블 가랑이
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_10
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_10_1
+;반환값과 TARGET를 보존, TARGET를 두 명째에 일시적으로 교대해 두 명째 말을 호출한 후, TARGET도 어째서 보존한 반환값으로 RETURN 한다
+;두 명째 들어가지 않는 경우는 여기서 처리
+;두 명째
+LOCAL = MASTER_POSE(SET_C, SET_P, 1)
+LOCAL:1 = RESULT
+LOCAL:2 = TARGET
+TARGET = LOCAL
+TRYCALLFORM M_KOJO_MESSAGE_SCOM_K{TARGET}_10_2
+TARGET = LOCAL:2
+RETURN LOCAL:1
+
+@M_KOJO_MESSAGE_SCOM_K88_10_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+@M_KOJO_MESSAGE_SCOM_K88_10_2
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+
+;=================================================
+; 11, 더블 파이즈리
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_11
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_11_1
+;반환값과 TARGET를 보존, TARGET를 두 명째에 일시적으로 교대해 두 명째 말을 호출한 후, TARGET도 어째서 보존한 반환값으로 RETURN 한다
+;두 명째 들어가지 않는 경우는 여기서 처리
+;두 명째
+LOCAL = MASTER_POSE(SET_B, SET_P, 1)
+LOCAL:1 = RESULT
+LOCAL:2 = TARGET
+TARGET = LOCAL
+TRYCALLFORM M_KOJO_MESSAGE_SCOM_K{TARGET}_11_2
+TARGET = LOCAL:2
+RETURN LOCAL:1
+
+@M_KOJO_MESSAGE_SCOM_K88_11_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+@M_KOJO_MESSAGE_SCOM_K88_11_2
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+
+;=================================================
+; 12, 파이즈리 펠라
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_12
+CALL TRAIN_MESSAGE
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(SELECTCOM)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;CALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}
+RETURN 1
+
+;=================================================
+; 13, 교호 삽입
+;=================================================
+@M_KOJO_MESSAGE_SCOM_K88_13
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K88_13_1
+;반환값과 TARGET를 보존, TARGET를 두 명째에 일시적으로 교대해 두 명째 말을 호출한 후, TARGET도 어째서 보존한 반환값으로 RETURN 한다
+;두 명째 들어가지 않는 경우는 여기서 처리
+;두 명째
+LOCAL = MASTER_POSE(SET_V, SET_P, 1)
+LOCAL:1 = RESULT
+LOCAL:2 = TARGET
+TARGET = LOCAL
+TRYCALLFORM M_KOJO_MESSAGE_SCOM_K{TARGET}_13_2
+TARGET = LOCAL:2
+RETURN LOCAL:1
+
+@M_KOJO_MESSAGE_SCOM_K88_13_1
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+;미기입
+;TRYCALLFORM M_KOJO_MESSAGE_COM_K88_{SELECTCOM}_1
+RETURN 1
+
+@M_KOJO_MESSAGE_SCOM_K88_13_2
+LOCAL = 0
+IF LOCAL
+	;처음
+	LOCAL:1 = 0
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;기본 세트
+	;연모
+	IF TALENT:연모
+		PRINTFORMW 
+		RETURN 1
+	;굴복 3
+	ELSEIF MARK:괘씸각인 == 3
+		PRINTFORMW 
+		RETURN 1
+	;그 이외
+	ELSE
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+
+;SOURCE나 NOWEX를 사용해 SELECTCOM에 의존하지 않는 말 이 있어도 되지 않아
+@M_KOJO_MESSAGE_COM_K88_00
+;성교 처녀상실을 RETURN 100해
+;IF RESULT == 100 으로 정리한다든가
+;고통이나 쾌락의 SOURCE를 트리거로서 범용 헐떡임 말을 만든다든가
+;여러 가지 이용 방법은 생각됩니다만 적당하게 해 주세요
+
+
+
+;===========================================================
+; "COUNTER"계 말
+;===========================================================
+; 소프트
+;=================================================
+; 요염한 행동
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_10
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_10_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_10_1
+RETURN 1
+
+;=================================================
+; 응시한다
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_11
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_11_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_11_1
+RETURN 1
+
+;=================================================
+; 몸을 접댄다
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_12
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_12_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_12_1
+RETURN 1
+
+;=================================================
+; 치마걷어 올리기
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_13
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_13_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_13_1
+RETURN 1
+
+;=================================================
+; 입김을 내뿜는다
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_14
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_14_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_14_1
+RETURN 1
+
+;=================================================
+; 엉덩이를어루만진다
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_15
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_15_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_15_1
+RETURN 1
+
+;=================================================
+; 성희롱
+;=================================================
+; 키스
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_30
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_30_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_30_1
+RETURN 1
+
+;=================================================
+; 뒤로부터 안겨든다
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_31
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_31_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_31_1
+RETURN 1
+
+;=================================================
+; 앞에서 안겨든다
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_32
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_32_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_32_1
+RETURN 1
+
+;=================================================
+; 가슴을 비비게 한다
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_33
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_33_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_33_1
+RETURN 1
+
+;=================================================
+; 고간뒤진다
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_34
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_34_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_34_1
+RETURN 1
+
+;=================================================
+; 치마안을 보인다
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_35
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_35_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_35_1
+RETURN 1
+
+;=================================================
+; 뒤로부터 가슴 만지작 만지작
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_36
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_36_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_36_1
+RETURN 1
+
+
+;=================================================
+; 애무
+;=================================================
+; 수음
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_50
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_50_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_50_1
+RETURN 1
+
+;=================================================
+; 펠라티오
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_51
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_51_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_51_1
+RETURN 1
+
+;=================================================
+; 가랑이
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_52
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_52_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_52_1
+RETURN 1
+
+;=================================================
+; 파이즈리
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_53
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_53_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_53_1
+RETURN 1
+
+;=================================================
+; 풋잡
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_54
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_54_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_54_1
+RETURN 1
+
+;=================================================
+; 애널애무
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_55
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_55_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_55_1
+RETURN 1
+
+;=================================================
+; 애널빨기
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_56
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_56_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_56_1
+RETURN 1
+
+;=================================================
+; 손가락 삽입
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_57
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_57_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_57_1
+RETURN 1
+
+;=================================================
+; 가슴애무
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_58
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_58_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_58_1
+RETURN 1
+
+;=================================================
+; 유두빨기
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_59
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_59_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_59_1
+RETURN 1
+
+;=================================================
+; 딥키스
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_60
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_60_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_60_1
+RETURN 1
+
+
+;=================================================
+; 봉사
+;=================================================
+; 커닐링구스강제
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_70
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_70_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_70_1
+RETURN 1
+
+;=================================================
+; 펠라치오 강제
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_71
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_71_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_71_1
+RETURN 1
+
+;=================================================
+; 애널 봉사
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_72
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_72_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_72_1
+RETURN 1
+
+;=================================================
+;
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_73
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_73_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_73_1
+RETURN 1
+
+;=================================================
+; 젖 맞추어라
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_74
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_74_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_74_1
+RETURN 1
+
+;=================================================
+; 타와시 세탁
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_75
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_75_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_75_1
+RETURN 1
+
+;=================================================
+; 성교
+;=================================================
+; 삽입된다(MASTER 받고)
+;=================================================
+@M_KOJO_MESSAGE_COUNTER_K88_80
+CALL EVENT_COUNTER_MESSAGE
+CALL M_KOJO_MESSAGE_COUNTER_K88_80_1
+RETURN RESULT
+@M_KOJO_MESSAGE_COUNTER_K88_80_1
+RETURN 1
+
+;=================================================
+; 우후후 카운터
+;---------------------------------------
+; 아직
+;=================================================
+
+;=================================================
+; 노예의 절정시의 말
+;---------------------------------------
+; NOWEX:0~3 CVAB 절정
+; NOWEX:이중절정 이중절정
+; NOWEX:삼중절정 삼중절정
+; NOWEX:사중절정 사중절정
+; NOWEX:10 분유
+; NOWEX:11 사정
+; NOWEX:12 방뇨
+; 적당하게 조합해 사용해 주세요
+;=================================================
+@M_KOJO_MESSAGE_PALAMCNG_B_K88
+CALL PALAM_MESSAGE_B
+;분유
+LOCAL = 0
+IF LOCAL && NOWEX:분유
+	PRINTFORMW 
+ENDIF
+
+;사정
+LOCAL = 0
+IF LOCAL && NOWEX:11
+	PRINTFORMW 
+ENDIF
+
+;방뇨
+LOCAL = 0
+IF LOCAL && NOWEX:12
+	PRINTFORMW 
+ENDIF
+
+;절정
+LOCAL = 0
+IF LOCAL
+	;사중절정
+	LOCAL:1 = 0
+	IF NOWEX:사중절정
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;삼중절정
+	LOCAL:1 = 0
+	IF NOWEX:삼중절정
+		SELECTCASE NOWEX:삼중절정
+			;C＆V＆A절정
+			CASE 1
+				PRINTFORMW 
+				RETURN 1
+			;B＆V＆A절정
+			CASE 2
+				PRINTFORMW 
+				RETURN 1
+			;C＆B＆A절정
+			CASE 3
+				PRINTFORMW 
+				RETURN 1
+			;C＆V＆B절정
+			CASE 4
+				PRINTFORMW 
+				RETURN 1
+		ENDSELECT
+	ENDIF
+	;이중절정
+	LOCAL:1 = 0
+	IF NOWEX:이중절정
+		SELECTCASE NOWEX:이중절정
+			;C＆V절정
+			CASE 1
+				PRINTFORMW 
+				RETURN 1
+			;C＆A절정
+			CASE 2
+				PRINTFORMW 
+				RETURN 1
+			;V＆A절정
+			CASE 3
+				PRINTFORMW 
+				RETURN 1
+			;C＆B절정
+			CASE 4
+				PRINTFORMW 
+				RETURN 1
+			;V＆B절정
+			CASE 5
+				PRINTFORMW 
+				RETURN 1
+			;A＆B절정
+			CASE 6
+				PRINTFORMW 
+				RETURN 1
+		ENDSELECT
+	ENDIF
+	IF NOWEX:0
+		;강절정 C
+		IF NOWEX:0 == 2
+			PRINTFORMW 
+		;절정 C
+		ELSE
+			PRINTFORMW 
+		ENDIF
+	ENDIF
+	IF NOWEX:1
+		;강절정 V
+		IF NOWEX:1 == 2
+			PRINTFORMW 
+		;절정 V
+		ELSE
+			PRINTFORMW 
+		ENDIF
+	ENDIF
+	IF NOWEX:2
+		;강절정 A
+		IF NOWEX:2 == 2
+			PRINTFORMW 
+		;절정 A
+		ELSE
+			PRINTFORMW 
+		ENDIF
+	ENDIF
+	IF NOWEX:3
+		;강절정 B
+		IF NOWEX:3 == 2
+			PRINTFORMW 
+		;절정 B
+		ELSE
+			PRINTFORMW 
+		ENDIF
+	ENDIF
+ENDIF
+
+
+;=================================================
+;사정에 관한 말의 표시
+;---------------------------------------
+;일시적으로 TARGET를 말 주인의 설정해 있다
+;=================================================
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_0(ARG)
+CALL PALAM_MESSAGE_A
+;콘돔
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_23(ARG)
+CALL PALAM_MESSAGE_A
+;이라마치오
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_22(ARG)
+CALL PALAM_MESSAGE_A
+;식스나인
+LOCAL = 0
+IF LOCAL
+	;동시 사정
+	IF NOWEX:11 && NOWEX:MASTER:11
+		PRINTFORMW 
+		RETURN 1
+	;TARGET만 사정
+	ELSEIF NOWEX:11
+		;PLAYER에 대하고 있다
+		IF TALENT:PLAYER & 2
+			PRINTFORMW 
+			RETURN 1
+		;붙지 않다
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;PLAYER만 사정
+	ELSE
+		;TARGET에 대하고 있다
+		IF TALENT:2 & 2
+			PRINTFORMW 
+			RETURN 1
+		;붙지 않다
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_21(ARG)
+CALL PALAM_MESSAGE_A
+;파이즈리 펠라
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_20(ARG)
+CALL PALAM_MESSAGE_A
+;수음 펠라
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_9(ARG)
+CALL PALAM_MESSAGE_A
+;애널 봉사
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_8(ARG)
+CALL PALAM_MESSAGE_A
+;거품춤
+LOCAL = 0
+IF LOCAL
+	;동시 사정
+	IF NOWEX:11 && NOWEX:MASTER:11
+		PRINTFORMW 
+		RETURN 1
+	;TARGET만 사정
+	ELSEIF NOWEX:11
+		;PLAYER에 대하고 있다
+		IF TALENT:PLAYER & 2
+			PRINTFORMW 
+			RETURN 1
+		;붙지 않다
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	;PLAYER만 사정
+	ELSE
+		;TARGET에 대하고 있다
+		IF TALENT:2 & 2
+			PRINTFORMW 
+			RETURN 1
+		;붙지 않다
+		ELSE
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_7(ARG)
+CALL PALAM_MESSAGE_A
+;풋잡
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_6(ARG)
+CALL PALAM_MESSAGE_A
+;가랑이
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_5(ARG)
+CALL PALAM_MESSAGE_A
+;파이즈리
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_4(ARG)
+CALL PALAM_MESSAGE_A
+;펠라치오
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_3(ARG)
+CALL PALAM_MESSAGE_A
+;수음
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_2(ARG)
+CALL PALAM_MESSAGE_A
+;애널
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_A_K88_1(ARG)
+CALL PALAM_MESSAGE_A
+;질내
+LOCAL = 0
+IF LOCAL
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+RETURN 1
+
+;=================================================
+; 조교 후의 텍스트
+;---------------------------------------
+; TFLAG:8 (1=TARGET가 청소 2=ASSI가 청소 3=TARGET와 ASSI가 청소)
+;=================================================
+@M_KOJO_MESSAGE_PALAMCNG_C_K88
+CALL PALAM_MESSAGE_C
+;처녀상실
+IF TFLAG:4
+	PRINTFORMW 
+ENDIF
+
+;펠라로 사정 후의 청소
+IF (TFLAG:8 & 1) && NOWEX:PLAYER:11
+	PRINTFORMW 
+ENDIF
+
+;=================================================
+; 각인 취득
+;=================================================
+@M_KOJO_MESSAGE_MARKCNG_K88
+;고통각인
+IF TFLAG:22 == 1
+	PRINTFORMW 
+ELSEIF TFLAG:22 == 2
+	PRINTFORMW 
+ELSEIF TFLAG:22 == 3
+	PRINTFORMW 
+ENDIF
+
+;쾌락각인
+IF TFLAG:23 == 1
+	PRINTFORMW 
+ELSEIF TFLAG:23 == 2
+	PRINTFORMW 
+ELSEIF TFLAG:23 == 3
+	PRINTFORMW 
+ENDIF
+
+;괘씸각인
+;쾌락에 의한 각인
+;LV1
+IF TFLAG:24 == 11
+	PRINTFORMW 
+;LV2
+ELSEIF TFLAG:24 == 12
+	PRINTFORMW 
+;LV3
+ELSEIF TFLAG:24 == 13
+	PRINTFORMW 
+;고통, 공포에 의한 각인
+;LV1
+ELSEIF TFLAG:24 == 21
+	PRINTFORMW 
+;LV2
+ELSEIF TFLAG:24 == 22
+	PRINTFORMW 
+;LV3
+ELSEIF TFLAG:24 == 23
+	PRINTFORMW 
+;굴복, 복종에 의한 각인
+;LV1
+ELSEIF TFLAG:24 == 31
+	PRINTFORMW 
+;LV2
+ELSEIF TFLAG:24 == 32
+	PRINTFORMW 
+;LV3
+ELSEIF TFLAG:24 == 33
+	PRINTFORMW 
+ENDIF
+
+;반발각인
+IF TFLAG:21 == 1
+	PRINTFORMW 
+ELSEIF TFLAG:21 == 2
+	PRINTFORMW 
+ELSEIF TFLAG:21 == 3
+	PRINTFORMW 
+ENDIF
+
+
+;========================================================
+; 말내부 버전 취득(식중함수)
+;-------------------------------------------------
+; 말의 버전 업으로 플래그의 변경등을 행하기 위한 내부 버전 취득
+;========================================================
+@K88_KYOKO_GET_VARSION()
+#FUNCTION
+RETURNF 100
+
+;========================================================
+; 하트 출력(식중함수)
+;-------------------------------------------------
+; Unicode 문자의 가운데점의 하트를 돌려준다
+;========================================================
+@K88_KYOKO_HEART()
+#FUNCTIONS
+RETURNF UNICODE(0x2665)
+
+;========================================================
+; 덮치기율 취득(식중함수)
+;-------------------------------------------------
+; 뭐말측만으로 끝내려고 생각하면(자) LOCAL를 외부 참조하러 가는지,
+; 새롭게 계산하는 함수를 만드는지, 본체에 손을 넣을까의 3방법으로,
+; LOCAL 외부 참조는 오니 일 하고 싶지 않고 본체에 손은 넣고 싶지 않고,
+; 결국 그것이 이 모습이다.
+; 물론 본체로 변경되면(자) 여기도 변경해야 한다('A`)
+;-------------------------------------------------
+; 인수
+;  ARG   = 비교 대상 캐릭터의 등록 번호(생략시 내부에서 TARGET를 세트)
+;-------------------------------------------------
+; 반환값
+;  수치(0~100) 덮치기율. 단위는%
+;========================================================
+@K88_KYOKO_TRYENDURE(ARG = -1)
+#FUNCTION
+#LOCALSIZE 2
+VARSET LOCAL, 0
+SIF ARG == -1
+	ARG = TARGET
+SIF ARG < 0 || ARG > CHARANUM
+	RETURNF 0
+; 절대로 코피페
+;소질에 의해 판정 변화
+LOCAL = 100
+SIF TALENT:ARG:처녀
+	LOCAL = LOCAL / 2
+SIF TALENT:ARG:연모
+	LOCAL = LOCAL + 30
+SIF TALENT:ARG:담력 < 0 || TALENT:ARG:응답 < 0 || TALENT:ARG:무관심 || TALENT:ARG:수치심 < 0
+	LOCAL = LOCAL - 30
+SIF TALENT:ARG:성적흥미 > 0 || TALENT:ARG:수치심 > 0
+	LOCAL = LOCAL + 20
+SIF TALENT:ARG:자제심 || TALENT:ARG:성적흥미 < 0
+	LOCAL = LOCAL - ((LOCAL / 10) * 2)
+SIF TALENT:ARG:정조 < 0 || TALENT:ARG:소악마
+	LOCAL = LOCAL + ((LOCAL / 10) * 2)
+SIF TALENT:ARG:정조 > 0 || TALENT:ARG:일선을넘지않음
+	LOCAL = LOCAL / 2
+
+SIF TALENT:ARG:음란
+	LOCAL = 300
+SIF TALENT:ARG:성별기호 == 3 || MARK:ARG:반발각인 == 3
+	LOCAL = 0
+
+;체력에 의존해 덮치기율 감소
+LOCAL:1 = MAXBASE:ARG:체력 - BASE:ARG:체력
+IF LOCAL:1 < 500
+	;Do Notting
+ELSEIF LOCAL:1 < 1000
+	LOCAL = LOCAL / 2
+ELSEIF LOCAL:1 < 1500
+	LOCAL = LOCAL / 3
+ELSE
+	LOCAL = 10
+ENDIF
+
+;이성에 의존해 덮치기율 감소
+IF BASE:ARG:이성 > 800
+	LOCAL = LOCAL / 3
+ELSEIF BASE:ARG:이성 > 600
+	LOCAL = LOCAL / 2
+ELSE
+	;Do Notting
+ENDIF
+
+;범위 넘지 않게 보정
+SIF LOCAL < 0
+	LOCAL = 0
+SIF LOCAL > 300
+	LOCAL = 300
+
+; 확률을 돌려준다(원래 식은 SIF RAND:300 + 1 <= LOCAL)
+RETURNF LOCAL / 300
+
+;========================================================
+; 체격차이 취득(식중함수)
+;-------------------------------------------------
+; 대상과의 체격차이를 봐 대응하는 수치를 돌려준다
+; 별로 식중함수로 할 필요는 없는 것이지만 자주(잘) 사용하는 처리이고
+;-------------------------------------------------
+; 인수
+;  ARG   = 비교 대상 캐릭터의 등록 번호(생략시 내부에서 TARGET를 세트)
+;  ARG:1 = 비교원캐릭터의 등록 번호(생략시 내부에서 MASTER를 세트)
+;-------------------------------------------------
+; 반환값
+;  수치(-6~+6) 참고용: [난쟁이(-3)][유아 체형(-2)][작은 체형(-1)][(0)][장신(1)][거구(2)][거인(3)]
+;   최소는 비교 원래가 난쟁이 체형 또한 비교 대상이 거인. 최대는 최소의 역이 된다.
+;========================================================
+@K88_KYOKO_DIFF_BODYSIZE(ARG = -1, ARG:1 = -1)
+#FUNCTION
+SIF ARG == -1
+	ARG = TARGET
+SIF ARG:1 == -1
+	ARG:1 = MASTER
+SIF ARG < 0 || ARG > CHARANUM || ARG:1 < 0 || ARG:1 > CHARANUM
+	RETURNF 0
+RETURNF TALENT:(ARG:1):체형 - TALENT:ARG:체형
+
+;========================================================
+; 관계 취득(식중함수)
+;-------------------------------------------------
+; 대상과의 관계를 봐 대응하는 수치를 돌려준다
+;-------------------------------------------------
+; 인수
+;  ARG = 캐릭터의 등록 번호
+;-------------------------------------------------
+; 반환값
+;  수치(-1 = 적대시, 0 = 무관계, 1 = 우호적, 2 = 손윗사람, 3 = 존경)
+;========================================================
+@K88_KYOKO_RELATION(ARG)
+#FUNCTION
+SIF ARG < 0 || ARG > CHARANUM
+	RETURNF 0
+SELECTCASE CALLNAME:ARG
+	; 존경(별, 뱌쿠렌)
+	CASE "별" ,"뱌쿠렌"
+		RETURNF 3
+	; 손윗사람(쥐, 이치린, 무라사, 누에, 너구리)
+	CASE "나즈린", "이치린", "무라사", "누에", "마미조"
+		RETURNF 2
+	; 우호(코가사)
+	CASE "코가사"
+		RETURNF 1
+	CASEELSE
+		IF FLAG:역극 == ARG
+			RETURNF -2
+		ELSE
+			RETURNF 0
+		ENDIF
+ENDSELECT
+
+RETURNF 0
+
+;========================================================
+; 이름 표시(식중함수)
+;-------------------------------------------------
+; 대상과의 관계를 봐 이름을 표시
+;-------------------------------------------------
+; 인수
+;  ARG = 캐릭터의 등록 번호(생략시 내부에서 MASTER를 세트)
+;-------------------------------------------------
+; 반환값
+;  캐릭터라인(대상 캐릭터에게로의 호칭)
+;========================================================
+@K88_KYOKO_CALLNAME(ARG = -1)
+#FUNCTIONS
+#LOCALSSIZE 1
+VARSET LOCALS, ""
+SIF ARG == -1
+	ARG = MASTER
+SIF ARG < 0 || ARG > CHARANUM
+	RETURNF "범위외의인수"
+LOCALS = \@ ARG == MASTER ?  %CSTR:20% # %CALLNAME:ARG% \@
+SELECTCASE K88_KYOKO_RELATION(ARG)
+	; 존경(모양 짓고)
+	CASE 3
+		LOCALS += "님"
+	; 손윗사람(씨 짓고)
+	CASE 2
+		LOCALS += "씨"
+	; 우호(짓고)
+	CASE 1
+		LOCALS += ""
+	; 적대시(경칭 생략)
+	CASE -1
+	; 주인(변경을 더하지 않는다)
+	CASE -2
+	; 그 외
+	CASEELSE
+		LOCALS += ""
+ENDSELECT
+; 여기에서 주인 전용 처리
+IF ARG == MASTER
+	; CSTR:20으로 MASTERNAME:88의 동기
+	MASTERNAME:88 = %LOCALS%
+	; 특정 플레이시만 통칭을 바꾸고 싶으면 여기 이하에 조건식을 추가
+ENDIF
+RETURNF LOCALS
+
+;========================================================
+; 말호환 처리
+;-------------------------------------------------
+; 버전 업으로 플래그의 이동등을 실시할 때에 사용하는 함수
+; 하루에 최초로 만났을 때에 불린다
+; 우선 함수의 양식만 만들어 두지만 사용할 필요가 없는 것을 빈다
+;========================================================
+@K88_KYOKO_UPDATE
+WHILE CFLAG:1100 < K88_KYOKO_GET_VARSION()
+	SELECTCASE CFLAG:1100
+		; 초기 버전
+		CASE IS < 100
+			; 통칭이 하늘이라면 세트
+			IF !STRLENS(CSTR:20)
+				CSTR:20 = %CALLNAME:MASTER%
+				CALLF K88_KYOKO_CALLNAME(MASTER)
+			ENDIF
+			CFLAG:1100 = 100
+		; 여기에 호환 처리를 쓴다
+;		CASE 조건
+;			처리
+;		;CASE 조건
+;			처리
+		; 무한루프 예방
+		CASEELSE
+			CFLAG:1100 = K88_KYOKO_GET_VARSION()
+	ENDSELECT
+WEND
+RETURN 1
+
+;========================================================
+; 통칭 입력
+;-------------------------------------------------
+; 정규 표현 사용하고 있어 동작 속도 괜찮은 것인가는? C#에 들어라
+; 이스케이프투성이로 (뜻)이유 모르는데-누군가 어떻게든 해 주지 않을까―(치랏치락
+;========================================================
+@K88_KYOKO_INPUT_CALLNAME
+#LOCALSSIZE 1
+PRINTFORML 통칭을 입력해 주세요(직접 입력하는지, 버튼으로 선택해 주세요)
+IF NAME:MASTER != "당신"
+	LOCALS = %NAME:MASTER%
+ELSE
+	LOCALS = %CALLNAME:MASTER%
+ENDIF
+PRINTBUTTON @"[이름(%LOCALS%)을 자칭하는]", @"%LOCALS%"
+[SKIPSTART]
+; 의식의 통칭들이다
+SIF ABL:친밀 > 4
+	PRINTBUTTON "[\@ TALENT:MASTER:성별 == 2 ?  형 # 자 \@씨라고 부르면 좋은]", @"\@ TALENT:MASTER:성별 == 2 ?  형 # 자 \@씨"
+SIF ABL:친밀 > 7
+	PRINTBUTTON "[\@ TALENT:MASTER:성별 == 2 ?  형 # 자 \@님이라고 부르면 좋은]", @"\@ TALENT:MASTER:성별 == 2 ?  형 # 자 \@님"
+SIF ABL:순종 > 7 && ABL:봉사정신 > 7
+	PRINTBUTTON "[주인님이라고 부르면 좋은]", "주인님"
+SIF TALENT:연인 && TALENT:연모
+	PRINTBUTTON "[주인(서방)님이라고 부르면 좋은]", "주인(서방)님"
+[SKIPEND]
+
+$INPUT_LOOP_KYO0
+INPUTS
+; 줄머리행 꼬리의 공백 문자 삭제
+LOCALS = %RESULTS%
+REPLACE LOCALS, "\(\^\\s\+\|\\s\+\$)", ""
+; 2 문자 미만
+IF STRLENS(LOCALS) < 2
+	SIF STRLENS(RESULTS)
+		CLEARLINE 1
+	REUSELASTLINE 「소리가 작다!」
+	GOTO INPUT_LOOP_KYO0
+; 10 문자(전각 5 문자) 넘었다
+ELSEIF STRLENS(LOCALS) > 10
+	CLEARLINE 1
+	REUSELASTLINE 「조금 길지 않아? 짧게 해」
+	GOTO INPUT_LOOP_KYO0
+; 오토나시쿄코
+ELSEIF STRCOUNT(LOCALS, "\(오토나시\|치쿠사\)\+\\s\*쿄코")
+	PRINTFORML 「관리인?」
+; 소우이치 츠카사씨
+ELSEIF STRCOUNT(LOCALS, "\(오토나시\)\+\\s\*소우이치 츠카사")
+	PRINTFORML 「소우이치 츠카사씨!」
+; 고다이유작
+ELSEIF STRCOUNT(LOCALS, "\(고다이\)\+\\s\*유작")
+	PRINTFORML 「나는 좀 더 결단력이 있는 (분)편이 좋아요」
+; 동성 동명
+ELSEIF FLAG:역극 != 88 && STRCOUNT(LOCALS, "\(카소다니\)\*\\s\*쿄코")
+	CLEARLINE 1
+	REUSELASTLINE 「동성 동명이야? 까다롭기 때문에 다른 통칭으로 했으면 좋아요」
+	GOTO INPUT_LOOP_KYO0
+; 뱌쿠렌이 주인은 아니고, 뱌쿠렌이라고 하는 프레이즈가 포함되어 있다. 혹은
+; ☆하지만 주인은 아니고, 토라마루 혹은 별이라고 하는 프레이즈가 포함되어 있다
+ELSEIF (FLAG:역극 != 55 && STRCOUNT(LOCALS, "히지리\*\\s\*뱌쿠렌")) || (FLAG:역극 != 87 && STRCOUNT(LOCALS, "\(토라마루\)\*\\s\*쇼\$"))
+	CLEARLINE 1
+	REUSELASTLINE 「바보 취급해? 아무리 뭐라해도 잘못할 방법이 없지요」
+	GOTO INPUT_LOOP_KYO0
+; 묘렌사세는 곧
+; 응 그렇네요 타타라 승고로라든지 가르치는 사람도 있을지도 모르는 걸
+ELSEIF (FLAG:역극 != 39 && LOCALS == "나즈린") || (FLAG:역극 != 40 && STRCOUNT(LOCALS, "\(타타라\)\*\\s\*코가사")) || (FLAG:역극 != 85 && STRCOUNT(LOCALS, "\(쿠모이\)\*\\s\*이치린")) || (FLAG:역극 != 86 && STRCOUNT(LOCALS, "\(\(무라사\)*\\s\*미나미츠\|무라사\)"))
+	CLEARLINE 1
+	REUSELASTLINE 「싸움 팔아?」
+	GOTO INPUT_LOOP_KYO0
+ELSEIF (FLAG:역극 != 41 && STRCOUNT(LOCALS, "\(호쥬\)\*\\s\*누에")) || (FLAG:역극 != 69 && STRCOUNT(LOCALS, "\(후타츠이와\)\*\\s\*마미조"))
+	CLEARLINE 1
+	REUSELASTLINE 「변하고 있는……수월해요?」
+	GOTO INPUT_LOOP_KYO0
+; 도교 세력은 곧
+ELSEIF (FLAG:역극 != 89 && STRCOUNT(LOCALS, "\(미야코\)\*\\s\*요시카")) || (FLAG:역극 != 90 && STRCOUNT(LOCALS, "\^곽\*\\s\*청아")) || (FLAG:역극 != 91 && STRCOUNT(LOCALS, "\(소가\)\*\\s\*토지코")) || (FLAG:역극 != 92 && STRCOUNT(LOCALS, "\(모노노베노\)\*\\s\*후토")) || (FLAG:역극 != 56 && STRCOUNT(LOCALS, "\(\(토요사토미미\)\*\\s\*미코\|성덕태자\)"))
+	CLEARLINE 1
+	REUSELASTLINE 
+	GOTO INPUT_LOOP_KYO0
+; 하쿠레이 레이무라고 하는 프레이즈가 포함되어 있다. 혹은
+; 코치야 사나에라고 하는 프레이즈가 포함되어 있다
+ELSEIF STRCOUNT(LOCALS, "\(하쿠레이\)\*\\s\*레이무") || STRCOUNT(LOCALS, "\(코치야\)\*\\s\*사나에")
+	PRINTFORML 「어무녀였어요? 그렇게는 안보였어요」
+; 키리사메 마리사라고 하는 프레이즈가 포함되어 있다.
+ELSEIF STRCOUNT(LOCALS, "\(키리사메\)\*\\s\*마리사")
+	PRINTFORML 「아아, 그 텐션 낮았던 인간. 인사는 좀 더 큰 소리로 하지 않으면」
+; 콘파쿠 요우무가라고 하는 프레이즈가 포함되어 있다.
+ELSEIF STRCOUNT(LOCALS, "\(콘파쿠\)\*\\s\*요우무")
+	PRINTFORML 「칼날 휘두르는 것은 그만두었어?」
+ENDIF
+; 직접 입력이라면 안된다고 생각했는지? 연주하군!
+IF FIRSTTIME("U88-1") && ABL:친밀 < 4 && STRCOUNT(LOCALS, "\(\(\(형(오빠)\|에게 있고\)\|\(언니(누나)\|응\)\)\(씨\|\)\)\$")
+	CLEARLINE 1
+	REUSELASTLINE 「야마비코 라도 말하는 것을 선택할 권리는 있어요」
+	GOTO INPUT_LOOP_KYO0
+ELSEIF FIRSTTIME("U88-1") && ABL:친밀 < 7 && STRCOUNT(LOCALS, "\(\(\(형(오빠)\|에게 있고\)\|\(언니(누나)\|응\)\)\(모양\|님\)\)\$")
+	CLEARLINE 1
+	REUSELASTLINE 「야마비코 라도 말하는 것을 선택할 권리는 있어요」
+	GOTO INPUT_LOOP_KYO0
+ELSEIF FIRSTTIME("U88-1") && (ABL:순종 < 7 || ABL:봉사정신 < 7) && STRCOUNT(LOCALS, "\(\(\|\)\(주인\|주인\)\(모양\|님\)\)$")
+	CLEARLINE 1
+	REUSELASTLINE 「야마비코 라도 말하는 것을 선택할 권리는 있어요」
+	GOTO INPUT_LOOP_KYO0
+ELSEIF FIRSTTIME("U88-1") && (!TALENT:연인 || !TALENT:연모) && STRCOUNT(LOCALS, "\(\(남편\|남편\)\(모양\|님\)\)\$")
+	CLEARLINE 1
+	REUSELASTLINE 「야마비코 라도 말하는 것을 선택할 권리는 있어요」
+	GOTO INPUT_LOOP_KYO0
+ENDIF
+CSTR:20 = %LOCALS%
+; CSTR:20으로 MASTERNAME:88을 동기
+CALLF K88_KYOKO_CALLNAME(MASTER)
+RETURN 1
+
+

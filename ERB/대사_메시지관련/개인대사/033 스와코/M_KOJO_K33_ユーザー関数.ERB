@@ -1,0 +1,278 @@
+﻿
+;**** FlagManagement **********************************************************
+;本口上にて使用しているCFLAG・TCVAR等
+;TCVAR:350　挨拶判定
+;TCVAR:351　季節・天候話判定
+;TCVAR:360　その日の祟りカウンター回数
+;TCVAR:361　その日の祟りカウンターによる疑念判定（１回）
+
+;CFLAG:1001　パンツ盗られた回数
+;CFALG:1002　邪神（？）崇拝バレ
+;CFLAG:1003　日中祟りカウンター30回（会話では20回）超えによる疑念回数
+;CFALG:1004　時姦バレ
+;CFLAG:1005　三粒の天滴を授けた
+
+;CFLAG:1301　時姦祟りカウンターを喰らわせた総回数
+;CFLAG:1302　睡姦祟りカウンターを喰らわせた総回数
+;CFLAG:1303　それ以外の祟りカウンターを(略
+;******************************************************************************
+
+;-----------------------------------------------------------
+;祟りカウンターの制御用関数（諏訪子専用）
+;ARG:0 ループ回数（接触が濃厚なほど回数を増す）
+;-----------------------------------------------------------
+@K33_TATARI_COUNTER(ARG:0)
+#DIM 減少値
+
+IF TALENT:33:연모 || TALENT:33:애욕
+	減少値 = -35
+ELSEIF MARK:괘씸각인 == 3 || TALENT:섹프
+	減少値 = -50
+ELSEIF TALENT:사모
+	減少値 = -60
+ELSE
+	減少値 = -100
+ENDIF
+
+SELECTCASE MARK:33:쾌락각인
+	CASE 1
+		減少値 += 10
+	CASE 2
+		減少値 += 15
+	CASE 3
+		減少値 += 20
+ENDSELECT
+
+SELECTCASE MARK:33:시간각인
+	CASE 1
+		減少値 += 0
+	CASE 2
+		減少値 += 5
+	CASE 3
+		減少値 += 10
+ENDSELECT
+
+SELECTCASE MARK:33:반발각인
+	CASE 1
+		減少値 -= 20
+	CASE 2
+		減少値 -= 40
+	CASE 3
+		減少値 -= 60
+ENDSELECT
+
+SIF TALENT:33:기분 == -1
+	減少値 -= 50
+SIF CFLAG:33:빡침
+	減少値 -= 50
+;√累計回数の補正
+SIF CFLAG:33:1301 || CFLAG:33:1302 || CFLAG:33:1303
+	減少値 -= SQRT(CFLAG:33:1301 + CFLAG:33:1302 + CFLAG:33:1303)
+
+;恋人の場合は、一律ゼロに補正／プラス値のときも補正
+SIF TALENT:33:연인
+	減少値 = 0
+SIF 減少値 > 0
+	減少値 = 0
+
+IF 減少値 < 0
+	SELECTCASE TCVAR:33:360
+		CASE 0
+			;最初回の説明用テキスト（総祟りカウンターがゼロの時）
+			IF !CFLAG:33:1301 && !CFLAG:33:1302
+				IF FLAG:70
+					PRINTFORMW 스와코는%CALLNAME:MASTER%의 능력의 전절의 부엌과도 움직이지 않는다.
+					PRINTFORMW 이 시간 정지의 능력을 가지고 하면, 어떠한 일도 마음 가는 대로……
+				ELSE
+					PRINTFORMW 스와코는 완전하게 잠들고 있는 것 같다…
+				ENDIF
+				PRINTFORMW 똥 미소지으면서,%마스터는% 다른 소녀들에 그렇게 하도록(듯이), 스와코에게 손대려고――
+				SETCOLOR 0x705B67
+				PRINTL 
+				PRINTFORML ――  원  
+				PRINTW 
+				SETCOLOR 0xC0A2C7
+				PRINTFORML 전신이 소름이 끼치는 감각에, 반사적으로――힘차게 손을 끌어당기고 있었다.
+				PRINTFORMW ……무심코 군침을 삼킨 것은 흥분으로부터 나오지 않고, 바싹바싹 마르고 있던 목을 적시기 (위해)때문에인가.
+				PRINTFORMW 스와코에게 불과에 접한 손가락끝이, 인자와 은은한 아픔을 발하고 있다.
+				PRINTFORMW 몸부림 한다. 손가락끝에 가져와진 정전기와 같이 사소한 아픔에는 아니고, 몸의 심지로부터 영향을 주는, 좀 더 본능적인 「외경심」에 대해서.
+				PRINTFORML 무엇인가가%CALLNAME:MASTER%의 몸에, , 라고 비집고 들어가 온 것 같은……
+				PRINTFORMW 그런, 형언할 수 없는 감각과 함께,%CALLNAME:MASTER%의 힘을 조금 약하게 할 수 있고 있는 것을 자각한다.
+				PRINTFORMW ……일여기에 이르러, 와 그녀의 본질이 무엇이었는지, 다시 생각한다.
+				PRINTFORMW 수 많은 신――과거의 왕국통수신의 수괴. 그 힘의 한 조각을, 지금 모습자리와 보게 된 것 같다.
+				PRINTFORMW ……눈앞의 소녀의 모양을 한 누군가를, 압도되지 않게 다시 재차 응시한다.
+				PRINTFORMW 이것은 애를 먹을 것 같다……라고%마스터는% 땀이 배인 손을 잡아 닫았다……
+			ELSE
+				SETCOLOR 0x705B67
+				PRINTFORML 신체에 무엇인가가 비집고 들어가 오는 것 같은 오한이 했다…
+			ENDIF
+		CASE 1 TO 10
+			SETCOLOR 0x70224E
+			PRINTFORML 신체 중(안)에서 무엇인가가 꿈틀거리고 있는 것 같은 불쾌감이 있다…
+		CASE 11 TO 30
+			SETCOLOR 0xCC3D8E
+			PRINTFORML 신체중의 모공에 바늘을 발사해지는 것 같은 무서운 오한이 한다…
+			減少値 -= SQRT(TCVAR:33:360)
+		CASEELSE
+			SETCOLOR 0xCC0074
+			IF INROOM(CFLAG:MASTER:현재위치)
+				PRINTFORML 아！창에！창에！
+			ELSE
+				PRINTFORML 차가운 돌의 촉감을 한 흰 뱀과 같은 물건에 휘감겨져 사지를 빼앗아지는 것 같은 격통이 몸을 책망한다…
+			ENDIF
+			減少値 -= 2 * SQRT(TCVAR:33:360)
+	ENDSELECT
+	RESETCOLOR
+	CALL K33_TATARI_MAIN(ARG:0, 減少値)
+ENDIF
+
+;-----------------------------------------------------------
+;祟りカウンターシステムの減算実行関数（諏訪子専用）
+;ARG:0 ループ回数（接触が濃厚なほど回数を増す、コマンド毎に指定）
+;ARG:1 減少値、負の値を入れる
+;-----------------------------------------------------------
+@K33_TATARI_MAIN(ARG:0, ARG:1)
+#DIM ループ回数
+
+ループ回数 = 0
+
+$TATARI_LOOP
+;TSPを必ず削る
+CALL BUFF_BASE(MASTER, BASE_TSP, ARG:1, 0)
+
+SELECTCASE RAND:3
+	CASE 0
+		CALL BUFF_BASE(MASTER, BASE_체력, ARG:1, 0)
+	CASE 1
+		CALL BUFF_BASE(MASTER, BASE_기력, ARG:1, 0)
+	CASEELSE
+		IF GETBIT(TALENT:MASTER:성별, 1)
+			CALL BUFF_BASE(MASTER, BASE_정력, (ARG:1 / 2) , 0)
+		ELSE
+			CALL BUFF_BASE(MASTER, BASE_TSP, ARG:1, 0)
+		ENDIF
+ENDSELECT
+ループ回数 ++
+;周回数が指定された回数以下ならループ
+SIF ループ回数 < ARG:0
+	GOTO TATARI_LOOP
+
+;本日の祟り回数に加算（ループ回数に関わらず１回のカウント）
+TCVAR:33:360 ++
+;時姦、睡姦それぞれの祟り総カウントに加算
+IF FLAG:70
+	CFLAG:33:1301 ++
+ELSEIF CFLAG:수면
+	CFLAG:33:1302 ++
+ELSE
+	CFLAG:33:1303 ++
+ENDIF
+
+;-----------------------------------------------------------
+;祟りカウンターによる時姦バレ判定関数（諏訪子専用）
+;調整のためにまとめておく
+;-----------------------------------------------------------
+@K33_TATARI_BARE(ARG = 33)
+#FUNCTION
+;時姦祟りカウンター回数が一定数を超える
+SIF CFLAG:ARG:1301 >= 500
+	RETURNF 1
+;祟りカウンターによる疑念回数が一定数を超える
+SIF CFLAG:ARG:1003 >= 15
+	RETURNF 1
+
+RETURNF 0
+
+;-----------------------------------------------------------------------------------------------
+;@CHARA_INFO_KOJO_K33()
+;個人情報の「キャラ紹介」の文章を書き換える
+;これがあれば「CSTR」の20番以降(20～39)に文字列を書き込むだけで書き換わるはず
+;早苗口上より引用、改変
+;-----------------------------------------------------------------------------------------------
+@CHARA_INFO_KOJO_K33()
+;===============================================================================================
+;記述例
+;このコメントアウトを外すと「CSTR」の20番以降に文字列を書き込むだけで書き換わるようになる
+;FOR LOCAL,20,40
+;	SIF CSTR:31:(LOCAL) != ""
+;		PRINTFORML %CSTR:31:(LOCAL)%
+;NEXT
+;RETURN 1
+;…とまあ、こんな感じでCSTR20番以降を使えばいいはず
+;===============================================================================================
+;本口上は、書き換わる文章が多いのでCSTRへの保存をせずに直接書き込む
+;現時点で下の2行が書き込まれている
+;PRINTL □ キャラ紹介 □---------------------------------------------------------------------
+;PRINTL 
+
+;##################################################################################
+;①「～土着神の頂点～　●種族：八百万の神　●能力：坤を創造する程度の能力」をプリント
+;##################################################################################
+CALL M_KOJO_COLOR_K33
+PRINTFORML %CSVCSTR(33, 10)%
+RESETCOLOR
+PRINTL 
+
+;##################################################################################
+;②キャラ紹介文を書き込み
+;##################################################################################
+;共通部
+PRINTFORML 요괴의 산 위에 있는 모리야 신사의 신의 일주
+PRINTFORML 공식상의 제신인 야사카 카나자에게 힘을 제공해, 신앙을 모으는 진정한 제신
+IF TALENT:33:사모 || TALENT:33:섹프 || TALENT:33:연모 || TALENT:33:애욕
+	PRINTFORML 고의 왕국을 공포수를 가지고 통괄한 토착신의 정점이며,
+	PRINTFORML 고래부터 존숭 떠날 수 있고 있던 탈이 나고 신들을 통솔하는 존재
+	PRINTFORML 수 많은 신은 신앙의 힘에 의해 그 명맥을 유지하는 것이어,
+	PRINTFORML 외계에서는 신앙 획득이 어려워졌기 때문에, 신사마다 환상고우에 데려 올 수 있게 되었다
+ENDIF
+
+;時姦バレしている
+IF CFLAG:33:1004
+	PRINTL 
+	PRINTFORML 수신으로서의 힘으로 시간 정지 능력을 가진다%CALLNAME:MASTER%(을)를 함정에 감째,
+	PRINTFORML 「협력자」로서 장중에 거두게 되었다…
+ELSEIF CFLAG:33:1003 >= 14 || K33_TATARI_BARE()
+	PRINTL 
+	PRINTFORML 무수에 새겨진 외관 없는 수의 자국에,
+	PRINTFORML %CALLNAME:MASTER%에의 의념은 거의 확신으로 변해있다…
+ELSEIF CFLAG:33:1003 >= 10
+	PRINTL 
+	PRINTFORML 새겨진 외관 없는 수의 자국에,
+	PRINTFORML %CALLNAME:MASTER%에의 의념이 깊어지고 있다…
+ELSEIF CFLAG:33:1003 >= 5
+	PRINTL 
+	PRINTFORML 기억이 없는 수의 자국에,
+	PRINTFORML %CALLNAME:MASTER%에의 의혹을 갖기 시작하고 있다…
+ENDIF
+
+SELECTCASE (CFLAG:33:1301 + CFLAG:33:1302 + CFLAG:33:1303)
+	CASE IS >= 500
+		PRINTL 
+		PRINTFORML 바치 당%CALLNAME:MASTER%에 철저하게 수를 밥등 나라고 있다
+	CASE IS >= 250
+		PRINTL 
+		PRINTFORML 불경인%CALLNAME:MASTER%(을)를 탈이 나고는 있다
+	CASE IS >= 100
+		PRINTL 
+		PRINTFORML %CALLNAME:MASTER%에 무의식 가운데에 수를 주고 있다
+ENDSELECT
+
+;邪神崇拝バレしている
+IF CFLAG:33:1002
+	PRINTL 
+	PRINTFORML 재앙의 신을 숭배한다%CALLNAME:MASTER%(을)를 개종 시키려고,
+	PRINTFORML 그 손 이 손으로 신토쿠를 어필 하고 있지만, 꽤 능숙하게 말하지 않는 것 같다…
+ENDIF
+;三粒の天滴を授けている
+IF CFLAG:33:1005
+	PRINTL 
+	PRINTFORML 이러니 저러니로 신앙심의 독실하다%CALLNAME:MASTER%(을)를 마음에 든 것 같아,
+	PRINTFORML 그 힘의 단편을 빌려 주기까지 도달했다
+	CALL M_KOJO_COLOR_K33
+	PRINTFORML 　결코 끊어지는 일 없이 흙을 적셔, 그 대지에 풍양을 약속하는 「3알의 천적」
+	PRINTFORML 　튀는 개구리로부터 개구리를 낳는 윤회의 업, 개구리의 신 힘·와부 「농간의 두꺼비」
+	RESETCOLOR
+	PRINTFORML 수신을 독실하게 모시면, 큰 신토쿠를 얻을 수 있다――(이)란, 확실히 이 일을 말하는 것일까
+ENDIF
+PRINTL 
+RETURN 1

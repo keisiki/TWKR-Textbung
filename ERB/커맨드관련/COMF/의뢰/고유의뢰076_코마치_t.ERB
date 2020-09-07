@@ -1,0 +1,114 @@
+﻿@고유의뢰76(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE ARG % 1000
+;ID101：추석 진짜 괴롭다
+;―, 환상 들어가지 않을 것이고 독자 해석의 덩어리이지만
+;바쁜 것 같아라고 생각했던 것이다
+CASE 101
+	SELECTCASE O_DATA
+	CASE "의뢰명"
+		CALLF MAKE_STR(V_NAME, "추석 진짜 괴롭다")
+	CASE "의뢰내용 표시"
+		CALLF MAKE_STR(V_NAME, "삼도의 뱃사공을 보좌한다")
+	CASE "의뢰 보수 표시"
+		CALLF MAKE_STR(V_NAME, @"\\5000")
+	CASE "의뢰실행 커맨드 이름"
+		CALLF MAKE_STR(V_NAME, "코마치를 도움")
+		
+	CASE "의뢰내용"
+		CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "작업"))
+	CASE "의뢰 서브"
+	CASE "의뢰기한"
+	;발생시는 아니고 수탁시에 확정합니다
+	CASE "의뢰 발생율"
+	;이것은 다른 고유 의뢰와의 상대 확률 어째서 10%가 아닙니다
+		CALLF MAKE_INT(V_NAME, 10)
+	CASE "의뢰 발생 조건"
+		SIF GET_MONTH() == "여름의 달" && INRANGE(DAY:3, 1, 15)
+			CALLF MAKE_INT(V_NAME, 1)
+	CASE "의뢰 수탁 가능 조건"
+	;수탁 가능은@COM_ABLE366도 확인
+		;여름의 달의 전반을 추석 인정
+		IF !(GET_MONTH() == "여름의 달" && INRANGE(DAY:3, 1, 15))
+		;토일요일은 쉰다
+		ELSEIF IS_WEEKEND(DAY)
+		;일의 시간대가 아니다
+		ELSEIF !INRANGE(TIME / 60, 10, 15)
+		ELSEIF CFLAG:76:연회참가
+		;코마치와 함께 삼도천에 있다
+		ELSEIF ALLSAMES(CFLAG:76:현재위치, CFLAG:MASTER:현재위치, 삼도천) 
+			CALLF MAKE_INT(V_NAME, 1)
+		ENDIF
+	CASE "의뢰실행 가능 조건"
+	;실행 가능은@COM_ABLE367도 확인
+		SIF ALLSAMES(CFLAG:76:현재위치, CFLAG:MASTER:현재위치, 삼도천) 
+			CALLF MAKE_INT(V_NAME, 1)
+	;성공/실패 처리는 CARRYOUT로 직접 쓴다
+	;SOURCE나 ITEM 입수 따위, 내용이 복잡해서
+	CASE "의뢰 소멸 조건"
+		SIF !(GET_MONTH() == "여름의 달" && INRANGE(DAY:3, 1, 15))
+			CALLF MAKE_INT(V_NAME, 1)
+	ENDSELECT
+ENDSELECT
+
+
+
+;고유 의뢰의 설정용
+;이 함수는 실행/성공/실패시의
+;보수와 페널티와 지문만을 취급합니다
+;각 캐릭터의 메시지는 다른 장소에서
+@IRAI_고유76(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+;개개의 의뢰명으로 분기
+CASE "추석 진짜 괴롭다"
+	SELECTCASE SCENE
+	CASE "의뢰 조건 표시"
+	;무엇인가 전용의 표시 정보를 마련하고 싶을 시용
+	;수탁 끝난 의뢰 표시로 사용됩니다
+	;
+	;PRINT계만으로 SOURCE라든지는 넣으면 안 돼, WAIT도 없음으로
+	;여기 이외의표시 항목은
+	;PRINTFORML 　　　　　：
+	;되고 있으므로 스페이스를 가지런히 하는 편이 보기에 좋습니다
+	
+	CASE "의뢰실행시"
+	;이 CASE에 한정해, RESULT가 의미를 가집니다
+	;의뢰실행시의 RESULT에는 IRAI_CONST_RESULT()를 사용해 주세요
+	;가능한 인수는"캔슬", "실행해 성공", "실행해 실패", "실행해 미해결"입니다
+	;독자 처리를 가르치고 싶을 때는"실행해 미해결"로 유보하자 마자 해 주세요
+		DOWNBASE:MASTER:체력 += 100
+		DOWNBASE:MASTER:기력 += 50
+		PRINTFORMW %마스터는% 망자로 북적거리는 강변에서 사신들과 섞여 일했다
+		TIME += 120
+		RETURN IRAI_CONST_RESULT("실행해 성공")
+	CASE "의뢰 성공시"
+	;성공 보고시의 보수 등
+		SOURCE:TARGET:환락 += 500
+		SOURCE:TARGET:정복 += 500
+		;시스템 메시지 다하고 호감도 변화
+		;마지막 인수만 호감도가 변화
+		CALL CHANGE_CFLAG(2, TARGET, 20)
+		;시스템 메시지 다하고 신뢰도 변화
+		;마지막 인수만 신뢰도가 변화
+		CALL CHANGE_CFLAG(4, TARGET, 10)
+		CALL GET_MONEY_YEN(5000, 2)
+	CASE "의뢰 실패시"
+	;실패 보고시의 처리
+		;시스템 메시지 다하고 호감도 변화
+		;마지막 인수만 호감도가 변화
+		CALL CHANGE_CFLAG(2, TARGET, -20)
+		;시스템 메시지 다하고 신뢰도 변화
+		;마지막 인수만 신뢰도가 변화
+		CALL CHANGE_CFLAG(4, TARGET, -10)
+	ENDSELECT
+	
+ENDSELECT

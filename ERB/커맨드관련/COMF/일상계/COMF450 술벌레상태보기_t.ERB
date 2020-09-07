@@ -1,0 +1,77 @@
+﻿;-------------------------------------------------
+;술벌레의 상태를 본다
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM450
+#DIM 양조량
+;FLAG:술벌레 물의 종류, 50 넘으면 술의 아이템 번호
+
+VARSET LOCAL
+
+PRINTFORML %마스터는% 술벌레가 들어있는 병을 들여다보았다
+PRINTFORML 병은 %조사처리(STR:(7000 + FLAG:술벌레),"으로")% 채워지고 있다…
+DRAWLINE
+PRINTFORML [0] 아무것도 안 한다
+IF TFLAG:물긷기 && ITEM:(FLAG:술벌레) < 99
+	PRINTFORML [1] %조사처리(STR:(TFLAG:물긷기 + 7000),"과")% 바꿔넣는다
+ELSE
+	IF ITEM:(FLAG:술벌레) == 99
+		PRINTFORM [1] 이 이상 %조사처리(STR:(7000 + FLAG:술벌레),"를")% 가질 수 없다
+	ELSE
+	PRINTPLAIN [1] 갈아넣을 물도 없이 퍼낼 수는 없다
+	ENDIF
+	PRINTL 
+ENDIF
+SIF ITEM:탁주 >= 5 && FLAG:술벌레 == 1 && DAY:10 < 3
+	PRINTFORML [2] 탁주를 더한다(탁주를 5 소비)
+;그 이상 손봐도 내용이 변화하지 않는 경우는 표시시키지 않게
+SIF BASE:MASTER:8 >= 2400 && (FLAG:술벌레 < 51 || FLAG:술벌레 == 51)
+	PRINTFORML [3] 시간조작 주조(TSP2400 소비)
+INPUT
+IF RESULT == 1 && TFLAG:물긷기 && ITEM:(FLAG:술벌레) < 99
+	PRINTFORML %마스터는%  %조사처리(STR:(7000 + FLAG:술벌레),"를")% 퍼내고 %조사처리(STR:(TFLAG:물긷기 + 7000),"과")% 바꿔넣었다
+	;술이 생기고 있었던 경우
+	IF FLAG:술벌레 > 50
+		양조량 = 양조할수있던양(FLAG:술벌레)
+		PRINTFORML %조사처리(ITEMNAME:(FLAG:술벌레),"를")% {양조량}개 손에 넣었다
+		ITEM:(FLAG:술벌레) += 양조량
+		SIF ITEM:(FLAG:술벌레) > 99
+			ITEM:(FLAG:술벌레) = 99
+	ENDIF
+	DAY:10 = 0
+	FLAG:술벌레 = TFLAG:물긷기
+	TFLAG:물긷기 = 0
+ELSEIF RESULT == 2 && ITEM:탁주 >= 5 && FLAG:술벌레 == 1 && DAY:10 < 3
+	PRINTFORML %마스터는% 병에 탁주를 쏟아부었다
+	PRINTFORML 이로써 조금 일찍 완성될 것이다…
+	DAY:10 += 3
+	ITEM:탁주 -= 5
+;그 이상 손봐도 내용이 변화하지 않는 경우는 표시시키지 않게
+ELSEIF RESULT == 3 && BASE:MASTER:8 >= 2400 && (FLAG:술벌레 < 51 || FLAG:술벌레 == 51)
+	PRINTFORML %마스터는% 시간정지 능력을 응용해 억지로 병 안의 시간을 진행시켰다
+	DAY:10 += 1
+	BASE:MASTER:8 -= 2400
+ELSE
+	RETURN -1
+ENDIF
+TIME += 5
+RETURN 1
+
+
+;술벌레의 상태를 본다
+@COM_ABLE450
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;이동 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(450)
+	RETURN RESULT
+;부엌
+SIF CFLAG:MASTER:현재위치 != 거점_술벌레
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+RETURN 1

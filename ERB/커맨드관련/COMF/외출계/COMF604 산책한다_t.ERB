@@ -1,0 +1,353 @@
+﻿;-------------------------------------------------
+;산책한다
+;외출 커맨드
+;-------------------------------------------------
+@COM604
+#DIM 현재지점
+#DIM 이동처지점
+#DIM 소요시간, 11
+#DIM 행선지
+#DIM 특수쇼트컷
+;散策する
+VARSET LOCAL
+DRAWLINEFORM ~
+
+
+CALL DRAW_MAP("ODEKAKE")
+
+DRAWLINEFORM ~
+PRINTL 어디로 향합니까?
+LOCAL = 6000 + (CFLAG:MASTER:현재위치 / 100) * 10
+현재지점 = (CFLAG:MASTER:현재위치 - (CFLAG:MASTER:데이트중 * 100)) / 10
+FOR LOCAL:2, 1, 10
+	LOCAL ++
+	;현재위치는 스킵
+	IF (LOCAL - 6000) * 10 == CFLAG:MASTER:현재위치
+		PRINT [0] - 
+		PRINTFORM %NAME_FROM_PLACE(LOCAL), 18, LEFT%
+		SETCOLOR 0 , 255, 0
+		PRINT 현재지
+		RESETCOLOR
+		LOCAL:3 ++
+		SIF !(LOCAL:3 % 2)
+			PRINTL
+		CONTINUE
+	ENDIF
+	;지점명 미정도리가 되면 스킵
+	SIF NAME_FROM_PLACE(LOCAL) == "" || LOCAL > 6000 + ((CFLAG:MASTER:현재위치 / 100) * 10) + 9
+		CONTINUE
+	소요시간:(LOCAL:2) = ABS(현재지점 - LOCAL:2) * 3
+	;영원정내부
+	SIF LOCAL == 6048
+		소요시간:(LOCAL:2) = ABS(현재지점 - 5) * 3 + 3
+	;몽환관
+	SIF LOCAL == 6049
+		소요시간:(LOCAL:2) = ABS(현재지점 - 7) * 3 + 3
+	;지옥～영장원,Y字構造なので面倒な事に……
+	IF INRANGE(CFLAG:MASTER:현재위치, 중유의길, 피안)
+		SIF INRANGE(LOCAL, 6067, 6069)
+			소요시간:(LOCAL:2) = ABS(현재지점 - LOCAL:2) * 3 - 6
+	ELSEIF INRANGE(CFLAG:MASTER:현재위치, 백옥루정원, 백옥루)
+		SIF INRANGE(LOCAL, 6067, 6069)
+			소요시간:(LOCAL:2) = ABS(현재지점 - 4) * 3 + ABS(4 - LOCAL:2) * 3 - 6
+	ELSEIF INRANGE(CFLAG:MASTER:현재위치, 지옥, 영장원)
+		IF INRANGE(LOCAL, 6061, 6064)
+			소요시간:(LOCAL:2) = ABS(현재지점 - LOCAL:2) * 3 - 6
+		ELSEIF INRANGE(LOCAL, 6065, 6066)
+			소요시간:(LOCAL:2) = ABS(현재지점 - 4) * 3 + ABS(4 - LOCAL:2) * 3 - 6
+		ENDIF
+	ENDIF
+	특수쇼트컷 = 0
+	;코마치의 능력
+	IF FLAG:데이트상대 == [[코마치]]
+		소요시간:(LOCAL:2) = (소요시간:(LOCAL:2) * 2) / 3
+		특수쇼트컷 = 1
+	ENDIF
+	;와카사기히메의 부담
+	SIF FLAG:데이트상대 == [[와카사기히메]] && !GETBIT (FLAG:풀장, 0)
+		소요시간:(LOCAL:2) = (소요시간:(LOCAL:2) * 3) / 2
+	;쇼트 컷 효과
+	SELECTCASE LOCAL
+		;미혹의 죽림
+		CASE 6041 TO 6047
+			IF SHORTCUT(6)
+				소요시간:(LOCAL:2) = (소요시간:(LOCAL:2) * 2) / 3
+				특수쇼트컷 = 2
+			ENDIF
+		;천계
+		CASE 6081 TO 6085
+			IF CFLAG:MASTER:현재위치 == 천계 && SHORTCUT(2)
+				소요시간:(LOCAL:2) = 소요시간:(LOCAL:2) / 2
+				특수쇼트컷 = 2
+			ENDIF
+		CASE 6089
+			IF SHORTCUT(2)
+				소요시간:(LOCAL:2) = 소요시간:(LOCAL:2) / 2
+				특수쇼트컷 = 2
+			ENDIF
+		;명계
+		CASE 6061, 6062
+			IF INRANGE(CFLAG:MASTER:현재위치, 피안, 영장원) && SHORTCUT(3)
+				소요시간:(LOCAL:2) = 소요시간:(LOCAL:2) / 2
+				특수쇼트컷 = 2
+			ENDIF
+			IF INRANGE(CFLAG:MASTER:현재위치, 지옥, 영장원) && SHORTCUT(7)
+				소요시간:(LOCAL:2) = 소요시간:(LOCAL:2) / 2
+				특수쇼트컷 = 2
+			ENDIF
+		CASE 6064, 6065, 6066
+			IF INRANGE(CFLAG:MASTER:현재위치, 중유의길, 삼도천) && SHORTCUT(3)
+				소요시간:(LOCAL:2) = 소요시간:(LOCAL:2) / 2
+				특수쇼트컷 = 2
+			ENDIF
+		CASE 6067, 6068, 6069
+			IF INRANGE(CFLAG:MASTER:현재위치, 중유의길, 삼도천) && SHORTCUT(7)
+				소요시간:(LOCAL:2) = 소요시간:(LOCAL:2) / 2
+				특수쇼트컷 = 2
+			ENDIF
+	ENDSELECT
+	PRINTFORM [{LOCAL:2}] - 
+	PRINTFORM %NAME_FROM_PLACE(LOCAL)%
+	PRINTFORM %" " *(20 - STRLENS(NAME_FROM_PLACE(LOCAL)))%
+	SIF 소요시간:(LOCAL:2) < 10
+		PRINT  
+	IF 특수쇼트컷 == 1
+		SETCOLOR 250, 220, 180
+	ELSEIF 특수쇼트컷 == 2
+		SETCOLOR 100, 250, 140
+	ENDIF
+	PRINTFORM {소요시간:(LOCAL:2)}분
+	RESETCOLOR
+	LOCAL:3 ++
+	SIF !(LOCAL:3 % 2)
+		PRINTL
+NEXT
+SIF GROUPMATCH(CFLAG:MASTER:데이트중, 2, 4, 5, 6, 8, 9)
+	PRINTL 
+IF CFLAG:MASTER:현재위치 == 천계 && (ABL:MASTER:교양 >= 2 || ABL:(FLAG:데이트상대):교양 >= 2)
+	소요시간 = 10
+	SIF SHORTCUT(2)
+		소요시간 = 5
+	PRINT [64] - 피안　　　　　　　
+	PRINTFORML {소요시간}분
+ELSEIF CFLAG:MASTER:현재위치 == 무연총 && (ABL:MASTER:교양 >= 2 || ABL:(FLAG:데이트상대):교양 >= 2)
+	소요시간 = 5
+	SIF SHORTCUT(3)
+		소요시간 = 3
+	PRINT [65] - 명계　　　　　　　
+	PRINTFORML {소요시간}분
+ENDIF
+PRINTL [100] - 돌아간다　　　　　　　　　[99] - 다른 지역으로 이동
+$INPUT_LOOP
+INPUT
+행선지 = RESULT * 10 + CFLAG:MASTER:데이트중 * 100
+SIF RESULT == 100 || RESULT == 0
+	RETURN -1
+IF RESULT == 99
+	DRAWLINE
+	CALL OTHERREGIONS
+	IF RESULT == 100
+		RETURN -1
+	ELSE
+	ENDIF
+	RETURN 1
+ELSEIF RESULT == 64
+	IF CFLAG:MASTER:현재위치 == 천계 && (ABL:MASTER:교양 >= 2 || ABL:(FLAG:데이트상대):교양 >= 2)
+		CFLAG:MASTER:현재위치 = 피안
+		CFLAG:MASTER:데이트중 = 6
+		CFLAG:(FLAG:데이트상대):현재위치 = 피안
+		CFLAG:(FLAG:데이트상대):데이트중 = 6
+		IF FLAG:70
+			BASE:MASTER:TSP -= 소요시간 * 2
+		ELSE
+			TIME += 소요시간
+		ENDIF
+		RETURN 1
+	ELSE
+		RETURN -1
+	ENDIF
+ELSEIF RESULT == 65
+	IF CFLAG:MASTER:현재위치 == 무연총 && (ABL:MASTER:교양 >= 2 || ABL:(FLAG:데이트상대):교양 >= 2)
+		CFLAG:MASTER:현재위치 = 백옥루정원
+		CFLAG:MASTER:데이트중 = 6
+		CFLAG:(FLAG:데이트상대):현재위치 = 백옥루정원
+		CFLAG:(FLAG:데이트상대):데이트중 = 6
+		IF FLAG:70
+			BASE:MASTER:TSP -= 소요시간 * 2
+		ELSE
+			TIME += 소요시간
+		ENDIF
+		RETURN 1
+	ELSE
+		RETURN -1
+	ENDIF
+ELSEIF RESULT < 1 || RESULT > (LOCAL - (6000 + (CFLAG:MASTER:현재위치 / 100) * 10) + 1)
+	CLEARLINE 1
+	RESTART
+ELSEIF NAME_FROM_PLACE(RESULT + 6000 + (CFLAG:MASTER:현재위치 / 100) * 10) == "" 
+	CLEARLINE 1
+	RESTART
+ENDIF
+
+
+CALL SANSAKU_UNIQUEPLACE(행선지)
+SIF RESULT == -1
+	RESTART
+
+이동처지점 = RESULT
+행선지 = 이동처지점 * 10 + CFLAG:MASTER:데이트중 * 100
+[IF_DEBUG]
+PRINTFORML 이동처 지점은 {이동처지점}, 행선지는 {행선지}
+[ENDIF]
+FOR LOCAL, 0, CHARANUM
+	SIF CHK_DATENOW(CFLAG:LOCAL:데이트중)
+		CFLAG:LOCAL:현재위치 = 행선지
+NEXT
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 소요시간:이동처지점 * 2
+	IF TFLAG:운반
+		BASE:MASTER:TSP -= 소요시간:이동처지점 / 3
+		CFLAG:(TFLAG:운반):현재위치 = CFLAG:MASTER:현재위치
+	ENDIF
+ELSEIF GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP > 소요시간:이동처지점 * 2 && !FLAG:데이트상대
+	BASE:MASTER:TSP -= 소요시간:이동처지점 * 2
+ELSE
+	TIME += 소요시간:이동처지점
+	SIF CHK_DATENOW(CFLAG:93:데이트중) && !GETBIT (FLAG:풀장, 0)
+		BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 50,500)
+	PRINTFORML {소요시간:이동처지점}분 걸려 %STR:(6000 + 행선지 / 10)%로 이동했다
+ENDIF
+
+RETURN 1
+
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;산책한다
+@COM_ABLE604
+SIF TFLAG:망상중
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(604)
+	RETURN RESULT
+;데이트중 이외
+SIF AT_HOME(MASTER)
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+;데이트 도중
+SIF (CFLAG:현재위치 % 100) % 10
+	RETURN 0
+;망상중
+SIF TFLAG:망상중 == 1
+	RETURN 0
+RETURN 1
+
+
+@SANSAKU_UNIQUEPLACE(ARG)
+#DIM 현재지점
+#DIM 이동처지점
+
+현재지점 = (CFLAG:MASTER:현재위치 - (CFLAG:MASTER:데이트중 * 100)) / 10
+이동처지점 = (ARG - (CFLAG:MASTER:데이트중 * 100)) / 10
+
+SELECTCASE ARG
+	CASE 50
+		IF ABL:MASTER:교양 < 1
+			PRINTFORMW 미숙한 %CALLNAME:MASTER%에는 찾아낼 수가 없다…
+			RETURN -1
+		ENDIF
+	CASE 피안, 백옥루정원, 백옥루, 천계
+		IF ABL:MASTER:교양 < 1 && ABL:(FLAG:데이트상대):교양 < 1
+			PRINTFORMW 좀 더 교양을 붙이지 않으면 위험하다
+			CLEARLINE 2
+			RETURN -1
+		ENDIF
+	CASE 달의도시, 와타츠키정, 옥토거리, 복숭아숲～모래사장, 고요의바다
+		IF ABL:MASTER:교양 < 2 && ABL:(FLAG:데이트상대):교양 < 2
+			PRINTFORMW 좀 더 교양을 붙이지 않으면 위험하다
+			CLEARLINE 2
+			RETURN -1
+		ENDIF
+	;세이자 하우스의 전
+	CASE 740
+		;본인은 들어갈 수 있는;연모가 있으면 들어갈 수 있어 줄 수 있는;전생에서 정사가 연모 or 연인이라면 장소는 안다
+		IF ARG:1 == [[세이자]] || TALENT:[[세이자]]:연모 || GETBIT (CFLAG:[[세이자]]:인계, 0) || GETBIT (CFLAG:[[세이자]]:인계, 1)
+		ELSE
+			PRINTFORMW 어디에 있을지 모른다…
+			RETURN -1
+		ENDIF
+	;카센하우스
+	CASE 750
+		;카센이 연모;본인은 들어갈 수 있다
+		IF TALENT:[[카센]]:연모 || ARG:1 == [[카센]]
+		;데이트상대가 텐시나 자신이 텐시
+		ELSEIF FLAG:데이트상대 == [[텐시]] || ARG:1 == [[텐시]]
+		;교양이 부족하면 가까스로 도착할 수 없다
+		ELSEIF ABL:(ARG:1):교양 < 3
+			PRINTFORMW 조금 전부터 저택과의 거리가 전혀 줄어들지 않는다……
+			PRINTFORMW 같은 곳을 빙빙 돌아 있는 것과 같다
+			RETURN -1
+		;그 이외는 전투력 3이상 필요
+		ELSEIF ABL:(ARG:1):전투능력 < 3 && !FLAG:70
+			PRINTFORMW 뜰에 웅크리고 있던 경시하는 범이, %CALLNAME:MASTER%의 모습을 인정해 신음소리를 내 소리를 높였다
+			PRINTFORMW 가까워지지 않는 것이 좋은 것 같다
+			RETURN -1
+		ENDIF
+	CASE 480
+		IF !FLAG:70 && !영원정침입허가()
+			PRINTL 안쪽에 들어가려고 했지만, 입구에서 토끼들에게 제지당했다
+			IF 현재지점 == 5
+				RETURN -1
+			ELSE
+				RETURN 5
+			ENDIF
+		ENDIF
+		SIF FLAG:70
+			PRINTFORMW 무단으로 들어갔다
+	CASE 혼숙여관, 러브호텔
+		IF !FLAG:데이트상대
+			PRINTW 혼자서 가도 어쩔 수 없다
+			CLEARLINE 2
+			RETURN -1
+		ENDIF
+		IF MONEY < 3000
+			PRINTW 돈이 부족하다
+			CLEARLINE 2
+			RETURN -1
+		ENDIF
+		SIF !GETBIT(CFLAG:(FLAG:데이트상대):기정사실 , 1)
+			CALL 껴안고((FLAG:데이트상대))
+		IF TCVAR:(FLAG:데이트상대):껴안고첫회 >= 6 && !TCVAR:(FLAG:데이트상대):만취
+				PRINTFORMW %CALLNAME:(FLAG:데이트상대)%에 들어가는 것을 거부되어 버렸다
+				IF TCVAR:(FLAG:데이트상대):껴안고첫회 == 6
+					PRINTFORMW 그러나 %CALLNAME:(FLAG:데이트상대)%는 꼭 싫지만은 않은 것 같다
+					CLEARLINE 1
+				ENDIF
+			CLEARLINE 2
+			RETURN -1
+		ELSE
+			PRINTL \3000걸립니다. 괜찮겠습니까?
+			CALL ASK_YN
+			IF RESULT == 0
+				MONEY -= 3000
+				IF TCVAR:(FLAG:데이트상대):만취
+					PRINTFORMW %조사처리(CALLNAME:(FLAG:데이트상대),"가")% 몽롱해지고 있는 것을 말해 일로, %마스터는% 그녀를 %STR:(6000 + ARG / 10)%로 데리고 들어갔다
+				ELSEIF CFLAG:(FLAG:데이트상대):패배자
+					PRINTFORMW %마스터는% 싫어하는 %조사처리(CALLNAME:(FLAG:데이트상대),"를")% %STR:(6000 + ARG / 10)%로 끌어들였다
+				ELSE
+					PRINTFORMW %마스터는% %조사처리(CALLNAME:(FLAG:데이트상대),"와")% %STR:(6000 + ARG / 10)%에 들어갔다
+				ENDIF
+				RETURN 이동처지점
+			ELSE
+				CFLAG:(FLAG:데이트상대):우후후 = 0
+				CFLAG:MASTER:우후후 = 0
+				RETURN -1
+			ENDIF
+			CFLAG:(FLAG:데이트상대):우후후 = 0
+			CFLAG:MASTER:우후후 = 0
+		ENDIF
+ENDSELECT
+
+RETURN 이동처지점

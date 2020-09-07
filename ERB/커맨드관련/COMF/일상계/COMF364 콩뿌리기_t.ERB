@@ -1,0 +1,83 @@
+﻿;-------------------------------------------------
+;콩장작
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM364
+
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+TFLAG:98 = -1
+TFLAG:193 = 1
+LOCAL:2 = TARGET
+
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	SIF CFLAG:(TARGET:LOCAL):수면
+		CONTINUE
+	SIF TALENT:(TARGET:LOCAL):흡혈귀
+		CONTINUE
+	SIF TALENT:(TARGET:LOCAL):오니 == 1
+		CONTINUE
+	TFLAG:193 ++
+	TARGET = TARGET:LOCAL
+	CALL COM364_1
+NEXT
+
+TARGET = LOCAL:2
+
+DOWNBASE:체력 += TFLAG:193 * 200
+DOWNBASE:기력 += TFLAG:193 * 200
+
+SOURCE:고통 = TFLAG:193 * 1000
+SOURCE:공포 = TFLAG:193 * 2000
+SOURCE:반감 = TFLAG:193 * 500
+
+DOWNBASE:MASTER:기력 += 50
+;일취급으로 김이 들어온다
+TFLAG:207 += TFLAG:193 * 300
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;고통의 파라미터에 의한 고통의 소스 증가는 먼저 처리해 둔다
+SOURCE:고통 = SOURCE:고통 * (10 + 5 * MAX(GETPALAMLV(PALAM:고통,5) - 1, 0)) / 10
+TIME += 30
+RETURN 1
+
+
+@COM364_1
+DOWNBASE:기력 += 50
+SOURCE:환락 = 1500 + 300 * ABL:새드끼
+SOURCE:정복 = 500 + 200 * ABL:새드끼
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE364
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(301)
+	RETURN RESULT
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+SIF FESTIVAL() != "절분"
+	RETURN 0
+;TARGET가 오니이 아니면 안 돼
+SIF !TALENT:TARGET:오니 && !TALENT:TARGET:흡혈귀
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+RETURN 1
+

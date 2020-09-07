@@ -1,0 +1,92 @@
+﻿@DAIRY_CONDITION_EV7
+
+IF !RAND:15 && MAIN_MAP == 9
+	CALL DAIRY_EV7
+	RETURN 1
+ELSE
+	RETURN -1
+ENDIF
+
+@DAIRY_EV7
+#DIM 인원수
+#DIM YUGI
+VARSET LOCAL
+YUGI = !RAND:4
+IF YUGI
+	LOCALS = 유기와 오니들
+ELSE
+	LOCALS = 오니들
+ENDIF
+인원수 = 1 + RAND:5
+PRINTFORML %마스터가% 잠자리에 들려고 했을 때, 술을 마신 {인원수}명의 오니가 기어 들어왔다!
+SIF YUGI
+	PRINTFORML 게다가 유기까지 있다……
+PRINTFORMW 아무래도 여기 눌러앉아서 계속 마시려고 하는 것 같다……
+PRINTFORML 
+;다른 선택지는 다음에
+;ASK_M("받아들이는","술을 건네주어 나가있어 받는","")
+PRINTFORML %마스터는% 자포자기로 %조사처리(LOCALS,"를")% 받아들였다
+PRINTFORML %조사처리(LOCALS,"는")% 조금도 사양하지 않고 가지고 온 술과 안주를 펼쳐놓고 야단법석을 떨기 시작했다
+LOCAL:1 = 1
+FOR LOCAL, 0, 인원수
+	LOCAL:1 += RAND:3
+NEXT
+SIF YUGI
+	LOCAL:1 += RAND:3 + RAND:3
+
+FOR LOCAL, 0, LOCAL:1
+	PRINTFORMW …
+	PRINTFORMW ……
+	PRINTFORML %마스터는% 억지로 술을 먹게 되었다
+	SELECTCASE RAND:3
+		CASE 0
+			PRINTFORMW 평범하게 좋은 술이다
+			LOCAL:2 = 200
+		CASE 1
+			PRINTFORMW 꽤 독한 술이다
+			LOCAL:2 = 400
+		CASE 2
+			PRINTFORMW 이건 독해!
+			LOCAL:2 = 700
+	ENDSELECT
+	PRINTFORMW 
+	BASE:MASTER:술기운 += LOCAL:2
+	IF YUGI
+		CALL CHANGE_CFLAG(2,64,3)
+		CALL CHANGE_CFLAG(4,64,1)
+	ENDIF
+	IF BASE:MASTER:술기운 > MAXBASE:MASTER:술기운
+		PRINTFORML 「우웩!」
+		PRINTFORML %마스터는% 토했다!
+		YOGORE:(CFLAG:MASTER:초기위치) += 1500
+		BASE:MASTER:기력 -= 500
+		MAXBASE:MASTER:술기운 += 3
+		PRINTFORMW %조사처리(LOCALS,"는")% 껄껄 웃고 있다…
+		IF BASE:MASTER:기력 < 0
+			PRINTFORMW %마스터는% 쓰러졌다!
+			BASE:MASTER:기력 -= 1000
+			LOCAL:3 ++
+			BREAK
+		ELSE
+			BASE:MASTER:술기운 /= 2
+		ENDIF
+	ELSEIF BASE:MASTER:술기운 > MAXBASE:MASTER:술기운 * 3 / 4
+		PRINTFORMW 기분 나빠졌다…
+	ENDIF
+NEXT
+
+IF !LOCAL:3
+	PRINTFORML %마스터는% 집요한 술 강요를 견뎌냈다!
+	IF YUGI
+		CFLAG:64:호감도 += 150
+		CFLAG:64:신뢰도 += 100
+	ENDIF
+	MAXBASE:MASTER:술기운 += 20
+ENDIF
+CFLAG:MASTER:철야 = 1
+YOGORE:(CFLAG:MASTER:초기위치) += 1000
+MAXBASE:MASTER:술기운 = LIMIT(MAXBASE:MASTER:술기운, 1500,3000)
+PRINTFORML 새벽녘 %조사처리(LOCALS,"는")% 떠났다
+PRINTFORML 이후 잠이 부족한 %마스터와% 대량의 빈병\@ LOCAL:3? 과 토사물의 냄새가# 이\@ 남겨졌다
+PRINTW 
+RETURN 1

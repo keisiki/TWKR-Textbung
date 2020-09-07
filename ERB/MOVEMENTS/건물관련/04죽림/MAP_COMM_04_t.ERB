@@ -1,0 +1,113 @@
+﻿;--------------------------------------------------
+;	맵내 이동 처리 확장 패치 부속
+;	죽림 MAP용 함수
+;--------------------------------------------------
+
+@MAP_PLACENAME_4(ARG)
+#FUNCTIONS
+IF GET_MAPID(ARG) == MAIN_MAP
+	SELECTCASE ARG
+		CASE 401 TO (MAXROOM - 1)
+			RETURNF STR:(ARG + 8000)
+		CASE 498
+			RETURNF OMANEKI_PLACE()
+		CASE 499
+			RETURNF "스키마 공간"
+		CASE MAXROOM
+			RETURNF "죽림의 밖"
+		CASEELSE
+			RETURNF "불명"
+	ENDSELECT
+ELSE
+	RETURNF "불명"
+ENDIF
+
+;@MAP_VIEWING_4
+;
+;IF CHK_FOCUS(402, CFLAG:MASTER:현재위치, 430)
+;	CALL MAP_EIENTEI
+;ELSEIF INRANGE(CFLAG:MASTER:현재위치, 450,466)
+;	CALL MAP_MUGENKAN
+;ELSE
+;	CALL MAP_EIEN_FRONT
+;	CALL MAP_BAMBOO
+;ENDIF
+;RETURN 1
+
+@MAP_VIEWING_4(AA)
+#DIMS REF AA, 0
+IF !TFLAG:맵변환
+	IF CHK_FOCUS(402, CFLAG:MASTER:현재위치, 430)
+		TFLAG:맵변환 = 1
+	ELSEIF CHK_FOCUS(450, CFLAG:MASTER:현재위치, 466)
+		TFLAG:맵변환 = 2
+	ELSE
+		TFLAG:맵변환 = 3
+	ENDIF
+ENDIF
+CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
+PRINTFORML 
+TRYCALLFORM MAP_NEW_TIKURIN_{TFLAG:맵변환}(AA)
+
+
+@MAP_CAN_MOVE_4(ARG, ARG:1)
+#FUNCTION
+SELECTCASE ARG
+	;안쪽노원판정
+	CASE 407 TO 430
+		;제외
+		SIF GROUPMATCH(ARG:1, [[우동게]], [[테위]], [[카구야]], [[에이린]])
+			RETURNF 1
+		;달의 백성도 좋지요
+		SIF GROUPMATCH(ARG:1, [[요리히메]], [[토요히메]], [[레이센]], [[사구메]])
+			RETURNF 1
+		;안으로부터는 움직일 수 있다
+		SIF INRANGE(CFLAG:(ARG:1):현재위치, 407,430)
+			RETURNF 1
+		;당신
+		IF ARG:1 == MASTER
+			IF 영원정침입허가() || INRANGE(CFLAG:MASTER:초기위치, 401,430) || FLAG:시간정지
+				RETURNF 1
+			ELSE
+				TFLAG:이동불능메시지 = 401
+				RETURNF 0
+			ENDIF
+		;그 이외
+		ELSE
+			RETURNF 0
+		ENDIF
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+
+@MAP_CANNOT_WORD_4(ARG)
+IF TFLAG:이동불능메시지 == 401
+	PRINTW 친한 사람이 없는 동안은 영원정의 안쪽에는 들어갈 수 있게 해 주지 않는다
+	CLEARLINE 2
+	REUSELASTLINE 
+	RETURN
+ENDIF
+
+@영원정침입허가()
+#FUNCTION
+SIF CFLAG:[[카구야]]:안면
+	RETURNF 1
+SIF TALENT:52:연모 || TALENT:53:연모 || TALENT:62:연모 || TALENT:72:연모
+	RETURNF 1
+SIF GROUPMATCH(FLAG:데이트상대, 52,53,62,72)
+	RETURNF 1
+SIF GROUPMATCH(FLAG:역극, 52,53,62,72)
+	RETURNF 1
+SIF CFLAG:52:동행 || CFLAG:53:동행 || CFLAG:62:동행 || CFLAG:72:동행
+	RETURNF 1
+SIF FLAG:연회개최플래그 == 3 && TIME >= FLAG:33
+	RETURNF 1
+RETURNF 0
+
+@MAP소개_4
+;とりあえず5行
+PRINTFORML ※紹介文募集中※
+PRINTFORML 竹林のみならず幽香と旧作キャラたちが暮らす夢幻館が含まれる。
+PRINTFORML 永遠亭の奥へは関係者と同行するか仲が深まらないと通してもらえない。
+PRINTFORML 時間停止で無断侵入できるが解除するとつまみ出される。
+PRINTFORML 

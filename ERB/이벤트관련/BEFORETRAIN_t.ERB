@@ -1,0 +1,678 @@
+﻿;FLAG:50:bit 표기:0마리사, 1, 2대, 3⑨,  4사쿠야, 5 레밀리아, 6 앨리스, 7 흰 백합, 8 패모속의 백합,9-10-11프리즘리바즈, 12요요우무13-14-15야쿠모가, 16 리글, 17―,  18아야야, 19에에이키 님20-21-22산신님 서, 23 텐시, 24이쿠 씨,25-26-27지령조, 28 나즈,  29단지들 -응, 30네, 31은 세우지 않아, 32카센, 33 엘렌, 34 리카코, 35메이라,
+;FLAG:50:bit 표기:36리카, 37 루이즈, 38 사토리 님, 39 플랑 , 40니토리, 41레이센, 42, 43 파체, 44 팔꿈치 링, 45 미코 님, (46 코코로, 의미 없음), 47에링, 48개, 49 파르시, 50도 고담, 51 공주님, 52카게로, 53유기, 54화, 55님, 56-저기,  57할까 링, 58 마미조, 59 코스즈, (60신묘마루·의미 없음), 61에이린, 62세키반키, 63 레티
+;FLAG:51:bit 표기:0메디,  1코마치, 2시즈하, 3미노리코, 4히나, 5아큐,  6렌코, 7 메리, 8 키스메,  9야마메, 10 이치린, 11 무라사, 12쇼,  13쿄코,  14요시카,  15냥냥, 16 토지, 17 후토, 18 와카사기, 19벤벤, 20 야츠하시, 21 라이코, 22 세이자, 23,24,25,26,27,28,29,30,31,32,33,34,35,
+;FLAG:51:bit 표기:
+;FileName_BEFORETRAIN.ERB -------------------------- Rev1. 00
+;아침 1일 스타트 처리
+;CALL		SYSTEM
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@EVENTTRAIN
+#PRI
+#DIM 콜렉션스키마입수수
+#DIM 역서입수수
+#DIM 수면시간
+#DIM 당신의기상시간
+#DIM 의뢰주후보
+#DIM 의뢰인
+#DIM 동거사람
+#DIM 추가수면시간
+#DIM 기상방해확률
+#DIM 安眠補正 ;숙면 보정
+#DIM 快眠係数 ;숙면 계수
+
+;TRAGET 초기화
+VARSET TARGET
+VARSET LOCAL
+;아침 1일 스타트 처리
+;초기화
+
+
+
+
+
+FLAG:일일이벤트 = RAND:1000
+FLAG:70 = 0
+RESETBGCOLOR
+CFLAG:MASTER:동침중 = 0
+IF IN_HOME(CFLAG:MASTER:초기위치) == 0 || CFLAG:MASTER:초기위치 <= 0
+	PRINTW 초기위치가 부정합니다. Default의 위치에 되돌립니다.
+	CFLAG:MASTER:초기위치 = Default초기위치
+ENDIF
+TFLAG:102 = 1
+TFLAG:연회장 = GET_JOBPLACE("연회")
+UFUFU_START_TIME = 0
+UFUFU_START_DAY = 0
+FOR LOCAL,0,CHARANUM
+	CALL InitializeBeforeTrain(LOCAL)
+NEXT
+
+;EX캐릭터 방명재정의
+
+SIF CFLAG:MASTER:초기위치 == 53
+	STR:53 = %CALLNAME:MASTER%의 창고
+SIF FLAG:16
+	STR:55 = %CALLNAME:(FLAG:16)%의 방
+FLAG:창고잠금 = 0
+
+
+CALL RESET_DISH
+CALL CHANGE_TIMEZONE
+;시간이 MASTER의 기상 예정 시각보다 크면 일자＋1
+IF TIME > TIME:3
+	DAY ++
+	DAY:3 ++
+	TIME -= 1440
+	CALL CHANGE_MONTH
+	;연회의 참가자 결정
+	SIF FLAG:3 && FLAG:연회개최플래그 != 98 && FLAG:연회개최플래그 != 99 && DAY >= FLAG:34
+		CALL ENKAI_ENTRY
+ENDIF
+
+;아가씨의 몸 주기의 진행
+;=================================
+FOR LOCAL,0,CHARANUM
+	;키스경험이 0이라면[키스미경험]을 취득(미설정캐릭터에게로의 대책이라고 생각된다)
+	SIF EXP:LOCAL:키스경험 == 0 && TALENT:LOCAL:키스미경험 == 0
+		 TALENT:LOCAL:키스미경험 = 1
+	;여성기 부재(성별의 bit0가 0) 혹은[애같음][유치]로[초경]미취득 이라면 주기를 설정하지 않는다
+	IF ((TALENT:LOCAL:150 || TALENT:LOCAL:151) && !TALENT:LOCAL:초경) || !GETBIT(TALENT:LOCAL:성별, 0)
+		CFLAG:LOCAL:900 = 0
+		CONTINUE
+	ENDIF
+	;주기가 미설정의 경우 여기서 결정
+	SIF (CFLAG:LOCAL:900 == 0 || CFLAG:LOCAL:900 > 11)
+		CFLAG:LOCAL:900 = RAND:10
+	;주기가  1진행된다
+	CFLAG:LOCAL:900 += 1
+	;아직 10 일주기(11이상으로 1의 위인 만큼 한다)
+	SIF CFLAG:LOCAL:900 > 10
+		 CFLAG:LOCAL:900 %= 10
+	SIF TALENT:LOCAL:임신 > 0
+	 	TALENT:LOCAL:임신 += 1
+NEXT
+;=================================
+
+CALL 내방플래그
+
+;EX캐릭터 휴일 데이트처 우연히 판정
+CALL 만남판정
+
+동거사람 = 0
+추가수면시간 = 0
+;이불에 질질 끌어 들여진다
+IF CFLAG:MASTER:현재위치 == OMANEKIBEYA()
+	동거사람 = CFLAG:MASTER:초대
+ELSEIF PRIVATEROOM:(CFLAG:MASTER:초기위치 % 100) && CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치
+	동거사람 = PRIVATEROOM:(CFLAG:MASTER:초기위치 % 100)
+ENDIF
+
+IF TALENT:동거사람:연모 && INRANGE(TIME:3, CFLAG:동거사람:기상시간 - 180, CFLAG:동거사람:기상시간)
+	기상방해확률 = 20
+	SIF DAY:2 == 2
+		기상방해확률 = 10
+	SIF DAY:2 == 4
+		기상방해확률 = 35
+	IF 기상방해확률 > RAND:100
+		PRINTFORML %마스터가% 엉금엉금 이불에서 기어 나오려고 하자, %CALLNAME:동거사람%에 껴안겨졌다
+		PRINTFORML 조금 더 함께 자고 싶은 것 같다
+		PRINTFORMW 어쩔 수 없기 때문에 그녀가 일어날 때까지 이불에서 보내기로 했다……
+		EXP:동거사람:애정경험 += 5
+		CALL COLORMESSAGE(@"애정경험＋5 (%CALLNAME:동거사람%)", C_PINK, 1)
+		추가수면시간 = CFLAG:동거사람:기상시간 - TIME:3
+	ENDIF
+ENDIF
+
+;30분 마다 신사의 캐릭터를 이동시킨다
+LOCAL = 1
+WHILE LOCAL
+	IF TIME + 30 < TIME:3 + 추가수면시간
+		TIME:1 = TIME + 1440 * DAY
+		TIME += 30
+		CALL CHARA_MOVEMENT
+	ELSE
+		;전캐릭터의 현재위치 보존
+		FOR LOCAL:1,0,CHARANUM
+			CFLAG:(LOCAL:1):전턴위치 = CFLAG:(LOCAL:1):현재위치
+		NEXT
+		;시간을 MASTER의 기상 예정 시각에
+		TIME =  TIME:3 + 추가수면시간
+		TIME:1 = TIME + 1440 * DAY
+		TFLAG:당신기상 = TIME + 1440 * DAY
+		CALL CHARA_MOVEMENT
+		BREAK
+	ENDIF
+WEND
+
+;눈을 뜨고 공통 메시지 표시
+CALL GOODMORNING
+
+FOR LOCAL,1,CHARANUM
+	;초기위치는 99로 통일(53은 낡은 데이터용)
+	SIF CFLAG:LOCAL:초기위치 == 53 || CFLAG:LOCAL:초기위치 == MAXROOM || CFLAG:LOCAL:초기위치 == 0
+		CFLAG:LOCAL:초기위치 = SUKIMA()
+	SIF CFLAG:LOCAL:신사거주
+		CFLAG:LOCAL:초기위치 = CFLAG:LOCAL:신사거주
+	;일을 정의
+	BASE:LOCAL:일량 = MAXBASE:LOCAL:일량
+	;불러 하고 있으면(자) 만남 플래그를 자택위치로 한다
+	IF CFLAG:LOCAL:초대
+		[SKIPSTART]
+		;연동 캐릭터는 워프해 버리므로 일괄 보정
+		;↑이것 어떤 의미이겠지, 구문 보는 한 마지막 FLAG:(590 + LOCAL) = CFLAG:LOCAL:자택위치만으로 좋은 생각이 드는데
+		SELECTCASE LOCAL
+		;프리즘리버
+		CASE 20, 21, 22
+			FLAG:(590 + 20) = CFLAG:LOCAL:자택위치
+			FLAG:(590 + 21) = CFLAG:LOCAL:자택위치
+			FLAG:(590 + 22) = CFLAG:LOCAL:자택위치
+		;아키 자매
+		CASE 77, 78
+			FLAG:(590 + 77) = CFLAG:LOCAL:자택위치
+			FLAG:(590 + 78) = CFLAG:LOCAL:자택위치
+		;연꽃 메리
+		CASE 81, 82
+			FLAG:(590 + 81) = CFLAG:LOCAL:자택위치
+			FLAG:(590 + 82) = CFLAG:LOCAL:자택위치
+		;츠쿠모 자매(자택은 없지만 설정했을 때 용)
+		CASE 94, 95
+			FLAG:(590 + 94) = CFLAG:LOCAL:자택위치
+			FLAG:(590 + 95) = CFLAG:LOCAL:자택위치
+		CASEELSE
+			FLAG:(590 + LOCAL) = CFLAG:LOCAL:자택위치
+		ENDSELECT
+		[SKIPEND]
+		CFLAG:LOCAL:만난위치 = CFLAG:LOCAL:자택위치
+		;MASTER는 외박 하고 있으면(자) 데이트 플래그(외출 플래그)를 세운다
+		SIF CFLAG:MASTER:초대
+			CFLAG:MASTER:데이트중 = CFLAG:LOCAL:자택위치 / 100
+		;그 날은 연속해서 묵을 수 없게
+		TCVAR:LOCAL:연속숙박금지 = 1
+	ENDIF
+NEXT
+
+;시스템 변화계 이벤트
+CALL SYS_EVENT
+
+;기상시간의 기록
+당신의기상시간 = 1440 * DAY + TIME
+
+;체력 기력의 회복
+IF DAY == 1
+	수면시간 = 480
+ELSE
+	수면시간 = 당신의기상시간 - CFLAG:MASTER:취침시간 - 추가수면시간 / 2
+ENDIF
+PRINTL
+IF FLAG:기절중단
+	SIF CFLAG:MASTER:현재위치 != ENTRANCE
+		CFLAG:MASTER:데이트중 = FLAG:기절중단 - 100
+	FLAG:기절중단 = 0
+	수면시간 /= 5
+	PRINTFORMW 이상한 장소에서 잤더니 등이 아프다……
+ELSEIF CFLAG:MASTER:철야
+	수면시간 /= 2
+	PRINTFORMW 어젯밤은 잘 못잤다……
+ELSE
+	PRINTFORMW {수면시간 / 60}시간 잤다
+ENDIF
+
+CALL SleepSoundly
+安眠補正 = RESULT
+快眠係数 = 480 - (60 * TALENT:MASTER:회복속도) - 安眠補正
+BASE:MASTER:체력 += MAXBASE:MASTER:체력 * 수면시간 / 2 / 快眠係数
+BASE:MASTER:기력 += MAXBASE:MASTER:기력 * 수면시간 / 快眠係数
+BASE:MASTER:정력 += MAXBASE:MASTER:정력 * 수면시간 / 快眠係数
+
+BASE:MASTER:체력 = MIN(MAXBASE:MASTER:체력, BASE:MASTER:체력)
+BASE:MASTER:기력 = MIN(MAXBASE:MASTER:기력, BASE:MASTER:기력)
+BASE:MASTER:정력 = MIN(MAXBASE:MASTER:정력, BASE:MASTER:정력)
+BASE:MASTER:발기 = MIN(1000 * BASE:MASTER:체력 / MAXBASE:MASTER:체력, 1000)
+;DEBUGPRINTFORM 기력{MAXBASE:MASTER:기력 * 수면시간 / 2 / (480 -120 * TALENT:MASTER:회복속도)}회복
+CFLAG:MASTER:철야 = 0
+
+;의뢰의 발생과 소멸
+CALL IRAI_HAPPEN
+CALL IRAI_VANISH
+CALL MEMO_IRAI_DEADLINE
+
+
+IF FLAG:운세뽑기계약
+	DRAWLINE
+	PRINTFORML 
+	PRINTFORML ┌────────┐
+	PRINTFORML ｜　　　　　　　　｜
+	PRINTFORML ｜　　멋　진　　　｜
+	PRINTFORML ｜　　운세뽑기　　｜
+	PRINTFORML ｜　　　　　　　　｜
+	PRINTFORML └────────┘
+	PRINTFORMW 
+	CALL FORTUNE
+	PRINTFORML 
+	DRAWLINE
+ENDIF
+IF FLAG:콜렉션스키마 != NOW_PERIOD() ;이하 NOW_PERIOD() 부분은 (DAY:0)/5 에서 수정됨
+	IF FLAG:콜렉션스키마 < NOW_PERIOD()
+		콜렉션스키마입수수 = 2
+		역서입수수 = 1
+	ELSE
+	콜렉션스키마입수수 = (FLAG:콜렉션스키마 - NOW_PERIOD()) * 2
+	역서입수수 = FLAG:콜렉션스키마 - NOW_PERIOD()
+	ENDIF
+	ITEM:콜렉션의스키마 = MIN(콜렉션스키마입수수 + ITEM:콜렉션의스키마, 10)
+	ITEM:역서 = MIN(역서입수수 + ITEM:역서, 5)
+	FLAG:콜렉션스키마 = NOW_PERIOD()
+	PRINTL
+	PRINTFORML ☆콜렉션의스키마가 조금 보충되어 있었다(현재：{ITEM:콜렉션의스키마}개)
+	PRINTFORML ☆역서가 조금 보충되고 있었다(현재：{ITEM:역서}개)
+ENDIF
+IF !ITEM:미라다의돌 && (FLAG:미라다지급 < NOW_PERIOD()) ;KR판 구잔재. 일판에서는 주석처리
+	CALL COLORMESSAGE(@"애욕을 독점하는 미라다의돌밀레니엄은 알고 있어? ", C_D_PINK, 2)
+	PRINTFORMW ☆애욕을 독점하는 미라다의돌 밀레니엄이 지급되었다
+	ITEM:미라다의돌 ++
+	FLAG:미라다지급 = NOW_PERIOD()
+ENDIF
+;소작인 또한 월초(첫날 제외하다)라면 연공이 내세우고
+;외박 해 도망 다니는 일도 할 수 없지는 않다
+SIF FLAG:지주 && FLAG:연공 && (TARGET == FLAG:지주 || CFLAG:MASTER:현재위치 != OMANEKIBEYA())
+	CALL NENGU_NOUMIN
+CALL KODUCHI
+CALL CHARA_MOVEMENT
+
+;기상시에 머리맡에의 선물 판정을 실시한다
+;CALL GET_GIFT
+
+;조교자는 누군가
+IF ASSIPLAY == 0
+	PLAYER = MASTER
+ELSE
+	PLAYER = ASSI
+ENDIF
+;--------------------------------------------
+;대청소
+FOR LOCAL,1,11
+SIF CFLAG:LOCAL:335 > 0
+	CFLAG:LOCAL:335 -= 1
+NEXT
+SIF CFLAG:MASTER:335 > 0
+	CFLAG:MASTER:335 -= 1
+
+
+FOR LOCAL, 0, CHARANUM
+	;의상 설정
+	;행동중에 입는 옷을 설정해 갈아 입을 옷 한다
+	IF LOCAL == MASTER || !수면시간(LOCAL)
+		CALL SELECT_CLOTHES(LOCAL, "오늘의 의상")
+		CALL SELECT_CLOTHES(LOCAL, "오늘의 파자마")
+		CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_평상복")
+		SETBIT CFLAG:LOCAL:갈아입음실행, 0
+	ELSE
+		CALL SELECT_CLOTHES(LOCAL, "내일의 의상")
+		CALL SELECT_CLOTHES(LOCAL, "오늘의 파자마")
+		CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_파자마")
+		CFLAG:LOCAL:파자마 = 1
+		SETBIT CFLAG:LOCAL:갈아입음실행, 1
+	ENDIF
+	IF SPECIAL_OUTFIT(LOCAL)
+		CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_의상세트", SPECIAL_OUTFIT(LOCAL))
+		[IF_DEBUG]
+		PRINTFORML %CALLNAME:LOCAL%는 평상시와 다른 옷으로 갈아입었습니다
+		[ENDIF]
+		TCVAR:LOCAL:어나더_평상복 = 1
+	ENDIF
+	CALL 속옷확인리셋(LOCAL)
+	CALL CLOTHES_SETTING_TRAIN(LOCAL)
+NEXT
+
+;발원함 리셋
+CVARSET CFLAG, GETNUM(CFLAG, "다음날내방"), 0
+FLAG:560 = 0
+FLAG:561 = 0
+IF FLAG:일시체재
+	CFLAG:(FLAG:일시체재):초기위치 = CFLAG:(FLAG:일시체재):본래의초기위치
+	CFLAG:(FLAG:일시체재):신사거주 = 0
+	CFLAG:(FLAG:일시체재):거점내방 = 1
+	FLAG:일시체재 = 0
+ENDIF
+;----------------------------------------------
+
+;----------------------------------------------
+;FileName_BEFORETRAIN.ERB -------------------------- Rev1. 00
+;눈을 뜨고 공통 메시지 표시
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@GOODMORNING
+#DIM 기상상황
+#DIM 기상장소
+#DIM 연회위치시정
+#DIM  DYNAMIC CNT_BIRTHDAY
+#DIMS DYNAMIC NAME_CHILD   , 10 * 캐릭터수상한 + 1
+#DIM  DYNAMIC AGE_CHILD    , 10 * 캐릭터수상한 + 1
+VARSET LOCAL
+TARGET = 0
+기상상황 = 0
+기상장소 = 0
+
+;MASTER와 동실의 캐릭터를 찾는다
+FOR LOCAL,1,CHARANUM
+	SIF CFLAG:MASTER:현재위치 == CFLAG:LOCAL:현재위치
+		;TARGET 결정
+		TARGET = LOCAL
+NEXT
+;타겟이 들어가면 표시
+IF TARGET
+	;IF CFLAG:TARGET:수면
+	IF 수면시간(TARGET)
+		;동거중
+		IF CFLAG:MASTER:초기위치 == CFLAG:TARGET:초기위치
+			;동거중 또한 상대가 자고 있다
+			기상상황 = 3
+			FOR LOCAL,0,CHARANUM
+				CALL SET_TOGETHER(0,LOCAL,1)
+			NEXT
+			;MASTER와의 접촉 위치를 리셋
+			CALL TOUCH_SET(0,0,0,1)
+			;RETURN 1
+		;비동거 중(방에서 나가므로 기상구상은 없음) 초대 취침 조건인 연모에게 왜 나가 버리는지 모르기 때문에 잠입이나 장난 때만 철퇴하도록 변경했습니다.		ELSE
+		;덧붙여서 말하면 먼저 방주인이 밖에 나와 있을 경우, 방에 남겨진다. 만약 수면간 후 취침을 실장했을 때에는 여기서 요분기
+		ELSE
+			FOR LOCAL,0,CHARANUM
+				CALL SET_TOGETHER(0,LOCAL,1)
+			NEXT
+			;MASTER와의 접촉 위치를 리셋
+			CALL TOUCH_SET(0,0,0,1)
+			;내 방이 아닌, 억울할 경우 이동 가능한 곳으로 이동
+			SIF (CFLAG:TARGET:은밀중 || CFLAG:TARGET:장난) && CFLAG:MASTER:현재위치 != CFLAG:MASTER:초기위치
+			CALL GETOUT(MASTER)
+			;잠입해 OFF
+			CALL SET_SNEAK(0,TARGET,2)
+			;장난 OFF
+			CALL SET_PRANK(0,TARGET,2)
+		ENDIF
+	ELSE
+		;동거중
+		IF CFLAG:MASTER:초기위치 == CFLAG:TARGET:초기위치
+			;동거중 또한 상대가 일어나고 있다
+			기상상황 = 2
+			FOR LOCAL,0,CHARANUM
+				CALL SET_TOGETHER(0,LOCAL,1)
+			NEXT
+			;MASTER와의 접촉 위치를 리셋
+			CALL TOUCH_SET(0,0,0,1)
+		;비동거중
+		ELSE
+			;비동거(同棲) 한편 상대가 일어나고 있다
+			기상상황 = 1
+			;MASTAR의 자기 방에서 기상했다
+			IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:311
+				기상장소 = 1
+				FOR LOCAL,0,CHARANUM
+					CALL SET_TOGETHER(0,LOCAL,1)
+				NEXT
+				;MASTER와의 접촉 위치를 리셋
+				CALL TOUCH_SET(0,0,0,1)
+			;TARGET의 자기 방에서 기상했다(연모 첨부 상대의 방에서 동침 후 취침시만의 괄
+			ELSEIF CFLAG:MASTER:현재위치 == CFLAG:TARGET:311
+				기상장소 = 0
+				FOR LOCAL,0,CHARANUM
+					CALL SET_TOGETHER(0,LOCAL,1)
+				NEXT
+				;MASTER와의 접촉 위치를 리셋
+				CALL TOUCH_SET(0,0,0,1)
+			;그 이외(
+			ELSE
+				;어디서 자...?연모있는 캐릭터의 방에 다른 연모있는 캐릭터를 데리고 잤다..???
+				기상장소 = -1
+			ENDIF
+			;잠입해 OFF
+			CALL SET_SNEAK(0,TARGET,2)
+			;장난 OFF
+			CALL SET_PRANK(0,TARGET,2)
+		ENDIF
+		;CALL KOJO_EVENT(6, TARGET, 1)
+		;동침 후인가 어떤가
+		;동침 플래그가 서지 않기 때문에, 통상 기상만
+		;IF CFLAG:MASTER:동침중
+			;CALL KOJO_MESSAGE_SEND("EVENT", 2, TARGET, 2,0)
+		;ELSE
+		;ENDIF
+	ENDIF
+	SIF 기상상황 == 0 || 기상장소 == -1
+		CALL MESSAGE_GOODMONING(기상상황, 기상장소)
+	SIF 기상상황 && 기상장소 != -1
+		CALL KOJO_MESSAGE_SEND("EVENT",2,TARGET, 기상상황, 기상장소)
+ENDIF
+IF FLAG:이상기상
+	PRINTFORML 대기에는 심상치 않은 기색이 감돌고 있다
+ELSE
+	SELECTCASE TIME:5
+		CASE 0,1
+			PRINTL 좋은 날씨다.
+		CASE IS & 4
+			PRINTL 비가 내리고 있다.
+		CASE IS & 8
+			PRINTL 눈이 내리고 있다.
+	ENDSELECT
+ENDIF
+IF FESTIVAL() != ""
+	PRINTFORML 오늘은 %조사처리(FESTIVAL(),"다")%.
+	CALL SEASONAL_MORNING
+ENDIF
+IF FLAG:개시일 - DAY <= 0 && FLAG:연회개최플래그
+;잔치날
+	PRINTFORM 오늘은 
+	CALL 연회예정표시
+	PRINTL 가 있다
+	;여기서의 연회장 대입이라면 CHARA_MOVEMENT로 불안정이 나왔기 때문에 상부에 이동
+	;FLAG:32 = GET_JOBPLACE("연회")
+	IF TIME:3 >= FLAG:33
+		FOR 연회위치시정, 1, CHARANUM
+			IF CFLAG:연회위치시정:연회참가
+				CFLAG:연회위치시정:직장 = TFLAG:연회장
+				CFLAG:연회위치시정:현재위치 = TFLAG:연회장
+			ENDIF
+		NEXT
+	ENDIF
+ENDIF
+IF CHILD_HAPPY_BIRTHDAY(CNT_BIRTHDAY, NAME_CHILD, AGE_CHILD)
+	PRINTFORM 오늘은 
+	FOR LOCAL, 1, CNT_BIRTHDAY + 1
+		PRINTFORM %NAME_CHILD:LOCAL%(만{AGE_CHILD:LOCAL}세)
+		SIF LOCAL == CNT_BIRTHDAY
+			BREAK
+		PRINTFORM  %조사만처리(NAME_CHILD:LOCAL,"와")%
+	NEXT
+	PRINTFORML  의 생일이다
+ENDIF
+CALL CHARA_MOVEMENT
+SIF CFLAG:MASTER:지금바쁨
+	PRINTFORML …아무래도 자위를 한 채로 자 버린 것 같다…
+
+CALL TODAYS_CHARISMA
+
+;----------------------------------------------
+@KODUCHI
+;요술망치의 대상
+IF CFLAG:MASTER:요술망치 > 0
+	CFLAG:MASTER:마력회수 -= 1
+	LOCAL = CFLAG:MASTER:마력회수
+	IF CFLAG:MASTER:요술망치 == 8
+			PRINTFORMW 신묘마루의 몸은 원래대로 돌아갔다
+		TALENT:71:체형 = -5
+		IF CFLAG:71:초기위치 == 54 || CFLAG:71:현재위치 == 9
+			CFLAG:71:현재위치 = 54
+			CFLAG:71:초기위치 = 54
+		ENDIF
+	ELSEIF CFLAG:MASTER:요술망치 == 4
+		IF CFLAG:MASTER:마력회수 < 1
+			TALENT:MASTER:형상 = CFLAG:MASTER:382
+		ELSE
+			PRINTW 그렇게 컸던 물건이 비참한 것이 되고 있다…
+			TALENT:MASTER:형상 = 2
+		ENDIF
+	ELSEIF CFLAG:MASTER:요술망치 == 5
+		IF CFLAG:MASTER:마력회수 < 1
+			TALENT:MASTER:형상 = CFLAG:MASTER:382
+		ELSE
+			PRINTW 2개 있던 장대가……한 개에…어디 가 아니게 되고 있다
+			TALENT:MASTER:183 = 0
+			TALENT:MASTER:형상 = 2
+			BASE:MASTER:정력 -= MAXBASE:MASTER:정력 / 2
+		ENDIF
+	ELSEIF CFLAG:MASTER:요술망치 == 6
+		SIF CFLAG:MASTER:마력회수 == 2
+			PRINTFORMW %CALLNAME:MASTER%의 몸은 원래대로 돌아가고 있다
+		TALENT:MASTER:100 = FLAG:원래체격
+		IF CFLAG:MASTER:초기위치 == 54 || CFLAG:MASTER:현재위치 == 54
+			CFLAG:MASTER:현재위치 = 9
+			SIF CFLAG:MASTER:초기위치 == 54
+				CFLAG:MASTER:초기위치 = Default초기위치
+		ENDIF
+	ELSEIF CFLAG:MASTER:요술망치 == 7
+		;원래 크기에 되돌릴 뿐(만큼)이므로 변화 없음
+	ENDIF
+	SIF CFLAG:MASTER:마력회수 <= 0
+		CFLAG:MASTER:요술망치 = 0
+ENDIF
+
+;----------------------------------------------
+;아침인사 공통구상
+;기상상황 = 0: 비동거상대 잠 1: 비동거상대일어남 2:동거상대일어남 3:동거중 상대잠 4:
+;기상장소 = 0:상대 방 1:내 방
+;----------------------------------------------
+@MESSAGE_GOODMONING(기상상황,기상장소)
+#DIM 기상상황
+#DIM 기상장소
+PRINTFORML
+SELECTCASE 기상상황
+CASE 0
+	;非同棲相手眠り
+	IF !기상장소
+		;とにかくやましい時のみ抜け出すよう変更
+		PRINTFORMW %마스터가% 눈을 뜨니 옆에서 %타겟이% 자고 있었다
+		IF CFLAG:TARGET:은밀중 || CFLAG:TARGET:장난
+			IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치
+				PRINTFORMW %마스터는% %타겟이% 일어났을 때 어떻게 할지 생각했다…
+			ELSE
+				PRINTFORMW %타겟이% 눈치채지 못하게 %마스터는% 천천히 방을 빠져 나갔다…
+			ENDIF
+		ELSE
+			PRINTFORMW %마스터는% 조용하게 %CALLNAME:TARGET%의 옆을 빠져 나가 하루의 준비를 시작했다
+		ENDIF
+	ELSE
+		;今のところ死に分岐
+		PRINTFORMW %마스터가% 눈을 뜨자 옆에서 %타겟이% 자고 있었다
+		PRINTFORMW 어째서 %타겟이% 방에 있는 것일까 라고 조금 놀라면서도\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가, 하루의 준비를 시작했다
+	ENDIF
+CASE 1
+	;非同棲相手起き
+	IF 기상장소 == 0
+		;초대방수면かな…？ 연모付き確定？
+		PRINTFORMW %마스터가% 눈을 뜨자 %타겟과% 눈이 마주쳤다
+		PRINTFORMW 아침의 인사를 한 후, %CALLNAME:TARGET%의 근처를 빠져 나가 하루의 준비를 시작했다
+	ELSEIF 기상장소 == 1
+		;自室にキャラを連れ込んだ後で（あなたの수면時間の方が早い）寝た場合や勝手に部屋に入ってくる場合（三月精とか割と頻繁）
+		;自分で連れ込んだんじゃろがいっ！ って時は個人口上側で対処してください
+		PRINTFORMW %마스터가% 눈을 뜨자 %타겟과% 눈이 마주쳤다
+		PRINTFORMW 어째서 %타겟이% 방에 있는 것일까 라고 조금 놀라면서도\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가, 하루의 준비를 시작했다
+	ELSE
+		;ここはどこ、この子は誰状態 どうやったらこの分岐に来るかわからない…
+		PRINTFORMW 어째서 이런 곳에서 자고 있고, 어째서 %타겟이% 옆에 있는 것일까 하는 의문이 들면서도,\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가 하루의 준비를 시작했다
+	ENDIF
+CASE 2
+	;同棲相手起き
+	PRINTFORMW %마스터가% 눈을 뜨자  %타겟과% 눈이 마주쳤다
+	PRINTFORMW 잠시 동안 %타겟과% 아침의 인사를 주고 받고 나서\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가 하루의 준비를 시작했다
+CASE 3
+	;同棲相手眠り
+	PRINTFORMW %마스터가% 눈을 뜨자 옆에서 아직 %타겟이% 새근새근 자고 있었다
+	PRINTFORMW %마스터가% %타겟을% 깨우지 않도록 \@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가 하루의 준비를 시작했다
+ENDSELECT
+PRINTFORML
+RETURN 1
+
+;----------------------------------------------
+
+@InitializeBeforeTrain(ARG)
+CFLAG:ARG:면간발각 = 0
+CFLAG:ARG:전턴위치 = 0
+CFLAG:ARG:데이트중 = MAIN_MAP
+CFLAG:ARG:졸음쫒기강도 = 0
+;사정、발기、무드、이성、분노
+BASE:ARG:사정 = 0
+BASE:ARG:발기 = 0
+BASE:ARG:무드 = 0
+BASE:ARG:이성 = MAXBASE:ARG:11
+BASE:ARG:분노 = 0
+BASE:ARG:술기운 = 0
+BASE:ARG:발기 = 0
+BASE:ARG:심도 = 0
+CFLAG:ARG:발기도 = 0
+;행동はリセット
+CFLAG:ARG:행동 = 0
+;덮침侵入リセット
+CLEARBIT CFLAG:ARG:42,8
+;경험표시用
+FOR LOCAL:1,0,100
+	TCVAR:ARG:(400 + LOCAL:1) = EXP:ARG:(LOCAL:1)
+NEXT
+CALL SETTING_PERSONALITY(ARG)
+;性交フラグ
+TEQUIP:ARG:50 = -1
+TEQUIP:ARG:51 = -1
+TCVAR:ARG:100 = -1
+TCVAR:ARG:101 = -1
+;中出し表示用フラグ
+TCVAR:ARG:103 = -1
+TCVAR:ARG:105 = -1
+;수면제차関連
+TCVAR:TARGET:수면제차사용 = 0
+;사정処理用文字列変数
+CSTR:ARG:10 = /
+CSTR:ARG:11 = /
+IF LOCAL && CFLAG:ARG:현재위치 != OMANEKIBEYA()
+	SIF ((CFLAG:MASTER:취침시간 - DAY * 1440) && (CFLAG:MASTER:취침시간 - DAY * 1440) < CFLAG:ARG:취침시간)
+		CFLAG:ARG:현재위치 = CFLAG:ARG:초기위치
+ENDIF
+SIF IN_HOME(CFLAG:ARG:초기위치) != 1 & CFLAG:ARG:수면
+	CALL SET_SLEEP(0,ARG,0)
+RESET_STAIN ARG
+
+@SleepSoundly
+#DIM 安眠補正
+SIF FLAG:기절중단
+	RETURN 0
+SIF CFLAG:MASTER:철야
+	RETURN 0
+SIF CFLAG:MASTER:초대
+	RETURN 0
+;安眠枕の補正
+IF ITEM:스위티숙면배개
+	安眠補正 = MIN(RAND:(SQRT(FLAG:튜토리얼글누계 + 1)), 40)
+	SELECTCASE 安眠補正
+		CASE IS > 30
+			PRINTFORMW 배개 덕분인지 굉장한 느낌의 기상이다!
+		CASE IS > 20
+			PRINTFORMW 배개 덕분인지 피로가 꽤나 풀린 듯한 느낌이다.
+	ENDSELECT
+ELSE
+	安眠補正 = 0
+ENDIF
+;ベッドの補正
+IF ITEM:오동나무침대
+	SELECTCASE ITEM:오동나무침대
+		CASE 1
+			安眠補正 += RAND:20 + RAND:20
+		CASE 2
+			安眠補正 += RAND:30 + RAND:30
+		CASE 3
+			安眠補正 += RAND:40 + RAND:40
+	ENDSELECT
+ENDIF
+
+RETURN 安眠補正

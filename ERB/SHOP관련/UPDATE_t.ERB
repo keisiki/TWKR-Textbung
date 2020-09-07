@@ -1,0 +1,1049 @@
+﻿@UPDATE
+#DIM C_ID
+#DIM 갱신능력번호
+#DIM 최저능력치
+#DIM 최저경험수
+#DIM 육아중의아이
+#DIM 아이설정첫회
+#DIM 대사실장체크, 캐릭터수상한
+#DIM 리셋화면
+#DIM 기능소질갱신용
+#DIMS rname
+
+;---------------------------------------
+;TWKR판 고유 또는 구버전 기능
+FOR C_ID, 1, CHARANUM
+;;바람기공인과 액세서리의 앨리어싱
+CSTR:C_ID:49=%CSTR:C_ID:50%
+CSTR:C_ID:50=%CSTR:C_ID:51%
+CSTR:C_ID:51=
+
+;;아내 추가 패치 관련
+	SIF TALENT:C_ID:연인&&!(TALENT:C_ID:연인==3)
+		TALENT:C_ID:연인=1
+NEXT
+;----------------------------------------
+
+PRINTL 구버전에는 존재하지 않던 캐릭터·초기 소질·플래그 등이 있으면 수중에 넣습니다.
+
+VARSET 대사실장체크
+리셋화면 = 0
+FOR C_ID, 51, 캐릭터수상한
+	IF C_ID < CHARANUM
+		SIF TALENT:C_ID:스침
+			DELCHARA C_ID
+	ENDIF
+	IF GETCHARA (C_ID) == -1
+		ADDCHARA C_ID
+		TARGET = C_ID
+		RESULT = 0
+		TRYCALLFORM M_KOJO_K{NO:C_ID}
+		SIF RESULT
+			CFLAG:C_ID:대사실장상황 = 1
+	ENDIF
+	IF TALENT:C_ID:스침
+		RANDOM_CHARANUM = C_ID
+		BREAK
+	ENDIF
+NEXT
+
+IF !CFLAG:MASTER:아이인원수
+	FOR C_ID, 1, CHARANUM
+		SIF TALENT:C_ID:스침
+			CONTINUE
+		CFLAG:MASTER:아이인원수 += CFLAG:C_ID:아이인원수
+		CFLAG:MASTER:육아인원수 += CFLAG:C_ID:육아인원수
+	NEXT
+ENDIF
+SIF !CM_LIMIT
+	CM_LIMIT = 100
+YOGORE:348 = 0
+FOR C_ID, 1, CHARANUM
+	;캐릭터 이름과 통칭을 업데이트
+	IF NAME:C_ID != CSVNAME(C_ID)
+		NAME:C_ID = %CSVNAME(C_ID)%
+		PRINTFORML 캐릭터 이름을 %조사처리(NAME:C_ID,"로")% 갱신
+	ENDIF
+	IF CALLNAME:C_ID != CSVCALLNAME(C_ID)
+		CALLNAME:C_ID = %CSVCALLNAME(C_ID)%
+		PRINTFORML 캐릭터 통칭을 %조사처리(CALLNAME:C_ID,"로")% 갱신
+	ENDIF
+	SIF TALENT:C_ID:스침
+		CONTINUE
+	;CSTR:일정보를 CSTR:3으로 이행하는 수속
+	IF CSTR:C_ID:3 == "" && CSVCSTR(C_ID, 3) != ""
+		CSTR:C_ID:3 = %CSVCSTR(C_ID, 3)%
+		CSTR:C_ID:1 = 
+	ENDIF
+	TALENT:C_ID:186 = 0
+	IF TALENT:C_ID:연모
+		TALENT:C_ID:사모 = 0
+		TALENT:C_ID:섹프 = 0
+		TALENT:C_ID:애욕 = 0
+	ENDIF
+	CALL 이력캐릭터라인변환(C_ID)
+	IF TALENT:C_ID:육아중
+		FOR LOCAL:1, 1, 11
+			SIF (CHILD_BIRTHDAY:C_ID:(LOCAL:1) > CHILD_BIRTHDAY:C_ID:(LOCAL:1 - 1)) || (LOCAL:1 - 1) == 0
+				육아중의아이 = LOCAL:1
+		NEXT
+		TALENT:C_ID:육아중 = 육아중의아이
+	ENDIF
+	SIF !TALENT:C_ID:임신
+		CFLAG:C_ID:임신자각상태 = 0
+	SIF !CFLAG:C_ID:의뢰상황
+		CFLAG:C_ID:의뢰내용 = 0
+	
+	FOR LOCAL:1, 0, 3
+		SIF !EFFECTIVE_PATTERN_V:C_ID:(LOCAL:1)
+			EFFECTIVE_PATTERN_V:C_ID:(LOCAL:1) = 1 + RAND:3
+		SIF !EFFECTIVE_PATTERN_A:C_ID:(LOCAL:1)
+			EFFECTIVE_PATTERN_A:C_ID:(LOCAL:1) = 1 + RAND:3
+	NEXT
+
+	;종족계 소질을 갱신
+	FOR LOCAL:1, 190, 198
+		TALENT:C_ID:(LOCAL:1) = CSVTALENT(C_ID, LOCAL:1)
+	NEXT
+	;습기선호, 한기선호, 종족(미사용? ), 반백택, 동물귀도 변동하지 않는다고 생각되므로 갱신
+	FOR LOCAL:1, 163, 167
+		TALENT:C_ID:(LOCAL:1) = CSVTALENT(C_ID, LOCAL:1)
+	NEXT
+	
+	;기능계 소질
+	기능소질갱신용 = MAX(ABL:C_ID:낚시기능, CSVTALENT(C_ID, 47))
+	TALENT:C_ID:낚시Lv = MAX(TALENT:C_ID:낚시Lv, 기능소질갱신용)
+	CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "낚시경험"), TALENT:C_ID:낚시Lv)
+	
+	기능소질갱신용 = MAX(ABL:C_ID:채집기능, CSVTALENT(C_ID, 48))
+	TALENT:C_ID:채집Lv = MAX(TALENT:C_ID:채집Lv, 기능소질갱신용)
+	CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "채집경험"), TALENT:C_ID:채집Lv)
+	
+	기능소질갱신용 = MAX(ABL:C_ID:조제기능, CSVTALENT(C_ID, 49))
+	TALENT:C_ID:조제Lv = MAX(TALENT:C_ID:조제Lv, 기능소질갱신용)
+	CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "조제경험"), TALENT:C_ID:조제Lv)
+
+	기능소질갱신용 = CSVTALENT(C_ID, 46)
+	TALENT:C_ID:벌채Lv = MAX(TALENT:C_ID:벌채Lv, 기능소질갱신용)
+	CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "벌채경험"), TALENT:C_ID:벌채Lv)
+
+	TALENT:C_ID:통각 = CSVTALENT(C_ID, GETNUM(TALENT, "통각"))
+	TALENT:C_ID:동물귀 = CSVTALENT(C_ID, GETNUM(TALENT, "동물귀"))
+	SIF TALENT:C_ID:회복속도 < CSVTALENT(C_ID, GETNUM(TALENT, "회복속도")) && !TALENT:C_ID:임신 && CFLAG:C_ID:출산경과일 > 20
+		TALENT:C_ID:회복속도 = CSVTALENT(C_ID, GETNUM(TALENT, "회복속도"))
+	;아마 괜찮다고 생각하지만, 후천적인 취득 처리를 전망해 판정
+	SIF TALENT:C_ID:청소부 == 0
+		TALENT:C_ID:청소부 = CSVTALENT(C_ID, GETNUM(TALENT, "청소부"))
+	SIF TALENT:C_ID:음감 == 0
+		TALENT:C_ID:음감 = CSVTALENT(C_ID, GETNUM(TALENT, "음감"))
+	SIF TALENT:C_ID:음악지식 == 0
+		TALENT:C_ID:음악지식 = CSVTALENT(C_ID, GETNUM(TALENT, "음악지식"))
+	SIF GETBIT(TALENT:C_ID:성별, 1) && !TALENT:C_ID:형상
+		CALL TINKO_DECIDE(C_ID)
+
+	;내방확률 보정을 읽어들여
+	FOR LOCAL:1, 420, 432
+		CFLAG:C_ID:(LOCAL:1) = CSVCFLAG(C_ID, LOCAL:1)
+	NEXT
+	;내방 위치를 읽어들여
+	FOR LOCAL:1, 450, 462
+		CFLAG:C_ID:(LOCAL:1) = CSVCFLAG(C_ID, LOCAL:1)
+	NEXT
+	FOR LOCAL:1, 1, CHARANUM
+		RELATION:C_ID:(LOCAL:1) = CSVRELATION(C_ID, LOCAL:1)
+	NEXT
+	;리소스 차이 유무를 확인
+	rname = 別顔_服_通常_{C_ID}
+	IF SPRITECREATED(rname) && !CFLAG:C_ID:별도얼굴있음
+		PRINTFORML %CALLNAME:C_ID%의 별도 얼굴화상을 확인
+		CFLAG:C_ID:별도얼굴있음 = 1
+	ENDIF
+	rname = 別立ち_服_通常_{C_ID}
+	IF SPRITECREATED(rname) && !CFLAG:C_ID:별도스탠딩있음
+		PRINTFORML %CALLNAME:C_ID%의 별도 스탠딩화상을 확인
+		CFLAG:C_ID:별도스탠딩있음 = 1
+	ENDIF
+	;주인 플래그
+	CFLAG:C_ID:집주인후보 = CSVCFLAG (C_ID, GETNUM(CFLAG, "집주인후보"))
+	CFLAG:C_ID:더부살이필요신뢰도 = CSVCFLAG (C_ID, GETNUM(CFLAG, "더부살이필요신뢰도"))
+	CFLAG:C_ID:집세 = CSVCFLAG (C_ID, GETNUM(CFLAG, "집세"))
+
+	CFLAG:C_ID:고유커맨드 = CSVCFLAG (C_ID, GETNUM(CFLAG, "고유커맨드"))
+	CFLAG:C_ID:지위 = CSVCFLAG (C_ID, GETNUM(CFLAG, "지위"))
+	CFLAG:C_ID:초기위치 = CSVCFLAG (C_ID, GETNUM(CFLAG, "초기위치"))
+	SIF CFLAG:C_ID:신사거주
+		CFLAG:C_ID:초기위치 = CFLAG:C_ID:신사거주
+	CFLAG:C_ID:내방시간 = CSVCFLAG (C_ID, GETNUM(CFLAG, "내방시간"))
+	CFLAG:C_ID:귀가시간 = CSVCFLAG (C_ID, GETNUM(CFLAG, "귀가시간"))
+	CFLAG:C_ID:취침시간 = CSVCFLAG (C_ID, GETNUM(CFLAG, "취침시간"))
+	CFLAG:C_ID:기상시간 = CSVCFLAG (C_ID, GETNUM(CFLAG, "기상시간"))
+	CFLAG:C_ID:자주가는지역 = CSVCFLAG (C_ID, GETNUM(CFLAG, "자주가는지역"))
+	CFLAG:C_ID:자택위치 = CSVCFLAG (C_ID, GETNUM(CFLAG, "자택위치"))
+	CFLAG:C_ID:이동율보정 = CSVCFLAG (C_ID, GETNUM(CFLAG, "이동율보정"))
+	CFLAG:C_ID:이동절도 = CSVCFLAG (C_ID, GETNUM(CFLAG, "이동절도"))
+	CFLAG:C_ID:내방억제치 = CSVCFLAG(C_ID, GETNUM(CFLAG, "내방억제치"))
+	CFLAG:C_ID:탄막특능 = CSVCFLAG (C_ID, GETNUM(CFLAG, "탄막특능"))
+	SIF !CFLAG:C_ID:탄막특능
+		CALL 탄막특수능력설정(C_ID)
+	;최대 기력 체력이 CSV치보다 낮은 경우 CSV에 맞춘다
+	IF !CFLAG:C_ID:회복속도다운
+		SIF MAXBASE:C_ID:0 < CSVBASE (C_ID, 0)
+			MAXBASE:C_ID:0 = CSVBASE (C_ID, 0)
+		SIF MAXBASE:C_ID:1 < CSVBASE (C_ID, 1)
+			MAXBASE:C_ID:1 = CSVBASE (C_ID, 1)
+	ENDIF
+	;술내성
+	MAXBASE:C_ID:술기운 = CSVBASE(C_ID, GETNUM(BASE, "술기운"))
+	CALL SET_MINIMUM_EXP_ALL(C_ID)
+	FOR 갱신능력번호, 0, 111
+		SIF EXP:C_ID:갱신능력번호 < CSVEXP (C_ID, 갱신능력번호)
+			EXP:C_ID:갱신능력번호 = (EXP:C_ID:갱신능력번호 + CSVEXP (C_ID, 갱신능력번호))
+	NEXT
+	;팬티 종류 비존재시 소거
+	FOR LOCAL:1, 2, MAXPANTS
+		SIF CFLAG:C_ID:(LOCAL:1 + 팬티관리) && GET_STR(C_ID, "하반신속옷_비켜놓기가능", LOCAL:1, "이름") == ""
+			CFLAG:C_ID:(LOCAL:1 + 팬티관리) = 0
+	NEXT
+	;자식의성별과 생년월일
+	IF EXP:C_ID:출산경험
+		FOR LOCAL:1, 1, 11
+			IF CHILD_BIRTHDAY:C_ID:(LOCAL:1) && !CHILD_BIRTHDATE:C_ID:(LOCAL:1)
+				;생년월일 설정
+				CHILD_BIRTHDATE:C_ID:(LOCAL:1) = DAY_TO_DATE(CHILD_BIRTHDAY:C_ID:(LOCAL:1))
+				;날씨는 거슬러 올라갈 수 없기 때문에 개이고 란 것으로
+				CHILD_WEATHER:C_ID:(LOCAL:1) = 분명히 맑음
+				;엘렌의 아이는 예외
+				IF C_ID == [[엘렌]]
+					CHILD_SEX:C_ID:(LOCAL:1) = 0
+				ELSE
+					;첫회
+					IF !아이설정첫회 && !FLAG:자식의성별
+						아이설정첫회 = 1
+						PRINTL 자식의성별이 설정되어 있지 않습니다
+						PRINTL 선택해 주세요
+						CALL ASK_M("랜덤", 1, "여자아이", 1, "남자아이", 1)
+						SIF RESULT == 1 || RESULT == 2
+							FLAG:자식의성별 = RESULT
+					ENDIF
+					IF !FLAG:자식의성별
+						CHILD_SEX:C_ID:(LOCAL:1) = RAND:2 + 1
+					ELSE
+						CHILD_SEX:C_ID:(LOCAL:1) = FLAG:자식의성별
+					ENDIF
+					PRINTFORM %CHILDNAME:C_ID:(LOCAL:1), 15, LEFT% 는 \@ CHILD_SEX:C_ID:(LOCAL:1) == 1 ?  녀 # 남 \@의 아이로 생년월일은 
+					CALL PRINT_DATE(CHILD_BIRTHDAY:C_ID:(LOCAL:1))
+					PRINTFORML 입니다
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+CFLAG:MASTER:신사거주 = CFLAG:MASTER:초기위치
+IF FLAG:더부살이캐릭터 && SUMIKOMI_ROOM
+	CFLAG:(FLAG:더부살이캐릭터):신사거주 = SUMIKOMI_ROOM
+	CFLAG:(FLAG:더부살이캐릭터):초기위치 = SUMIKOMI_ROOM
+	CFLAG:(FLAG:더부살이캐릭터):자택위치 = SUMIKOMI_ROOM
+ENDIF
+SIF !FLAG:술벌레 
+	FLAG:술벌레 = 1
+
+;레이무
+NAME:[[레이무]] = 하쿠레이 레이무
+
+;루코토
+
+;카나
+
+;미마
+
+;서니
+
+;루나
+
+;스타
+
+;치유리
+
+;유메미
+
+;스이카
+
+;마리사
+
+;루미아
+
+;다이짱
+
+;⑨
+
+;메이드장
+
+;
+
+;앨리스
+
+;흰 백합
+
+;패모속의 백합
+
+;리리카
+
+;메를랑
+
+;루나사
+
+;요우무
+
+;첸
+
+;란
+
+;유카리
+
+;리글
+
+;미스치
+;문
+
+;에이키 님
+
+;사나에
+
+;카나코 님
+
+;스와코 님
+
+;텐시
+
+;이쿠 씨
+
+;오린
+;먹는다
+
+
+;코이시
+
+;나즈
+
+;코가사
+
+;누에
+
+;하타테
+
+;카센
+
+;엘렌
+
+;리카코
+
+;메이라
+
+;리카
+
+;루이즈
+
+;사토링
+
+;플랑
+
+;니토리
+
+;레이센
+NAME:[[우동게]] = 레이센·우돈게인·이나바
+;테위
+;파츄리
+
+;뱌쿠렌
+NAME:[[뱌쿠렌]] = 히지리 뱌쿠렌
+
+;미코 님
+
+;코코로
+;CFLAG:57:신사 거주 = CFLAG:57:초기 위치
+
+;메이링
+
+;개
+
+;파르시
+
+;모코우
+
+;공주님
+
+;카게로
+;유우기
+
+
+;모미지
+;님
+
+;케이네
+NAME:[[케이네]] = 카미시라사와 케이네
+
+;유카
+;TALENT:68:105 = 1
+
+;마미조
+
+;코스즈
+
+;신묘마루
+NAME:[[신묘마루]] = 스쿠나 신묘마루
+;CFLAG:71:신사 거주 = CFLAG:71:초기 위치
+;TALENT:71:100 = -5
+
+;에이린
+NAME:[[에이린]] = 야고코로 에이린
+
+;반키
+
+;레티
+
+;메디슨
+
+;코마치
+
+;시즈하
+
+;미노리코
+
+;히나
+
+;아큐
+
+;렌코
+
+;메리
+
+;키스메
+
+;야마메
+
+;이치린
+
+;무라사
+
+;쇼
+
+
+;쿄코
+;요시카
+
+
+;청아
+
+;토지코
+
+
+;후토
+
+
+;와카사기히메
+
+;벤벤
+
+;야츠하시
+
+;라이코
+
+;세이자
+
+;요리히메
+NAME:[[요리히메]] = 와타츠키노 요리히메
+
+
+;토요히메
+NAME:[[토요히메]] = 와타츠키노 토요히메
+
+;레이센
+
+;토키코
+
+;신키
+
+;유메코
+
+;유키
+
+;마이
+
+;스미레코
+
+
+;세이란
+
+;링고
+
+
+;도레미
+
+;사구메
+
+;클라운피스
+CALLNAME:[[클라운피스]] = 클라운피스
+
+;순호
+
+
+;헤카티아
+CALLNAME:[[헤카티아]] = 헤카티아
+
+;오키나
+
+SIF !EXP:[[뱌쿠렌]]:V경험
+	TALENT:[[뱌쿠렌]]:0 = 1
+;초대면 관리를 FLAG:13으로부터 CFLAG:18에 이행
+IF FLAG:13 != 0
+	FOR C_ID, 1, 63
+		SIF GETBIT(FLAG:13, C_ID)
+			CFLAG:C_ID:안면 = 1
+	NEXT
+	FLAG:13 = 0
+ENDIF
+
+;의상 플래그의 수정
+CFLAG:[[레이무]]:기본복장세트 = 101
+CFLAG:[[오쿠]]:기본복장세트 = 137
+CFLAG:[[니토리]]:기본복장세트 = 151
+CFLAG:[[우동게]]:기본복장세트 = 152
+CFLAG:[[테위]]:기본복장세트 = 153
+CFLAG:[[파츄리]]:기본복장세트 = 154
+CFLAG:[[뱌쿠렌]]:기본복장세트 = 155
+CFLAG:[[미코]]:기본복장세트 = 156
+CFLAG:[[코코로]]:기본복장세트 = 157
+CFLAG:[[신묘마루]]:기본복장세트 = 171
+
+
+;당신 관련 처리
+
+;본래 붙지 않을 부정적 감정이 MASTER에게 붙어 있는 경우의 삭제처리
+SIF CFLAG:MASTER:언짢음 == 1
+	CFLAG:MASTER:언짢음 = 0
+SIF CFLAG:MASTER:빡침 == 1
+	CFLAG:MASTER:빡침 = 0
+SIF TALENT:MASTER:기분 == -1
+	TALENT:MASTER:기분 = 0
+
+
+MAXBASE:MASTER:술기운 = 1500
+;MASTER가 여자, 후타나리 때
+IF GETBIT(TALENT:MASTER:성별, 0)
+	IF FLAG:주회수 && TALENT:MASTER:처녀 == 1 && CSTR:MASTER:처녀상실이력 != ""
+		CSTR:MASTER:처녀상실이력 = 
+		CFLAG:MASTER:처녀상실기념일 = 0
+		CFLAG:MASTER:처녀상실대상 = 0
+	ENDIF
+;MASTER가 남자
+ELSE
+	TALENT:MASTER:가슴사이즈 = -2
+ENDIF
+SIF GETBIT(TALENT:MASTER:성별, 1) && !TALENT:MASTER:형상
+	CALL TINKO_DECIDE(MASTER)
+;요술망치의 대상이 종료하지 않고 훨씬 허술한 쓸모 있게 되고 있는 경우의 수정
+;요주의 크게 한 후에 2 개로 했을 경우, 및 2 개로 한 후에 크게 했을 경우, 허술한 것이 Default가 될 가능성이 있습니다
+;그 경우, 스스로 원래 형상을 재설정하지 않으면 안됩니다
+SIF TALENT:MASTER:형상 != CFLAG:MASTER:382 && CFLAG:MASTER:마력회수 < 0
+	TALENT:MASTER:형상 = CFLAG:MASTER:382
+SIF CFLAG:MASTER:마력회수 > 0 && CFLAG:MASTER:요술망치 == 0
+	CFLAG:MASTER:마력회수 = 0
+IF TALENT:MASTER:체형 == -3
+	TALENT:MASTER:체형 = 0
+	PRINTFORML ―――%CALLNAME:MASTER%의 체형을 재설정합니다―――
+	PRINTL 
+ENDIF
+
+
+
+;접는우산
+SIF ITEM:36 == 0 && ITEMSTOCK(36) == 2
+	ITEMSALES:36 ++
+;로터
+SIF ITEM:0 < 0
+	ITEM:0 = 0
+SIF ITEM:0 == 0 && ITEMSTOCK(0) == 2
+	ITEM:0 = 1
+
+FLAG:출금인원수 = 0
+FOR C_ID, 1, CHARANUM
+	SIF TALENT:C_ID:스침
+		CONTINUE
+	SIF CFLAG:C_ID:출금
+		FLAG:출금인원수 ++
+NEXT
+
+SIF FLAG:3 == 0
+	PRINTL 연회의유무 옵션이 OFF가 되었습니다
+
+LOCAL = TARGET
+FOR C_ID, 1, CHARANUM
+	RESULT = 0
+	TARGET = C_ID
+;TODO 추후 NEWGAME 디렉토리 이식시 추가 및 수정바람
+[SKIPSTART]
+	CALL KOJO_MULTIPLE(C_ID)
+	IF RESULT
+		;신규구상 추가시의 리셋 처리 스위치
+		IF RESULT == 2
+			대사실장체크 :C_ID = 1
+			리셋화면 = 1
+		ENDIF
+		RESULTS =
+		;口上の存在判定 and RESULTSに文字列代入
+		IF CFLAG:C_ID:구상셀렉터
+			TRYCALLFORM M_KOJO_K{C_ID}_{CFLAG:C_ID:口上セレクタ}
+		ELSE
+[SKIPEND]
+	TRYCALLFORM M_KOJO_K{C_ID}
+	IF RESULT
+		IF !CFLAG:C_ID:대사실장상황
+			대사실장체크 :C_ID = 1
+			리셋화면 = 1
+			CFLAG:C_ID:대사실장상황 = 1
+		ENDIF
+		PRINTFORML {C_ID}:%CALLNAME:C_ID% 대사의 UPDATE가 존재하는지 확인합니다
+		TRYCALLFORM M_KOJO_UPDATE_K{C_ID}
+		PRINTL 
+	ELSE
+		CFLAG:C_ID:대사실장상황 = 0
+	ENDIF
+NEXT
+TARGET = LOCAL
+
+SIF FLAG:개시일 < DAY
+	FLAG:개시일 = DAY + 1
+VARSET FLAG, 0, 300, 500
+VARSET LOCAL
+;팬티를 CFLAG에 이행
+;SAVESTR:10에 2 문자 이상 있으면 실행
+IF STRLENS(SAVESTR:10) > 1
+	FLAG:700 = 0
+	FOR LOCAL,1,CHARANUM
+		FOR LOCAL:1,0,MAXPANTS
+			LOCALS = /%CALLNAME:LOCAL%{LOCAL:1}/
+			CFLAG:LOCAL:(LOCAL:1 + 팬티관리) = STRCOUNT(SAVESTR:10,LOCALS)
+			SIF CFLAG:LOCAL:(LOCAL:1 + 팬티관리)
+				FLAG:700 ++
+		NEXT
+	NEXT
+	SAVESTR:10 =
+	PRINTL 당신의 중요한 팬티 콜렉션을 이행했습니다
+ENDIF
+
+;소작인로
+IF FLAG:지주 && !FLAG:농민난이도
+	CALL MODE_NOUMIN
+	CALL LOAN_NOUMIN
+ENDIF
+
+;홍마카지노용
+SIF !FLAG:카리스마변동상황
+	CALL SET_CHARISMA("NEW")
+
+PRINTFORML 낡은 세이브 데이터를 계승했을 경우, 의뢰 상황을 리셋하지 않으면 에러로 다운될 가능성이 높습니다.
+PRINTFORML 의뢰 상황을 리셋하겠습니까?
+CALL ASK_YN
+SIF !RESULT
+	CALL IRAI_RESET
+
+;아이템류의 재고 관리
+CALL ITEM_RANGE, "식재료의 시장"
+FOR LOCAL, RESULT:0, RESULT:1
+	SIF ITEM_TYPES( LOCAL, "식재료의 시장" ) && (ITEMSALES:LOCAL == 0 || ITEMSALES:LOCAL > 30 )
+		ITEMSALES:LOCAL = LIMIT( ITEMSALES:LOCAL, 10, 30 )
+NEXT
+CALL ITEM_RANGE, "술집"
+FOR LOCAL, RESULT:0, RESULT:1
+	SIF ITEM_TYPES( LOCAL, "술집" ) && (ITEMSALES:LOCAL == 0 || ITEMSALES:LOCAL > 30 )
+		ITEMSALES:LOCAL = LIMIT( ITEMSALES:LOCAL, 5, 30 )
+	IF ITEM:LOCAL > 99
+		LOCAL:1 = ITEM:LOCAL - 99
+		LOCAL:2 = ITEMPRICE:LOCAL * 50 / 100
+		ITEM:LOCAL = 99
+		MONEY += LOCAL:1 * LOCAL:2
+		PRINTFORML %조사처리(ITEMNAME:LOCAL,"가")% 99개 이상이므로 초과분을 현금으로 반환합니다.
+		PRINTFORML 특별히 통상 주류 매입시 최고금액으로 인수하오니 양해 부탁드립니다.
+		PRINTFORML 그리고, 앞으로의 주류 최대소지수는 99개로 제한됩니다.
+	ENDIF
+NEXT
+CALL ITEM_RANGE, "꽃집"
+FOR LOCAL, 1 + RESULT:0, RESULT:1
+	SIF ITEM_TYPES( LOCAL, "꽃집" ) && (ITEMSALES:LOCAL == 0 || ITEMSALES:LOCAL > 3 )
+		ITEMSALES:LOCAL = 3
+NEXT
+
+IF TALENT:MASTER:체형 == -3
+	TALENT:MASTER:체형 = 0
+	PRINTFORML ---%CALLNAME:MASTER%의 체형을 재설정합니다―--
+	PRINTL 
+ENDIF
+IF !FLAG:연회개최플래그
+ELSEIF !FLAG:32
+	;필요한가 모르겠지만 만약을 위해, 입니다
+	;잠정 처리로 우선 하쿠레이 신사 경내를 지정, 주최자가 어긋나거나 해도 신경쓰지 말아라
+	FLAG:32 = 2
+	PRINTFORML 연회의 개최 위치를 수정합니다
+ELSEIF FLAG:32 == 230
+	;버그 보고에서의 FLAG:32의 내용은 아마 여기
+	FLAG:32 = 218
+	PRINTFORML 연회의 개최 위치를 수정합니다
+ENDIF
+
+CALL SET_ENKAI_LOCATIONDISPLAY
+SAVESTR:본체버전 = %eraTW_Version%
+
+IF 리셋화면
+	PRINTFORML 이하 캐릭터의 대사가 신규 실장되었습니다.
+	PRINTFORML 호감도, 경험, 능력 등을 리셋하고 싶은 캐릭터를 선택해주세요.
+	$PRINT_RESETCHARA
+	FOR LOCAL, 1, CHARANUM
+		SIF !대사실장체크 :LOCAL
+			CONTINUE
+		PRINTFORMLC [{LOCAL}] %CALLNAME:LOCAL%
+	NEXT
+	PRINTFORML 
+	DRAWLINE
+	PRINTFORML [999] 종료
+	INPUT
+	SIF 캐릭터수상한 < RESULT
+		GOTO UPDATE_END
+	SIF !대사실장체크 :RESULT
+		GOTO UPDATE_END
+	IF 대사실장체크 :RESULT
+		대사실장체크 :RESULT = 0
+		CALL RESET_KOJO_CHARA(RESULT)
+		GOTO PRINT_RESETCHARA
+	ENDIF
+ENDIF
+
+$UPDATE_END
+
+PRINTW 갱신 완료했습니다
+
+;업데이트로 CSV read에 의한 갱신되지 않는 소질
+@TALENT_NOT_UPDATED(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE 15,28,29,35 TO 39, 42 TO 49, 58, 59, 63 TO 69, 72 TO 79, 87 TO 91, 95 TO 99, 107 TO 120, 122 TO 129
+		RETURNF 1
+	CASEELSE
+		RETURNF 0
+ENDSELECT
+
+@이력캐릭터라인변환(ARG)
+#DIM 일자
+VARSET LOCALS
+IF CFLAG:ARG:첫키스상실기념일 && CSTR:ARG:첫키스상실이력 == ""
+	일자 = CFLAG:ARG:첫키스상실기념일
+	LOCALS = %PRINT_DATE_F(일자)%, %CALLNAME:(CFLAG:ARG:첫키스상실상대)%에
+	SIF CSTR:ARG:첫키스위치 != ""
+		LOCALS += @"%CSTR:ARG:첫키스위치%로"
+	IF CFLAG:ARG:첫키스상실대상 & (상실_스스로 | 상실_연모 | 상실_사모)
+		LOCALS += "첫키스를 바쳤다"
+	ELSE
+		SIF CFLAG:ARG:첫키스상실대상 & 상실_어영부영
+			LOCALS += "흐르게 되는 대로"
+		LOCALS += "첫키스를 빼앗겼다"
+	ENDIF
+	CSTR:ARG:첫키스상실이력 = %LOCALS%
+	PRINTFORML %CALLNAME:ARG%의 첫키스 이력을 신형식으로 변환했습니다
+ENDIF
+
+IF CFLAG:ARG:애널처녀상실기념일 && CSTR:ARG:애널처녀상실이력 == ""
+	일자 = CFLAG:ARG:애널처녀상실기념일
+	LOCALS:1 = %PRINT_DATE_F(일자)%,\@ CFLAG:ARG:애널처녀상실대상 & 상실_시간정지?  시간정지중# \@
+	SIF CSTR:ARG:A처녀상실위치 != ""
+		LOCALS:1 += @"%CSTR:ARG:A처녀상실위치%로"
+	IF GETBIT (CFLAG:ARG:애널처녀상실대상,3)
+		LOCALS:1 += @"%CALLNAME:(CFLAG:ARG:애널처녀상실상대)%에 페니스밴드로"
+	ELSEIF GETBIT (CFLAG:ARG:애널처녀상실대상,2)
+		LOCALS:1 += @"%CALLNAME:(CFLAG:ARG:애널처녀상실상대)%에 애널바이브로"
+	ELSEIF GETBIT (CFLAG:ARG:애널처녀상실대상,1)
+		LOCALS:1 += @"%CALLNAME:(CFLAG:ARG:애널처녀상실상대)%의 페니스에"
+	ENDIF
+	IF CFLAG:ARG:애널처녀상실대상 & 상실_시간정지
+		LOCALS:1 += "항문 처녀를 빼앗겼다"
+	ELSE
+		LOCALS:1 += "항문 처녀를 바쳤다"
+	ENDIF
+	CSTR:ARG:애널처녀상실이력 = %LOCALS:1%
+	PRINTFORML %CALLNAME:ARG%의 애널처녀상실이력을 신형식으로 변환했습니다
+ENDIF
+
+IF CFLAG:ARG:처녀상실기념일 && CSTR:ARG:처녀상실이력 == ""
+	일자 = CFLAG:ARG:처녀상실기념일
+	LOCAL = CFLAG:ARG:처녀상실대상
+	LOCALS:2 = %PRINT_DATE_F(일자)%,
+	SIF LOCAL & 상실_시간정지
+		LOCALS:2 += "시간정지중에"
+	SIF GETBIT (LOCAL,9)
+		LOCALS:2 += "만취하고 있을 때"
+	SIF GETBIT (LOCAL,16)
+		LOCALS:2 += "자고 있는 동안에"
+	SIF CSTR:ARG:처녀상실위치 != ""
+		LOCALS:2 += @"%CSTR:ARG:처녀상실위치%로\@ LOCAL & 상실_연모 ?  사랑하는# \@%CALLNAME:(CFLAG:ARG:처녀상실상대)%"
+	IF GETBIT (LOCAL,3)
+		LOCALS:2 += "에 페니스밴드로"
+	ELSEIF GETBIT (LOCAL,2)
+		LOCALS:2 += "에 바이브로"
+	ELSEIF GETBIT (LOCAL,1)
+		LOCALS:2 += "의 페니스에"
+	ENDIF
+	SIF LOCAL & 상실_어영부영
+		LOCALS:2 += "조금씩"
+	IF (GETBIT (LOCAL, 11) || GETBIT (LOCAL, 12)) && ((!GETBIT (LOCAL,9) && !GETBIT (LOCAL,13) && !GETBIT (LOCAL,16)) || GETBIT (LOCAL,14))
+		LOCALS:2 += "처녀를 바쳤다"
+	ELSE
+		SIF LOCAL & 상실_억지로
+			LOCALS:2 += "힘으로"
+		LOCALS:2 += @"처녀를 \@ARG == MASTER ?  준# 빼앗겼다\@"
+	ENDIF
+	CSTR:ARG:처녀상실이력 = %LOCALS:2%
+	PRINTFORML %CALLNAME:ARG%의 처녀상실이력을 신 형식으로 변환했습니다
+ENDIF
+
+@RESET_KOJO_CHARA(ARG)
+CFLAG:ARG:호감도 = 0
+CFLAG:ARG:신뢰도 = 0
+CFLAG:ARG:약점잡음 = 0
+CFLAG:ARG:약점잡힘 = 0
+CFLAG:ARG:기정사실 = 0
+CFLAG:ARG:생해금 = 0
+CFLAG:ARG:안면 = 0
+CFLAG:ARG:퇴짜 = 0
+CFLAG:ARG:딸딸이들킴 = 0
+CFLAG:ARG:면간발각 = 0
+CFLAG:ARG:수면간 = 0
+CFLAG:ARG:만취간 = 0 ;TODO 원본에서 2번 씀
+CFLAG:ARG:발렌타인 = 0
+CFLAG:ARG:마지막에만난날 = 0
+CFLAG:ARG:무자각임신 = 0
+CFLAG:ARG:임신추가사이즈 = 0
+CFLAG:ARG:깨끗한교제 = 0
+CFLAG:ARG:출산경과일 = 0
+CFLAG:ARG:육아인원수 = 0
+CFLAG:ARG:자각사정 = 0 ;TODO 현재 원본에 없음 ;일판 身に覚え_母로 숫자 대체
+CFLAG:ARG:몸으로기억_아버지 = 0
+CFLAG:ARG:임신자각상태 = 0
+CFLAG:ARG:만취간 = 0 ;TODO 원본에서 2번 씀
+CFLAG:ARG:술을못함 = 0
+CFLAG:ARG:억지로질내사정 = 0
+CFLAG:ARG:임신 = 0
+CFLAG:ARG:임신경과일수 = 0
+CFLAG:ARG:아이인원수 = 0
+CFLAG:ARG:자식보정 = 0
+CFLAG:ARG:출산휴가 = 0
+CFLAG:ARG:누계질내정액 = 0
+CFLAG:ARG:누계애널정액 = 0
+CFLAG:ARG:누계정음 = 0
+CFLAG:ARG:누계뿌려짐 = 0
+MARK:ARG:시간각인 = 0
+MARK:ARG:반발각인 = 0
+MARK:ARG:반발취득이력 = 0
+MARK:ARG:고통각인 = 0
+MARK:ARG:쾌락각인 = 0
+MARK:ARG:괘씸각인 = 0
+
+;CSTR:ARG:바람기들킴 =
+;CSTR:ARG:바람기공인 =
+CSTR:ARG:처녀상실이력 =
+CSTR:ARG:애널처녀상실이력 =
+CSTR:ARG:첫키스상실이력 =
+
+UWAKI_KNOWN:ARG:0 =
+UWAKI_ACCEPTED:ARG:0 =
+
+;함락
+TALENT:ARG:약점 = 0
+TALENT:ARG:연모 = 0
+TALENT:ARG:사모 = 0
+TALENT:ARG:음란 = 0
+TALENT:ARG:애욕 = 0
+TALENT:ARG:섹프 = 0
+TALENT:ARG:임신 = 0
+TALENT:ARG:육아중 = 0
+TALENT:ARG:모성 = 0
+TALENT:ARG:연인 = 0
+TALENT:ARG:초경 = 0
+TALENT:ARG:모유체질 = 0
+SIF TALENT:MASTER:연인 == ARG
+	TALENT:MASTER:연인 = 0
+;음란계
+TALENT:ARG:마조 = 0
+TALENT:ARG:자위중독 = 0
+TALENT:ARG:음호 = 0
+TALENT:ARG:항문광 = 0
+TALENT:ARG:음유 = 0
+TALENT:ARG:키스마 = 0
+TALENT:ARG:포르치오성감 = 0
+
+IF CFLAG:ARG:회복속도다운
+	MAXBASE:ARG:체력 += 500
+	MAXBASE:ARG:기력 += 500
+	TALENT:ARG:회복속도 = CFLAG:ARG:회복속도다운 - 2
+	CFLAG:ARG:회복속도다운 = 0
+ENDIF
+IF CFLAG:ARG:가슴랭크업 == 1 && TALENT:ARG:가슴사이즈 > -2
+	TALENT:ARG:가슴사이즈 -= 1
+	CFLAG:ARG:가슴랭크업 = 0
+ENDIF
+TALENT:ARG:통각 = CSVTALENT(ARG,40)
+CFLAG:ARG:애널처녀상실기념일 = 0
+CFLAG:ARG:처녀상실기념일 = 0
+CSTR:ARG:애널처녀상실이력 =
+CSTR:ARG:처녀상실이력 =
+CSTR:ARG:첫키스상실이력 =
+
+FOR LOCAL,0,100
+	ABL:ARG:LOCAL = CSVABL(ARG,LOCAL)
+	EXP:ARG:LOCAL = CSVEXP(ARG,LOCAL)
+NEXT
+VARSET JUEL:ARG:0, 0
+VARSET CHILD_BIRTHDAY:ARG:0, 0
+VARSET CHILD_WEATHER:ARG:0, ""
+VARSET CHILD_SEX:ARG:0, 0
+VARSET CHILDNAME:ARG:0, ""
+;SIF !EXP:ARG:키스경험
+	TALENT:ARG:키스미경험 = 1
+TALENT:ARG:0 = CSVTALENT(ARG,0)
+PRINTFORMW %ARG를% 리셋 했습니다.
+
+
+
+;CSV 갱신용
+@SET_MINIMUM_EXP_ALL(C_ID)
+#DIM C_ID
+#DIM 갱신능력번호
+#DIM 최저능력치
+
+FOR 갱신능력번호,0,100
+	최저능력치 = CSVABL(C_ID, 갱신능력번호)
+	SIF 최저능력치 == 0
+		CONTINUE
+	;전투능력
+	IF ABLNAME:갱신능력번호 == "전투능력"
+		;전투능력 수정
+		SIF ABL:C_ID:갱신능력번호 < 최저능력치 && EXP:C_ID:전투경험 == CSVEXP(C_ID, GETNUM(EXP, "전투경험"))
+			ABL:C_ID:갱신능력번호 = 최저능력치
+		CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "전투경험"), 최저능력치)
+		CONTINUE
+	ENDIF
+	ABL:C_ID:갱신능력번호 = MAX(최저능력치, ABL:C_ID:갱신능력번호)
+	SELECTCASE ABLNAME:갱신능력번호
+	CASE "청소기능"
+		CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "청소경험"), 최저능력치)
+	CASE "화술기능"
+		CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "회화경험"), 최저능력치)
+	CASE "교양"
+		CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "학습경험"), 최저능력치)
+	CASE "요리기능"
+		CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "요리경험"), 최저능력치)
+	CASE "음악기능"
+		SELECTCASE TALENT:C_ID:음악지식
+		CASE 1
+			CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "연주경험"), 최저능력치)
+		CASE 2
+			CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "가창경험"), 최저능력치)
+		CASE 3
+			CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "무도경험"), 최저능력치)
+		ENDSELECT
+	CASE "낚시기능"
+		ABL:C_ID:갱신능력번호 = MAX(ABL:C_ID:갱신능력번호, CSVTALENT(C_ID, 47))
+		CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "낚시경험"), 최저능력치)
+		TALENT:C_ID:낚시Lv = MAX(TALENT:C_ID:낚시Lv, ABL:C_ID:낚시기능)
+	CASE "채집기능"
+		ABL:C_ID:갱신능력번호 = MAX(ABL:C_ID:갱신능력번호, CSVTALENT(C_ID, 48))
+		CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "채집경험"), 최저능력치)
+		TALENT:C_ID:채집Lv = MAX(TALENT:C_ID:채집Lv, ABL:C_ID:채집기능)
+	CASE "조제기능"
+		ABL:C_ID:갱신능력번호 = MAX(ABL:C_ID:갱신능력번호, CSVTALENT(C_ID, 49))
+		CALL SET_MINIMUM_EXP(C_ID, GETNUM(EXP, "조제경험"), 최저능력치)
+		TALENT:C_ID:조제Lv = MAX(TALENT:C_ID:조제Lv, ABL:C_ID:조제기능)
+	ENDSELECT
+NEXT
+
+
+;비에로계 ABL, 40~49에 대해
+;CSV 준거로 능력이 상승했을 경우에 최저한의 EXP를 취득해, 표시한다
+@SET_MINIMUM_EXP(C_ID, VAR_ID, MINIMUM_ABL)
+#DIM C_ID
+#DIM VAR_ID
+#DIM MINIMUM_ABL
+#DIM MINIMUM_EXP
+SIF MINIMUM_ABL == 0
+	RETURN
+MINIMUM_EXP = EXPLV:(MINIMUM_ABL + 2)
+SIF EXP:C_ID:VAR_ID >= MINIMUM_EXP
+	RETURN
+EXP:C_ID:VAR_ID = MINIMUM_EXP
+;KR판 민원 많아 해당 기능 디버그용으로 처리
+DEBUGPRINTFORML %CALLNAME:C_ID%의 %조사처리(EXPNAME:VAR_ID,"가")% {EXP:C_ID:VAR_ID}로 올랐습니다
+
+;-------------------------------------------------
+;CSVを使わず弾幕特殊能力を個別に設定する関数
+;新しくキャラクターを追加する際にCSVだと手間なので増設したものです
+;▼memo
+;0	【言笑自若】: 相手のダイス数Down
+;	何があっても決して慌てず、落ち着いていることのたとえ。
+;1	【温柔敦厚】: 相手のダイス面Down
+;	優しく穏やかで、思いやりがあること。
+;2	【勇気凛々】: %CALLNAME:OPPONENT%のダイス数Up
+;	失敗や危険をかえりみず、勇敢に物事に立ち向かっていこうとするさま。
+;3	【豪放磊落】: %CALLNAME:OPPONENT%のダイス面Up
+;	心が広く大らかで、些細なことは気にしないこと。または、そのような様子。
+;4	【怪力乱神】: %CALLNAME:OPPONENT%のダイス値が相手のダイス値より小さくても、その差が一定数以下なら、残機が減らない
+;	人の知識では理解することが出来ない、怪しく奇怪な現象や物事のこと。
+;5	【洽覧深識】: %CALLNAME:OPPONENT%の初期残機が4になる
+;	体験して得た経験や知識が多くあり、様々なことを知っていること。
+;6	【残忍酷薄】: 相手の被弾からの復帰時のボム数が-1される
+;	人のことを気遣うこともなく、むごいこと。
+;7	【乾坤一擲】: %CALLNAME:OPPONENT%が一定確率でボムを使うようになる
+;	自身の運命を賭けて、運まかせの大博打をすること。
+;8	【狷介孤高】: %CALLNAME:OPPONENT%のダイス修正値Up
+;	意志を曲げずに、他人と協力しないこと。
+;9	【幽愁暗恨】: 相手のダイス修正値Down
+;	誰にも知られることのない深い恨みや憂いのこと。
+;10  【百載無窮】: 全ての特殊能力をあわせ持つ。最強
+;	いつまでも無くなることがないこと。
+;-------------------------------------------------
+@탄막특수능력설정(ARG)
+#DIM CONST SKL言笑自若 = 0
+#DIM CONST SKL温柔敦厚 = 1
+#DIM CONST SKL勇気凛々 = 2
+#DIM CONST SKL豪放磊落 = 3
+#DIM CONST SKL怪力乱神 = 4
+#DIM CONST SKL洽覧深識 = 5
+#DIM CONST SKL残忍酷薄 = 6
+#DIM CONST SKL乾坤一擲 = 7
+#DIM CONST SKL狷介孤高 = 8
+#DIM CONST SKL幽愁暗恨 = 9
+#DIM CONST SKL百載無窮 = 10
+
+CFLAG:ARG:탄막특능 = 0
+
+SELECTCASE ARG
+CASE [[瓔花]]
+	SETBIT CFLAG:ARG:탄막특능, SKL温柔敦厚
+CASE [[潤美]]
+	SETBIT CFLAG:ARG:탄막특능, SKL豪放磊落
+CASE [[久侘歌]]
+	SETBIT CFLAG:ARG:탄막특능, SKL言笑自若
+	SETBIT CFLAG:ARG:탄막특능, SKL勇気凛々
+CASE [[八千慧]]
+	SETBIT CFLAG:ARG:탄막특능, SKL言笑自若
+	SETBIT CFLAG:ARG:탄막특능, SKL洽覧深識
+	SETBIT CFLAG:ARG:탄막특능, SKL残忍酷薄
+CASE [[磨弓]]
+	SETBIT CFLAG:ARG:탄막특능, SKL勇気凛々
+	SETBIT CFLAG:ARG:탄막특능, SKL怪力乱神
+CASE [[袿姫]]
+	SETBIT CFLAG:ARG:탄막특능, SKL言笑自若
+	SETBIT CFLAG:ARG:탄막특능, SKL温柔敦厚
+	SETBIT CFLAG:ARG:탄막특능, SKL洽覧深識
+CASE [[早鬼]]
+	SETBIT CFLAG:ARG:탄막특능, SKL怪力乱神
+	SETBIT CFLAG:ARG:탄막특능, SKL豪放磊落
+	SETBIT CFLAG:ARG:탄막특능, SKL乾坤一擲
+ENDSELECT
+

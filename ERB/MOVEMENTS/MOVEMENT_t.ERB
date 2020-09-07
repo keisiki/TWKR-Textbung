@@ -1,0 +1,88 @@
+﻿;FileName_MOVEMENT.ERB ----------------------------- Rev1. 01
+;캐릭터이동처리
+;CALL		USER
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@CHARA_MOVEMENT()
+LOCAL:99 = LINECOUNT
+PRINTL 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　(소녀이동중…)
+
+
+;시간경과에 의한 BASE등의 자연 변동, 회화 누적도, 목욕탕의 처리
+CALL MOVEMENT공통처리(MASTER)
+
+;각 캐릭터마다의 그 날의 일정보를 갱신
+FOR LOCAL, 1, CHARANUM
+	;출금캐릭터를 스키마에 날린다
+	IF CFLAG:LOCAL:출금
+		CFLAG:LOCAL:현재위치 = SUKIMA()
+	ELSE
+		CALL 일내용설정(LOCAL)
+	ENDIF
+NEXT
+
+;행동순서를 셔플
+;CALL FISHER_YATES_SHAFFLE(CHARANUM)
+;MASTER를 0번에 이동
+;SWAP SHAFFLE_ARRAY:0 , SHAFFLE_ARRAY:(FINDELEMENT(SHAFFLE_ARRAY , 0))
+
+FOR LOCAL, 1, CHARANUM
+	;LOCAL = SHAFFLE_ARRAY:(LOCAL:100)
+
+	SIF MOVEMENT스킵판정(LOCAL)
+		CONTINUE
+
+	CALL 침실로부터내쫓아(LOCAL)
+
+	;시간경과에 의한 BASE등의 자연 변동, 회화 누적도, 목욕탕의 처리
+	CALL MOVEMENT공통처리(LOCAL)
+
+	;부적절한 위치에 있는 캐릭터를 다른 장소에 이동시킨다
+	CALL 강제이동(LOCAL)
+NEXT
+
+CALL 연회참가인원수재계산
+
+FOR LOCAL, 1, CHARANUM
+	;LOCAL = SHAFFLE_ARRAY:(LOCAL:100)
+
+	SIF MOVEMENT스킵판정(LOCAL)
+		CONTINUE
+
+	;시간에 맞추어 캐릭터를 일으키는/재운다
+	CALL 기상취침처리(LOCAL)
+
+	;방문 플래그가 서 있는 캐릭터를 당신의 거점 물건에 이동시킨다
+	;캐릭터를 자신의 집에 돌려주는/재택안의 처리를 실시한다
+	CALL 방문귀가처리(LOCAL)
+
+	;일이 없는 캐릭터를 외출시킨다
+	CALL 휴일이동처리(LOCAL)
+
+	;초대방에 있는 캐릭터의 처리
+	CALL 초대방처리(LOCAL)
+
+	;동행중의 캐릭터를 당신의 이동에 맞추어 이동시킨다
+	CALL 동행처리(LOCAL)
+
+	;일이나 연회의 개시/경과/종료나 메시지의 표시를 실시한다
+	CALL 일연회처리(LOCAL)
+
+	;당신의 거점 물건에 있는 캐릭터를 이동시킨다
+	CALL 캐릭터이동처리(LOCAL)
+
+	;만취가 되는/만취로부터의 부활
+	CALL CHARA_ACTION_DRUNK(LOCAL)
+
+	;자유행동의 발생／経過／終了やメッセージの表示
+	CALL 자유행동처리(LOCAL)
+
+	SIF CFLAG:LOCAL:현재위치 == 0
+		PRINTFORMW ### MOVEMENT LOCATION ERROR %CALLNAME:LOCAL%의 현재 위치가 이상합니다 ### CHARA_NO:{LOCAL}
+NEXT
+
+CALL 연회참가인원수재계산
+
+SIF LINECOUNT == LOCAL:99 + 1
+	CLEARLINE 1

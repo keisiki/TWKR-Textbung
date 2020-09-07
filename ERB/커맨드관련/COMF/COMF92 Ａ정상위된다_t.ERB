@@ -1,0 +1,357 @@
+﻿;-------------------------------------------------
+;A정상위된다
+;-------------------------------------------------
+@COM92
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = TARGET
+
+;봉사 쾌락 플래그
+TCVAR:108 = 1
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 2
+TCVAR:TARGET:동정상실 = 1
+TCVAR:PLAYER:A상실발생 = 1
+;강도
+TCVAR:TARGET:4 = 1700
+
+CSTR:PLAYER:10 += @"{TARGET}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:PLAYER:2 = 12
+;강도
+TCVAR:PLAYER:4 = 1000 + (200 * MIN(ABL:PLAYER:A감각, 5))
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+DOWNBASE:체력 += 50
+DOWNBASE:기력 += 150
+DOWNBASE:PLAYER:체력 += 50
+DOWNBASE:PLAYER:기력 += 150
+
+SOURCE:PLAYER:쾌A = 400
+SOURCE:PLAYER:성행동= 20
+SOURCE:쾌C = 400
+SOURCE:사랑 = 50
+SOURCE:성행동 = 500
+SOURCE:달성 = 50
+SOURCE:정복 = 1000
+SOURCE:일탈 = 500
+SOURCE:반감 = 500
+
+;위 쪽으로 계산한 더러운 데이터
+SOURCE:불결 = Y*10 + 60
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;억압, 저항 소유에는, 억울소스 추가
+SIF TALENT:자기애 < 0 || TALENT:저항
+	SOURCE:울굴 += 500
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;노예의 P⇔조교자의 A의 더러움이 이동
+STAIN:2 |= STAIN:PLAYER:4
+STAIN:2 |= STAIN:PLAYER:7
+STAIN:PLAYER:4 |= STAIN:2
+STAIN:PLAYER:7 |= STAIN:2
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:PLAYER:A성교경험 ++
+EXP:삽입경험 ++
+
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+ENDIF
+
+;애정경험
+SIF !ASSIPLAY
+	EXP:애정경험 += TALENT:연모
+IF (!BEDROOM(CFLAG:PLAYER:현재위치) && !(BATHROOM() && ITEM:20))
+	STR:0 = A대면입위 된다
+ELSE
+	STR:0 = A정상위된다
+ENDIF
+
+RETURN 1
+
+@CAN_COM92(ARG)
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+;밧줄로 묶여 있을 경우는 무시(밧줄이 없을 때만 실행 판정을 실시한다)
+IF !TEQUIP:밧줄
+	SKIPDISP ARG
+	IF (!BEDROOM(CFLAG:PLAYER:현재위치) && !(BATHROOM() && ITEM:20))
+		PRINTL A대면입위 된다
+	ELSE
+		PRINTL A정상위된다
+	ENDIF
+	
+	A = 0
+	S = 0
+
+	;모든 명령에 공통의 요소를 고려
+	;(순종이 높다고 명령에 따르기 쉬운 등)
+	CALL COM_ORDER
+
+	;ABL:욕망
+	IF ABL:욕망
+		SIF S
+			PRINT  + 
+		A += ABL:욕망 * 2
+		PRINT 욕망
+		PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 2, ')
+		S = 1
+	ENDIF
+	
+	;ABL:봉사정신
+	IF ABL:봉사정신
+		SIF S
+			PRINT  + 
+		A += ABL:봉사정신
+		PRINT 봉사정신
+		PRINTV 'LV, ABL:봉사정신, '(, ABL:봉사정신, ')
+		S = 1
+	ENDIF
+
+	;ABL:새드끼
+	IF ABL:새드끼
+		SIF S
+			PRINT  + 
+		A += ABL:새드끼 * 4
+		PRINT 새드끼
+		PRINTV 'LV, ABL:새드끼, '(, ABL:새드끼 * 4, ')
+		S = 1
+	ENDIF
+
+	IF MARK:쾌락각인
+		SIF S
+			PRINT  + 
+		A += MARK:쾌락각인 * 2
+		PRINT 쾌락각인
+		PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 2, ')
+		S = 1
+	ENDIF
+
+	;PALAM:욕정
+	IF GETPALAMLV(PALAM:욕정, 5)
+		SIF S
+			PRINT  + 
+		A += GETPALAMLV(PALAM:욕정, 5) * 2
+		PRINT 욕정
+		PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 2, ')
+		S = 1
+	ENDIF
+
+	;수줍음
+	IF TALENT:수치심 > 0
+		PRINT  - 
+		A -= 1
+		PRINT 수줍음
+		PRINTV '(, 1, ')
+		S = 1
+	ENDIF
+	
+	;헌신적
+	IF TALENT:헌신적
+		SIF S
+			PRINT  + 
+		A += 6
+		PRINT 헌신적
+		PRINTV '(, 2, ')
+		S = 1
+	ENDIF
+
+	;쾌감에 솔직
+	IF TALENT:쾌감응답 > 0
+		SIF S
+			PRINT  + 
+		A += 2
+		PRINT 쾌감에 솔직
+		PRINTV '(, 2, ')
+		S = 1
+	ENDIF
+
+	;쾌감에 부정(음란, 창부로 무효)
+	IF TALENT:쾌감응답 < 0 && !TALENT:음란
+		PRINT  - 
+		A -= 2
+		PRINT 쾌감에 부정
+		PRINTV '(, 2, ')
+		S = 1
+	ENDIF
+	
+	;도착적
+	IF TALENT:도착적
+		SIF S
+			PRINT  + 
+		A += 4
+		PRINT 도착적
+		PRINTV '(, 4, ')
+		S = 1
+	ENDIF
+	
+	;새드
+	IF TALENT:새드
+		SIF S
+			PRINT  + 
+		A += 3
+		PRINT 새드
+		PRINTV '(, 6, ')
+		S = 1
+	ENDIF
+	
+	;소악마
+	IF TALENT:소악마
+		SIF S
+			PRINT  + 
+		A += 4
+		PRINT 소악마
+		PRINTV '(, 4, ')
+		S = 1
+	ENDIF
+	
+	;연모
+	IF TALENT:연모 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 연모
+		PRINTV '(, 5, ')
+		S = 5
+	ENDIF
+
+	;친애
+	IF TALENT:연모 > 1 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 친애
+		PRINTV '(, 5, ')
+		S = 5
+	ENDIF
+
+	;음란
+	IF TALENT:음란 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 음란
+		PRINTV '(, 5, ')
+		S = 5
+	ENDIF
+
+	;창부
+	IF TALENT:음란 > 1 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 창부
+		PRINTV '(, 5, ')
+		S = 5
+	ENDIF
+	
+	;STAIN 관계의 계산
+	;애널과 장내의 양쪽 모두를 본다
+	Y = 0
+	;애액의 더러움
+	SIF (STAIN:PLAYER:4 & 1) || (STAIN:PLAYER:7 & 1)
+		Y += 1
+	;정액의 더러움
+	SIF (STAIN:PLAYER:4 & 4) || (STAIN:PLAYER:7 & 4)
+		Y += 3
+	;촉수 점액의 더러움
+	SIF (STAIN:PLAYER:4 & 32) || (STAIN:PLAYER:7 & 32)
+		Y += 15
+	Y = Y * (2 - TALENT:악취내성) / 2
+
+	;서로 더러워져
+	IF Y
+		PRINT  - 
+		A -= Y
+		PRINT 서로 더러워져
+		;악취 둔감
+		IF TALENT:악취내성 > 0
+			PRINT , 악취 둔감
+		ELSEIF TALENT:악취내성 < 0
+			PRINT , 악취 민감
+		ENDIF
+		PRINTV '(, Y, ')
+		S = 1
+	ENDIF
+
+	;합계를 표시(30이상으로 실행)
+	PRINT  = 
+	PRINTV A
+
+	V = 30
+	SIF A < V
+		PRINT  < 
+	SIF A == V
+		PRINT  = 
+	SIF A > V
+		PRINT  > 
+	PRINT 실행치
+	PRINTV V
+
+	WAIT
+	SKIPDISP 0
+	;실행할 수 없다
+	SIF A < V
+		RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE92
+;A 정상위 되는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(92)
+	RETURN RESULT
+;대상이 남자, 반인반요, 후타나리, 혹은 페니스밴드가 없으면 안 돼
+SIF !(HAS_PENIS(TARGET)) && ITEM:PBAND == 0
+	RETURN 0
+;대상이 남자, 반인반요, 후타나리의 경우는 어느 정도 발기하고 있지 않으면 안 돼
+SIF (HAS_PENIS(TARGET)) && BASE:발기 < 1000
+	RETURN 0
+;하반신착의(조교자)
+SIF TEQUIP:PLAYER:0 & 4
+	RETURN 0
+;조교자에게 일정한 A경험이 필요
+SIF EXP:PLAYER:2 < EXPLV:3
+	RETURN 0
+;체격 차이가 있는 경우는 주인이 금단의지식 소유가 아니면 안 돼
+;★금단의지식을 가질 필요가 있는 것은 PLAYER인가? PLAYER인가?
+SIF ABS(TALENT:체형 - TALENT:PLAYER:체형) > 2 && !TALENT:PLAYER:금단의지식
+	RETURN 0
+;오나홀사용중은 안 돼
+SIF TEQUIP:12
+	RETURN 0
+;목욕탕플레이중은 플레이매트가 없으면 안 돼
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+;수면간중
+SIF CFLAG:장난 > 1
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+RETURN 1
+

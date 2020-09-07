@@ -1,0 +1,135 @@
+﻿;-------------------------------------------------
+;쿠니
+;애무계 커맨드 레벨 1
+;-------------------------------------------------
+@COM1
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;봉사 쾌락
+TCVAR:PLAYER:108 = 1
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 4
+;강도
+TCVAR:TARGET:4 = 500
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 20
+	SOURCE:PLAYER:성행동 =4
+	SOURCE:쾌C = 80
+	SOURCE:PLAYER:쾌M += 50
+	SOURCE:액체 = 1000
+	;성기술보정
+	IF ABL:PLAYER:혀 >= 4
+		SOURCE:PLAYER:성행동 +=5
+		SOURCE:쾌C += 100
+		SOURCE:액체 += 400
+	ELSE
+		
+		SOURCE:PLAYER:성행동 +=ABL:PLAYER:혀
+		SOURCE:쾌C += ABL:PLAYER:혀 * 20
+		SOURCE:액체 += ABL:PLAYER:혀 * 80
+	ENDIF
+
+
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+	ENDIF
+
+
+	;펠라티오경험
+	EXP:PLAYER:펠라티오경험 ++
+;시간정지 없음
+ELSE
+	DOWNBASE:체력 += 5
+	DOWNBASE:기력 += 50
+	SOURCE:PLAYER:쾌M += 50
+	SOURCE:PLAYER:성행동 =4
+	SOURCE:쾌C = 80
+	SOURCE:액체 = 1000
+	SOURCE:노출 = 10
+	SOURCE:일탈 = 15
+	SOURCE:반감 = 15
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 20
+
+	;성기술보정
+	IF ABL:PLAYER:혀 >= 4
+	SOURCE:PLAYER:성행동 +=5
+		SOURCE:쾌C += 100
+		SOURCE:액체 += 400
+	ELSE
+	SOURCE:PLAYER:성행동 +=ABL:PLAYER:혀
+		SOURCE:쾌C += ABL:PLAYER:혀 * 20
+		SOURCE:액체 += ABL:PLAYER:혀 * 80
+	ENDIF
+
+	;-------------------------------------------------
+	;경험의 처리
+	;-------------------------------------------------
+	;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+	ENDIF
+
+	;펠라티오경험
+	EXP:PLAYER:펠라티오경험 ++
+ENDIF
+;-------------------------------------------------
+;시간정지 분기 끝나, 공통되는 소질 보정이나 더러움의 처리
+;-------------------------------------------------
+;혀를 사용하는 조교에서는, 조교자의 혀놀림에 의해, 쾌감의 소스 증가
+IF TALENT:PLAYER:혀놀림
+	TIMES SOURCE:쾌C , 1.50
+	TIMES SOURCE:액체 , 1.50
+ENDIF
+;고양이혀에서는 감소, 조교자에게 가학쾌락경험을 추가
+IF TALENT:PLAYER:고양이혀
+	TIMES SOURCE:쾌C , 0.75
+	EXP:PLAYER:가학쾌락경험 += 1
+ENDIF
+
+;노예의 V⇔조교자의 입의 더러움이 이동
+STAIN:V |= STAIN:PLAYER:구
+STAIN:PLAYER:구 |= STAIN:V
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;쿠니 실행 판정
+;-------------------------------------------------
+@COM_ABLE1
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(1)
+	RETURN RESULT
+;성기가 더러워져 있으면(자) PLAYER의 경우 쿠니는 할 수 없다(조교자가 더러움 무시나 애액, 모유, 초콜렛의 얼룩이라면 OK)
+SIF STAIN:3 >= 2 && (STAIN:3 != 16 && STAIN:3 != 17 && STAIN:3 != 128 && STAIN:3 != 129 && STAIN:3 != 144 && STAIN:3 != 145) && ASSIPLAY == 0 && TALENT:PLAYER:악취내성 < 2
+	RETURN 0
+;성기가 더러워져 있어 악취 민감으로 순종 3 이하의 ASSI의 경우 쿠니는 할 수 없다(조교자가 더러움 무시나 애액, 모유, 초콜렛의 얼룩이라면 OK)
+IF STAIN:3 >= 2 && (STAIN:3 != 16 && STAIN:3 != 17 && STAIN:3 != 128 && STAIN:3 != 129 && STAIN:3 != 144 && STAIN:3 != 145) && ASSIPLAY
+	SIF ABL:ASSI:순종 <= 3 && TALENT:ASSI:악취내성 < 0
+		RETURN 0
+ENDIF
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+RETURN 1

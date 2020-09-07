@@ -1,0 +1,127 @@
+﻿;-------------------------------------------------
+;지나치는길한다
+;외출 커맨드
+;-------------------------------------------------
+@COM605
+CALL SUC_FAIL()
+SELECTCASE TFLAG:193
+	;실패
+	CASE -1
+		SIF TFLAG:192 == -2
+			RETURN 0
+	;대성공
+	CASE 1
+		CALL 붉은실발동
+		EXP:MASTER:회화경험 ++
+		EXP:MASTER:데이트경험 ++
+		EXP:TARGET:데이트경험 ++
+	;성공
+	CASE 0
+ENDSELECT
+;선제 발생시는 실패하지 않는다
+SIF TCVAR:20
+	TFLAG:193 = MAX(TFLAG:193, 0)
+DOWNBASE:MASTER:기력 += 50
+DOWNBASE:MASTER:체력 += 30
+DOWNBASE:기력 += 30
+DOWNBASE:체력 += 20
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 500
+SOURCE:사랑 = 300
+
+;ABL:순종을 본다
+IF ABL:순종 <= 1
+	SOURCE:환락 += (ABL:순종 * 60)
+	SOURCE:사랑 += (ABL:친밀 * 30)
+ELSEIF ABL:순종 <= 3
+	SOURCE:환락 += 200 + (ABL:순종 * 60)
+	SOURCE:사랑 += 200 + (ABL:친밀 * 30)
+ELSEIF ABL:순종 <= 5
+	SOURCE:환락 += 500 + (ABL:순종 * 60)
+	SOURCE:사랑 += 500 + (ABL:친밀 * 30)
+ELSEIF ABL:순종 <= 8
+	SOURCE:환락 += 750 + (ABL:순종 * 75)
+	SOURCE:사랑 += 750 + (ABL:친밀 * 45)
+ELSEIF ABL:순종 <= 11
+	SOURCE:환락 += 1000 + (ABL:순종 * 75)
+	SOURCE:사랑 += 1000 + (ABL:친밀 * 50)
+ELSE
+	SOURCE:환락 += 2000 + (ABL:순종 * 30)
+	SOURCE:사랑 += 2000 + (ABL:친밀 * 20)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+	SOURCE:사랑 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+	SOURCE:사랑 += 300 + (CFLAG:2 - 300) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+	SOURCE:사랑 += 1000 + (CFLAG:2 - 1000) / 5
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+SIF SOURCE:사랑 < 0
+	SOURCE:사랑 = 0
+
+
+SOURCE:수동 = 200 + 100 * ABL:순종
+SOURCE:정복 = 200 + 100 * ABL:새드끼
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:정복 , 0.50
+	TIMES SOURCE:수동 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:정복 , 1.00
+	TIMES SOURCE:수동 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:정복 , 2.00
+	TIMES SOURCE:수동 , 2.00
+ENDIF
+
+;지나치는 길 한 플래그
+TCVAR:309 = 1440 * DAY + TIME
+TIME += 10
+CALL 붉은실발동
+EXP:MASTER:데이트경험 ++
+EXP:TARGET:데이트경험 ++
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;지나치는길한다
+@COM_ABLE605
+;일괄관리
+SIF GLOBAL_COMABLE(605)
+	RETURN RESULT
+;상대가 없다
+SIF !TARGET
+	RETURN 0
+;데이트중 이외
+SIF !CHK_DATENOW(CFLAG:12)
+	RETURN 0
+;데이트 도중 이외
+SIF (CFLAG:현재위치 % 100) % 10 == 0
+	RETURN 0
+;초대방
+SIF CFLAG:MASTER:현재위치 == OMANEKIBEYA()
+	RETURN 0
+;30분간격
+SIF TIME_PROGRESS(TCVAR:309) < 30
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+

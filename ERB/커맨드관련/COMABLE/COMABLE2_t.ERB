@@ -1,0 +1,218 @@
+﻿;COMABLE 일괄관리
+@GLOBAL_COMABLE(ARG)
+#FUNCTION
+;커맨드필터
+LOCALS = /{ARG}/
+IF STRCOUNT(SAVESTR:0, LOCALS)
+	RESULT = 0
+	RETURNF 1
+ENDIF
+;일괄관리
+SELECTCASE ARG
+	;우후후
+	CASE IS < 300
+		IF TFLAG:102 != 2 || !TARGET
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	;의뢰실행은 TARGET없이 실행할 수 있도록(듯이) 예외 취급
+	CASE 367
+		IF GROUPMATCH(TFLAG:102, 2, 3)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	;일상 커맨드
+	CASE 300 TO 303, 305, 331 TO 336, 351 , 352 , 363 TO 399, 448
+		IF TFLAG:102 != 1 || !TARGET
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	;껴안기모드
+	CASE 306 TO 311
+		IF !TFLAG:껴안기모드 && (TFLAG:102 != 1 || !TARGET)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	;소프트인 우후후
+	CASE 310 TO 330, 350, 360, 361
+		IF TARGET == 0
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TFLAG:102 != 1 && FLAG:70 == 1 && CFLAG:TARGET:344 == 0
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TFLAG:102 == 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TFLAG:껴안기모드 && ARG != 350 && ARG != 360 && ARG != 361
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		;목욕탕에서는 가치에로가 되므로
+		IF BATHCHECK(CFLAG:MASTER:현재위치) && CFLAG:우후후 != 2
+			IF ARG != 350 && ARG != 351
+				RESULT = 0
+				RETURNF 1
+			ENDIF
+		ENDIF
+	CASE 355
+		IF FLAG:70 && CFLAG:TARGET:344 == 0 || CFLAG:MASTER:장난 || CFLAG:우후후 == 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE 400 TO 499
+	;단체 실행 가능 커맨드
+		IF TFLAG:102 == 2 && ARG != 410 && ARG != 413
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	;CASE 449 TO 499
+	;단체 실행 가능 커맨드
+	;	IF TFLAG:102 == 2 && ARG != 410 && ARG != 413
+	;		RESULT = 0
+	;		RETURNF 1
+	;	ENDIF
+	CASE 501 TO 559
+	;우후후 파생
+		IF TFLAG:102 != 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE 560 TO 579
+	;일상 파생
+		IF TFLAG:102 == 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE 580 TO 699
+	;데이트
+		IF !TFLAG:100
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TFLAG:102 == 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE 700 TO 799
+	;자위 전용 커맨드
+	;	IF TFLAG:102 != 2
+	;		RESULT = 0
+	;		RETURNF 1
+	;	ENDIF
+	;	IF ARG == 751 && (!CFLAG:PLAYER:지금바쁨)
+	;		RESULT = 0
+	;		RETURNF 1
+	;	ELSEIF ARG != 751 && ((CFLAG:지금바쁨 != 1) || (TARGET > 0 && CFLAG:지금바쁨 != 1 && !FLAG:시간정지))
+	IF !CFLAG:PLAYER:지금바쁨
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+ENDSELECT
+
+;비디오 처리(고정 카메라라면 제한 없음)
+;촬영자가 조교중, 비디오 한 손에서는 여러 가지 제한된다
+IF (TFLAG:105 == 1 && !ASSIPLAY) || (TFLAG:105 == 2 && ASSIPLAY)
+	IF ARG == 0 || ARG == 3 || ARG == 5 || ARG == 6 || ARG == 7 || ARG == 8 || ARG == 9 || ARG == 21 || (ARG >= 40 && ARG <= 48) || ARG == 65 || ARG == 66 || (ARG >= 80 && ARG <= 87) || (ARG >= 100 && ARG <= 105) || (ARG >= 122 && ARG <= 125) || (ARG >= 140 && ARG <= 148 && ARG != 143) || (ARG >= 180 && ARG <= 189) || ARG == 503 || ARG == 504 || ARG == 510 || ARG == 511
+		RETURNF 0
+	ELSE
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+;MASTER가 촬영중, 조수가 조교중
+ELSEIF TFLAG:105 == 1 && ASSIPLAY
+	IF ARG == 71 || ARG == 124 || ARG == 125 || ARG == 185
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+;조수가 촬영중, MASTER가 조교중
+ELSEIF TFLAG:105 == 2 && !ASSIPLAY
+	IF ARG == 71 || ARG == 124 || ARG == 125 || ARG == 185 || ARG == 510 || ARG == 511
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+ENDIF
+
+
+;COMABLE 일괄관리
+@GLOBAL_COMABLE2(ARG)
+#FUNCTION
+;커맨드필터
+LOCALS = /{ARG}/
+SIF STRCOUNT(SAVESTR:0, LOCALS)
+	RETURNF 1
+
+;일괄관리
+SELECTCASE ARG
+	;우후후
+	CASE IS < 300
+		SIF TFLAG:102 != 2 || !TARGET
+			RETURNF 1
+	;의뢰실행은 TARGET없이 실행할 수 있도록(듯이) 예외 취급
+	CASE 367
+		IF GROUPMATCH(TFLAG:102, 2, 3)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	;일상 커맨드
+	CASE 300 TO 303, 305, 331 TO 336, 351 , 352 , 363 TO 399 , 448
+		SIF TFLAG:102 != 1 || !TARGET
+			RETURNF 1
+	;껴안기모드
+	CASE 306 TO 311
+		IF !TFLAG:껴안기모드 && (TFLAG:102 != 1 || !TARGET)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	;소프트인 우후후
+	CASE 310 TO 330, 350, 360, 361
+		IF TARGET == 0
+			RETURNF 1
+		ENDIF
+		IF TFLAG:102 != 1 && FLAG:70 == 1 && CFLAG:TARGET:344 == 0
+			RETURNF 1
+		ENDIF
+		IF TFLAG:102 == 2
+			RETURNF 1
+		ENDIF
+		IF TFLAG:껴안기모드 && ARG != 350 && ARG != 360 && ARG != 361
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		;목욕탕에서는 가치에로가 되므로
+		IF BATHCHECK(CFLAG:MASTER:현재위치) && CFLAG:우후후 != 2
+			IF ARG != 350 && ARG != 351
+				RETURNF 1
+			ENDIF
+		ENDIF
+	CASE 355
+		IF FLAG:70 && CFLAG:TARGET:344 == 0 || CFLAG:MASTER:장난 || CFLAG:우후후 == 2
+			RETURNF 1
+		ENDIF
+	CASE 400 TO 499
+	;단체 실행 가능 커맨드
+		IF TFLAG:102 == 2 && ARG != 410 && ARG != 413
+			RETURNF 1
+		ENDIF
+	CASE 501 TO 559
+	;우후후 파생
+		IF TFLAG:102 != 2
+			RETURNF 1
+		ENDIF
+	CASE 560 TO 579
+	;일상 파생
+		IF TFLAG:102 == 2
+			RETURNF 1
+		ENDIF
+	CASE 580 TO 699
+	;데이트
+		IF !TFLAG:100
+			RETURNF 1
+		ENDIF
+		IF TFLAG:102 == 2
+			RETURNF 1
+		ENDIF
+ENDSELECT

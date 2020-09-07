@@ -1,0 +1,297 @@
+﻿;-------------------------------------------------
+;애널개장
+;애무계 커맨드, 레벨 2
+;-------------------------------------------------
+@COM13
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = TARGET
+;봉사 쾌락
+TCVAR:PLAYER:108 = 1
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 90
+SOURCE:PLAYER:성행동=2
+	SOURCE:쾌A = 43
+	SOURCE:액체 = 10
+
+ELSE
+
+	DOWNBASE:체력 += 50
+	DOWNBASE:기력 += 90
+SOURCE:PLAYER:성행동=2
+
+	SOURCE:쾌A = 43
+	SOURCE:달성 = 20
+	SOURCE:공포 = 120
+	SOURCE:액체 = 10
+	SOURCE:노출 = 300
+	SOURCE:굴종 = 450
+	SOURCE:일탈 = 150
+	SOURCE:반감 = 150
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 150
+
+	;처녀&&무자각비처녀, 정조 관념
+	IF TALENT:처녀 == 1 || TALENT:처녀 == -1
+		TIMES SOURCE:공포 , 1.20
+		TIMES SOURCE:굴종 , 1.20
+		TIMES SOURCE:반감 , 1.20
+		SOURCE:노출 += 300
+		IF TALENT:정조 > 0
+			TIMES SOURCE:노출 , 2.00
+			TIMES SOURCE:일탈 , 2.00
+		ENDIF
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;노예의 A⇔손가락의 더러움이 이동
+IF FLAG:70 || CFLAG:PLAYER:장난 == 2
+	STAIN:4|= STAIN:PLAYER:1
+	STAIN:PLAYER:1 |= STAIN:4
+ELSE
+	STAIN:4 |= STAIN:1
+	STAIN:1 |= STAIN:4
+ENDIF
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+IF FLAG:70 == 1 || CFLAG:장난
+ELSE
+	;노출벽 Lv3 이상으로 자위경험 가산
+	SIF ABL:노출벽 >= 3
+		EXP:자위경험 ++
+ENDIF
+
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ELSE
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ENDIF
+RETURN 1
+
+
+@CAN_COM13(ARG)
+SKIPDISP ARG
+PRINTL 애널개장
+;-------------------------------------------------
+;실행할 수 있을까의 판정
+;-------------------------------------------------
+IF FLAG:70 == 1 || CFLAG:장난
+ELSE
+	A = 0
+	S = 0
+	;모든 명령에 공통의 요소를 고려
+	;(순종이 높다고 명령에 따르기 쉬운 등)
+	CALL COM_ORDER
+
+	;ABL:욕망
+	IF ABL:욕망
+		SIF S
+			PRINT  + 
+		A += ABL:욕망 * 3
+		PRINT 욕망
+		PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 3, ')
+		S = 1
+	ENDIF
+	;ABL:A감각
+	IF ABL:A감각
+		SIF S
+			PRINT  + 
+		A += ABL:A감각 * 2
+		PRINT A감각
+		PRINTV 'LV, ABL:A감각, '(, ABL:A감각 * 2, ')
+		S = 1
+	ENDIF
+	;ABL:봉사정신
+	IF ABL:봉사정신
+		SIF S
+			PRINT  + 
+		A += ABL:봉사정신 * 4
+		PRINT 봉사정신
+		PRINTV 'LV, ABL:봉사정신, '(, ABL:봉사정신 * 4, ')
+		S = 1
+	ENDIF
+	;ABL:노출벽
+	IF ABL:노출벽
+		SIF S
+			PRINT  + 
+		A += ABL:노출벽 * 3
+		PRINT 노출벽
+		PRINTV 'LV, ABL:노출벽, '(, ABL:노출벽 * 3, ')
+		S = 1
+	ENDIF
+	;ABL:자위중독
+	IF ABL:자위중독
+		SIF S
+			PRINT  + 
+		A += ABL:자위중독 * 3
+		PRINT 자위중독
+		PRINTV 'LV, ABL:자위중독, '(, ABL:자위중독 * 3, ')
+		S = 1
+	ENDIF
+
+	IF MARK:쾌락각인
+		SIF S
+			PRINT  + 
+		A += MARK:쾌락각인 * 3
+		PRINT 쾌락각인
+		PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 3, ')
+		S = 1
+	ENDIF
+
+	;PALAM:윤활(의 부족)
+	IF PALAM:윤활 < PALAMLV:3
+		PRINT  - 
+		A -= 5
+		PRINT 윤활 부족
+		PRINTV '(, 5, ')
+		S = 1
+	ENDIF
+	;PALAM:욕정
+	IF GETPALAMLV(PALAM:욕정, 5)
+		SIF S
+			PRINT  + 
+		A += GETPALAMLV(PALAM:욕정, 5) * 3
+		PRINT 욕정
+		PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 3, ')
+		S = 1
+	ENDIF
+
+	;수줍음
+	IF TALENT:수치심 > 0
+		PRINT  - 
+		A -= 2
+		PRINT 수줍음
+		PRINTV '(, 2, ')
+		S = 1
+	ENDIF
+	;쾌감에 부정(음란, 창부로 무효)
+	IF TALENT:쾌감응답 < 0 && !TALENT:음란
+		PRINT  - 
+		A -= 5
+		PRINT 쾌감에 부정
+		PRINTV '(, 5, ')
+		S = 1
+	ENDIF
+	;남성기피(연모, 친애로 무효)
+	IF OTOKOGIRAI(TARGET) == 1
+		PRINT  - 
+		A -= 12
+		PRINT 남성기피
+		PRINTV '(, 12, ')
+		S = 1
+	ENDIF
+
+	;처녀
+	IF TALENT:처녀 == 1
+		PRINT  - 
+		A -= 20
+		PRINT 처녀
+		PRINTV '(, 20, ')
+		S = 1
+	ELSEIF EXP:A경험 < EXPLV:2
+		PRINT  - 
+		A -= 5
+		PRINT A경험
+		PRINT 부족
+		PRINTV '(, 5, ')
+		S = 1
+	ENDIF
+
+	;조교자가 후타나리
+	IF (TALENT:PLAYER:2 & 3) == 3
+		PRINT  + 
+		A += 4
+		PRINT 후타나리
+		PRINTV '(, 4, ')
+		S = 1
+	ENDIF
+
+	;미약
+	IF TCVAR:춘약
+		SIF S
+			PRINT  + 
+		A += 6
+		PRINT 춘약
+		PRINTV '(, 6, ')
+		S = 1
+	ENDIF
+
+	;'합계를 표시(18이상으로 실행)
+	PRINT  = 
+	PRINTV A
+
+	V = 18
+	SIF A < V
+		PRINT  < 
+	SIF A == V
+		PRINT  = 
+	SIF A > V
+		PRINT  > 
+	PRINT 실행치
+	PRINTV V
+
+	WAIT
+	SKIPDISP 0
+	;실행할 수 없다
+	SIF A < V
+		RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE13
+;애널개장 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(13)
+	RETURN RESULT
+;시간정지중은 허가
+IF FLAG:70 != 1
+	;순종이 2 미만이라면 안 돼
+	SIF ABL:순종< 2
+		RETURN 0
+	;처녀의 경우, 순종 3이상 또는 노출벽 3이상 없으면 안 돼
+	SIF TALENT:처녀 && ABL:순종 < 3 && ABL:노출벽 < 3
+		RETURN 0
+	;밧줄 사용 중에는 불가
+	SIF TEQUIP:밧줄
+		RETURN 0
+ENDIF
+
+;하반신착의
+SIF TEQUIP:0 & 4 || TEQUIP:0 & 2
+	RETURN 0
+;애널바이브, 비즈 삽입하고 있는 때는 안 돼
+SIF TEQUIP:14 || TEQUIP:15
+	RETURN 0
+;목욕탕플레이중은 플레이매트가 없으면 안 돼
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+
+RETURN 1
+

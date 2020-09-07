@@ -1,0 +1,237 @@
+﻿
+;=========================================================
+;	連番画像アニメーション
+;
+;	sRes_Name	：リソースの名前文字列　この名前の後に連番数字を付ける
+;	iStart		：開始番号
+;	iEnd		：開始からの描画枚数
+;	iAnime_Num	：全体のアニメーション繰り返し回数 省略0でオプション設定したフラグ回数になります
+;	iRollback	：ロールバックさせるかフラグ
+;	iWait		：1枚の表示時間
+;	iSize		：一行の高さに対するサイズ％数値　縦基準　縦横比維持　省略で1000(10倍)
+;	sAlign		：align属性　省略で左寄せ　left, center, rightの三種が指定できます
+;=========================================================
+@PRINT_IMAGE_ANIMATION(sRes_Name,iStart=0,iEnd=4,iAnime_Num=0,iRollback=1,iWait=100,iSize=1000,sAlign="left")
+#DIMS sRes_Name
+#DIM iStart
+#DIM iEnd
+#DIM iAnime_Num
+#DIM iRollback
+#DIM iWait
+#DIM iSize
+#DIMS sAlign
+
+
+SIF !FLAG:그림표시 || sRes_Name == ""
+	RETURN RESULT
+
+SIF !FLAG:애니메이션
+	RETURN RESULT
+
+SIF !iAnime_Num
+	iAnime_Num = FLAG:애니메이션
+
+FOR LOCAL,0,iAnime_Num
+	FOR LOCAL:1,iStart,(iStart+iEnd)
+		CALL PRINT_IMAGE(@"%sRes_Name%{LOCAL:1}",iSize,sAlign)
+		TWAIT iWait, 0
+		CLEARLINE iSize/100
+	NEXT
+	
+	;ロールバックさせるか
+	SIF !iRollback
+		CONTINUE
+
+	FOR LOCAL:1,(iStart+iEnd)-2,iStart-1,-1
+		CALL PRINT_IMAGE(@"%sRes_Name%{LOCAL:1}",iSize,sAlign)
+		TWAIT iWait, 0
+		CLEARLINE iSize/100
+	NEXT
+NEXT
+RETURN RESULT
+
+;=========================================================
+;	正常位のアニメーション画像表示
+;
+;	sRes_Name	：最後に表示する画像のリソース名
+;	iSize		：一行の高さに対するサイズ％数値　縦基準　縦横比維持　省略で1000(10倍)
+;	sAlign		：align属性　省略で左寄せ　left, center, rightの三種が指定できます
+;=========================================================
+@PRINT_IMAGE_ANIMATION_정상위(sRes_Name,iSize=1000,sAlign="left")
+#DIMS sRes_Name
+#DIM iSize
+#DIMS sAlign
+
+#DIM iStart
+#DIMS sPrint_Res_Name
+#DIMS sAnime_Res_Name
+
+SIF !FLAG:그림표시 || sRes_Name == "" || !FLAG:삽화표시
+	RETURN RESULT
+
+IF sRes_Name == "正常位_射精"
+	sPrint_Res_Name = %sRes_Name%_{FLAG:사정화상종류}
+ELSE
+	sPrint_Res_Name = %sRes_Name%
+ENDIF
+
+IF !FLAG:애니메이션
+	CALL PRINT_IMAGE(sPrint_Res_Name,iSize,sAlign)
+	RETURN RESULT
+ENDIF
+
+sAnime_Res_Name = 正常位_挿入_
+
+IF sRes_Name == "正常位_射精" || sRes_Name == "正常位_絶頂"
+	iStart = 1
+ELSE
+	iStart= 0
+ENDIF
+
+CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,iStart,4-iStart,FLAG:애니메이션,1,,iSize,sAlign)
+CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,iStart,4-iStart,1,0,,iSize,sAlign)
+
+IF sRes_Name == "正常位_射精"
+	sAnime_Res_Name = 正常位_射精_{FLAG:사정화상종류}_
+	CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,0,2,FLAG:애니메이션,0,,iSize,sAlign)
+	CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,2,2,FLAG:애니메이션,1,,iSize,sAlign)
+ENDIF
+CALL PRINT_IMAGE(sPrint_Res_Name,iSize,sAlign)
+
+RETURN RESULT
+
+;=========================================================
+;	後背位のアニメーション画像表示
+;	コマ数など変わったので別で
+;
+;	sRes_Name	：最後に表示する画像のリソース名
+;	iTarget		：射精した人物(0:あなた, 1:それ以外)
+;	iSize		：一行の高さに対するサイズ％数値　縦基準　縦横比維持　省略で1000(10倍)
+;	sAlign		：align属性　省略で左寄せ　left, center, rightの三種が指定できます
+;=========================================================
+@PRINT_IMAGE_ANIMATION_후배위(sRes_Name,iTarget=0,iSize=1000,sAlign="left")
+#DIMS sRes_Name
+#DIM iTarget
+#DIM iSize
+#DIMS sAlign
+
+#DIMS sPrint_Res_Name
+#DIMS sAnime_Res_Name
+#DIM iAnimeCon
+
+SIF !FLAG:그림표시 || sRes_Name == "" || !FLAG:삽화표시
+	RETURN RESULT
+
+IF sRes_Name == "後背位_射精"
+	sPrint_Res_Name = %sRes_Name%_{FLAG:사정화상종류}
+	SIF NOWEX:MASTER:사정 > 1
+		sPrint_Res_Name = %sRes_Name%_{FLAG:사정화상종류}_9
+ELSE
+	sPrint_Res_Name = %sRes_Name%
+ENDIF
+
+IF !FLAG:애니메이션
+	CALL PRINT_IMAGE(sPrint_Res_Name,iSize,sAlign)
+	RETURN RESULT
+ENDIF
+
+
+IF sRes_Name == "後背位_挿入"
+	
+	iAnimeCon = FLAG:애니메이션/2?FLAG:애니메이션/2#1
+	CALL PRINT_IMAGE_ANIMATION("後背位_挿入_",0,6,iAnimeCon,1,,iSize,sAlign)
+		
+	iAnimeCon = (FLAG:애니메이션-iAnimeCon)?FLAG:애니메이션-iAnimeCon#1
+	CALL PRINT_IMAGE_ANIMATION("後背位_挿入2_",0,12,iAnimeCon,0)
+ELSE
+	IF sRes_Name == "後背位_絶頂"
+		iAnimeCon = FLAG:애니메이션/2?FLAG:애니메이션/2#1
+		CALL PRINT_IMAGE_ANIMATION("後背位_挿入2_",0,12,iAnimeCon,0)
+	ENDIF
+	
+	CALL PRINT_IMAGE_ANIMATION("後背位_絶頂_",0,4,FLAG:애니메이션,0)
+	CALL PRINT_IMAGE_ANIMATION("後背位_絶頂_",0,2,1,0)
+ENDIF
+IF sRes_Name == "後背位_射精"
+	sAnime_Res_Name = 後背位_射精_{FLAG:사정화상종류}_
+	CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,0,8,1,0,,iSize,sAlign)
+	CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,6,2,FLAG:애니메이션,1,,iSize,sAlign)
+	
+	;大量なら追加で
+	IF iTarget == 0
+		IF NOWEX:MASTER:사정 > 1
+			CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,8,2,FLAG:애니메이션,1,,iSize,sAlign)
+		ENDIF
+	ELSE
+		IF NOWEX:TARGET:사정 > 1
+			CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,8,2,FLAG:애니메이션,1,,iSize,sAlign)
+		ENDIF
+	ENDIF
+	
+ENDIF
+CALL PRINT_IMAGE(sPrint_Res_Name,iSize,sAlign)
+
+RETURN RESULT
+;=========================================================
+;	射精後のアニメーション画像表示
+;
+;	sRes_Name	：最後に表示する画像のリソース名
+;	iTarget		：射精した人物(0:あなた, 1:それ以外)
+;	iSize		：一行の高さに対するサイズ％数値　縦基準　縦横比維持　省略で1000(10倍)
+;	sAlign		：align属性　省略で左寄せ　left, center, rightの三種が指定できます
+;=========================================================
+@PRINT_IMAGE_ANIMATION_사정후(sRes_Name="正常位_中出し",iTarget=0,iSize=1000,sAlign="left")
+#DIMS sRes_Name
+#DIM iTarget
+#DIM iSize
+#DIMS sAlign
+
+#DIM iWait
+#DIMS sAnime_Res_Name
+#DIMS sType
+#DIM SAVE_RESULT
+
+SIF !FLAG:그림표시 || sRes_Name == "" || !FLAG:삽화표시
+	RETURN RESULT
+
+IF !FLAG:애니메이션
+	CALL PRINT_IMAGE(sRes_Name,iSize,sAlign)
+	RETURN RESULT
+ENDIF
+SAVE_RESULT = RESULT
+SPLIT sRes_Name,"_",sType
+
+IF sType == "後背位"
+	IF iTarget == 0
+		sAnime_Res_Name = %sType%_射精_{FLAG:사정화상종류}_\@NOWEX:MASTER:사정>1?9#7\@
+	ELSE
+		sAnime_Res_Name = %sType%_射精_{FLAG:사정화상종류}_\@NOWEX:TARGET:사정>1?9#7\@
+	ENDIF
+ELSE
+	sAnime_Res_Name = %sType%_射精_{FLAG:사정화상종류}_3
+ENDIF
+
+iWait = 500
+CALL PRINT_IMAGE(@"%sAnime_Res_Name%",iSize,sAlign)
+sAnime_Res_Name = %sType%_挿入_
+TWAIT iWait, 0
+CLEARLINE iSize/100
+
+iWait = 100
+FOR LOCAL,3,0,-1
+	CALL PRINT_IMAGE(@"%sAnime_Res_Name%{LOCAL}",iSize,sAlign)
+	TWAIT iWait, 0
+	CLEARLINE iSize/100
+NEXT
+
+;後背位のみアニメ
+IF sType == "後背位"
+	sAnime_Res_Name = %sType%_射精後_
+	CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,0,2,1,0,iWait,iSize,sAlign)
+	CALL PRINT_IMAGE_ANIMATION(sAnime_Res_Name,2,2,0,0,iWait,iSize,sAlign)
+ENDIF
+
+CALL PRINT_IMAGE(sRes_Name,iSize,sAlign)
+
+RESULT = SAVE_RESULT
+RETURN RESULT

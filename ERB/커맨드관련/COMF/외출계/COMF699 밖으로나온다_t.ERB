@@ -1,0 +1,70 @@
+﻿;-------------------------------------------------
+;밖으로나온다
+;외출 커맨드
+;-------------------------------------------------
+@COM699
+
+;PRINTFORMW %STR:(((CFLAG:TARGET:자택위치) / 10) + 6000)%에 나온다
+
+;자택위치의 3자리수째를 참조
+CFLAG:MASTER:데이트중 = (CFLAG:(CFLAG:MASTER:초대):자택위치) / 100
+;자택위치에 이동
+CFLAG:MASTER:현재위치 = CFLAG:(CFLAG:MASTER:초대):자택위치
+IF !CFLAG:TARGET:수면
+	CFLAG:TARGET:현재위치 = CFLAG:(CFLAG:TARGET:초대):자택위치
+ELSE
+	CFLAG:TARGET:현재위치 = SUKIMA()
+ENDIF
+;만남 플래그를 자택위치로 설정(연동하고 있다고(면) 다른 캐릭터가 달려 들어 오는 것은 사양)
+CFLAG:(CFLAG:MASTER:초대):만난위치 = CFLAG:(CFLAG:MASTER:초대):자택위치
+;방의 더러움을 보존해 둔다
+IF YOGORE:(OMANEKIBEYA()) > 0
+	TCVAR:(CFLAG:MASTER:초대):초대방의더러움 = YOGORE:(OMANEKIBEYA())
+ELSE
+	;0 이하로 했을 경우는 식별하기 위해서 1남긴다
+	TCVAR:(CFLAG:MASTER:초대):초대방의더러움 = 1
+ENDIF
+;초대 플래그에 0을 대입
+CFLAG:TARGET:초대 = 0
+CFLAG:MASTER:초대 = 0
+
+IF CFLAG:TARGET:신사거주
+	CFLAG:TARGET:초기위치 = CFLAG:TARGET:신사거주
+ELSE
+	CFLAG:TARGET:초기위치 = SUKIMA()
+ENDIF
+;TIME += 3
+RETURN 1
+
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;밖으로나온다
+@COM_ABLE699
+;일괄관리
+SIF GLOBAL_COMABLE(699)
+	RETURN RESULT
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;막차…없어져 버렸다……
+SIF NEMUKE() >= 720
+	RETURN 0
+;초대방전용
+SIF CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	RETURN 0
+;동침중은 안 되요
+SIF CFLAG:MASTER:동침중
+	RETURN 0
+;장난중도 안 돼
+SIF CFLAG:MASTER:장난
+	RETURN 0
+;우후후 안도 안 돼
+SIF CFLAG:MASTER:우후후
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+

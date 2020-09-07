@@ -1,0 +1,177 @@
+﻿;-------------------------------------------------
+;도시락을 먹는다
+;외출 커맨드
+;-------------------------------------------------
+@COM615
+#DIM 회복전체력1
+#DIM 회복전기력1
+#DIM 회복후체력1
+#DIM 회복후기력1
+#DIM 회복전체력2
+#DIM 회복전기력2
+#DIM 회복후체력2
+#DIM 회복후기력2
+
+회복전체력1 = BASE:MASTER:체력
+회복전기력1 = BASE:MASTER:기력
+회복전체력2 = BASE:TARGET:체력
+회복전기력2 = BASE:TARGET:기력
+LOCAL = RAND:3
+LOCAL:1 = RAND:10
+IF LOCAL > ABL:요리기능
+	;요리가 서투르다면 실패
+	TFLAG:193 = -1
+	TFLAG:98 = -1
+ELSEIF LOCAL:1 <= ABL:요리기능 - 2
+	;요리가 능숙하면 대성공
+	EXP:MASTER:회화경험 ++
+	;붉은실 KR판 고유기능
+	CALL 붉은실발동
+	EXP:MASTER:데이트경험 ++
+	EXP:TARGET:데이트경험 ++
+	TFLAG:193 = 1
+	TFLAG:98 = 5
+ELSE
+	;나머지는 성공
+	TFLAG:193 = 0
+	TFLAG:98 = 3
+ENDIF
+
+DOWNBASE:기력 += 50
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 300
+SOURCE:사랑 = 300
+SOURCE:노출 = 100
+SOURCE:반감 = 50
+
+
+IF (ABL:친밀 + ABL:봉사정신) < 10
+	LOCAL:2 = 1
+	SOURCE:환락 += 1000 + (ABL:친밀 * 100)
+	SOURCE:달성 += 500 + (ABL:친밀 * 50)
+	SOURCE:사랑 += (ABL:친밀 * 30)
+ELSEIF (ABL:친밀 + ABL:봉사정신) < 15
+	LOCAL:2 = 2
+	SOURCE:환락 += 2000 + (ABL:친밀 * 150)
+	SOURCE:달성 += 1500 + (ABL:친밀 * 80)
+	SOURCE:사랑 += 400 + (ABL:친밀 * 30)
+ELSEIF (ABL:친밀 + ABL:봉사정신) < 25
+	LOCAL:2 = 3
+	SOURCE:환락 += 3000 + (ABL:친밀 * 200)
+	SOURCE:달성 += 2000 + (ABL:친밀 * 100)
+	SOURCE:사랑 += 600 + (ABL:친밀 * 40)
+ELSE
+	 LOCAL:2 = 5
+	SOURCE:환락 += 5000 + (ABL:친밀 * 250)
+	SOURCE:달성 += 3000 + (ABL:친밀 * 150)
+	SOURCE:사랑 += 1800 + (ABL:친밀 * 30)
+ENDIF
+
+EXP:요리경험 += LOCAL:2
+SIF TALENT:연모
+	EXP:애정경험 += LOCAL:2
+
+IF ABL:요리기능 < 2
+	CALL RECOVER_PERMIL(TARGET, 40,"체력")
+	CALL RECOVER_PERMIL(TARGET, 100,"기력")
+	CALL RECOVER_PERMIL(MASTER, 40,"체력")
+	CALL RECOVER_PERMIL(MASTER, 100,"기력")
+ELSEIF ABL:요리기능 < 4
+	BASE:체력 = MIN(BASE:체력 + MAXBASE:체력 / 15 , MAXBASE:체력)
+	BASE:기력 = MIN(BASE:기력 + MAXBASE:기력 / 5 , MAXBASE:기력)
+	BASE:MASTER:체력 = MIN(BASE:MASTER:체력 + MAXBASE:MASTER:체력 / 10 , MAXBASE:MASTER:체력)
+	BASE:MASTER:기력 = MIN(BASE:MASTER:기력 + MAXBASE:MASTER:기력 / 5 , MAXBASE:MASTER:기력)
+	BASE:MASTER:정력 = MIN(BASE:MASTER:정력 + MAXBASE:MASTER:정력 / 8 , MAXBASE:MASTER:정력)
+ELSE
+	BASE:체력 = MIN(BASE:체력 + MAXBASE:체력 / 8 , MAXBASE:체력)
+	BASE:기력 = MIN(BASE:기력 + MAXBASE:기력 / 3 , MAXBASE:기력)
+	BASE:MASTER:체력 = MIN(BASE:MASTER:체력 + MAXBASE:MASTER:체력 / 8 , MAXBASE:MASTER:체력)
+	BASE:MASTER:기력 = MIN(BASE:MASTER:기력 + MAXBASE:MASTER:기력 / 3 , MAXBASE:MASTER:기력)
+	BASE:MASTER:정력 = MIN(BASE:MASTER:정력 + MAXBASE:MASTER:정력 / 4 , MAXBASE:MASTER:정력)
+ENDIF
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.50
+	TIMES SOURCE:달성 , 0.50
+	TIMES SOURCE:사랑 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:달성 , 1.00
+	TIMES SOURCE:사랑 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:달성 , 2.00
+	TIMES SOURCE:사랑 , 2.00
+ENDIF
+TIME += 60
+;붉은실 KR판 고유기능
+CALL 붉은실발동
+EXP:MASTER:데이트경험 ++
+EXP:TARGET:데이트경험 ++
+CALL 만복도상승(MASTER,"주식")
+CALL 만복도상승(TARGET,"주식")
+
+SETBIT TFLAG:일일일회, 1
+회복후체력1 = BASE:MASTER:체력
+회복후기력1 = BASE:MASTER:기력
+회복후체력2 = BASE:TARGET:체력
+회복후기력2 = BASE:TARGET:기력
+DRAWLINE
+PRINTFORML 체력+{ABS(회복후체력1 - 회복전체력1)}(%CALLNAME:MASTER%)
+PRINTFORML 기력+{ABS(회복후기력1 - 회복전기력1)}(%CALLNAME:MASTER%)
+PRINTFORML 체력+{ABS(회복후체력2 - 회복전체력2)}(%CALLNAME:TARGET%)
+PRINTFORML 기력+{ABS(회복후기력2 - 회복전기력2)}(%CALLNAME:TARGET%)
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;도시락
+@COM_ABLE615
+;일괄관리
+SIF GLOBAL_COMABLE(615)
+	RETURN RESULT
+;상대가 없다
+SIF !TARGET
+	RETURN 0
+;데이트중 이외
+SIF !CHK_DATENOW(CFLAG:12)
+	RETURN 0
+;데이트 도중
+SIF (CFLAG:현재위치 % 100) % 10
+	RETURN 0
+SIF !OBENTO(CFLAG:MASTER:현재위치)
+	RETURN 0
+;먹었던 바로 직후
+SIF !TIME_PROGRESS(TCVAR:312)
+	RETURN 0
+SIF GETBIT(TFLAG:일일일회, 1)
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+;FileName_DATE_CMN.ERB ------------------------------- Rev1. 00
+;도시락을 먹을 수 있는 장소
+;CALL		USER
+;ARG		현재위치
+;RETURN		먹을 수 있다면 1
+;COMMENT	장소를 추가했을 경우, CASE를 변경의 일
+;-----------------------------------------------------------
+@OBENTO(ARG)
+#FUNCTION
+IF !IN_HOME(ARG)
+	SELECTCASE ARG
+		CASE 지장길, 수양버들아래, 안개의호수, 현무의늪, 큰두꺼비의연못, 절경의언덕, 산의호수, 천계
+			RETURNF 1
+		;10=桜並木の鳥居
+		CASE 무명의언덕, 고목의큰나무, 복숭아숲～모래사장, 10
+			RETURNF 1
+	ENDSELECT
+ENDIF
+RETURNF 0
+

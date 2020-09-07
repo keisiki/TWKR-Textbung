@@ -1,0 +1,122 @@
+﻿;-------------------------------------------------
+;유두캡
+;도구 사용 커맨드, 레벨 2
+;-------------------------------------------------
+@COM47
+;착탈의처리
+TEQUIP:유두캡 = !TEQUIP:유두캡
+
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;봉사 쾌락 플래그
+TCVAR:PLAYER:108 = 1
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 80
+	SOURCE:PLAYER:성행동 =10
+	SOURCE:쾌B = 200
+
+ELSE
+
+	DOWNBASE:체력 += 10
+	DOWNBASE:기력 += 80
+
+	SOURCE:PLAYER:성행동 =10
+	SOURCE:쾌B = 200
+	SOURCE:노출 = 20
+	SOURCE:일탈 = 30
+	SOURCE:반감 = 30
+
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 30
+ENDIF
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ELSE
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ENDIF
+EXP:PLAYER:도구사용경험 ++
+
+RETURN 1
+;-------------------------------------------------
+;장착 계속의 처리
+;-------------------------------------------------
+@EQUIP_COM47(ARG)
+;유두캡 장비중
+PRINTL ＜유두캡 장비중＞
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 20
+	SOURCE:ARG:쾌B += 100
+
+ELSE
+
+	DOWNBASE:ARG:체력 += 5
+	DOWNBASE:ARG:기력 += 20
+
+	SOURCE:ARG:쾌B += 100
+	SOURCE:ARG:노출 += 10
+	SOURCE:ARG:일탈 += 15
+	SOURCE:ARG:반감 += 15
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE47
+;유두캡 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(47)
+	RETURN RESULT
+;해제는 언제라도 가능
+SIF TEQUIP:16
+	RETURN 1
+;아이템 을 가지고 있는인가, 아이템 없음 설정이 아니면 안 돼
+SIF ITEM:10 == 0 && NOITEM == 0
+	RETURN 0
+;상반신착의
+SIF TEQUIP:1 > 1 && TEQUIP:3 == 0
+	RETURN 0
+;착유기 사용중은 불가
+SIF TEQUIP:17
+	RETURN 0
+;유방 전극 장착중은 안 돼
+SIF TEQUIP:24
+	RETURN 0
+;ASSI의 경우, 기교 3이상이 아니면 사용할 수 없다.
+IF ASSIPLAY
+	SIF ABL:ASSI:기교 < 3
+		RETURN 0
+ENDIF
+;샤워중은 안 돼
+SIF TEQUIP:32
+	RETURN 0
+
+RETURN 1
+

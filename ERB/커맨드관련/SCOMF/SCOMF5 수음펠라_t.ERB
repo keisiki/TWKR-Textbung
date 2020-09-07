@@ -1,0 +1,238 @@
+﻿;-------------------------------------------------
+;수음 펠라
+;봉사계 파생 커맨드
+;-------------------------------------------------
+@SCOM5
+;펠라치오에 준거
+CALL COM81
+
+;변경, 추가 부분
+EXP:수음경험 += 1
+EXP:펠라티오경험 += 1
+
+;강도
+TCVAR:PLAYER:4 = 1400
+RETURN 1
+
+@CAN_SCOM5(ARG)
+SKIPDISP ARG
+PRINTL 수음 펠라
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+A = 0
+S = 0
+
+;모든 명령에 공통의 요소를 고려
+;(순종이 높다고 명령에 따르기 쉬운 등)
+CALL COM_ORDER
+
+;ABL:욕망
+IF ABL:욕망
+	SIF S
+		PRINT  + 
+	A += ABL:욕망 * 1
+	PRINT 욕망
+	PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 1, ')
+	S = 1
+ENDIF
+;ABL:봉사정신
+IF ABL:봉사정신
+	SIF S
+		PRINT  + 
+	A += ABL:봉사정신 * 4
+	PRINT 봉사정신
+	PRINTV 'LV, ABL:봉사정신, '(, ABL:봉사정신 * 4, ')
+	S = 1
+ENDIF
+;ABL:정액중독
+IF ABL:정액중독
+	SIF S
+		PRINT  + 
+	A += ABL:정액중독 * 3
+	PRINT 정액중독
+	PRINTV 'LV, ABL:정액중독, '(, ABL:정액중독 * 3, ')
+	S = 1
+ENDIF
+
+IF MARK:쾌락각인
+	SIF S
+		PRINT  + 
+	A += MARK:쾌락각인 * 1
+	PRINT 쾌락각인
+	PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 1, ')
+	S = 1
+ENDIF
+;PALAM:욕정
+IF GETPALAMLV(PALAM:욕정, 5)
+	SIF S
+		PRINT  + 
+	A += GETPALAMLV(PALAM:욕정, 5) * 1
+	PRINT 욕정
+	PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 1, ')
+	S = 1
+ENDIF
+;수줍음
+IF TALENT:수치심 > 0
+	PRINT  - 
+	A -= 1
+	PRINT 수줍음
+	PRINTV '(, 1, ')
+	S = 1
+ENDIF
+;악취 둔감
+IF TALENT:악취내성 > 0
+	SIF S
+		PRINT  + 
+	A += 1
+	PRINT 악취 둔감
+	PRINTV '(, 1, ')
+	S = 1
+ENDIF
+;악취 민감
+IF TALENT:악취내성 < 0
+	PRINT  - 
+	A -= 3
+	PRINT 악취 민감
+	PRINTV '(, 3, ')
+	S = 1
+ENDIF
+;헌신적
+IF TALENT:헌신적
+	SIF S
+		PRINT  + 
+	A += 6
+	PRINT 헌신적
+	PRINTV '(, 6, ')
+	S = 1
+ENDIF
+;쾌감에 부정(음란, 창부로 무효)
+IF TALENT:쾌감응답 < 0 && !TALENT:음란
+	PRINT  - 
+	A -= 1
+	PRINT 쾌감에 부정
+	PRINTV '(, 1, ')
+	S = 1
+ENDIF
+;남성기피(연모, 친애로 무효)
+IF OTOKOGIRAI(TARGET)
+	PRINT  - 
+	A -= 12
+	PRINT 남성기피
+	PRINTV '(, 12, ')
+	S = 1
+ENDIF
+;연모
+IF TALENT:연모 && ASSIPLAY == 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 연모
+	PRINTV '(, 5, ')
+	S = 5
+ENDIF
+;친애
+IF TALENT:연모 > 1 && ASSIPLAY == 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 친애
+	PRINTV '(, 5, ')
+	S = 5
+ENDIF
+
+;조교자가 후타나리
+IF (TALENT:PLAYER:2 & 3) == 3
+	SIF S
+		PRINT  + 
+	A += 8
+	PRINT 후타나리
+	PRINTV '(, 8, ')
+	S = 1
+ENDIF
+
+Y = 0
+;애액의 더러움
+SIF STAIN:PLAYER:2 & 1
+	Y += 1
+;정액의 더러움
+SIF STAIN:PLAYER:2 & 4
+	Y += 3
+;애널의 더러움
+SIF STAIN:PLAYER:2 & 8
+	Y += 7
+SIF STAIN:PLAYER:2 & 16
+	Y += 15
+
+Y = Y * (2 - TALENT:악취내성) / 2
+
+;서로 더러워져
+IF Y
+	PRINT  - 
+	A -= Y
+	PRINT 서로 더러워져
+	;악취 둔감
+	IF TALENT:악취내성 > 0
+		PRINT , 악취 둔감
+	ELSEIF TALENT:악취내성 < 0
+		PRINT , 악취 민감
+	ENDIF
+	PRINTV '(, Y, ')
+	S = 1
+ENDIF
+
+;합계를 표시(24이상으로 실행)
+PRINT  = 
+PRINTV A
+
+V = 24
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 실행치
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;실행할 수 없다
+SIF A < V
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;선택 가능 판정
+;-------------------------------------------------
+@COM_ABLE505
+;수음 펠라 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(505)
+	RETURN RESULT
+;조교자가 남자나 반인반요인가 후타나리이 아니면 안 돼
+SIF !(TALENT:PLAYER:2 & 2)
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;수면간중
+SIF CFLAG:장난 > 1
+	RETURN 0
+;기교 Lv1 이상 필요
+SIF ABL:기교 < 1
+	RETURN 0
+;고양이혀의 노예의 경우는 기교 Lv2 이상 필요
+SIF TALENT:고양이혀 && ABL:기교 < 2
+	RETURN 0
+;볼개그 사용중은 불가
+SIF TEQUIP:볼개그
+	RETURN 0
+;밧줄 사용 중에는 불가
+SIF TEQUIP:밧줄
+	RETURN 0
+RETURN 1
+

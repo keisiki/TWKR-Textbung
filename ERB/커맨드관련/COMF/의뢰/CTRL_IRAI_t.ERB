@@ -1,0 +1,843 @@
+﻿;----------------------------------------------------------------------------------------------------
+;의뢰 수탁 처리
+;----------------------------------------------------------------------------------------------------
+@SET_IRAI_SLOT(CHARA)
+#DIM CHARA
+#DIM IRAI_ID
+#DIM CHK_SLOT
+IRAI_ID = CFLAG:CHARA:의뢰내용
+CHK_SLOT = SEARCH_IRAI_EMPTY()
+SIF !CHK_SLOT
+	RETURN
+IRAI_SLOT:CHK_SLOT     = IRAI_ID
+IRAI_DATA:CHK_SLOT     = INT_DATA_IRAI(IRAI_ID, "의뢰내용",     CHARA)
+IRAI_SUB:CHK_SLOT      = INT_DATA_IRAI(IRAI_ID, "의뢰 서브",     CHARA)
+IRAI_DEADLINE:CHK_SLOT = INT_DATA_IRAI(IRAI_ID, "의뢰기한", CHARA) + DAY
+CALL SET_IRAI_PROGRESS(CHARA, "의뢰중")
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 종료 처리
+;----------------------------------------------------------------------------------------------------
+@CLEAR_IRAI_SLOT(CHARA, CHK_SLOT, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIM  CHK_SLOT
+#DIMS SCENE
+ARRAYREMOVE IRAI_SLOT,     CHK_SLOT, 1
+ARRAYREMOVE IRAI_DATA,     CHK_SLOT, 1
+ARRAYREMOVE IRAI_SUB,      CHK_SLOT, 1
+ARRAYREMOVE IRAI_EX,       CHK_SLOT, 1
+ARRAYREMOVE IRAI_DEADLINE, CHK_SLOT, 1
+CALL SET_IRAI_PROGRESS(CHARA, SCENE)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 발생 처리
+;적당하게 10 캐릭터 보고 고쳐 의뢰를 만들어
+;----------------------------------------------------------------------------------------------------
+@IRAI_HAPPEN
+#DIM CHARA_ID, 10
+[IF_DEBUG]
+	;#;PRINTFORMW 의뢰 생성 처리(전캐릭터 실행, 로그를 디버그 윈도우에 표시)
+	;#;DEBUGCLEAR
+	FOR LOCAL:0, 1, 캐릭터수상한
+		SIF !CAN_MEET(LOCAL:0)
+			CONTINUE
+		SIF CFLAG:(LOCAL:0):의뢰상황
+			CONTINUE
+		CALL SET_NEW_IRAI(LOCAL:0)
+	NEXT
+	;#;PRINTFORML 의뢰 생성 완료, 디버그문을 삭제합니다
+	;#;FORCEWAIT
+	;#;DEBUGCLEAR
+	RETURN
+[ENDIF]
+CALL ARRAY_RAND(CHARA_ID, 10, 1, 캐릭터수상한)
+FOR LOCAL:0, 0, 10
+	SIF !CAN_MEET(CHARA_ID:(LOCAL:0))
+		CONTINUE
+	SIF CFLAG:(CHARA_ID:(LOCAL:0)):의뢰상황
+		CONTINUE
+	CALL SET_NEW_IRAI(CHARA_ID:(LOCAL:0))
+NEXT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;각 캐릭터의 의뢰 발생 처리
+;의뢰 없음/일반의뢰/고유 의뢰
+;----------------------------------------------------------------------------------------------------
+@SET_NEW_IRAI(CHARA)
+#DIM CHARA
+SELECTCASE IRAI_HIT(CHARA, "HAPPEN")
+CASE IS <= 0
+	RETURN
+CASE 1
+	LOCAL = IRAI_HIT(CHARA, "COMMON")
+	SIF !LOCAL
+		RETURN
+CASE 2
+	LOCAL = IRAI_HIT(CHARA, "UNIQUE")
+	SIF LOCAL <= 100
+		RETURN
+ENDSELECT
+CALL SET_IRAI_PROGRESS(CHARA, "의뢰 발생 직후")
+CFLAG:CHARA:의뢰내용 = MAKE_IRAI_ID(CHARA, LOCAL)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 추첨 처리는 정리해 여기에
+;----------------------------------------------------------------------------------------------------
+@IRAI_HIT(CHARA, TYPE)
+#FUNCTION
+#DIM  CHARA
+#DIMS TYPE
+#DIM CONST LAST_COMMON = 99 ;일반의뢰ID의 말단
+#DIM       LAST_UNIQUE      ;그 캐릭터에게 실장되고 있는 고유의뢰ID의 말단
+#DIM       HIT_LIST, 100    ;추첨 확률 배열
+#DIM       ID_LIST,  100    ;추첨을 대상 의뢰 ID의 일람
+#DIM       CNT_LIST         ;추첨 대상이 되는 의뢰의 수
+DEBUGPRINTFORML ＞IRAI_HIT{CHARA}　%TYPE%
+SELECTCASE TYPE
+CASE "HAPPEN"
+;의뢰 발생 추첨
+	HIT_LIST:0 = GET_INT(0, "캐릭터데이터", CHARA, "의뢰 없음 발생율")
+	HIT_LIST:1 = GET_INT(0, "캐릭터데이터", CHARA, "일반의뢰발생율")
+	HIT_LIST:2 = GET_INT(0, "캐릭터데이터", CHARA, "고유의뢰발생율")
+	SIF !SUMARRAY(HIT_LIST, 0, 3)
+		HIT_LIST = 7, 3, 0
+	DEBUGPRINTFORML ＞IRAI_HIT{CHARA}　{HIT_LIST:0}/{HIT_LIST:1}/{HIT_LIST:2}
+	RETURNF ARRAY_HIT(HIT_LIST, 3)
+CASE "COMMON"
+;일반의뢰의 추첨
+	VARSET HIT_LIST
+	VARSET ID_LIST
+	VARSET CNT_LIST
+	FOR LOCAL:0, 1, LAST_COMMON + 1
+		SIF !INT_DATA_IRAI(MAKE_IRAI_ID(CHARA, LOCAL:0), "의뢰 발생 조건", CHARA)
+			CONTINUE
+		ID_LIST:CNT_LIST  = LOCAL:0
+		HIT_LIST:CNT_LIST = INT_DATA_IRAI(MAKE_IRAI_ID(CHARA, LOCAL:0), "의뢰 발생율", CHARA)
+		CNT_LIST ++
+	NEXT
+	SIF !CNT_LIST
+		RETURNF 0
+	RETURNF ID_LIST:(ARRAY_HIT(HIT_LIST, CNT_LIST))
+CASE "UNIQUE"
+;고유 의뢰의 추첨
+	VARSET HIT_LIST
+	VARSET ID_LIST
+	VARSET CNT_LIST
+	LAST_UNIQUE = GET_INT(0, "캐릭터데이터", CHARA, "고유의뢰최종 요소")
+	FOR LOCAL:0, 101, LAST_UNIQUE + 1
+		SIF !INT_DATA_IRAI(MAKE_IRAI_ID(CHARA, LOCAL:0), "의뢰 발생 조건", CHARA)
+			CONTINUE
+		ID_LIST:CNT_LIST  = LOCAL:0
+		HIT_LIST:CNT_LIST = INT_DATA_IRAI(MAKE_IRAI_ID(CHARA, LOCAL:0), "의뢰 발생율", CHARA)
+		CNT_LIST ++
+	NEXT
+	SIF !CNT_LIST
+		RETURNF 0
+	RETURNF ID_LIST:(ARRAY_HIT(HIT_LIST, CNT_LIST))
+ENDSELECT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 소멸 처리
+;전캐릭터가 대상이 되어 대규모화했다
+;----------------------------------------------------------------------------------------------------
+@IRAI_VANISH
+#DIM CHK_SLOT
+#DIM CHARA
+;#;PRINTFORMW 의뢰 시간 경과 처리(전캐릭터 실행, 로그를 디버그 윈도우에 표시)
+;#;DEBUGCLEAR
+;전캐릭터 대상, 수탁전의/이미 보고가 끝난 의뢰의 처리
+FOR CHARA, 1, CHARANUM
+	SELECTCASE IRAI_CHARA_TO_PROGRESS(CHARA)
+	;이것들은 아직 의뢰슬롯에 들어가 있지 않다
+	CASE "의뢰 발생 직후"
+		CALL SET_IRAI_PROGRESS(CHARA, "의뢰미수탁")
+		
+	CASE "의뢰미수탁"
+		SIF INT_DATA_IRAI(CFLAG:CHARA:의뢰내용, "의뢰 소멸율", CHARA)
+			CALL SET_IRAI_PROGRESS(CHARA, "의뢰 소멸")
+	[SKIPSTART]
+	의뢰중의 케이스는 의뢰슬롯보는 편이 빠르다
+	CASE "의뢰중"
+	
+	기본적으로 이 4 단계는 미 보고 상태, 의뢰주의 리액션 대기입니다( 보고 필수)
+	CASE "의뢰 달성"
+	CASE "기한 마감"
+	CASE "보고 잊음"
+	CASE "의뢰 실패"
+	[SKIPEND]
+	CASE "의뢰 종료(성공)", "의뢰 종료(기한 마감)", "의뢰 종료(보고 잊음)", "의뢰 종료(실패)"
+	;의뢰가 종료해, 의뢰인에게 보고를 행한 패턴(슬롯에 들어 있지 않다)
+		CALL SET_IRAI_PROGRESS(CHARA, "의뢰 소멸")
+	ENDSELECT
+NEXT
+;#;PRINTFORML 의뢰 시간 경과 처리 완료, 디버그문을 삭제합니다
+;#;FORCEWAIT
+;#;DEBUGCLEAR
+
+SIF !COUNT_IRAI_SLOT()
+	RETURN
+
+;#;PRINTFORMW 의뢰기한처리(전캐릭터 실행, 로그를 디버그 윈도우에 표시)
+;의뢰의 기한 판정
+;슬롯은 비우지 않기로 했다(의뢰주에의 보고를 강제시킨다)
+;의뢰 보고 불필요시에 슬롯을 비우는 처리가 필요하게 되었다
+;슬롯 1으로부터 봐 간다고 의뢰의 리셋에 의해 ID엇갈림이 발생하므로 말미로부터 체크한다
+FOR CHK_SLOT, COUNT_IRAI_SLOT(), 0, -1
+	CHARA = IRAI_SLOT_TO_CLIENT(CHK_SLOT)
+	;기한에 의한 의뢰의 실패 판정
+	;기한이 남고 있다면 패스
+	SIF IRAI_DEADLINE:CHK_SLOT && DAY <= IRAI_DEADLINE:CHK_SLOT
+		CONTINUE
+	SELECTCASE IRAI_CHARA_TO_PROGRESS(CHARA)
+	CASE "의뢰중"
+		CALL SET_IRAI_PROGRESS(CHARA, "기한 마감")
+	CASE "의뢰 달성"
+		IF STRLENS(STR_DATA_IRAI(IRAI_SLOT:CHK_SLOT, "의뢰 보고 불필요", CHARA))
+			CALL IRAI_CARRYOUT(CHARA, IRAI_SLOT:CHK_SLOT, "의뢰 보고 불필요")
+			CALL SHOW_IRAI_MESSAGE(CHARA, IRAI_SLOT:CHK_SLOT, "의뢰 보고 불필요")
+			CALL CLEAR_IRAI_SLOT(CHARA, CHK_SLOT, "의뢰 소멸")
+		ELSE
+			CALL SET_IRAI_PROGRESS(CHARA, "보고 잊음")
+		ENDIF
+	ENDSELECT
+NEXT
+;#;PRINTFORML 의뢰기한처리 완료, 디버그문을 삭제합니다
+;#;FORCEWAIT
+;#;DEBUGCLEAR
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰내용의 실행 처리
+;실행시의 SOURCE의 변화의 외, 보수나 실패에 의한 처리도 포함한다
+;----------------------------------------------------------------------------------------------------
+@IRAI_CARRYOUT(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+RESULT = 0
+IF IS_COMMON_IRAI(IRAI_ID)
+	TRYCCALLFORM IRAI_일반{IRAI_ID % 1000}(CHARA, IRAI_ID, SCENE)
+	CATCH
+		PRINTFORML *에러 발생*
+		PRINTFORML 　CHARA:{CHARA}　SCENE:%SCENE%　IRAI_ID:{IRAI_ID}
+		PRINTFORML 　지정의 함수 @IRAI_일반{IRAI_ID % 1000}은 존재하지 않습니다
+		PRINTFORML 　에러 로그를 복붙해 보고해 주세요
+		PRINTFORML 
+		PRINTFORMW 　입력 대기중
+	ENDCATCH
+ELSE
+	TRYCCALLFORM IRAI_고유{IRAI_ID_TO_CLIENT(IRAI_ID)}(CHARA, IRAI_ID, SCENE)
+	CATCH
+		PRINTFORML *에러 발생*
+		PRINTFORML 　CHARA:{CHARA}　SCENE:%SCENE%　IRAI_ID:{IRAI_ID}
+		PRINTFORML 　지정의 함수 @IRAI_고유{IRAI_ID_TO_CLIENT(IRAI_ID)}는 존재하지 않습니다
+		PRINTFORML 　에러 로그를 복붙해 보고해 주세요
+		PRINTFORML 
+		PRINTFORMW 　입력 대기중
+	ENDCATCH
+ENDIF
+RETURN RESULT
+;RESULT와 의뢰실행 판정 결과의 대응은 IRAI_CONST_RESULT(TYPE)를 참조
+
+
+
+;----------------------------------------------------------------------------------------------------
+;수탁이 끝난 의뢰 정보 표시 함수
+;----------------------------------------------------------------------------------------------------
+@SHOW_ALL_IRAI_SLOT
+#DIM CHK_SLOT
+#DIM IRAI_NUM
+IRAI_NUM = COUNT_IRAI_SLOT()
+FOR CHK_SLOT, 1, IRAI_NUM + 1
+	CALL SHOW_IRAI_DATA(IRAI_SLOT:CHK_SLOT, CHK_SLOT)
+	PRINTFORML 
+NEXT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 정보 표시 함수
+;의뢰 ID단체에서도 사용할 수 있지만 수탁 끝난 경우는 간략화를 위해서(때문에) SLOT 번호를 건네준다
+;풀네임 표기인 것은 원 자리와입니다(그 편이 딱딱한 문면 같게 보이므로)
+;----------------------------------------------------------------------------------------------------
+@SHOW_IRAI_DATA(IRAI_ID, CHK_SLOT)
+#DIM IRAI_ID   ;대상의 의뢰 ID(의뢰인 정보 포함한다)
+#DIM CHK_SLOT  ;판정 대상으로 하는 의뢰슬롯, 미수탁 상태에서는 0으로 읽어 주세요
+#DIM CLIENT_ID ;의뢰인 ID
+#DIM CHK_ID    ;의뢰 자체의 ID
+#DIM DEAD_LINE ;기한 날짜
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+CHK_ID    = IRAI_ID % 1000
+DEAD_LINE = INT_DATA_IRAI(IRAI_ID, "의뢰기한", CLIENT_ID)
+SIF CHK_SLOT
+	PRINTFORML 의뢰 %TOFULL(TOSTR(CHK_SLOT))%
+PRINTFORML 　＜%STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)%＞
+PRINTFORML 　　의뢰자：%NAME:CLIENT_ID%
+PRINTFORML 　의뢰내용：%STR_DATA_IRAI(IRAI_ID, "의뢰내용 표시", CLIENT_ID)%
+PRINTFORML 　　　보수：%STR_DATA_IRAI(IRAI_ID, "의뢰 보수 표시", CLIENT_ID)%
+SIF STRLENS(STR_DATA_IRAI(IRAI_ID, "의뢰 보고 불필요", CLIENT_ID))
+	PRINTFORML 　　　보고：%STR_DATA_IRAI(IRAI_ID, "의뢰 보고 불필요", CLIENT_ID)%
+SIF STRLENS(STR_DATA_IRAI(IRAI_ID, "의뢰 비고 표시", CLIENT_ID))
+	PRINTFORML 　　　비고：%STR_DATA_IRAI(IRAI_ID, "의뢰 비고 표시", CLIENT_ID)%
+;#;PRINTFORML 　　의뢰 ID：{IRAI_ID}　CLIENT_ID{CLIENT_ID}
+
+;미수탁의 경우는 기한만 표시해 끝
+IF !CHK_SLOT
+	IF !DEAD_LINE
+		PRINTFORML 　　　기한：오늘중
+	ELSE
+		PRINTFORML 　　　기한：{DEAD_LINE}일 이내
+	ENDIF
+	RETURN
+ELSE
+	PRINTFORML 　　　기한：앞으로 {IRAI_DEADLINE:CHK_SLOT - DAY}일
+ENDIF
+
+;여기에서 수탁 끝나, 업종별의 표시
+SELECTCASE IRAI_SLOT_TO_TASKNAME(CHK_SLOT)
+CASE "조달"
+	PRINTFORML 　　요구품：%ITEMNAME:(IRAI_SLOT_TO_ITEM(CHK_SLOT))%×{IRAI_SUB:CHK_SLOT}
+	;TODO KR판 낚시 기능 번역시 하단 SIF 구문의 출력문 처리 요망
+	SIF ITEMNAME:IRAI_SLOT_TO_ITEM(CHK_SLOT) == "맛있는물고기"
+		PRINTFORML 　　　　　（ニジマス・サケ・ワカサギ・ヤツメウナギ・カムルチー）
+CASE "전령(인물)"
+	PRINTFORML 　목표 인물：%NAME:(IRAI_SLOT_TO_PERSON(CHK_SLOT))%
+CASE "전령(장소)"
+	PRINTFORML 　　목적지：%GET_PLACENAME(IRAI_SLOT_TO_PLACE(CHK_SLOT))%
+;나즈린에 들어도 잊는 당신( 나)에게
+CASE "수색(인물)"
+	IF IRAI_EX:CHK_SLOT
+		PRINTFORML 　참고인물：%CALLNAME:(IRAI_EX:CHK_SLOT)%
+	ELSE
+		PRINTFORM 　단서：
+		CALL SHOW_IRAI_HINT("수색(인물)", IRAI_SLOT_TO_PERSON(CHK_SLOT), IRAI_SUB:CHK_SLOT)
+	ENDIF
+CASE "수색(장소)"
+	IF IRAI_EX:CHK_SLOT > 5000
+		PRINTFORML 　　추정지：%STR:(5000 + GET_MAPID(IRAI_EX:CHK_SLOT-5000))%
+	ELSEIF IRAI_EX:CHK_SLOT
+		PRINTFORML 　　추정지：%STR:(5000 + GET_MAPID(IRAI_EX:CHK_SLOT))%의 %GET_PLACENAME(IRAI_EX:CHK_SLOT)%
+	ELSE
+		PRINTFORM 　단서：
+		CALL SHOW_IRAI_HINT("수색(장소)", IRAI_SLOT_TO_PLACE(CHK_SLOT), IRAI_SUB:CHK_SLOT)
+	ENDIF
+CASE "토벌"
+	PRINTFORML 　토벌대상：%NAME:(IRAI_SLOT_TO_PERSON(CHK_SLOT))%
+ENDSELECT
+CALL IRAI_CARRYOUT(CLIENT_ID, IRAI_ID, "의뢰 조건 표시")
+
+;확정하고 있는 경우는 그 취지를 표시해 끝
+IF GROUPMATCH(IRAI_CHARA_TO_PROGRESS(CLIENT_ID), "기한 마감", "보고 잊음", "의뢰 실패")
+	PRINTFORML 　달성 상황：실패
+	RETURN
+ELSEIF GROUPMATCH(IRAI_CHARA_TO_PROGRESS(CLIENT_ID), "의뢰 달성")
+	PRINTFORML 　달성 상황：달성이 끝난 상태(미보고)
+	RETURN
+ELSEIF !DEAD_LINE
+	PRINTFORML 　　　기한：오늘중
+ELSEIF DAY > IRAI_DEADLINE:CHK_SLOT
+	PRINTFORML 　　　기한：나머지{IRAI_DEADLINE:CHK_SLOT - DAY}일
+ELSEIF DAY == IRAI_DEADLINE:CHK_SLOT
+	PRINTFORML 　　　기한：오늘중
+ENDIF
+
+;----------------------------------------------------------------------------------------------------
+;依頼情報内のヒント表示
+;DYNAMIC部分はSHOW_TASTEを参考,助手効果のデータだけを抽出する
+;----------------------------------------------------------------------------------------------------
+@SHOW_IRAI_HINT(TASKNAME, ARG, 패턴)
+#DIMS TASKNAME
+#DIM CHARA
+#DIM PLACE
+#DIM 패턴
+#DIM 통찰력
+#DIMS DYNAMIC LIST, 100 ;リスト
+#DIM  DYNAMIC CNT,  100 ;リスト各要素の重複個数
+#DIM  DYNAMIC NUM       ;種類の総数
+;◆통찰력에 괸해서
+;원래는 EXP:의뢰달성경험 과 ABL:의뢰레벨 을 설정하여 의뢰를 해낼 만큼 통찰력(=의뢰레벨)이 늘어나는 식으로 하려 생각하고 있었다
+;만, 일부러 만들지 않아도 플레이어측의 리얼 통찰력이 필요해 동결시켰습니다。
+;일단 난이도의 설정만 남겨두기로
+LOCALS = 
+;持ち主を推定する,現状패턴は1～3,패턴0は場所の方へ
+IF TASKNAME == "수색(인물)" && 패턴 > 0
+	CHARA = ARG
+	통찰력 = 100
+	CALLF CNT_SPLIT(GET_TASTE_ASSIBONUS(CHARA), LIST, CNT, NUM)
+	FOR LOCAL, 0, NUM
+		SELECTCASE LIST:LOCAL
+		CASE "영험"
+			SIF 통찰력 >= 3
+				LOCALS += "신력이 담겨 있다。"
+		CASE "행운"
+			SIF 통찰력 >= 3
+				LOCALS += "행운의 징표가 붙어 있다。"
+		CASE "메이드류"
+			SIF 통찰력 >= 2
+				LOCALS += "메이드씨의 도구다。"
+		CASE "정밀"
+			SIF 통찰력 >= 1
+				LOCALS += "정밀하게 제작되어 있다。"
+		CASE "마법"
+			SIF 통찰력 >= 2
+				LOCALS += "마력이 깃들어 있다"
+		CASE "장난스러운"
+			SIF 통찰력 >= 1
+				LOCALS += "어설픈 만듦새다。"
+		CASE "반짝임"
+			SIF 통찰력 >= 1
+				LOCALS += "반짝반짝하고 있다。"
+		CASE "예상외"
+			SIF 통찰력 >= 3
+				LOCALS += "숨겨진 장치가 설치되어 있다。"
+		CASE "실험적"
+			SIF 통찰력 >= 2
+				LOCALS += "실험에 사용되는 도구같다。"
+		CASE "수병풍"
+			SIF 통찰력 >= 1
+				LOCALS += "닻 마크가 있다。"
+		CASE "파워풀"
+			;요리의 파워풀이라고 해서 조형에는 비유하기 어렵다
+		CASE "대화력"
+			SIF 통찰력 >= 1
+				LOCALS += "대담하게 만들어져 있다。"
+		CASE "불온"
+			SIF 통찰력 >= 2
+				LOCALS += "불온한 기미가 느껴진다。"
+		CASE "건강"
+			SIF 통찰력 >= 2
+				LOCALS += "소중하게 사용된 흔적이 있다。"
+		CASE "소쇄"
+			SIF 통찰력 >= 4
+				LOCALS += "참으로 산뜻한 물건이다。"
+		CASE "카리스마"
+			SIF 통찰력 >= 4
+				LOCALS += "카리스마가 넘치고 있다。"
+		CASE "현란"
+			SIF 통찰력 >= 1
+				LOCALS += "현란하다。"
+		CASE "화려한"
+			SIF 통찰력 >= 1
+				LOCALS += "화려하다。"
+		CASE "마계풍"
+			SIF 통찰력 >= 3
+				LOCALS += "마계의 돌이 쓰였다。"
+		CASE "봄바람"
+			SIF 통찰력 >= 3
+				LOCALS += "봄의 에너지가 느껴진다。"
+		CASE "이상한"
+			SIF 통찰력 >= 1
+				LOCALS += "이상해…。"
+		CASE "명검"
+			SIF 통찰력 >= 2
+				LOCALS += "검술에 쓰이는 도구다。"
+		CASE "가정적"
+			SIF 통찰력 >= 2
+				LOCALS += "가정적인 물건이다。"
+		CASE "자비"
+			SIF 통찰력 >= 3
+				LOCALS += "자비심이 느껴진다。"
+		CASE "기적"
+			SIF 통찰력 >= 4
+				LOCALS += "기적의 힘이 깃들어 있다。"
+		CASE "풍류"
+			SIF 통찰력 >= 1
+				LOCALS += "풍류가 느껴진다。"
+		CASE "천계풍"
+			SIF 통찰력 >= 3
+				LOCALS += "천계에서 쓰이고 있는 것이다。"
+		CASE "지옥풍"
+			SIF 통찰력 >= 3
+				LOCALS += "지옥의 모래가 쓰였다。"
+		CASE "지저풍"
+			SIF 통찰력 >= 3
+				LOCALS += "지저에서 쓰이고 있는 것이다。"
+		CASE "섬세"
+			SIF 통찰력 >= 1
+				LOCALS += "섬세하게 만들어져 있다。"
+		CASE "화인소녀"
+			SIF 통찰력 >= 1
+				LOCALS += "「ほあれんしゃおにゃん」라고 쓰여있다。"
+		CASE "질투"
+			SIF 통찰력 >= 4
+				LOCALS += "질투심이 느껴진다…。"
+		CASE "달도시풍"
+			SIF 통찰력 >= 3
+				LOCALS += "달의 도시에서 쓰이고 있는 것이다。"
+		CASE "소인족 비전의 맛"
+			SIF 통찰력 >= 4
+				LOCALS += "소인의 도구다。"
+		CASE "가을바람"
+			SIF 통찰력 >= 3
+				;KR판 어레인지 일판에서는 어째서인지 봄의 에너지
+				LOCALS += "가을의 에너지가 느껴진다。"
+		CASE "예술적"
+			SIF 통찰력 >= 1
+				LOCALS += "예술적이다。"
+		CASE "풍요"
+			SIF 통찰력 >= 4
+				LOCALS += "풍요의 축복을 받고 있다。"
+		CASE "반역"
+			SIF 통찰력 >= 4
+				LOCALS += "거꾸로 되어 있다。"
+		CASE "류쿠풍"
+			SIF 통찰력 >= 4
+				LOCALS += "시사 안장이 붙어 있다。"
+		CASE "빈상"
+			SIF 통찰력 >= 1
+				LOCALS += "너덜너덜하다…。"
+		CASE "축생류"
+			SIF 통찰력 >= 3
+				LOCALS += "축생계에서 쓰이고 있는 것이다。"
+		CASE "영장"
+			SIF 통찰력 >= 2
+				LOCALS += "영적인 힘이 느껴진다。"
+		CASE "외계풍"
+			SIF 통찰력 >= 1
+				LOCALS += "바깥 세상의 것이다。"
+		CASE "몽환풍"
+			SIF 통찰력 >= 1
+				LOCALS += "몽환세계의 요기가 느껴진다。"
+		;ここからは素質依存
+		CASE "명계풍"
+			SIF 통찰력 >= 3
+				LOCALS += "명계에서 쓰이고 있는 것이다。"
+		CASE "불가사의"
+			SIF 통찰력 >= 2
+				LOCALS += "불가사의한 물건이다。"
+		CASE "요정풍"
+			SIF 통찰력 >= 2
+				LOCALS += "자연의 힘이 깃들어 있다。"
+		CASE "오니의 조미료"
+			SIF 통찰력 >= 3
+				LOCALS += "오니의 마력이 깃들어 있다。"
+		CASE "텐구류"
+			SIF 통찰력 >= 3
+				LOCALS += "텐구 글자가 쓰여져 있다。"
+		CASE "빙결"
+			SIF 통찰력 >= 1
+				LOCALS += "차갑다。"
+		CASE "허브"
+			SIF 통찰력 >= 2
+				LOCALS += "조합에 사용되는 것이다。"
+		ENDSELECT
+	NEXT
+	SELECTCASE 패턴
+	CASE 1
+		IF TALENT:CHARA:바늘질
+			LOCALS += "날카롭고 뾰족하다。"
+		ELSEIF TALENT:CHARA:일광욕
+			LOCALS += "태양 마크가 있다。"
+		ELSEIF TALENT:CHARA:월광욕
+			LOCALS += "달 마크가 있다。"
+		ELSEIF TALENT:CHARA:유치
+			LOCALS += "장난감 같다。"
+		ENDIF
+	CASE 2
+		IF ABL:CHARA:음악기능 >= 2 && ABL:MASTER:음악기능 >= 1
+			LOCALS += "악기에 관한 것이다。"
+		ELSEIF ABL:CHARA:낚시기능 >= 2 && ABL:MASTER:낚시기능 >= 1
+			LOCALS += "낚시에 쓰이는 도구다。"
+		ELSEIF ABL:CHARA:요리기능 >= 1 && ABL:MASTER:요리기능 >= 1
+			LOCALS += "요리에 쓰이는 도구다。"
+		ELSEIF ABL:CHARA:교양 >= 4 && ABL:MASTER:교양 >= 3
+			LOCALS += "어려운 책이다。"
+		ENDIF
+	CASEELSE
+		SIF TALENT:CHARA:담력 < 0
+			LOCALS += "부적 같다。"
+		SIF TALENT:CHARA:명랑／음침 < 0
+			LOCALS += "어두운 색조다。"
+		SIF TALENT:CHARA:명랑／음침 > 0
+			LOCALS += "밝은 색조다。"
+		SIF TALENT:CHARA:눈에띄고싶어함
+			LOCALS += "자기주장이 격렬하다。"
+		SIF TALENT:CHARA:악취내성 < 0
+			LOCALS += "깨끗하게 닦여 있다。"
+		SIF TALENT:CHARA:악취내성 > 0
+			LOCALS += "더러운 것이 눈에 띈다。"
+		SIF TALENT:CHARA:여우 || TALENT:CHARA:요호
+			LOCALS += "동물의 털이 붙어 있다。"
+		SIF TALENT:CHARA:흡혈귀
+			LOCALS += "박쥐를 본뜬 인장이 붙어 있다。"
+		SIF TALENT:CHARA:습기선호
+			LOCALS += "젖어 있다。"
+	ENDSELECT
+	;ある程度まで行くと断定できる
+	IF ABL:CHARA:친밀 >= 20 || TALENT:CHARA:연인
+		LOCALS = %CALLNAME:CHARA%의 것이다。
+	ELSEIF ABL:CHARA:친밀 >= 10
+		LOCALS += "그 애가 가지고 있던 것 같은데…。"
+	ELSEIF ABL:CHARA:친밀 >= 5
+		LOCALS += "어디선가 본 적이 있다…。"
+	ENDIF
+ELSEIF TASKNAME == "수색(장소)" || (TASKNAME == "수색(인물)" && !패턴)
+	;落とした場所を推定する,現状패턴は1～2
+	IF TASKNAME == "수색(장소)"
+		PLACE = ARG
+	;落とし物の対象が人物になっている패턴0
+	;一応報酬で判別可能だがいきなり人物を推定するのはオカシイので人物の자택위치＝落とした場所を推定する
+	ELSEIF TASKNAME == "수색(인물)" && !패턴
+		IF CFLAG:ARG:자택위치
+			PLACE = CFLAG:ARG:자택위치
+		ELSE
+			PRINTFORML 단서를 얻을 수 없다…。
+			RETURN
+		ENDIF
+	ENDIF
+	통찰력 = 100
+	SELECTCASE GET_MAPID(PLACE)
+	CASE 0
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "하쿠레이 신사 근처에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 3
+;			LOCALS += "하쿠레이 신사에 간 날에 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 1
+			IF 패턴 == 1
+				LOCALS += "참배를 간 날에 잃어버린 것 같다。"
+			ELSE
+				LOCALS += "연회가 열리던 날에 잃어버린 것 같다。"
+			ENDIF
+		ENDIF
+	CASE 1
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "명련사 근처에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 3
+;			LOCALS += "명련사에 간 날에 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 1
+			IF 패턴 == 1
+				LOCALS += "참배를 간 날에 잃어버린 것 같다。"
+			ELSE
+				LOCALS += "인파 속에서 잃어버린 것 같다。"
+			ENDIF
+		ENDIF
+	CASE 2
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "마을 근처에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 3
+;			LOCALS += "마을에 간 날에 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 1
+			IF 패턴 == 1
+				LOCALS += "연회가 열리던 날에 잃어버린 것 같다。"
+			ELSE
+				LOCALS += "인파 속에서 잃어버린 것 같다。"
+			ENDIF
+		ENDIF
+	CASE 3
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "홍마관 근처에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 4
+;			LOCALS += "홍마관에 간 날에 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 2
+			IF 패턴 == 1
+				LOCALS += "연회가 열리던 날에 잃어버린 것 같다。"
+			ELSE
+				LOCALS += "낚시를 간 날에 잃어버린 것 같다。"
+			ENDIF
+		ENDIF
+	CASE 4
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "영원정 근처에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 5
+;			LOCALS += "영원정에 간 날에 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 3
+			IF 패턴 == 1
+				LOCALS += "어두운 곳에서 잃어버린 것 같다。"
+			ELSE
+				LOCALS += "길을 헤메다 잃어버린 것 같다。"
+			ENDIF
+		ENDIF
+	CASE 5
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "마법의숲에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 5
+;			LOCALS += "마법의숲에 간 날에 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 3
+			IF 패턴 == 1
+				LOCALS += "어두운 곳에서 잃어버린 것 같다。"
+			ELSE
+				LOCALS += "길을 헤메다 잃어버린 것 같다。"
+			ENDIF
+		ENDIF
+	CASE 6
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "명계 방면에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 6
+;			LOCALS += "명계 방면에 간 날에 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 4
+			LOCALS += "알아차렸을 때에는 이미 잃어버린 것 같다。"
+		ENDIF
+	CASE 7
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "산기슭에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 4
+;			LOCALS += "산기슭에서 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 2
+			IF 패턴 == 1
+				LOCALS += "요괴의 산에서 잃어버린 것 같다。"
+			ELSE
+				LOCALS += "낚시를 간 날에 잃어버린 것 같다。"
+			ENDIF
+		ENDIF
+	CASE 8
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "산정 부근에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 4
+;			LOCALS += "산정 부근에서 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 2
+			IF 패턴 == 1
+				LOCALS += "요괴의 산에서 잃어버린 것 같다。"
+			ELSE
+				LOCALS += "참배를 간 날에 잃어버린 것 같다。"
+			ENDIF
+		ENDIF
+	CASE 9
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "지저에서 잃어버린 것 같다"
+;		ELSEIF 통찰력>= 6
+;			LOCALS += "지저에서 잃어버린 것 같다"
+		ELSEIF 통찰력 >= 4
+			IF 패턴 == 1
+				LOCALS += "어두운 곳에서 잃어버린 것 같다"
+			ELSE
+				LOCALS += "낚시를 간 날에 잃어버린 것 같다。"
+			ENDIF
+		ENDIF
+	CASE 10
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "달의 도시 근처에서 잃어버린 것 같다。"
+;		ELSEIF 통찰력>= 6
+;			LOCALS += "달의 도시에 간 날에 잃어버린 것 같다。"
+		ELSEIF 통찰력 >= 4
+			LOCALS += "알아차렸을 때에는 이미 잃어버린 것 같다。"
+		ENDIF
+	CASE 13, 14 ;KR판 오리지날 주택/저택. 아마 출력될 일은 없을듯
+		IF GET_MAPID(PLACE) == MAIN_MAP
+			LOCALS += "%CALLNAME:MASTER%의 집 근처에서 잃어버린 것 같다"
+		ELSEIF 통찰력 >= 4
+			LOCALS += "놀러가던 도중에 잃어버린 것 같다"
+		ENDIF
+	ENDSELECT
+	SIF 통찰력 >= 2 && TASKNAME == "수색(인물)" && !패턴
+		LOCALS += "눈에 띄는 물건이기에 이미 누군가에게 주워젔을 가능성이 높다。"
+ENDIF
+SIF LOCALS == ""
+	LOCALS = 단서를 얻을 수 없다…。
+PRINTFORML %LOCALS%
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 관련의 말호출 함수
+;----------------------------------------------------------------------------------------------------
+@SHOW_IRAI_MESSAGE(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+RESULTS =
+;구상 존재 판정
+IF CFLAG:TARGET:구상셀렉터
+	TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+ELSE
+	TRYCALLFORM M_KOJO_K{NO:TARGET}
+ENDIF
+
+SIF FLAG:구상텍스트설정 <= 0 || !RESULT
+	RETURN
+SIF FLAG:대사색깔
+	TRYCALLFORM M_KOJO_COLOR_K{NO:CHARA}
+;TODO NEWGAME 이식시 M_KOJO_COLOR_K{NO:CHARA} 가 있는 행에 아래 주석 덮어쓰기
+;	CALL KOJO_MULTIPLE(TARGET,1)
+IF SCENE == "의뢰 보고 불필요"
+	TRYCALLFORM M_KOJO%RESULTS%_IRAI_K{CHARA}("NO_REPORT", SCENE, IRAI_ID)
+ELSEIF CHARA == IRAI_ID_TO_CLIENT(IRAI_ID)
+;대상이 의뢰자이다
+	TRYCALLFORM M_KOJO%RESULTS%_IRAI_K{CHARA}("CLIENT", SCENE, IRAI_ID)
+ELSE
+;이 경우는 대개 SCENE는"의뢰실행시"가 되지만 일단 건네준다
+	TRYCALLFORM M_KOJO%RESULTS%_IRAI_K{CHARA}("TARGET", SCENE, IRAI_ID)
+ENDIF
+RESETCOLOR
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰 리셋 함수
+;의뢰 관련 변수의 전초기화
+;----------------------------------------------------------------------------------------------------
+@IRAI_RESET
+PRINTFORML 모든 의뢰를 리셋합니다.
+PRINTFORML 괜찮겠습니까?
+CALL ASK_YN
+IF !RESULT
+	CVARSET CFLAG, 403
+	CVARSET CFLAG, 404
+	VARSET IRAI_SLOT
+	VARSET IRAI_DATA
+	VARSET IRAI_SUB
+	VARSET IRAI_DEADLINE
+	VARSET IRAI_CLIENT
+	PRINTFORMW 리셋했습니다.
+ENDIF
+
+
+
+;----------------------------------------------------------------------------------------------------
+;의뢰기한통지 함수
+;매일 아침의 통지
+;----------------------------------------------------------------------------------------------------
+@MEMO_IRAI_DEADLINE
+#DIM CLIENT
+;수탁이 끝난 의뢰의 기한의 처리
+FOR LOCAL,1, 6
+	SIF !IRAI_SLOT:LOCAL
+		CONTINUE
+	CLIENT = IRAI_SLOT_TO_CLIENT(LOCAL)
+	SIF GROUPMATCH(IRAI_CHARA_TO_PROGRESS(CLIENT), "의뢰중", "의뢰 달성", "의뢰 실패")
+		PRINTFORML %CALLNAME:CLIENT%의 의뢰의 기한은 앞으로 {IRAI_DEADLINE:LOCAL - DAY}일이다
+NEXT
+
+
+
+;----------------------------------------------------------------------------------------------------
+;「방을방문한다」에서의 의뢰 관련의 액션
+;----------------------------------------------------------------------------------------------------
+@IRAI_VISIT_HOME(CHARA)
+#DIM PREV_TARGET     ;TARGET 퇴피
+#DIM CHARA           ;대상 꺄등
+#DIM IRAI_NUM        ;수탁 의뢰수
+#DIM CHK_SLOT        ;판정 대상 슬롯
+#DIM DYNAMIC CNT_DO  ;실행/보고한 의뢰수=반환값
+PREV_TARGET = TARGET
+TARGET = CHARA
+IRAI_NUM = COUNT_IRAI_SLOT()
+FOR CHK_SLOT, 1, IRAI_NUM + 1
+	SIF !CAN_IRAI_VISIT_HOME_PERSON(CHARA, CHK_SLOT)
+		CONTINUE
+	PRINTFORML ＜%STR_DATA_IRAI(IRAI_SLOT:CHK_SLOT, "의뢰명", CHARA)%＞
+	PRINTFORMW 　→[%IRAI_SLOT_TO_ACTNAME(CHK_SLOT)%]
+	CALL IRAI_APPLY(CHK_SLOT)
+	SIF RESULT > 0
+		CNT_DO ++
+NEXT
+
+IRAI_NUM = COUNT_IRAI_SLOT()
+FOR CHK_SLOT, IRAI_NUM, 0, -1
+	SIF !CAN_IRAI_VISIT_HOME_CLIENT(CHARA, CHK_SLOT)
+		CONTINUE
+	PRINTFORML ＜%STR_DATA_IRAI(IRAI_SLOT:CHK_SLOT, "의뢰명", CHARA)%＞
+	PRINTFORMW 　→의뢰 보고
+	CALL IRAI_REPORT(CHARA)
+	SIF RESULT > 0
+		CNT_DO ++
+NEXT
+TARGET = PREV_TARGET
+RETURN CNT_DO

@@ -1,0 +1,146 @@
+﻿@카운터호출처리
+#DIM NUM_TARGET
+NUM_TARGET = GET_TARGETNUM()
+;--------------------------------------------------------------------
+;TCVAR:상대:20　커맨드 번호 내용의 대략 
+;TCVAR:상대:21　파생 내용의 상세
+;--------------------------------------------------------------------
+IF ( TFLAG:102 == 3 || TFLAG:102 == 2 ) && !CFLAG:TARGET:동침중
+;IF !CFLAG:TARGET:동침중
+	;カウンター履歴作成
+	ARRAYCOPY "SELECTCCOM", "PREVCCOM"
+	VARSET SELECTCCOM
+	;카운터
+	FOR LOCAL, 1, NUM_TARGET + 1
+		SIF TARGET:LOCAL <= 0
+			CONTINUE
+		CALL EVENT_COUNTER(TARGET:LOCAL,LOCAL)
+		;CALL EVENT_COUNTER_COMBINATION
+	NEXT
+	FOR LOCAL, 1, NUM_TARGET + 1
+		SIF TARGET:LOCAL <= 0
+			CONTINUE
+		IF TCVAR:(TARGET:LOCAL):20
+			CALL KOJO_MESSAGE_SEND("COUNTER",1,TARGET:LOCAL,0,0)
+		ENDIF
+	NEXT
+ENDIF
+
+@EVENT_COUNTER(ARG,ARG:1)
+#DIM 후보, CCOM_MAXNUM
+#DIM 실행중커맨드,510
+#DIM 기본치
+VARSET LOCAL
+VARSET 후보
+;----------------------------------------------------
+;캔슬
+;----------------------------------------------------
+;ARG 대상 캐릭터
+;ARG:1 행동순서
+SIF GROUPMATCH(SELECTCOM, 350, 355, 400, 402, 404, 405, 420, 604, 699)
+	RETURN 0
+SIF ARG <= 0
+	RETURN 0
+SIF !SHIRAHU(ARG)
+	RETURN 0
+SIF FLAG:70 == 1 && CFLAG:ARG:344 == 0
+	RETURN 0
+SIF CFLAG:ARG:행동 == 5
+	RETURN 0
+SIF TCVAR:ARG:친해져 < 1
+	RETURN 0
+SIF TEQUIP:ARG:식스나인 == 1
+	CALL EVENT_COUNTER_POSE_69(ARG,0)
+TCVAR:ARG:30 ++
+SIF TCVAR:ARG:30 > 1
+	RETURN 0
+
+;----------------------------------------------------
+;특수한 처리
+;----------------------------------------------------
+;우후후 안
+IF CFLAG:ARG:우후후 == 1
+	DEBUGPRINT 카운터 리액션
+	CALL EVENT_COUNTER_REACTION(ARG,ARG:1)
+	CALL EVENT_COUNTER_SOURCE(ARG,ARG:1)
+	RETURN 0
+ENDIF
+;약점
+;요점 조정 ENDURE와 RAND로 차를 흐린다
+IF ARG:1 == 1 && CFLAG:ARG:우후후 == 2 && CFLAG:ARG:약점잡음 && (ENDURE(ARG) < (400 + RAND:400) && !RAND:3) && !TCVAR:ARG:마음대로해
+	SIF CFLAG:ARG:약점잡음 > 0
+		CALL EVENT_COUNTER_PUNISHMENT(ARG,ARG:1)
+	FOR LOCAL,0, CHARANUM
+		CFLAG:LOCAL:우후후 = 0
+		TFLAG:MASTER의P삽입중 = 0
+		;우후후시 계 장비 리셋
+		FOR LOCAL:1, 10, 150
+			TEQUIP:LOCAL:(LOCAL:1) = 0
+		NEXT
+		TEQUIP:LOCAL:50 = -1
+		TEQUIP:LOCAL:51 = -1
+		;사정 관계 리셋
+		IF TFLAG:102 < 2
+			BASE:LOCAL:사정 = 0
+			TCVAR:LOCAL:이기초 = 0
+		ENDIF
+		IF LOCK:(CFLAG:LOCAL:초기위치) && AT_HOME(LOCAL)
+			CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_파자마")
+			CFLAG:LOCAL:파자마 = 1
+		ELSE
+			CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_평상복")
+			CFLAG:LOCAL:파자마 = 0
+		ENDIF
+		CALL CLOTHES_SETTING_TRAIN(LOCAL)
+	NEXT
+	TFLAG:102 = 1
+	RETURN 0
+ENDIF
+
+;----------------------------------------------------
+;통상
+;----------------------------------------------------
+; 낮을 정도 캐릭터 능력이 현저하게 반영된다. 높게 하면 할수록 단순한 균등 랜덤에 가까워진다. 기본값은 10
+기본치 = 10
+
+;------------------------------------------
+;2019/08/09 신규판정실장
+;각 번호대에 있어서의 처리를, 현행의 커맨드 처리에 따르게 카운터 커맨드로서 분리.
+;자세한 사항은 각 명령(CCOM) 파일 내에 집약。
+;------------------------------------------
+FOR LOCAL, 1, CCOM_MAXNUM
+	;각 명령어 수행여부 확인
+	TRYCALLFORM CCOM_ABLE{LOCAL}(ARG)
+	IF RESULT
+		;각 명령어 실행 판정값 산출
+		TRYCALLFORM CCOM_ORDER{LOCAL}(LOCAL, ARG, 기본치)
+		SIF RESULT
+			후보:LOCAL = RESULT
+	ENDIF
+	RESULT = 0
+NEXT
+;------------------------------------------
+;실행 판정 등록
+;------------------------------------------
+LOCAL:4 = ARRAY_HIT(후보, CCOM_MAXNUM)
+IF TCVAR:ARG:차회카운터 && 후보:(TCVAR:ARG:차회카운터) > 0
+	LOCAL:4 = TCVAR:ARG:차회카운터
+ENDIF
+TCVAR:ARG:차회카운터 = 0
+; 결정
+IF LOCAL:4 > 0
+	TCVAR:ARG:카운터행동 = LOCAL:4
+	;실행중커맨드として登録
+	FOR LOCAL:2, 0, 최대넘어뜨림인원수 - 1
+		IF SELECTCCOM:(LOCAL:2):0 == 0
+			SELECTCCOM:(LOCAL:2):0 = ARG
+			SELECTCCOM:(LOCAL:2):1 = (TCVAR:ARG:카운터행동)
+			BREAK
+		ENDIF
+	NEXT
+	;커맨드의 실행
+	DEBUGPRINTFORML 카운터 :{ARG}-{TCVAR:ARG:카운터행동}
+	TRYCALLFORM CCOMF{TCVAR:ARG:카운터행동}(ARG)
+	SIF !RESULT
+		DEBUGPRINTFORML CCOMF{TCVAR:ARG:카운터행동}({ARG})의 호출에 실패했습니다.
+ENDIF

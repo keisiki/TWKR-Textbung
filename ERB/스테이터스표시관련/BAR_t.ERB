@@ -1,0 +1,180 @@
+﻿
+;eraMeiQ로부터 꿀꺽
+
+;=============================================================================
+;각종 게이지 계산·표시 처리
+;=============================================================================
+;-------------------------------------------------
+;각종 게이지의 바 표시 범용 처리
+;-------------------------------------------------
+;ARG　……캐릭터 위치를 지정
+;ARG:1……기초의 번호를 지정
+;ARG:2……표시형식(0=PRINTFORM, 1=PRINTFORML , 2=표시하지 않는다)
+@COMMON_SHOW_BAR, ARG, ARG:1, ARG:2
+SIF STRLENS(BASENAME:(ARG:1)) <= 0
+	RETURN 0
+
+PRINTFORM %BASENAME:(ARG:1)%
+BASE:ARG:(ARG:1) = LIMIT(BASE:ARG:(ARG:1), 0, MAXBASE:ARG:(ARG:1))
+BAR BASE:ARG:(ARG:1), MAXBASE:ARG:(ARG:1), 10
+IF ARG:2 == 1
+	PRINTFORML ({BASE:ARG:(ARG:1), 4}/{MAXBASE:ARG:(ARG:1), 4})
+ELSE
+	PRINTFORM ({BASE:ARG:(ARG:1), 4}/{MAXBASE:ARG:(ARG:1), 4})　
+ENDIF
+
+;-------------------------------------------------
+;포스 게이지 표시 처리
+;-------------------------------------------------
+@SHOW_CHARA_FORCEGAUGE, ARG
+BASE:ARG:10 = LIMIT(BASE:ARG:10, 0, MAXBASE:ARG:10)
+PRINT FORCE
+BAR BASE:ARG:10, MAXBASE:ARG:10, 10
+PRINTL 
+
+;-------------------------------------------------
+;특수 절정 게이지 계산·표시 처리
+;-------------------------------------------------
+@SHOW_CHARA_EXTRAGAUGE, ARG, ARG:1
+SIF STRLENS(BASENAME:(ARG:1)) <= 0 || MAXBASE:ARG:(ARG:1) <= 0
+	RETURN 0
+BASE:ARG:(ARG:1) = LIMIT(BASE:ARG:(ARG:1), 0, MAXBASE:ARG:(ARG:1) - 1)
+PRINTFORM %BASENAME:(ARG:1)%
+BAR BASE:ARG:(ARG:1), MAXBASE:ARG:(ARG:1), 32
+PRINTFORML ({BASE:ARG:(ARG:1), 5}/{MAXBASE:ARG:(ARG:1), 5})
+
+
+;-------------------------------------------------
+;특수 게이지 처리
+;-------------------------------------------------
+@SHOW_CHARA_RISEI, ARG, ARG:1
+SIF STRLENS(BASENAME:(ARG:1)) <= 0 || MAXBASE:ARG:(ARG:1) <= 0
+	RETURN 0
+BASE:ARG:(ARG:1) = LIMIT(BASE:ARG:(ARG:1), 0, MAXBASE:ARG:(ARG:1) - 1)
+PRINTFORM %BASENAME:(ARG:1)%
+BAR BASE:ARG:(ARG:1), MAXBASE:ARG:(ARG:1), 16
+PRINTFORML ({BASE:ARG:(ARG:1), 5}/{MAXBASE:ARG:(ARG:1), 5})
+
+
+;-------------------------------------------------------------------------------
+;-------------------------------------------------
+;소문자 퍼센티지의 색표시+문자 간격 수정
+;ARG = 표시시키는 수치 스페이스
+;ARG:1 = 컬러링
+;ARG:2 = ± (+:1 -:2)
+;ARG:3 = 그라데폭
+;ARG:4 = 퍼센티지 200이상시 컬러
+;ARG:5 = 1:색만
+;-------------------------------------------------
+@MICRO_NUMBER_COLOR, ARG, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5
+LOCAL = (ARG:4) ?  ARG:4 # ARG
+
+IF ARG > 0
+	SIF ARG < 100
+		PRINT  
+	SIF ARG < 10
+		PRINT  
+ELSEIF ARG == 0
+	PRINT   
+ENDIF
+SIF ARG:1 < 1
+;0xC00000
+	ARG:1 = 10485700
+SIF ARG:2 < 1
+	ARG:2 = 1
+SIF ARG:3 < 1
+	ARG:3 = 514
+	
+SIF ARG:2 == 2
+	ARG:2 = -1
+SETCOLOR ARG:1 + (ARG:2*LOCAL*ARG:3)
+;IF ARG:5 == 0
+;	CALL MICRO_NUMBER, ARG
+;ELSE
+	PRINTFORM {ARG}
+;ENDIF
+
+RESETCOLOR
+
+;=============================================================================
+;각종 게이지 계산·표시 처리
+;=============================================================================
+;-------------------------------------------------
+;각종 게이지의 바 표시 범용 처리
+;-------------------------------------------------
+;ARG　……캐릭터 위치를 지정
+;ARG:1……기초의 번호를 지정
+;ARG:2……표시형식(0=PRINTFORM, 1=PRINTFORML , 2=표시하지 않는, 3=PRINTFORM( 후 스페이스 없음))
+;ARG:3……바 사이즈표시(0 노멀,　1 스림)
+;ARG:4……저기력시 컬러 (0 있어, 1 1 이하로 빨강, 2 없음)
+@LIFE_BAR, ARG, ARG:1, ARG:2, ARG:3
+SIF STRLENS(BASENAME:(ARG:1)) <= 0
+	RETURN 0
+	
+PRINTFORM %BASENAME:(ARG:1) %%UNICODE(0x208D)%
+BASE:ARG:(ARG:1) = LIMIT(BASE:ARG:(ARG:1), 0, MAXBASE:ARG:(ARG:1))
+IF ARG:3 == 1
+	SELECTCASE FLAG:20
+		CASE 2
+			;CALL PRINTS_COLORBAR, BASE:ARG:(ARG:1), MAXBASE:ARG:(ARG:1), 50, 0xF09000, 0x504010, -256*2, 0, 0, 0, 65, 10, 12, 1
+		CASE 3,1
+;			CALL PRINTS_COLORBAR, BASE:ARG:(ARG:1), MAXBASE:ARG:(ARG:1), 50, 0xCCFFFF, 0x205050, 65536, 0, 0, 0, 65, 10, 12, 1
+	ENDSELECT
+ELSE
+	SELECTCASE FLAG:20
+		CASE 2
+			;CALL PRINTS_COLORBAR, BASE:ARG:(ARG:1), MAXBASE:ARG:(ARG:1), 160, 0xFF8000, 0x504010, -256*1, 0, 0, 0, 50, 10, 20, 1
+		CASE 3,1
+			;CALL PRINTS_COLORBAR, BASE:ARG:(ARG:1), MAXBASE:ARG:(ARG:1), 160, 0xCCFFCC, 0x205020, 65537, 0, 0, 0, 50, 10, 20, 1
+	ENDSELECT
+ENDIF
+	PRINTFORM %UNICODE(0x208E)%
+IF ARG:2 == 1
+	PRINTFORML 　{BASE:ARG:(ARG:1), 4}/{MAXBASE:ARG:(ARG:1), 4}
+ELSEIF ARG:2 == 3
+	PRINTFORM 　{BASE:ARG:(ARG:1), 4}/{MAXBASE:ARG:(ARG:1), 4}
+ELSE
+	PRINTFORM 　{BASE:ARG:(ARG:1), 4}/{MAXBASE:ARG:(ARG:1), 4}　
+ENDIF
+
+
+;-------------------------------------------------
+;바 표시시키는 처리(세선 ver)
+;ARG　……캐릭터 위치를 지정
+;ARGS:1 변동 스테 명문자열(체력 등)
+;ARG:1 변동 신분 현재가
+;ARG:2 변동 신분 최대치
+;ARG:3 표시수(바길이)
+;ARG:4 문자색베이스
+;ARG:5 문자색암부
+;ARG:6 문자색변동치
+;ARG:7……저기력시 컬러 (1 있어, 0 없음)
+;ARG:8 PRINT_RECT x
+;ARG:9 PRINT_RECT y
+;ARG:10 PRINT_RECT 가로폭
+;ARG:11 PRINT_RECT 세로폭
+;ARG:12 그라데이션 간격 배율(2라면 2 메모리마다 변동)
+;-------------------------------------------------
+@S_LIFEBAR, ARG, ARGS:1, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7, ARG:8 = 0, ARG:9 = 30, ARG:10 = 10, ARG:11 = 20, ARG:12 = 1
+SIF ARG:2 < 0
+	RETURN 0
+
+ARG:1 = MAX(ARG:1, 0)
+
+PRINTFORM %ARGS:1%
+SETCOLOR 0x444444
+;SETCOLOR ARG:4
+PRINTFORM :
+SETFONT GLOBALS:99
+
+;FONTSTYLE 4
+;CALL PRINTS_COLORBAR, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, 0, 0, ARG:8, ARG:9, ARG:10, ARG:11, ARG:12
+;FONTSTYLE 0
+RESETCOLOR
+
+SIF BASE:ARG:1 <= MAXBASE:ARG:1/5 && (ARG:7) > 0
+	SETCOLOR 0xF0C050
+SIF BASE:ARG:1 <= 1 && ARG:7 > 0
+	SETCOLOR 0xAA6666
+	PRINTFORM 　{ARG:1, 4}/{ARG:2, 4}
+RESETCOLOR

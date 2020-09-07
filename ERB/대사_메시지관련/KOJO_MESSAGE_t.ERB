@@ -1,0 +1,765 @@
+﻿;====================================================================
+;KOJO 표시 종합 관리
+;@KOJO_MESSAGE_SEND
+;ARGS   => 말종류 ("ENCOUNTER" "SP_EVENT" "EVENT" "COMMAND" "COUNTER" "PALAM" "MARK" "DIRECT" "SUCCESS" "ENDING")
+;ARG:1 => 말타이밍(이벤트 번호, PALAM계 타이밍 번호, COMMAND 번호등 )
+;ARG:2 => 발언자(말주) 넘버
+;ARG:3 => 그외말전용 인수 buffer
+;ARG:4 => 그외말전용 인수 buffer2
+;ARGS:1 => 캐릭터라인 ver. 말타이밍(ARG:1은 무시한다)
+;ARGS:2 => 캐릭터라인 ver. 그외말전용 인수(ARGS:1이 있을 때 마셔)
+;RESULTS에 의한 범용화에 관해서는 사양을 읽을 수 없기 때문에 우선 진부 이식
+;====================================================================
+@KOJO_MESSAGE_SEND( ARGS, ARG:1, ARG:2, ARG:3, ARG:4, ARGS:1, ARGS:2 )
+SIF ARG:2 == MASTER && ARGS != "COMMAND"
+	RETURN -1
+RESULTS =
+VARSET LOCAL
+SELECTCASE ARGS
+;------------------------------------------------------------
+;First 인프레션계 KOJO 출력 처리(일반적으로 말하는 엑스트라 구문)
+;------------------------------------------------------------
+	CASE "ENCOUNTER"
+		MARK:TARGET:반발각인 = 3
+		;TARGET에 발언자 설정(현재의TARGET는 LOCAL에 퇴피)
+		LOCAL = TARGET
+		TARGET = ARG:2
+		;말존재 판정 and RESULTS에 문자열 대입
+		IF CFLAG:TARGET:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		;말존재하지 않으면 종료
+		IF !RESULT
+			TARGET = LOCAL
+			RETURN 0
+		ENDIF
+		;말표시 설정이라면 표시
+		IF FLAG:구상텍스트설정 > 0
+			SIF FLAG:대사색깔
+			TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:TARGET}
+			TRYCALLFORM M_KOJO%RESULTS%_ENCOUNTER_K{NO:TARGET}
+		ENDIF
+		RESETCOLOR
+		TARGET = LOCAL
+;------------------------------------------------------------
+;SP 이벤트 계 KOJO 출력 처리
+;------------------------------------------------------------
+	CASE "SP_EVENT"
+		;TARGET에 발언자 설정(현재의TARGET는 LOCAL에 퇴피)
+		LOCAL = TARGET
+		TARGET = ARG:2
+		;말미표시라면 공통 말에
+		IF FLAG:구상텍스트설정 <= 0
+			;공통 말출력
+			CALLFORM SPEVENT_MESSAGE_{ARG:1}(ARG:3,ARG:4)
+			TARGET = LOCAL
+			RETURN 0
+		ENDIF
+		RESULT = 0
+		RESULTS =
+		;TARGET의 발언
+		;@M_KOJO_KX에서 RESULTS를 정의하면(자) 말이 입지 않고 기동한다
+		;말존재 판정 and RESULTS에 문자열 대입
+		IF CFLAG:TARGET:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+		ELSE
+		TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		;말이 존재하지 않으면 공통 말에
+		IF !RESULT
+			;말표시 설정이라면 공통 표시
+			IF FLAG:구상텍스트설정 > 0
+				;공통 말출력
+				CALLFORM SPEVENT_MESSAGE_{ARG:1}(ARG:3,ARG:4)
+				TARGET = LOCAL
+				RETURN 0
+			ENDIF
+		ENDIF
+		;말표시
+		IF FLAG:구상텍스트설정 > 0
+			;TARGET 말출력
+			;M_KOJO_KX로 RESULTS를 정의하면(자) 변환가능
+			SIF FLAG:대사색깔
+				TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:TARGET}
+			TRYCCALLFORM M_KOJO%RESULTS%_SPEVENT_K{NO:TARGET}_{ARG:1}(ARG:3,ARG:4)
+			CATCH
+				RESETCOLOR
+				IF FLAG:구상텍스트설정 > 0
+					;공통 말출력
+					CALLFORM SPEVENT_MESSAGE_{ARG:1}(ARG:3,ARG:4)
+					TARGET = LOCAL
+					RETURN 0
+				ENDIF
+			ENDCATCH
+		ENDIF
+		RESETCOLOR
+		TARGET = LOCAL
+;------------------------------------------------------------
+;이벤트 계 KOJO 출력 처리
+;------------------------------------------------------------
+	CASE "EVENT"
+		;TARGET에 발언자 설정(현재의TARGET는 LOCAL에 퇴피)
+		LOCAL = TARGET
+		TARGET = ARG:2
+		;말미표시라면 공통 말에
+		IF FLAG:구상텍스트설정 <= 0
+			;공통 말출력
+			TRYCALLFORM M_KOJO_EVENT_{ARG:1}(ARG:3, ARG:4)
+			TARGET = LOCAL
+			RETURN 0
+		ENDIF
+		RESULT = 0
+		RESULTS =
+		;TARGET의 발언
+		;말존재 판정 and RESULTS에 문자열 대입
+		IF CFLAG:TARGET:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		;말이 존재하지 않으면 공통 말에
+		IF !RESULT || (FLAG:70 && !CFLAG:(NO:TARGET):시간정지대사있음) || (FLAG:역극 && !CFLAG:(NO:TARGET):역극대사있음)
+			;말표시 설정이라면 공통 표시
+			IF FLAG:구상텍스트설정 > 0
+				;공통 말출력
+				TRYCALLFORM M_KOJO_EVENT_{ARG:1}(ARG:3,ARG:4)
+				TARGET = LOCAL
+				RETURN 0
+			ENDIF
+		ENDIF
+		;말표시
+		IF FLAG:구상텍스트설정 > 0
+			;TARGET 말출력
+			SIF FLAG:대사색깔
+				TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:TARGET}
+			IF ARGS:1 != ""
+				TRYCALLFORM M_KOJO%RESULTS%_EVENT_K{NO:TARGET}_%ARGS:1%(ARGS:2, ARG:3, ARG:4)
+			ELSE
+				TRYCALLFORM M_KOJO%RESULTS%_EVENT_K{NO:TARGET}_{ARG:1}(ARG:3, ARG:4)
+			ENDIF
+		ENDIF
+		RESETCOLOR
+		TARGET = LOCAL
+;------------------------------------------------------------
+;커맨드 계 KOJO 출력 처리
+;------------------------------------------------------------
+	CASE "COMMAND"
+		;텍스트 설정
+		IF FLAG:구상텍스트설정 <= 0
+			;정경 텍스트 출력
+			SIF FLAG:6 > 0
+				CALL TRAIN_MESSAGE
+			RETURN 0
+		ENDIF
+		;볼개그 때
+		IF TEQUIP:(ARG:2):20 && SELECTCOM != 107
+			SIF FLAG:6 > 0
+				CALL TRAIN_MESSAGE
+		ELSEIF (FLAG:70 && !CFLAG:(ARG:2):시간정지대사있음) || (CFLAG:(ARG:2):장난 >= 1 && !CFLAG:(ARG:2):면간대사있음) || (FLAG:역극 && !CFLAG:(ARG:2):역극대사있음)
+			SIF FLAG:6 > 0
+				CALL TRAIN_MESSAGE
+		ELSE
+			RESULT = 0
+			RESULTS =
+			;;말존재 판정 and RESULTS에 문자열 대입
+		IF CFLAG:TARGET:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+			IF !RESULT
+				SIF FLAG:6 > 0
+					CALL TRAIN_MESSAGE
+				SIF CFLAG:(NO:TARGET):오토신음
+					CALL AUTO_AEGI(NO:TARGET)
+				RETURN 0
+			ENDIF
+			;SIF FLAG:대사색깔
+				;TRYCALLFORM M_KOJO_COLOR_K{NO:TARGET}
+			IF TFLAG:50
+				LOCAL = TFLAG:50
+				LOCALS = SCOM
+			ELSE
+				LOCAL = SELECTCOM
+				LOCALS = COM
+			ENDIF
+			TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_%LOCALS%_K{NO:TARGET}_{LOCAL}
+			CATCH
+				;묻지 않은 곳은 범용적인 처리가 가능
+				RESULT = 0
+				TRYCALLFORM M_KOJO%RESULTS%_MESSAGE_COM_K{NO:TARGET}_00
+				IF !RESULT
+					IF FLAG:6 > 0
+						CALL TRAIN_MESSAGE
+						SIF CFLAG:(NO:TARGET):오토신음
+							CALL AUTO_AEGI(NO:TARGET)
+						RESETCOLOR
+						RETURN 0
+					ENDIF
+				ENDIF
+			ENDCATCH
+		ENDIF
+		RESETCOLOR
+;------------------------------------------------------------
+;카운터계 KOJO 출력 처리
+;------------------------------------------------------------
+	CASE "COUNTER"
+		LOCAL = TARGET
+		TARGET = ARG:2
+		IF FLAG:구상텍스트설정 <= 0
+			IF FLAG:6 > 0
+				CALL EVENT_COUNTER_MESSAGE
+				TARGET = LOCAL
+			ENDIF
+			RETURN 0
+		ENDIF
+		
+		;볼개그
+		IF TEQUIP:(ARG:2):20 && FLAG:6 > 0
+			CALL EVENT_COUNTER_MESSAGE
+			TARGET = LOCAL
+		ELSE
+			RESULT = 0
+			RESULTS =	
+			;말존재 판정 and RESULTS에 문자열 대입
+		IF CFLAG:TARGET:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+			IF !RESULT || (FLAG:역극 && !CFLAG:(ARG:2):역극대사있음)
+				SIF FLAG:6 > 0
+					CALL EVENT_COUNTER_MESSAGE
+				TARGET = LOCAL
+				RESETCOLOR
+				RETURN 0
+			ENDIF
+			TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_COUNTER_K{NO:TARGET}_{TCVAR:20}
+			CATCH
+				IF FLAG:6 > 0
+					CALL EVENT_COUNTER_MESSAGE
+					TARGET = LOCAL
+					RESETCOLOR
+					RETURN 0
+				ENDIF
+			ENDCATCH
+			TARGET = LOCAL
+		ENDIF
+		RESETCOLOR
+;------------------------------------------------------------
+;파라미터계 KOJO 출력 처리
+;------------------------------------------------------------
+	CASE "PALAM"
+		SELECTCASE ARG:1
+		;==== 사정시 말 ============
+			CASE 1
+				VARSET LOCAL
+				IF FLAG:구상텍스트설정 <= 0
+					SIF FLAG:6 > 0
+						CALL PALAM_MESSAGE_A
+					RETURN 0
+				ENDIF
+				FOR LOCAL, 0, GET_TARGETNUM() + 1
+					SIF TARGET:LOCAL < 1
+						CONTINUE
+					;TARGET, TARGET:1,…의 순서에 출력
+					SIF LOCAL > 0 && TARGET:LOCAL == TARGET
+						CONTINUE
+					;말출력용의 플래그가 없다고 날린다
+					SIF !TCVAR:(TARGET:LOCAL):50
+						CONTINUE
+					LOCAL:1 = TARGET
+					TARGET = TARGET:LOCAL
+					RESULT = 0
+					RESULTS =
+					;말존재 판정 and RESULTS에 문자열 대입
+					IF CFLAG:TARGET:구상셀렉터
+						TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+					ELSE
+					TRYCALLFORM M_KOJO_K{NO:TARGET}
+					ENDIF
+					IF (!RESULT &&  FLAG:6 > 0) || (FLAG:70 && !CFLAG:(NO:TARGET):시간정지대사있음) || (FLAG:역극 && !CFLAG:(NO:TARGET):역극대사있음)
+						CALL PALAM_MESSAGE_A
+						TARGET = LOCAL:1
+						RETURN 0
+					ENDIF
+					;사정 말출력 특수 효과
+					CALL KOJO_MESSAGE_PALAMCNG_A2(LOCAL)
+					SIF !RESULT
+						LOCAL:2 ++
+					TARGET = LOCAL:1
+					;콘돔 말은 대상 한사람만
+					SIF GETBIT(TFLAG:1, 0)
+						BREAK
+				NEXT
+		;==== 절정시 말 ============
+			CASE 2
+				IF FLAG:구상텍스트설정 <= 0
+					SIF FLAG:6 > 0
+						CALL PALAM_MESSAGE_B
+					RETURN 0
+				ENDIF
+				RESULT = 0
+				RESULTS =
+				;말존재 판정 and RESULTS에 문자열 대입
+				IF CFLAG:TARGET:구상셀렉터
+					TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+				ELSE
+					TRYCALLFORM M_KOJO_K{NO:TARGET}
+				ENDIF
+				IF (!RESULT &&  FLAG:6 > 0) || (FLAG:70 && !CFLAG:(NO:TARGET):시간정지대사있음) || (FLAG:역극 && !CFLAG:(NO:TARGET):역극대사있음)
+					CALL PALAM_MESSAGE_B
+					RETURN 0
+				ENDIF
+				IF CFLAG:(NO:TARGET):장난
+					TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_B2_K{NO:TARGET}
+					CATCH
+						CALL PALAM_MESSAGE_B
+					ENDCATCH
+				ELSE
+					TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_B_K{NO:TARGET}
+					CATCH
+						CALL PALAM_MESSAGE_B
+					ENDCATCH
+				ENDIF
+				RESETCOLOR
+		;==== 조교 뒷맛상 ============
+			CASE 3
+				IF FLAG:구상텍스트설정 <= 0
+					SIF FLAG:6 > 0
+						CALL PALAM_MESSAGE_C
+					RETURN 0
+				ENDIF
+				RESULT = 0
+				RESULTS =
+				;말존재 판정 and RESULTS에 문자열 대입
+				IF CFLAG:TARGET:구상셀렉터
+					TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+				ELSE
+				TRYCALLFORM M_KOJO_K{NO:TARGET}
+				ENDIF
+				IF (!RESULT &&  FLAG:6 > 0) || (FLAG:70 && !CFLAG:(NO:TARGET):시간정지대사있음) || (FLAG:역극 && !CFLAG:(NO:TARGET):역극대사있음)
+					CALL PALAM_MESSAGE_C
+					RETURN 0
+				ENDIF
+				TRYCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_C_K{NO:TARGET}
+				RESETCOLOR
+		;==== 파라미터 변동 말 ====
+			CASE 4
+				IF FLAG:구상텍스트설정 <= 0
+					SIF FLAG:정경텍스트설정 > 0
+						CALL PALAM_MESSAGE_D
+					RETURN 0
+				ENDIF
+				RESULT = 0
+				RESULTS =
+				IF CFLAG:TARGET:구상셀렉터
+					TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+				ELSE
+					TRYCALLFORM M_KOJO_K{NO:TARGET}
+				ENDIF
+				IF (!RESULT &&  FLAG:6 > 0) || (FLAG:70 && !CFLAG:(NO:TARGET):시간정지대사있음) || (FLAG:역극 && !CFLAG:(NO:TARGET):역극대사있음)
+					CALL PALAM_MESSAGE_D
+					RETURN 0
+				ENDIF
+				SIF FLAG:대사색깔
+					TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:TARGET}
+				TRYCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_D_K{NO:TARGET}
+				RESETCOLOR
+		;==== 촉수의 사정 ============
+			CASE 5
+				IF FLAG:구상텍스트설정 <= 0
+					SIF FLAG:정경텍스트설정 > 0
+						CALL PALAM_MESSAGE_E
+					RETURN 0
+				ENDIF
+				RESULT = 0
+				RESULTS =
+				;말존재 판정 and RESULTS에 문자열 대입
+				IF CFLAG:TARGET:구상셀렉터
+					TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+				ELSE
+				TRYCALLFORM M_KOJO_K{NO:TARGET}
+				ENDIF
+				IF !RESULT && FLAG:정경텍스트설정 > 0
+					CALL PALAM_MESSAGE_E
+					RETURN 0
+				ENDIF
+				TRYCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_E_K{NO:TARGET}
+		;==== 초조하게 해 ============
+			CASE 6
+				IF FLAG:구상텍스트설정 <= 0
+					SIF FLAG:정경텍스트설정 > 0
+						CALL PALAM_MESSAGE_F
+					RETURN 0
+				ENDIF
+				RESULT = 0
+				RESULTS =
+				;말존재 판정 and RESULTS에 문자열 대입
+				IF CFLAG:TARGET:구상셀렉터
+					TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+				ELSE
+					TRYCALLFORM M_KOJO_K{NO:TARGET}
+				ENDIF
+				IF !RESULT && FLAG:정경텍스트설정 > 0
+					CALL PALAM_MESSAGE_F
+					RETURN 0
+				ENDIF
+				TRYCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_F_K{NO:TARGET}
+		ENDSELECT
+;	;각인계 KOJO 출력 처리
+	CASE "MARK"
+		IF FLAG:구상텍스트설정 <= 0
+			SIF FLAG:정경텍스트설정 > 0
+				CALL MARK_MESSAGE
+			RETURN 0
+		ENDIF
+		RESULT = 0
+		RESULTS =
+		;말존재 판정 and RESULTS에 문자열 대입
+		IF CFLAG:TARGET:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		IF !RESULT && FLAG:정경텍스트설정 > 0
+			CALL MARK_MESSAGE
+			RETURN 0
+		ENDIF
+		TRYCALLFORM M_KOJO%RESULTS%_MESSAGE_MARKCNG_K{NO:TARGET}
+		RESETCOLOR
+	;커맨드 계 직접 호출
+	CASE "DIRECT"
+		SELECTCASE ARG:1
+			CASE 351
+				;볼개그
+				IF TEQUIP:(ARG:2):20 && SELECTCOM != 107 && FLAG:정경텍스트설정 > 0
+					RETURN 1
+				ELSE
+					RESULT = 0
+					RESULTS =
+				;말존재 판정 and RESULTS에 문자열 대입
+				IF CFLAG:TARGET:구상셀렉터
+					TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+				ELSE
+					TRYCALLFORM M_KOJO_K{NO:TARGET}
+				ENDIF
+					IF FLAG:구상텍스트설정 > 0
+						IF FLAG:대사색깔
+							TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:TARGET}
+						ELSE
+							RESETCOLOR
+						ENDIF
+					ELSE
+						RESETCOLOR
+						RETURN 1
+					ENDIF
+					TRYCALLFORM M_KOJO%RESULTS%_MESSAGE_COM_K{NO:TARGET}_351
+					RESETCOLOR
+				ENDIF
+		ENDSELECT
+
+	;커맨드 성공 여부 말제어
+	CASE "SUCCESS"
+		RESULT = 0
+		RESULTS =
+		;말존재 판정 and RESULTS에 문자열 대입
+		IF CFLAG:TARGET:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		IF !RESULT
+			TFLAG:192 = 0
+			RETURN 0
+		ENDIF
+		IF TFLAG:50
+			LOCAL = TFLAG:50
+			LOCALS = SCOM
+		ELSE
+			LOCAL = SELECTCOM
+			LOCALS = COM
+		ENDIF
+		TRYCCALLFORM M_KOJO%RESULTS%_SUCCESS_%LOCALS%_K{NO:TARGET}_{LOCAL}
+		CATCH
+			TFLAG:192 = 0
+		ENDCATCH
+	;弾幕勝負
+	CASE "DANMAKU"
+		LOCAL = TARGET
+		TARGET = ARG:2
+		;口上表示
+		IF FLAG:구상텍스트설정 > 0
+			IF CFLAG:TARGET:구상셀렉터
+				TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+			ELSE
+				TRYCALLFORM M_KOJO_K{NO:TARGET}
+			ENDIF
+			;TARGET口上出力
+			SIF FLAG:대사색깔
+				TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:TARGET}
+			TRYCALLFORM M_KOJO%RESULTS%_MESSAGE_COM_K{NO:TARGET}_DANMAKU(ARGS:1, ARG:1)
+			RESETCOLOR
+		ENDIF
+		TARGET = LOCAL
+	;依頼
+	CASE "IRAI"
+		LOCAL = TARGET
+		TARGET = ARG:1
+		;口上表示
+		IF FLAG:구상텍스트설정 > 0
+			IF CFLAG:TARGET:구상셀렉터
+				TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+			ELSE
+				TRYCALLFORM M_KOJO_K{NO:TARGET}
+			ENDIF
+			;TARGET口上出力
+			SIF FLAG:대사색깔
+				TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:TARGET}
+			TRYCALLFORM M_KOJO%RESULTS%_IRAI_K{NO:TARGET}(ARGS:1, ARGS:2, ARG:2)
+			RESETCOLOR
+		ENDIF
+		TARGET = LOCAL
+
+	;언젠가 오는 마지막을 위해
+	CASE "ENDING"
+		IF CFLAG:TARGET:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		SIF FLAG:대사색깔
+			TRYCALLFORM M_KOJO_COLOR_K{NO:TARGET}
+		TRYCALLFORM M_KOJO_MESSAGE_ENDING_K{NO:TARGET}
+		RESETCOLOR
+ENDSELECT
+
+;-------------------------------------------------
+;@KOJO_MESSAGE_PALAMCNG_A2
+;사정 말출력의 특수 효과
+;-------------------------------------------------
+@KOJO_MESSAGE_PALAMCNG_A2(ARG)
+;ARG W펠라등으로 TARGET라면 ARG=0, 두 명째라면 ARG=1
+IF CFLAG:TARGET:구상셀렉터
+	TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+ELSE
+	TRYCALLFORM M_KOJO_K{NO:TARGET}
+ENDIF
+;-------------------------------------------------
+;사정 대상이 비타겟 또한 비복수 캐릭터 SCOMF 사정
+;-------------------------------------------------
+IF MASTER_POSE(0, SET_P) != TARGET && !ARG
+	IF CFLAG:(NO:TARGET):장난 
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A2_K{NO:TARGET}_00(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_00(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;콘돔
+;-------------------------------------------------
+IF GETBIT(TCVAR:50, 0)
+	IF CFLAG:(NO:TARGET):장난 
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A2_K{NO:TARGET}_0(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_0(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;授乳プレイ
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,26)
+	TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_26(ARG)
+		RETURN RESULT
+	CATCH
+	ENDCATCH
+ENDIF
+;-------------------------------------------------
+;이라마치오
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,23)
+	IF CFLAG:(NO:TARGET):장난 
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A2_K{NO:TARGET}_23(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_23(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;식스나인
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,22)
+	TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_22(ARG)
+		RETURN RESULT
+	CATCH
+	ENDCATCH
+ENDIF
+;-------------------------------------------------
+;파이즈리 펠라
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,21)
+	TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_21(ARG)
+		RETURN RESULT
+	CATCH
+	ENDCATCH
+ENDIF
+;-------------------------------------------------
+;수음 펠라
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,20)
+	TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_20(ARG)
+		RETURN RESULT
+	CATCH
+	ENDCATCH
+ENDIF
+;-------------------------------------------------
+;애널 봉사
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,9)
+	TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_9(ARG)
+		RETURN RESULT
+	CATCH
+	ENDCATCH
+ENDIF
+;-------------------------------------------------
+;거품춤
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,8)
+	TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_8(ARG)
+		RETURN RESULT
+	CATCH
+	ENDCATCH
+ENDIF
+;-------------------------------------------------
+;풋잡
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,7)
+	IF CFLAG:(NO:TARGET):장난 
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A2_K{NO:TARGET}_7(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_7(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;가랑이
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,6)
+	TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_6(ARG)
+		RETURN RESULT
+	CATCH
+	ENDCATCH
+ENDIF
+;-------------------------------------------------
+;파이즈리
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,5)
+	IF CFLAG:(NO:TARGET):장난 
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A2_K{NO:TARGET}_5(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_5(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;펠라치오
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,4)
+	IF CFLAG:(NO:TARGET):장난 
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A2_K{NO:TARGET}_4(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_4(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;수음
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,3)
+	IF CFLAG:(NO:TARGET):장난 
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A2_K{NO:TARGET}_3(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_3(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;애널
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,2)
+	IF CFLAG:(NO:TARGET):장난 
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A2_K{NO:TARGET}_2(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_2(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;질내
+;-------------------------------------------------
+IF GETBIT(TCVAR:50,1)
+	IF CFLAG:(NO:TARGET):장난 
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A2_K{NO:TARGET}_1(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM M_KOJO%RESULTS%_MESSAGE_PALAMCNG_A_K{NO:TARGET}_1(ARG)
+			RETURN RESULT
+		CATCH
+		ENDCATCH
+	ENDIF
+ENDIF
+CALL PALAM_MESSAGE_A
+RESETCOLOR
+RETURN 0
+
+@SILENCE_TSTOP(ARG)
+#FUNCTION
+;시간정지중에는 말하지 않는 캐릭터를 지정
+SIF GROUPMATCH(ARG,39,41,54,86,87,88)
+	RETURNF 1

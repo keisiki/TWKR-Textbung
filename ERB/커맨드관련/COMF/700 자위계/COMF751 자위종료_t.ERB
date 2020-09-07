@@ -1,0 +1,87 @@
+﻿;-------------------------------------------------
+;자위 종료
+;-------------------------------------------------
+@COM751
+;CALL ENDUFUFU(PLAYER)
+IF FLAG:70 == 1
+	;시간정지중은 복장 세트 하지 않는다
+ELSEIF CFLAG:PLAYER:장난 > 1
+	;(은)탈의 안은 복장 세트 하지 않는다
+ELSEIF LOCK:(CFLAG:PLAYER:311) && CFLAG:PLAYER:장난 < 2
+	;장난 Lv1 이하라면 파자마 세트
+	CALL CTRL_CLOTHES_SET(PLAYER, "현재 의상의 변경_파자마")
+ELSE
+	;장난 이외라면 평상복 세트
+	CALL CTRL_CLOTHES_SET(PLAYER, "현재 의상의 변경_평상복")
+	CFLAG:PLAYER:파자마 = 0
+ENDIF
+
+;복장을 TEQUIP에(↓로 하고 있기 때문에 삭제)
+
+;우후후시 계 장비 리셋
+;TEQUIP:ARG:10-TEQUIP:ARG:149를 초기화한다
+;PLAYER:1을 카운트에 사용하는 것은 그만두자
+VARSET TEQUIP:(PLAYER):0, 0, 10, 150
+
+;사정 관계 리셋
+IF TFLAG:102 < 2
+	BASE:PLAYER:사정 = 0
+	TCVAR:PLAYER:이기초 = 0
+ENDIF
+CFLAG:지금바쁨 = 0
+TEQUIP:PLAYER:50 = -1
+TEQUIP:PLAYER:51 = -1
+TEQUIP:PLAYER:상반신탈의상태 = 0
+TEQUIP:PLAYER:하반신비켜놓기상태 = 0
+TCVAR:PLAYER:억지로 = 0
+IF !FLAG:70
+	TFLAG:운반 = 0
+	IF CFLAG:PLAYER:구내정액
+		PRINTFORML %조교자는% 입속에 남아 있던 정액을\@ ABL:PLAYER:정액중독 > 2 ?  다 마신 # 토해냈다 \@
+		CFLAG:PLAYER:구내정액 = 0
+	ENDIF
+	IF CFLAG:PLAYER:안면정액 || CFLAG:PLAYER:손에정액
+		PRINTFORM %조교자는%
+		IF CFLAG:PLAYER:안면정액 && !CFLAG:PLAYER:손에정액
+			PRINTFORM 얼굴에 달라 붙었다
+		ELSEIF !CFLAG:PLAYER:안면정액 && CFLAG:PLAYER:손에정액
+			PRINTFORM 손에 달라붙었다
+		ELSE
+			PRINTFORM 얼굴과 부정한 짓을 하고 있다
+		ENDIF
+		PRINTFORM 정액을\@ ABL:PLAYER:정액중독 > 2 ?  입에 넣은 # 닦았다 \@
+		CFLAG:PLAYER:안면정액 = 0
+		CFLAG:PLAYER:손에정액 = 0
+	ENDIF
+ENDIF
+TEQUIP:PLAYER:유두빨기자위 = 0
+TEQUIP:PLAYER:가슴주무르기자위 = 0
+TFLAG:106 = 0
+;(은)탈의 플래그를 오프
+TEQUIP:PLAYER:2 = 0
+TEQUIP:PLAYER:상반신탈의상태 = 0
+CALL CLOTHES_SETTING_TRAIN(PLAYER)
+;윗도리탈의가끝난상태 플래그를 오프
+TEQUIP:PLAYER:5 = 0
+SIF !FLAG:시간정지
+	TIME += 5
+;자위경험
+SIF CFLAG:PLAYER:자위했다 > 0
+	EXP:PLAYER:자위경험 ++
+CFLAG:PLAYER:자위했다 = 0
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+@COM_ABLE751
+;자위 종료 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+SIF TARGET > 0 && FLAG:70 && CFLAG:PLAYER:지금바쁨
+	RETURN 1
+;일괄관리
+SIF GLOBAL_COMABLE(751)
+	RETURN RESULT
+RETURN 1
+

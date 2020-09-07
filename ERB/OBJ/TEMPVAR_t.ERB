@@ -1,0 +1,440 @@
+﻿[SKIPSTART]
+·F함수계에 TRYCALL가 의가 키트이입니다(존재하지 않아도 에러 토하지 않게는 되지 않는 것인가? )
+→존부를 사전에 변수로서 보유 해 존재하지 않으면 먼저 거기서 연주하는, 이것으로 k
+·F함수계는 하나의 함수에 대해 반환값이 STR 혹은 INT로 한정되어 귀찮아서
+→@TEMP_STOCK를 경유한 변통으로 해결
+→FUNCTIONS라면 STR형으로 TOSTR(INT)를 돌려줄 수 있는, INT 변수를 준비해 두면 보유 자체는 여유
+·정수형·캐릭터라인형 변수를 조합해 참조하고 싶다
+→전부 인수의 모습으로 건네주어 하면 된다
+·함수간에서의 변수의 유연한 수수(한 글자 변수 지옥은 이야)
+→CALLF의 활용에 의해 의사적으로 변수를 정의해 주면 함수를 넘었다 변수의 교환이 가능
+→변수명을 매회 자기 부담으로 정의할 수 있기 때문에 한 글자 변수와 달리 덧쓰기의 걱정이 없어!
+
+결점
+·변수 관리의 수고가 번잡하게 된다
+·메모리 리크의 우려가 있다
+·변수를 스택 너무 시키면(자) 에러
+·변수 이름에 밤오소거의 우려
+
+·우선 GET_INT/GET_STR 해 사용하는 분에는 너무 신경쓰지 않아도 된다
+
+2017/02/22
+·디버그문을 너무 가르쳐 디버그 모드가 제길 무거웠기 때문에 코멘트 아웃
+
+[SKIPEND]
+
+;디버그용, 일시 변수의 열거
+;소문의 REF 변수의 유효 활용예
+@TEST_TEMPLIST(VAR_NAME, VAR_STR, VAR_INT, VAR_CNT)
+#FUNCTIONS
+#DIMS REF VAR_NAME ;변수명의 보유
+#DIMS REF VAR_STR  ;변수 정보(STR)의 보유
+#DIM  REF VAR_INT  ;변수 정보(INT)의 보유
+#DIM  REF VAR_CNT  ;변수의 보유 수
+#DIM  VAR_ID
+DEBUGPRINTFORM TEMPLIST VAR_NAME：%VAR_NAME:VAR_CNT%　
+DEBUGPRINTFORML VAR_CNT：{VAR_CNT}
+DEBUGPRINTFORM 　
+FOR VAR_ID, 1, VAR_TEMP_MAX + 1
+	SIF !STRLENS(VAR_NAME:VAR_ID)
+		BREAK
+	DEBUGPRINTFORM VAR_ID：{VAR_ID}　
+	DEBUGPRINTFORM VAR_NAME：%VAR_NAME:VAR_ID%　
+	DEBUGPRINTFORM VAR_STR：%VAR_STR:VAR_ID%　
+	DEBUGPRINTFORM VAR_INT：%VAR_STR:VAR_ID%
+NEXT
+DEBUGPRINTFORML 
+
+;-----------------------------------------------
+;여기에서 본체
+;-----------------------------------------------
+;일시 변수 보유 함수 본체
+;이 함수는 직접 부르지 않는, 참조나 조작은 후술의 함수를 개입시켜 실시하는 것
+;-----------------------------------------------
+;변수의 보유 함수
+;우선 1~99까지의 99개를 사용 가능
+;0(을)를 사용하지 않은 것은 ID0를 돌려주었을 때의 거동이 까다로워지기 (위해)때문에
+;점점더 THROW가 많은 것은 만약을 위해
+@TEMP_STOCK(COMMAND, ARGS:0, ARGS:1, ARG:0, ARG:1)
+#FUNCTIONS
+#DIMS COMMAND                       ;변수에 대한 실행 커맨드
+#DIMS VAR_NAME,  (VAR_TEMP_MAX + 1) ;변수명의 보유
+#DIMS VAR_STR,   (VAR_TEMP_MAX + 1) ;변수 정보(STR)의 보유
+#DIM  VAR_INT,   (VAR_TEMP_MAX + 1) ;변수 정보(INT)의 보유
+#DIM  VAR_CNT                       ;변수의 보유 수
+#DIM LCOUNT
+#DIM TEMP_ID
+#DIM TEMP_CNT
+;DEBUGPRINTFORML TEMP_STOCK_%COMMAND%, %ARGS:0%, %ARGS:1%, {ARG:0}, {ARG:1}
+
+SELECTCASE COMMAND
+;각종의 취득 커맨드, 돌아가 값에 의미가 있다
+;보유 하고 있는 변수의 총수를 돌려준다
+CASE "GET_TOTAL"
+	;DEBUGPRINTFORML TEMP_STOCK VAR_CNT：{VAR_CNT}
+	RETURNF TOSTR(VAR_CNT)
+
+;변수명으로부터 내용을 참조
+CASE "GET_VALUE_BY_NAME"
+	SIF !STRLENS(ARGS:0)
+		THROW 변수명을 설정해 주세요
+	TEMP_ID = FINDELEMENT(VAR_NAME, ESCAPE(ARGS:0), 1, , 1)
+	SIF TEMP_ID <= 0
+		THROW 존재하지 않는 변수를 참조했던 %ARGS:0%
+	IF STRLENS(VAR_STR:TEMP_ID)
+		;DEBUGPRINTFORML TEMP_STOCK VAR_STR:TEMP_ID：%VAR_STR:TEMP_ID%
+		RETURNF VAR_STR:TEMP_ID
+	ELSE
+		;DEBUGPRINTFORML TEMP_STOCK VAR_INT:TEMP_ID：{VAR_INT:TEMP_ID}
+		RETURNF TOSTR(VAR_INT:TEMP_ID)
+	ENDIF
+
+;ID로부터 내용을 참조
+CASE "GET_VALUE_BY_ID"
+	SIF !ARG:0
+		THROW ID를 설정해 주세요
+	SIF !INRANGE(ARG:0, 1, VAR_CNT)
+		THROW 존재하지 않는 변수를 참조했던{ARG:0}
+	IF STRLENS(VAR_STR:TEMP_ID)
+		;DEBUGPRINTFORML TEMP_STOCK VAR_STR:TEMP_ID：%VAR_STR:TEMP_ID%
+		RETURNF VAR_STR:TEMP_ID
+	ELSE
+		;DEBUGPRINTFORML TEMP_STOCK VAR_INT:TEMP_ID：{VAR_INT:TEMP_ID}
+		RETURNF TOSTR(VAR_INT:TEMP_ID)
+	ENDIF
+
+;변수명으로부터 변수의 ID를 돌려준다
+;존재하지 않을 때는 0
+CASE "GET_ID"
+	SIF !STRLENS(ARGS:0)
+		THROW 변수명을 설정해 주세요
+	TEMP_ID = FINDELEMENT(VAR_NAME, ESCAPE(ARGS:0), 1, , 1)
+	SIF TEMP_ID <= 0
+		TEMP_ID = 0
+	;DEBUGPRINTFORML TEMP_STOCK TEMP_ID：{TEMP_ID}
+	RETURNF TOSTR(TEMP_ID)
+
+
+;ARGS:0이 포함되는 변수명의 수를 돌려준다
+CASE "GET_CNT_NAME"
+	TEMP_CNT = 0
+	FOR TEMP_ID, 1, VAR_CNT + 1
+		SIF STRCOUNT(VAR_NAME:TEMP_ID, ARGS:0)
+			TEMP_CNT ++
+	NEXT
+	;DEBUGPRINTFORML TEMP_STOCK TEMP_CNT：{TEMP_CNT}
+	RETURNF TOSTR(TEMP_CNT)
+
+;변수의 위치로부터 변수명을 돌려준다
+;존재하지 않을 때는 하늘의 캐릭터라인을 돌려준다
+CASE "GET_NAME"
+	TEMP_ID = ARG:0
+	SIF !INRANGE(ARG:0, 1, VAR_TEMP_MAX)
+		TEMP_ID = 0
+	;DEBUGPRINTFORML TEMP_STOCK TEMP_ID：{TEMP_ID}
+	RETURNF VAR_NAME:TEMP_ID
+
+;여기에서 명령계, CALLF로 각 함수를 개입시켜 사용
+;변수의 작성
+CASE "VARMAKE"
+	SIF !STRLENS(ARGS:0)
+		THROW 변수명을 설정해 주세요
+	SIF VAR_CNT >= VAR_TEMP_MAX
+		THROW 보유 변수가 상한에 이르고 있기 (위해)때문에 새로운 변수를 정의할 수 없습니다
+	SIF ISNUMERIC(ARGS:0)
+		THROW 숫자만으로부터 되는 캐릭터라인을 변수 이름에 설정할 수 없습니다 %ARGS:0%
+	SIF FINDELEMENT(VAR_NAME, ESCAPE(ARGS:0), 1, , 1) > 0
+		THROW 그 변수명은 벌써 존재하는 %ARGS:0%
+	VAR_CNT ++ 
+	VAR_NAME:VAR_CNT = %ARGS:0%
+	VAR_INT:VAR_CNT  = ARG:0
+	VAR_STR:VAR_CNT  = %ARGS:1%
+	;#; CALLF TEST_TEMPLIST(VAR_NAME, VAR_STR, VAR_INT, VAR_CNT)
+
+;대입 처리
+;ID로 변수를 지정해 대입
+CASE "VARSET_BY_ID"
+	SIF !INRANGE(ARG:0, 1, VAR_CNT)
+		THROW 존재하지 않는 변수를 참조했던{ARG:0}
+	VAR_INT:TEMP_ID  = ARG:1
+	VAR_STR:TEMP_ID  = %ARGS:0%
+;이름으로 변수를 지정해 대입
+CASE "VARSET_BY_NAME"
+	SIF !STRLENS(ARGS:0)
+		THROW 변수명을 설정해 주세요
+	TEMP_ID = FINDELEMENT(VAR_NAME, ESCAPE(ARGS:0), 1, , 1)
+	SIF !INRANGE(TEMP_ID, 1, VAR_CNT)
+		THROW 존재하지 않는 변수를 참조했던 %ARGS:0%
+	VAR_INT:TEMP_ID  = ARG:0
+	VAR_STR:TEMP_ID  = %ARGS:1%
+
+;하나의 변수를 초기화
+;ARGS가 수치의 경우에는 INDEX라고 해석한다
+;그 이외라면 일치하는 변수명의 위치를 검색한다
+;존재하지 않을 때는 에러
+
+;ID지정으로 변수를 제거
+CASE "VARCLEAR_BY_ID"
+	SIF !INRANGE(ARG:0, 1, VAR_CNT)
+		THROW 존재하지 않는 변수를 참조했던{ARG:0}
+	;CALLF TEST_TEMPLIST(VAR_NAME, VAR_STR, VAR_INT, VAR_CNT)
+	ARRAYREMOVE VAR_NAME, ARG:0, 1
+	ARRAYREMOVE VAR_INT , ARG:0, 1
+	ARRAYREMOVE VAR_STR , ARG:0, 1
+	VAR_CNT --
+	;#; CALLF TEST_TEMPLIST(VAR_NAME, VAR_STR, VAR_INT, VAR_CNT)
+;변수명 지정으로 변수를 제거
+CASE "VARCLEAR_BY_NAME"
+	TEMP_ID = FINDELEMENT(VAR_NAME, ESCAPE(ARGS:0), 1, , 1)
+	SIF TEMP_ID <= 0
+		THROW 존재하지 않는 변수를 참조했던 %ARGS:0%
+	;CALLF TEST_TEMPLIST(VAR_NAME, VAR_STR, VAR_INT, VAR_CNT)
+	ARRAYREMOVE VAR_NAME, TEMP_ID, 1
+	ARRAYREMOVE VAR_INT , TEMP_ID, 1
+	ARRAYREMOVE VAR_STR , TEMP_ID, 1
+	VAR_CNT --
+	;CALLF TEST_TEMPLIST(VAR_NAME, VAR_STR, VAR_INT, VAR_CNT)
+;변수명을 부분 일치 검색해 초기화
+;연루 주의
+CASE "VARCLEAR_BY_KEYWORD"
+	SIF !STRLENS(ARGS:0)
+		THROW 검색 어구를 설정해 주세요
+	TEMP_ID = FINDELEMENT(VAR_NAME, ESCAPE(ARGS:0), 1, , 0)
+	WHILE LOCAL > 0
+		ARRAYREMOVE VAR_NAME, TEMP_ID, 1
+		ARRAYREMOVE VAR_INT , TEMP_ID, 1
+		ARRAYREMOVE VAR_STR , TEMP_ID, 1
+		VAR_CNT --
+		SIF !VAR_CNT
+			BREAK
+		TEMP_ID = FINDELEMENT(VAR_NAME, ESCAPE(ARGS:0), 1, , 0)
+	WEND
+;변수를 모두 초기화
+CASE "ALLCLEAR"
+	VARSET VAR_NAME
+	VARSET VAR_INT
+	VARSET VAR_STR
+	VARSET VAR_CNT
+;산술계는 변수의 위치의 판정이 공통된의로 정리해 먼저
+;ARGS가 수치의 경우에는 INDEX라고 해석한다
+;그 이외라면 일치하는 변수명의 위치를 검색한다
+CASE "ADD_BY_ID", "TIMES_BY_ID", "PERCENT_BY_ID", "PPM_BY_ID",
+	SIF !INRANGE(ARG:0, 1, VAR_CNT)
+		THROW 존재하지 않는 변수를 참조했던{ARG:0}
+	
+	SELECTCASE COMMAND
+	;가산, 물론 음수도 가능
+	CASE "ADD_BY_ID"
+		VAR_INT:(ARG:0) += ARG:1
+	;곱셈, 소수치는 건네줄 수 없기 때문에 주의
+	CASE "TIMES_BY_ID"
+		VAR_INT:(ARG:0) *= ARG:1
+	;지정 변수를 ARG 퍼센트로 한다
+	CASE "PERCENT_BY_ID"
+		VAR_INT:(ARG:0) *= ARG:1
+		VAR_INT:(ARG:0) /= 100
+	;PPM=백만분 율
+	CASE "PPM_BY_ID"
+		VAR_INT:(ARG:0) *= ARG:1
+		VAR_INT:(ARG:0) /= 1000000
+	CASEELSE
+		THROW 미설정의 명령 %COMMAND%
+	ENDSELECT
+CASE "ADD_BY_NAME", "TIMES_BY_NAME", "PERCENT_BY_NAME", "PPM_BY_NAME"
+	SIF !STRLENS(ARGS:0)
+		THROW 변수명을 설정해 주세요
+	TEMP_ID = FINDELEMENT(VAR_NAME, ESCAPE(ARGS:0), 1, , 1)
+	SIF TEMP_ID <= 0
+		THROW 존재하지 않는 변수를 참조했던 %ARGS:0%
+	
+	SELECTCASE COMMAND
+	;가산, 물론 음수도 가능
+	CASE "ADD_BY_NAME"
+		VAR_INT:TEMP_ID += ARG:0
+	;곱셈, 소수치는 건네줄 수 없기 때문에 주의
+	CASE "TIMES_NAME"
+		VAR_INT:TEMP_ID *= ARG:0
+	;지정 변수를 ARG 퍼센트로 한다
+	CASE "PERCENT_NAME"
+		VAR_INT:TEMP_ID *= ARG:0
+		VAR_INT:TEMP_ID /= 100
+	;PPM=백만분 율
+	CASE "PPM_NAME"
+		VAR_INT:TEMP_ID *= ARG:0
+		VAR_INT:TEMP_ID /= 1000000
+	CASEELSE
+		THROW 미설정의 명령 %COMMAND%
+	ENDSELECT
+CASEELSE
+	THROW 미설정의 명령 %COMMAND%
+ENDSELECT
+RETURNF
+
+
+
+;-----------------------------------------------
+;일시 변수 취득 함수
+;-----------------------------------------------
+;식중함수
+;ID를 건네줄 때에도"3"등 캐릭터라인으로 건네주지 않는다고 에러를 토한다
+;INT/STR는 「변수의 내용」에서도 「제일 인수의 형태」도 아닌 것에 주의
+;이것은 「반환값의 형태」인(즉 TOINT()의 생략을 하고 싶었다)
+;반환값이 STR가 되는 것은 GET_NAME와 GET_VALUE의 내용이 STR때만
+@TEMP_INT(COMMAND, ARGS:0)
+#FUNCTION
+#DIMS COMMAND
+RETURNF TOINT(TEMP_GET(COMMAND, ARGS:0))
+
+@TEMP_STR(COMMAND, ARGS:0)
+#FUNCTIONS
+#DIMS COMMAND
+RETURNF TEMP_GET(COMMAND, ARGS:0)
+
+@TEMP_GET(COMMAND = "GET_VALUE", ARGS:0)
+#FUNCTIONS
+#DIMS COMMAND
+SELECTCASE COMMAND
+CASE "GET_TOTAL"
+	RETURNF TEMP_STOCK("GET_TOTAL")
+CASE "GET_VALUE"
+	;숫자 같으면 ID로 간주한다
+	IF ISNUMERIC(ARGS:0)
+		RETURNF TEMP_STOCK("GET_VALUE_BY_ID", , , TOINT(ARGS:0))
+	ELSE
+		RETURNF TEMP_STOCK("GET_VALUE_BY_NAME", ARGS:0)
+	ENDIF
+;변수명으로부터 변수의 ID를 돌려준다
+;존재하지 않을 때는 0
+CASE "GET_ID"
+	RETURNF TEMP_STOCK("GET_ID", ARGS:0)
+;ARGS:0이 포함되는 변수명의 수를 돌려준다
+CASE "GET_CNT_NAME"
+	RETURNF TEMP_STOCK("GET_CNT_NAME", ARGS:0)
+;변수의 위치로부터 변수명을 돌려준다
+;존재하지 않을 때는 하늘의 캐릭터라인을 돌려준다
+CASE "GET_NAME"
+	RETURNF TEMP_STOCK("GET_NAME", , , TOINT(ARGS:0))
+CASEELSE
+	THROW 불명한 커맨드 %COMMAND%
+ENDSELECT
+
+
+;-----------------------------------------------
+;RETURN계 함수
+;-----------------------------------------------
+;식중함수
+;변수명 혹은 ID를 참조해 그 변수의 내용(INTorSTR)을 취득하는 함수
+;F함수로 RETURN계라고 하는 것도 좀 이상하지만 명명 센스가 죽고 있을 뿐이므로 신경쓰지 말아라
+;이 함수의 특징은 취득 후에 참조 원래 변수를 소거하는 점, 사용할 기회는 많을 것
+;변수 만들 뿐은 곧 가득 되어버리니까
+;다른 정보로 취득 직후에 지운다고 하는 처리가 필요라고 생각되지 않기 때문에 VALUE 전용
+
+@TEMP_RE_INT(ARGS)
+#FUNCTION
+LOCAL = TEMP_INT("GET_VALUE", ARGS)
+CALLF TEMP_VARCLEAR(ARGS)
+RETURNF LOCAL
+
+@TEMP_RE_STR(ARGS)
+#FUNCTIONS
+LOCALS = %TEMP_STR("GET_VALUE", ARGS)%
+CALLF TEMP_VARCLEAR(ARGS)
+RETURNF LOCALS
+
+;-----------------------------------------------
+;대입·초기화계 함수
+;-----------------------------------------------
+;CALLF로 사용
+;일시 변수 작성 함수
+;이것이 없으면 시작하지 않는다
+;변수 작성과 초기치의 설정
+;벌써 존재하면(자) 에러
+;MAKE_INT로 INT 변수, MAKE_STR로 STR 변수를 작성한다
+@MAKE_INT(V_NAME, V_INT)
+#FUNCTIONS
+#DIMS V_NAME
+#DIM  V_INT
+RETURNF TEMP_VARMAKE(V_NAME, , V_INT)
+
+@MAKE_STR(V_NAME, V_STR)
+#FUNCTIONS
+#DIMS V_NAME
+#DIMS V_STR
+RETURNF TEMP_VARMAKE(V_NAME, V_STR)
+
+@TEMP_VARMAKE(V_NAME, V_STR, V_INT)
+#FUNCTIONS
+#DIMS V_NAME
+#DIMS V_STR
+#DIM  V_INT
+RETURNF TEMP_STOCK("VARMAKE", V_NAME, V_STR, V_INT)
+
+
+;대입 함수
+;CALLF로 사용
+;변수가 존재하지 않으면 에러
+;STR와 INT의 양쪽 모두의 VALUE에 정보가 들어가있는 때는 STR가 되돌아 온다
+;
+;대입 함수 사용하고 싶을 때는
+;	CALLF SET_INT/STR
+;그리고 사용해주세요
+@SET_INT(V_NAME, V_INT)
+#FUNCTION
+#DIMS V_NAME
+#DIM  V_INT
+RETURNF TOINT(TEMP_VARSET(V_NAME, , V_INT))
+
+@SET_STR(V_NAME, V_STR)
+#FUNCTIONS
+#DIMS V_NAME
+#DIMS V_STR
+RETURNF TEMP_VARSET(V_NAME, V_STR)
+
+@TEMP_VARSET(V_NAME, V_STR, V_INT)
+#FUNCTIONS
+#DIMS V_NAME
+#DIMS V_STR
+#DIM  V_INT
+;숫자 같으면 ID로 간주한다
+IF ISNUMERIC(V_NAME)
+	RETURNF TEMP_STOCK("VARSET_BY_ID", , V_STR, TOINT(V_NAME), V_INT)
+ELSE
+	RETURNF TEMP_STOCK("VARSET_BY_NAME", V_NAME, V_STR, V_INT)
+ENDIF
+
+;변수의 초기화 함수
+@TEMP_VARCLEAR(ARGS:0, OP = "NORMAL")
+#FUNCTIONS
+#DIMS OP
+SELECTCASE OP
+;통상은 변수명, 혹은 ID에 일치하는 변수만을 소거
+CASE "NORMAL"
+	IF ISNUMERIC(ARGS:0)
+		RETURNF TEMP_STOCK("VARCLEAR_BY_ID", , , TOINT(ARGS:0))
+	ELSE
+		RETURNF TEMP_STOCK("VARCLEAR_BY_NAME", ARGS:0)
+	ENDIF
+;변수 이름에 키워드를 포함하는 것을 소거, 말려들게 해 주의
+CASE "KEY"
+		RETURNF TEMP_STOCK("VARCLEAR_BY_KEYWORD", ARGS:0)
+;전소거, 너무 강력해 그다지 다용은 할 수 없다
+CASE "ALL"
+		RETURNF TEMP_STOCK("ALLCLEAR")
+ENDSELECT
+
+;-----------------------------------------------
+;산술계 함수
+;-----------------------------------------------
+;솔직히,  존재 의의가 미묘한 생각이 들지만 일단 만들어 두어
+;CALLF로 사용
+;COMMAND는 ADD, TIMES, PERCENT, PPM
+;PPM는 얼마든지 늘릴 수 있어라는 예로 농담으로 만들었다
+@TEMP_METH(V_NAME, COMMAND, ARG:0)
+#FUNCTIONS
+#DIMS V_NAME
+#DIMS COMMAND
+IF ISNUMERIC(V_NAME)
+	RETURNF TEMP_STOCK(@"%COMMAND%_BY_ID", , , TOINT(V_NAME), ARG:0)
+ELSE
+	RETURNF TEMP_STOCK(@"%COMMAND%_BY_NAME", V_NAME, , ARG:0)
+ENDIF

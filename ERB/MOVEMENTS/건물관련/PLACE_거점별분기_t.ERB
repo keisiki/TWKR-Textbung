@@ -1,0 +1,409 @@
+﻿@GET_EXISTMAP(ARG)
+#FUNCTION
+SIF GROUPMATCH(ARG, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+	RETURNF 1
+SIF ITEM:주택==1&&ARG==13
+	RETURNF 1
+SIF ITEM:주택>=2&&ARG==14
+	RETURNF 1
+;ARG 13 = 주택, 14 = 저택 KR판 고유기능
+
+;------------------------------------------
+;대상맵의 통칭 캐릭터라인을 돌려준다
+;COMF410_청소. ERB, 호출원
+;요점 참조 MAP_COMM_0.ERB
+;ARG, MAPID
+;ARG:1, 캐릭터 ID
+;------------------------------------------
+@GET_MAPNAME(ARG, ARG:1 = 0)
+#FUNCTIONS
+#DIMS PNAME
+SELECTCASE ARG
+	CASE 0
+		PNAME = 하쿠레이 신사
+	CASE 1
+		PNAME = 명련사
+	CASE 2
+		PNAME = 인간 마을
+	CASE 3
+		PNAME = 안개의호수~홍마관
+	CASE 4
+		PNAME = 미혹의 죽림
+	CASE 5
+		PNAME = 마법의숲
+	CASE 6
+		PNAME = 삼도천~명계
+	CASE 7
+		PNAME = 요괴의 산 (산록)
+	CASE 8
+		PNAME = 요괴의 산 (산정)
+	CASE 9
+		PNAME = 지저
+	CASE 10
+		PNAME = 꿈의 세계~달
+	CASE 13
+		PNAME = 주택
+	CASE 14
+		PNAME = 저택
+	CASEELSE
+		PNAME = 수수께끼의 영역
+ENDSELECT
+RETURNF PNAME
+
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;목욕탕을 내쫓아지는 앞
+;CALL		USER
+;ARG		VOID
+;RETURN		탈출처의 장소
+;COMMENT	장소를 변경했을 경우, RETURNF를 변경의 일
+;-----------------------------------------------------------
+@KICKOUT(ARG)
+#FUNCTION
+IF MAIN_MAP == GET_MAPID(CFLAG:MASTER:현재위치)
+	SELECTCASE MAIN_MAP
+		CASE 0
+			RETURNF KICKOUT_0()
+		CASE 1
+			RETURNF KICKOUT_1()
+		CASE 2
+			RETURNF KICKOUT_2()
+		CASE 3
+			RETURNF KICKOUT_3()
+		CASE 4
+			RETURNF KICKOUT_4()
+		CASE 5
+			RETURNF KICKOUT_5()
+		CASE 6
+			RETURNF KICKOUT_6()
+		CASE 7
+			RETURNF KICKOUT_7()
+		CASE 8
+			RETURNF KICKOUT_8()
+		CASE 9
+			RETURNF KICKOUT_9()
+		CASE 13
+			RETURNF KICKOUT_13()
+		CASE 14
+			RETURNF KICKOUT_14()
+	ENDSELECT
+ENDIF
+RETURNF CFLAG:MASTER:전턴위치
+
+;------------------------------------------
+;맵 마다 이동할 수 없는 상황이 있는 경우에 호출한다(온천에 사람이 있는, 열쇠를 잡고 있는 등)
+;요점 참조 COMF400_이동. ERB
+;ARG, 장소 ID
+;ARG:1, 캐릭터 ID, 생략 하면(자) 0=MASTER, 현상 캐릭터 이동 이외에서는 사용하지 않습니다
+;------------------------------------------
+@MAP_CAN_MOVE(ARG, ARG:1)
+#FUNCTION
+#DIM 집주인
+#DIM 재택
+IF ROOMDATA:(ARG % 100) & 장소_원룸
+	집주인 = PRIVATEROOM:(ARG % 100)
+	재택 = 0
+	;당신
+	IF ARG:1 == MASTER
+		;자택이라면 가능
+		IF ARG == Default초기위치
+			RETURNF 1
+		;동행이나 연모라면 넣는다(집주인 수면중도 가능
+		ELSEIF CFLAG:집주인:동행 || TALENT:집주인:연모
+			재택 = 1
+		;집주인이 있어 일어나고 있다
+		ELSEIF CFLAG:집주인:현재위치 == ARG
+			IF SHIRAHU(집주인)
+				재택 = 1
+			ENDIF
+		;집주인 이외의누군가가 있는, 이 사람 물건은 자기도 해도 좋다
+		ELSEIF IN_ROOM_NUMBER(ARG)
+			재택 = 1
+		;KR판 오리지날용 분기
+		ELSEIF ITEM:【문따기기능】 || MAIN_MAP == 14
+			RETURNF 1
+		ENDIF
+	;집주인은 넣는다
+	ELSEIF ARG:1 == 집주인
+		재택 = 1
+	;그렇지 않은 캐릭터는 궁합이 100을 넘지 않았다고 안 돼
+	ELSEIF RELATION:집주인:(ARG:1) > 100
+		재택 = 1
+	ENDIF
+	IF !재택
+		TFLAG:이동불능메시지 = 999
+		RETURNF 0
+	ENDIF
+ENDIF
+
+;;잠금 처리 ;KR판 구잔재 또는 오리지날
+IF 	!(ARG:1 == MASTER)&&(ARG == CFLAG:MASTER:초기위치)&&(FLAG:창고잠금)&&!(CFLAG:(ARG:1):초기위치==ARG)
+	SIF CFLAG:MASTER:현재위치==ARG
+		PRINTFORML %CALLNAME:(ARG:1)%가 들어오려 했으나 잠겨 있어서 발길을 돌렸다. 
+	RETURNF 0
+ENDIF
+IF !MAIN_MAP
+	SIF STR:ARG == ""
+	RETURNF 0
+ELSEIF STR:(8000 + ARG) == ""
+	RETURNF 0
+ENDIF
+SELECTCASE MAIN_MAP
+	CASE 0
+		RETURNF MAP_CAN_MOVE_0(ARG, ARG:1)
+	CASE 1
+		RETURNF MAP_CAN_MOVE_1(ARG, ARG:1)
+	CASE 2
+		RETURNF MAP_CAN_MOVE_2(ARG, ARG:1)
+	CASE 3
+		RETURNF MAP_CAN_MOVE_3(ARG, ARG:1)
+	CASE 4
+		RETURNF MAP_CAN_MOVE_4(ARG, ARG:1)
+	CASE 5
+		RETURNF MAP_CAN_MOVE_5(ARG, ARG:1)
+	CASE 6
+		RETURNF MAP_CAN_MOVE_6(ARG, ARG:1)
+	CASE 7
+		RETURNF MAP_CAN_MOVE_7(ARG, ARG:1)
+	CASE 8
+		RETURNF MAP_CAN_MOVE_8(ARG, ARG:1)
+	CASE 9
+		RETURNF MAP_CAN_MOVE_9(ARG, ARG:1)
+	CASE 13
+		RETURNF MAP_CAN_MOVE_13(ARG, ARG:1)
+	CASE 14
+		RETURNF MAP_CAN_MOVE_14(ARG, ARG:1)
+ENDSELECT
+RETURNF 1
+
+;------------------------------------------
+;지점 관련성 응답 처리
+;요점 참조 MOVEMENT_CAN_MOVE_0.ERB
+;ARG, 현재지점
+;ARG:1, 비교처 지점
+;------------------------------------------
+@CAN_MOVE(ARG, ARG:1)
+#FUNCTION
+
+IF MAIN_MAP == GET_MAPID(ARG)
+SELECTCASE MAIN_MAP
+	CASE 0
+		RETURNF CAN_MOVE_0(ARG, ARG:1)
+	CASE 1
+		RETURNF CAN_MOVE_1(ARG, ARG:1)
+	CASE 2
+		RETURNF CAN_MOVE_2(ARG, ARG:1)
+	CASE 3
+		RETURNF CAN_MOVE_3(ARG, ARG:1)
+	CASE 4
+		RETURNF CAN_MOVE_4(ARG, ARG:1)
+	CASE 5
+		RETURNF CAN_MOVE_5(ARG, ARG:1)
+	CASE 6
+		RETURNF CAN_MOVE_6(ARG, ARG:1)
+	CASE 7
+		RETURNF CAN_MOVE_7(ARG, ARG:1)
+	CASE 8
+		RETURNF CAN_MOVE_8(ARG, ARG:1)
+	CASE 9
+		RETURNF CAN_MOVE_9(ARG, ARG:1)
+	CASE 13
+		RETURNF CAN_MOVE_13(ARG, ARG:1)
+	CASE 14
+		RETURNF CAN_MOVE_14(ARG, ARG:1)
+ENDSELECT
+ENDIF
+RETURNF 0
+;------------------------------------------
+;장소 ID의 이름 캐릭터라인을 돌려준다
+;요점 참조 신분 표시 관련/INFO.ERB, COMF400_이동. ERB, 호출원
+;요점 참조 MAP_COMM_0.ERB
+;ARG, 장소 ID
+;------------------------------------------
+@NAME_FROM_PLACE(ARG)
+#FUNCTIONS
+#DIM MAPID
+#DIMS PNAME
+PNAME = 
+MAPID = GET_MAPID(ARG)
+IF TFLAG:망상중 == 1
+	PNAME = 수려 공간
+ELSEIF ARG == OMANEKIBEYA()
+;	초대방의 이름 처리
+	RETURNF OMANEKI_PLACE()
+ELSEIF ARG == SUMIKOMI_ROOM && FLAG:더부살이캐릭터 && MAPID == MAIN_MAP
+	PNAME = %CALLNAME:(FLAG:더부살이캐릭터)%의 %SUMIKOMI_PN%
+ELSEIF MAPID == MAIN_MAP
+;
+;	물건 맵내의 이름 처리
+;
+	SELECTCASE MAPID
+		CASE 0
+			PNAME = %MAP_PLACENAME_0(ARG)%
+		CASE 1
+			PNAME = %MAP_PLACENAME_1(ARG)%
+		CASE 2
+			PNAME = %MAP_PLACENAME_2(ARG)%
+		CASE 3
+			PNAME = %MAP_PLACENAME_3(ARG)%
+		CASE 4
+			PNAME = %MAP_PLACENAME_4(ARG)%
+		CASE 5
+			PNAME = %MAP_PLACENAME_5(ARG)%
+		CASE 6
+			PNAME = %MAP_PLACENAME_6(ARG)%
+		CASE 7
+			PNAME = %MAP_PLACENAME_7(ARG)%
+		CASE 8
+			PNAME = %MAP_PLACENAME_8(ARG)%
+		CASE 9
+			PNAME = %MAP_PLACENAME_9(ARG)%
+		CASE 13
+			PNAME = %MAP_PLACENAME_13(ARG)%
+		CASE 14
+			PNAME = %MAP_PLACENAME_14(ARG)%
+		;CASE 10
+		;	PNAME = %MAP_PLACENAME_10(ARG)%
+	ENDSELECT
+ELSE
+;
+;	도중외, 그외범위
+;
+	PNAME = %STR:(ARG)%
+ENDIF
+RETURNF PNAME
+
+@MAP_거주자(ARG, ARG:1)
+#FUNCTION
+;CSV의 초기위치를 취득
+;KR판 주택/저택 사용시
+IF (MAIN_MAP == 13 || MAIN_MAP == 14) && CFLAG:(ARG:1):저택에거주
+	RETURNF 1
+ELSE
+	LOCAL = CSVCFLAG(ARG:1, 311)
+ENDIF
+SIF LOCAL == 99 || !LOCAL
+	RETURNF 0
+SIF LOCAL / 100 == ARG
+	RETURNF 1
+
+;-----------------------------------------
+;비자택시에 갈아넣는 장소 ID를 돌려주는 함수
+;ARG, 대상ID
+;RETURNF, 갈아넣고가 끝난 대상ID
+;-----------------------------------------
+@GET_MAP_REPLACEMENT(ARG)
+#FUNCTION
+#DIM 대상맵
+#DIM OUTID
+OUTID = 0
+대상맵 =  GET_MAPID(ARG)
+SIF MAIN_MAP == 대상맵
+	RETURNF ARG
+
+SELECTCASE 대상맵
+	CASE 0
+		OUTID = MAP_SEARCH_REPLACEMENT_0(ARG)
+	CASE 1
+		OUTID = MAP_SEARCH_REPLACEMENT_1(ARG)
+	CASE 2
+		OUTID = MAP_SEARCH_REPLACEMENT_2(ARG)
+	CASE 3
+		OUTID = MAP_SEARCH_REPLACEMENT_3(ARG)
+	CASE 4
+		OUTID = MAP_SEARCH_REPLACEMENT_4(ARG)
+	CASE 5
+		OUTID = MAP_SEARCH_REPLACEMENT_5(ARG)
+	CASE 6
+		OUTID = MAP_SEARCH_REPLACEMENT_6(ARG)
+	CASE 7
+		OUTID = MAP_SEARCH_REPLACEMENT_7(ARG)
+	CASE 8
+		OUTID = MAP_SEARCH_REPLACEMENT_8(ARG)
+	CASE 9
+		OUTID = MAP_SEARCH_REPLACEMENT_9(ARG)
+	CASE 13
+		OUTID = MAP_SEARCH_REPLACEMENT_13(ARG)
+	CASE 14
+		OUTID = MAP_SEARCH_REPLACEMENT_14(ARG)
+	CASEELSE
+		OUTID = ARG
+ENDSELECT
+
+SIF OUTID > 0
+	RETURNF OUTID
+
+;そのキャラがあなたから見える位置にいるか
+@CAN_SEE(ARG)
+#FUNCTION
+SIF CFLAG:MASTER:현재위치 == CFLAG:ARG:현재위치
+	RETURNF 1
+SIF CAN_MOVE(CFLAG:MASTER:현재위치, CFLAG:ARG:현재위치) == 2
+	RETURNF 1
+RETURNF 0
+
+;-----------------------------------------
+;私室に最も近い共用風呂を判定する関数
+;ヒノキ風呂の効果を付与する際の判定に利用
+;ARG =1のときは設置場所を表記する時に利用する
+;基本は=0
+;-----------------------------------------
+@NEAR_BATH(ARG = 0)
+#FUNCTION
+
+;拠点でなければ判定しない
+SIF !IN_HOME(CFLAG:MASTER:현재위치) && ARG == 0
+	RETURNF 0
+SELECTCASE CFLAG:MASTER:초기위치
+	CASE 35, 32, 33, 34;博麗神社・三妖精の家地下室　三妖精の私室→30三妖精の家・風呂
+		RETURNF 30
+	CASE 51, 43, 44;夢幻遺跡・倉庫　夢美ちゆり私室→39夢幻遺跡・浴室
+		RETURNF 39
+	CASE 53, 15, 16, 17, 18, 19, 52, 54, 55;博麗神社・納戸　ほか、博麗神社内私室→13風呂
+		RETURNF 13
+	CASE 108, 109, 113 TO 120;命蓮寺・離れ　ほか命蓮寺内私室→112浴室
+		RETURNF 112
+	CASE 134, 125, 127, 128;聖徳道場・蔵　ほか道場内私室→133湯殿
+		RETURNF 133
+	CASE 230, 226, 221, 224, 225, 231 TO 235;人里・あなたの部屋　ほか私室→228貸切浴場
+		RETURNF 228
+	CASE 304, 303, 311, 312, 320, 321, 326, 329, 331;霧の湖～紅魔館・空き小屋　ほか私室→333大浴場
+		RETURNF 333
+	CASE 340 TO 342, 344 TO 346, 348;廃洋館と霧の湖周りの私室→338廃洋館・風呂
+		RETURNF 338
+	CASE 410 TO 414, 423, 424, 427, 428, 430;永遠亭・空き部屋or二階空き部屋　ほか、私室→420風呂
+		RETURNF 
+	CASE 442, 432, 437, 439, 440, 443, 445;迷いの竹林・空き小屋　ほか、私室→441温泉
+		RETURNF 441
+	CASE 460, 451, 452, 457, 459, 463;夢幻館 空室　ほか、私室→454夢幻館 風呂
+		RETURNF 454
+	CASE 515, 512, 541 TO 544;魔法の森・魔理沙宅・倉庫　ほか、森の私室→514魔理沙宅・風呂
+		RETURNF 514
+	CASE 531, 521, 522, 523;魔法の森・人形の館・空き部屋　ほか私室→526人形の館・風呂
+		RETURNF 526
+	CASE 536, 535;魔法の森・エレン宅・倉庫　エレン私室→537エレン宅・風呂
+		RETURNF 537
+	CASE 618, 608, 609, 615, 616;是非直曲庁・空き部屋　ほか、私室→617風呂
+		RETURNF 617
+	CASE 625, 623, 624;冥界・あなたの部屋　妖夢、幽々子私室→627風呂
+		RETURNF 627
+	CASE 634, 633, 635, 638;八雲邸空部屋　紫藍橙私室→636風呂
+		RETURNF 636
+	CASE 644, 645;袿姫、磨弓私室→643霊長園の風呂
+		RETURNF 643
+	CASE 648;八千慧宅の寝室→646八千慧宅の風呂
+		RETURNF 646
+	CASE 651;早鬼宅の寝室→652早鬼宅の風呂
+		RETURNF 652
+	CASE 719, 734, 704, 706, 717, 733, 736;妖怪の山・山麓・秋姉妹の家・座敷or小屋　ほか私室→735水浴び場
+		RETURNF 735
+	CASE 728, 727;仙人の屋敷・空き部屋　華扇私室→721仙人の屋敷・風呂
+		RETURNF 721
+	CASE 810, 823, 807, 808, 809, 817, 818, 820;妖怪の山・山頂・山小屋or空室→825風呂
+		RETURNF 825
+	CASE 842, 839, 840, 841;比那名居邸物置　ほか、私室→837比那名居邸風呂
+		RETURNF 837
+	CASE 916, 943, 911, 912, 918, 919;地底・物置orあばら家→921風呂
+		RETURNF 921
+	CASEELSE
+		RETURNF 0
+ENDSELECT

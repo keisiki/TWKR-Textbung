@@ -1,0 +1,159 @@
+﻿;-------------------------------------------------
+;모리야복권
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+;모리야가 t……복권
+;LOCAL
+@COM435
+#DIM 가챠횟수
+#DIM 카리스마지불
+VARSET LOCAL
+가챠횟수 = 0
+IF !BETWEENTIME(600,1200)
+	PRINTFORML 닫혀 있다……
+	PRINTFORMW 영업 시간이 아닌 것 같다
+	RETURN -1
+ENDIF
+IF !GETBIT(FLAG:999, 2)
+	PRINTFORMW 경내 한구석에 벽보가 붙어 있다
+	PRINTFORML ┌─────────────┐
+	PRINTFORML ｜　　　　　　　　　　　　　 ｜
+	PRINTFORML ｜　　모리야 복권　　　　　　｜
+	PRINTFORML ｜　　　　　절찬 판매중!　　 ｜
+	PRINTFORML ｜　　　　　　　　　　　　　 ｜
+	PRINTFORML ｜　　　　　　　　　　　　　 ｜
+	PRINTFORML ｜　　　　　　　　　　　　　 ｜
+	PRINTFORML ｜　　이익은 보증합니다　　　｜
+	PRINTFORML ｜　　　　　　　　　　　　　 ｜
+	PRINTFORML ｜　　　　　　　모리야 신사　｜
+	PRINTFORML └─────────────┘
+	PRINTFORMW 
+	PRINTFORML 도우미 노릇하러 와 있을 터인 무녀복(하카마는 녹색, 당연합죠) 소녀가 상냥하게 웃으며 이쪽을 보고 있다
+	PRINTFORMW 그리고 소녀 옆에는 「시주함」이라고 적힌 상자가 놓여 있다
+	PRINTFORML …
+	PRINTFORML ……
+	PRINTFORMW 뭐지? 이 싫은 예감밖에 들지 않을 만큼 싫은 예감은…
+
+	SETBIT FLAG:999, 2
+	;최초의 복권 세트를 작성
+	CALL FISHER_YATES_SHAFFLE(300)
+	ARRAYCOPY "SHAFFLE_ARRAY", "MORIYA_BOX"
+ENDIF
+
+IF FLAG:모리야복권데이트상대
+	PRINTFORML 「복권이나 뽑을 때가 아니잖아요」
+	PRINTFORML 「신과의 데이트권이라고요. 1분 1초라도 헛되이 쓰면 안 되죠!」
+	RETURN -1
+ENDIF
+IF FLAG:모리야데이트권 && !FLAG:데이트상대
+	CALL ASK_YN(@"%조사처리(CALLNAME:(FLAG:모리야데이트권),"과")% 데이트권을 쓴다", "제비를 뽑는다")
+	IF !RESULT
+		CALL DATE_RIGHT
+		TIME += 3
+		RETURN 1
+	ENDIF
+ENDIF
+IF MONEY < 3000
+	PRINTFORMW 지갑을 확인했더니 돈이 부족했다
+	PRINTFORMW 자, 시주하기 위해서 돈을 모아오세요
+	RETURN -1
+ENDIF
+
+PRINTL 모리야 복권은 1회 3000엔이나 20카리스마, 혹은 모리야 부적 5장입니다
+PRINTL 어떻게 하겠습니까?
+CALL ASK_M("위험이 위태로울 것 같으니 그만둔다", 1,"\\3000으로 뽑아본다", MONEY >= 3000, "20CM로 뽑아본다", MONEY:2 >= 20, "부적 5장으로 뽑는다", ITEM:131>= 5, "\\27000으로 10연 가챠", MONEY >= 27000, "180CM로 10연 가챠", MONEY:2 >= 180, "부적 50장으로 10연 가챠", ITEM:131 >= 50)
+SELECTCASE RESULT
+	CASE 0
+		RETURN -1
+	CASE 1
+		MONEY -= 3000
+	CASE 2
+		MONEY:2 -= 20
+	CASE 3
+		ITEM:131 -= 5
+	CASE 4
+		가챠횟수 = 9
+		MONEY -= 27000
+	CASE 5
+		가챠횟수 = 9
+		MONEY:2 -= 180
+	CASE 6
+		가챠횟수 = 9
+		ITEM:131 -= 50
+ENDSELECT
+
+IF (RESULT == 1 || RESULT == 2) && ITEM:토부「개운대문」
+	PRINTFORML 토부 「개운대문」을 사용할래?
+	CALL ASK_YN
+	IF !RESULT
+		ITEM:토부「개운대문」 --
+		TFLAG:194 = 5
+	ENDIF
+ENDIF
+
+$RENZOKU
+
+IF GETBIT(FLAG:999, 3)
+	IF MORIYA_BOX:0 == -1
+		PRINTFORMW 현재의 복권 상자 내용물을 다 뽑았기에 새 상자를 준비합니다
+		CALL FISHER_YATES_SHAFFLE(300)
+		ARRAYCOPY "SHAFFLE_ARRAY", "MORIYA_BOX"
+	ELSE
+		PRINTFORML 이 복권 상자에서는 이미 특상이 나왔습니다
+		PRINTFORML 이 복권 상자를 폐기하고 새 복권을 뽑겠습니까?
+		PRINTFORML [1] 다음 상자를 받는다
+		PRINTFORML [0] 아직 이 상자를 더 뽑는다
+		$LOOP_INPUT_2
+		INPUT
+		SELECTCASE RESULT
+			CASE 0
+				PRINTW 그럼 이 상자에서 뽑겠습니다
+			CASE 1
+				PRINTW 그럼 교환할게요
+				CLEARBIT FLAG:999, 3
+				CALL FISHER_YATES_SHAFFLE(300)
+				ARRAYCOPY "SHAFFLE_ARRAY", "MORIYA_BOX"
+			CASEELSE
+				GOTO LOOP_INPUT_2
+		ENDSELECT
+	ENDIF
+ENDIF
+
+PRINTL 돈을 시주함에 넣고
+PRINTL 상자 속에서 복권을 한 장 뽑아
+PRINTW 접수원 소녀에게 건넸다.
+PRINTL ……
+PRINTL …
+CALL FOTUNE_MORIYA
+TIME += 2
+IF 가챠횟수 > 0
+	PRINTFORMW 
+	가챠횟수 --
+	GOTO RENZOKU
+ENDIF
+
+RETURN 1
+
+;모리야복권
+@COM_ABLE435
+;일괄관리
+SIF GLOBAL_COMABLE(435)
+	RETURN RESULT
+SIF !TFLAG:100
+	RETURN 0
+;정지중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;기력 0일 때는 불가
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF !MORIYA_OMIKUJI(CFLAG:MASTER:현재위치)
+	RETURN 0
+RETURN 1
+
+@MORIYA_OMIKUJI(ARG)
+#FUNCTION
+;모리야신사의 사무소
+SIF ARG == GET_MAP_REPLACEMENT(813)
+	RETURNF 1
+RETURNF 0

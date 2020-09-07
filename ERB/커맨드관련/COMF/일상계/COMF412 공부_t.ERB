@@ -1,0 +1,112 @@
+﻿;-------------------------------------------------
+;공부
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM412
+
+;自室時かつ家具を持っている際は補正
+IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치 && ITEM:느티책상의자
+	SELECTCASE ITEM:느티책상의자
+		CASE 1
+			DOWNBASE:MASTER:체력 = 90
+			DOWNBASE:MASTER:기력 = 270
+		CASE 2
+			DOWNBASE:MASTER:체력 = 80
+			DOWNBASE:MASTER:기력 = 240
+		CASE 3
+			DOWNBASE:MASTER:체력 = 70
+			DOWNBASE:MASTER:기력 = 210
+	ENDSELECT
+	PRINTFORML 자세 좋게, 허리를 펴고 읽고 쓰고 셈하기는 학습의 기본！
+ELSE
+	DOWNBASE:MASTER:체력 = 100
+	DOWNBASE:MASTER:기력 = 300
+ENDIF
+
+IF TARGET > 0 && !CFLAG:수면 && CFLAG:행동 != 5
+	;고정으로 획득하는 소스
+	SOURCE:환락 = 200
+	TFLAG:무드상승억제 = 1
+	;신뢰
+	TFLAG:98 = 3
+	SIF ABL:MASTER:교양 > 2
+		TFLAG:98 ++ 
+	IF ABL:MASTER:교양 > ABL:교양
+		TFLAG:98 ++ 
+		EXP:학습경험 += 2
+	ENDIF
+	SIF ABL:MASTER:교양 < ABL:교양 - 2
+		EXP:MASTER:학습경험 ++
+	;ABL:순종을 본다
+	IF ABL:순종 <= 1
+		SOURCE:환락 += (ABL:순종 * 60)
+	ELSEIF ABL:순종 <= 3
+		SOURCE:환락 += 200 + (ABL:순종 * 60)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:환락 += 500 + (ABL:순종 * 60)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:환락 += 750 + (ABL:순종 * 75)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:환락 += 1000 + (ABL:순종 * 75)
+	ELSE
+		SOURCE:환락 += 2000 + (ABL:순종 * 30)
+	ENDIF
+
+	;호감 도를 본다
+	IF CFLAG:2 <= 500
+		SOURCE:환락 += CFLAG:2
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+	ELSE
+		SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+	ENDIF
+	SIF SOURCE:환락 < 0
+		SOURCE:환락 = 0
+	EXP:MASTER:학습경험 ++
+	EXP:학습경험 ++
+ENDIF
+
+TIME += 60
+SIF CFLAG:동행
+	CFLAG:동행 += 60
+EXP:MASTER:학습경험 ++
+SIF ITEM:103 && !RAND:2
+	EXP:MASTER:학습경험 ++
+SIF ITEM:214 > 0
+	EXP:MASTER:학습경험 ++
+SIF ITEM:느티책상의자 && !RAND:2
+	EXP:MASTER:학습경험 ++
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE412
+;공부 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(412)
+	RETURN RESULT
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;공부 할 수 있는 방인가
+IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치 && ITEM:느티책상의자
+	;위의 조건을 충족하면 처리를 하지 않는다
+ELSEIF !공부가능(CFLAG:MASTER:현재위치)
+	RETURN 0
+ENDIF
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+;장난중
+SIF CFLAG:MASTER:장난
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+RETURN 1
+

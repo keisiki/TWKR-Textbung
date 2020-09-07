@@ -1,0 +1,149 @@
+﻿;-------------------------------------------------
+;무릎베개한다
+;일상계 커맨드, 레벨 2
+;-------------------------------------------------
+@COM336
+#DIM 회복전체력
+#DIM 회복전기력
+#DIM 회복후체력
+#DIM 회복후기력
+;무릎베개한다
+IF TIME_PROGRESS(TFLAG:무릎베개) < 45
+	DRAWLINE
+	PRINTFORMW 당분간 시간을 두지 않으면 다리가 저린다
+	RETURN -1
+ENDIF
+IF TALENT:MASTER:체형 < TALENT:체형 - 1
+	DRAWLINE
+	PRINTFORMW 체격차이적으로 힘들다
+	RETURN -1
+ENDIF
+LOCAL = ABL:친밀 * 10 + TALENT:연모 * 50 + TALENT:유치 * 30 - TALENT:수치심 * 20 - TALENT:자존심 * 20
+SIF BASE:체력 > MAXBASE:체력 * 4 / 5
+	LOCAL -= 30
+SIF BASE:체력 < MAXBASE:체력 * 2 / 5
+	LOCAL += 30
+SELECTCASE TFLAG:192
+	;통상
+	CASE 0
+		LOCAL = MAX(LOCAL, 10)
+		IF RAND:LOCAL > 120
+			TFLAG:193 = 1
+		ELSEIF RAND:LOCAL < 30
+			TFLAG:193 = -1
+		ELSE
+			TFLAG:193 = 0
+		ENDIF
+	;강제 성공 or대성공
+	CASE 1
+		LOCAL = MAX(LOCAL, 10)
+		IF RAND:LOCAL > 120
+			TFLAG:193 = 1
+		ELSE
+			TFLAG:193 = 0
+		ENDIF
+	;강제 실패
+	CASE -1
+		TFLAG:193 = -1
+	;커맨드 종료
+	CASE -2
+		TFLAG:193 = -1
+		RETURN 0
+ENDSELECT
+
+
+DOWNBASE:기력 += 50
+
+DOWNBASE:MASTER:기력 += 100
+
+
+;고정으로 획득하는 소스
+SOURCE:사랑 = 250
+SOURCE:수동 = 70
+SOURCE:반감 = 150
+SIF TFLAG:193 == -1
+	SOURCE:반감 += 150
+
+;ABL:친밀을 본다
+IF ABL:친밀 <= 5
+	SOURCE:사랑 += (ABL:친밀 * 25)
+ELSEIF ABL:친밀 <= 8
+	SOURCE:사랑 += 600 + (ABL:친밀 * 30)
+	SOURCE:노출 += 200 + (ABL:욕망 * 15)
+ELSEIF ABL:친밀 <= 11
+	SOURCE:사랑 += 800 + (ABL:친밀 * 30)
+	SOURCE:복종 += ABL:친밀 * 40
+	SOURCE:노출 += 300 + (ABL:욕망 * 20)
+ELSE
+	SOURCE:사랑 += 1000 + (ABL:친밀 * 40)
+	SOURCE:복종 += ABL:친밀 * 50
+	SOURCE:노출 += 700 + (ABL:욕망 * 25)
+ENDIF
+
+
+
+SOURCE:수동 = 150 + 300 * ABL:순종
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:사랑 , 0.50
+	TIMES SOURCE:수동 , 0.50
+	TIMES SOURCE:노출 , 0.40
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:사랑 , 1.00
+	TIMES SOURCE:수동 , 1.00
+	TIMES SOURCE:노출 , 0.90
+ELSE
+	TIMES SOURCE:사랑 , 1.50
+	TIMES SOURCE:수동 , 2.00
+	TIMES SOURCE:노출 , 1.80
+	TIME += 20
+	DOWNBASE:체력 -= 150
+	DOWNBASE:기력 -= 300
+	DOWNBASE:MASTER:기력 -= 50
+ENDIF
+TIME += 20
+CALL SET_DERAY(6, TARGET)
+;무릎베개 플래그
+TFLAG:무릎베개 = 1440 * DAY + TIME
+RETURN 1
+
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE336
+;무릎베개 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(336)
+	RETURN RESULT
+;친해져 강도 2
+SIF TCVAR:MASTER:친해져 < 2
+	RETURN 0
+;실내만
+SIF !(INROOM(CFLAG:MASTER:현재위치))
+	RETURN 0
+;목욕탕
+SIF BATHROOM()
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;업무중
+SIF CFLAG:행동 == 5
+	RETURN 0
+;장난중, 동침중은 무리
+SIF CFLAG:장난 || CFLAG:동침중
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;식스나인 몸의자세
+SIF TEQUIP:식스나인
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+

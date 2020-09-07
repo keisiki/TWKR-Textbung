@@ -1,0 +1,140 @@
+﻿;-------------------------------------------------
+;밧줄
+;SM계 커맨드, 레벨 3
+;-------------------------------------------------
+@COM105
+;착탈의처리
+IF TCVAR:TARGET:억지로 && (CFLAG:TARGET:호감도 < 500 || CFLAG:TARGET:신뢰도 < 200)
+	PRINTFORMW 지금 밧줄을 푸는 것은 위험할 것이다…
+ELSE
+	TEQUIP:밧줄 = !TEQUIP:밧줄
+ENDIF
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 120
+	SOURCE:PLAYER:강요=150
+	SOURCE:고통 = 150
+
+ELSE
+
+	DOWNBASE:체력 += 30
+	DOWNBASE:기력 += 120
+	SOURCE:PLAYER:강요=300
+
+	SOURCE:고통 = 300
+	SOURCE:공포 = 900
+	SOURCE:노출 = 200
+	SOURCE:굴종 = 250
+	SOURCE:일탈 = 300
+	SOURCE:반감 = 700
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;긴박경험이 높으면 소비 감소
+	IF EXP:긴박경험 < EXPLV:3
+		TIMES DOWNBASE:체력 , 1.00
+		TIMES DOWNBASE:기력 , 1.00
+	ELSEIF EXP:긴박경험 < EXPLV:4
+		TIMES DOWNBASE:체력 , 0.90
+		TIMES DOWNBASE:기력 , 0.90
+	ELSE
+		TIMES DOWNBASE:체력 , 0.70
+		TIMES DOWNBASE:기력 , 0.70
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ELSE
+	EXP:긴박경험 += 5
+	;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ENDIF
+RETURN 1
+;-------------------------------------------------
+;장착 계속의 처리
+;-------------------------------------------------
+@EQUIP_COM105(ARG)
+PRINTL ＜긴박중＞
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+IF FLAG:70 == 1
+	SOURCE:ARG:고통 += 80
+
+ELSE
+
+	;소비 체력, 기력
+	DOWNBASE:ARG:체력 += 15
+
+	SOURCE:ARG:고통 += 150
+	SOURCE:ARG:공포 += 450
+	SOURCE:ARG:노출 += 100
+	SOURCE:ARG:굴종 += 125
+	SOURCE:ARG:일탈 += 150
+	SOURCE:ARG:반감 += 350
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;긴박경험이 높으면 소비 감소
+	LOCAL = 60
+	IF EXP:ARG:긴박경험 < EXPLV:3
+		TIMES LOCAL , 1.00
+	ELSEIF EXP:ARG:긴박경험 < EXPLV:4
+		TIMES LOCAL , 0.90
+	ELSE
+		TIMES LOCAL , 0.70
+	ENDIF
+	DOWNBASE:ARG:기력 += LOCAL
+
+
+	;-------------------------------------------------
+	;경험의 처리
+	;-------------------------------------------------
+	EXP:ARG:긴박경험 ++
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE105
+;밧줄 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(105)
+	RETURN RESULT
+;해제는 언제라도 가능
+SIF TEQUIP:밧줄
+	RETURN 1
+;아이템을 가지고 있는인가, 아이템 없음 설정으로 없으면 안 돼
+SIF ITEM:16 == 0 && NOITEM == 0
+	RETURN 0
+;조교자의 기교가 1 없으면 할 수 없다
+SIF ABL:PLAYER:기교 < 1
+	RETURN 0
+;조수는 기교 3이 아니면 안 돼
+IF ASSIPLAY
+	SIF ABL:ASSI:기교 < 3
+		RETURN 0
+ENDIF
+RETURN 1
+

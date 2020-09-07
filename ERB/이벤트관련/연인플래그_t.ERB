@@ -1,0 +1,150 @@
+﻿;==============================================================
+;KR판 고유기능 복수연인/아내 관련
+;
+;Changelog
+;20.7.24
+;연인플래그 의존성 삭제함. 아내플래그도 의존성 삭제 가능하나 보류
+;현재 아내 관련 기능은 TALENT 설정 없이 이곳 함수에만 의존하고 있음
+;==============================================================
+@SET_연인(ARG)
+IF TALENT:ARG:스침
+	IF FLAG:스침연인수 < 100
+		포말의연인:(FLAG:스침연인수) = %CALLNAME:ARG%
+		FLAG:스침연인수 ++
+	ELSE
+		포말의연인:(RAND:100) = %CALLNAME:ARG%
+	ENDIF
+ENDIF
+SELECTCASE ARG
+	CASE -1
+		FLAG:스침연인수 = 0
+		VARSET 포말의연인
+		RETURN -1
+	CASE 1 TO CHARANUM
+		SIF !TALENT:ARG:연인
+			TALENT:ARG:연인 = 1
+	CASEELSE
+		THROW NO가 부정합니다
+ENDSELECT
+
+@IS_연인(ARG)
+#FUNCTION
+IF TALENT:ARG:스침
+	SIF FINDELEMENT(포말의연인, CALLNAME:ARG, , , 1) > 0
+		RETURNF 1
+	RETURNF 0
+ENDIF
+SELECTCASE NO:ARG
+	CASE 0
+		RETURNF 0
+	CASE 1 TO CHARANUM
+		SIF TALENT:ARG:연인 == 1
+			RETURNF 1
+	CASEELSE
+		THROW NO가 부정합니다
+ENDSELECT
+RETURNF 0
+
+[SKIPSTART]
+;HOW_연인 기능 사용하는 곳이 없어 삭제.
+;연인 총 수 필요시 예문.
+@HOW_연인()
+#FUNCTION
+VARSET LOCAL
+FOR LOCAL, 1, CHARANUM
+	IF LOCAL == FLAG:역극
+		CONTINUE
+	ELSEIF IS_연인(LOCAL)
+		LOCAL:1 ++
+	ENDIF
+NEXT
+;스침상대 연인 스텍기능이 남아있을 때
+LOCAL:1 += FLAG:스침연인수
+RETURNF LOCAL:1
+[SKIPEND]
+
+;;
+@SET_아내(ARG)
+IF TALENT:ARG:스침
+	IF FLAG:스침아내수 < 100
+		포말의아내:(FLAG:스침아내수) = %CALLNAME:ARG%
+		FLAG:스침아내수 ++
+	ELSE
+		포말의아내:(RAND:100) = %CALLNAME:ARG%
+	ENDIF
+ENDIF
+SELECTCASE ARG
+	CASE -1
+		FLAG:아내플래그1 = 0
+		FLAG:아내플래그2 = 0
+		FLAG:아내플래그3 = 0
+		FLAG:아내플래그4 = 0
+		FLAG:스침아내수 = 0
+		VARSET 포말의아내
+		RETURN -1
+	CASE 1 TO 35
+		LOCAL = ARG
+		LOCALS = 아내플래그1
+	CASE 36 TO 70
+		LOCAL = ARG - 35
+		LOCALS = 아내플래그2
+	CASE 71 TO 105
+		LOCAL = ARG - 70
+		LOCALS = 아내플래그3
+	CASE 106 TO 140
+		LOCAL = ARG - 105
+		LOCALS = 아내플래그4
+	CASEELSE
+		THROW NO가 부정합니다
+ENDSELECT
+SETBIT FLAG:(LOCALS) , LOCAL
+
+@IS_아내(ARG)
+#FUNCTION
+IF TALENT:ARG:스침
+	SIF FINDELEMENT(포말의아내, CALLNAME:ARG, , , 1) > 0
+		RETURNF 1
+	RETURNF 0
+ENDIF
+SELECTCASE NO:ARG
+	CASE 0
+		RETURNF 0
+	CASE 1 TO 35
+		LOCAL = ARG
+		LOCALS = 아내플래그1
+	CASE 36 TO 70
+		LOCAL = ARG - 35
+		LOCALS = 아내플래그2
+	CASE 71 TO 105
+		LOCAL = ARG - 70
+		LOCALS = 아내플래그3
+	CASE 106 TO 140
+		LOCAL = ARG - 105
+		LOCALS = 아내플래그4
+	CASEELSE
+		THROW NO가 부정합니다
+ENDSELECT
+RETURNF (GETBIT (FLAG:(LOCALS) , LOCAL))
+
+@WITH_아내(ARG)
+#FUNCTION
+;아내의 몇 사람과 ARG가 같은 장소에 있을까를 돌려준다
+VARSET LOCAL
+SIF ARG == 0
+	ARG = MASTER
+FOR LOCAL, 1, CHARANUM
+	SIF CFLAG:LOCAL:현재위치 == CFLAG:ARG:현재위치
+		LOCAL:1 += IS_아내(LOCAL)
+NEXT
+RETURNF LOCAL:1
+
+@HOW_아내(ARG)
+#FUNCTION
+;아내이 지금 몇 사람 있을까를 돌려준다
+VARSET LOCAL
+FOR LOCAL, 1, CHARANUM
+	LOCAL:1 += IS_아내(LOCAL)
+NEXT
+LOCAL:1 += FLAG:스침아내수
+RETURNF LOCAL:1
+

@@ -1,0 +1,672 @@
+﻿;FileName_USERCOM.ERB ------------------------------ Rev1. 00
+;커맨드 판정 처리
+;CALL		SYSTEM
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@USERCOM
+#DIM 능력표시용더미
+#DIM 장비부위
+#DIM 팬티소비
+#DIM 달래고판정
+$LOOP_USERCOM
+;일반 커맨드(COMF)
+IF RESULT >= 0 && RESULT < 800
+	;데리고 나가는 판정
+	IF RESULT == 351 && !CHK_DATENOW(CFLAG:MASTER:데이트중)
+		CALL COM_ABLE351
+		SIF !RESULT
+			RETURN 0
+		PRINTL 데리고나간다
+		STR:0 = 데리고나간다
+		CALL COM351
+		RETURN 0
+	ENDIF
+	;커맨드 등록 체크
+	SIF TRAINNAME:RESULT == ""
+		RETURN 0
+	;SELECTCOM와 TFLAG:3(SELECTCOM 퇴피)에 입력치 세트
+	SELECTCOM = RESULT
+	TFLAG:3 = SELECTCOM
+	;일부 커맨드의 특수 제한
+	SELECTCASE SELECTCOM
+		CASE 100 TO 107,140 TO 145
+			IF TALENT:TARGET:임신
+				PRINTW 임산부에게 그런 일 하는 것 가지 않는다
+				RETURN 0
+;			ELSEIF !GETBIT(CFLAG:TARGET:기정사실, 4)
+;				CALL SM허가
+			ENDIF
+;;		CASE 60 TO 71
+;			IF TALENT:TARGET:임신 && (CFLAG:TARGET:903 <= 30 || CFLAG:TARGET:903 >= 71)
+;				PRINTFORMW 지금은 %CALLNAME:TARGET%에 무리는 시키지 않는 것이 좋을 것이다
+;				RETURN 0
+;			ELSEIF !GETBIT(CFLAG:TARGET:기정사실, 3)
+;				CALL A허가
+;			ENDIF
+	ENDSELECT
+	SIF GLOBAL_COMABLE2(SELECTCOM)
+		RETURN 0
+	;커맨드 사용 가능 판정
+	TRYCALLFORM COM_ABLE{SELECTCOM}
+	SIF RESULT == 0
+		RETURN 0
+	;실행 제한(실행 거부등 ) 체크
+	TRYCALLFORM CAN_COM{SELECTCOM}(1)
+	IF RESULT == 0
+		;실행치 표시를 위해 재차 CAN_COM
+		TRYCALLFORM CAN_COM{SELECTCOM}(0)
+		RETURN 0
+	ENDIF
+	;더미 TRAIN
+	DOTRAIN 999
+;이력 표시(미실장)
+ELSEIF RESULT == 800
+	CALL SHOW_EQUIP
+	TFLAG:Info표시중 = 0
+	RETURN 1
+;더러운 표시
+ELSEIF RESULT == 801
+	CALL STAIN_INFO
+	TFLAG:Info표시중 = 0
+	RETURN 1
+;TARGET 변경
+ELSEIF RESULT == 802
+	IF !CFLAG:동침중
+		CALL TARGET_CHANGE
+		TFLAG:Info표시중 = 0
+		RETURN 1
+	ENDIF
+;TARGET 상태 표시
+ELSEIF RESULT == 803
+	IF TARGET == MASTER
+		CALL SINGLE_CHARA_STATE(MASTER, "「조교중」")
+	ELSE
+		CALL TARGET_LIST_STATE(TARGET)
+	ENDIF
+	TFLAG:Info표시중 = 0
+	RETURN 1
+;MASTER 상태 표시
+ELSEIF RESULT == 804
+	CALL SINGLE_CHARA_STATE(MASTER, "「조교중」")
+	TFLAG:Info표시중 = 0
+	RETURN 1
+;커맨드필터
+ELSEIF RESULT == 809
+	CALL OPTION_COMMAND_FILTER
+ELSEIF RESULT == 815 && FLAG:70 && !CFLAG:TARGET:수면 && AT_HOME(MASTER)
+	IF BATHCHECK(CFLAG:MASTER:현재위치) || IN_TOILET(CFLAG:MASTER:현재위치)
+		PRINTFORMW 분명히 이 장소에서는 맛이 없다
+	ELSEIF TFLAG:운반 != TARGET
+		PRINTFORMW %마스터는% %타겟을% 짊어졌다
+		TFLAG:운반 = TARGET
+	ELSE
+		PRINTFORMW %마스터는% %타겟을% 내렸다
+		TFLAG:운반 = 0
+	ENDIF
+ELSEIF RESULT == 816
+	FLAG:AA표시 = !FLAG:AA표시
+;집합
+ELSEIF RESULT == 817 && TALENT:MASTER:집합 && AT_HOME(MASTER) && !CFLAG:우후후
+	CALL SYUGO()
+ELSEIF RESULT == 817
+	FLAG:삽화표시 = !FLAG:삽화표시
+ELSEIF RESULT == 818
+	CALL SHOW_GATHERING_LIST_SELECT(GATHERING_SPOT(CFLAG:MASTER:현재위치))
+;옷을벗게한다
+ELSEIF RESULT == 820 && EQUIP:0 && !(TFLAG:102 == 3 && TFLAG:껴안기모드)
+	CALL 옷을벗게한다
+;속옷을 훔치는 커맨드의 분리
+ELSEIF RESULT == 821 && EQUIP:0 && EQUIP:TARGET:하반신속옷2
+	IF !TARGET && !FLAG:70 && !CFLAG:MASTER:장난
+		CALL SIMATTYAUOJISAN
+	ELSE
+		SIF CFLAG:TARGET:291 == 0
+			CALL 탈의처리(TARGET, "훔친다")
+	ENDIF
+;상반신속옷을 탈
+ELSEIF RESULT == 822 && EQUIP:TARGET:0 && EQUIP:TARGET:상반신속옷1 != 0
+	IF !TARGET
+		CALL SIMATTYAUOJISAN
+	ELSE
+		IF EQUIP:TARGET:상반신윗도리1 || EQUIP:TARGET:상반신윗도리2 || EQUIP:TARGET:원피스|| EQUIP:TARGET:기모노|| EQUIP:TARGET:보디슈트
+			PRINTFORM %CALLNAME:TARGET%의 %SHOW_TOP(TARGET, 1)%를 기축시켜,
+		ELSE
+			PRINTFORM %CALLNAME:TARGET%의
+		ENDIF
+		PRINTFORMW %CLOTHNAME(7, EQUIP:TARGET:상반신속옷1)%를 제외했다
+		EQUIP:TARGET:상반신속옷1 = 0
+		TEQUIP:TARGET:상반신착의상황 = 1
+		TEQUIP:TARGET:상반신탈의상태 = 1
+		EQUIP:MASTER:상반신속옷1 = 0
+		TEQUIP:MASTER:상반신착의상황 = 1
+		TEQUIP:MASTER:상반신탈의상태 = 1
+		RETURN 0
+	ENDIF
+;속옷 모습으로 한다
+ELSEIF RESULT == 823 && EQUIP:0 && (EQUIP:TARGET:상반신윗도리1 || EQUIP:TARGET:상반신윗도리2 || EQUIP:TARGET:원피스 || EQUIP:TARGET:기모노 || EQUIP:TARGET:외투)
+	IF !TARGET
+		CALL SIMATTYAUOJISAN
+	ELSE
+		CALL 탈의처리(TARGET, "속옷 모습으로 한다")
+		CALL 탈의처리(MASTER, "속옷 모습으로 한다")
+	ENDIF
+;신체측정한다
+ELSEIF RESULT == 824 && MEASUREMENTCHECK(CFLAG:TARGET:현재위치)
+	CALL ASK_M(@"%조사처리(CALLNAME:MASTER,"를")%측정",1,@"%조사처리(CALLNAME:TARGET,"를")%측정",1,"그만둔다",1)
+	SELECTCASE RESULT
+		CASE 0
+			CALL SOMATOMETRY(MASTER)
+		CASE 1
+			CALL SOMATOMETRY(TARGET)
+		CASE 2
+	ENDSELECT
+	RETURN 0
+;속옷 수탈 커맨드 해
+ELSEIF RESULT == 825 && TFLAG:팬티수탈
+	IF !FLAG:70
+		CALL SIMATTYAUOJISAN
+	ELSE
+		FOR LOCAL,1,CHARANUM
+			IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치 && !CFLAG:LOCAL:노팬티 && EQUIP:LOCAL:하반신속옷2
+				SIF !PANTS_ALREADY_COLLECTED(LOCAL)
+					SETCOLOR C_PINK
+				PRINTFORMW %CALLNAME:LOCAL%가 입고 있던 %PANTSNAME(EQUIP:LOCAL:하반신속옷2, LOCAL)%를 벗겨 품에 넣었다
+				RESETCOLOR
+				CALL PANTS_GET(LOCAL)
+			ENDIF
+		NEXT
+		TFLAG:Info표시중 = 0
+		RETURN 0
+	ENDIF
+ELSEIF RESULT == 826
+	IF TEQUIP:애태우기모드
+		TEQUIP:애태우기모드 = 0
+	ELSE
+		IF TCVAR:MASTER:이기초
+			PRINTFORMW 도저히 그런 여유는 없다!
+	 	ELSEIF (EX:20 + EX:21 + EX:22 + EX:23 + EX:24) > 0
+	 		PRINTFORMW 이제 더 이상 초조하게 할 수 없을 것이다
+	 	ELSE
+	 		TEQUIP:애태우기모드 = 1
+	 	ENDIF
+	 ENDIF
+;과격한 장난(미실장)
+ELSEIF RESULT == 830 && CFLAG:장난 < 2
+	PRINTFORML %마스터는% %CALLNAME:TARGET%의 옷을 천천히 풀어해쳤다
+	EQUIP:0 = 0
+	SIF CFLAG:TARGET:수면간 < 2
+	CFLAG:TARGET:수면간 = 2
+	CALL SET_PRANK(2,TARGET,1)
+	CALL 탈의처리(TARGET, "전라", "「표시 없음」")
+	FOR LOCAL,1,CHARANUM
+		CALL CLOTHES_SETTING_TRAIN(LOCAL)
+	NEXT
+	RETURN 1
+;test
+;ELSEIF RESULT == 99999
+;	TIME:5 = 4
+;	RETURN 1
+;빠져 나간다
+ELSEIF RESULT == 850
+	SELECTCOM = RESULT
+	TFLAG:3 = SELECTCOM
+	DOTRAIN 999
+;위치짐작=============================================================================================================================
+ELSEIF RESULT == 811 && TALENT:MASTER:위치짐작 && AT_HOME(MASTER) && !CFLAG:우후후
+	TFLAG:206 = CFLAG:MASTER:현재위치
+	CALL HITOSAGASI()
+	INPUT
+	IF GROUPMATCH(RESULT, 0, CFLAG:MASTER:현재위치)
+		TFLAG:Info표시중 = 0
+		RETURN 1
+	ENDIF
+	IF MAP_CAN_MOVE(RESULT) == 0
+		IF TFLAG:이동불능메시지 == 999
+			PRINTFORMW 열쇠가 걸려 있다
+			CLEARLINE 2
+			REUSELASTLINE 
+		ELSE
+			TRYCALLFORM MAP_CANNOT_WORD_{MAIN_MAP}(RESULT)
+		ENDIF
+		TFLAG:이동불능메시지 = 0
+		NEXTCOM = -1
+		RETURN 0
+	ELSEIF IN_HOME(RESULT) == 1
+		;NEXTCOM = GETNUM(TRAINNAME, "이동")
+		;TFLAG:195 = RESULT
+		CALL SKIP_MOVE(CFLAG:MASTER:현재위치, RESULT)
+	ENDIF
+	TFLAG:Info표시중 = 0
+	RETURN 1
+;====================================================
+ELSEIF RESULT == 812 && TALENT:MASTER:오방짐작 && AT_HOME(MASTER) && !CFLAG:우후후
+	TFLAG:206 = CFLAG:MASTER:현재위치
+	CALL OHEYA_CHECK
+	INPUT
+	IF GROUPMATCH(RESULT, 0, CFLAG:MASTER:현재위치)
+		TFLAG:Info표시중 = 0
+		RETURN 1
+	ENDIF
+	IF MAP_CAN_MOVE(RESULT) == 0
+		IF TFLAG:이동불능메시지 == 999
+			PRINTFORMW 열쇠가 걸려 있다
+			CLEARLINE 2
+			REUSELASTLINE 
+		ELSE
+			TRYCALLFORM MAP_CANNOT_WORD_{MAIN_MAP}(RESULT)
+		ENDIF
+		NEXTCOM = -1
+		RETURN 0
+	ELSEIF IN_HOME(RESULT) == 1
+		CALL SKIP_MOVE(CFLAG:MASTER:현재위치, RESULT)
+	ENDIF
+	TFLAG:Info표시중 = 0
+	RETURN 1
+ELSEIF RESULT == 813 && GETBIT(TALENT:MASTER:정욕감지, 1) && !CFLAG:우후후
+	PRINTFORML 기력을 소비해, 성욕을 주체 못하고 있는 소녀를 찾습니다.
+	;CALL ASK_M("그만둔다", 1,"발동", 1,"촉매를 사용해 발동", CSTR:MASTER:12 != "")
+	CALL ASK_M("그만둔다", 1,"발동", 1,"촉매를 사용해 발동", FLAG:팬티수송)
+	SELECTCASE RESULT
+		CASE 0
+			RETURN -1
+		CASE 1,2
+			PRINTFORMW %마스터는% \@RESULT == 2 ? 벗어 세우고의 팬티를 잡아 닫아 # \@정신을 통일했다!
+			SETCOLOR 255,100,255
+			FONTBOLD
+			FOR LOCAL, 1, CHARANUM
+				IF CFLAG:LOCAL:욕구불만도 >= 500
+					PRINTFORML %CALLNAME:LOCAL%는 성욕을 주체 못하고 있다…!
+					SIF CFLAG:LOCAL:현재위치 == SUKIMA() && RESULT == 2
+						PRINTFORML 그리고, %CALLNAME:LOCAL%는 지금 집에 있다!　……아마.
+				ENDIF
+			NEXT
+			RESETCOLOR
+			FONTREGULAR
+			IF RESULT == 1
+				BASE:MASTER:기력 -= 500
+			ELSE
+				PRINTFORMW %마스터가% 집중을 풀자, 손안에 있던 팬티는 대기에 녹듯이 사라졌다
+				CSTR:MASTER:12 =
+				FLAG:팬티수송 = 0
+				VARSET PANTS_TEMP
+				BASE:MASTER:기력 -= 50
+			ENDIF
+			SIF !FLAG:70
+				TIME += 5
+			TFLAG:Info표시중 = 0
+			RETURN 1
+	ENDSELECT
+
+;필터---------------------------
+ELSEIF RESULT == 839
+	FLAG:가사언필터 = !FLAG:가사언필터
+	RETURN -1
+ELSEIF RESULT == 4000
+	CFLAG:오토신음 ++
+	SIF CFLAG:오토신음 > 2
+		CFLAG:오토신음 = 0
+	RETURN -1
+ELSEIF RESULT >= 831 && RESULT <= 843
+	CFLAG:TARGET:(RESULT - 830 + 590) = !CFLAG:TARGET:(RESULT - 830 + 590)
+	RETURN -1
+;미완성---------------------------- 
+
+;타겟 변경
+ELSEIF RESULT >=1001 && RESULT < (CHARANUM + 1000) && CFLAG:(RESULT - 1000):동실
+	;스탠딩종류切り替え
+	SIF RESULT - 1000 == TARGET
+		FLAG:스탠딩종류 = !FLAG:스탠딩종류
+	TFLAG:104 = (RESULT - 1000)
+;스토킹대상 선택
+ELSEIF RESULT >=4001 && RESULT < (CHARANUM + 4000) && CFLAG:(RESULT - 4000):동실
+	IF STALKED == RESULT - 4000
+		STALKED = 0
+	ELSE
+		STALKED = RESULT - 4000
+	ENDIF
+;하루를 끝낸다
+;ELSEIF RESULT == 888
+;	BEGIN AFTERTRAIN
+;신사로 이끈다
+ELSEIF RESULT == 990 && CAN_DATE(TARGET)
+	CALL 외출처로부터권할수있을까(TARGET)
+	IF !RESULT
+		RETURN 1
+	ELSE
+		CALL 귀가의시간경과
+		CALL SET_DATE(99, TARGET)
+		CFLAG:TARGET:현재위치 = ENTRANCE
+		CFLAG:MASTER:현재위치 = ENTRANCE
+		CFLAG:TARGET:데이트중 = MAIN_MAP
+		CFLAG:MASTER:데이트중 = MAIN_MAP
+		CFLAG:TARGET:동행 = 60
+		CFLAG:MASTER:동행 = 60
+		IF TARGET == 93 && !GETBIT (FLAG:풀장, 0)
+			TIME += 30
+			BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 500,500)
+		ENDIF
+	IF CFLAG:TARGET:패배자 && (!TALENT:TARGET:연모 && !TALENT:TARGET:사모 && !TALENT:TARGET:애욕)
+		PRINTFORMW 싫어하는 %타겟을% 억지로 끌고 돌아가기로 했다
+	ELSE
+		PRINTFORMW 한가한 듯 하던%타겟을% 따라 귀가하기로 했다
+	ENDIF
+	RETURN 1
+	ENDIF
+; KR판 고유기능 또는 원판 삭제됨. 채음보양 관련
+ELSEIF RESULT == 990
+	IF TALENT:MASTER:179&&!GETBIT(TALENT:MASTER:179,0)&&!GETBIT(TALENT:MASTER:179,1)
+		IF GETBIT(TALENT:MASTER:179,2)
+			SETBIT TALENT:MASTER:179,0
+			CLEARBIT TALENT:MASTER:179,1
+		ELSE
+			CLEARBIT TALENT:MASTER:179,0
+			SETBIT TALENT:MASTER:179,1
+		ENDIF
+ELSEIF TALENT:MASTER:179&&GETBIT(TALENT:MASTER:179,0)&&GETBIT(TALENT:MASTER:179,2)
+	IF GETBIT(TALENT:MASTER:179,3)
+		CLEARBIT TALENT:MASTER:179,0
+		SETBIT TALENT:MASTER:179,1
+	ELSE
+		CLEARBIT TALENT:MASTER:179,0
+		CLEARBIT TALENT:MASTER:179,1
+	ENDIF
+ELSEIF TALENT:MASTER:179&&GETBIT(TALENT:MASTER:179,1)&&GETBIT(TALENT:MASTER:179,3)	
+	CLEARBIT TALENT:MASTER:179,0
+	CLEARBIT TALENT:MASTER:179,1
+ENDIF
+;창고잠금
+ELSEIF RESULT == 991 
+	IF CFLAG:MASTER:초기위치 == CFLAG:MASTER:현재위치
+		FLAG:창고잠금 = !FLAG:창고잠금
+		RETURN 0
+	ELSEIF FLAG:창고잠금
+		FLAG:창고잠금 = 0
+		RETURN 0
+	ENDIF
+;데이트 신청한다
+ELSEIF RESULT == 992 && CAN_DATE(TARGET)
+	CALL 외출처로부터권할수있을까(TARGET)
+	IF !RESULT
+		RETURN 1
+	ELSE
+		CFLAG:MASTER:동행 = 60
+		CFLAG:TARGET:동행 = 60
+		CFLAG:TARGET:데이트중 = CFLAG:MASTER:현재위치 / 100
+		FLAG:데이트상대 = TARGET
+		TFLAG:데이트전호감도 = CFLAG:TARGET:호감도
+		TIME += 1
+		IF CFLAG:패배자
+			PRINTFORMW 싫어하는 %조사처리(CALLNAME:TARGET,"를")% 억지로 끌어냈다
+		ELSE
+		PRINTFORMW 한가한 듯 하던%타겟을% 따라 데이트 하기로 했다
+		ENDIF
+	ENDIF
+;캘린더
+ELSEIF RESULT == 993
+	CALL 캘린더
+ELSEIF RESULT == 994
+	CALL SHOW_HAVE_COLLECTION()
+ELSEIF RESULT == 995
+	IF AT_HOME(MASTER)
+		INVERTBIT FLAG:순간이동, 1
+	ELSE
+		INVERTBIT FLAG:순간이동, 0
+	ENDIF
+;시간정지해제
+ELSEIF RESULT == 999 && FLAG:70 == 1 && !CFLAG:우후후
+	CALL 시간정지해제
+	;(은)탈의 플래그를 오프
+	TEQUIP:2 = 0
+	TEQUIP:상반신탈의상태 = 0
+	;캐릭터 전원의 복재세팅
+	FOR LOCAL,0,CHARANUM
+		CALL CLOTHES_SETTING_TRAIN(LOCAL)
+		;윗도리탈의가끝난상태 플래그를 오프
+		TEQUIP:LOCAL:5 = 0
+		;신체측정 종료
+		SIF CFLAG:LOCAL:신체측정 == 2
+			CFLAG:LOCAL:신체측정 = 1
+	NEXT
+;둘이서 만날 기회 종료
+ELSEIF RESULT == 999 && CFLAG:우후후
+	SIF CFLAG:MASTER:장난 == 2
+		CALL SET_PRANK(0,TARGET,2)
+	IF CFLAG:우후후 == 2
+			SELECTCOM = RESULT
+			TFLAG:3 = SELECTCOM
+			DOTRAIN 999
+	ELSE
+		IF FLAG:70 == 1
+			FOR LOCAL,0,CHARANUM
+				SIF CFLAG:우후후 == 2
+					CALL SET_DERAY(5,LOCAL)
+				CALL ENDUFUFU(LOCAL)
+			NEXT
+			TFLAG:106 = 0
+		ELSE
+			CALL AFTER_AFFAIR
+			FOR LOCAL,1,CHARANUM
+				;우후후 종료 말호출
+				SIF CFLAG:LOCAL:우후후 == 1 || (CFLAG:LOCAL:장난 >= 1 && CFLAG:LOCAL:면간대사있음)
+					CALL KOJO_MESSAGE_SEND("EVENT",15,LOCAL,2,0)
+				CALL ENDUFUFU(LOCAL)
+			NEXT
+			TFLAG:106 = 0
+		ENDIF
+		;MASTER와의 접촉 위치를 리셋
+		CALL TOUCH_SET(0,0,0,1)
+		;(은)탈의 플래그를 오프
+		TEQUIP:2 = 0
+		TEQUIP:상반신탈의상태 = 0
+		;캐릭터 전원의 복재세팅
+		FOR LOCAL,0,CHARANUM
+			CALL CLOTHES_SETTING_TRAIN(LOCAL)
+			;윗도리탈의가끝난상태 플래그를 오프
+			TEQUIP:LOCAL:5 = 0
+		NEXT
+		RETURN 1
+	ENDIF
+;장난 종료
+ELSEIF RESULT == 999 && CFLAG:장난 && !CFLAG:우후후
+	FOR LOCAL,0,CHARANUM
+		CALL SET_PRANK(0,LOCAL,1)
+	NEXT
+	;MASTER와의 접촉 위치를 리셋
+	CALL TOUCH_SET(0,0,0,1)
+	;(은)탈의 플래그를 오프
+	TEQUIP:2 = 0
+	TEQUIP:상반신탈의상태 = 0
+	;캐릭터 전원의 복재세팅
+	FOR LOCAL,0,CHARANUM
+		CALL CLOTHES_SETTING_TRAIN(LOCAL)
+		;윗도리탈의가끝난상태 플래그를 오프
+		TEQUIP:LOCAL:5 = 0
+	NEXT
+	RETURN 1
+;동침 종료
+ELSEIF RESULT == 999 && CFLAG:동침중
+	FOR LOCAL,0,CHARANUM
+		CALL SET_TOGETHER(0,LOCAL,1)
+	NEXT
+	;MASTER와의 접촉 위치를 리셋
+	CALL TOUCH_SET(0,0,0,1)
+	CALL KOJO_MESSAGE_SEND("EVENT",16,TARGET,2,0)
+	;쇠약이라면 잔다
+	SIF CFLAG:TARGET:쇠약
+		CALL CHARA_SLEEP, TARGET,0
+
+	;(은)탈의 플래그를 오프
+	TEQUIP:2 = 0
+	TEQUIP:상반신탈의상태 = 0
+	;캐릭터 전원의 복재세팅
+	FOR LOCAL,0,CHARANUM
+		CALL CLOTHES_SETTING_TRAIN(LOCAL)
+		;윗도리탈의가끝난상태 플래그를 오프
+		TEQUIP:LOCAL:5 = 0
+	NEXT
+	RETURN 1
+;데이트 종료
+ELSEIF RESULT == 999 && CHK_DATENOW(CFLAG:MASTER:데이트중) && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	CALL 외출처로부터귀가
+	RETURN 1
+ELSEIF RESULT > 2000 && RESULT <= 2030 ;KR 고유기능 또는 원판 삭제됨. USERCOM_Func.ERB 사용
+LOCAL=RESULT-2000
+	IF IS_MTAR(TARGET:LOCAL)
+		CALL DEL_MTAR(TARGET:LOCAL)
+	ELSE
+		CALL ADD_MTAR(TARGET:LOCAL)
+	ENDIF
+	;CLEARLINE LINECOUNT - LINES_TRAIN
+	;LINES_TRAIN = LINECOUNT
+	;RETURN 0
+
+ELSEIF RESULT > 2060 && RESULT <= 2090 ;KR 고유기능 또는 원판 삭제됨
+
+	CALL TARGET_LIST_STATE(TARGET:(RESULT-2060))
+
+ELSEIF RESULT == 3000
+	TFLAG:PALAM비표시 = !TFLAG:PALAM비표시
+ELSEIF RESULT == 3001
+	TFLAG:Status비표시 = !TFLAG:Status비표시
+ELSEIF RESULT == 3002
+	TFLAG:USERCOM비표시 = !TFLAG:USERCOM비표시
+ELSEIF RESULT == 3003
+	TFLAG:LOOK비표시 = !TFLAG:LOOK비표시
+	
+;자원 표시 관련
+ELSEIF RESULT == 3100
+	;표시 설정의 변환
+	FLAG:화상설정 = !FLAG:화상설정
+ELSEIF RESULT == 3101
+	;그림표시 인원수 -
+	FLAG:그림표시 = MAX(FLAG:그림표시-1,1)
+	
+ELSEIF RESULT == 3102
+	;그림표시 인원수 +
+	FLAG:그림표시 = MIN(FLAG:그림표시+1, 10)
+ELSEIF RESULT == 3103
+	;표시 위치 변환
+	FLAG:그림표시위치 = !FLAG:그림표시위치
+
+ELSEIF RESULT == 3104
+	;테두리 표시 ON/OFF
+	FLAG:화상범위표시 = !FLAG:화상범위표시
+ELSEIF RESULT == 3105
+	FLAG:스탠딩종류 = !FLAG:스탠딩종류
+ELSEIF RESULT == 3106
+	isModifier = MAX(isModifier - 10, -50)
+ELSEIF RESULT == 3107
+	isModifier = MIN(isModifier + 10, 50)
+ELSEIF RESULT == 3108
+	FLAG:거유차이표시 = !FLAG:거유차이표시
+ELSEIF RESULT == 3109
+	FLAG:追加エフェクト = !FLAG:追加エフェクト
+ELSEIF RESULT == 3110
+	CFLAG:TARGET:대체적용 = !CFLAG:TARGET:대체적용
+ELSEIF RESULT == 9999
+	FOR LOCAL,1,CHARANUM
+		PRINTFORMLC %CALLNAME:LOCAL% 현재위치：{CFLAG:LOCAL:현재위치}
+	NEXT
+ENDIF
+TFLAG:Info표시중 = 0
+RETURN 0
+
+;FileName_USERCOM.ERB ------------------------------ Rev1. 00
+;TARGET 변경 처리
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@TARGET_CHANGE
+PRINTFORML %CALLNAME:TARGET%의 상대를 하고 있습니다
+PRINTL [0] - 돌아간다
+FOR LOCAL,1,CHARANUM
+	SIF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+		PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL% (호감도:{CFLAG:LOCAL:2})
+NEXT
+INPUT
+IF RESULT <= 0 || RESULT >= CHARANUM
+	RETURN 0
+ELSEIF CFLAG:RESULT:현재위치 == CFLAG:MASTER:현재위치
+	TFLAG:104 = RESULT
+ENDIF
+
+;----------------------------------------------------------
+;FileName_USERCOM.ERB ------------------------------ Rev1. 00
+;이력 표시 처리(미실장)
+;CALL		SYSTEM
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SHOW_EQUIP
+WAIT
+
+;FileName_USERCOM.ERB ------------------------------ Rev1. 00
+;일상 커맨드의 성공 여부 판정
+;CALL					USER
+;ARG:0(조건최대치 커맨드 일의 성공 여부 조건의 최대치
+;ARG:1(성공치 커맨드 일의 성공치
+;ARG:2(대성공보정치 커맨드 일의 대성공에 대한 보정치
+;RETURN		VOID
+;COMMENT	각 커맨드에 흩어져 있는 성공 여부 판정을 일괄
+;-------------------------------------------------
+@SUC_FAIL(조건최대치, 성공치, 대성공보정치)
+#DIM 조건최대치
+#DIM 조건치
+#DIM 성공치
+#DIM 대성공보정치
+
+SIF !조건최대치
+	조건최대치 = 100
+
+조건치 = RAND:조건최대치
+
+SIF !성공치
+	성공치 = MIN(90 + GET_SUCCESS_RATE() / 5, 99)
+
+SELECTCASE TFLAG:192
+	;통상
+	CASE 0
+		;대성공
+		IF 조건치 <= 9 + 대성공보정치
+			TFLAG:193 = 1
+		;실패
+		ELSEIF 조건치 >= 성공치
+			TFLAG:193 = -1
+		;성공
+		ELSE
+			TFLAG:193 = 0
+		ENDIF
+	;강제 성공 or대성공(강제 성공시는 대성공하기 쉽게
+	CASE 1
+		;대성공
+		IF 조건치 <= 19 + 대성공보정치 / 2
+			TFLAG:193 = 1
+		;성공
+		ELSE
+			TFLAG:193 = 0
+		ENDIF
+	;강제 실패 or 커맨드 종료
+	CASE -1,-2
+		TFLAG:193 = -1
+ENDSELECT
+조건최대치 = 0
+조건치 = 0
+성공치 = 0
+대성공보정치 = 0
+
+@SOMATOMETRY(ARG)
+PRINTFORML %CALLNAME:ARG%의 신체측정을 실시했다.
+CALL MAKE_SIZE(ARG)
+CFLAG:ARG:신체측정 = 1
+CALL SHOW_SIZE(ARG)
+CALL ASK_YN("재측정한다","이걸로 좋다")
+IF !RESULT
+	CFLAG:ARG:신체측정 = 2
+	RESTART
+ENDIF
+

@@ -1,0 +1,148 @@
+﻿;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE366
+SIF !TFLAG:100
+	RETURN 0
+SIF TARGET <= 0
+	RETURN 0
+;시간정지/수면/동침/우후후 안은 불가
+SIF SHIRAHU(TARGET) != 1
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(366)
+	RETURN RESULT
+
+SELECTCASE IRAI_CHARA_TO_PROGRESS(TARGET)
+CASE "의뢰미수탁"
+;빈슬롯이 없으면 불가
+	SIF !SEARCH_IRAI_EMPTY()
+		RETURN 0
+;개개로 지정된 조건을 충족시키지 않을 때
+	SIF !INT_DATA_IRAI(CFLAG:TARGET:의뢰내용, "의뢰 수탁 가능 조건", TARGET)
+		RETURN 0
+CASE "의뢰중"
+;의뢰 확인/파기가 가능
+CASE "의뢰 달성"
+;성공 보고 가능
+CASE "기한 마감", "보고 잊음", "의뢰 실패"
+;실패 보고
+CASE "의뢰 종료(성공)", "의뢰 종료(기한 마감)", "의뢰 종료(보고 잊음)", "의뢰 종료(실패)"
+;여기는 의뢰 플래그의 소멸 기다려 어째서 손대지 않는다
+		RETURN 0
+CASEELSE
+		RETURN 0
+ENDSELECT
+RETURN 1
+
+
+@COM366
+SELECTCASE IRAI_CHARA_TO_PROGRESS(TARGET)
+CASE "의뢰미수탁"
+	CALL IRAI_START(TARGET)
+	RETURN RESULT
+CASE "의뢰중"
+	CALL IRAI_LOOK(TARGET)
+	RETURN RESULT
+CASE "의뢰 달성", "기한 마감", "보고 잊음", "의뢰 실패"
+	CALL IRAI_REPORT(TARGET)
+	RETURN 1
+ENDSELECT
+
+
+
+;-------------------------------------------------
+;의뢰 수탁
+;-------------------------------------------------
+@IRAI_START(CHARA)
+#DIM CHARA
+;의뢰 제시시
+PRINTFORMW 아무래도 %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:MASTER%에게 부탁할 일이 있는 것 같다
+CALL SHOW_IRAI_MESSAGE(CHARA, CFLAG:CHARA:의뢰내용, "의뢰 제시시")
+CALL SHOW_IRAI_DATA(CFLAG:CHARA:의뢰내용, 0)
+CALL ASK_YN("의뢰를 받는다", "거절한다")
+IF RESULT
+	PRINTFORML %마스터는% 정중하게 거절했다
+	CALL SHOW_IRAI_MESSAGE(CHARA, CFLAG:CHARA:의뢰내용, "의뢰비수탁시")
+	PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 유감스러운 얼굴을 하고 있다
+	RETURN -1
+ELSE
+	CALL SET_IRAI_SLOT(CHARA)
+	PRINTFORMW %마스터는% %CALLNAME:CHARA%의 의뢰를 받았다
+	CALL SHOW_IRAI_MESSAGE(CHARA, CFLAG:CHARA:의뢰내용, "의뢰 수탁시")
+	RETURN 1
+ENDIF
+
+
+
+;-------------------------------------------------
+;의뢰 확인/파기
+;-------------------------------------------------
+@IRAI_LOOK(CHARA)
+#DIM CHARA
+#DIM CHK_SLOT
+CHK_SLOT = SEARCH_IRAI_SLOT(CFLAG:CHARA:의뢰내용)
+CALL SHOW_IRAI_MESSAGE(CHARA, CFLAG:CHARA:의뢰내용, "의뢰 확인시")
+CALL SHOW_IRAI_DATA(CFLAG:CHARA:의뢰내용, CHK_SLOT)
+CALL ASK_YN("확인", "파기")
+SIF !RESULT
+	RETURN -1
+PRINTFORML 정말로?
+CALL ASK_YN
+SIF RESULT
+	RETURN -1
+CALL SHOW_IRAI_MESSAGE(CHARA, CFLAG:CHARA:의뢰내용, "의뢰 파기시")
+PRINTFORMW 의뢰를 파기했습니다.
+CALL CLEAR_IRAI_SLOT(CHARA, CHK_SLOT, "의뢰 종료(실패)")
+
+
+
+;-------------------------------------------------
+;의뢰 보고
+;-------------------------------------------------
+@IRAI_REPORT(CHARA)
+#DIM CHARA
+#DIM CHK_SLOT
+CHK_SLOT = SEARCH_IRAI_SLOT(CFLAG:CHARA:의뢰내용)
+;의뢰 성공시
+;의뢰 실패시
+SELECTCASE IRAI_CHARA_TO_PROGRESS(CHARA)
+CASE "의뢰 달성"
+	CALL SHOW_IRAI_MESSAGE(CHARA, CFLAG:CHARA:의뢰내용, "성공 보고시")
+	CALL IRAI_CARRYOUT(CHARA, CFLAG:CHARA:의뢰내용, "의뢰 성공시")
+CASE "기한 마감", "보고 잊음", "의뢰 실패"
+	CALL SHOW_IRAI_MESSAGE(CHARA, CFLAG:CHARA:의뢰내용, "실패 보고시")
+	CALL IRAI_CARRYOUT(CHARA, CFLAG:CHARA:의뢰내용, "의뢰 실패시")
+ENDSELECT
+
+;악보 입수 처리 ;KR판 악보기능 이식시 주석 해제
+[SKIPSTART]
+SELECTCASE IRAI_CHARA_TO_PROGRESS(CHARA)
+CASE "의뢰 달성"
+	RESULT = 楽譜入手_特殊条件(楽譜入手方法：妖精依頼成功)
+	PRINTL
+	SELECTCASE CHARA
+	CASE 5,6,7,13,14
+		RESULT = 楽譜入手_特殊条件(楽譜入手方法：妖精依頼成功)
+	CASE 29
+		RESULT = 楽譜入手_特殊条件(楽譜入手方法：文依頼成功)
+	CASE 42
+		RESULT = 楽譜入手_特殊条件(楽譜入手方法：はたて依頼成功)
+	ENDSELECT
+CASE "의뢰 실패"
+	IF (RAND:(100) < 30)
+		PRINTL
+		RESULT = 楽譜入手_特殊条件(楽譜入手方法：依賴失敗時)
+	ENDIF
+ENDSELECT
+[SKIPEND]
+SELECTCASE IRAI_CHARA_TO_PROGRESS(CHARA)
+CASE "의뢰 달성"
+	CALL CLEAR_IRAI_SLOT(CHARA, CHK_SLOT, "의뢰 종료(성공)")
+CASE "기한 마감"
+	CALL CLEAR_IRAI_SLOT(CHARA, CHK_SLOT, "의뢰 종료(기한 마감)")
+CASE "보고 잊음"
+	CALL CLEAR_IRAI_SLOT(CHARA, CHK_SLOT, "의뢰 종료(보고 잊음)")
+CASE "의뢰 실패"
+	CALL CLEAR_IRAI_SLOT(CHARA, CHK_SLOT, "의뢰 종료(실패)")
+ENDSELECT

@@ -1,0 +1,103 @@
+﻿;-------------------------------------------------
+;방뇨
+;하드한 조교 커맨드, 레벨 2
+;-------------------------------------------------
+@COM144
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 200
+
+
+ELSE
+
+	DOWNBASE:체력 += 10
+	DOWNBASE:기력 += 200
+
+	SOURCE:공포 = 200
+	SOURCE:노출 = 800
+	SOURCE:굴종 = 500
+	SOURCE:일탈 = 700
+	SOURCE:반감 = 700
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 700
+
+	;장소에 의해 일탈의 소스가 상하
+	;야외
+	IF TEQUIP:야외플레이
+		TIMES SOURCE:일탈 , 2.50
+	;거울의 전(수치플레이)
+	ELSEIF TEQUIP:수치플레이
+		TIMES SOURCE:일탈 , 1.50
+	;목욕탕
+	ELSEIF TEQUIP:목욕탕플레이
+		TIMES SOURCE:일탈 , 0.50
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;방뇨경험
+EXP:방뇨경험 += 2
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 2
+	ENDIF
+ELSE
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 2
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 2
+	ENDIF
+
+	;야외 방뇨로 이상경험
+	IF TEQUIP:야외플레이 && !GETBIT(CFLAG:3, 6)
+		EXP:이상경험 += 1
+		SETBIT CFLAG:3, 6
+	ENDIF
+ENDIF
+TCVAR:이뇨제 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE144
+;방뇨 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(144)
+	RETURN RESULT
+;이뇨제 사용중인가 오줌싸개버릇가 아니면 안 돼
+SIF TEQUIP:27 == 0 && TALENT:오줌싸개버릇 == 0
+	RETURN 0
+;시간정지중은 허가
+IF FLAG: 70 != 1
+	;순종 3이상이 아니면 안 돼(목욕탕이라면 OK)
+	IF !BATHROOM()
+		SIF ABL:순종 <= 2
+			RETURN 0
+	ENDIF
+ENDIF
+
+;하반신착의
+SIF TEQUIP:0 > 1
+	RETURN 0
+
+RETURN 1
+

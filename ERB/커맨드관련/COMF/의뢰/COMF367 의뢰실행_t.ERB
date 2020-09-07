@@ -1,0 +1,59 @@
+﻿;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE367
+SIF !TFLAG:100
+	RETURN 0
+SIF !SEARCH_ACTIVE_IRAI_SLOT()
+	RETURN 0
+RETURN 1
+
+@COM367
+#DIM CHK_SLOT
+CHK_SLOT  = SEARCH_ACTIVE_IRAI_SLOT()
+CALL IRAI_APPLY(CHK_SLOT)
+RETURN RESULT
+
+
+;-------------------------------------------------
+;의뢰실행 처리를 슬롯 지정으로 했다
+;반드시 CAN_IRAI_SLOT_DO(CHK_SLOT)를 씹게 하고 나서 실행하지 않으면 소안내가 됩니다
+;@COM367는 SEARCH_ACTIVE_IRAI_SLOT()로 판정이 끝난 상태이므로 좋아
+;-------------------------------------------------
+@IRAI_APPLY(CHK_SLOT)
+#DIM CHK_SLOT
+#DIM IRAI_RESULT
+#DIM CLIENT_ID
+CLIENT_ID = IRAI_SLOT_TO_CLIENT(CHK_SLOT)
+CALL SHOW_IRAI_MESSAGE(TARGET, IRAI_SLOT:CHK_SLOT, "의뢰실행 직전")
+CALL IRAI_CARRYOUT(TARGET, IRAI_SLOT:CHK_SLOT, "의뢰실행시")
+IRAI_RESULT = RESULT
+;여기서 설정하지 않으면 실행 직후의 메시지로 성공 실패의 판별이 되지 않기 때문에 어쩔 수 없이
+SELECTCASE IRAI_RESULT
+CASE IRAI_CONST_RESULT("캔슬")
+	;여기는―1이 돌아간다
+	;이외는 실행 처리를 했을 것이므로 모두 1이상을 돌려준다
+	RETURN IRAI_RESULT
+CASE IRAI_CONST_RESULT("실행해 성공")
+	CALL SET_IRAI_PROGRESS(CLIENT_ID, "의뢰 달성")
+CASE IRAI_CONST_RESULT("실행해 실패")
+	CALL SET_IRAI_PROGRESS(CLIENT_ID, "의뢰 실패")
+CASE IRAI_CONST_RESULT("실행해 미해결")
+ENDSELECT
+CALL SHOW_IRAI_MESSAGE(TARGET, IRAI_SLOT:CHK_SLOT, "의뢰실행 직후")
+
+;우선 시간경과
+SIF !FLAG:70
+	TIME += 5
+
+;성공 여부가 미해결이라면 패스
+IF !GROUPMATCH(IRAI_RESULT, IRAI_CONST_RESULT("실행해 성공"), IRAI_CONST_RESULT("실행해 실패"))
+;성공 여부가 확정해, TARGET가 의뢰자이다
+ELSEIF TARGET == CLIENT_ID
+	CALL COM366
+;성공 여부가 확정해, TARGET가 의뢰자가 아니다
+ELSE
+	;의뢰 완료(보고하지 않으면 실패 취급)
+	PRINTFORMW 잊지 말고 %CALLNAME:CLIENT_ID%에게 보고하자
+ENDIF
+RETURN 1

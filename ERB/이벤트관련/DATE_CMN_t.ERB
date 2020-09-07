@@ -1,0 +1,375 @@
+﻿;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
+;데이트 사키나 취득 함수
+;CALL		USER
+;ARG		VOID
+;RETURN		데이트 사키나
+;COMMENT	
+;-----------------------------------------------------------
+@DATENAME_PLACE()
+#FUNCTIONS
+SIF TFLAG:망상중 == 1
+	RETURNF "망상"
+SIF CHK_DATENOW(CFLAG:MASTER:데이트중) == 0
+	RETURNF ""
+RETURNF STR:(CFLAG:MASTER:데이트중 + 5000)
+
+;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
+;데이트 지점 나토리 이득 함수
+;CALL		USER
+;ARG		VOID
+;RETURN		데이트 지점명
+;COMMENT	
+;-----------------------------------------------------------
+@DATENAME_SPOT()
+#FUNCTIONS
+SIF CHK_DATENOW(CFLAG:MASTER:데이트중) == 0
+	RETURNF ""
+SIF CFLAG:MASTER:현재위치 % 100 / 10 == 0
+	RETURNF "도중"
+RETURNF NAME_FROM_PLACE(CFLAG:MASTER:현재위치 / 10 + 6000)
+
+;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
+;데이트 지점 번호 취득 함수
+;CALL		USER
+;ARG		VOID
+;RETURN		데이트 지점 NO
+;COMMENT	
+;-----------------------------------------------------------
+@DATE_SPOT()
+#FUNCTION
+RETURNF CFLAG:MASTER:현재위치 % 100 / 10
+
+;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
+;데이트처 도착 남은 시간 취득 함수
+;CALL		USER
+;ARG		VOID
+;RETURN		데이트 지점 NO
+;COMMENT	
+;-----------------------------------------------------------
+@DATE_REMAINTIME()
+#FUNCTION
+RETURNF ((CFLAG:MASTER:현재위치 % 100) % 10) * 10
+
+;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
+;데이트처 아르바이트 가부
+;CALL		USER
+;ARG		현재위치
+;RETURN		아르바이트처 종류
+;COMMENT	
+;-----------------------------------------------------------
+@DATE_PARTTIME(ARG)
+#FUNCTION
+SELECTCASE ARG
+	;특수 아르바이트 앞
+	CASE 240,450,520,540,650,830
+		RETURNF ARG
+	;%데이트처%로 아르바이트 해∼…
+	CASE 220,230,320,330,460
+		RETURNF 2
+	;%데이트처%로 식재료 모음을 해∼…
+	CASE 350,410,430,440,510,530,630,710,810
+		RETURNF 1
+ENDSELECT
+RETURNF 0
+
+;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
+;데이트처 모브 존재 판정
+;CALL		USER
+;ARG		현재위치
+;RETURN		통로가 많으면 1
+;COMMENT	MASTER의 눈에 보이는 범위에 모브캐라(소녀 한정)가 걷고 있는(일 것이다) 장소인가 아닌가
+;-----------------------------------------------------------
+@DATE_HITOGOMI(ARG)
+#FUNCTION
+SIF !ARG
+	ARG = CFLAG:PLAYER:현재위치
+IF !AT_HOME(MASTER)
+	SELECTCASE ARG
+		;모브가 있다(와 마음대로 상상하고 있는 장소
+		;지저(큰길, 온천, 지령전) 요괴의 산 산정(모리야신사본전, 경내, 구천의폭포) 요괴의 산 산록(없음) 삼도천~명계(중유의길) 마법의숲(없음) 미혹의 죽림(영원정) 홍마관(객실, 식당, 대도서관) 인간 마을(혼숙여관 이외) 명련사(지장길, 수양버들아래, 명련사경내, 명련사본당)
+		CASE 960,940,930,850,840,810,610,450,370,360,350,270,250,240,230,220,210,140,130,120,110
+			RETURNF 1
+	ENDSELECT
+ENDIF
+RETURNF 0
+
+;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
+;데이트처 모브 종류 존재 판정
+;CALL		USER
+;ARG		현재위치
+;RETURN		
+;COMMENT	MASTER의 눈에 보이는 범위에 모브캐라(소녀 한정)가 걷고 있는(일 것이다) 장소인가 아닌가, 남자는 Gun 무시, 홉고블린은 신사이므로 소녀가 모여 꺅 캬 하고 있는 곳에는 접근하지 않습니다
+;-----------------------------------------------------------
+@DATE_HITOGOMI_SYUBETU(ARG)
+#FUNCTIONS
+VARSET LOCALS
+SIF !ARG
+	ARG = CFLAG:PLAYER:현재위치
+SELECTCASE GET_MAPID(ARG)
+	;모브의 종류
+	;지저(큰길, 온천, 지령전)(큰길과 온천에서는 오니도 나온다
+	CASE 9
+		IF ARG != 960 && !RAND:3
+			LOCALS += "오니"
+		ELSE
+			LOCALS += "요괴"
+		ENDIF
+	;요괴의 산 산정(모리야신사본전, 경내, 구천의폭포)(모리야신사경내만 드물게 인간
+	CASE 8
+		IF !RAND:5 && ARG == 840
+			LOCALS += "인간"
+		ELSE
+			LOCALS += "요괴"
+		ENDIF
+	;요괴의 산 산록(없음)
+	;삼도천~명계(중유의길)(사신, 요괴, 드물게 인간
+	CASE 6
+		IF !RAND:5
+			LOCALS += "인간"
+		ELSEIF !RAND:3
+			LOCALS += "요괴"
+		ELSE
+			LOCALS += "사신"
+		ENDIF
+	;마법의숲(없음)
+	;미혹의 죽림(영원정)(요괴 토끼, 드물게 인간(환자)
+	CASE 4
+		IF RAND:5
+			LOCALS += "요괴토끼"
+		ELSE
+			LOCALS += "인간"
+		ENDIF
+	;홍마관(객실, 식당, 대도서관)(객실 식당은 요정 메이드, 대도서관은 소악마로 하고 싶지만, 개별 캐릭터화하고 있기 때문에 요정 메이드
+	CASE 3
+		LOCALS +=  "요정 메이드"
+	;인간 마을(혼숙여관 이외)(기본 인간, 드물게 요괴
+	CASE 2
+		IF RAND:5
+			LOCALS += "인간"
+		ELSE
+			LOCALS += "요괴"
+		ENDIF
+	;명련사(지장길, 수양버들아래, 명련사경내, 명련사본당)(인간과 요괴
+	CASE 1
+		IF !RAND:2
+			LOCALS += "인간"
+		ELSE
+			LOCALS += "요괴"
+		ENDIF
+ENDSELECT
+LOCALS += "의 소녀"
+
+RETURNF LOCALS
+
+
+;FileName_DATE_CMN.ERB ------------------------------- Rev1. 00
+;데이트의 도중인가 어떤가
+;CALL		USER
+;ARG		현재위치
+;-----------------------------------------------------------
+@HALFWAY()
+#FUNCTION
+SIF CHK_DATENOW(CFLAG:MASTER:데이트중) && GET_DATE_PLACE(CFLAG:MASTER:현재위치) && CFLAG:MASTER:데이트중 != MAIN_MAP + 1 && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	RETURNF 1
+RETURNF 0
+
+;FileName_DATE_CMN.ERB ----------------------------- Rev1. 01
+;데이트 돌아가 이벤트 (CFLAG:13)
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@DATE_EVENT(ARG)
+#DIM 주부족
+#DIM 경험부족
+
+VARSET LOCAL
+;캔슬 플래그(외부 참조에서 사용예:LOCAL@DATE_EVENT:99 = 1
+LOCAL:99 = 0
+;파라미터에 의한 발생 기초치 생성
+
+LOCAL = MARK:ARG:괘씸각인 * 10 + MARK:ARG:쾌락각인 * 10
+IF TALENT:ARG:연모
+	LOCAL += MIN(ABL:ARG:친밀 * 10, 200) + MIN(ABL:ARG:욕망 * 10,200) + MIN(ABL:ARG:봉사정신 * 10,200)
+	LOCAL += MIN(EXP:ARG:데이트경험, 200) + MIN(EXP:ARG:애정경험, 200)
+ELSEIF TALENT:ARG:사모
+	LOCAL += MIN(ABL:ARG:친밀 * 10, 100) + MIN(ABL:ARG:욕망 * 10,100) + MIN(ABL:ARG:봉사정신 * 10,100)
+	LOCAL += MIN(EXP:ARG:데이트경험, 100)
+ENDIF
+LOCAL += GETPALAMLV(PALAM:ARG:욕정, 10) * 5 + GETPALAMLV(PALAM:ARG:호의, 10) * 5 + GETPALAMLV(PALAM:ARG:복종, 10) * 5
+;60
+LOCAL += BASE:ARG:무드 / 50 + (1000 - BASE:ARG:이성) / 30
+LOCAL += TALENT:ARG:담력 * 10 + TALENT:ARG:성적흥미 * 10 - TALENT:ARG:자제심 * 10 - TALENT:ARG:무관심 * 10 
+DEBUGPRINTFORML 【DATE_EVENT({ARG})】DateEvent_Checksum = {LOCAL}
+;헤어질 때에 선물
+CALL GIFT(ARG)
+IF RESULT == 1
+;합의없음(키스 성공하지 않다)
+ELSEIF !(CFLAG:ARG:1 & 1) && !(CFLAG:ARG:13 & 1)
+	;성공 판정
+	IF (LOCAL > 220 + TALENT:ARG:일선을넘지않음 * 30 + ABS(TALENT:ARG:키스미경험 * 20)) && CFLAG:ARG:합의판정 > 180 && (TALENT:ARG:사모 || TALENT:ARG:연모)
+		CALL KOJO_MESSAGE_SEND("SP_EVENT", 1, ARG, 0)
+		;캔슬 플래그
+		IF !TCVAR:ARG:키스캔슬
+			CALL ADD_KISS(ARG)
+			SETBIT CFLAG:ARG:데이트후이벤트플래그 , 0
+		ENDIF
+	ELSEIF !MARK:ARG:반발각인
+		CALL KOJO_MESSAGE_SEND("SP_EVENT", 3, ARG, 0)
+	ENDIF
+;반발각인 소거 처리
+ELSEIF MARK:ARG:반발각인 && LOCAL > 50
+	;ABL:친밀 LVUP 처리 혼잡. 해독이 귀찮았기 때문에 요소들들 취해 타…
+	FOR LOCAL, 0,4
+		주부족 = 0
+		경험부족 = 0
+		SIF JUEL_DEMAND(9, LOCAL, 0, ARG) == -2
+			BREAK
+		SIF JUEL_DEMAND(9, LOCAL, 0, ARG) < 0
+			CONTINUE
+		;필요한 보주를 찾는다
+		FOR LOCAL:1, 0,100
+			IF JUEL_DEMAND(9, LOCAL, LOCAL:1, ARG) > 0
+				IF JUEL:(ARG):(LOCAL:1) < JUEL_DEMAND(9, LOCAL, LOCAL:1, ARG) / 2
+					주부족 ++
+					BREAK
+				ENDIF
+			ENDIF
+		NEXT
+		SIF 주부족
+			CONTINUE
+		;필요한 경험을 찾는다
+		FOR LOCAL:1, 0,100
+			IF EXP_DEMAND(9, LOCAL, LOCAL:1, ARG) > 0
+				IF  EXP:(ARG):(LOCAL:1) < EXP_DEMAND(9, LOCAL, LOCAL:1, ARG) / 2
+					경험부족 ++
+					BREAK
+				ENDIF
+			ENDIF
+		NEXT
+		SIF 경험부족
+			CONTINUE
+		;여기까지 올 수 있으면(자) 반발각인 소거
+		;요컨데 데이트로 좋은 분위기＋친밀 LVUP 수준이1/2채우면(자) 반발 소거
+		MARK:ARG:반발각인 --
+		CALL KOJO_MESSAGE_SEND("SP_EVENT", 3, ARG, (MARK:ARG:반발각인 + 1))
+		PRINTL
+		IF MARK:ARG:반발각인
+			PRINTFORMW %CALLNAME:ARG%는 반발각인 LV{MARK:ARG:반발각인}에 내렸다
+		ELSE
+			PRINTFORMW %CALLNAME:ARG%는 반발각인 LV1를 잃었다
+		ENDIF
+		BREAK
+	NEXT
+;고백하고 있지 않다(MASTER에 연인이 없다)
+ELSEIF !(CFLAG:ARG:1 & 4) && !(CFLAG:ARG:13 & 2) &&  !FLAG:고백금지 && CAN_MAKE_연인()
+	;성공 판정
+	IF (LOCAL > 530 + TALENT:ARG:일선을넘지않음 * 20)
+		CALL KOJO_MESSAGE_SEND("SP_EVENT",2,ARG,0)
+		IF FLAG:스침연인수 == 100 && TALENT:ARG:스침
+			PRINTFORML 　- 포말의 사랑의 상대는 100명까지 밖에 기억할 수 없습니다
+			PRINTFORML 　　받았을 경우, 지금까지의 누군가의 이름을 잊어 버립니다 -
+		ELSEIF FLAG:추가연인수 > 0
+			PRINTFORML 　- 연인은{1 + FLAG:추가연인수}인까지로 밖에 취득 할 수 없습니다 -
+		ELSE
+			;나올 수 없는 경우의 수
+			PRINTFORML 　- 연인의 수에 제한은 없습니다 -
+		ENDIF
+		PRINTFORML %CALLNAME:ARG%의 고백을…
+		CALL ASK_YN("받는다","거절한다")
+		IF !RESULT
+			SETBIT CFLAG:ARG:기정사실 , 2
+			SETBIT CFLAG:MASTER:기정사실, 2
+			TALENT:MASTER:연인 = 1
+			CALL SET_연인(NO:ARG)
+			SETBIT CFLAG:ARG:데이트후이벤트플래그 , 1
+			CALL KOJO_MESSAGE_SEND("SP_EVENT",2,ARG,1)
+			PRINTL
+			PRINTFORMW %ARG와% 연인이 되었습니다
+		ELSE
+			CALL KOJO_MESSAGE_SEND("SP_EVENT",2,ARG,2)
+		ENDIF
+	ELSEIF !MARK:ARG:반발각인
+		CALL KOJO_MESSAGE_SEND("SP_EVENT",3,ARG,0)
+	ENDIF
+ELSE
+	CALL KOJO_MESSAGE_SEND("SP_EVENT",3,ARG,0)
+ENDIF
+
+@GIFT(ARG)
+#DIM 호감도상승치
+#DIM 선물평가
+;데이트전호감도와 현호감 도를 비교
+호감도상승치 = CFLAG:ARG:2 - TFLAG:데이트전호감도
+IF DAY:2 == 4 && DAY:3 == 24 && ITEM:94 && TFLAG:데이트전호감도
+	PRINTFORML 크리스마스선물을 건네줄까?
+	CALL ASK_YN
+	IF !RESULT
+		PRINTFORMW %CALLNAME:ARG%에 선물을 건네주었다
+		ITEM:94 = 0
+		IF TALENT:ARG:연인
+			PRINTFORMW %CALLNAME:ARG%의 얼굴이 순식간에 붉게 물들어 간다
+			PRINTFORMW ……볼에 쪽 해 줄 수 있었다
+			선물평가 = 10
+		ELSEIF TALENT:ARG:연모
+			PRINTFORMW %CALLNAME:ARG%의 얼굴이 순식간에 붉게 물들어 간다
+			PRINTFORMW 선물을 받은 %CALLNAME:ARG%는 행복 그 자체라고 하는 느낌이다
+			선물평가 = 7
+		ELSEIF TALENT:ARG:사모
+			PRINTFORML %CALLNAME:ARG%는 놀라면서도 기꺼이 받아 주었다
+			PRINTFORML 스트레이트하게 호의를 나타난%CALLNAME:ARG%는, %마스터를% 한층 더 의식한 것 같다
+			선물평가 = 5
+		ELSE
+			PRINTFORMW %CALLNAME:ARG%는 고가의 물건을 건네받았던 것에 당황해도 있는 것 같지만, 그다지도 아닌 것 같다
+			선물평가 = 2
+		ENDIF
+		CFLAG:ARG:2 += 호감도상승치 * 선물평가 / 5
+		CFLAG:ARG:4 += 호감도상승치 * 선물평가 / 10
+		RETURN 1
+	ELSE
+		RETURN 0
+	ENDIF
+ELSE
+	RETURN 0
+ENDIF
+
+@WITH_연인(ARG)
+#FUNCTION
+;연인의 몇 사람과 ARG가 같은 장소에 있을까를 돌려준다
+VARSET LOCAL
+SIF ARG == 0
+	ARG = MASTER
+FOR LOCAL,1,CHARANUM
+	SIF CFLAG:LOCAL:현재위치 == CFLAG:ARG:현재위치 && TALENT:LOCAL:연인
+		LOCAL:1 ++
+NEXT
+RETURNF LOCAL:1
+
+@CAN_MAKE_연인()
+#FUNCTION
+;연인が今何人いるかカウント
+VARSET LOCAL
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:연인
+		LOCAL:1 ++
+NEXT
+;KR판 복수연인 대응용 주석처리
+;SIF LOCAL:1 < (1 + FLAG:추가연인수)
+;	RETURNF 1
+RETURNF 0
+;===========================================
+;키스경험やファーストキス処理などをまとめてやる関数
+;===========================================
+@ADD_KISS(ARG)
+IF TALENT:MASTER:키스미경험
+	CALL SET_FIRSTKISS(MASTER, ARG, 1)
+	EXP:ARG:애정경험 += 10
+ENDIF
+IF TALENT:ARG:키스미경험
+	CALL SET_FIRSTKISS(ARG, MASTER, 1)
+	EXP:ARG:애정경험 += 10
+ENDIF
+EXP:ARG:키스경험 ++
+EXP:MASTER:키스경험 ++
+SETBIT CFLAG:ARG:기정사실 , 0

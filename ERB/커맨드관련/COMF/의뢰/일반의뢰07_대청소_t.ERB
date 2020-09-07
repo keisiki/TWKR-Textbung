@@ -1,0 +1,130 @@
+﻿;존부 함수
+;F함수는 TRYCALL계를 사용할 수 없기 때문에 통상 함수로 존부 배열을 만들어버린다
+@EXIST_일반의뢰7
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;오브젝트 본체
+;여기서 ARG로 건네받는 것은 CLIENT_ID입니다
+@일반의뢰7(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "의뢰명"
+	CALLF MAKE_STR(V_NAME, "대청소가 끝나지 않는다")
+CASE "의뢰내용 표시"
+	CALLF MAKE_STR(V_NAME, "대청소의 도움")
+CASE "의뢰 보수 표시"
+	CALLF MAKE_STR(V_NAME, @"\\1500")
+CASE "의뢰실행 커맨드 이름"
+	IF YOGORE:(GET_CHARAHOME(ARG)) < 1000
+		CALLF MAKE_STR(V_NAME, "청소할 수 있었다")
+	ELSE
+		CALLF MAKE_STR(V_NAME, "청소를 한다")
+	ENDIF
+
+CASE "의뢰내용"
+	CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "작업"))
+CASE "의뢰 서브"
+CASE "의뢰기한"
+;발생시는 아니고 수탁시에 확정합니다
+CASE "의뢰 발생율"
+	CALLF MAKE_INT(V_NAME, 80)
+CASE "의뢰 발생 조건"
+	IF MAIN_MAP != GET_MAPID(GET_CHARAHOME(ARG))
+	ELSEIF !(DAY:2 == 4 && INRANGE(DAY:3, 15, 31))
+	ELSEIF ABL:ARG:친밀 >= 3
+		CALLF MAKE_INT(V_NAME, 1)
+	ENDIF
+CASE "의뢰 수탁 가능 조건"
+;그 의뢰자의 자택 부근에 있을 때
+;(기본 조건으로 해 우선 의뢰자와 당신이 동일 지점에 있을 것이므로 이것으로 좋다)
+	IF MAIN_MAP != GET_MAPID(GET_CHARAHOME(ARG))
+	ELSEIF CFLAG:ARG:연회참가
+	ELSEIF YOGORE:(GET_CHARAHOME(ARG)) < 1000
+	ELSEIF GET_MAPID(CFLAG:MASTER:현재위치) == MAIN_MAP
+		CALLF MAKE_INT(V_NAME, 1)
+	ENDIF
+CASE "의뢰실행 가능 조건"
+;의뢰자와 TARGET가 동일하고, 그 의뢰자의 자택에 있을 때
+;(기본 조건으로 해 우선 의뢰자와 당신이 동일 지점에 있을 것이므로 이것으로 좋다)
+	IF MAIN_MAP != GET_MAPID(GET_CHARAHOME(ARG))
+	ELSEIF CFLAG:ARG:연회참가
+	ELSEIF CFLAG:ARG:현재위치 == GET_CHARAHOME(ARG)
+		CALLF MAKE_INT(V_NAME, 1)
+	ENDIF
+;성공/실패 처리는 CARRYOUT로 직접 쓴다
+;SOURCE나 ITEM 입수, 소비가 번잡하게 되므로
+CASE "의뢰 소멸 조건"
+	SIF !(DAY:2 == 4 && INRANGE(DAY:3, 15, 31))
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰인 데리고 나가 가능"
+	CALLF MAKE_INT(V_NAME, 1)
+ENDSELECT
+
+
+
+@IRAI_일반7(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+#DIM  SWEEP_ID
+#DIM  SWEEP_POWER
+#DIM  PREV_YOGORE
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE SCENE
+CASE "의뢰 조건 표시"
+;무엇인가 전용의 표시 정보를 마련하고 싶을 시용
+;수탁 끝난 의뢰 표시로 사용됩니다
+;
+;PRINT계만으로 SOURCE라든지는 넣으면 안 돼, WAIT도 없음으로
+;여기 이외의표시 항목은
+;PRINTFORML 　　　　　：
+;되고 있으므로 스페이스를 가지런히 하는 편이 보기에 좋습니다
+
+CASE "의뢰실행시"
+;이 CASE에 한정해, RESULT가 의미를 가집니다
+;의뢰실행시의 RESULT에는 IRAI_CONST_RESULT()를 사용해 주세요
+;가능한 인수는"캔슬", "실행해 성공", "실행해 실패", "실행해 미해결"입니다
+;독자 처리를 가르치고 싶을 때는"실행해 미해결"로 유보하자 마자 해 주세요
+	IF YOGORE:(GET_CHARAHOME(TARGET)) < 1000
+		PRINTFORMW %CALLNAME:TARGET%의 방은 충분히 깨끗하다
+		TIME += 3
+	ELSE
+		PRINTFORMW %마스터는% %타겟과% 협력해 철저하게 방을 청소했다
+		PRINTFORML 
+		SWEEP_ID = CFLAG:MASTER:현재위치
+		SWEEP_POWER = (2 + ABL:MASTER:청소기능 + 3 * TALENT:MASTER:청소중독) * (5 - TALENT:MASTER:61) / 5
+		PREV_YOGORE = YOGORE:SWEEP_ID
+		;청소 효과 한층 더 높은
+		YOGORE:SWEEP_ID = YOGORE:SWEEP_ID / (SWEEP_POWER + 2 + ABL:청소기능)
+		SIF GROUPMATCH(CFLAG:MASTER:현재위치, 9, 10)
+			YOGORE:(54) = 0
+			;PRINTL 내친 김에 벌레통도 청소했다
+			;PRINTFORML 신묘마루의 개인물품을 치우고 뒤집어서 흔들면 그만이니까 간단하다
+		EX:MASTER:오늘의청소회수 += PREV_YOGORE - YOGORE:SWEEP_ID
+		EXP:청소경험 ++
+		EXP:MASTER:청소경험 ++
+
+		DOWNBASE:MASTER:체력 = 50
+		DOWNBASE:MASTER:기력 = 100
+		DOWNBASE:기력 = 100
+		TIME += 40
+	ENDIF
+	SOURCE:환락 = 500
+	SOURCE:정복 = 200
+	RETURN IRAI_CONST_RESULT("실행해 성공")
+CASE "의뢰 성공시"
+;성공 보고시의 보수 등
+	CALL CHANGE_CFLAG(2, TARGET, 30)
+	CALL CHANGE_CFLAG(4, TARGET, 30)
+	CALL GET_MONEY_YEN(1500, 2)
+CASE "의뢰 실패시"
+;실패 보고시의 처리
+	CALL CHANGE_CFLAG(2, TARGET, -20)
+	CALL CHANGE_CFLAG(4, TARGET, -10)
+ENDSELECT

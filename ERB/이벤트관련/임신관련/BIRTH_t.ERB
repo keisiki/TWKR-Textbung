@@ -1,0 +1,176 @@
+﻿@BIRTH(ARG)
+#DIM CHILDNUM
+DRAWLINE
+;임신 소거, 출산경험, 성별의 결정, 생일 결정
+TALENT:ARG:임신 = 0
+EXP:ARG:출산경험 += 1
+CHILDNUM = EXP:ARG:출산경험 % 10
+SIF !EXP:ARG:출산경험 % 10
+	CHILDNUM = 10
+IF FLAG:자식의성별
+	CHILD_SEX:ARG:CHILDNUM = FLAG:자식의성별
+ELSE
+	CHILD_SEX:ARG:CHILDNUM = RAND:2 + 1
+ENDIF
+CHILD_BIRTHDAY:ARG:CHILDNUM = DAY
+CHILD_BIRTHDATE:ARG:CHILDNUM = (DAY / 124 + (DAY % 124 ?  1 # 0)) * 1000
+CHILD_BIRTHDATE:ARG:CHILDNUM += DAY:2 * 100 + DAY:3
+CHILD_WEATHER:ARG:CHILDNUM = %GET_WEATHER()%
+IF CFLAG:ARG:무자각임신
+	CALL KOJO_MESSAGE_SEND("EVENT", 25, ARG, 4, CHILDNUM)
+ELSEIF TALENT:ARG:연모
+	CALL KOJO_MESSAGE_SEND("EVENT", 25, ARG, 1, CHILDNUM)
+ELSEIF TALENT:ARG:사모
+	CALL KOJO_MESSAGE_SEND("EVENT", 25, ARG, 2, CHILDNUM)
+ELSE
+	CALL KOJO_MESSAGE_SEND("EVENT", 25, ARG, 3, CHILDNUM)
+ENDIF
+PRINTFORMW %CALLNAME:ARG%는, %CALLNAME:MASTER%의 아이를 무사히 출산했습니다
+PRINTFORMW \@ CHILD_SEX:ARG:CHILDNUM == 1 ?  %CALLNAME:ARG%를 닮은 건강한 여자아이 # %마스터를% 닮은 건강한 남자아이 \@ 입니다
+PRINTFORMW %CALLNAME:ARG%는 출생한지 얼마 안된 갓난아기를 받으면(자), 상냥하게 껴안고 모유를 먹이기 시작했다
+SIF TALENT:ARG:모성 == 0
+	PRINTFORMW %CALLNAME:ARG%는[모성]에 눈이 떠졌어!
+PRINTL ******************************************************************
+PRINTFORML 제{CHILDNUM}자 어머니：%CALLNAME:ARG%　아버지：%CALLNAME:MASTER%
+PRINTFORML 　성별：\@ CHILD_SEX:ARG:CHILDNUM == 1 ?  녀 # 남 \@
+PRINTFORM 생일：
+CALL PRINT_DATE(DAY)
+PRINTFORML  %FESTIVAL()% -%GET_WEATHER()%-
+;PRINTFORML 　신장：
+;PRINTFORML 　체중：
+;PRINTFORML 　종족：
+;PRINTFORML 머리카락의 색：
+;PRINTFORML 눈의 색：
+PRINTL ******************************************************************
+
+
+;육아중·모성 추가
+CALL CHILD_NAME(ARG)
+CFLAG:ARG:육아인원수 += 1
+CFLAG:MASTER:육아인원수 += 1
+CFLAG:ARG:출산경과일 = 1
+CFLAG:ARG:임신경과일수 = 0
+CFLAG:ARG:무자각임신 = 0
+CFLAG:ARG:자각사정 = 0
+CFLAG:ARG:임신자각상태 = 0 
+TALENT:ARG:모성 = 1
+
+CFLAG:ARG:출산휴가 = 0
+
+EXP:ARG:애정경험 += 10
+CFLAG:ARG:아이인원수 += 1
+CFLAG:MASTER:아이인원수 += 1
+IF FLAG:생활능력무
+	PRINTFORML 우리 아이의 탄생에 %마스터는%
+	CALL ASK_YN("부모로서의 책임감이 메이 의 것을 느낀","향후 일어날 수 있는 여러가지 사태에의 불안을 느꼈다")
+	IF !RESULT
+		PRINTFORMW %마스터는% 생활능력 없이는 없어졌다
+	ELSE
+		PRINTFORMW 인의 성격이 그렇게 간단하게 바꿀 수 있는 성장할 수 있다면 아무도 고생하지 않습니다
+		PRINTFORMW %마스터는% 전이상으로 믿음직스럽지 못한 성격인 채, %CALLNAME:ARG%과 사이 좋게 육아에게 임하므로 했다
+	ENDIF
+	FLAG:생활능력무 = RESULT
+ENDIF
+		
+
+@CHILD_NAME(YOME)
+#DIM YOME
+#DIM CHILDNUM
+CHILDNUM = EXP:YOME:출산경험 % 10
+SIF !EXP:YOME:출산경험 % 10
+	CHILDNUM = 10
+$LOOP0
+PRINTL 아이의 이름을 결정합시다
+PRINTFORML 
+CALL ASK_M("스스로 결정하는", 1,"랜덤 후보 일람", 1,"「멕시코에 부는 열풍!」라고 말하는 의미의 「산타나」라고 말하는 것은 어떨까!", 1)
+
+SELECTCASE RESULT
+	CASE 0
+		$LOOP1
+		PRINTL 아이의 이름을 입력해 주세요
+		INPUTS
+		IF RESULTS == ""
+			GOTO LOOP1
+		ELSE
+			PRINTFORML %RESULTS%로 괜찮겠습니까?
+			CALL ASK_YN
+			IF RESULT
+				GOTO LOOP1
+			ELSE
+				CHILDNAME:YOME:CHILDNUM = %RESULTS%
+			ENDIF
+		ENDIF
+	CASE 1
+		$LOOP2
+		FOR LOCAL, 1,10
+			LOCALS:LOCAL = %랜덤캐릭터_명명()%
+			PRINTFORML [{LOCAL}] - %LOCALS:LOCAL%
+		NEXT
+		DRAWLINE
+		PRINTFORML [99] - 후보 재생성
+		PRINTFORML [100] - 돌아간다
+		$LOOP3
+		INPUT
+		SELECTCASE RESULT
+			CASE 0 TO 9
+				CHILDNAME:YOME:CHILDNUM = %LOCALS:RESULT%
+			CASE 99
+				GOTO LOOP2
+			CASE 100
+				GOTO LOOP0
+			CASEELSE
+				GOTO LOOP3
+		ENDSELECT
+	CASE 2
+		PRINTFORML 화낸%CALLNAME:YOME%가 이름을 결정해 버렸다…
+		CHILDNAME:YOME:CHILDNUM = %랜덤캐릭터_명명()%
+ENDSELECT
+
+PRINTFORML %CHILDNAME:YOME:CHILDNUM%라는 이름이 되었습니다
+TALENT:YOME:육아중 = CHILDNUM
+;----------------------------------------------------
+;그 캐릭터에게 특정의 연령의 아이가 있으면(자) 돌려주는 함수
+;----------------------------------------------------
+@CHK_HAVE_CHILD(ARG, ARG:1, ARG:2)
+#FUNCTION
+#DIM 연령
+SIF !CFLAG:ARG:육아인원수
+	RETURNF 0
+
+FOR LOCAL, 1, 11
+	연령 = DAY - CHILD_BIRTHDAY:ARG:LOCAL
+	SIF INRANGE(연령, ARG:1, ARG:2-1)
+		RETURNF LOCAL
+NEXT
+
+RETURNF 0
+;----------------------------------------------------
+;생일의 아이가 있을까 돌려주는 함수
+;eraTW4. 570 proto_bugfix_m05에서의 사양 변경
+;·REF를 사용해, 배열을 고쳐 쓰는 F함수로 했다(인수를 모두 건네주지 않으면 에러가 된다)
+;·사양상, 배열의 상정 최대 요소수는10*캐릭터수상한이 된다(=RESULT의 요소수를 돌파해 에러가 나왔으므로 사양 변경)
+;·BREAK나 CONTINUE를 사용해 처리를 효율화
+;----------------------------------------------------
+@CHILD_HAPPY_BIRTHDAY(CNT_BIRTHDAY, NAME_CHILD, AGE_CHILD)
+#FUNCTION
+#DIM CHARA
+#DIM CHILDNUM
+#DIM  REF CNT_BIRTHDAY
+#DIMS REF NAME_CHILD
+#DIM  REF AGE_CHILD
+FOR CHARA, 1, CHARANUM
+	SIF !CFLAG:CHARA:아이인원수
+		CONTINUE
+	FOR CHILDNUM, 1, MIN(11, CFLAG:CHARA:아이인원수 + 1)
+		;무명≒미등록이라면 다음캐릭터에게
+		SIF !STRLENS(CHILDNAME:CHARA:CHILDNUM)
+			BREAK
+		;생일 이외는 스킵
+		SIF (DAY - CHILD_BIRTHDAY:CHARA:CHILDNUM) % 124
+			CONTINUE
+		CNT_BIRTHDAY ++
+		NAME_CHILD:CNT_BIRTHDAY = %CHILDNAME:CHARA:CHILDNUM%
+		AGE_CHILD:CNT_BIRTHDAY = (DAY - CHILD_BIRTHDAY:CHARA:CHILDNUM) / 124
+	NEXT
+NEXT
+RETURNF CNT_BIRTHDAY

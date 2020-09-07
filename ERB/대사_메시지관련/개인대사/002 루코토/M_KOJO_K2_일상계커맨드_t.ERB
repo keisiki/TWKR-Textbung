@@ -1,0 +1,1992 @@
+﻿;※※※※※※※※※※※※※※※※※※※※※※※※※
+;일상계 커맨드
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+;==================================================
+;300, 회화
+;TFLAG:193(1=대성공 0=성공 -1=실패 -2=대실패(TARGET가 MASTER보다 교양이 4이상 높다)
+;TCVAR:302(0=회화 가능 1>=비연모시 회화불능)
+;MARK:반발각인(3이상=회화불능)(4이상은 버그
+;TCVAR:만취(1=통상 성공 or대실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_300
+;커맨드 공통 메시지(TRAIN_MESSAGE) 
+;삭제하면(자) 「~이야기를 했다.」라고 가가 사라집니다
+CALL TRAIN_MESSAGE
+;말메인 호출
+CALL M_KOJO_MESSAGE_COM_K2_300_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_300_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF CFLAG:빡침
+		PRINTFORMDW %TEXTR("화낸/험한 표정의")%%타겟은% 거의 대답을 해 주지 않았다.
+	ELSEIF TCVAR:만취
+		PRINTFORMDL %타겟은% 홍안으로 멍하게 있어 있다. 이야기를 잘 모르는 것 같다.
+		PRINTFORMW 「네?  입니까∼？」
+	ELSEIF K2_CONSCIOUS_AND_TOLERANT()
+		;하쿠레이 신사가 거점 맵으로 그 부엌에서 업무중의 경우
+		IF GET_MAPNAME(MAIN_MAP) == "하쿠레이 신사" && 업무중체크(TARGET) && CFLAG:MASTER:현재위치 == 부엌
+			IF TALENT:연모 || TALENT:애욕
+				SELECTCASE ABL:요리기능
+				CASE IS >= 4
+					CALL K2_HPH_PRINT,@"「%CALLNAME:MASTER%님의 위해(때문에) 맛있는 요리 만들어 드리니까요 HPH」","W"
+				CASE 2,3
+					CALL K2_HPH_PRINT,@"「맛보기 하시지 않습니까?  애정예요 HPH」","W"
+				CASE IS <= 1
+					PRINTFORMW 「%CALLNAME:MASTER% 님의 위해(때문에) 맛있는 요리 만들 수 있게 되고 싶습니다」
+				ENDSELECT
+			ELSE
+				SELECTCASE ABL:요리기능
+				CASE IS >= 4
+					PRINTFORML 「그렇습니다. 그리고로군요∼」
+					PRINTFORMDW %타겟은% 능숙하게 요리를 소화하면서 회화하고 있다.
+				CASE 2,3
+					PRINTFORMW 「맛보기 하십니까?」
+				CASE IS <= 1
+					PRINTFORML 「에에 와 맛조는 어디서 했던가∼？」
+					PRINTFORMDW %타겟은% 요리로 바쁜 것 같다.
+				ENDSELECT
+			ENDIF
+		ELSE
+			SELECTCASE TFLAG:193
+			CASE 1
+				IF TALENT:연모 || TALENT:애욕
+					SELECTCASE RAND:2
+					CASE 1
+						PRINTFORMDL %타겟은% %CALLNAME:MASTER%에 몸을 접근해왔다.
+						PRINTFORML 「일은 매일 즐겁습니다만, 너무%CALLNAME:MASTER% 님과 외출할 수 없는 것이 유감입니다」
+						CALL K2_HPH_PRINT,@"「이므로 이런 두 사람의 시간, 소중히 해요 HPH」","W"
+					CASEELSE
+						;거점이 하쿠레이 신사
+						IF GET_MAPNAME(MAIN_MAP) == "하쿠레이 신사"
+							PRINTFORML 「언제나 가사를 도와 주셔, 정말로 감사합니다」
+							PRINTFORMW 「%CALLNAME:MASTER% 님과 함께 일이 생겨, 매우 행복합니다」
+						ELSE
+							PRINTFORML 「일 즐거운지, 입니까?  네. 매우 즐겁습니다」
+							PRINTFORMW 「게다가, 언제%CALLNAME:MASTER% 님이 오셔도 좋은 것 같게, 깨끗하게 해 두지 않으면」
+						ENDIF
+					ENDSELECT
+				ELSE
+					PRINTFORMW 「과연∼. %CALLNAME:MASTER% 님은 박식이군요」
+				ENDIF
+			CASE 0
+				SELECTCASE RAND:7
+				CASE 1
+					IF FLAG:역극 != 1 && FLAG:역극 != 9
+						PRINTFORML 「그렇습니다. 그 때 유메미 교수와 레이무님이--」
+						PRINTFORMDW %타겟은% 옛날의 이야기를 해 주었다.
+					ELSE
+						PRINTFORML 「그런 일도 있었어요∼」
+						PRINTFORMDW 옛날의 이야기로 %CALLNAME:TARGET%로 고조되었다.
+					ENDIF
+				CASE 2
+					PRINTFORMW 「방치하자마자 방이 더러워져 가므로 큰 일입니다」
+				CASE 3
+					SELECTCASE TIME:5
+					CASE 0,1
+						PRINTFORML 「날씨가 좋네요」
+						PRINTFORMW 「빨래하기 좋은 날씨로 기쁩니다♪」
+					CASE 2,3
+						PRINTFORML 「흐린 하늘이군요」
+						PRINTFORMW 「세탁물인가 끓는 것일까?」
+					CASE IS >= 4
+						PRINTFORML 「으응~, 날씨가 나쁘네요」
+						PRINTFORMW 「세탁을 할 수 없어 유감입니다……」
+					ENDSELECT
+				CASE 4
+					PRINTFORML 「청소하는 원반은 있습니까?」
+					PRINTFORMW 「으응~, 나도 지지 않아요 힘내지 않으면」
+				CASE 5
+					IF FLAG:역극 == 9
+						PRINTFORMW 「나(저)는 밥을 먹지 않아도 괜찮은 것 같습니다만, 동력원은 어떻게 되어 있겠지요?  」
+					ELSE
+						PRINTFORML 「유메미 교수가 나를 만들어 주셨습니다」
+						PRINTFORMW 「네?  동력원입니까?  자, 어떻게 되어있는 지요?」
+					ENDIF
+				CASE 6
+					;청소기능과 요리기능의 합계가 4 미만
+					IF ABL:청소기능 + ABL:요리기능 < 4
+						PRINTFORML 「∼. 어째서 나(저)는 일이 돌팔이입니까」
+						PRINTFORML 「이대로는 창으로 해 돌 수 있어 버리는 것은……」
+						PRINTFORMDW %타겟은% 상상해 낙담하고 있다.
+					;청소기능과 요리기능의 합계가 4이상
+					ELSE
+						PRINTFORML 「일도 조금씩 할 수 있게 되었습니다」
+						PRINTFORMW 「%CALLNAME:MASTER% 님의 덕분입니다♪」
+					ENDIF
+				CASEELSE
+					IF TALENT:연모 || TALENT:애욕
+						;거점이 하쿠레이 신사
+						IF GET_MAPNAME(MAIN_MAP) == "하쿠레이 신사"
+							;오후 6시 이전
+							IF TIME < 1080
+								PRINTFORMW 「오늘의 저녁밥은 무엇이 좋습니까?  %CALLNAME:MASTER% 님의 좋아하는 것으로 해요」
+							;오후 6시 이후
+							ELSE
+								PRINTFORMW 「내일의 메뉴는 어떻게 하지. %CALLNAME:MASTER% 님의 좋아하는 것으로 할까요」
+							ENDIF
+						ELSE
+							;오후 6시 이전
+							IF TIME < 1080
+								PRINTFORMW 「오늘의 저녁밥은 무엇이 괜찮을까∼♪」
+							;오후 6시 이후
+							ELSE
+								PRINTFORMW 「내일의 메뉴는 어떻게 하지∼♪」
+							ENDIF
+						ENDIF
+					ELSE
+						;오후 6시 이전
+						IF TIME < 1080
+							PRINTFORMW 「오늘의 저녁밥 어떻게 해야 할까요」
+						;오후 6시 이후
+						ELSE
+							PRINTFORMW 「내일의 메뉴 어떻게 해야 할까요」
+						ENDIF
+					ENDIF
+				ENDSELECT
+			CASE -1
+				PRINTFORMW 「으응~. 그 이야기, 나에게는 어렵습니다……」
+			ENDSELECT
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;301, 차를넣는
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_301
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_301_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_301_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		SELECTCASE TFLAG:193
+		CASE 1
+			PRINTFORMW 「매우 맛있습니다!나도 이런 식으로 엄같게 되고 싶습니다」
+		CASE 0
+			SELECTCASE RAND:3
+			CASE 1
+				PRINTFORMW 「아, 차를넣는의라면 내가…… 좋습니까?  감사합니다」
+			CASE 2
+				PRINTFORMW 「어이 주위입니다. 이 차는 어느 쪽의 차지요?」
+			CASEELSE
+				IF FLAG:역극 == 11
+					PRINTFORMW 「신사라면 녹차로 정해지고 있다, 입니까?  그, 그렇지가 않다라고 생각합니다!홍차도 맛있으며!」
+				ELSE
+					PRINTFORMW 「내가 홍차를넣는과 신사라면 녹차일거라고 마리사님이 말씀하십니다」
+				ENDIF
+			ENDSELECT
+		CASE -1
+			PRINTFORML 「앗뜨거!……후우-후우―…」
+			PRINTFORMDW 아무래도 너무 뜨거운 것 같다.
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;302, 스킨십
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_302
+
+IF K2_CONSCIOUS_AND_TOLERANT() && !K2_EXCESSIVE_STATURE_GAP() && BATHROOM()
+	DRAWLINE
+	PRINTFORMDL %마스터는% %CALLNAME:TARGET%에 등을 흘려 주었다.
+	PRINTW
+	SIF FLAG:대사색깔
+		TRYCALLFORM M_KOJO_COLOR_K{TARGET}
+	PRINTFORML 「등흘립니다」
+	IF TALENT:MASTER:성별 == 2
+		PRINTFORMW 「역시 남자의 등 뒤는 씩씩하네요」
+	ELSE
+		PRINTFORMW 「%CALLNAME:MASTER% 님의 등, 매우 깨끗합니다」
+	ENDIF
+	RETURN 1
+ENDIF
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_302_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_302_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT() && !K2_EXCESSIVE_STATURE_GAP()
+		IF TALENT:연모 || TALENT:애욕
+			SELECTCASE RAND:3
+			CASE 1
+				PRINTFORMDL %타겟과% %마스터는% 손가락을 얽히게 해 어깨를 서로 가까이 대었다.
+				PRINTFORMW 「……매우, 차분해졌습니다…」
+			CASE 2
+				CALL K2_HPH_PRINT,@"「아HPH 거기는……」","L"
+				PRINTFORMDL %타겟이%, 평상시와는 틀 려 음성으로 작게 소리를 누설했다.
+				IF BASE:무드 >= 750 && BASE:이성 < 800 && CFLAG:욕구불만도 >= 300
+					PRINTFORMDW %타겟은% 정욕이 가득찬 눈으로 %CALLNAME:MASTER%에 호소하고 있다.
+				ELSE
+					PRINTFORMDW %타겟은% 뺨을 붉혀 숙이고 있다.
+				ENDIF
+			CASEELSE
+				PRINTFORMDL %CALLNAME:TARGET%의 머리카락의 방에 코를 찔러 넣어 냄새를 맡았다.
+				PRINTFORMDL 상쾌한 좋은 향기가 났다.
+				PRINTFORMW 「은, 부끄럽습니다 …」
+			ENDSELECT
+		ELSE
+			SELECTCASE TFLAG:193
+			CASE 1
+				PRINTFORMDL %마스터는% %CALLNAME:TARGET%에 맛사지를 해 주었다
+				PRINTFORML 「아…거기……기분이 좋습니다……」
+				PRINTFORMDW 로보트라도 열중하는 것은 있는 것 같다.
+			CASE 0
+				SELECTCASE RAND:2
+				CASE 1
+					PRINTFORMDL %마스터는% %CALLNAME:TARGET%의 어깨를 비비어 주었다.
+					PRINTFORMW 「응, 거기는……구, 낯간지럽습니다」
+				CASEELSE
+					PRINTFORMDL %마스터는% %CALLNAME:TARGET%의 어깨를 비비어 주었다.
+					PRINTFORMW 「응……동글동글이……」
+				ENDSELECT
+			CASE -1
+				PRINTFORMW 「이, 이상한 곳 손대지 말아 주세요!」
+			ENDSELECT
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;303, 사과한다
+;TFLAG:193(2=과자때성공 1=대성공 0=성공 -1=실패 -2=과자때실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_303
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_303_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_303_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;304, 일을돕는다
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;CFLAG:350(일내용(JOB_일내용. ERB 참조
+;TCVAR:도울수없다(=2 도와도 빨리는 끝나지 않는, 시간정지중 불가에이린의 진찰등 )
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_304
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_304_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_304_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		IF TALENT:연모 || TALENT:애욕
+			SELECTCASE RAND:3
+			CASE 1
+				PRINTFORML 「도와 주십니까?  감사합니다♪」
+				CALL K2_HPH_PRINT,@"「답례에 오늘 밤은…… 에헤헤 HPH」","W"
+			CASE 2
+				PRINTFORML 「이렇게 해 둘이서 일 하는 것은 좋네요」
+				CALL K2_HPH_PRINT,@"「어떻게 말하는지, 공동 작업이라는 느낌이 하는 HPH」","W"
+			CASEELSE
+				PRINTFORML 「조금만 더 근처에 있어도 괜찮습니까?」
+				PRINTFORMDW 가까워져지고 지나 조금 하기 어려웠다.
+			ENDSELECT
+		ELSE
+			SELECTCASE TFLAG:193
+			CASE 1
+				PRINTFORML 「괴, 굉장히 솜씨가 좋군요」
+				PRINTFORMDW %CALLNAME:TARGET%에 감탄 되었다.
+			CASE 0
+				PRINTFORMW 「좋습니까?  감사합니다」
+			CASE -1
+				PRINTFORML 「아니요, 이것은 나의 일이므로」
+				PRINTFORMDW %CALLNAME:MASTER%의 심부름의 신청해에 사양하는 %CALLNAME:TARGET%였지만, 억지로 도왔다.
+			ENDSELECT
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;305, 무릎베개받는다
+;TFLAG:193(-5=MASTER가 TARGET보다 거체의 경우(TALENT:MASTER:체형 > TALENT:체형 + 2) 1=대성공 0=성공 -1=실패)(-5이외는 지문 분기 없음)
+;ABL:친밀(6이상=얼굴을 들여다 보면서 머리를 쓰다듬어주는 3이상=다만 머리를 쓰다듬어주는 2 이하=움츠러들고 있다)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_305
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_305_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_305_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT() && TFLAG:193 != -5
+		IF TALENT:연모 || TALENT:애욕
+			SELECTCASE RAND:3
+			CASE 1
+				CALL K2_HPH_PRINT,@"「좋아요∼　기분이 좋은 베개가 되어 드리는 HPH」","L"
+				PRINTFORMDW %CALLNAME:TARGET%의 넙적다리는 알맞은 살집으로 매우 기분 좋았다.
+			CASE 2
+				CALL K2_HPH_PRINT,@"「후후 HPH 일 지쳐 버렸습니다」","L"
+				PRINTFORMDW %타겟은% 미소지으면서 훨씬 머리를 어루만져 주었다.
+			CASEELSE
+				CALL K2_HPH_PRINT,@"「수고했어입니까?  그렇지 않으면 응석부리고 싶습니까?  후훗 HPH」","W"
+			ENDSELECT
+		ELSE
+			SELECTCASE TFLAG:193
+			CASE 1
+				IF ABL:친밀 >= 6
+					PRINTFORMW 「언제나 일로 수고했어니까요. 부디♪」
+				ELSE
+					PRINTFORMW 「아, 알겠습니다. %CALLNAME:MASTER% 님에게는 시중이 되고 있으니까」
+				ENDIF
+			CASE 0
+				SELECTCASE ABL:친밀
+				CASE IS >= 6
+					PRINTFORMW 「수고 하셨습니다. 조금 휴식이군요」
+				CASE 3 TO 5
+					PRINTFORML 「이, 이것도 메이드의 일일까요……」
+					PRINTFORMDW %타겟은% 곤혹하면서도 무릎베개를 해 주었다.
+				CASE IS <= 2
+					PRINTFORML 「, 어떻게 하면 좋은 것일까요……?」
+					PRINTFORMDW %타겟은% 곤혹하고 있다.
+				ENDSELECT
+			CASE -1
+				PRINTFORMW 「……발이 찡하고 합니다……」
+			ENDSELECT
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;306, 배를어루만진다
+;TFLAG:193(1=ABL:친밀 6이상 또한 임신시 0=성공 -1=ABL:친밀 5 이하)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_306
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_306_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_306_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT() && !TALENT:무지
+		IF CFLAG:임신자각상태
+			IF TALENT:연모 && !CFLAG:무자각임신
+				IF TALENT:MASTER:성별 == 2 && RAND:2
+					PRINTFORMDL %타겟은% 마음 속 행복 그런 표정으로 체내의 갓난아이에게 말을 건넸다.
+					PRINTFORMW 「이봐, 아버지의 스윽스윽이에요―♪」
+				ELSE
+					CALL K2_HPH_PRINT,@"「매우 행복합니다…HPH」","W"
+				ENDIF
+			ENDIF
+		;질충전율이 수준 이상 또한 질내사정 된 자각이 있다
+		ELSEIF 충전율(TARGET, 1) > 30 && TCVAR:씨받음자각
+			IF TALENT:연모 || TALENT:애욕
+				SELECTCASE RAND:2
+				CASE 1
+					CALL K2_HPH_PRINT,@"「앙 HPH 가득 나와 버렸다 탓으로 배가 펴고 있습니다 HPH」","W"
+				CASEELSE
+					CALL K2_HPH_PRINT,@"「자지 국물 나오고 배가 입니다 HPH」","W"
+				ENDSELECT
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;307, 뺨을집는다
+;TFLAG:193(1=대성공 0=성공 -1=실패)(지문 분기 없음
+	;이하는 먼저 쓴 조건이 우선된다
+	;TALENT:연모(받아들이면서 웃는 얼굴로 다시한다
+	;ABL:친밀(6이상=흠칫흠칫 다시한다
+	;ABL:순종(5이상=되는 대로
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_307
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_307_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_307_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF CFLAG:수면
+		PRINTFORMW 「응……앙 …」
+	ELSEIF K2_CONSCIOUS_AND_TOLERANT()
+		IF TALENT:연모
+			SELECTCASE RAND:2
+			CASE 1
+				PRINTFORMW 「이제(벌써)　%CALLNAME:MASTER% 님도, 이러합니다 ♪」
+			CASEELSE
+				PRINTFORMW 「♪ 복수 해 드립니다♪」
+			ENDSELECT
+		ELSEIF ABL:친밀 >= 6 && TFLAG:193 >= 0
+			PRINTFORMW 「%CALLNAME:MASTER% 님뿐이면 간사합니다」
+		ELSEIF ABL:순종 >= 5 && TFLAG:193 >= 0
+			PRINTFORMW 「넣고 종류」
+		ELSE
+			PRINTFORMW 「… 아픕니다」
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;308, 뺨을쿡쿡 찌른다
+;동침중or수면 중한정
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_308
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_308_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_308_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	;수면중
+	IF CFLAG:수면
+	;통상
+	ELSE
+	ENDIF
+
+ENDIF
+RETURN 1
+;==================================================
+;309, 머리를어루만진다
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;ABL:친밀(6이상=통상 성공 시분기
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_309
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_309_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_309_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;수면중
+	IF CFLAG:수면
+		IF TALENT:연모 || TALENT:애욕
+			PRINTFORMW 「…으음……%CALLNAME:MASTER% 님……」
+		ENDIF
+	ELSEIF K2_CONSCIOUS_AND_TOLERANT()
+		IF TALENT:연모 || TALENT:애욕
+			SELECTCASE RAND:3
+			CASE 1
+				CALL K2_HPH_PRINT,@"「청소 노력했던♪ 칭찬해 주세요 HPH」","W"
+			CASE 2
+				CALL K2_HPH_PRINT,@"「%CALLNAME:MASTER% 님이 어루만질 수 있으면(자) 얼굴이 따끈따끈 해 오는 HPH」","W"
+			CASEELSE
+				CALL K2_HPH_PRINT,@"「에헤헤. %CALLNAME:MASTER% 님의 손,\@ TALENT:MASTER:성별 == 2 && TALENT:MASTER:체형 >= 0 ? 크네요 #기분이 좋습니다 \@HPH」","W"
+			ENDSELECT
+		ELSE
+			SELECTCASE TFLAG:193
+			CASE 1
+				IF ABL:친밀 >= 6
+					PRINTFORML 「아…벌써 끝나이군요……」
+					PRINTFORMDW %타겟은% 좀 더 쓰다듬고 있고 가지고 싶었던 것 같다.
+				ELSE
+					PRINTFORML 「뭐, 뭔가요?」
+					PRINTFORMDW %타겟은% 이상한 듯 하고 있지만, 뺨은 조금 느슨해지고 있다.
+				ENDIF
+			CASE 0
+				IF ABL:친밀 >= 6
+					PRINTFORMW 「에헤헤. 칭찬할 수 있어 버렸습니다」
+				ELSE
+					PRINTFORMW 「뭐, 뭡니까?  나, 칭찬할 수 있는 것 같은 일 하지 않았습니다 」
+				ENDIF
+			CASE -1
+				PRINTFORMW 「머리 모양 금액두있습니다……」
+			ENDSELECT
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;331, 차를넣는(약넣은)
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_331
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_331_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_331_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;332, 술을대접한다
+;TFLAG:193(0=술을못함 성공 -1=술을못함 실패 -2=술을못함마심대실패 -5=술을못함 아키라 째)
+;TFLAG:194(51=탁주 52=청주 53=오니고로시)
+;ALCOHOL_TASTE(TFLAG:194)(15이상=마음에 드는 9 이하=입맛에 맞지 않는다)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_332
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_332_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_332_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;333, 푸념을듣는다
+;TFLAG:193(6=대성공(취기) 5=성공(취기) 4=실패(취기) 3=대성공 2=성공 1=실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_333
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_333_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_333_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	SELECTCASE TFLAG:193
+		CASE 6
+		;대성공(취기)
+		CASE 5
+		;성공(취기)
+		CASE 4
+		;실패(취기)
+		CASE 3
+		;대성공
+		CASE 2
+		;성공
+		CASE 1
+		;실패
+	ENDSELECT
+ENDIF
+RETURN 1
+;==================================================
+;334, 잔을주고받는다
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;CFLAG:임신자각상태(1=식사)
+;TALENT:술내성(-2=식사)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_334
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_334_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_334_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	SELECTCASE TFLAG:193
+		CASE 1
+		;대성공
+		CASE 0
+		;성공
+		CASE -1
+		;실패
+	ENDSELECT
+ENDIF
+RETURN 1
+;==================================================
+;335, 간호한다
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_335
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_335_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_335_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	SELECTCASE TFLAG:193
+		CASE 1
+		;대성공
+		CASE 0
+		;성공
+		CASE -1
+		;실패
+	ENDSELECT
+ENDIF
+RETURN 1
+;==================================================
+;336, 무릎베개한다
+;ABL:친밀(4 이하=기분악 9 이하=수치않다 기울 수 있는 그 이상=행복 그렇게
+;TIME_PROGRESS(TFLAG:무릎베개)(44 이하=실패
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_336
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_336_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_336_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		;자면
+		IF TFLAG:193 > 0
+			PRINTL
+			PRINTFORMDL %타겟이% 눈을 떴다.
+			IF TALENT:연모
+				PRINTFORML 「나도 참 자 버렸었어요」
+				PRINTFORMW 「무릎, 아프지 않았습니까?」
+			ELSE
+				PRINTFORMW 「도, 죄송합니다. \@ ABL:친밀 >= 5 ?  기분 좋아서, # \@무심코……」
+			ENDIF
+		;잠을 자지 않다
+		ELSE
+			SELECTCASE ABL:친밀
+			CASE IS <= 4
+				PRINTFORMW 「메, 메이드가 이런 일을 해 괜찮겠습니까……」
+			CASE 5 TO 9
+				PRINTFORMW 「역시 부끄럽습니다」
+			CASE IS >= 10
+				SELECTCASE RAND:3
+				CASE 1
+					PRINTFORMW 「하아…… 차분해졌습니다」
+				CASE 2
+					PRINTFORMW 「왠지 졸려져 버렸습니다…」
+				CASEELSE
+					PRINTFORMW 「에헤헤, 감사합니다♪」
+				ENDSELECT
+			ENDSELECT
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;350, 밀어넘어뜨린다(시간시 장난한다
+;TFLAG:194 (0=성공 1=명째가 있다　2=야외는 싫어 입니다만　3=많은 사람 플레이는 용서　4=합의가 있어도 무드가 충분하지 않다)
+;TCVAR:껴안고첫회　1=보통으로 합의Get　2=먼저 키스 정도 해라　3=미약or발정에는 이길 수 없었어요 …　4=분한…각인조차 없으면 히″쿠히″군
+;5=억지로 재촉당한다고 거절할 수 없는(소질 겁장이 소유 전용) 6=반드시 싫지만은 않다　7=안 돼　8=논외
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_350
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_350_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_350_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF TCVAR:만취
+		PRINTFORMW 「에에?」
+	ELSEIF SHIRAHU(TARGET) && TFLAG:194 == 4 && CFLAG:빡침
+		PRINTFORML 「그렇게 속이려고 해도 안 돼요. 분명하게 반성해 주세요」
+		PRINTFORMDW 일발야는 화해 하려고 생각했지만 실패였던 것 같다.
+	ELSEIF K2_BASIC_CONDITION_IN_MATING()
+		;실패
+		IF TFLAG:194
+			SELECTCASE TFLAG:194
+			CASE 1,2
+				;우후후 기정사실 있어
+				IF CFLAG:기정사실 & 2
+					PRINTFORML 「여기에서는 과연……」
+					PRINTFORMW 「좀 더 침착한 곳에 갑시다」
+				ENDIF
+			CASE 3
+				;우후후 기정사실 있어
+				IF CFLAG:기정사실 & 2
+					IF TALENT:연모 || TALENT:애욕
+						PRINTFORML 「, 다른 분과 함께입니다인가?」
+						PRINTFORML 「……그것은……」
+						PRINTFORMDW %타겟은% 둘이서가 좋은 것 같다.
+					ELSE
+						PRINTFORMW 「그런…… 함께로는 무리입니다…」
+					ENDIF
+				ENDIF
+			CASE 4
+				IF TALENT:연모 || TALENT:애욕 || TALENT:사모 || TALENT:섹프
+					PRINTFORMW 「에에 와 좀 더 이야기 하고 있고 싶습니다. 안되겠습니까?」
+				ELSE
+					PRINTFORML 「죄송합니다. 아직 청소의 일이……」
+					PRINTFORMDW %타겟은% 아직 그러한 기분은 아닌 것 같다.
+				ENDIF
+			ENDSELECT
+		;첫회
+		ELSEIF TCVAR:껴안고첫회
+			SELECTCASE TCVAR:껴안고첫회
+			CASE 1
+				IF TALENT:연모
+					CALL K2_HPH_PRINT,@"「아HPH ……알았습니다」","W"
+					PRINTFORMW 「쭉 기다리고 있었으니까……」
+					PRINTFORMDW %타겟은% 뺨을 붉히면서도 %CALLNAME:MASTER%의 눈을 곧바로 응시하고 있다.
+				ELSEIF TALENT:걸레
+					CALL K2_HPH_PRINT,@"「아앙 HPH ……겨우군요 HPH」","W"
+					CALL K2_HPH_PRINT,@"「나(저)는 언제라도 다행입니다HPH」","W"
+				ELSEIF TALENT:사모
+					PRINTFORMW 「아……」
+					PRINTFORMDW %타겟은% %CALLNAME:MASTER%의 모습으로부터 그 욕망을 헤아린 것 같다.
+					PRINTFORMW 「……부디. %CALLNAME:MASTER% 님에게 맡깁니다」
+					PRINTFORMDW %타겟은% 약간 입술을 떨면서 %CALLNAME:MASTER%에 몸을 맡겼다.
+				ELSE
+					PRINTFORMW 「어?  아앙, 이나…」
+					PRINTFORMDW %타겟은% 놀란 모습이었지만, %CALLNAME:MASTER%의 눈을 당분간 응시하면(자), 숨을 하나 토해 몸이 힘을 뺐다.
+					PRINTFORMDW 아무래도 받아들여 준 것 같다.
+					PRINTFORMW 「상냥하게……해 주세요」
+				ENDIF
+			CASE 2
+				IF TALENT:걸레
+					CALL K2_HPH_PRINT,@"「으응, 키스도 하지 않고 야왕은 HPH」","W"
+					CALL K2_HPH_PRINT,@"「나, 그러한 필사적인 느낌을 좋아합니다 HPH」","W"
+					IF !CFLAG:1001 && ( TALENT:처녀 == 1 || TALENT:처녀 == -1 )
+						CALL K2_HPH_PRINT,@"「그렇지만 실은 나, 처음으로 해……　그래서, 상냥하게 해 주세요 HPH」","W"
+					ELSE
+						PRINTFORMW 「그렇지만, 심한 것은하지 마세요」
+					ENDIF
+				ELSE
+					PRINTFORMW 「나, 나들 아직…… 아니요, 아무것도 아닙니다」
+					PRINTFORMDW %타겟은% 무엇인가 이야기를 시작했지만, 포기한 것처럼 눈을 감으며 %마스터를% 받아들였다.
+				ENDIF
+			CASE 3
+				PRINTFORMW 「하아…하아……몸이, 뜨겁습니다」
+				PRINTFORMDW 뜨거워져 자른%CALLNAME:TARGET%의 몸은 %마스터를% 거절할 수가 없었다.
+			CASE 4
+				PRINTFORMW 「나, 이상합니다……갖고 싶어서……참을 수 없습니다」
+				PRINTFORMDW 어느새(무심코) 개발하고 자른%CALLNAME:TARGET%의 몸이 %마스터를% 요구하고 있는 것 같다.
+			CASE 5
+			CASE 6
+				PRINTFORMW 「죄송합니다만, 기분에 대답할 수 없습니다」
+			CASE 7
+				PRINTFORMW 「야,  그만두어 주세요. 나(저)는 로봇예요」
+				;레이무 토우 후후 기정사실 있어, 한편 레이무가 되어 송곳이 아니다
+				SIF CFLAG:1:기정사실 & 2 && FLAG:역극 != 1
+					PRINTFORMW 「게다가, %CALLNAME:MASTER% 님에게는 레이무님이 계(오)시지 않습니까」
+				PRINTFORMDW %CALLNAME:TARGET%에 굉장하네 구 거절당했다.
+			CASE 8
+				PRINTFORMW 「나에 대해를 성 처리 도구라고도 생각입니까?」
+				PRINTFORMDW %CALLNAME:TARGET%에 단호히거절되었다.
+			ENDSELECT
+		;성공 2회째 이후
+		ELSE
+			;밀어넘어뜨려지고 안에 덮치기 돌려준다
+			IF TFLAG:COMABLE관리 == 3
+				IF TALENT:연모 || TALENT:사모
+					CALL K2_HPH_PRINT,@"「아HPH 그 쪽으로부터 시라고 주십니까?」","L"
+					PRINTFORMW 「후후, 잘 부탁드립니다」
+				ELSEIF TALENT:애욕 || TALENT:섹프 || TALENT:걸레
+					PRINTFORML 「으응, 이쪽으로부터 시의 것에……」
+					CALL K2_HPH_PRINT,@"「……알았습니다. \@ K2_SEXUAL_FRANKNESS() ? 기분 자주(잘), 해 주세요 #좋으실 대로 해 주세요 \@HPH」","W"
+				ELSE
+					PRINTFORML 「그 쪽으로부터입니까?」
+					PRINTFORMW 「그럼……맡깁니다」
+				ENDIF
+			;보통에 MASTER로부터 밀어넘어뜨린다
+			ELSE
+				;옥외
+				IF OPENPLACE(CFLAG:MASTER:현재위치) >= 2
+					IF ABL:노출벽 >= 6
+						PRINTFORML 「외인데도 좋아라고 끝냈습니까?」
+						PRINTFORMW 「후후, 잘 알았습니다. 깨끗이 시켜 드립니다」
+					ELSE
+						PRINTFORML 「……이런 곳에서입니까?」
+						PRINTFORMW 「아, 알겠습니다」
+					ENDIF
+				;옥내
+				ELSE
+					IF TALENT:연모 || TALENT:애욕
+						SELECTCASE RAND:6
+						CASE 1
+							PRINTFORML 「불끈불끈 해 버렸습니다인가?  후후, 좋아요」
+							CALL K2_HPH_PRINT,@"「좋으실 대로 사용해 주세요 HPH」","W"
+						CASE 2
+							PRINTFORMDL 욕정한 %마스터가% 야등키라고 줘라고 말하면(자), %타겟은% 고혹적미소를 띠면서
+							PRINTFORMDW 말없이  엉덩이를 이쪽으로 쑥 내밀어, %CALLNAME:MASTER%의 욕망을 받아들이는 의지를 적셨다.
+						CASE 3
+							PRINTFORMD %CALLNAME:MASTER%의 흥분을 느끼고 취한 %타겟은%
+							;치마걷어 올리기 할 수 있어 바지입지 않은 경우
+							IF ( EQUIP:치마|| EQUIP:원피스|| EQUIP:기모노) && !EQUIP:바지
+								PRINTFORMDL 옷자락을 들어 올려 태퇴를 보이면서, %마스터를% 권했다.
+							ELSE
+								PRINTFORMDL %CALLNAME:MASTER%의 손을 잡으며, 가슴팍에 이끌었다.
+							ENDIF
+							CALL K2_HPH_PRINT,@"「부디 드셔 주세요 HPH」","W"
+						CASE 4
+							PRINTFORMDL 욕정한 %마스터는% 등 뒤로부터%CALLNAME:TARGET%에 안아 붙었다.
+							PRINTFORMDL %타겟은% 미소를 띠며 엉덩이를 %CALLNAME:MASTER%의 고간에 문질러 왔다.
+							CALL K2_HPH_PRINT,@"「나도 갖고 싶어져 버렸습니다 HPH」","W"
+						CASE 5
+							PRINTFORMDL 얼룩짐라고 해 버렸다고 고하면(자)%타겟은% 기쁜듯이 웃었다.
+							CALL K2_HPH_PRINT,@"「아무튼. 그럼 처리해 드리지 않습니다와 HPH」","W"
+						CASEELSE
+							PRINTFORMDL %CALLNAME:TARGET%의 허리를 구이와 껴안았다.
+							PRINTFORML 「아앙, 보지 하고 싶어져 버렸습니다」
+							CALL K2_HPH_PRINT,@"「좋아요♪ 가득 보지 해요 HPH」","W"
+						ENDSELECT
+					ELSEIF TALENT:걸레
+						SELECTCASE RAND:2
+						CASE 1
+							CALL K2_HPH_PRINT,@"「다시 나의 보지 사용하고 싶습니까?  어쩔 수 없네요 HPH」","W"
+						CASEELSE
+							IF TALENT:MASTER:성별 == 2 && RAND:2
+								CALL K2_HPH_PRINT,@"「다시입니까?  흐응, 남자는 정말로 빈틈이군요 HPH」","W"
+							ELSE
+								CALL K2_HPH_PRINT,@"「%CALLNAME:MASTER% 님도 참, 근성 너무 와요∼HPH」","W"
+							ENDIF
+						ENDSELECT
+					ELSEIF TALENT:사모
+						SELECTCASE RAND:2
+						CASE 1
+							PRINTFORML 「아……또 합니다……알았습니다」
+							PRINTFORMDW %타겟은% 뺨을 붉게 물들이면서 %CALLNAME:MASTER%에 몸을 맡겼다.
+						CASEELSE
+							PRINTFORML 「난폭하게는…하지 말아 주세요」
+							PRINTFORMDW %타겟은% 물기를 띤 눈을 감으며, %마스터를% 받아들였다.
+						ENDSELECT
+					ELSE
+						SELECTCASE RAND:2
+						CASE 1
+							PRINTFORMW 「부디. 사용하고 있는 만여 상관하지 않습니다」
+						CASEELSE
+							PRINTFORMW 「다시 하십니다. 알았습니다」
+						ENDSELECT
+					ENDIF
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;351, 데리고나간다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_351
+;데리고 나가에는 TRAIN_MESSAGE가 없다
+CALL M_KOJO_MESSAGE_COM_K2_351_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_351_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		;TARGET 데리고 나가
+		IF CFLAG:동행 == 60
+			IF TALENT:연모 || TALENT:애욕 || TALENT:연인
+				PRINTFORMW 「예, 동행하겠습니다」
+			ELSE
+				PRINTFORMW 「어느 쪽으로 갈 수 있습니까?」
+			ENDIF
+		;TARGET 이외 데리고 나가(TARGET 동행중만
+		ELSE
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;352, 고백한다
+;FLAG:생활능력무(1=실패)
+;TFLAG:193 (1=성공 0=실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_352
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_352_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_352_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;353, 장난한다
+;FLAG:생활능력무(1=실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_353
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_353_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_353_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;354, 동침한다(상대는 일어나 이불에 부르는 느낌)
+;CFLAG:쇠약(1이상=일어나지 않는다
+;CFLAG:초대( 0이외=일어나지 않는다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_354
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_354_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_354_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF !CFLAG:빡침 && MARK:반발각인 < 3 && !TCVAR:억지로 && !CFLAG:초대 && !CFLAG:쇠약
+		;동거(同棲) 안
+		IF CFLAG:MASTER:초기위치 == CFLAG:TARGET:초기위치
+			PRINTFORML 「아, %CALLNAME:MASTER% 님. 어서 오세요」
+			PRINTFORMDW 자고 있던%CALLNAME:TARGET%였지만, 눈을 뜨면(자) 의리가 있게 인사해, 웃는 얼굴로 %마스터를% 이불안에 불러 넣었다.
+		;비동거(同棲)
+		ELSE
+			PRINTFORML 「아, %CALLNAME:MASTER% 님. 오늘은 함께 잡니까?  후훗, 부디♪」
+			PRINTFORMDW 자고 있던%CALLNAME:TARGET%였지만, %마스터를% 상쾌하게 이불에 불러 넣어 주었다.
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;355, 때 멈추고(지문의 개변 정도로 두어야 함
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_355
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_355_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_355_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;360, 몸을맡긴다
+;TCVAR:20(27=골짜기를 보이는 32=앞에서 안겨든 35=치마안을 보이는 53=파이즈리 73= 77=젖을 들이마시게 하는 85=V삽입하는 86=정말좋아 hold 87=A삽입하는 88=허리 모습 V 89=허리 모습 A
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_360
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_360_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_360_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;363, 읽어들려주고([유치]소유 전용)
+;TFLAG:193(1=대성공 0=성공 -1=실패)(지문 분기 없음
+;CFLAG:동침중(1=이불 or침대 중(안)에서 책을 읽는다
+;MASTER가 TARGET보다 큰 몸집의 경우, 무릎 위로 TARGET를 싣는다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_363
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_363_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_363_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;364, 콩장작(스이카, 유기, 스칼렛 자매용
+;TFLAG:193(콩 뿌려에 참가하고 있는 인원수
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_364
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_364_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_364_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;365, 모리야신사에 이동(사나에, 카나코, 스와코용
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_365
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_365_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_365_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;402, 취침
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_402
+;취침에 TRAIN_MESSAGE는 없다
+CALL M_KOJO_MESSAGE_COM_K2_402_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_402_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	DRAWLINE
+	SIF FLAG:대사색깔
+		TRYCALLFORM M_KOJO_COLOR_K{TARGET}
+	IF CFLAG:수면
+		PRINTFORMDW 새근새근하고  기분이 좋은 듯 자는 %CALLNAME:TARGET%의 근처에서 마루에 붙었다.
+	ELSEIF K2_CONSCIOUS_AND_TOLERANT()
+		IF TALENT:연모 || TALENT:연인
+			PRINTFORMDL %마스터는%, %타겟이% 정돈해 준 침상에도 꾸물거려 넣었다.
+			SIF CFLAG:현재위치 != CFLAG:초기위치
+				PRINTFORMDL %타겟은% %마스터가% 잠들 때까지 쭉 곁에 있던 것 같다.
+			WAIT
+		ELSE
+			PRINTFORMDW 졸음을 느낀%마스터는% %CALLNAME:TARGET%에 인사해 잠들었다.
+		ENDIF
+		PRINTL
+		PRINTFORMW 「안녕히 주무세요」
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;403, 휴식
+;CFLAG:TARGET:수면(1=TARGET가 자고 있는 근처에서 휴식
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_403
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_403_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_403_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		PRINTFORMW 「조금 지쳤네요」
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;405, 나간다(동행시 데이트
+;조건이 귀찮아서, COMF405 나간다. ERB를 참조
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_405
+;나가는에 TRAIN_MESSAGE는 없다
+CALL M_KOJO_MESSAGE_COM_K2_405_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_405_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;TARGET와 데이트
+	IF CFLAG:동행
+	;TARGET 의외로 데이트
+	ELSEIF CFLAG:MASTER:동행
+	;외출보류
+	ELSE
+		IF K2_CONSCIOUS_AND_TOLERANT()
+			PRINTFORMW 「다녀오십시오∼」
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;410, 청소
+;FLAG:70(1=시간정지중
+;TFLAG:193(0=보고 있을 뿐 1=함께 청소)
+;TFLAG:194(3=더러운고 2=더러운중 1=더러운저 0=더러운 최소
+;OUTROOF(CFLAG:현재위치)(야외 청소( 겨울은 눈치우기
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_410
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_410_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_410_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF TFLAG:193 == 1 && K2_CONSCIOUS_AND_TOLERANT()
+		SELECTCASE RAND:3
+		CASE 1
+			SELECTCASE ABL:청소기능
+			CASE IS >= 3
+				PRINTFORMDL %타겟은% 효율적으로 청소를 진행시키고 있다.
+				PRINTFORMW 「점점 청소있읍시다∼」
+			CASE 2
+				PRINTFORMW 「%CALLNAME:MASTER% 님의 덕분에 청소가 능숙해진 것 같습니다」
+			CASEELSE
+				PRINTFORMDL %타겟은% 노력해 청소하고 있지만, 그다지 진척되지 않았다.
+				PRINTFORMDW 메이드 로봇인데 청소가 자신있지 않은 것 같다.
+			ENDSELECT
+		CASE 2
+			PRINTFORML 「~♪ ~♪」
+			PRINTFORMDW %타겟은% 즐거운 것 같게 청소하고 있다.
+		CASEELSE
+			PRINTFORMDL %타겟은% 매우 기쁜듯이 청소를 해냈다.
+			PRINTFORMW 「자 다음은 어디를 청소할까요」
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;411, 전투훈련
+;TFLAG:194(3=여름의 낮 2=위험 있고 날씨 1=악천후 0=옥내 or통상 날씨
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_411
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_411_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_411_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	$BATTLE_TRAINING_LOOP
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		SELECTCASE RAND:4
+		CASE 1
+			IF ABL:MASTER:전투능력 > ABL:전투능력
+				PRINTFORMW 「%CALLNAME:MASTER% 님은 강한 응이군요」
+			ELSE
+				GOTO BATTLE_TRAINING_LOOP
+			ENDIF
+		CASE 2
+			PRINTFORMW 「히잇…… 위험 샀다입니다」
+		CASE 3
+			PRINTFORMW 「으음……아야야야…」
+		CASEELSE
+			PRINTFORMW 「후우, 지쳤습니다」
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;412, 공부
+;ABL:교양(ABL:MASTER:교양보다 대=MASTER가 가르쳐 주는 ABL:MASTER:교양보다 소=TARGET가 가르쳐 준다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_412
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_412_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_412_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	$STUDY_LOOP
+	IF K2_CONSCIOUS_AND_TOLERANT() && CFLAG:행동 != 5
+		SELECTCASE RAND:4
+		CASE 1
+			IF ABL:MASTER:교양 > ABL:교양
+				PRINTFORMW 「왠지 어려울 것 같아…대단하군요」
+			ELSE
+				GOTO STUDY_LOOP
+			ENDIF
+		CASE 2
+			IF ABL:MASTER:교양 >= ABL:교양
+				PRINTFORML 「공부입니까?」
+				PRINTFORMDW %타겟이% 흥미빌려주자에 바라봐 왔다.
+			ELSE
+				GOTO STUDY_LOOP
+			ENDIF
+		CASE 3
+			PRINTFORMW 「그다지 뿌리를 너무 채우지 않게 해 주세요」
+		CASEELSE
+			PRINTFORMW 「굉장히 열심이네요∼」
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;413, 요리
+;TFLAG:194(100이상=금단의 메뉴 3=디저트 2=주식 1=경식
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_413
+;TFLAG:194가 100이상의 경우만
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_413_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_413_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	$COOKING_LOOP
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		SELECTCASE RAND:4
+		CASE 1
+			IF ABL:요리기능 >= 4
+				PRINTFORMDL %타겟은% 생생한 솜씨로 요리하고 있다..
+				PRINTFORML 「어이 주위입니까?  그것은 좋았습니다」
+				SIF FLAG:역극 != 1
+					PRINTFORML 「레이무님도 칭찬해 주실거라고 좋은데∼」
+				WAIT
+			ELSE
+				GOTO COOKING_LOOP
+			ENDIF
+		CASE 2
+			IF ABL:요리기능 >= 2
+				PRINTFORMDL %타겟은%\@ ABL:요리기능 == 2 ? 꽤 # \@솜씨 좋게 조리를 해내고 있다.
+				PRINTFORMW 「%CALLNAME:MASTER% 님의 덕분에\@ ABL:요리기능 >= 3 ? 많이 # \@능숙해졌습니다」
+			ELSE
+				GOTO COOKING_LOOP
+			ENDIF
+		CASE 3
+			PRINTFORML 「요리라면 메이드의 내가 돕겠습니다」
+			IF ABL:요리기능 < 2
+				PRINTFORMDW %타겟이% 요리의 심부름을 신청해 주었지만, 손놀림이 위험 인가 해 있고.
+			ELSE
+				PRINTFORMDW %CALLNAME:TARGET%에 도움을 받은 덕분에 진척되었다.
+			ENDIF
+		CASEELSE
+			PRINTFORML 「요리♪ 요리♪」
+			IF TALENT:기분 >= 0
+				PRINTFORMDW %타겟은% 기분 자주(잘) 요리하고 있다.
+			ELSE
+				PRINTFORMDW %타겟은% 요리에 열심히 하고 있다.
+			ENDIF
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;414, 식사를배달시킨다
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;TFLAG:194(1=노팬티 샤브샤브 2=금단의 메뉴 31=도핑 콘소메 수프 30=모짜렐라 치즈와 토마토의 샐러드 34=긴기 요리
+;TCVAR:MASTER:308(bit0=진한 맛 bit1=담백한 맛 bit3=엄청 매운 bit4=격감 bit5=고추냉이 bit6=격산
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_414
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_414_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_414_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;415, 식사를대접한다
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;TCVAR:MASTER:308(bit0=진한 맛 bit1=담백한 맛 bit3=엄청 매운 bit4=격감 bit5=고추냉이 bit6=격산
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_415
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_415_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_415_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;416, 연주한다
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;TFLAG:사용악기(1=키보드 2=피아노 3=기타 4=트럼펫 5=바이올린)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_416
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_416_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_416_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;417, 낮잠을 한다
+;TFLAG:193(0=MASTER를 안아 베개로 해 자고 있는 1=MASTER의 무릎을 베개로 해 자고 있는 2=잠자는 얼굴에 키스 된 3=잠자는 얼굴을 들여다 봐진 4=MASTER가 무릎베개되고 있는 5=은밀한 곳 or페니스 비비어
+;CFLAG:동침중(1=함께 자고 있다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_417
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_417_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_417_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;421, 발원함 한다
+;조건이 복잡해서, COMF421 발원함. ERB 및, EVENT_MESSAGE_COM400.ERB의 발원함 하는 것 항을 참조
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_421
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_421_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_421_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;422~430은, 특수 커맨드이므로 텐프레에서는 대응하지 않습니다
+;==================================================
+
+;==================================================
+;431, 욕실로느긋하게쉰다
+;TFLAG:209(4=마을의 목욕탕에서 접수대 를 화나게 하고 있는 1=목욕탕에 들어갔다
+;TFLAG:211(4=지저의 온천에서 접수대 요괴를 화나게 하고 있는 1=온천에 들어갔다
+;TFLAG:194(1=연속 입욕 불가(표시하지 않을 가능성 있어?
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_431
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_431_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_431_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		PRINTFORMW 「하아…좋은 더운 물입니다…」
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;432, 욕실로느긋하게쉰다
+;표시 타이밍은 입욕 후이므로, 목욕 한 후에서의
+;TFLAG:209(4=마을의 목욕탕에서 접수대 를 화나게 하고 있는 1=목욕탕에 들어갔다
+;TFLAG:211(4=지저의 온천에서 접수대 요괴를 화나게 하고 있는 1=온천에 들어갔다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_432
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_432_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_432_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;440, 기다린다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_440
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_440_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_440_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;441, 수업을받는다(케이네 전용
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_441
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_441_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_441_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;442, 벌채한다(미실장
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_442
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_442_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_442_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;442이후의 커맨드는, 실행해도 말은 아마 표시되지 않기 때문에 텐프레에서도 패스
+;==================================================
+
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+;데이트계 커맨드
+;데이트계 말은 문자 그대로 외출처에서 발생
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+[SKIPSTART]
+;현상미실장
+;==================================================
+;600, 데이트 회화
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_600
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_600_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_600_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;601, 데이트 스킨십
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_601
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_601_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_601_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;602, 데이트 키스
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_602
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_602_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_602_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+[SKIPEND]
+;==================================================
+;603, 손을잡는다
+;TFLAG:193(1=대성공 0=성공 -1=실패)(실패에서도 거절해 풀어지거나는 하지 않습니다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_603
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_603_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_603_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;604, 산책한다
+;데이트중의 경우, CFLAG:현재위치에 이동처의 장소가 이미 들어가 있다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_604
+;산책하려면  TRAIN_MESSAGE가 없다
+CALL M_KOJO_MESSAGE_COM_K2_604_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_604_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;605, 지나치는길한다
+;TFLAG:193(1=대성공 0=성공 -1=실패)(지문 없음
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_605
+;지나치는 길 하려면  TRAIN_MESSAGE가 없다
+CALL M_KOJO_MESSAGE_COM_K2_605_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_605_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;610, 식사제의를한다
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_610
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_610_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_610_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;613, 돈 벌어 한다(생략 되었습니다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_613
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_613_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_613_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;614, 식재료의 시장
+;TFLAG:193(1=구입＆데이트경험 업 0=구입 -1=비구입)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_614
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_614_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_614_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;615, 도시락을 먹는다
+;실행 가능 장소지장길, 수양버들아래, 안개의호수, 현무의늪, 큰두꺼비의연못, 절경의언덕, 산의호수, 천계
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;ABL:요리기능(2 미만=미묘한 성과 4 미만=안밖 맛있는 4이상=훌륭한 작품)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_615
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_615_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_615_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		IF TFLAG:193 >= 0
+			SELECTCASE ABL:요리기능
+			CASE 0,1
+				PRINTFORML 「아, 그…… 맛은 어때요?」
+				PRINTFORMDW %타겟은% 자신낮추어에게 물어 왔다.
+			CASE 2,3
+				PRINTFORMDL %마스터가% 맛있다고 말하면(자)%타겟은% 매우 기쁜듯이 웃었다.
+				PRINTFORMW 「좋았습니다♪ , 많이 있기 때문에 점점 먹어 주세요」
+			CASE IS >= 4
+				PRINTFORMW 「오늘은 자신작입니다!\@ TALENT:연모 || TALENT:애욕 ? %CALLNAME:MASTER% 님의 위해(때문에) # \@팔에보다를 걸쳐 만들었습니다♪」
+			ENDSELECT
+		ELSE
+			PRINTFORMDL 요리에 자신이 없는 건가, %타겟은% 숙이고 있다.
+			PRINTFORMW 「…… 나(저)는 보 패턴 무엇인가요……」
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;617, 아마미 도코로로 이끈다
+;TFLAG:193(1=대성공 0=성공 -1=실패)(지문 분기는 대성공만 추가
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_617
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_617_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_617_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;618, 꽃집(말은 표시되지 않는 모양?
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_618
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_618_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_618_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;620, 스즈나안
+;TFLAG:193(1=대출 OK 0=대출 불가
+;ITEM:10X (X=1 전술지도서 X=2 조리지도서 X=3 사전 X=4 단편소설
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_620
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_620_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_620_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;621, 낚시를 한다
+;TFLAG:193(0=잡히지 않는 1~4=물고기 11~15=맛있는물고기 610=목재 131=모리야부적 21=로터 609=얼음의 린 606=용의손톱)
+;TFLAG:194(1000이상이라면 TARGET가 낚시했다)
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_621
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_621_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_621_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;660, 독서
+;TFLAG:193(선택지 문학(1=인살(문학? ) 2=실패 3=문학), 선택지 실용서(4=실패 5=실용서), 선택지 엣찌한 책(6=싱거운 높은 본 7=보건 체육 8=카 매스-호랑이))
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_660
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_660_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_660_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;698, 방에들어간다
+;TARGET의 방에 들어가는 경우만 표시
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_698
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_698_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_698_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;699, 밖으로나온다
+;==================================================
+@M_KOJO_MESSAGE_COM_K2_699
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K2_699_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K2_699_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+;파생 커맨드
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+;==================================================
+;60, 귀이개
+;전턴 무릎베개 후 스킨십 커맨드
+;TFLAG:193(1=대성공 0=성공 -1=실패)(실패하는 것은 TARGET
+;==================================================
+@M_KOJO_MESSAGE_SCOM_K2_60
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K2_60_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K2_60_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF K2_CONSCIOUS_AND_TOLERANT()
+		IF ( TALENT:연모 || TALENT:애욕 ) && TFLAG:193 >= 0
+			SELECTCASE RAND:2
+			CASE 1
+				CALL K2_HPH_PRINT,@"「도움이 될 수 있고 있다고(면) 실감할 수 있으므로, 귀이개를 좋아합니다 HPH」","L"
+				CALL K2_HPH_PRINT,@"「예 , 마지막입니다. 그렇지만 좀 더 하고 있고 싶습니다. 또 시켜 주세요 HPH」","L"
+				PRINTFORMDW 너무 하게 주의하지 않으면.
+			CASEELSE
+				PRINTFORML 「%CALLNAME:MASTER% 님의 귀, 깨끗하게 해 드리네요∼」
+				PRINTFORMDL 부탁하지 않았는데, %타겟은% 스스로 귀이개를 신청해 왔다.
+				PRINTFORMW 「아, 큰 것 취할 수 있었다. 후후, 즐겁습니다」
+			ENDSELECT
+		ELSE
+			SELECTCASE TFLAG:193
+			CASE 1
+				PRINTFORMDL 매우 기분 좋았다고 전하면(자), %타겟은% 기쁜듯이 웃었다.
+				PRINTFORMW 「도움이 될 수 있어서 좋았습니다」
+			CASE 0
+				PRINTFORMW 「꽤……어렵습니다. 있고, 아프지 않습니까?」
+			CASE -1
+				PRINTFORMDL %마스터가% 아프면 소리를 지르면(자), %타겟은% 할 말이 없다는 듯 사과했다.
+				PRINTFORMW 「……미안해요……메이드 실격입니다……」
+			ENDSELECT
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;61, 안아 베개
+;(TARGET 수면시간 or쇠약) 동침중, 전턴 안겨든 후 취침 커맨드
+;분기 없음
+;==================================================
+@M_KOJO_MESSAGE_SCOM_K2_61
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K2_61_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K2_61_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	;IF !CFLAG:빡침 && MARK:반발각인 < 3 && !TCVAR:억지로
+		;PRINTFORMDL 서로의 온기를 느끼면서 온화한 기분으로 잠들었다.
+		;CALL K2_HPH_PRINT,@"「…으음……%CALLNAME:MASTER% 님…HPH」","W"
+	;ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;62, 이마 쪽―
+;전턴두 어루만지고 후 키스한다
+;TFLAG:193(1=대성공 0=성공 -1=실패)(지문 분기 없음
+;ABL:욕망(5이상=어딘지 부족하다
+;ABL:친밀(5이상=수줍다
+;==================================================
+@M_KOJO_MESSAGE_SCOM_K2_62
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K2_62_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K2_62_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;63, 좀 더 키스한다
+;전턴 키스 하는 후 키스한다
+;분기 조건은 EVENT_MESSAGE_COM500.ERB 참조
+;==================================================
+@M_KOJO_MESSAGE_SCOM_K2_63
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K2_63_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K2_63_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	IF FLAG:70
+	ELSE
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;80, 손을 잡아 당긴다
+;데이트 출발 후 목적지에 도착할 때까지
+;TFLAG:193(1=대성공 0=성공 -1=실패)
+;==================================================
+@M_KOJO_MESSAGE_SCOM_K2_80
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K2_80_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K2_80_1
+;-------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1

@@ -1,0 +1,192 @@
+﻿;-------------------------------------------------
+;도둑질
+;일상계 커맨드 레벨 1
+;-------------------------------------------------
+@COM448
+#DIM 성공률
+#DIM 컷
+#DIM 경합
+#DIM 신속은밀
+#DIM 훔치는비율
+#DIM 훔친양
+#DIM TSP사용
+
+;---------
+컷 = 0
+성공률 = 0
+경합 = 0
+훔친양 = 0
+훔치는비율 = 0
+TSP사용 = 0
+;---------
+IF BASE:MASTER:TSP < 100
+	TSP사용 = 5
+ELSE
+	TSP사용 = (BASE:MASTER:TSP / 20)
+ENDIF
+$돚거분기
+PRINTFORML 어떻게 훔칠까?
+PRINTFORML [1]은밀하게
+PRINTFORML [2]빠르게
+SIF BASE:MASTER:TSP >= 5
+	PRINTFORML [3]시간을 멈추고(TSP {TSP사용} 소모)
+PRINTFORML [999]그만둔다
+INPUT
+IF RESULT == 1
+	성공률 += 5
+	신속은밀 = 1
+ELSEIF RESULT == 2
+	컷 += 5
+	신속은밀 = 2
+ELSEIF RESULT == 3
+	BASE:MASTER:TSP -= TSP사용
+	컷 = 0
+	성공률 = 100
+	신속은밀 = 3
+	TFLAG:193 = 1
+	GOTO 돚거질
+ELSEIF RESULT == 999
+	RETURN
+ELSE
+	GOTO 돚거분기
+ENDIF
+
+
+컷 += 30
+컷 += CFLAG:TARGET:오늘훔친횟수 * 7
+컷 += CFLAG:TARGET:도둑질발각됨 * 20
+컷 += CFLAG:TARGET:빡침 * 5
+컷 += MARK:TARGET:반발각인 * 10
+;----
+성공률 += 1
+성공률 += (RAND:10 + 1)
+성공률 += CFLAG:MASTER:은밀중 * 5
+성공률 += ABL:MASTER:기교 * 3
+성공률 += ABL:MASTER:전투능력
+성공률 += ABL:MASTER:화술기능
+성공률 += ABL:MASTER:손가락 * 5
+성공률 += TALENT:MASTER:능숙한손가락 * 5
+성공률 += TCVAR:TARGET:만취 * 5
+성공률 += MAX(CFLAG:TARGET:수면, 5)
+;-----
+IF 컷 < 성공률
+	IF 컷 * 2 < 성공률
+		TFLAG:193 = 1
+	ELSE
+		TFLAG:193 = 0
+	ENDIF
+ELSE
+	경합 = 컷 - 성공률
+	IF 경합 < 5
+		TFLAG:193 = -1
+	ELSE
+		TFLAG:193 = -2
+	ENDIF
+ENDIF
+
+$돚거질
+DRAWLINE
+PRINTFORML %조교자는% %타겟의% 주머니로 손을 뻗었다...
+SELECTCASE TFLAG:193
+	CASE 1
+		IF CFLAG:TARGET:소지금 > 0
+			IF CFLAG:TARGET:소지금 <= 50000
+				PRINTFORMW %타겟의% 주머니에 들은 돈을 몽땅 꺼냈다!
+				PRINTFORMW {CFLAG:TARGET:소지금}\ 훔칠수 있었다
+				MONEY += CFLAG:TARGET:소지금
+				CFLAG:TARGET:소지금 = 0
+				CFLAG:TARGET:오늘훔친횟수++
+			ELSE
+				PRINTFORMW %타겟의% 주머니에서 지폐를 꺼냈다!
+				PRINTFORMW 50000\ 훔칠수 있었다
+				MONEY += 50000
+				CFLAG:TARGET:소지금 -= 50000
+				CFLAG:TARGET:오늘훔친횟수++
+			ENDIF
+		ELSE
+			PRINTFORMW ...그러나 애석하게도 %타겟의% 주머니에는 땡전한푼 들어 있지 않았다
+			IF CFLAG:TARGET:오늘훔친횟수 > 0
+				PRINTFORMW 오늘은 더 훔칠수 없을것 같다
+			ELSE
+				PRINTFORMW %타겟의% 불쌍한 모습에 괜시리 미안해졌다...
+			ENDIF
+		ENDIF
+	CASE 0
+		IF CFLAG:TARGET:소지금 > 0
+			훔치는비율 = RAND:40 + 11
+			훔친양 = (CFLAG:TARGET:소지금 * 훔치는비율)/100
+			SIF 훔친양 > 10000
+				훔친양 = 10000
+			IF 훔친양 > CFLAG:TARGET:소지금
+				;노파심에
+				MONEY += CFLAG:TARGET:소지금
+				CFLAG:TARGET:소지금 = 0
+				CFLAG:TARGET:오늘훔친횟수++
+				PRINTFORMW %타겟의% 얇은 주머니에서 돈을 모조리 꺼내버렸다!
+			ELSEIF 훔친양 == 0
+				;10원 밑이거나...하면
+				MONEY += CFLAG:TARGET:소지금
+				CFLAG:TARGET:소지금 = 0
+				CFLAG:TARGET:오늘훔친횟수++
+				PRINTFORMW %타겟의% 주머니를 샅샅이 뒤져보아도 고작 몇 푼 안되는 동전만 달랑 있었다...
+				PRINTFORMW %마스터는% 조금 미안한 마음이 들면서도 그것을 챙겼다
+			ELSE
+				MONEY += 훔친양
+				CFLAG:TARGET:소지금 -= 훔친양
+				CFLAG:TARGET:오늘훔친횟수++
+				PRINTFORMW %타겟의% 주머니에서 돈을 꺼냈다!
+			ENDIF
+			PRINTFORMW {훔친양}\ 만큼 훔쳐서 %마스터의% 지갑에 넣었다
+		ELSE
+			PRINTFORMW ...그러나 애석하게도 %타겟의% 주머니에는 땡전한푼 들어 있지 않았다
+			IF CFLAG:TARGET:오늘훔친횟수 > 0
+				PRINTFORMW 오늘은 더 훔칠수 없을것 같다
+			ELSE
+				PRINTFORMW %타겟의% 불쌍한 모습에 괜시리 미안해졌다...
+			ENDIF
+		ENDIF
+	CASE -1
+		PRINTFORML %마스터는% %타겟의% 돈을 훔치려 했으나 도저히 틈이 안나서 실패했다...
+	CASE -2
+		IF RAND:3 == 0
+			PRINTFORML %타겟은% %마스터의% 손길을 느끼고 잽새게 낚아챘다!
+			PRINTFORML 손에 들린 %타겟의% 돈을 알아챈 %타겟은% %마스터를% 노려보기 시작했다...
+			IF CFLAG:TARGET:도둑질발각됨 == 1
+				CFLAG:TARGET:호감도 -= 500
+			ELSE
+				CFLAG:TARGET:도둑질발각됨 = 1
+			ENDIF
+			SOURCE:반감 = 100
+		ELSE
+			PRINTFORML %마스터는% %타겟의% 돈을 훔치려 했으나 도저히 틈이 안나서 실패했다...
+		ENDIF
+ENDSELECT
+
+
+
+SELECTCASE 신속은밀
+	CASE 1
+		TIME += 10
+	CASE 2
+		TIME += 5
+	CASE 3
+		TIME += 0
+ENDSELECT
+
+
+
+
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE448
+;일괄관리
+SIF TARGET == 0
+	RETURN 0
+SIF GLOBAL_COMABLE(448)
+	RETURN RESULT
+RETURN 1
+

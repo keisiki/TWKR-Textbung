@@ -1,0 +1,147 @@
+﻿;-------------------------------------------------
+;좀 더 키스한다
+;-------------------------------------------------
+@SCOM63
+CALL SUC_FAIL(110, MIN(90 + GET_SUCCESS_RATE() / 5, 109))
+SELECTCASE TFLAG:193
+	;실패
+	CASE -1
+		SIF TFLAG:192 == -2
+			RETURN 0
+	;대성공
+	CASE 1
+		IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+			CALL 붉은실발동
+			EXP:MASTER:데이트경험 ++
+			EXP:TARGET:데이트경험 ++
+		ENDIF
+ENDSELECT
+;선제 발생시는 실패하지 않는다
+SIF TFLAG:102 == 3
+	TFLAG:193 = MAX(TFLAG:193, 0)
+
+IF FLAG:70
+	BASE:MASTER:TSP -= 30
+ELSEIF CFLAG:TARGET:동침중
+	DOWNBASE:MASTER:체력 += 30
+	DOWNBASE:MASTER:기력 += 50
+ELSEIF CHK_DATENOW(CFLAG:TARGET:데이트중)
+	DOWNBASE:체력 += 30
+	DOWNBASE:기력 += 50
+	DOWNBASE:MASTER:체력 += 10
+	DOWNBASE:MASTER:기력 += 70
+ELSE
+	DOWNBASE:체력 += 50
+	DOWNBASE:기력 += 70
+	DOWNBASE:MASTER:체력 += 30
+	DOWNBASE:MASTER:기력 += 100
+ENDIF
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 200
+SOURCE:사랑 = 250
+SOURCE:노출 = 80
+SOURCE:반감 = 200
+SOURCE:수동 = 150 + 300 * ABL:순종
+SOURCE:PLAYER:성행동 =3
+SOURCE:쾌M = ABL:PLAYER:혀 * 3 + 20
+EXP:키스경험 ++
+EXP:MASTER:키스경험 ++
+
+SIF CFLAG:수면
+	SOURCE:반감 = 150
+	
+;ABL:친밀을 본다
+IF ABL:친밀 <= 1
+	SOURCE:사랑 += (ABL:친밀 * 30)
+ELSEIF ABL:친밀 <= 3
+	SOURCE:환락 += 150 + (ABL:친밀 * 50)
+	SOURCE:사랑 += 200 + (ABL:친밀 * 40)
+ELSEIF ABL:친밀 <= 5
+	SOURCE:환락 += 250 + (ABL:친밀 * 70)
+	SOURCE:사랑 += 280 + (ABL:친밀 * 50)
+ELSEIF ABL:친밀 <= 8
+	SOURCE:환락 += 350 + (ABL:친밀 * 80)
+	SOURCE:사랑 += 380 + (ABL:친밀 * 50)
+ELSEIF ABL:친밀 <= 11
+	SOURCE:환락 += 400 + (ABL:친밀 * 90)
+	SOURCE:사랑 += 500 + (ABL:친밀 * 70)
+ELSE
+	SOURCE:환락 += 700 + (ABL:친밀 * 75)
+	SOURCE:사랑 += 730 + (ABL:친밀 * 50)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:사랑 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:사랑 += 400 + (CFLAG:2 - 500) / 4
+ELSE
+	SOURCE:사랑 += 1200 + (CFLAG:2 - 5000) / 6
+ENDIF
+
+SIF SOURCE:사랑 < 0
+	SOURCE:사랑 = 0
+
+LOCAL = 0
+;호감도가 낮으면 호감도 저하
+IF CFLAG:2 <= 50
+	LOCAL -= 3
+ELSEIF CFLAG:2 <= 100
+	LOCAL -= 2
+ELSEIF CFLAG:2 <= 250
+	LOCAL -= 1
+ENDIF
+
+SOURCE:수동 = 150 + 300 * ABL:순종
+
+;호감도 변화
+SIF !CFLAG:수면
+	TFLAG:97 += LOCAL
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:사랑 , 0.50
+	TIMES SOURCE:수동 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:사랑 , 1.00
+	TIMES SOURCE:수동 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:사랑 , 2.00
+	TIMES SOURCE:수동 , 2.00
+ENDIF
+
+SIF !FLAG:70
+	TIME += 10
+
+IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+	CALL 붉은실발동
+	EXP:MASTER:데이트경험 ++
+	EXP:TARGET:데이트경험 ++
+	CALL DATE_GOES_ON(1)
+ENDIF
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 2
+	EXP:MASTER:레즈경험 += 2
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;선택 가능 판정
+;-------------------------------------------------
+;좀 더 키스한다
+@COM_ABLE563
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(563)
+	RETURN RESULT
+;상대가 없으면 안 돼
+SIF !TARGET
+	RETURN 0
+SIF TFLAG:103 != TARGET
+	RETURN 0
+RETURN 1
+

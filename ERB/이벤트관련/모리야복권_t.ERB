@@ -1,0 +1,403 @@
+﻿;모리야 신사 제작 이치방쿠지, 마침내 판매 개시입니다!
+;
+;룰
+;1. 복권은 전부 300장, 다 뽑거나 특상을 뽑으면 상자가 교환된다
+;2. 최초로 뽑을 때, 혹은 상자의 교체시에 어느 차례로 무엇이 나올까는 확정하고 있다(셔플 배열을 전용의 복권 배열에 Copy(복사))
+;3. 복권의 결과를 확인했더니 당긴 복권을 폐기해 전 채우고 한다
+;4. 특상은 1개, 뽑으면 SETBIT FLAG:999, 3 으로 상자 교환 플래그를 세운다
+;특상의 약이 어느 쪽인지는 FLAG:999의 제4 비트로 판정(판정 후 INVERTBIT로 플래그를 바꿔 넣는다)
+;유저 변수를 세이브할 수 없기 때문에 SAVESTR를 1개 빌려 거기에 결과를 캐릭터라인으로 남겨 둔다
+;(16/07/02) 사양 변경에 의해 유저 변수의 세이브가 가능하게 되었으므로 SAVESTR의 이용을 정지
+@FOTUNE_MORIYA
+#DIM RANK_FORTUNE
+#DIM 상대
+#DIM SKIP_FLAG
+#DIMS 복권매수, 300
+
+IF MATCH(MORIYA_BOX, 0) >= 2 && STRLENS(SAVESTR:9)
+	SPLIT SAVESTR:9, ",", 복권매수
+	FOR LOCAL:0, 0, 300
+		MORIYA_BOX:(LOCAL:0) = TOINT(복권매수:(LOCAL:0))
+	NEXT
+	SAVESTR:9 = ""
+ENDIF
+
+;토부「개운대문」
+WHILE TFLAG:194 && MORIYA_BOX:0 >= 60
+	SETCOLOR COLOR ("YELLOW")
+	PRINTFORMW 토부 「개운대문」이 발동!
+	RESETCOLOR
+	ARRAYSHIFT MORIYA_BOX, -1, -1
+	TFLAG:194 --
+WEND
+
+;하쿠레이 운세뽑기에 의한 행운보정, 결과가 나쁘면 그것을 소멸해 다시 당긴다
+DO
+	SKIP_FLAG = 0
+	SELECTCASE TFLAG:행운보정
+		CASE IS <= 0
+		;수세미 회피
+		CASE 1 TO 2
+			SIF MORIYA_BOX:0 >= 130
+					SKIP_FLAG = 1
+		;7등까지를 회피
+		CASE 3 TO 4
+			SIF MORIYA_BOX:0 >= 60
+					SKIP_FLAG = 1
+		;5등까지를 회피
+		CASE 5
+			SIF MORIYA_BOX:0 >= 25
+					SKIP_FLAG = 1
+		CASEELSE
+	ENDSELECT
+	IF SKIP_FLAG
+		ARRAYSHIFT MORIYA_BOX, -1, -1
+		PRINTFORML 하쿠레이 신사에서 좋은 운세를 뽑았으니, 아마 좋은 게 당첨될 것이다
+		TFLAG:행운보정 --
+	ENDIF
+
+LOOP SKIP_FLAG
+
+;복권의 결과는 0~299. 이것을 각 상에 배분해 둔다
+;내역 특상:1책, 1등:3개, 2등:5개, 3등:6개, 4등:10개, 5등:15개, 6등:20개, 7등:30개, 8등:40개, 9등 (수세미):70개, 10등 (스카):100개
+;RANK_FORTUNE를 MORIYA_BOX:0에 의존시키지 않게(하려고 생각하면 기존의 것을 만지작거리지 않고 아래에 추가할 수 있어. RANK_FORTUNE가 혼란하기 때문에 하지 않는다고 생각하는데)
+SELECTCASE MORIYA_BOX:0
+;특상：홀수 번째 라면 체력, 짝수회 라면 기력이 오르는 환약(최대치＋50)
+CASE 0
+	SETBIT FLAG:999, 3
+	RANK_FORTUNE = 0
+;1등：모리야신사의 2주＋카제하후리과의 데이트 티켓. 각 1매
+CASE 1 TO 3
+	상대 = MORIYA_BOX:0 + 30
+	RANK_FORTUNE = 1
+;2등：코치야 사나에님이 밤행복의 기적(전원 좋은 기분＋자신의 신분 회복)
+CASE 4 TO 8
+	RANK_FORTUNE = 2
+;3등：MORIYA 부트 캠프 초대권, 불과 1시간에 몰라 보는 것 같은 효과가!
+CASE 9 TO 14
+	RANK_FORTUNE = 3
+;4등：즐겁게 감추자, 환상향 감추어 비교 세트
+CASE 15 TO 24
+	RANK_FORTUNE = 4
+;5등：건강에 흥미없는 당신에게, 건강 발랄∼？세트
+CASE 25 TO 39
+	RANK_FORTUNE = 5
+;6등：이것으로 그 아이와 이이사이에!사랑의 해프닝 세트
+CASE 40 TO 59
+	RANK_FORTUNE = 6
+;7등：소득의 기쁨을 당신에게, 야채의모종 세트(야채가 생긴다고는 말하지 않았다)
+CASE 60 TO 89
+	RANK_FORTUNE = 7
+;8등：한 번 먹으면 멈추지 않는, 의리 초콜렛의 임금님의 엔트리다!
+CASE 90 TO 129
+	RANK_FORTUNE = 8
+;유감…9등：수세미, 10개 모으면 돈의 수세미와 교환입니다!
+CASE 130 TO 199
+	RANK_FORTUNE = 9
+;스카：꽝 복권, 5매 모으면 다시 한 번 파합니다
+CASE 200 TO 299
+	RANK_FORTUNE = 10
+CASEELSE
+	RANK_FORTUNE = 99
+ENDSELECT
+;뽑은 복권은 폐기처분해 전 채워 빈 곳은―1으로 채운다
+ARRAYSHIFT MORIYA_BOX, -1, -1
+;SAVESTR:9 = {MORIYA_BOX:0}
+;FOR LOCAL:0, 1, 300
+;	SAVESTR:9 = %SAVESTR:9%,{MORIYA_BOX:(LOCAL:0)}
+;NEXT
+PRINTDATAW
+	DATAFORM 「자, 결과는…」
+	DATAFORM 「으음, 이건……」
+	DATAFORM 「아―… 아―？ 아―, 아―!」
+	DATAFORM 「어디 보자, 이건…」
+	DATAFORM 「이게 결과인가요……」
+	DATAFORM 「뭐가 나올까, 뭐가 나올까?」
+	DATAFORM 「어라라, 이걸 뽑았나요」
+	DATAFORM 「어디 보자, 이건 말이죠…」
+	DATAFORM 「이상한 글씨가…, 아래위 뒤집어 봤군요」
+	DATAFORM 「호오호오, 이건 제법 잘…」
+	DATAFORM 「이런 게 나왔는데요∼」
+	DATAFORM 「……? ……! ………!」
+ENDDATA
+PRINTW 
+;결과 처리. 지문까지 기입하고 있습니다
+SELECTCASE RANK_FORTUNE
+;특상：홀수 번째 라면 체력, 짝수회 라면 기력이 오르는 환약(최대치＋50)
+CASE 0
+	PRINTW 마땅찮은 표정을 짓다가 갑자기 함박웃음을 머금는다
+	PRINTL 「축하합니다―! 대박 당첨됐습니다!」
+	PRINTFORML 「특상이신 손님께는 놀랍게도 \@GETBIT(FLAG:999, 4) ? 활력의 환약 # 생명의 비분 \@을 드립니다」
+	PRINTL 「자, 꿀꺽 드셔보세요. 아, 물은 여기 있어요」
+	PRINTW 건네받은 약을 물과 함께 마시자 몸속에서부터 힘이 솟구치는 느낌이 든다……
+	IF GETBIT(FLAG:999, 4)
+		MAXBASE:MASTER:기력 += 50
+	ELSE
+		MAXBASE:MASTER:체력 += 50
+	ENDIF
+	PRINTFORML 힘이 솟구치던 감각이 사라지자 당신은 \@GETBIT(FLAG:999, 4) ? 기력 # 체력 \@의 한계를 살짝 넘은 것 같았다
+	INVERTBIT FLAG:999, 4
+	
+	PRINTFORMW 「맞아맞아, 깜빡 잊고 말 안 했네요」
+	PRINTFORML 「특상이 이 상자에서 나왔으니 희망하신다면 다음 복권 상자를 준비하겠습니다」
+	PRINTFORML 「새 상자로 바꾸고 싶어지면 뽑기 전에 말해 주세요」
+	PRINTFORMW 「단, 새 상자로 바꾸면 현재 상자는 폐기하니 주의해주세요」
+;1등：모리야신사의 2주＋카제하후리과의 데이트 티켓. 각 1매
+CASE 1
+	PRINTW 「이것은……」
+	IF CFLAG:상대:출금
+		PRINTFORML 「죄송합니다. 이건 1등의 %NAME:상대% 님과의 데이트권입니다만, %NAME:상대%님은 현재 아무래도 형편이 닿지 않아 이 권리를 이행하실 수가 없습니다」
+		PRINTFORML 「대신할 상품을 이하 중에서 선택해주세요」
+		CALL ASK_M("환불", 1,@"%NAME:31%과의 데이트권",!CFLAG:31:출금,@"%NAME:32%과의 데이트권",!CFLAG:32:출금,@"%NAME:33%과의 데이트권",!CFLAG:33:출금,"필요 없어", 1)
+		SELECTCASE RESULT
+			CASE 0
+				PRINTFORML 「그러면 환불로 처리하겠습니다」
+				PRINTFORML 「이번엔 저희 실수로 폐를 끼쳤습니다」
+				MONEY += 3000
+				RETURN 0
+			CASE 1 TO 3
+				상대 = RESULT + 30
+				GOTO DATE_RIGHT
+			CASE 4
+				PRINTFORML 「그럴 수가, 그럼 제 기분이 안 풀려요……!」
+				PRINTFORML 「최소한 이거라도 이것을 받아주세요」
+				PRINTFORML 꽝 복권 다발을 떠넘겼다……
+				ITEM:모리야부적 += 50
+				RETURN 0
+		ENDSELECT
+	ENDIF	
+	PRINTL 쓴웃음 지으면서 안쪽에 얘기한다
+	$DATE_RIGHT
+	IF CFLAG:상대:수면 || CFLAG:상대:쇠약
+		PRINTFORML 「네? 졸려? 지쳤어? 거기를 어떻게든」
+		PRINTFORML 「조금 기다려 주세요. 금방 돌아올 테니까요」
+		PRINTFORMW 종종걸음으로 안쪽에 달려 갔다
+		PRINTFORMW ……
+		PRINTFORMW 불명료하면서, 그러고도 신이신가요, 좋아해 일하고 있는 것이 아닌 것은 누구라도 같은, 여기가 신앙의 돈벌이 어디, 라고 하는 말이 들린다……
+		PRINTFORMW ……
+		PRINTFORMW 돌아왔다
+		PRINTFORMW 「후우, 기다리게 해서 죄송합니다」
+		CFLAG:상대:수면 = 0
+		CFLAG:상대:쇠약 = 0
+		BASE:상대:체력 = MAXBASE:상대:체력 / 2
+		TALENT:상대:기분 = -1
+	ENDIF
+	PRINTFORML 「축하합니다. 1등의 %NAME:상대%님과의 데이트권, 당선입니다!」
+	PRINTW 「덧붙여 이 권리는 즉시 행사되기 때문에 즐겨 와 주세요♪」
+	IF (FLAG:데이트상대 && GET_MAPID(CFLAG:MASTER:현재위치) != MAIN_MAP)
+		CFLAG:(FLAG:데이트상대):데이트중 = MAIN_MAP
+		CFLAG:(FLAG:데이트상대):동행 = 0
+		;연속으로 적용한 호운의 군사를 위해서(때문에)…
+		CALL 모리야복권데이트상대의리셋()
+	ELSEIF GET_MAPID(CFLAG:MASTER:현재위치) == MAIN_MAP
+		FOR LOCAL, 1, CHARANUM
+			SIF !CFLAG:LOCAL:동행
+				CONTINUE
+			CFLAG:LOCAL:동행 = 0
+			SIF MATCH(LOCAL, 31,32,33)
+				CALL 모리야복권데이트상대의리셋()
+		NEXT
+	ENDIF
+	CFLAG:상대:현재위치 = CFLAG:MASTER:현재위치
+	;상대의 캐릭터의 동행(MASTER도), 현재위치, 데이트중의 CFLAG를 세트
+	IF GET_MAPID(CFLAG:MASTER:현재위치) != MAIN_MAP
+		CFLAG:MASTER:동행 = 60
+		CFLAG:상대:동행 = 60
+		CFLAG:상대:데이트중 = CFLAG:MASTER:현재위치 / 100
+		FLAG:데이트상대 = 상대
+		;모리야복권데이트상대에 데이트의 상대를 격납
+		FLAG:모리야복권데이트상대 = FLAG:데이트상대
+		CFLAG:(FLAG:데이트상대):내방시간 = 0
+		CFLAG:(FLAG:데이트상대):귀가시간 = 0
+		CFLAG:(FLAG:데이트상대):취침시간 = 0
+		CFLAG:(FLAG:데이트상대):기상시간 = 0
+	;메인 맵시는 최대 3시간까지
+	ELSE
+		CFLAG:MASTER:동행 = 180
+		CFLAG:상대:동행 = 180
+		FLAG:모리야복권데이트상대 = 상대
+	ENDIF
+	SIF !CFLAG:(상대):안면
+		CALL KOJO_MESSAGE_SEND("ENCOUNTER", MASTER, FLAG:모리야복권데이트상대, 1,0)
+;2등：행복의 기적이 환상향을 쌉니다(전원 좋은 기분＋자신의 신분 회복)
+CASE 2
+	PRINTL 「축하합니다. 2등은 코치야 사나에 님께서 베푸는 행복의 기적의 실연입니다」
+	PRINTW 「언제나 츤츤대는 그 소녀도 오늘만은 데레해줄지도?」
+	FOR LOCAL:0, 1, CHARANUM
+		TALENT:(LOCAL:0):기분 = 1
+		BASE:(LOCAL:0):분노 = 0
+	NEXT
+	PRINTL 마음이 매우 온화하게 된 것 같았다
+	PRINTL 「아, 데레해준다고 해서 도를 넘은 짓을 하면 화내니 조심하세요」
+	PRINTL 기적도 그렇게까지 만능은 아닌 모양이다
+	PRINTW 덩달아 자신의 몸이 가벼워진 것 같다
+	BASE:MASTER:체력 = MAXBASE:MASTER:체력
+	BASE:MASTER:기력 = MAXBASE:MASTER:기력
+	BASE:MASTER:정력 = MAXBASE:MASTER:정력
+	BASE:MASTER:TSP  = MAXBASE:MASTER:TSP
+	BASE:MASTER:술기운 = 0
+
+;3등：MORIYA 부트 캠프 초대권, 불과 1시간에 몰라 보는 것 같은 효과가!
+CASE 3
+	PRINTL 「3등 당선 축하합니다?」
+	PRINTL 「3등은 MORIYA 부트 캠프 우대권이 됩니다」
+	PRINTW 「또한 사용 기한은 금일 내이므로 지금부터 개시하겠습니다」
+	PRINTL 아니, 지금부터 다른 예정이……
+	PRINTW 「거부권은 없어요. 자자, 이리로……」
+	PRINTL ………
+	PRINTL ……
+	PRINTL …
+	;회화경험, 전투경험, 학습경험의 나 가장 낮은 것을 끌어 올린다
+	;또한 강사는 회화/전투/학습으로 사나에/카나코/스와코가 담당
+	;……케로 쪽이 전투 높고 카나코와 교양이 같은의는 비밀이야
+	;아, 내친 김에 강사에도 경험을 추가. 가르치는 것도 좋은 경험이고
+	IF EXP:MASTER:회화경험 < EXP:MASTER:전투경험 &&  EXP:MASTER:회화경험 < EXP:MASTER:학습경험
+		PRINTW 사나에에 의한 말투 강좌에 의해 회화의 패턴을 잡았다!
+		EXP:MASTER:회화경험 += 10
+		EXP:31:회화경험 += 5
+	ELSEIF EXP:MASTER:전투경험 < EXP:MASTER:학습경험
+		PRINTL 카나코 직접의 지도에 의해 전투 기술을 두드려 난처할 수 있었다!
+		PRINTW 내친 김에 훈련의 피로도 낫자마자 해 주었다
+		MAXBASE:MASTER:체력+= 10
+		EXP:MASTER:전투경험 += 10
+		EXP:32:전투경험 += 5
+	ELSE
+		PRINTW 스와코의 정중한 담아 교육은 반드시 향후 도움이 될 것이다
+		MAXBASE:MASTER:기력+=10
+		EXP:MASTER:학습경험 += 10
+		EXP:33:학습경험 += 5
+	ENDIF
+	;그토록 가혹한 훈련에서도 불과 1시간, MORIYA 부트 캠프, 오니(두려운)……
+	TIME += 60
+
+;4등：즐겁게 감추자, 환상향 감추어 비교 세트
+CASE 4
+	PRINTL 「4등이 맞았습니다」
+	PRINTL 「4등의 경품은 환상향 감추어 비교 세트입니다」
+	PRINTL 「카나코 님 비장의 감주에 탁주와 청주, 그리고 오니고로시를 준비했습니다」
+	PRINTW 「해 밤 비교해!」
+	ITEM:감주 = MIN(ITEM:감주 + 1, 99)
+	ITEM:탁주 = MIN(ITEM:탁주 + 1, 99)
+	ITEM:청주 = MIN(ITEM:청주 + 1, 99)
+	ITEM:오니고로시 = MIN(ITEM:오니고로시 + 1, 99)
+	PRINTW 「아, 가지지 못했던 만큼은 카나코 님에게 돌려주지 않으면 안 되기 때문에 두고 가 주세요」
+
+;5등：건강에 흥미없는 당신에게, 건강 발랄∼？세트
+CASE 5
+	PRINTL 「축하합니다, 5등이에요」
+	PRINTL 「체력 부족해 고민하시는 당신에게, 건강 발랄∼？세트를 드립니다」
+	PRINTW 「피로가 심할 때는 이것으로 극복해 주세요」
+	PRINTL 내용은 정력제, 불끈불끈Z, 포션, 우콘드링크 5개
+	PRINTL 녹즙 과립 10배분 (모리야의 맛있는 물 2 L 물병(와인) 부착), 스포츠드링크 10개였다
+	PRINTW 가지고 걷는 것만으로 지칩니다만……
+	ITEM:정력제 = MIN(ITEM:정력제 + 1, 99)
+	ITEM:불끈불끈Z = MIN(ITEM:불끈불끈Z + 1, 99)
+	ITEM:포션 = MIN(ITEM:포션 + 1, 99)
+	ITEM:우콘드링크 = MIN(ITEM:우콘드링크 + 5, 99)
+	ITEM:녹즙 = MIN(ITEM:녹즙 + 10, 99)
+	ITEM:스포츠드링크 = MIN(ITEM:스포츠드링크 + 10, 99)
+	PRINTW 「아, 가지지 못했던 만큼은 모리야 신사에의 기증 취급으로 반환해 주십니다」
+
+;6등：이것으로 그 아이와 이이사이에!사랑의 해프닝 세트
+CASE 6
+	PRINTL 「6등이 됩니다」
+	PRINTL 「경품은… 사랑의 해프닝 세트, 라고 합니다」
+	PRINTW 얼굴을 붉히면서 상품을 내 왔다.
+	ITEM:로션 = MIN(ITEM:로션 + 1, 99)
+	ITEM:미약 = MIN(ITEM:미약 + 1, 99)
+	ITEM:춘약 = MIN(ITEM:춘약 + 1, 99)
+	ITEM:콘돔 = MIN(ITEM:콘돔 + 1, 99)
+	ITEM:피임약 = MIN(ITEM:피임약 + 1, 99)
+
+;7등：소득의 기쁨을 당신에게, 야채의모종 세트(야채가 생긴다고는 말하지 않았다)
+CASE 7
+	PRINTL 「7등입니다」
+	PRINTL 「상품은 야채의모종 세트입니다」
+	PRINTL 「노력해 풍작 목표로 해 주세요」
+	PRINTW 「덧붙여 우리 모리야 신사에서는 풍작 기원 및 봉납의 접수도 가고 있습니다」
+	ITEM:양배추의모종 = MIN(ITEM:양배추의모종 + 1, 99)
+	ITEM:딸기의모종 = MIN(ITEM:딸기의모종 + 1, 99)
+	ITEM:순무의모종 = MIN(ITEM:순무의모종 + 1, 99)
+	ITEM:오이의모종 = MIN(ITEM:오이의모종 + 1, 99)
+	ITEM:토마토의모종 = MIN(ITEM:토마토의모종 + 1, 99)
+	ITEM:수박의모종 = MIN(ITEM:수박의모종 + 1, 99)
+	ITEM:가지의모종 = MIN(ITEM:가지의모종 + 1, 99)
+	ITEM:고구마의모종 = MIN(ITEM:고구마의모종 + 1, 99)
+	ITEM:유리의모종 = MIN(ITEM:유리의모종 + 1, 99)
+	ITEM:당근의모종 = MIN(ITEM:당근의모종 + 1, 99)
+	ITEM:파의모종 = MIN(ITEM:파의모종 + 1, 99)
+	ITEM:로터의모종 = MIN(ITEM:로터의모종 + 1, 99)
+	
+	PRINTW 「아, 가지지 못했던 만큼은 모리야 신사에의 기증 취급으로 돌려주세요」
+
+;8등：한 번 먹으면 멈추지 않는, 의리 초콜렛의 임금님의 엔트리다!
+CASE 8
+	PRINTL 「8등입니다」
+	PRINTL 「1개 먹으면 그만둘 수 없다 멈출 수 없다, 의리 초콜렛의 대명사의 엔트리다!」
+	PRINTL 「이라고 하는 것으로 이쪽을 부디」
+	PRINTW 그렇게 말하면서 건네받은 것은 초콜렛 과자의 상자였다
+	ITEM:블랙썬더 = MIN(ITEM:블랙썬더 + 20, 99)
+
+;유감… 9등：수세미, 10개 모으면 금 수세미와 교환입니다!
+CASE 9
+	PRINTL 「이것은 특별상이군요」
+	PRINTL 「특별상은 수세미입니다」
+	PRINTL 「이 수세미, 단순한 수세미가 아닙니다」
+	PRINTW 「10개 모아 봉납하면, 놀랍게도 저쪽의 금 수세미와 교환이 됩니다」
+	FLAG:999 += 1 << 5
+	
+	IF (FLAG:999 >> 5 & 15) == 10
+		PRINTL 「축하합니다, 수세미를 10개 모았기에 금 수세미와 교환하겠습니다」
+		PRINTL 금 수세미를 손에 넣었다!
+		PRINTFORMW \@GETBIT(FLAG:999, 9)? 청소 # 요리 \@가 조금 잘 되는 듯한 느낌이다
+		IF GETBIT(FLAG:999, 9)
+			EXP:MASTER:청소경험 += 1
+		ELSE
+			EXP:MASTER:요리경험 += 1
+		ENDIF
+		;금 수세미의 효과를 변환, 수세미 수집 개수를 리셋
+		;15(0b1111)를 5 비트 쉬프트 해, 비트 반전한 것(0b000011111)를 FLAG:999로 비트마다의 논리합 시키고 있습니다, 아마
+		INVERTBIT FLAG:999, 9
+		FLAG:999 &= ~(15 << 5)
+	ELSE
+		PRINTFORMW 「현재 수세미는 {(FLAG:999 >> 5) & 15}개 모였습니다. 금 수세미를 목표로 힘내주세요」
+	ENDIF
+;스카：모리야부적(꽝 복권), 5장으로 다시 한번 파하는 돈
+CASE 10
+	PRINTW 상냥한 웃는 얼굴로 복권을 당신에게 건네주어 왔다
+	PRINTW ……
+	PRINTW …
+	PRINTL ┌─────────────┐
+	PRINTL ｜　　　　　　　　　　　　　　　｜
+	PRINTL ｜　　모리야 부적 　　　　　　　｜
+	PRINTL ｜　　　　　　　　　　　　　　　｜
+	PRINTL ｜　　5장 모으면　　　　　　　　｜
+	PRINTL ｜　　　복권을 1회 뽑기 가능 　｜
+	PRINTL ｜　　　　　　　　　　　　　　　｜
+	PRINTL ｜　이익은 보증하기 어렵습니다　｜
+	PRINTL ｜　　　　　　　　　　　　　　　｜
+	PRINTL ｜　　　　　　　　모리야 신사 　｜
+	PRINTL └─────────────┘
+	PRINTW 에둘러 말해서 꽝이잖아. 이거 허탕 아냐?
+	PRINTFORMW 「다음엔 꼭 좋은 걸 뽑을 수 있어요. 힘내라%UNICODE(0x2665)% 힘내라%UNICODE(0x2665)%」
+	ITEM:모리야부적 ++
+
+CASEELSE
+	PRINTFORML 「어라, 이상하네요」
+	PRINTFORML 복권의 내용을 봐 고개를 갸웃하고 있다
+	PRINTFORMW 「이런 복권 안 들어있을 텐데요」
+	PRINTFORML 「어쩔 수 없죠. 이번엔 없던 걸로 치고 대금은 돌려드릴게요」
+	PRINTFORMW 아무래도 관계없는 복권이 섞여있던 모양이다
+	MONEY += 3000
+ENDSELECT
+RETURN 0
+
+@모리야복권데이트상대의리셋()
+;모리야복권의 데이트 때에 해당 캐릭터의 기상시간 etc를 바탕으로 되돌린다
+IF FLAG:모리야복권데이트상대
+	CFLAG:(FLAG:모리야복권데이트상대):내방시간 = CSVCFLAG(FLAG:모리야복권데이트상대, 352)
+	CFLAG:(FLAG:모리야복권데이트상대):귀가시간 = CSVCFLAG(FLAG:모리야복권데이트상대, 353)
+	CFLAG:(FLAG:모리야복권데이트상대):취침시간 = CSVCFLAG(FLAG:모리야복권데이트상대, 354)
+	CFLAG:(FLAG:모리야복권데이트상대):기상시간 = CSVCFLAG(FLAG:모리야복권데이트상대, 355)
+	FLAG:모리야복권데이트상대 = 0
+ENDIF

@@ -1,0 +1,333 @@
+﻿;간이 블랙 잭
+;스킬이라든지 사용하지 않는 완전하게 운게이입니다, 시간정지로 홀 카드 들여다 보거나 할 수 있어도 괜찮을지도
+;승률은 룰이 본가와 다르기 때문에 어떨까요……. 테스트 플레이에서는 게임내에서 195분 해―250등으로 했다(잡어)
+;카드의 추가가 항상 1회 밖에 할 수 없기 때문에 더블의 디메리트가 없는 것은 플레이어에 유리한 생각이 든다
+;P_HAND   ×광역 변수화, 플레이어의 명함, 7까지 있지만 현상 3까지 밖에 사용하지 않습니다
+;D_HAND   ×광역 변수화, 디라의 명함, 위에 같이
+;DECK     ×광역 변수화, 52매의 카드를 랜덤에 늘어놓고 있습니다, 그렇지만 사용하는 것은 위로부터 6매만, 아래의 카드를 가져오거나와 가짜에 응용할 수 있을지도
+
+;카지노 작자(morph)에 의한 개조
+;·HIT의 가능 회수를 늘렸다
+;·카드 관련 변수의 광역 변수화＆처리를 독립시켜 범용화
+;　(판정 관련을 별함수에 맡길 수 있으므로 이 분이 편리, 포커 실장되었고)
+;·카운팅을 가능하게, 플레이어 스킬이 영향을 주어!
+;·사양상은 조커도 혼합할 수 있게 되었지만 처리측에서 대응하고 있지 않다(계산 귀찮아의)
+@CASINO_BLACKJACK
+#DIM P_BET        ;내기금
+#DIM ORI_BET      ;최초의 내기금, 더블을 선택하면(자) P_BET가  2배가 되어, 속행하면(자) 다음의 게임에서도  2배가 된 채로이므로 보존용입니다
+#DIM INS          ;인슈어런스의 보험금, 걸고 있다고(면) 재차 인슈어런스 할 수 없다
+#DIM LPCOUNT      ;루프 카운트
+#DIM TOTAL, 3     ;
+                  ;TOTAL:1  내기금 합계, 것은 마지막에 정리해 정산했습니다
+                  ;TOTAL:2  배당 합계
+#DIM P_WIN        ;플레이어의 승리 판정용
+#DIM CONST DL = 0 ;정수, 디라의 카드 플레이어 번호
+#DIM CONST PL = 1 ;정수, 플레이어의 카드 플레이어 번호
+;참가 플레이어는 두 사람
+NUM_CARD_PL = 2
+
+PRINTFORML 
+IF MONEY:2 <= 0
+	PRINTFORML 메이드 요정
+	PRINTFORML 　손님, 당카지노 점내에서는 전용 통화“카리스마”만을 사용해 놀아 주시고 있습니다
+	PRINTFORMW 　수고스럽겠지만 카리스마의 구입을 부탁 드리겠습니다
+	RETURN
+ELSE
+	PRINTFORML 메이드 요정
+	PRINTFORML 　어서 오십시오
+	PRINTFORML 　이쪽은 블랙 잭 코너되고 있습니다
+	PRINTFORML 　세공이나 가짜는 일절 무용, 순수하게 카드의 솜씨가 것을 말하는 게임입니다
+	PRINTFORMW 　우선은 게임의 내기금을 제시해 주세요
+	PRINTFORML 
+ENDIF
+CALL CASINO_INPUTLOOP("카드 내기금")
+P_BET = RESULT
+ORI_BET = RESULT
+VARSET TOTAL
+IF P_BET
+	CALL CASINO_MONEY("카리스마", -P_BET)
+	TOTAL:1 += P_BET
+	CALL PLAY_CARDS("SHUFFLE")
+	PRINTFORML 
+	PRINTFORMW 메이드 요정은 신품의 플레이어를 꺼내 셔플했다
+ENDIF
+
+WHILE P_BET
+	IF NEW_CARD > 44
+		CALL PLAY_CARDS("SHUFFLE")
+		PRINTFORML 
+		PRINTFORML 메이드 요정
+		PRINTFORMW 　카드의 나머지가 적어졌으므로 셔플합니다
+	ENDIF
+	TIME += 5
+	;명함을 리셋 해 2매씩 당깁니다, INS도 리셋
+	CALLF CARD_PLAYER("CLEAR_BJ_ALL")
+	CALL PLAY_CARDS("RESET_HAND")
+	CALL PLAY_CARDS("HIT", DL)
+	CALL PLAY_CARDS("HIT", PL)
+	CALL PLAY_CARDS("HIT", DL)
+	CALL PLAY_CARDS("HIT", PL)
+	CALLF CARD_PLAYER("RENEW_BJ_POINT_ALL")
+	INS = 0
+	P_WIN = 0
+	;초기 반면, 서로 명함은 2매, 홀 카드 1매
+	DO
+		CALL CASINO_DISP("BJ_CLOSE")
+		SIF NEW_CARD < NUM_CARD
+			PRINTL [1] - 히트
+		PRINTL [2] - 스탠드
+		SIF NEW_CARD < NUM_CARD && NUM_HAND:PL == 2 && MONEY:2 >= P_BET
+			PRINTL [3] - 더블
+		IF NUM_HAND:PL == 2 && CARD_CHECK("RANK", CARD_HAND:DL:0) == 1
+			IF CARD_PLAYER("BJ_BJ", PL)
+				PRINTL [4] - 이븐 머니
+			ELSEIF !INS && MONEY:2 >= P_BET / 2
+				PRINTL [4] - 인슈어런스
+			ENDIF
+		ENDIF
+		PRINTL [0] - 사렌다
+		INPUT
+		DRAWLINEFORM ━
+		PRINTFORML 메이드 요정
+		SELECTCASE RESULT
+		CASE 1
+		;히트 매수를 무제한하게 변경
+			SIF NEW_CARD >= NUM_CARD
+				GOTO SURRENDER
+			PRINTFORMW 　그럼 카드를 부디
+			CALL PLAY_CARDS("HIT_BJ", PL)
+			SIF CARD_PLAYER("GET_BJ_POINT", PL) >= 21
+				BREAK
+			CONTINUE
+		CASE 2
+		;스탠드, 즉승부합니다
+		CASE 3
+		;더블, 내기금을 2배로 해 카드 1매 추가, 내기금을 준비할 수 있을 때 마셔
+			SIF MONEY:2 < P_BET || NUM_HAND:PL > 2 || NEW_CARD >= NUM_CARD
+				GOTO SURRENDER
+			PRINTFORML 　잘 알았습니다
+			PRINTFORML 　걸고 돈은{P_BET * 2}카리스마가 됩니다
+			PRINTFORMW 　그럼 카드를 부디
+			CALL PLAY_CARDS("HIT_BJ", PL)
+			TOTAL:1 += P_BET
+			CALL CASINO_MONEY("카리스마", -P_BET)
+			P_BET = P_BET * 2
+		CASE 4
+			IF NUM_HAND:PL == 2 && CARD_CHECK("RANK", CARD_HAND:DL:0) == 1
+				IF CARD_PLAYER("GET_BJ_BJ", PL)
+				;이븐 머니, 무승부가 무섭기 때문에 2배의 배당으로 참는, 신경이 쓰이므로 홀 카드를 보여 준다
+				;겉(표)의 카드가 A로 당신의 명함이 21점때만
+					PRINTFORML 　잘 알았습니다
+					PRINTFORML 　이쪽이 배당의{P_BET * 2}카리스마가 됩니다
+					PRINTFORMW 　부디 받아 주세요
+					TOTAL:2 += P_BET * 2
+					CALL CASINO_MONEY("카리스마", P_BET * 2)
+					PRINTFORMW 　덧붙여서 홀 카드는……
+					CALL CARD_DISP("CARD", CARD_HAND:DL:1)
+					PRINTW
+					IF CARD_PLAYER("GET_BJ_BJ", DL)
+						PRINTFORMW 후후후, 현명한 판단이었지요
+					ELSE
+						PRINTFORMW 어머어머, 유감이었지요
+					ENDIF
+					GOTO CHECK_NEXTGAME
+				ELSEIF !INS && MONEY:2 >= P_BET / 2
+				;인슈어런스, 블랙 잭이 무섭기 때문에 보험금을 추가 BET 한다
+				;겉(표)의 카드가 A로 INS를 하고 있지 않고 보험금 분의 카리스마를 준비할 수 있을 때 마셔
+				;그 후 재차 선택지를 선택한다
+					PRINTFORML 　잘 알았습니다
+					PRINTFORMW 　내기금의 반,{P_BET / 2}카리스마를 보험금으로 해서 추가합니다
+					INS = P_BET / 2
+					TOTAL:1 += P_BET / 2
+					CALL CASINO_MONEY("카리스마", -P_BET / 2)
+					CONTINUE
+				ELSE
+					GOTO SURRENDER
+				ENDIF
+			ELSE
+				GOTO SURRENDER
+			ENDIF
+		CASEELSE
+		;손입력하거나 하면(자) 사렌다, 게임을 내려 반액 돌려 받는다
+			$SURRENDER
+			PRINTFORML 　어머나, 내립니까
+			PRINTFORMW 　그러면 배당의{P_BET / 2}카리스마를 받아 주세요
+			TOTAL:2 += P_BET / 2
+			CALL CASINO_MONEY("카리스마", P_BET / 2)
+			GOTO CHECK_NEXTGAME
+		ENDSELECT
+		BREAK
+	LOOP 1
+	
+	IF NUM_HAND:PL > 2
+		CALL CASINO_DISP("BJ_CLOSE")
+		IF CARD_PLAYER("GET_BJ_BUST", PL)
+			PRINTW 
+			PRINTFORML 메이드 요정
+			PRINTFORML 　21을 넘어 버렸어요
+			GOTO YOULOSE
+		ENDIF
+	ENDIF
+
+	;홀 카드를 공개해 반면을 본다
+	PRINTW 
+	PRINTFORML 메이드 요정
+	PRINTFORMW 　그럼 카드를 넘깁니다
+	PRINTFORML 
+	WHILE CARD_PLAYER("GET_BJ_POINT", DL) < 17
+		IF NEW_CARD >= 52
+			PRINTFORML 메이드 요정
+			PRINTFORMW 　이제 카드가 없겠네요
+			BREAK
+		ENDIF
+		CALL CASINO_DISP("BJ_OPEN")
+		PRINTFORML 메이드 요정
+		PRINTFORMW 　17점미만이므로 카드를 추가합니다
+		CALL PLAY_CARDS("HIT_BJ", DL)
+	WEND
+
+	CALL CASINO_DISP("BJ_OPEN")
+	;결과의 판정
+	IF CARD_PLAYER("GET_BJ_BJ", DL)
+	;디라의 BJ
+		PRINTFORML 메이드 요정
+		PRINTFORML 　블랙 잭이었습니다
+		IF INS
+		;INS 하고 있으면(자) 세이프
+			PRINTFORMW 　인슈어런스를 걸고 있었으므로 배당의{P_BET + INS}카리스마를 받아 주세요
+			TOTAL:2 += P_BET + INS
+			CALL CASINO_MONEY("카리스마", P_BET + INS)
+		ELSEIF CARD_PLAYER("GET_BJ_BJ", PL)
+			PRINTFORML 　블랙 잭끼리이므로 무승부입니다
+			PRINTFORMW 　배당의{P_BET}카리스마를 받아 주세요
+			TOTAL:2 += P_BET
+			CALL CASINO_MONEY("카리스마", P_BET)
+		ELSEIF CARD_PLAYER("GET_BJ_POINT", PL) == 21
+		;21에서도 BJ에는 이길 수 없다
+			PRINTFORML 　이쪽은 블랙 잭인 것에서 당신의 패배입니다
+			PRINTFORMW 　걸고 돈은 모두 이쪽을 받습니다
+		ELSE
+			GOTO YOULOSE
+		ENDIF
+	ELSEIF CARD_PLAYER("GET_BJ_BUST", DL)
+	;디라 BUST(여기까지 온 시점에서 당신은 BUST 하고 있지 않다)
+		PRINTFORML 메이드 요정
+		PRINTFORML 　21을 넘어 버렸으므로 당신의 승리입니다
+		P_WIN = 1
+	ELSE
+	;보통 결과
+		PRINTFORML 메이드 요정
+		IF CARD_PLAYER("GET_BJ_BJ", PL)
+		;21 POINT이지만 PL측만 BJ가 성립했다
+			PRINTFORML 　그 쪽은 블랙 잭인 것에서 당신의 승리입니다
+			P_WIN = 1
+		ELSEIF CARD_PLAYER("GET_BJ_POINT", PL) > CARD_PLAYER("GET_BJ_POINT", DL)
+			PRINTFORML 　당신의 승리입니다
+			P_WIN = 1
+		ELSEIF CARD_PLAYER("GET_BJ_POINT", PL) == CARD_PLAYER("GET_BJ_POINT", DL)
+		;그 외의무승부
+			PRINTFORML 　무승부입니다
+			PRINTFORMW 　배당의{P_BET}카리스마를 받아 주세요
+			TOTAL:2 += P_BET
+			CALL CASINO_MONEY("카리스마", P_BET)
+		ELSE
+		;패배는 여기
+			$YOULOSE
+			PRINTFORML 　당신의 패배입니다
+			PRINTFORMW 　걸고 돈은 모두 이쪽을 받습니다
+		ENDIF
+	ENDIF
+
+	IF P_WIN
+		IF CARD_PLAYER("GET_BJ_BJ", PL)
+			PRINTFORML 　블랙 잭이었으므로 배당은{P_BET * 5 / 2}카리스마가 됩니다
+			PRINTFORMW 　부디 받아 주세요
+			TOTAL:2 += P_BET * 5 / 2
+			CALL CASINO_MONEY("카리스마", P_BET * 5 / 2)
+		ELSE
+			PRINTFORML 　배당은{P_BET * 2}카리스마가 됩니다
+			PRINTFORMW 　부디 받아 주세요
+			TOTAL:2 += P_BET * 2
+			CALL CASINO_MONEY("카리스마", P_BET * 2)
+		ENDIF
+	ENDIF
+	
+	;게임의 속행 판정
+	$CHECK_NEXTGAME
+	IF NEMUKE() >= 700
+		P_BET = 0
+	ELSEIF MONEY:2 <= 0
+		P_BET = 0
+	ELSEIF 500000 - FLAG:카리스마유통 - P_BET * 25 / 10 < 10000
+	;여기만 BREAK
+		BREAK
+	ELSE
+		PRINTFORML 　그런데, 승부를 계속합니까?
+		PRINTFORML 
+		CALL CASINO_INPUTLOOP("카드 속행")
+		SELECTCASE RESULT
+		CASE 0
+			P_BET = 0
+		CASE 1
+			IF MONEY:2 < P_BET
+				PRINTFORML 메이드 요정
+				PRINTFORML 　손에 가지고 있는 카리스마가 부족한 것 같네요
+				PRINTFORML 　내기금을 재설정 해주세요
+				PRINTFORML 
+				CALL CASINO_INPUTLOOP("카드 내기금")
+				P_BET = RESULT
+				ORI_BET = RESULT
+				SIF RESULT
+					PRINTFORML 
+			ELSE
+				P_BET = ORI_BET
+			ENDIF
+		CASE 2
+			PRINTFORML 메이드 요정
+			PRINTFORML 　그러면 내기금을 입력해 주세요
+			PRINTFORML 
+			CALL CASINO_INPUTLOOP("카드 내기금")
+			P_BET = RESULT
+			ORI_BET = RESULT
+			SIF RESULT
+				PRINTFORML 
+		ENDSELECT
+	ENDIF
+
+	IF P_BET
+		TOTAL:1 += P_BET
+		CALL CASINO_MONEY("카리스마", -P_BET)
+		PRINTFORML 메이드 요정
+		PRINTFORML 　네, 내기금{P_BET}카리스마 확실히 받았습니다
+		PRINTFORMW 　그러면 계속 잘 부탁 드리겠습니다
+	ENDIF
+WEND
+
+PRINTFORML 
+IF NEMUKE() >= 700
+	PRINTFORML 메이드 요정
+	PRINTFORML 　저기, 손님?
+	PRINTFORML 　상당히 수고했어의 모습이에요
+	PRINTFORML 　오늘은 이제 게임을 끝내는 편이 좋은 것이 아닐까
+	PRINTFORMW 　다음 행차를 기다리고 있어요
+ELSEIF MONEY:2 <= 0
+	PRINTFORML 메이드 요정
+	PRINTFORML 　손에 가지고 있는 카리스마가 다해 버린 것 같네요
+	PRINTFORMW 　다음 행차를 기다리고 있어요
+ELSEIF P_BET
+;환불에 가게를 견딜 수  없을 때
+	PRINTFORML 메이드 요정
+	PRINTFORML 　죄송합니다가 이제 폐점 같습니다
+	PRINTFORMW 　다음 행차를 기다리고 있어요
+ELSE
+	PRINTFORML 메이드 요정
+	PRINTFORML 　잘 알았습니다
+	PRINTFORMW 　다음 행차를 기다리고 있어요
+ENDIF
+CALLF CARD_PLAYER("CLEAR_BJ_ALL")
+
+IF TOTAL:1
+	CALL CASINO_MONEY("것", TOTAL:1)
+	CALL CASINO_DISP("RESULT", TOTAL:1, TOTAL:2)
+ENDIF
+VARSET TOTAL

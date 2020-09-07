@@ -1,0 +1,1562 @@
+﻿;-------------------------------------------------
+;요리를만든다
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM413
+;식재료가 없다
+IF !CAN_COOK("모두", MASTER)
+	DRAWLINE
+	PRINTFORMW 식재료가 없다
+	RETURN -1
+ENDIF
+;먼저 조수 취득
+IF TARGET <= 0
+ELSEIF SHIRAHU(TARGET) == 1 && ABL:친밀 * 500 + ABL:순종 * 500 + ABL:요리기능 * 1000 > CFLAG:310 - CFLAG:MASTER:310
+	DISHASSI = TARGET
+ENDIF
+CALL COOKING_MENU
+IF !RESULT
+	CALL RESET_DISH
+	RETURN -1
+ENDIF
+
+;도마 보정으로 맛있게 할 수 있다
+IF ITEM:은행나무도마
+	SELECTCASE ITEM:은행나무도마
+		CASE 1
+			DISHQUALITY += RAND:3
+		CASE 2
+			DISHQUALITY += MAX(RAND:3, 1)
+		CASE 3
+			DISHQUALITY += MAX(RAND:4, 1)
+	ENDSELECT
+	PRINTFORML 식칼이 치는 도마가 기분 좋은 소리는 내고 있다…
+ENDIF
+
+IF TFLAG:194 == 1
+	DOWNBASE:MASTER:체력 = 50
+	DOWNBASE:MASTER:기력 = 50
+	TIME += 15
+	SIF CFLAG:동행
+		CFLAG:동행 += 15
+ELSEIF TFLAG:194 == 2
+	DOWNBASE:MASTER:체력 = 100
+	DOWNBASE:MASTER:기력 = 100
+	TIME += 45
+	SIF CFLAG:동행
+		CFLAG:동행 += 45
+ELSEIF TFLAG:194 == 3
+	DOWNBASE:MASTER:체력 = 100
+	DOWNBASE:MASTER:기력 = 100
+	TIME += 45
+	SIF CFLAG:동행
+		CFLAG:동행 += 45
+ELSEIF TFLAG:194 == 4
+	DOWNBASE:MASTER:체력 = 150
+	DOWNBASE:MASTER:기력 = 150
+	TIME += 45
+	SIF CFLAG:동행
+		CFLAG:동행 += 45
+ENDIF
+
+IF TARGET > 0 && !CFLAG:수면 && !FLAG:70
+	IF DISHASSI
+		TFLAG:193 = 1
+		EXP:요리경험 ++
+	ELSE
+		TFLAG:193 = 0
+	ENDIF
+	;고정으로 획득하는 소스
+	SOURCE:환락 = 200
+	
+	;신뢰
+	TFLAG:98 = 3
+
+
+	;ABL:순종을 본다
+	IF ABL:순종 <= 1
+		SOURCE:환락 += (ABL:순종 * 60)
+	ELSEIF ABL:순종 <= 3
+		SOURCE:환락 += 200 + (ABL:순종 * 60)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:환락 += 500 + (ABL:순종 * 60)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:환락 += 750 + (ABL:순종 * 75)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:환락 += 1000 + (ABL:순종 * 75)
+	ELSE
+		SOURCE:환락 += 2000 + (ABL:순종 * 30)
+	ENDIF
+
+	;호감도를 본다
+	IF CFLAG:2 <= 500
+		SOURCE:환락 += CFLAG:2
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+	ELSE
+		SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+	ENDIF
+	SIF SOURCE:환락 < 0
+		SOURCE:환락 = 0
+ENDIF
+TCVAR:MASTER:308 = 0
+SIF TARGET < 1 && (!GET_OPTION_COOKING("자동 맛내기 설정") || GET_OPTION_COOKING("이물 혼입 가능") || GET_OPTION_COOKING("약물 혼입 가능"))
+	CALL MIX_MENU
+SIF GET_OPTION_COOKING("자동 맛내기 설정")
+	CALL AUTO_SEASONING
+
+IF ITEM:조리지도서
+	SIF !RAND:2
+		EXP:MASTER:요리경험 ++
+	SIF !RAND:2 && TARGET
+		EXP:TARGET:요리경험 ++
+ENDIF
+DISHTIME = 1440 * DAY + TIME
+
+STAIN:MASTER:0 = 0
+STAIN:MASTER:1 = 0
+CFLAG:MASTER:구내정액 = 0
+CFLAG:MASTER:안면정액 = 0
+CFLAG:MASTER:손에정액 = 0
+IF TARGET
+	STAIN:0 = 0
+	STAIN:1 = 0
+	CFLAG:구내정액 = 0
+	CFLAG:안면정액 = 0
+	CFLAG:손에정액 = 0
+ENDIF
+
+RETURN 1
+
+
+@COOKING_MENU
+PRINTL 무엇을 만들겠습니까?
+{
+CALL ASK_M(
+	"역시 그만둔다", 1,
+	"경식",           CAN_COOK("경식", MASTER),
+	"주식",           CAN_COOK("주식", MASTER),
+	"디저트",       CAN_COOK("디저트", MASTER),
+	"금단의 요리",     CAN_COOK("금단의 요리", MASTER), 
+	"생선 요리",         (CAN_COOK("생선 요리", MASTER) || CAN_COOK("개구리 요리", MASTER)))
+}
+SELECTCASE RESULT
+CASE 1
+	DISHTYPE = RESULT
+	CALL INGREDIENT_CHOICE
+	SIF RESULT == 0
+		RETURN 0
+	IF GET_OPTION_COOKING("요리 내용 자동 결정")
+		CALL COOKING(, "「요리 내용 자동 결정」")
+	ELSE
+		CALL COOKING
+		SIF RESULT == 0
+			RETURN 0
+	ENDIF
+	TFLAG:194 = 1
+	CALL VEGE_CHOICE
+	CALL REMOVE_VEGE
+	CALL SHOW_DISHDATA
+	WAIT
+	RETURN 1
+CASE 2
+	DISHTYPE = RESULT
+	CALL INGREDIENT_CHOICE
+	SIF RESULT == 0
+		RETURN 0
+	IF GET_OPTION_COOKING("요리 내용 자동 결정")
+		CALL COOKING(, "「요리 내용 자동 결정」")
+	ELSE
+		CALL COOKING
+		SIF RESULT == 0
+			RETURN 0
+	ENDIF
+	TFLAG:194 = 2
+	CALL VEGE_CHOICE
+	CALL REMOVE_VEGE
+	CALL SHOW_DISHDATA
+	WAIT
+	RETURN 1
+CASE 3
+	DISHTYPE = RESULT
+	CALL INGREDIENT_CHOICE
+	SIF RESULT == 0
+		RETURN 0
+	IF GET_OPTION_COOKING("요리 내용 자동 결정")
+		CALL COOKING(, "「요리 내용 자동 결정」")
+	ELSE
+		CALL COOKING
+		SIF RESULT == 0
+			RETURN 0
+	ENDIF
+	TFLAG:194 = 3
+	CALL VEGE_CHOICE
+	CALL REMOVE_VEGE
+	CALL SHOW_DISHDATA
+	WAIT
+	RETURN 1
+CASE 4
+	IF !ITEM:0
+		PRINTFORMW 식재료가 충분하지 않습니다
+		TIME += 5
+		RETURN 0
+	ENDIF
+	
+	ITEM:0 --
+	DISHTYPE = 4
+	CALL COOKING
+	TFLAG:194 = FLAG:요리
+	CALL VEGE_CHOICE
+	CALL REMOVE_VEGE
+	CALL SHOW_DISHDATA
+	WAIT
+	RETURN 1
+CASE 5
+	PRINTFORML 식재료를 선택해 주세요
+	CALL ASK_M(@"물고기　{ITEM:물고기}마리 소지", ITEM:물고기, @"맛있는물고기　{ITEM:맛있는물고기}마리 소지", ITEM:맛있는물고기,@"개구리　{ITEM:개구리}마리 소지", ITEM:개구리 >= 3,"그만둔다",1)
+	SELECTCASE RESULT
+		CASE 0
+			DISHQUALITY = 1
+			DISHTYPE = 5
+			;@COOKING용으로 일시적으로 5로 6이 대입되지만 다음에 DISHTYPE = 2로 덧쓰기된다
+			DISHTASTE += GET_TASTE_INGREDIENT("물고기")
+		CASE 1
+			DISHQUALITY = 2
+			DISHTYPE = 5
+			DISHTASTE += GET_TASTE_INGREDIENT("맛있는물고기")
+		CASE 2
+			DISHQUALITY = 1
+			DISHTYPE = 6
+			DISHTASTE += GET_TASTE_INGREDIENT("개구리")
+		CASE 3
+			RETURN 0
+	ENDSELECT
+	IF GET_OPTION_COOKING("요리 내용 자동 결정")
+		CALL COOKING(, "「요리 내용 자동 결정」")
+	ELSE
+		CALL COOKING
+		SIF RESULT == 0
+			RETURN 0
+	ENDIF
+	TFLAG:194 = 2
+	CALL VEGE_CHOICE
+	CALL REMOVE_VEGE
+	CALL SHOW_DISHDATA
+	WAIT
+	RETURN 1
+CASE 0
+	RETURN 0
+ENDSELECT
+
+
+
+
+
+;요리 실행 함수
+;요리 의뢰에 유용할 수 있도록(듯이) 작성
+;먼저 호출해 원으로 DISHTYPE와 DISHQUALITY를 결정해 두는 것
+;식재료의 소비 처리도 먼저 끝내 두는 것
+@COOKING(CHARA, OP)
+#DIM  CHARA ;캐릭터를 건네주면(자) 도와 준다(의뢰용, COM413는 실행 후에 요리경험 들어가므로 불요)
+#DIMS CONST MENU_TYPE, 7 = "", "SNACK", "MAINDISH", "DESSERT", "FORBIDDEN","FISH", "FROG"
+#DIMS OP
+SIF CHARA
+	DISHASSI = CHARA
+IF STRCOUNT(OP, "「요리 내용 자동 결정」") || MENU_TYPE:DISHTYPE == "FORBIDDEN"
+	CALL SET_DISHNAME(MENU_TYPE:DISHTYPE)
+ELSE
+	CALL SELECT_DISHNAME(MENU_TYPE:DISHTYPE)
+	SIF RESULT == 0
+		RETURN
+ENDIF
+PRINTFORMW %DISHNAME%를 만듭니다
+SELECTCASE DISHTYPE
+CASE 1
+	CALL COOKING_TAKARI([[유유코]], 5)
+	CALL COOKING_TAKARI([[시온]], 5)
+CASE 2
+	CALL COOKING_TAKARI([[유유코]], 10)
+	CALL COOKING_TAKARI([[시온]], 10)
+	EXP:MASTER:요리경험 ++
+	IF CHARA
+		EXP:CHARA:요리경험 ++
+		SIF EXP:MASTER:요리경험 > EXP:CHARA:요리경험
+			EXP:CHARA:요리경험 ++
+	ENDIF
+CASE 3
+CASE 4
+CASE 5
+	YOGORE:(CFLAG:MASTER:현재위치) += 500
+ENDSELECT
+YOGORE:(CFLAG:MASTER:현재위치) += 500
+	EXP:MASTER:요리경험 ++
+	IF CHARA
+		EXP:CHARA:요리경험 ++
+		SIF EXP:MASTER:요리경험 > EXP:CHARA:요리경험
+			EXP:CHARA:요리경험 ++
+	ENDIF
+SIF DISHASSI
+	DISHTASTE += GET_TASTE_ASSIBONUS(DISHASSI)
+DISHTASTE += GET_TASTE_ASSIBONUS(MASTER)
+IF STRCOUNT(DISHTASTE, ESCAPE("잡곡/"))
+	ITEM:잡곡 --
+ELSEIF STRCOUNT(DISHTASTE, ESCAPE("묵은쌀/"))
+	ITEM:묵은쌀 --
+ELSEIF STRCOUNT(DISHTASTE, ESCAPE("백미/"))
+	ITEM:백미 --
+ELSEIF STRCOUNT(DISHTASTE, ESCAPE("맛있는물고기/"))
+	ITEM:맛있는물고기 --
+ELSEIF STRCOUNT(DISHTASTE, ESCAPE("물고기/"))
+	ITEM:물고기 --
+ELSEIF STRCOUNT(DISHTASTE, ESCAPE("개구리 요리/"))
+	ITEM:개구리 -= 3
+ENDIF
+RETURN 1
+
+
+;요리 명수동설정 함수
+@SELECT_DISHNAME(MENU_TYPE)
+#DIMS         MENU_TYPE      ;만들고 싶은 메뉴의 종류
+#DIM          NUM_MENUS      ;
+#DIM          FOOD_ID        ;
+#DIMS DYNAMIC FOOD_NAME, 100 ;
+#DIMS DYNAMIC FES_NAME       ;
+#DIM  DYNAMIC CNT_SHOW       ;
+FES_NAME '= FESTIVAL_MENU()
+PRINTFORML 무엇을 만들까?
+SELECTCASE MENU_TYPE
+CASE "SNACK"
+	PRINTFORML ＜경식 메뉴＞
+	ARRAYCOPY "FOOD_SNACK", "FOOD_NAME"
+	NUM_MENUS = MENUS_SNACK
+
+CASE "MAINDISH"
+	PRINTFORML ＜주식 메뉴＞
+	ARRAYCOPY "FOOD_MAINDISH", "FOOD_NAME"
+	NUM_MENUS = MENUS_MAINDISH
+
+CASE "DESSERT"
+	PRINTFORML ＜디저트 메뉴＞
+	ARRAYCOPY "FOOD_DESSERT", "FOOD_NAME"
+	NUM_MENUS = MENUS_DESSERT
+
+CASE "FISH"
+	PRINTFORML ＜생선 요리 메뉴＞
+	ARRAYCOPY "FOOD_FISH", "FOOD_NAME"
+	NUM_MENUS = MENUS_FISH
+
+CASE "FROG"
+	PRINTFORML ＜개구리 요리 메뉴＞
+	ARRAYCOPY "FOOD_FROG", "FOOD_NAME"
+	NUM_MENUS = MENUS_FROG
+ENDSELECT
+FOR FOOD_ID, NUM_MENUS - 1, -1, -1
+	SIF !STRLENS(FOOD_NAME:FOOD_ID)
+		CONTINUE
+	LOCALS = [{FOOD_ID, 2}]%FOOD_NAME:FOOD_ID, 24%
+	PRINTFORM 　
+	PRINTBUTTON LOCALS, FOOD_ID
+	CNT_SHOW ++
+	SIF CNT_SHOW % 3 == 0
+		PRINTFORML 
+NEXT
+SIF CNT_SHOW % 3
+	PRINTFORML 
+SIF STRLENS(FES_NAME) && MENU_TYPE == "MAINDISH"
+	PRINTFORML 　[90]%FES_NAME, 24%
+PRINTFORML 　[99]그만둔다
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 99
+		RETURN
+	CASE 90
+		SIF !(STRLENS(FES_NAME) && MENU_TYPE == "MAINDISH")
+			GOTO RETRY
+		DISHNAME  '= FES_NAME
+		MENU_TYPE '= "FESTIVAL"
+	CASE 0 TO NUM_MENUS - 1
+		FOOD_ID = RESULT
+		SIF !STRLENS(FOOD_NAME:FOOD_ID)
+			GOTO RETRY
+		DISHNAME  '= FOOD_NAME:FOOD_ID
+	CASEELSE
+		$RETRY
+		PRINTFORML 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+	BREAK
+LOOP 1
+SELECTCASE MENU_TYPE
+CASE "SNACK"
+	DISHTYPE = 1
+	FLAG:요리 = FOOD_ID
+CASE "MAINDISH"
+	DISHTYPE = 2
+	FLAG:요리 = FOOD_ID + 10
+CASE "DESSERT"
+	DISHTYPE = 3
+	FLAG:요리 = FOOD_ID + 50
+CASE "FISH"
+	DISHTYPE = 2
+CASE "FROG"
+	DISHTYPE = 2
+CASE "FESTIVAL"
+	DISHTYPE = 5
+	FLAG:요리 = 999
+ENDSELECT
+DISHTASTE += GET_TASTE_MENUTYPE(MENU_TYPE)
+DISHTASTE += DISHNAME + "/" + GET_TASTE_DISH(DISHNAME)
+RETURN 1
+
+
+;요리 추첨 함수
+;요리의 결정과 FLAG에의 기록, DISHNAME 결정까지
+;DISHQUALITY의 설정은 호출해 원으로 실시하는 것
+@SET_DISHNAME(MENU_TYPE)
+#DIMS MENU_TYPE
+#DIM  FOOD_ID
+SELECTCASE MENU_TYPE
+CASE "SNACK"
+	DISHTYPE = 1
+	FLAG:요리 = RAND:MENUS_SNACK + 1
+	DISHNAME = %FOOD_SNACK:(FLAG:요리)%
+CASE "MAINDISH"
+	DISHTYPE = 2
+	FOOD_ID = RAND:MENUS_MAINDISH
+	FLAG:요리 = FOOD_ID + 10
+	DISHNAME = %FOOD_MAINDISH:(FOOD_ID)%
+	IF FESTIVAL_MENU() != ""
+		DISHNAME = %FESTIVAL_MENU()%
+		FLAG:요리 = 999
+		DISHTYPE = 5
+	ENDIF
+CASE "DESSERT"
+	DISHTYPE = 3
+	FOOD_ID = RAND:MENUS_DESSERT
+	DISHNAME = %FOOD_DESSERT:(FOOD_ID)%
+	FLAG:요리 = FOOD_ID + 50
+CASE "FORBIDDEN"
+	DISHTYPE = 4
+	DISHNAME = %FOOD_FORBIDDEN:(DAY:2)%
+	FLAG:요리 = 99 + DAY:2
+CASE "FISH"
+	DISHTYPE = 2
+	DISHNAME = %FOOD_FISH:(RAND:MENUS_FISH)%
+CASE "FROG"
+	DISHTYPE = 2
+	DISHNAME = %FOOD_FROG:(RAND:MENUS_FROG)%
+ENDSELECT
+
+IF DISHTYPE == 5
+	DISHTASTE += GET_TASTE_MENUTYPE("FESTIVAL")
+ELSE
+	DISHTASTE += GET_TASTE_MENUTYPE(MENU_TYPE)
+ENDIF
+DISHTASTE += DISHNAME + "/" + GET_TASTE_DISH(DISHNAME)
+
+
+
+
+@식사(ARG)
+#DIM 정력회복량
+#DIM 기력회복량
+#DIM 체력회복량
+#DIM 정력회복율
+#DIM 기력회복율
+#DIM 체력회복율
+#DIMS CONST DISH_TO_만복도 = "", "경식", "주식", "디저트", "주식", "주식"
+#DIM COOK_POWER		;캐릭터의 조리력, 또는 외식할때의 맛
+;회복율은 0.1%단위
+
+정력회복량 = 0
+기력회복량 = 0
+체력회복량 = 0
+정력회복율 = 0
+기력회복율 = 0
+체력회복율 = 0
+
+SELECTCASE DISHTYPE
+	CASE 1
+	;경식
+		체력회복율 = 65
+		기력회복율 = 200
+		정력회복율 = 50
+	CASE 2
+	;주식
+		체력회복율 = 200
+		기력회복율 = 300
+		정력회복율 = 200
+	CASE 3
+	;디저트
+		체력회복율 = 50
+		기력회복율 = 500
+		정력회복율 = 50
+	CASE 4
+	;금단의 요리
+		체력회복율 = 300
+		기력회복율 = 300
+		정력회복율 = 300
+		EXP:ARG:C경험 += 30
+	CASE 5
+	;축제 메뉴
+		체력회복율 = 100
+		기력회복율 = 150
+		정력회복율 = 100
+ENDSELECT
+
+IF !DISH_RADICAL()
+ELSEIF TASTE_GIVEUP(ARG, DISH_RADICAL())
+	TIMES 체력회복율, 0.1
+	TIMES 기력회복율, 0.1
+	TIMES 정력회복율, 0.1
+ELSE
+	TIMES 체력회복율, 1.2
+	TIMES 기력회복율, 1.2
+	TIMES 정력회복율, 1.2
+ENDIF
+CALL 만복도상승(ARG, DISH_TO_만복도 :DISHTYPE)
+
+체력회복량 = (MAXBASE:ARG:체력 * 체력회복율 / 1000) * (ABL:MASTER:요리기능 + 5 + DISHQUALITY) / 10
+기력회복량 = (MAXBASE:ARG:기력 * 기력회복율 / 1000) * (ABL:MASTER:요리기능 + 5 + DISHQUALITY) / 10
+정력회복량 = (MAXBASE:ARG:정력 * 정력회복율 / 1000) * (ABL:MASTER:요리기능 + 5 + DISHQUALITY) / 10
+;추가 식재료 보너스
+IF DISHVEGE > 0
+	체력회복량 += 50
+	기력회복량 += 50
+	정력회복량 += 50
+ENDIF
+
+;料理の腕による上方補正
+COOK_POWER = 8 + ABL:MASTER:요리기능 * 2
+SIF DISHASSI
+	COOK_POWER += ABL:DISHASSI:요리기능
+
+CALL RECOVER(ARG, 체력회복량, "체력", "식사에 의한 회복")
+CALL RECOVER(ARG, 기력회복량, "기력", "식사에 의한 회복")
+IF ARG == MASTER
+	CALL RECOVER(ARG, 정력회복량, "정력", "식사에 의한 회복")
+ELSEIF STRLENS(DISHTASTE) && GET_OPTION_COOKING("채점 기능 온")
+	CALL FOOD_TASTING(ARG, DISHTASTE)
+	PRINTFORML %CALLNAME:ARG + "의 평가…………", 40, LEFT%{TCVAR:ARG:요리총평가치, 3}점
+ENDIF
+
+;장난을 가르쳐지고 있다
+SELECTCASE DISH_MIXTURE()
+CASE DISH_DRAG_미약
+	TCVAR:TARGET:미약 = 210
+CASE DISH_DRAG_이뇨제
+	TCVAR:TARGET:이뇨제 = 210
+CASE DISH_DRAG_춘약
+	TCVAR:TARGET:춘약 = 210
+CASE DISH_DRAG_수면제
+	IF TCVAR:TARGET:수면제강도 < 2
+		TCVAR:TARGET:수면제강도 = 2
+		TCVAR:TARGET:수면제차사용 = 1
+	ENDIF
+ENDSELECT
+
+@만복도상승(ARG, ARGS)
+SIF TASTE_GIVEUP(ARG, DISH_RADICAL())
+	RETURN
+SELECTCASE ARGS
+	CASE "경식"
+		TCVAR:ARG:공복시각 = 1440 * DAY + TIME + 180
+		SIF TALENT:ARG:대식가
+			TCVAR:ARG:공복시각 -= 30
+	CASE "주식"
+		TCVAR:ARG:공복시각 = 1440 * DAY + TIME + 360
+		SIF TALENT:ARG:대식가
+			TCVAR:ARG:공복시각 -= 90
+	CASE "디저트"
+		TCVAR:ARG:디저트공복시각 = 1440 * DAY + TIME + 180
+		SIF TALENT:ARG:대식가
+			TCVAR:ARG:디저트공복시각 -= 30
+ENDSELECT
+
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE413
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;청소 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(413)
+	RETURN RESULT
+
+;주방인가
+SIF !KITCHEN(CFLAG:MASTER:현재위치) && ITEM:911==0 ;KR판 고유기능 간편 요리 도구
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+;장난중
+SIF CFLAG:MASTER:장난
+	RETURN 0
+;이미 요리를 만들고 있다
+SIF DISHNAME != ""
+	RETURN 0
+RETURN 1
+
+@HUNGER(ARG)
+#FUNCTIONS
+LOCAL = TCVAR:ARG:공복시각 - TIME:1
+SELECTCASE LOCAL
+	CASE IS > 270
+	SETCOLOR C_GREEN
+		RETURNF "만복"
+	CASE IS > 180
+	SETCOLOR C_P_GREEN
+		RETURNF "든든"
+	CASE IS > 0
+	SETCOLOR C_P_YELLOW
+		RETURNF "보통"
+	CASEELSE
+		RETURNF "식사가능"
+ENDSELECT
+
+
+@INGREDIENT_CHOICE
+PRINTFORML 식재료를 선택해주세요
+CALL ASK_M(@"잡곡({ITEM:48})", ITEM:48, @"묵은쌀({ITEM:50})", ITEM:50, @"백미({ITEM:47})", ITEM:47,"그만둔다",1)
+SELECTCASE RESULT
+	CASE 0
+		DISHTASTE += GET_TASTE_INGREDIENT("잡곡")
+	CASE 1
+		DISHTASTE += GET_TASTE_INGREDIENT("묵은쌀")
+	CASE 2
+		DISHTASTE += GET_TASTE_INGREDIENT("백미")
+	CASE 3
+		DISHTYPE = 0
+		RETURN 0
+ENDSELECT
+DISHQUALITY = RESULT + 1
+RETURN DISHQUALITY
+
+
+;추가하는 야채의 선택
+@VEGE_CHOICE
+#DIMS CONST VEGE_NAME = "", "양배추", "딸기", "순무", "오이", "토마토", "수박", "가지", "고구마", "포도", "백합근", "당근", "파", "산나물"
+#DIM  VEGE_ID
+#DIM  TEMP_INPUT
+;야채가 없다
+{
+IF MAX(
+	ITEM:양배추, ITEM:딸기,    ITEM:순무,   
+	ITEM:오이, ITEM:토마토,     ITEM:수박, 
+	ITEM:가지,     ITEM:고구마, ITEM:포도, 
+	ITEM:백합근,   ITEM:당근,   ITEM:파,
+	ITEM:산나물                                    ) <= 0
+}
+	RETURN
+ENDIF
+DO
+	PRINTFORML 요리에 추가하는 식재료를 선택해 주세요
+	FOR VEGE_ID, VARSIZE("VEGE_NAME") - 1, 0, -1
+		IF ITEM:(GETNUM(ITEM, VEGE_NAME:VEGE_ID)) > 0
+			PRINTBUTTON @"{VEGE_ID, 2, RIGHT}[%VEGE_NAME:VEGE_ID, 10%]", VEGE_ID
+		ELSE
+			SETCOLOR 0x606060
+			PRINTPLAINFORM {VEGE_ID, 2, RIGHT}[%VEGE_NAME:VEGE_ID, 10%]
+			RESETCOLOR
+		ENDIF
+		IF VEGE_ID % 3 == 1
+			PRINTFORML 
+		ELSE
+			PRINTFORM 　
+		ENDIF
+	NEXT
+	PRINTBUTTON @" 0[%"그만둔다", 10%]", 0
+	PRINTFORML 
+	INPUT
+	TEMP_INPUT = RESULT
+	SELECTCASE TEMP_INPUT
+	CASE 0
+		RETURN
+	CASE 1 TO VARSIZE("VEGE_NAME") - 1
+		;예의범절이 나쁘지만 루프용으로 사용한 것을 사용해 돌리고 있습니다
+		VEGE_ID = GETNUM(ITEM, VEGE_NAME:TEMP_INPUT)
+		SIF ITEM:VEGE_ID <= 0
+			GOTO RETRY
+		BREAK
+	CASEELSE
+		$RETRY
+		PRINTFORML 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+LOOP 1
+ITEM:VEGE_ID --
+DISHVEGE  = VEGE_ID
+DISHTASTE += ITEMNAME:VEGE_ID + "/" + GET_TASTE_VEGE(ITEMNAME:VEGE_ID)
+
+
+@RESET_DISH
+DISHTIME = 0
+DISHSPOIL = 0
+FLAG:요리 = 0
+DISHQUALITY = 0
+DISHTYPE = 0
+DISHNAME =
+
+DISHTASTE =
+DISHVEGE = 0
+DISHASSI = 0
+
+
+
+;야채 제거 처리 실행 판정 함수
+;서니크라피의 콤비로 요리하면 7 와리노나물 빼기
+@CAN_REMOVE_VEGE
+#FUNCTION
+#DIM DYNAMIC VEGE_HATE_MAS
+#DIM DYNAMIC VEGE_HATE_ASI
+SIF !STRCOUNT(DISHTASTE, ESCAPE("야채/"))
+	RETURNF 0
+SIF FLAG:역극
+	VEGE_HATE_MAS = STRCOUNT(GET_STR(, "캐릭터데이터", FLAG:역극, "요리：싫어하는 맛"), ESCAPE("야채/"))
+SIF RAND(1, 11) <= VEGE_HATE_MAS
+	RETURNF 1
+SIF !DISHASSI
+	RETURNF 0
+VEGE_HATE_ASI = STRCOUNT(GET_STR(, "캐릭터데이터", DISHASSI, "요리：싫어하는 맛"), ESCAPE("야채/"))
+SIF RAND(1, 11) <= VEGE_HATE_ASI
+	RETURNF 2
+
+
+
+;야채 제거 처리 실행 함수
+;원래의 요리의 미각에도 영향이 나와 버리지만
+;뭔가 이렇게, 요리의 밸런스적인 섬싱이 무너져 버리면 뇌내 보완해 주세요
+;
+;쿠라피가 베이스이기 (위해)때문에
+;오이/고구마/파, 는 처리로부터 빠지고 있지만 귀찮아서 해 이대로
+;
+;종래는 토마토/당근이 상당히 강력했던 감이 있는 것인 종 밸런스는 잡힐지도
+;야채 빼기 처리로 고평가를 받기 쉬운 「붉은/산뜻한」이 빠져 버린다
+;그리고 영향을 받지 않는 딸기는 변함 없이 강력
+@REMOVE_VEGE
+SELECTCASE CAN_REMOVE_VEGE()
+CASE 0
+	RETURN
+CASE 1
+	PRINTFORML %마스터는% 요리로부터 남몰래 서투른 야채를 없앴다……
+CASE 2
+	PRINTFORML %조사처리(CALLNAME:DISHASSI,"는")% 요리로부터 남몰래 서투른 야채를 없앴다……
+ENDSELECT
+
+SIF STRCOUNT(DISHTASTE, ESCAPE("양배추/"))
+	DISHTASTE '= REPLACE(DISHTASTE, "양배추\/|담백\/", "")
+
+SIF STRCOUNT(DISHTASTE, ESCAPE("순무/"))
+	DISHTASTE '= REPLACE(DISHTASTE, "순무\/|미끄러운\/", "")
+
+SIF STRCOUNT(DISHTASTE, ESCAPE("토마토/"))
+	DISHTASTE '= REPLACE(DISHTASTE, "토마토\/|붉은\/|산뜻한\/", "")
+
+SIF STRCOUNT(DISHTASTE, ESCAPE("가지/"))
+	DISHTASTE '= REPLACE(DISHTASTE, "가지\/|담백\/", "")
+
+SIF STRCOUNT(DISHTASTE, ESCAPE("백합근/"))
+	DISHTASTE '= REPLACE(DISHTASTE, "백합근\/|품위있는\/", "")
+
+SIF STRCOUNT(DISHTASTE, ESCAPE("당근/"))
+	DISHTASTE '= REPLACE(DISHTASTE, "당근\/|산뜻한\/", "")
+
+SIF STRCOUNT(DISHTASTE, ESCAPE("산나물/"))
+	DISHTASTE '= REPLACE(DISHTASTE, "산나물\/|야취\/", "")
+
+DISHTASTE '= REPLACE(DISHTASTE, "야채\/", "야채 빼기\/")
+
+IF DISHNAME == "야채볶음"
+	DISHNAME = 콩나물볶음
+	DISHTASTE += "검소/빈상/"
+	DISHTASTE '= REPLACE(DISHTASTE, "야채볶음\/", "콩나물 볶음\/")
+ELSEIF DISHNAME == "나물"
+	DISHNAME = 나물없음
+	DISHTASTE += "빈상/" * 3
+	DISHTASTE '= REPLACE(DISHTASTE, "나물\/", "나물없음\/")
+ELSEIF DISHNAME == "채소절임 곱빼기밥"
+	DISHNAME = 곱빼기밥
+	DISHTASTE '= REPLACE(DISHTASTE, "채소절임 곱빼기밥\/", "곱빼기밥\/")
+ELSEIF DISHNAME == "모짜렐라 치즈와 토마토의 샐러드"
+	DISHNAME = 모짜렐라치즈만의샐러드
+	DISHTASTE += "치즈/" * 2
+	DISHTASTE '= REPLACE(DISHTASTE, "모짜렐라 치즈와 토마토의 샐러드\/", "모짜렐라 치즈만의 샐러드\/")
+ENDIF
+DISHVEGE = 0
+
+
+;특정의 메뉴의 실행 조건을 채우고 있는지를 판정
+;일단, MASTER 이외도 건네줄 수 있도록(듯이) 했다
+@CAN_COOK(MENU_TYPE, C_ID)
+#FUNCTION
+#DIM  DYNAMIC C_ID      ;조리 실행자의 C_ID
+#DIMS DYNAMIC MENU_TYPE ;판정 대상이 되는 조리 메뉴
+;축일 계(FESTIVAL)는 판정 없음이므로 거기만 주의(MAINDISH로부터의 파생이 된다)
+SELECTCASE MENU_TYPE
+CASE "SNACK", "경식"
+	SIF MAX(ITEM:백미, ITEM:잡곡, ITEM:묵은쌀) > 0
+		RETURNF 1
+CASE "MAINDISH", "주식"
+	SIF ABL:C_ID:요리기능 > 1 && MAX(ITEM:백미, ITEM:잡곡, ITEM:묵은쌀) > 0
+		RETURNF 1
+CASE "DESSERT", "디저트"
+	SIF ABL:C_ID:요리기능 > 2 && MAX(ITEM:백미, ITEM:잡곡, ITEM:묵은쌀) > 0
+		RETURNF 1
+CASE "FORBIDDEN", "금단의 요리"
+	SIF ABL:C_ID:요리기능 > 2 && ITEM:로터 > 0
+		RETURNF 1
+CASE "FISH", "생선 요리"
+	SIF ABL:C_ID:요리기능 > 1 && MAX(ITEM:물고기, ITEM:맛있는물고기) > 0
+		RETURNF 1
+CASE "FROG", "개구리 요리"
+	SIF ABL:C_ID:요리기능 > 1 && ITEM:개구리 >= 3
+		RETURNF 1
+CASE "ALL", "모두", ""
+;DYNAMIC를 이용한 재귀 호출
+	SIF CAN_COOK("SNACK", C_ID)
+		RETURNF 1
+	SIF CAN_COOK("MAINDISH", C_ID)
+		RETURNF 1
+	SIF CAN_COOK("DESSERT", C_ID)
+		RETURNF 1
+	SIF CAN_COOK("FORBIDDEN", C_ID)
+		RETURNF 1
+	SIF CAN_COOK("FISH", C_ID)
+		RETURNF 1
+	SIF CAN_COOK("FROG", C_ID)
+		RETURNF 1
+ENDSELECT
+RETURNF 0
+
+
+
+;요리명 표시용 F함수
+@EX_DISHNAME
+#FUNCTIONS
+#DIMS DYNAMIC EX_DISHNAME
+SIF DISHASSI
+	EX_DISHNAME += CALLNAME:DISHASSI + @"%조사만처리(CALLNAME:DISHASSI,"와")% 만든 "
+SIF DISHVEGE
+	EX_DISHNAME += ITEMNAME:DISHVEGE + " 풍미의 "
+SIF STRCOUNT(DISHTASTE, ESCAPE("달구경/"))
+	EX_DISHNAME += "달구경 "
+EX_DISHNAME += DISHNAME
+IF !STRCOUNT(DISHTASTE, ESCAPE("야채 빼기/"))
+ELSEIF !GROUPMATCH(DISHNAME, "콩나물 볶음", "나물없음", "곱빼기밥", "모짜렐라 치즈만의 샐러드")
+	EX_DISHNAME += "(야채 빼기)"
+ENDIF
+RETURNF EX_DISHNAME
+
+
+;이런 요리를 할 수 있었어!(을)를 표시하는 함수
+@SHOW_DISHDATA
+PRINTFORML ＜%EX_DISHNAME()%＞
+CALL SHOW_TASTE(DISHTASTE)
+
+
+;맛의 표시용 함수
+;맛에 한하지 않고 사용해 돌릴 수 있는 그렇게?
+;가로폭의 한계에 주의
+@SHOW_TASTE(TASTE_STR)
+#DIMS TASTE_STR               ;표시 대상의 맛데이터
+#DIMS DYNAMIC TASTE_LIST, 100 ;미 리스트
+#DIM  DYNAMIC TASTE_CNT,  100 ;미 리스트 각 요소의 중복 개수
+#DIM  DYNAMIC TASTE_NUM       ;미의 종류의 총수
+#DIM  DYNAMIC SHOW_NUM        ;표시한 맛의 수
+#DIM  TASTE_ID                ;루프용
+;맛리스트의 취득
+CALLF CNT_SPLIT(TASTE_STR, TASTE_LIST, TASTE_CNT, TASTE_NUM)
+;맛리스트의 표시
+FOR TASTE_ID, 0, TASTE_NUM
+	SIF !STRLENS(TASTE_LIST:TASTE_ID)
+		CONTINUE
+	LOCALS = [%TASTE_LIST:TASTE_ID%]Lv{TASTE_CNT:TASTE_ID, 2}
+	;시스템측에서 6 문자, 맛명칭에 14 문자분을 깨어 앞
+	PRINTFORM 　%LOCALS, 20%
+	SHOW_NUM ++
+	SIF SHOW_NUM % 5
+		CONTINUE
+	PRINTFORML 
+NEXT
+SIF SHOW_NUM % 5
+	PRINTFORML 
+
+
+
+;-------------------------------------------------
+;미각 평가 처리 함수
+;일단은 캐릭터라인만으로 평가할 수 있도록(듯이) 우수리가 TCVAR도 참조한다
+;-------------------------------------------------
+@FOOD_TASTING(C_ID, TASTE_FOOD)
+#DIM          C_ID              ;대상 캐릭터
+#DIM          COOK_POWER		;캐릭터의 조리력, 또는 외식할때의 맛
+#DIMS         TASTE_FOOD        ;할 수 있던 요리의맛
+TCVAR:C_ID:요리호평가치 = TASTE_GOOD(C_ID, TASTE_FOOD)
+TCVAR:C_ID:요리악평가치 = TASTE_BAD(C_ID, TASTE_FOOD)
+TCVAR:C_ID:요리총평가치 = TCVAR:C_ID:요리호평가치 * 100 / (TCVAR:C_ID:요리호평가치 + TCVAR:C_ID:요리악평가치)
+
+SELECTCASE TCVAR:C_ID:요리총평가치
+	CASE IS >= 80
+		CALL KIGEN_CHANGE(C_ID,100,1)
+	CASE IS < 40
+		CALL KIGEN_CHANGE(C_ID,100, -1)
+ENDSELECT
+
+;미각 평가 함수 GOOD
+@TASTE_GOOD(C_ID, TASTE_FOOD)
+#FUNCTION
+#DIM          C_ID              ;대상 캐릭터
+#DIMS         TASTE_FOOD        ;할 수 있던 요리의맛
+#DIMS DYNAMIC TASTE_CHARA       ;캐릭터의 취향
+#DIM  DYNAMIC TASTE_GOOD        ;좋다!(이)라고 생각한 정도
+#DIM  COOK_POWER				;캐릭터의 조리력, 또는 외식할때의 맛
+
+TASTE_CHARA '= GET_STR(, "캐릭터데이터", C_ID, "요리：좋아하는 맛")
+TASTE_GOOD = 30 + 10 * STR_MULTI_COUNT(TASTE_CHARA, TASTE_FOOD)
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("진수성찬/"))
+	TASTE_GOOD += 20
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("메이드류/"))
+	TASTE_GOOD += 5
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("가정적/"))
+	TASTE_GOOD += 5
+;야채 싫은은 야채 빼는걸 좋아한다（개개의 야채는 판정하지 않는다）
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("야채 빼기/"))
+	TASTE_GOOD += STRCOUNT(GET_STR(, "캐릭터데이터", C_ID, "요리：싫어하는 맛"), ESCAPE("야채/"))
+
+;만월 보너스
+SIF GROUPMATCH(NAME_MOON(DAY:3), "만월", "보름 -중추의 명월- ") && STRCOUNT(TASTE_FOOD, ESCAPE("달구경/"))
+	TASTE_GOOD += 3
+
+SIF !STRLENS(DISHNAME)
+	RETURNF MAX(TASTE_GOOD, 1)
+
+;여기에서(보다)↓는 통상의 요리 처리 전용의 평가 처리입니다
+IF !DISH_RADICAL()
+ELSEIF TASTE_GIVEUP(C_ID, DISH_RADICAL())
+	TIMES TASTE_GOOD, 0.1
+ELSE
+	TIMES TASTE_GOOD, 1.5
+ENDIF
+
+TASTE_GOOD = TASTE_GOOD * COOK_POWER
+
+;식사 결과 대성공때
+SIF TFLAG:193 == 1
+	TIMES TASTE_GOOD, 1.5
+;꾸미고
+SIF DISHSPOIL < 1
+	TIMES TASTE_GOOD, 1.2
+
+;자신이 만든 요리는 편애 한다
+SIF DISHASSI == C_ID
+	TIMES TASTE_GOOD, 1.1
+
+;연모계-이룬다
+IF TALENT:C_ID:연인
+		TIMES TASTE_GOOD, 2.0
+ELSEIF TALENT:C_ID:연모
+	TIMES TASTE_GOOD, 1.3
+ELSEIF TALENT:C_ID:사모
+	TIMES TASTE_GOOD, 1.1
+ENDIF
+
+;조수 효과에 의한 추가 처리
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("빈상/"))
+		TIMES TASTE_GOOD, 0.8
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("소쇄/"))
+		TIMES TASTE_GOOD, 1.2
+SELECTCASE GET_TALENTNAME(GETNUM(TALENT, "신령"), TALENT:C_ID:신령)
+CASE "사신", "염라"
+CASEELSE
+	SIF TALENT:C_ID:신령 && STRCOUNT(TASTE_FOOD, ESCAPE("영험/"))
+		TIMES TASTE_GOOD, 1.1
+ENDSELECT
+
+SELECTCASE GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:C_ID:인간)
+CASE "인간"
+	SIF STR_MULTI_COUNT(TASTE_FOOD, ESCAPE("이상한/불온/"))
+		TIMES TASTE_GOOD, 0.8
+CASE "월인"
+	SIF STRCOUNT(TASTE_FOOD, ESCAPE("달구경/"))
+		TIMES TASTE_GOOD, 1.1
+ENDSELECT
+
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("파워풀/")) && GET_TALENTNAME(GETNUM(TALENT, "회복속도"), TALENT:C_ID:회복속도) == "회복 느림"
+		TIMES TASTE_GOOD, 1.1
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("섬세/")) && STR_MULTI_COUNT(TASTE_FOOD, ESCAPE("디저트/경식/"))
+		TIMES TASTE_GOOD, 1.1
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("대화력/")) && STR_MULTI_COUNT(TASTE_FOOD, ESCAPE("농후/기름/"))
+		TIMES TASTE_GOOD, 1.1
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("현란/")) && STRCOUNT(TASTE_FOOD, ESCAPE("품위있는/"))
+		TIMES TASTE_GOOD, 1.1
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("풍류/")) && STRCOUNT(TASTE_FOOD, ESCAPE("일식/"))
+		TIMES TASTE_GOOD, 1.1
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("실험적/")) && GET_TALENTNAME(GETNUM(TALENT, "성적흥미"), TALENT:C_ID:성적흥미) == "호기심"
+		TIMES TASTE_GOOD, 1.1
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("요정풍/")) && TALENT:C_ID:요정
+		TIMES TASTE_GOOD, 1.1
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("관능적/")) && (TALENT:C_ID:섹프 || TALENT:C_ID:애욕)
+		TIMES TASTE_GOOD, 1.1
+
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("풍요/")) && STR_MULTI_COUNT(TASTE_FOOD, ESCAPE("야채/쌀/"))
+		TIMES TASTE_GOOD, 1.2
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("류큐풍/")) && STR_MULTI_COUNT(TASTE_FOOD, ESCAPE("농후/기름/튀겨짐/"))
+		TIMES TASTE_GOOD, 1.2
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("화려한/")) && STRCOUNT(TASTE_FOOD, ESCAPE("산뜻한/"))
+		TIMES TASTE_GOOD, 1.5
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("카리스마/")) && STRCOUNT(TASTE_FOOD, ESCAPE("붉은/"))
+		TIMES TASTE_GOOD, 1.5
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("수병풍/")) && STRCOUNT(TASTE_FOOD, ESCAPE("물고기/카레라이스/"))
+		TIMES TASTE_GOOD, 1.5
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("화인소녀/")) && STRCOUNT(TASTE_FOOD, ESCAPE("중식/"))
+		TIMES TASTE_GOOD, 2.0
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("명검/")) && STR_MULTI_COUNT(TASTE_FOOD, ESCAPE("생선회/신선한 생선회/스시/") )
+		TIMES TASTE_GOOD, 2.0
+
+IF STRCOUNT(TASTE_FOOD, ESCAPE("텐구류/"))
+	SIF ALCOHOL_FACE(C_ID) != "　맨정신　"
+		TIMES TASTE_GOOD, 1.1
+ENDIF
+IF STRCOUNT(TASTE_FOOD, ESCAPE("오니의 조미료/"))
+	SELECTCASE ALCOHOL_FACE(C_ID)
+	CASE "취기"
+		TIMES TASTE_GOOD, 1.1
+	CASE "주정꾼"
+		TIMES TASTE_GOOD, 1.3
+	CASE "곤드레만드레"
+		TIMES TASTE_GOOD, 1.5
+	ENDSELECT
+ENDIF
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("반역/"))
+	TASTE_GOOD = TASTE_GOOD * (MARK:C_ID:반발각인 + 1)
+
+IF STRCOUNT(TASTE_FOOD, ESCAPE("빙결/"))
+	SIF GET_MONTH() == "여름의 달"
+		TIMES TASTE_GOOD, 2.0
+ELSEIF STRCOUNT(TASTE_FOOD, ESCAPE("봄바람/"))
+	SIF GROUPMATCH(GET_MONTH(), "겨울의 달", "봄의 달")
+		TIMES TASTE_GOOD, 1.5
+ELSEIF STRCOUNT(TASTE_FOOD, ESCAPE("가을풍/"))
+	SIF GROUPMATCH(GET_MONTH(), "여름의 달", "가을의 달")
+		TIMES TASTE_GOOD, 1.5
+ENDIF
+
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("질투/")) && (TALENT:C_ID:사모 || TALENT:C_ID:연모 || TALENT:C_ID:연인)
+		TIMES TASTE_GOOD, 0.5
+
+SIF DISHASSI > 0 && CSVRELATION(C_ID, DISHASSI)
+	TASTE_GOOD = TASTE_GOOD * CSVRELATION(C_ID, DISHASSI) / 100
+
+TASTE_GOOD = TASTE_GOOD / 10
+RETURNF MAX(TASTE_GOOD, 1)
+
+;미각 평가 함수 BAD
+@TASTE_BAD(C_ID, TASTE_FOOD)
+#FUNCTION
+#DIM          C_ID              ;대상 캐릭터
+#DIMS         TASTE_FOOD        ;할 수 있던 요리의맛
+#DIMS DYNAMIC TASTE_CHARA       ;캐릭터의 취향
+#DIM  DYNAMIC TASTE_BAD         ;싫다! 라고 생각한 정도
+TASTE_CHARA '= GET_STR(, "캐릭터데이터", C_ID, "요리：싫어하는 맛")
+TASTE_BAD = 30 + 15 * STR_MULTI_COUNT(TASTE_CHARA, TASTE_FOOD)
+
+SIF !STRLENS(DISHNAME)
+	RETURNF MAX(TASTE_BAD, 1)
+
+;정밀도 확보용
+TASTE_BAD = TASTE_BAD * 10
+
+IF !DISH_RADICAL()
+ELSEIF TASTE_GIVEUP(C_ID, DISH_RADICAL())
+	TIMES TASTE_BAD, 3.0
+ELSE
+	TIMES TASTE_BAD, 0.8
+ENDIF
+
+;식사 결과대실패때
+SIF TFLAG:193 == -1
+	TIMES TASTE_BAD, 1.5
+;조리 경과시간
+SELECTCASE DISHSPOIL
+CASE 1
+	TIMES TASTE_BAD, 1.2
+CASE 2
+	TIMES TASTE_BAD, 1.8
+ENDSELECT
+
+SIF DISHASSI == C_ID
+	TIMES TASTE_BAD, 0.9
+
+;조수 효과에 의한 추가 처리
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("빈상/"))
+		TIMES TASTE_BAD, 1.2
+SIF GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:C_ID:인간) == "인간" && STR_MULTI_COUNT(TASTE_FOOD, ESCAPE("이상한/불온/"))
+		TIMES TASTE_BAD, 1.1
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("배려/"))
+		TIMES TASTE_BAD, 0.9
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("메이드류/"))
+		TIMES TASTE_BAD, 0.9
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("가정적/"))
+		TIMES TASTE_BAD, 0.9
+SIF STRCOUNT(TASTE_FOOD, ESCAPE("행운/"))
+		TIMES TASTE_BAD, 0.8
+
+SIF DISHASSI > 0 && CSVRELATION(C_ID, DISHASSI)
+	TASTE_BAD = TASTE_BAD * 100 / CSVRELATION(C_ID, DISHASSI)
+
+TASTE_BAD = TASTE_BAD / 10
+
+RETURNF MAX(TASTE_BAD, 1)
+
+
+;-------------------------------------------------
+;장난 관련 판정
+;-------------------------------------------------
+;장난에 의한 식사의 중단 처리
+;일단 판정 BIT 돌려주고 있지만 별로(호빵) 의미는 없을 것이다
+@TASTE_GIVEUP(C_ID, TASTE_TYPE)
+#FUNCTION
+#DIM         C_ID			;판정 대상 캐릭터
+#DIM         TASTE_TYPE		;장난의 타입
+SELECTCASE TASTE_TYPE
+CASE DISH_RADICAL_엄청매운
+	SIF GETBIT(CFLAG:C_ID:미각기호, DISH_RADICAL_엄청매운)
+		RETURNF 0
+	SIF STRCOUNT(GET_STR(, "캐릭터데이터", C_ID, "요리：좋아하는 맛"), ESCAPE("스파이스/"))
+		RETURNF 0
+	RETURNF DISH_RADICAL_엄청매운
+CASE DISH_RADICAL_격감
+	SIF GETBIT(CFLAG:C_ID:미각기호, DISH_RADICAL_격감)
+		RETURNF 0
+	SIF STRCOUNT(GET_STR(, "캐릭터데이터", C_ID, "요리：좋아하는 맛"), ESCAPE("단/"))
+		RETURNF 0
+	RETURNF DISH_RADICAL_격감
+CASE DISH_RADICAL_고추냉이
+	SIF GETBIT(CFLAG:C_ID:미각기호, DISH_RADICAL_고추냉이)
+		RETURNF 0
+	SIF STRCOUNT(GET_STR(, "캐릭터데이터", C_ID, "요리：좋아하는 맛"), ESCAPE("스파이스/"))
+		RETURNF 0
+	RETURNF DISH_RADICAL_고추냉이
+CASE DISH_RADICAL_레몬
+	SIF GETBIT(CFLAG:C_ID:미각기호, DISH_RADICAL_레몬)
+		RETURNF 0
+	RETURNF DISH_RADICAL_레몬
+ENDSELECT
+
+;요리에 장난이 베풀어지고 있는지 아닌지
+;진한/얇은 것 맛내기는 제외
+@DISH_MIXTURE()
+#FUNCTION
+LOCAL = DISH_RADICAL()
+SIF LOCAL
+	RETURNF LOCAL
+LOCAL = DISH_DRAG()
+	RETURNF LOCAL
+RETURNF
+
+;장난에 의해 과격한 맛이 하는 요리이다
+@DISH_RADICAL()
+#FUNCTION
+SIF GETBIT(TCVAR:MASTER:308, DISH_RADICAL_엄청매운)
+	RETURNF DISH_RADICAL_엄청매운
+SIF GETBIT(TCVAR:MASTER:308, DISH_RADICAL_격감)
+	RETURNF DISH_RADICAL_격감
+SIF GETBIT(TCVAR:MASTER:308, DISH_RADICAL_고추냉이)
+	RETURNF DISH_RADICAL_고추냉이
+SIF GETBIT(TCVAR:MASTER:308, DISH_RADICAL_레몬)
+	RETURNF DISH_RADICAL_레몬
+RETURNF
+
+;약물이 사들여진 요리이다
+@DISH_DRAG()
+#FUNCTION
+SIF GETBIT(TCVAR:MASTER:308, DISH_DRAG_미약)
+	RETURNF DISH_DRAG_미약
+SIF GETBIT(TCVAR:MASTER:308, DISH_DRAG_이뇨제)
+	RETURNF DISH_DRAG_이뇨제
+SIF GETBIT(TCVAR:MASTER:308, DISH_DRAG_춘약)
+	RETURNF DISH_DRAG_춘약
+SIF GETBIT(TCVAR:MASTER:308, DISH_DRAG_수면제)
+	RETURNF DISH_DRAG_수면제
+RETURNF
+
+
+
+;-------------------------------------------------
+;여기에서 요리의맛정보의 기술
+;-------------------------------------------------
+;GET_TASTE계는 캐릭터라인을 건네주어 캐릭터라인이 되돌아 오는 형식
+;이유로서는 실제로 요리를 만드는 장면 이외에도 사용할 수 있도록(듯이) 하기 위한(해)
+;반환값은"HOGE/"로 반드시 말미에"/"를 넣는 것(나중에의 추가에 대응할 수 있도록(듯이) 한다)
+;-------------------------------------------------
+;요리의 종류
+@GET_TASTE_MENUTYPE(ARGS)
+#FUNCTIONS
+SELECTCASE ARGS
+CASE "SNACK"
+	RETURNF "경식/"
+CASE "MAINDISH"
+	RETURNF "주식/"
+CASE "DESSERT"
+	RETURNF "디저트/"
+CASE "FORBIDDEN"
+	RETURNF "수수께끼 요리/"
+	;"금단"은 식재료측에서 부여하고 있습니다
+CASE "FISH"
+	RETURNF "생선 요리/"
+CASE "FROG"
+	RETURNF "개구리 요리/"
+CASE "FESTIVAL"
+	RETURNF "진수성찬/"
+ENDSELECT
+
+
+;메인 식재료
+@GET_TASTE_INGREDIENT(ARGS)
+#FUNCTIONS
+SELECTCASE ARGS
+CASE "잡곡"
+	RETURNF "잡곡/야취/"
+CASE "묵은쌀"
+	RETURNF "묵은쌀/검소/"
+CASE "백미"
+	RETURNF "백미/품위있는/"
+CASE "개구리"
+	RETURNF "야취/"
+CASE "물고기"
+	RETURNF "물고기/검소/"
+CASE "맛있는물고기"
+	RETURNF "맛있는물고기/품위있는/"
+CASE "로터"
+	RETURNF "금단/"
+ENDSELECT
+
+
+;추가 식재료=야채
+;추가 식재료는 호출해 원으로 식재료명 자체를 부여
+@GET_TASTE_VEGE(ARGS)
+#FUNCTIONS
+SELECTCASE ARGS
+CASE "양배추"
+	RETURNF "야채/담백/"
+CASE "딸기"
+	RETURNF "과일/귀여운/붉은/산뜻한/"
+CASE "순무"
+	RETURNF "야채/미끄러운/"
+
+CASE "오이"
+	RETURNF "야채/물기/"
+CASE "토마토"
+	RETURNF "야채/붉은/산뜻한/"
+CASE "수박"
+	RETURNF "과일/물기/단/붉은/"
+
+CASE "가지"
+	RETURNF "야채/담백/"
+CASE "고구마"
+	RETURNF "야채/볼륨감/"
+CASE "포도"
+	RETURNF "과일/귀여운/단/"
+
+CASE "백합근"
+	RETURNF "야채/품위있는/"
+CASE "당근"
+	RETURNF "야채/산뜻한/"
+CASE "파"
+	RETURNF "야채/스파이스/"
+
+CASE "산나물"
+	RETURNF "야채/야취/"
+ENDSELECT
+
+
+;각 요리의맛
+;각 요리는 호출해 원으로 요리명 자체를 부여
+@GET_TASTE_DISH(ARGS)
+#FUNCTIONS
+SELECTCASE ARGS
+;주식
+CASE "잡탕죽"
+	RETURNF "일식/쌀/담백/"
+CASE "계란덮밥"
+	RETURNF "일식/쌀/계란/담백/매끄러운/심플/"
+CASE "야채볶음"
+	RETURNF "야채/심플/"
+CASE "된장국"
+	RETURNF "일식/국물/"
+CASE "나물"
+	RETURNF "일식/야채/담백/"
+CASE "우동"
+	RETURNF "일식/면류/미끄러운/"
+CASE "소면"
+	RETURNF "일식/면류/담백/미끄러운/"
+CASE "소바"
+	RETURNF "일식/면류/야취/담백/미끄러운/"
+CASE "오믈렛"
+	RETURNF "양식/계란/볼륨감/"
+CASE "스튜"
+	RETURNF "양식/국물/볼륨감/농후/"
+CASE "햄버그"
+	RETURNF "양식/고기 요리/볼륨감/농후/"
+CASE "그라탕"
+	RETURNF "양식/치즈/볼륨감/농후/"
+CASE "카레라이스"
+	RETURNF "양식/쌀/볼륨감/스파이스/농후/"
+CASE "샤브샤브"
+	RETURNF "일식/고기 요리/담백/"
+CASE "라면"
+	RETURNF "중식/면류/미끄러운/"
+CASE "생강구이"
+	RETURNF "일식/고기 요리/볼륨감/기름/"
+CASE "스테이크"
+	RETURNF "양식/고기 요리/야취/볼륨감/기름/"
+CASE "유린기"
+	RETURNF "중식/고기 요리/닭고기/볼륨감/튀겨짐/기름/사각사각/"
+CASE "모짜렐라 치즈와 토마토의 샐러드"
+	RETURNF "양식/야채/치즈/토마토/담백/산뜻한/붉은/"
+CASE "도핑 콘소메 수프"
+	RETURNF "양식/수수께끼 요리/국물/금단/스파이스/"
+CASE "중화풍 타조 카르파쵸"
+	RETURNF "중식/고기 요리/닭고기/벌레고기/볼륨감/튀겨짐/기름/사각사각/산뜻한/"
+CASE "긴기 요리"
+	RETURNF "수수께끼 요리/볼륨감/심플/"
+CASE "튀김"
+	RETURNF "일식/튀겨짐/기름/사각사각/"
+CASE "고봉밥"
+	RETURNF "일식/쌀/볼륨감/심플/"
+CASE "채소절임 곱빼기밥"
+	RETURNF "일식/쌀/야채/검소/담백/볼륨감/심플/"
+
+
+;감미
+CASE "푸딩"
+	RETURNF "양식/품위있는/계란/말랑말랑/미끄러운/"
+CASE "케이크"
+	RETURNF "양식/품위있는/반죽/계란/볼륨감/산뜻한/"
+CASE "젤리"
+	RETURNF "양식/말랑말랑/담백/산뜻한/물기/"
+CASE "타르트"
+	RETURNF "양식/반죽/계란/귀엽다/"
+CASE "쿠키"
+	RETURNF "양식/반죽/계란/사각사각/귀엽다/"
+CASE "파이"
+	RETURNF "양식/반죽/사각사각/"
+CASE "양갱"
+	RETURNF "일식/팥소/볼륨감/미끄러운/"
+CASE "찹살떡"
+	RETURNF "일식/팥소/볼륨감/쫄깃한/"
+CASE "카스테라"
+	RETURNF "양식/품위있는/반죽/계란/"
+CASE "경단"
+	SIF GROUPMATCH(NAME_MOON(DAY:3), "만월", "보름 -중추의 명월- ")
+		RETURNF "일식/쫄깃한/달구경/"
+	RETURNF "일식/쫄깃한/"
+CASE "과일모듬"
+	RETURNF "과일/담백/산뜻한/심플/"
+CASE "파운드케이크"
+	RETURNF "양식/반죽/계란/"
+CASE "안미츠"
+	RETURNF "일식/팥소/물기/미끄러운/"
+CASE "야쇼마"
+	RETURNF "일식/쫄깃한/심플/"
+CASE "타피오카 밀크티"
+	RETURNF "미끄러운/쫄깃한/귀엽다/물기/"
+
+
+;경식
+CASE "샌드위치"
+	RETURNF "양식/반죽/"
+CASE "주먹밥"
+	RETURNF "일식/심플/"
+CASE "햄버거"
+	RETURNF "양식/야취/반죽/볼륨감/"
+CASE "스콘"
+	RETURNF "양식/품위있는/반죽/"
+CASE "슈마이"
+	RETURNF "중식/고기 요리/"
+CASE "고기만두"
+	RETURNF "중식/반죽/고기 요리/농후/쫄깃한/"
+CASE "피쉬＆칩스"
+	RETURNF "생선 요리/튀겨짐/기름/"
+CASE "타코스"
+	RETURNF "양식/야취/반죽/농후/"
+CASE "타코야키"
+	RETURNF "일식/반죽/"
+
+;금단
+CASE "튀김 로터"
+	RETURNF "튀겨짐/기름/"
+CASE "살짝 데친 E마사지기풍 로터"
+	RETURNF "담백/"
+CASE "클리캡용 로터의 쥠"
+	RETURNF "일식/담백/"
+CASE "오나홀로 만든 로터 조림"
+	RETURNF "일식/국물/볼륨감/농후/"
+
+;개구리 요리
+CASE "개구리 튀김"
+	RETURNF "고기 요리/튀겨짐/기름/사각사각/"
+CASE "개구리 카레"
+	RETURNF "양식/쌀/고기 요리/볼륨감/스파이스/농후/"
+CASE "개구리 소테"
+	RETURNF "양식/고기 요리/기름/"
+CASE "개구리의 소금구이"
+	RETURNF "고기 요리/심플/"
+
+;생선 요리
+CASE "스시"
+	RETURNF "일식/품위있는/담백/산뜻한/"
+CASE "생선구이"
+	RETURNF "일식/심플/"
+CASE "조린 생선"
+	RETURNF "일식/물기/"
+CASE "장어구이"
+	RETURNF "일식/농후/"
+CASE "신선한 생선회"
+	RETURNF "일식/품위있는/담백/심플/산뜻한/"
+CASE "마리네"
+	RETURNF "양식/담백/산뜻한/"
+CASE "뫼니에르"
+	RETURNF "양식/사각사각/"
+CASE "생선회"
+	RETURNF "일식/품위있는/담백/심플/"
+CASE "양념구이"
+	RETURNF "일식/농후/"
+CASE "타츠다튀김"
+	RETURNF "일식/튀겨짐/기름/사각사각/"
+CASE "피쉬 카레"
+	RETURNF "양식/쌀/볼륨감/스파이스/농후/"
+CASE "정어리 파이"
+	RETURNF "수수께끼 요리/양식/반죽/사각사각/"
+
+;진수성찬
+CASE "오세치요리"
+	RETURNF "일식/품위있는/볼륨감/산뜻한/"
+CASE "에호마키"
+	RETURNF "일식/쌀/볼륨감/"
+CASE "토시코시 소바"
+	RETURNF "일식/면류/미끄러운/"
+ENDSELECT
+
+
+
+;조수로 부여되는 미각
+@GET_TASTE_ASSIBONUS(C_ID)
+#FUNCTIONS
+#DIM          C_ID
+#DIMS DYNAMIC TEMP_TASTE
+IF C_ID == MASTER && FLAG:역극
+	TEMP_TASTE '= GET_STR(, "캐릭터데이터", FLAG:역극, "요리：조수 효과")
+ELSE
+	TEMP_TASTE '= GET_STR(, "캐릭터데이터", C_ID, "요리：조수 효과")
+ENDIF
+
+SELECTCASE GET_TALENTNAME(GETNUM(TALENT, "신령"), TALENT:C_ID:신령)
+CASE "사신", "염라"
+	TEMP_TASTE += "명계풍/"
+CASEELSE
+	SIF TALENT:C_ID:신령
+		TEMP_TASTE += "영험/"
+ENDSELECT
+
+SELECTCASE GET_TALENTNAME(GETNUM(TALENT, "인간"), TALENT:C_ID:인간)
+CASE "인간"
+CASE "마법사"
+	TEMP_TASTE += "마법/"
+CASE "무녀"
+	TEMP_TASTE += "영험/"
+CASE "천인"
+	TEMP_TASTE += "천계풍/"
+CASE "선인"
+	TEMP_TASTE += "정묘/"
+CASE "달인"
+	TEMP_TASTE += "월도풍/"
+ENDSELECT
+
+SIF GET_TALENTNAME(GETNUM(TALENT, "비생물"), TALENT:C_ID:비생물) == "영체"
+	TEMP_TASTE += "불가사의/"
+
+SIF TALENT:C_ID:요정
+	TEMP_TASTE += "요정풍/"
+SIF TALENT:C_ID:오니
+	TEMP_TASTE += "오니의 조미료/"
+SIF TALENT:C_ID:텐구
+	TEMP_TASTE += "텐구류/"
+SIF TALENT:C_ID:한기선호
+	TEMP_TASTE += "빙결/"
+
+SIF TALENT:C_ID:조합지식
+	TEMP_TASTE += "허브/"
+SIF GET_TALENTNAME(GETNUM(TALENT, "회복속도"), TALENT:C_ID:회복속도) == "회복 빠름" || TALENT:C_ID:고무
+	TEMP_TASTE += "파워풀/"
+SIF GET_TALENTNAME(GETNUM(TALENT, "습득속도"), TALENT:C_ID:습득속도) == "습득 빠름" || GET_TALENTNAME(GETNUM(TALENT, "회복속도"), TALENT:C_ID:회복속도) == "회복 느림"
+	TEMP_TASTE += "섬세/"
+SIF TALENT:C_ID:음악지식 >= 1 || TALENT:C_ID:음감 >= 1
+	TEMP_TASTE += "예술적/"
+SIF TALENT:C_ID:섹프 || TALENT:C_ID:애욕
+	TEMP_TASTE += "관능적/"
+SIF TALENT:C_ID:사모 || TALENT:C_ID:연모
+	TEMP_TASTE += "애정/"
+SIF TALENT:C_ID:헌신적
+	TEMP_TASTE += "배려/"
+SIF GROUPMATCH(ALCOHOL_FACE(C_ID), "곤드레만드레", "주정꾼")
+	TEMP_TASTE += "고주망태/"
+SIF TALENT:C_ID:응답 < 0
+	TEMP_TASTE += "마일드/"
+RETURNF TEMP_TASTE
+
+@COOKING_TAKARI(ARG, 확률)
+#DIM 확률
+
+;タカらない
+IF !CAN_TAKARI(ARG)
+	확률 = 0
+;내방중이라면 100%
+ELSEIF AT_HOME(ARG) && !CFLAG:ARG:신사거주
+	확률 = 100
+;같은 거점이라면 2분의 1
+ELSEIF AT_HOME(ARG) && CFLAG:ARG:신사거주
+	확률 = 확률 * 1 / 2
+ENDIF
+
+;확률
+SIF 확률 < RAND:100
+	RETURN
+
+CFLAG:ARG:거점내방 = 1
+CFLAG:ARG:현재위치 = CFLAG:MASTER:현재위치
+TCVAR:ARG:가능한한움직이지않는다 = 1
+PRINTFORML 요리하는 낌새를 알아채고 %ARG가% 왔다……
+
+@CAN_TAKARI(ARG)
+#FUNCTION
+;活動時間-1h外
+SIF !BETWEENTIME(CFLAG:ARG:내방시간, CFLAG:ARG:귀가시간 - 60)
+	RETURNF 0
+;MASTERが外
+SIF !AT_HOME(MASTER)
+	RETURNF 0
+;お招き部屋
+SIF CFLAG:MASTER:현재위치 == OMANEKIBEYA()
+	RETURNF 0
+;MASTERと同じ場所
+SIF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+	RETURNF 0
+;寝てる
+SIF CFLAG:ARG:수면
+	RETURNF 0
+;仕事中
+SIF CFLAG:ARG:행동 == 5
+	RETURNF 0
+RETURNF 1

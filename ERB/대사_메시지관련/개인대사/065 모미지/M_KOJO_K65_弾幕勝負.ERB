@@ -1,0 +1,736 @@
+﻿;==================================================
+;弾幕勝負
+;==================================================
+;
+;CFLAG:1800 弾幕勝負イベント進行度
+;1:敗北済み
+;2:勝利済み
+;3:루나슈터養成ギプスイベント済
+;
+;TCVAR:351 ハンデ管理
+;現状、TCVAR:351 > 0でハンデあり程度の扱い。
+;いずれ他のコマンドで言及させたいと思った時に使えれば
+;
+;ギプスの設定値により
+;勝利時:전투경험にボーナス
+;敗北時:체력ダメージ(設定値依存)
+;が入る。
+;椛が発情中かつ合意ありの状態で敗北し、体力に大ダメージが入ると逆レイベント。
+
+@M_KOJO_MESSAGE_COM_K65_DANMAKU(ARGS, 相手残機)
+#DIM 相手残機
+;全体の流れ
+;①【戦闘前】→②ダイスロールとプレイヤー選択肢、ハンデをつけた場合は【ハンデ口上】→③対応スキルが発動した場合【スキル口上】→④被弾判定、キャラが被弾したなら【被弾口上】→
+;どちらかの残機が0になっていなければ②に戻る→⑤【戦闘後口上】
+
+;--------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------
+IF LOCAL
+SIF FLAG:대사색깔
+	TRYCALLFORM M_KOJO_COLOR_K{NO:TARGET}
+	;-------------------------------------------------
+	;小分岐
+	;-------------------------------------------------
+	;戦闘前
+	;HANDICAP_FIXED = 0
+	;HANDICAP_RAND = 0
+	;ハンデをつけることができ、数値が大きいほどあなたが不利になる　数値が負ならあなたが有利に
+	;キャラの能力に関わらずクッソ強くしたり弱くしたりできる
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "戦闘前"
+		HANDICAP_FIXED = 0
+		HANDICAP_RAND = 0
+		IF TCVAR:발정 && CFLAG:1800 > 2
+			PRINTFORML 「에, 그러니까… 탄막 승부…인가요」
+			PRINTFORML 「저기…지금이 아니면 안 되는 건가요…？」
+			PRINTFORML 「우우…백랑텐구의 명예를 걸고, 받아들입니다만…」
+		ELSE
+			PRINTFORML 「탄막 승부군요. 네, 잘 부탁드립니다」
+		ENDIF
+		IF CFLAG:1800 == 3
+			PRINTFORML
+			PRINTFORML 루나 슈터 양성 깁스를 사용합니까？
+			CALL ASK_YN("使う","使わずに勝負する")
+				IF RESULT == 0
+					IF TCVAR:발정
+						PRINTFORML 「저기…좋습니다만…정말로, 절대, 무리 하지 말아 주세요…？」
+					ELSE
+						PRINTFORML 「알겠습니다.…그렇지만, 너무 무리 하지 말아 주세요？」
+					ENDIF
+					CALL K65_DANMAKU_EVENT_GIPS
+					IF RESULT == -1
+						RETURN -1
+					ELSE
+						IF TCVAR:발정
+							PRINTFORML （사념퇴산, 사념퇴산, 사념퇴산……）
+							PRINTFORML 모미지는 무엇인가 중얼중얼 외운 후, 자신의 양 뺨을 두드렸다.
+							PRINTFORML 「좋-아！」
+							;逆レイベント条件を満たしていたらハンデ激増
+							SIF CFLAG:1800 > 2 && CFLAG:기정사실 & 合意_うふふ &&  ABL:65:욕망 > 4 && TCVAR:351 >= 7 * ABL:MASTER:전투능력
+								HANDICAP_FIXED += ABL:MASTER:전투능력 * 200
+						ENDIF
+						PRINTFORMW 「%TEXTR("자！가겠습니다！/매일 단련의 성과를 보여드리겠습니다！/이번에는, 지지 않을 거예요！")%」
+					ENDIF
+				ELSE
+				ENDIF
+		;ルナシューター養成ギプスイベント
+		;up前にここは完成させたい
+		ELSEIF CFLAG:1800 == 2
+			PRINTFORML 「그럼 %CALLNAME:MASTER%씨, 죄송하지만, 잠깐 기다려 주시겠어요？」
+			PRINTFORML %CALLNAME:MASTER%(이)가 고개를 끄덕이자, 모미지는 꾸벅 고개를 숙이고 어디론가 뛰어갔.
+			PRINTFORMW ………
+			PRINTFORMW ……
+			PRINTFORMW …
+			PRINTFORMW 「오래 기다리셨습니다. 이걸 보여드리고 싶었어요」
+			PRINTFORML 몸통에서 양 어깨를 감는 것 같은 안전벨트의 어깻죽지로부터 몇 개의 스프링이 뻗어 있고, 그 스프링의 끝에는 짧은 밴드가 븥어 있었다.
+			PRINTFORML …구속구의 일종인걸까.
+			PRINTFORMW %CALLNAME:MASTER%에게 의아한 듯한 시선을 받은 모미지가 쓴웃음을 지었다.
+			PRINTFORML 「…그러니까, 이건 「루나 슈터 양성 깁스」라고 해요. 예전에、니토리에게 받은 것입니다만……」
+			PRINTFORML 
+			PRINTFORMW 모미지가 말하길.
+			PRINTFORML 전에 니토리가 탄막 승부를 해보자는 얘기가 나왔는데, 초계 임무를 맡아 단련을 거듭하고 있는 모미지와
+			PRINTFORMW 엔지니어가 본업인 니토리 사이에는 부정할 수 없는 실력차가 있었다.
+			PRINTFORML 그러나, 모처럼 대전을 한다면 모미지도 전력을 다해 주었으면 한다, 라고 하는 니토리의 희망에 의해 만들어진 것이
+			PRINTFORMW 이 「루나 슈터 양성 깁스」이다고 한다.
+			PRINTFORML 
+			PRINTFORMW 벨트의 길이를 조정하는 버클에[Easy]～[Lunatic]라고 눈금이 붙은 손잡이와, [위험・수동 모드]라고 쓰여진 래버가 붙어 있다.
+			PRINTFORML 「여기 있는 손잡이들을 돌리면, 착용자의 능력이 일부 제한되어, 실력차가 있는 상대끼리도 싸울 수 있고, 좋은 단련이 될 수 있다…
+			PRINTFORMW 　라는 것이 니토리의 선전 문구로, 결국 텐구의 수련 도구로서 양산을…라고 이야기 했습니다만」
+			PRINTFORML 「테스트 중에 제가 무심코 져버렸을 때, 꽤 심한 짓을 당했기 때문에……」
+			PRINTFORMW 「결국 이 1대를 마지막으로 장고에 들어가 버렸습니다」
+			PRINTFORMW 「다만, 무리하지 않게 사용하면 단련의 도움이 되는 것은 확실하고, 뭣하면 텐구끼리의 모의전에서 사용할 수도 있습니다」
+			PRINTFORML 「모처럼 승부를 받는 것이니, 이쪽도 %CALLNAME:MASTER%씨에게 뭔가 해줄 수 있는 것은 없을까 해서요…
+			PRINTFORMW 　그, 양도하는 것은 유감스럽지만 할 수 없습니다만…」
+			PRINTFORMW 「무엇보다도, %CALLNAME:MASTER%씨와의 감상전은 굉장히 도움이 되기 때문에…부디 앞으로도 대국을 할 수 있다면 기쁩니다만…」
+			PRINTFORML 모미지는 더듬더듬 말을 마치고 나서 %CALLNAME:MASTER%의 얼굴을 들여다보곤, 조금 겸연쩍은 듯 웃었다.
+			PRINTFORMW 「죄송합니다, 좀 더 재치 있는 것을 준비할 수 있으면 좋았을 텐데요…」
+			PRINTFORML 
+			;君の気持ちは分かった。なら、ヤらせてくれたまえ。と思った方もいることでしょう。
+			;いずれ勝利えっちも実装したいなあ
+			PRINTFORML 루나 슈터 양성 깁스를 사용하시겠습니까？
+			CALL ASK_YN("使う","使わずに勝負する")
+			IF RESULT == 0
+				CALL K65_DANMAKU_EVENT_GIPS
+				IF RESULT == -1
+					RETURN -1
+				ELSE
+				ENDIF
+			ELSE
+			ENDIF
+			PRINTFORML 「……승부해 주시는군요！감사합니다！」
+			PRINTFORMW 모미지는 끊어질 정도로 꼬리를 흔들며, 활짝 미소를 지었다.
+			PRINTFORML
+			PRINTFORML 「아, 그렇지！」
+			PRINTFORMW 「평소 같으면, 외적을 상대할 때만 스펠 카드를 사용합니다만…」
+			PRINTFORML 「%CALLNAME:MASTER%씨가 상대라면 분명 괜찮겠지요！」
+			PRINTFORMW 「자！전력으로 가겠습니다！」
+			SETBIT CFLAG:65:탄막특능,7
+			CFLAG:1800 = 3
+		ELSE
+			PRINTFORMW 「백랑텐구의 힘…보여드리도록 하겠습니다！」
+		ENDIF
+		RETURN 0
+	ENDIF
+	;-------------------------------------------------
+	;ハンデ
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "ハンデ"
+		;ハンデつけなかったら表示されないので無記入でよい
+		SETCOLOR C_RED
+		IF TCVAR:351 > ABL:MASTER:전투능력 * 12
+			PRINTDATAL
+				DATAFORM 모미지의 탄막이 겹겹이 겹쳐 보인다……！
+				DATAFORM 주위의 공기가 풀솜처럼 변해 버린 것같이, 몸이 자유롭지 못한다……！
+				DATAFORM 애초에, 이 깁스는 어떤 기구로 작동하고 있는 걸까……！
+			ENDDATA
+		ELSEIF TCVAR:351 >= ABL:MASTER:전투능력 * 8
+			PRINTDATAL
+				DATAFORM 제대로 탄막을 보지 않으면, 어떤 것이 진짜 탄막인지조차 알 수 없다……
+				DATAFORM 물엿 속을 헤엄치는 듯한, 강렬한 저항을 느낀다……！
+			ENDDATA
+		ELSEIF TCVAR:351 >= ABL:MASTER:전투능력 * 5
+			PRINTDATAL
+				DATAFORM 집중이 흐트러지면, 신체의 밸런스가 곧바로 무너져 버릴 것 같다……
+				DATAFORM 모미지가 쏘는 탄막이 2개로 흔들려 보인다……
+			ENDDATA
+		ELSE
+			PRINTFORML %TEXTR("깁스의 구속에 집중력을 빼앗긴다……/왠지 평소보다 몸이 무거운 느낌이 들어……")%
+		ENDIF
+		RESETCOLOR
+		RETURN 0
+	ENDIF
+	;-------------------------------------------------
+	;戦闘中
+	;TARGETの【乾坤一擲】発動時
+	;ARGはTARGETの残機
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	;椛のダイス目Up
+	IF LOCAL:1 && ARGS == "乾坤一擲"
+		SELECTCASE RAND:2
+			CASE 0
+				PRINTFORML 「빈틈…닿아라！」
+				PRINTFORML 「원수를 먹고 처형하는 백랑의 송곳니…… 물어 뜯어라, 구부「레이비즈 바이트」！」
+			CASE 1
+				PRINTFORML 「가만히 있지 않겄습니다！」
+				PRINTFORML 「산 유곡을 지키고, 저편에서 내려오는 천구의 힘! 날려버려라, 산와「익스펠리즈 가나안」！」
+		ENDSELECT
+	ENDIF
+	;-------------------------------------------------
+	;戦闘中TARGET被弾時口上
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "被弾" 
+		;別に一律で「やられたー」だけでもいいよ
+		SELECTCASE 相手残機
+			;残り残機3が表示されるのは【洽覧深識】持ちのみ
+			CASE 3
+				PRINTFORML 
+			CASE 2
+				SELECTCASE RAND:2
+					CASE 0
+						PRINTFORML 「앗차차…보내버렸네요, %CALLNAME:MASTER%씨…」
+						PRINTFORML 「…후후, 왠지 뜨거워져 버렸네요」
+					CASE 1
+						PRINTFORML 「읏！당했다…」
+						PRINTFORML 「그만큼 잘해야, 경쟁이라고 할 수 있는 것…！자…가겠습니다！」
+				ENDSELECT
+			CASE 1
+				SELECTCASE RAND:2
+					CASE 0
+						PRINTFORML 「우읏…잡혀버렸나요…」
+						PRINTFORML 「그렇지만, 승부는 지금부터예요！」
+					CASE 1
+						PRINTFORML 「큿！아직 멀었어！」
+						PRINTFORML 「…백랑텐구의 저력은, 이것이 다가 아니에요」
+				ENDSELECT
+			CASE 0
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORML 「우우……」
+						PRINTFORML 「졌습니다……」
+					CASE 1
+						PRINTFORML 「무무…」
+						PRINTFORML 「제가 졌습니다…」
+					CASE 2
+						PRINTFORML 「우-읏…」
+						PRINTFORML 「투료입니다…」
+				ENDSELECT
+		ENDSELECT
+	ENDIF
+	;-------------------------------------------------
+	;戦闘後
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "戦闘後" 
+		PRINTFORML 
+	;-------------------------------------------------
+	;戦闘後_ギプス使用時敗北イベント
+	;-------------------------------------------------
+		;ギプス使用済み
+		IF TCVAR:351 >0 && 相手残機 > 0
+			SELECTCASE TCVAR:351
+				;LUNATIC以上
+				CASE IS >= 10 * ABL:MASTER:전투능력
+					SETCOLOR C_RED
+					PRINTFORML 돌연 깁스에서 에너지가 역류해, %마스터는% 1500의 데미지를 받았다！
+					RESETCOLOR
+					PRINTFORML 「%CALLNAME:MASTER%씨！？%CALLNAME:MASTER%씨！？괜찮으신가요……！！」
+					PRINTFORML 걱정스러운 듯이 이쪽으로 달려 오는데 %CALLNAME:TARGET%의 몸이 기우뚱 기울었다
+					PRINTFORML %마스터는%, 그대로 의식을 잃었다……
+					PRINTFORML 
+					SETCOLOR C_RED
+					PRINTFORMW 체력 -1500
+					RESETCOLOR
+					PRINTFORML
+					BASE:MASTER:체력 -= 1500
+					PRINTFORML
+					PRINTFORMW ………
+					PRINTFORMW ……
+					PRINTFORMW …
+					;逆レイベント
+					IF CFLAG:1800 > 2 && TCVAR:발정 && CFLAG:기정사실 & 合意_うふふ &&  ABL:65:욕망 > 4
+						;バグの温床になりそうな現在位置移動　椛はちゃんと部屋まで送ってくれたうえで逆レする
+						CFLAG:MASTER:현재위치 = CFLAG:MASTER:초기위치
+						;逆レイベント呼び出し
+						CALL K65_DANMAKU_EVENT_GYAKURE
+					ELSE
+						CALL HPH_PRINT,@"%TEXTR("의식을 되찾았을 때, %마스터는% 자기 방의 침대에 누워 있었다./…정신을 차려 보니, 눈앞에 익숙한 천장이 있었다.")%","L"
+						PRINTFORML 「루나 슈터 양성 깁스」의 반동을 받은 후, %CALLNAME:TARGET%가 %CALLNAME:MASTER%(을)를 방으로 데료가, 간호해 주었을 것이다.
+						PRINTFORMW %TEXTR("강렬한 충격 때문인지, 온몸이 무거운 느낌이 들었다/아직도 어렴풋이 머리와 몸에 남은 저림이, 주어진 충격의 강도를 말해주고 있다")%.
+						PRINTFORML 「%TEXTR("눈을 뜨셨군요. 다행이야…/아아, 다행이야…걱정했다고요？/정말。무리하면 안 된다고 했잖아요")%」
+						PRINTFORMW %마스터는% 삐걱거리는 몸을 어떻게는 일으켜서, %CALLNAME:TARGET%에게 감사의 말을 전했다…
+						;バグの温床になりそうな現在位置移動
+						CFLAG:MASTER:현재위치 = CFLAG:MASTER:초기위치
+						CFLAG:65:현재위치 = CFLAG:MASTER:초기위치
+					ENDIF
+					RETURN 1
+				;HARD以上
+				CASE IS >= 7 * ABL:MASTER:전투능력
+					SETCOLOR C_RED
+					PRINTFORML 돌연 깁스에서 에너지가 역류해, %마스터는% 1000의 데미지를 받았다！
+					RESETCOLOR
+					PRINTFORML 「%CALLNAME:MASTER%씨！？%CALLNAME:MASTER%씨！？괜찮으신가요……！！」
+					IF CFLAG:1800 > 2 && TCVAR:발정 && CFLAG:기정사실 & 合意_うふふ &&  ABL:65:욕망 > 4
+					PRINTFORML 걱정스러운 듯이 이쪽으로 달려 오는데 %CALLNAME:TARGET%의 몸이 기우뚱 기울었다
+					PRINTFORML %마스터는%, 그대로 의식을 잃었다……
+						;バグの温床になりそうな現在位置移動　椛はちゃんと部屋まで送ってくれたうえで逆レする
+						CFLAG:MASTER:현재위치 = CFLAG:MASTER:초기위치
+						;逆レイベント呼び出し
+						CALL K65_DANMAKU_EVENT_GYAKURE
+					ELSE
+						PRINTFORML 이쪽으로 달려온 %CALLNAME:TARGET%의 어깨를 지탱하여, 어떻게든 %마스터는% 쓰러지지 않고 끝났다.
+						PRINTFORML 「%TEXTR("괜찮으신가요？…다행이야…/정말.무리하면 안 된다고 했잖아요…")%」
+					ENDIF
+					BASE:MASTER:체력 -= 1000
+					RETURN 1
+				;NORMAL以上
+				;なぜ我慢するのかは分からない。
+				CASE IS >= 5 * ABL:MASTER:전투능력
+					SETCOLOR C_RED
+					PRINTFORML 돌연 깁스에서 에너지가 역류해, %마스터는% 500의 데미지를 받았다！
+					RESETCOLOR
+					PRINTFORML 뼛속까지 스며드는 듯한 충격을 받았으나, %마스터는% 필사적으로 통증을 참고 평정을 유지했다.
+					PRINTFORMW 어떻게든 %CALLNAME:TARGET%에게 들키지 않고 끝난 것 같다…
+					BASE:MASTER:체력 -= 500
+				;それ以外
+				CASEELSE
+					SETCOLOR C_RED
+					PRINTFORML 돌연 깁스에서 에너지가 역류해, %마스터는% 200의 데미지를 받았다！
+					RESETCOLOR
+					PRINTFORML 깁스에 빼앗겼던 있던 힘이 충격으로 되돌아왔는지, %마스터는% 온몸을 압박하는 듯한 강한 힘을 느꼈다.
+					PRINTFORMW …%마스터는% 살짝 얼굴을 찡그렸지만, %CALLNAME:TARGET%에게는 들키지 않은 것 같다.
+					BASE:MASTER:체력 -= 200
+			ENDSELECT
+		ENDIF
+	;-------------------------------------------------
+	;戦闘後口上
+	;-------------------------------------------------
+		;残り残機4が表示されうるのは【洽覧深識】持ちのみ
+		;残機が1以上ならあなたの負け、0の場合はあなたの勝利
+		PRINTFORML
+		;椛勝利
+		IF 相手残機 > 0
+			SELECTCASE 相手残機
+				CASE 4
+					PRINTFORML 
+				CASE 3
+					PRINTFORML 「후우…대국해 주셔서, 감사합니다」
+					PRINTFORML 「어떠셨나요？이게 텐구의 실력입니다！」
+					PRINTFORM 화는
+					SIF TALENT:가슴사이즈 > 0
+						PRINTFORM 자그마한 체구에 걸맞지 않게 풍만하게 여물어 있는
+					SIF TALENT:가슴사이즈 < 0
+						PRINTFORM 자그마한 체구에 어울리는 작은
+					SIF TALENT:가슴사이즈 == 0
+						PRINTFORM 자그마한 체격에 비해 발육이 좋은
+					PRINTFORML 가슴을 폈다.
+					PRINTFORMW 정수리의 이누미미는, 하늘을 찌를 듯 우뚝 서 있다.
+					IF TCVAR:351 > 0
+						PRINTFORML 「라고 말 해 보기도 하고……」
+						PRINTFORML 「아뇨, 그…봐주고 있다고는 하지만, 이전에 실수를 했던 상대에게 완승을 한다면 기쁘잖아요」
+							PRINTFORMW 「……죄송합니다」
+						PRINTFORML 
+						PRINTFORM 「어…어쨌든.
+					ELSE
+						PRINTFORML
+						PRINTFORM 「그건 그렇고,
+					ENDIF
+					PRINTFORML 감상전, 잘 부탁드립니다. 그렇네요, %CALLNAME:MASTER%씨는……」
+				;未完成
+				CASE 2
+					PRINTFORML 「후-웃……대국해 주셔서, 감사합니다」
+					PRINTFORML 어깨에 있던 힘을 확 빼고, 모미지가 %CALLNAME:MASTER%의 쪽으로 다가왔다.
+					PRINTFORMW 머리 위의 이누미미가 폴짝폴짝 뛰면서, 어딘지 모르게 흥겨운 분위기를 느끼게 했다.
+					PRINTFORML
+					PRINTFORML 「그럼, 이번 승부의 감상전…잘 부탁드립니다」
+				CASE 1
+					PRINTFORML 「후우-읏……대국해 주셔서, 감사합니다」
+					PRINTFORML 근소한 차이의 싸움을 벗어나고 안심했는지, 모미지는 크게 한숨을 내쉬고 미소를 지었다.
+					PRINTFORMW 머리 위의 이누미미가 팟 서고, 복실복실한 꼬리가 만족스럽게 흔들리고 있다.
+					PRINTFORML 
+					PRINTFORML 「그러면, 감상전으로 가볼까요. 그러니까, 이번에는…」
+				CASEELSE
+					PRINTFORML 「설마, 여기가 표시될 줄은…」
+			ENDSELECT
+			SELECTCASE RAND:4
+				CASE 0
+					PRINTFORML %CALLNAME:MASTER%(와)과 모미지는 서로의 움직임을 상기하면서, 패인・승인에 대해 검토하였다.
+					PRINTFORMW 그 후, 둘이서%TEXTR("아름다운 탄막을 쏘는 법/상대의 탄막을 피하는 효율적인 움직임/과감히 파고들어 그레이즈하는 것의 유용성")%에 대해 차분히 논의했다…
+				CASE 1
+					PRINTFORML 모미지는 승부의 내용에 대해 이것저것 말하기 시작했다.
+					PRINTFORMW %마스터는% 그녀의 말을 들으면서 필요한 점을 보완하고, 보다 나은 전법에 대해 검토했다…
+				CASE 2
+					PRINTFORMW 승부 도중에 궁금했던 점에 대해서 %CALLNAME:MASTER%(이)가 말하는 동안, 모미지는 고개를 끄덕이며 진지하게 듣고 있었다.
+				CASE 3
+					PRINTFORML 모미지는 대전을 돌아보며, %CALLNAME:MASTER%의 전투 모습을 강평했다.
+					PRINTFORML 지기는 했지만, 모미지는 %CALLNAME:MASTER%의 움직임이 좋았던 점에 대해서도 언급하면서 조언을 해주었다.
+					PRINTFORMW %마스터는% 그녀의 관찰안에 혀를 내두르며, 모미지와 승부 내용에 대해 서로 검토했다…
+			ENDSELECT
+			;初敗北時は初敗北フラグ立てる(現状あんまり利用されていない)
+			SIF CFLAG:1800 == 0
+				CFLAG:1800 = 1
+		;MASTER勝利
+		ELSE
+			;初勝利
+			;ルナシューター養成ギプスイベントへの導入
+			IF CFLAG:1800 < 2
+				PRINTFORML 「후우-읏……대국해 주셔서, 감사합니다」
+				PRINTFORML 조금 숨을 헐떡거리면서, 모미지가 미소를 띄웠다.
+				PRINTFORML 머리 꼭대기의 이누미미는 추욱 늘어져 \@ TALENT:65:연모||TALENT:65:사모 ? 있지만, 복실복실한 꼬리가 흔들리며 어딘가 만족스러워 보인다 # 있으며, 감출 수 없는 분함을 간직하고 있다 \@.
+				PRINTFORMW 「내가 지다니…%CALLNAME:MASTER%씨, \@ CFLAG:1800 == 1 ? 강해지셨군요 # 강하시네요\@…」
+				PRINTFORML 
+				PRINTFORML 「자！저도 더 열심히 해야겠네요. 감상전, 잘 부탁드립니다」
+				PRINTFORML 모미지는 대전을 돌아보며, %CALLNAME:MASTER%의 전투 모습을 강평했다.
+				PRINTFORML 역시 눈이 좋은 백란텐구라고 해야겠지, 싸움 속에서도 확실히 %CALLNAME:MASTER%(을)를 관찰하고 있었다.
+				PRINTFORML 적을 관찰하고, 보고하고, 분석하고, 대처한다. 그야말로, 무리로써의 텐구의 싸우는 방법일지도 모른다.
+				PRINTFORMW %마스터는% 어쩐지 그렇게 생각했다.
+				PRINTFORML
+				PRINTFORML 승리는 했지만, 그녀의 시각에서 배워야 할 것은 많다.
+				PRINTFORMW %마스터는% 모미지의 말을 들으면서 필요한 점을 보충하고, 보다 좋은 전법에 대해 검토하였다……
+				PRINTFORML 
+				PRINTFORML 「감사합니다.%CALLNAME:MASTER%씨 덕분에, 저 또한 강해질 수 있을 것 같습니다」
+				PRINTFORMW 모미지는 공손하게 고개를 숙인다.
+				PRINTFORML 「…아, 그래！」
+				PRINTFORML 「저를 이긴 %CALLNAME:MASTER%씨에게, 보여드리고 싶은 것이 있어요」
+				PRINTFORMW 살랑살랑 꼬리를 흔들며, 모미지는 미소를 지었다.
+				PRINTFORML 「다음 탄막승부 때 가지고 올테니까…」
+				PRINTFORMW 「부디 또 잘 부탁드립니！」
+				CFLAG:1800 = 2
+			;二度目以降の勝利
+			ELSE
+				PRINTFORML 「%TEXTR("후우ー읏……/…하아…")%대국해 주셔서, 감사합니다」
+				PRINTFORML %TEXTR("조금 숨을 헐떡거리면서, 모미지가 미소를 띄웠다./모미지는 크게 숨을 몰아쉬며 어깨에 힘을 풀었다./가쁜 숨을 가다듬으면서, 모미지가 다가왔다.")%
+				PRINTFORMW 「%TEXTR("분하지만, 어쩔 수 없었네요.../우우ー응... 또 져버렸어.../변함없이, 훌륭하시네요.저도 열심히 하지 않으면…")%」
+				PRINTFORML
+				PRINTFORML 「%TEXTR("자, 감상전 가보도록 할까요. 일단은…/자, 오늘은 어떠셨나요？/그럼, 언제나처럼 감상전, 잘 부탁드립니다")%」
+				SELECTCASE RAND:4
+					CASE 0
+						PRINTFORML %CALLNAME:MASTER%(와)과 모미지는 서로의 움직임을 상기하면서, 패인・승인에 대해 검토하였.
+						PRINTFORMW 그 후, 둘이서 %TEXTR("아름다운 탄막을 쏘는 법/상대의 탄막을 피하는 효율적인 움직임/과감히 파고들어 그레이즈하는 것의 유용성")%에 대해 차분히 논의했다…
+					CASE 1
+						PRINTFORML 모미지는 승부의 내용에 대해 이것저것 말하기 시작했다.
+						PRINTFORMW %마스터는% 그녀의 말을 들으면서 필요한 점을 보완하고, 보다 나은 전법에 대해 검토했다…
+					CASE 2
+						PRINTFORMW 승부 도중에 궁금했던 점에 대해서 %CALLNAME:MASTER%(이)가 말하는 동안, 모미지는 고개를 끄덕이며 진지하게 듣고 있었다.
+					CASE 3
+						PRINTFORML 이기긴 했지만, 모미지의 관찰안에 들키는 일도 많았다.%마스터는% 그렇게 전하며 그녀를 칭찬했다.
+						PRINTFORMW %TEXTR("「도움이 되었다면 좋겠네요. 또 상대해 주세요？」/그렇지 않다고 대답하면서도 득의양양하게 코를 세우며, 살랑살랑 꼬리를 흔들고 있는 모미지였다.")%
+				ENDSELECT
+				;ハンデ設定がある場合は、勝利ボーナスへ移行
+				SIF TCVAR:351 > 0
+					CALL K65_DANMAKU_EVENT_REWARD
+				;勝利時コスプレえっちイベントも作りたいなあと妄想
+				;IF CFLAG:65:생해금 == 2 && RAND:4
+					;PRINTFORML 「今回もありがとうございました」
+					;PRINTFORML 「何か、お礼が出来たらいいんですが…」
+					;CALL ASK_YN("えっちさせて","スマイルをください")
+					;IF RESULT == 0
+						;CALL K65_DANMAKU_EVENT_COSPLAY
+					;ELSE
+						;すまいる！
+					;ENDIF
+				;ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;ルナシューター養成ギプス_ハンデ値決定
+;-------------------------------------------------
+@K65_DANMAKU_EVENT_GIPS
+PRINTFORML %마스터는% 루나 슈터 깁스를 장비하고, 버클의 손잡이 부분에 손을 댔다.
+CALL ASK_M("やっぱやめる", 1, "Easy",1, "Normal", 1, "Hard", 1, "Lunatic" , 1, "『危険・手動モード』", 1 )
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML 「뭐, 안전하다고는 말하기 어려운 물건이니까요…」
+		RETURN -1
+	CASE 1
+		TCVAR:351 = ABL:MASTER:전투능력 * 3
+	CASE 2
+		TCVAR:351 = ABL:MASTER:전투능력 * 5
+	CASE 3
+		TCVAR:351 = ABL:MASTER:전투능력 * 7
+	CASE 4
+		TCVAR:351 = ABL:MASTER:전투능력 * 10
+	CASE 5
+		
+		PRINTFORML 「위험·수동 모드」라고 쓰여진 레버를 당기면, 손잡이가 달린 버클이
+		PRINTFORML 딸깍하고 기분 좋은 소리를 내며 뒤집히고, 후면에 숨겨진 숫자 키가 달린 패널이 나타난다.
+		PRINTFORML 패널 앞면에는, "30이상의 숫자를 입력!"이라고 자필인 것 같은 글씨가 쓰여져 있다.
+		PRINTFORML
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML 약간 동그란, 소녀다운 필체라고 %마스터는% 생각했다.
+			CASE 1
+				PRINTFORML 「뭐랄까…굉장히 공들여 만들어졌네요…」
+				PRINTFORML 모미지는 어딘가 먼 눈을 하며 말했다…
+			CASE 2
+				PRINTFORML 「…이 기구, 조금 멋있을지도 모른다고 생각해요」
+				PRINTFORML 모미지는 혼잣말이라도 하듯 중얼거렸다.
+			CASE 3
+				PRINTFORML 「텐구끼리의 수련에 채용되면 좋은 비지니스가 된다, 라고 니토리가 말했습니다만…」
+				PRINTFORML 「결국 창고에 들어가게 되었습니다」
+		ENDSELECT
+		PRINTFORML
+		SETCOLOR C_YELLOW
+		PRINTFORML 수치를 입력해 주세요
+		RESETCOLOR
+		INPUT
+		IF RESULT < 30
+			PRINTFORML 「에러입니다！！」
+			PRINTFORML 「30이상의 숫자를 입력하세요」
+			PRINTFORMW 기묘한 전자 음성과 함께 전면 패널이 다시 뒤집혔다.
+			RETURN -1
+		ELSE
+			TCVAR:351 = RESULT
+		ENDIF
+		ENDSELECT
+		;ハンデ値設定
+		HANDICAP_FIXED = TCVAR:351
+		HANDICAP_RAND = TCVAR:351 * ABL:MASTER:전투능력
+		;PRINTFORMW ハンデは{HANDICAP_FIXED},{HANDICAP_RAND}です。
+		PRINTFORML
+RETURN 1
+
+;-------------------------------------------------
+;ルナシューター養成ギプス_勝利ボーナス
+;-------------------------------------------------
+@K65_DANMAKU_EVENT_REWARD
+SETCOLOR C_YELLOW
+PRINTFORML
+PRINTFORML 기브스의 효과로%마스터는% 넉넉하게 경험치를 받았다
+;LUNATICよりいくぶん高い
+IF TCVAR:351 >= 12 * ABL:MASTER:전투능력
+	PRINTFORMW 전투 경험 + 25
+	EXP:MASTER:전투경험 += 25
+;LUNATIC以上
+ELSEIF TCVAR:351 >= 10 * ABL:MASTER:전투능력
+	PRINTFORMW 전투 경험 + 20
+	EXP:MASTER:전투경험 += 20
+;HARD以上
+ELSEIF TCVAR:351 >= 7 * ABL:MASTER:전투능력
+	PRINTFORMW 전투 경험 + 15
+	EXP:MASTER:전투경험 += 15
+;NORMAL以上
+ELSEIF TCVAR:351 >= 5 * ABL:MASTER:전투능력
+	PRINTFORMW 전투 경험 + 10
+	EXP:MASTER:전투경험 += 10
+;EASY以上
+ELSEIF TCVAR:351 > 3 * ABL:MASTER:전투능력
+	PRINTFORMW 전투 경험 + 8
+	EXP:MASTER:전투경험 += 8
+;EASY
+ELSE
+	PRINTFORMW 전투 경험 + 5
+	EXP:MASTER:전투경험 += 5000
+ENDIF
+RESETCOLOR
+RETURN 1
+
+;-------------------------------------------------
+;ルナシューター養成ギプス_逆レイベント
+;-------------------------------------------------
+;現状、
+;TALENT:MASTER:성별 > 0
+;のみの対応となっちゃっております。
+@K65_DANMAKU_EVENT_GYAKURE
+IF 0
+;IF CFLAG:65:생해금 == 2 && RAND:2
+	;ぎゃくれいぷ
+	;未完成
+	PRINTFORML …정신을 차려 보니, 눈앞에는 익숙한 천장이 있었다.
+	PRINTFORML 「루나 슈터 양성 깁스」의 반동을 받은 후, 모미지가 %CALLNAME:MASTER%(을)를 자기 방으로 데려와, 간호해 준 것이겠지.
+	PRINTFORML 아직도 어렴풋이 머리와 몸에 남은 저림이, 주어진 충격의 강도를 말해주고 있다.
+	PRINTFORMW 의식이 다시 흐릿해지려고 할 때, 아랫배에서 예민하게 솟아오르는 쾌감에 의해 되돌아오고 말았다.
+	CALL HPH_PRINT,@" 「읏, 후, 우…HPH 안녕, 하세요…HPH」","L"
+	PRINTFORML 땀에 젖은 머리카락이 이마에 달라붙는데도 상관하지 않고,
+
+	PRINTFORMW 달콤한 쾌감에 하반신이 지배당한 채, %CALLNAME:MASTER%의 의식은 분홍빛 안개의 너머로 희미해져 갔다… 
+	PRINTFORML 
+	PRINTFORML 
+ELSE
+	;おくちれいぷ
+	PRINTFORML 정신을 차렸을 때, %마스터는% 자기 방의 침대에서 위를 올려다 보고 있었다.
+	PRINTFORML 「루나 슈터 양성 깁스」의 반동을 받은 후, 모미지가 %CALLNAME:MASTER%(을)를 자기 방으로 데려와, 간호해 준 것이겠지.
+	PRINTFORMW 강렬한 충격 때문인지, 온몸이 무거워지는 느낌이 들었다.
+	PRINTFORMW ……그리고, 묘하게 사타구니가 기분 좋은 것처럼도 느껴진다.
+	PRINTFORML 
+	PRINTFORML 쾌감이 느껴지는 곳에 관심을 가지니, 둥글고 형태 좋은, 작은 엉덩이가 있었다.
+	PRINTFORMW %CALLNAME:MASTER%(을)를 넘어뜨리도록 벌려진 하반신 위에서는, 자주 눈에 익은 흰 꼬리가 기분 좋게 춤추고 있었다.
+	PRINTFORMW 아무래도, 모미지 같았다.
+	PRINTFORML 
+	CALL HPH_PRINT,@" 「응읏…츄릇, 츄우우웃, 츄우우우웃…HPH」","L"
+	PRINTFORMW 모미지는 발정의 고양감에 거친 숨을 몰아쉬며, 눈앞에 있는 %CALLNAME:MASTER%의 노장을 열심히 입에 넣고 있었다.
+	PRINTFORML 소유자의 소모에도 불구하고 팽팽하게 당겨지는 그것을 혀 끝으로 비틀어, 상기된 볼을 오므리고 달라붙어,
+	PRINTFORMW 목소리를 내는 것조차 잊고 흐느끼고 있었다.
+	PRINTFORMW 음경에 끈적끈적하게 묻힌 타액이, 이 행위가 장시간에 걸쳐 계속되었음을 말해주고 있었다.
+	CALL HPH_PRINT,@" 「츄우, 츄웃츄쿳…츄, 핥짝, 츄븟……HPH」","L"
+	PRINTFORMW 따뜻하게 젖은 구강 점막 속에서, 혀가 사탕을 핥아 녹이듯 움직이면서, 페니스가 녹아내리는 것이 아닌가 하는 착각마저 든다.
+	PRINTFORML
+	CALL HPH_PRINT,@" 「츄부, 뉴붓, 츄릅…HPH 훗…HPH 응뭇…HPH」","L"
+	PRINTFORMW 쾌락에 농락 당하는 사고의 한편에서, 왜 이런 상황에? 라는 의문이 고개를 들었다.
+	PRINTFORMW 그러나 그 과정을 알게 되더라도, 큰 타격을 입은 %마스터는% 별다른 저항을 할 수 없을 것이다…
+	PRINTFORML
+	CALL HPH_PRINT,@"「응ー♪ 츄룻HPH츄HPH」","L"
+	PRINTFORML 그런 %CALLNAME:MASTER%의 준순을 뒷전으로 하고, 모미지는 엉덩이를 괴롭게 흔들고 있다.
+	PRINTFORMW 발정에 흘러넘친 비밀이\@ CFLAG:65:노팬티 && !EQUIP:65:레오타드 && !EQUIP:65:보디슈트 ? 새하얀 허벅지에 끈적끈적한 것이 흘러내려 # 속옷을 흠뻑 적셔 \@, 굉장히 선정적이다. 
+	CALL HPH_PRINT,@" 「…HPH」","L"
+	PRINTFORMW 뾰족하게 한 혀가, 귀두를 후비듯 페니스의 끝을 자극한다.
+	CALL HPH_PRINT,@" 「응, 후후…HPH…츄…HPH츄루룻……HPH」","L"
+	PRINTFORMW 그녀의 구강으로부터 흘러나온 액즙을 타액과 섞여 제대로 밧을 확인한 뒤, 천천히 삼켰다.
+	CALL HPH_PRINT,@" 「찔걱…HPH 츄릇……HPH…꿀꺽…HPH」","L"
+	PRINTFORMW 목구멍의 움직임에 맞춰 끝을 쭉 빨아들여져, 날카로운 쾌감이 등줄기를 뛰어올랐다.
+	PRINTFORMW 속속 들어오는 성감에, 이제 %마스터는% 소리조차 낼 수 없게 되어 버린다.
+	PRINTFORML 
+	CALL HPH_PRINT,@" 「츄르르릇HPH 츄붓HPH 츄HPH」","L"
+	PRINTFORMW 모미지의 오른손이, \@ CFLAG:65:노팬티 && !EQUIP:65:레오타드 && !EQUIP:65:보디슈트 ? 노출된 # 얇은 천 너머로 \@비열에 달라붙었다。흥분한 그녀의 당연한 욕구에 따라 가는 손끝이, 흠뻑 젖은 그곳을 문지르기 시작했다.
+	PRINTFORMW 손가락의 움직임에 따라 부드럽게 모양을 바꾸는 크레바스가 조심스럽게 찌걱찌걱 소리를 낼 때마다, 새콤달콤한 괴로운 냄새가 풍겼다.
+	CALL HPH_PRINT,@" 「츄루릇, 츄, 찌걱…후ー읏HPH 응, 츄릅, 츄, 쿠붓HPH」","L"
+	PRINTFORMW 평소의 그녀를 아는 사람이라면, 그녀의 이런 치태는 상상도 할 수 없을 것이다.
+	PRINTFORML 
+	CALL HPH_PRINT,@" 「훗, 츄, 부앗…HPH」","L"
+	PRINTFORMW 모미지의 입술이 떨어져, 숨을 고르는 듯한 한숨이 새어 나왔다.
+	PRINTFORMW 따뜻한 그녀의 입안에서 해방된 페니스가, 바깓 공기의 차가움에 놀라 움찔 떨었다.
+	CALL HPH_PRINT,@" 「응, 핥짝핥짝핥짝……HPH」","L"
+	PRINTFORMW 그러나, 어르는 듯한 혀끝이 재빠르게 그 정수리를 잡고, 부드럽게 쓰다듬어 주었다.
+	PRINTFORML 
+	CALL HPH_PRINT,@" 「읏…HPH 아붓HPH」","L"
+	PRINTFORMW 쾌감이 계속 주어져 좋든 싫든 사정감이 높아졌을 때, 모미지가 다시 구강 내로 페니스를 맞이했다.
+	CALL HPH_PRINT,@" 「쥬루븟HPH 뉴룻HPH 츄루HPH 츄루츄룻츄루루루릇HPH」","L"
+	PRINTFORMW 부드러운 움직임으로부터 일전, 격렬한 흡착과 스트로크로 절정에 이른다.
+	PRINTFORMW 페니스의 표면을 빠짐없이 적시는 타액을 작은 입술이 긁어낸 순간, 다시 침이 가득 고인 뺨 안쪽으로 빨려 들어간다.
+	PRINTFORMW 그 사이에도 뱅어같은 손가락이 비순을 희롱해, 하염없이 \@ CFLAG:65:노팬티 && !EQUIP:65:레오타드 && !EQUIP:65:보디슈트 ? 넘쳐흐르는 음수가 뒤섞여, 끈적끈적거렸다 # 그녀의 음란한 액체로 속옷을 입었음에도, 맨살이 그대로 비쳐 보이게 했다 \@.
+	PRINTFORML
+	PRINTFORMW 주위에 가득 찬 암컷의 냄새에 홀린 듯 고조되는 고동이 최고조를 맞는 순간.
+	PRINTFORML
+	CALL HPH_PRINT,@" 「～～～～～읏HPHHPHHPH」","W"
+	PRINTFORML
+	PRINTFORMW %CALLNAME:MASTER%의 페니스가 꿀럭꿀럭거리며, 쌓여 있던 것을 모미지의 입안을 향해 방출하기 시작했다.
+	PRINTFORMW 거의 중간 정도 사이를 두고 손가락이 딱 멈춰서, 그녀의 하반신이 가볍게 경련하였다.
+	PRINTFORML 
+	CALL HPH_PRINT,@" 「읏HPH 후우우ー읏HPH」","W"
+	PRINTFORMW 숨이 막힐 정도로 농축된 진한 냄새가 그녀의 코를 자극하고, 환희의 한숨이 나오도록 하였다.
+	PRINTFORML
+	PRINTFORMW 그리고 또 혀 끝이 페니스 끝을 붙잡고, 새로운 사정을 조르듯 핥짝핥짝 기어다녔다.
+	PRINTFORMW 절정 한지 얼마 안된 민감한 부분을 자극받아, 그녀가 원하는 대로 다시 내뱉었다.
+	PRINTFORML
+	CALL HPH_PRINT,@"「HPH」","W"
+	PRINTFORMW 움찔, 움찔, 움찔, 꿀꺽……
+	PRINTFORML 길고, 긴 사정이 끝나고, 모미지의 만족스러운 한숨이 음낭을 간질였다.
+	PRINTFORMW 그녀의 입술에서 천천히 페니스가 빠지는 동안, 혀끝이 육대 위를 복잡하게 돌아다니며, 등줄기에 오싹한 쾌감이 흘렀다.
+	PRINTFORMW 이쪽에서 볼 수는 없지만, 아마 그녀는 한 방울도 남기지 않도록 정성스럽게 정액을 핥고 있는 것 같다…
+	PRINTFORML
+	CALL HPH_PRINT,@"「응후ー읏HPH 핥짝…HPH 훗HPH 츄웁…HPH」","L"
+	PRINTFORMW 으름덩굴 같은 갈라진 틈 너머로, 외설스러운 음미하는 소리가 들린다.
+	CALL HPH_PRINT,@"「응굿…HPH 꿀꺽…HPH 후아…HPH」","L"
+	PRINTFORMW 그리고, 요란스럽게 목을 울리더니, 모미지가 입 안의 액즙을 전부 들이켰다.
+	PRINTFORML
+	CALL HPH_PRINT,@"「맛있, 어…HPH」","W"
+	PRINTFORMW 중얼거리는 듯한 말과 동시에, 그녀의 비순에서 또옥 한 줄기의 물방울이 흘러내렸다.
+	PRINTFORMW ………
+	PRINTFORMW ……
+	PRINTFORMW …
+	CALL HPH_PRINT,@" 「츄릇HPH 츗HPH 츄웃추웃HPH」","L"
+	PRINTFORML 보는 것이 허술했다, 고 말할 수 있는 것은 확실하다.
+	PRINTFORML 한번 내면 만족할 것…%마스터는% 무의식적으로 그렇게 생각했던 것을 조용히 후회했다.
+	PRINTFORML 방금 전이 몇 번째 사정이었을까。계산을 할 기력조차 이젠 없어져 버렸다.
+	PRINTFORMW 여전히 주인의 소모는 알 필요 없다는 듯 페니스는 우뚝 서고, 모미지는 질리지도 않고 입 봉사를 계속하고 있다.
+	PRINTFORML ……이젠 정말로, 목소리 하나 낼 수도 없다.
+	PRINTFORMW 뿌연 시야 저편에서 최면을 거는 것처럼 흔들리는 꼬리를 쫓으며, %마스터는% 의식을 잃었다…
+	;逆レイプイベントの最後に経験変動が表示された方が興奮しますかね？
+	;MASTER女性の場合が怖いんでコメントアウトしときますが。
+	;EXP;:MASTER:C경험 += 6
+	;EXP;:MASTER:절정경험 += 6
+	;EXP;:MASTER:사정경험 += 6
+	;EXP;:65:C경험 += 6
+	;EXP;:65:M경험 += 6
+	;こっそり椛の方が沢山イッてたりすると作者は興奮します。
+	;EXP;:65:C절정경험 += 10
+	;EXP;:65:절정경험 += 10
+	;EXP;:65:자위경험 += 6
+	;EXP;:65:정음경험
+	;EXP;:65:정음경험
+	;EXP;:65:펠라티오경험
+	;EXP;:65:봉사쾌락경험
+ENDIF
+
+;モブ逆レイベントから頂いた処理
+BASE:MASTER:체력 = 0
+BASE:MASTER:기력 = 0
+BASE:MASTER:정력 = -500
+CFLAG:65:욕구불만도 = 0
+;FLAG:기절중단 = 100 + CFLAG:MASTER:현재위치 / 100
+CALL SET_SLEEP(1,MASTER,0)
+CFLAG:MASTER:취침시간 = DAY * 1440 + TIME + 120 + RAND:120
+CFLAG:MASTER:데이트중 = CFLAG:MASTER:현재위치 / 100
+TFLAG:106 = 0
+BEGIN AFTERTRAIN
+
+;-------------------------------------------------
+;ルナシューター養成ギプス_勝利時コスプレえっちイベント
+;妄想だけ書くだけ書いてエタった奴なんて数知れないさ…
+;-------------------------------------------------
+@K65_DANMAKU_EVENT_COSPLAY
+CALL ASK_M("やっぱやめる", 1, "Ｃ重視", 1, "Ｂ重視",1, "Ｖ重視", 1, "Ａ重視", 1 )
+SELECTCASE RESULT
+	CASE 0
+		RETURN -1
+	;Ｃ重視
+	CASE 1
+	;マイクロビキニでぬるぬるソーププレイ
+	;PRINTFORML 「こんなの、ほとんど紐じゃないですか…」
+	;PRINTFORML 「は、裸の方がまだ恥ずかしくないですよ……」
+	;PRINTFORML 期待に違わぬ良い反応をしてくれる。
+	;PRINTFORML 彼女なりの照れ隠しなのか、いつにもなく独り言が多い。
+	;PRINTFORML 「なんですか、こんな…これからえっちしますって宣言してるみたいな恰好…」
+	;PRINTFORML …とんだ自爆発言である。
+	;PRINTFORML いよいよ恥ずかしさに耐え切れなくなったのか、椛は真っ赤になったままぷるぷると震えていた。
+	;Ｂ重視
+	CASE 2
+	;メイドさん奉仕プレイ　当然ながらフレンチではなくヴィクトリアンですよヴィクトリアン
+	;PRINTFORML （ふりふりしてて、こういうのも可愛いかも…）
+	;PRINTFORML 尻尾をぱたぱたとさかんに振りまわす椛が、はっと気づいたようにこちらを見る。
+	;PRINTFORML 「…な、何ですかその目は…」
+	;PRINTFORML 椛の頬が朱色に染まり、先ほどまで振られていた尻尾が垂れ下がる…ものの、まだやはり嬉しげにふさふさ揺れている。
+	;PRINTFORML …実にわかりやすい。
+	;
+	;PRINTFORML 「こういう場合、%CALLNAME:MASTER%さんのことは"ご主人様"って呼んだ方がいいんですよね？」
+	;PRINTFORML 案外乗り気な椛に苦笑しながら、%CALLNAME:MASTER%は別の呼び名を提案する。
+	;PRINTFORML 「…え、えっ…」
+	;PRINTFORML 「わ、わかりました。ちょっと恥ずかしいですけど…%CALLNAME:MASTER%さんがそういうなら…」
+	;PRINTFORMW 椛はすう、と息を吸い込んでから、そっと呟く。
+	;PRINTFORML 「…旦那、様……」
+	;
+	;IF TALENT:65:연인
+		;PRINTFORML 「ふふ…♪旦那様、旦那様…」
+		;PRINTFORML %CALLNAME:MASTER%の背中の汗を拭きとりながら、椛が嬉しそうに呟いている。
+		;PRINTFORML 「%CALLNAME:MASTER%さんの事をちゃんと旦那様って呼べる日を…私、待ってますからね？」
+		
+	;Ｖ重視
+	CASE 3
+	;競泳まん○まつり(東映まんがまつりのイントネーションで)
+	;っていう電波を受け取ったので今日が競泳記念日
+	;PRINTFORML 「これは…競技用の水着なんですね」
+	;
+	;PRINTFORML 「これ…少し、小さくないでしょうか…」
+	;PRINTFORML 「その…痛かったりはしないんですけど、ちょっと、その……」
+	;PRINTFORML 「……くい込みそうに……」
+	;PRINTFORML もじもじと内腿を擦り合わせながら物問いたげな瞳を向けてくる椛に、%CALLNAME:MASTER%はサムズアップで応えた。
+	
+	;Ａ重視
+	CASE 4
+	;こいつがいまいち思いつかない
+	;浣腸薬を入れてからイチャイチャとか、色々書きたいシチュはなくもないけれど。
+ENDSELECT

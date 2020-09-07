@@ -1,0 +1,255 @@
+﻿;FileName_JOB.ERB ----------------------------- Rev1. 00
+;일 개시 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@CHARA_JOBSTR(ARG)
+#DIM 이동전
+#DIM 이동후
+#DIMS HOLD_SAMEN
+
+
+IF EX:ARG:질내정액 + EX:ARG:애널내정액 >= 500
+	HOLD_SAMEN = 배에 충분히 정액을 모은
+ELSEIF EX:ARG:질내정액 + EX:ARG:애널내정액 >= 100
+	HOLD_SAMEN = 배에 정액을 모은
+ELSE
+	HOLD_SAMEN =
+ENDIF
+
+;FOR LOCAL, 0, CHARANUM
+;	SIF CFLAG:LOCAL:직장 == 0 && CFLAG:LOCAL:행동 == 5
+;		PRINTFORMW ### JOB 326ERROR %CALLNAME:LOCAL% ###
+;NEXT
+VARSET LOCAL
+이동전 = 0
+이동후 = 0
+;울면서 일에게 성실하니까
+IF CFLAG:ARG:우후후 && !GROUPMATCH(CFLAG:ARG:직종, 49, 51)
+	PRINTFORMW %ARG는% \@ CFLAG:ARG:직장 == CFLAG:ARG:현재위치 ?  일을 시작하 # 일하러 가 \@지 않으면 안 되는 것 같다…
+	CALL ENDUFUFU(ARG)
+	CFLAG:MASTER:우후후 = 0
+	TFLAG:106 = 0
+	IF TFLAG:102 == 3 && TFLAG:껴안기모드
+		TFLAG:껴안기모드 = 0
+		TFLAG:102 = 1
+	ENDIF
+ENDIF
+
+SIF CFLAG:ARG:행동 == 5
+	CALL JOBMOVE(ARG)
+
+IF CAN_SEE(ARG) && !TFLAG:원거리이동
+	IF CFLAG:ARG:현재위치 == TFLAG:연회장 && TIME_PROGRESS(TIME:1) && (CFLAG:ARG:직종 == 49 || CFLAG:ARG:직종 == 51)
+		CALL 연회묘사(ARG)
+	ELSEIF CFLAG:ARG:현재위치 == CFLAG:ARG:직장 && TIME_PROGRESS(TIME:1)
+		CALL 일정경묘사(ARG)
+		IF BASE:ARG:일량
+			;일이 아직 3분의 2이상 남아 있다
+			IF BASE:ARG:일량 >= (MAXBASE:ARG:일량 / 3) * 2
+				IF CFLAG:ARG:직종 == 48
+					PRINTW 　연회 준비는 꽤 남아 있는 것 같다…
+				ELSEIF CFLAG:ARG:직종 == 50
+					PRINTW 　연회 정리는 꽤 남아 있는 것 같다…
+				ELSEIF CFLAG:ARG:직종 == 46
+					PRINTW 놀이에 몰두하고 있다…
+				ELSE
+					PRINTFORMW %조사처리(GET_JOBNAME(ARG),"는")% 꽤 남아 있는 것 같다…
+				ENDIF
+				LOCAL = 3
+			;일이 아직 3분의 1이상 남아 있다
+			ELSEIF BASE:ARG:일량 >= (MAXBASE:ARG:일량 / 3)
+				IF CFLAG:ARG:직종 == 48
+					PRINTW 　연회 준비가 끝나려면 아직 시간이 걸릴 것 같다…
+				ELSEIF CFLAG:ARG:직종 == 50
+					PRINTW 　연회 정리를 끝내려면 시간이 더 걸릴 것 같다…
+				ELSEIF CFLAG:ARG:직종 == 46
+					PRINTW 아직 더 놀고 싶은 것 같다…
+				ELSE
+					PRINTFORMW %조사처리(GET_JOBNAME(ARG),"가")% 끝나려면 아직 시간이 더 걸릴 것 같다…
+				ENDIF
+				LOCAL = 2
+			ELSE
+				IF CFLAG:ARG:직종 == 48
+					PRINTW 　조금만 더 하면 연회 준비를 마칠 수 있을 것 같다…
+				ELSEIF CFLAG:ARG:직종 == 50
+					PRINTW 　조금만 더 하면 연회 정리를 끝낼 수 있을 것 같다…
+				ELSEIF CFLAG:ARG:직종 == 46
+					PRINTW 놀다 지친 것 같다…
+				ELSE
+					PRINTFORMW 조금 더 있으면 %조사처리(GET_JOBNAME(ARG),"가")% 끝날 것 같다…
+				ENDIF
+				LOCAL = 1
+			ENDIF
+			;통상의 일말 업무 중 한편 연회 플래그가 서지 않으면 표시한다
+			SIF CFLAG:ARG:연회참가 == 0
+				CALL KOJO_MESSAGE_SEND("EVENT", 13, ARG, 2, LOCAL)
+		ENDIF
+		;연회중의 경우만, 스무스하게 다음의 동작에 연결된다
+		;술을 다 마셨을 때 에 1 턴 아무것도 하지 않고 멍하니 하는 것을 방지하는 처리
+;		SIF CFLAG:ARG:연회참가 > 0 && BASE:ARG:일량 <= 0
+;			CALL CHARA_JOBEND(ARG)
+	ELSEIF CFLAG:ARG:직종 != 51
+		IF !AT_HOME(ARG) && GET_MAPID(CFLAG:ARG:현재위치) != MAIN_MAP
+			이동전 = 6000 + (CFLAG:ARG:현재위치 / 10)
+		ELSE
+			이동전 = CFLAG:ARG:현재위치
+		ENDIF
+		IF IN_HOME(CFLAG:ARG:직장) == 0 && GET_MAPID(CFLAG:ARG:직장) != MAIN_MAP
+			이동후 = 6000 + (CFLAG:ARG:직장 / 10)
+		ELSE
+			이동후 = CFLAG:ARG:직장
+		ENDIF
+		;시간 경과하고 있지 않았으면 비표시
+		IF !TIME_PROGRESS(TIME:1)
+		;이동전과 이동 후의 위치가 같으면 비표시
+		ELSEIF NAME_FROM_PLACE(이동전) == NAME_FROM_PLACE(이동후)
+		ELSEIF CFLAG:ARG:현재위치 == OMANEKIBEYA()
+			;방에 오르고 있으면 나온다, 미안합니다 귀찮은 것으로 지문 정리해 버립니다；
+			CFLAG:MASTER:현재위치 = CFLAG:ARG:자택위치
+			PRINTFORMW %ARG는% 용무가 있는 것 같아서 밖으로 나왔다
+		ELSEIF CFLAG:ARG:직종 == 48
+			PRINTFORM %HOLD_SAMEN% %ARG는% 연회를 준비하기 위해 
+			PRINTFORMS NAME_FROM_PLACE(이동전)
+			PRINT 에서 
+			PRINTFORM %조사처리(NAME_FROM_PLACE(이동후),"로")% 
+			PRINTW 이동했습니다.
+		ELSEIF CFLAG:ARG:직종 == 49
+			PRINTFORM %HOLD_SAMEN% %ARG는% 
+			PRINTFORMS NAME_FROM_PLACE(이동전)
+			PRINT 에서 
+			PRINTFORMS NAME_FROM_PLACE(이동후)
+			PRINTW 의 연회에 참가하러 갔습니다.
+		ELSEIF CFLAG:ARG:직종 == 46
+			PRINTFORM %HOLD_SAMEN% %ARG는% 
+			PRINTFORMS NAME_FROM_PLACE(이동전)
+			PRINT 에서 
+			PRINTFORMS NAME_FROM_PLACE(이동후)
+			PRINTW 에 놀러 갔습니다.
+		ELSE
+			PRINTFORM %HOLD_SAMEN% %ARG는% %GET_JOBNAME(ARG)% 때문에 
+			PRINTFORMS NAME_FROM_PLACE(이동전)
+			PRINT 에서 
+			PRINTFORM %조사처리(NAME_FROM_PLACE(이동후),"로")% 
+			PRINTW 이동했습니다.
+		ENDIF
+		
+		;통상의 직장에 이동 말연회 플래그가 서지 않으면 표시한다
+		SIF CFLAG:ARG:연회참가 == 0
+			CALL KOJO_MESSAGE_SEND("EVENT", 13, ARG, 1, LOCAL)
+	ENDIF
+ENDIF
+SIF CFLAG:ARG:동침중
+	CALL SET_TOGETHER(0, ARG, 1)
+SIF CFLAG:ARG:동행 && CFLAG:ARG:직종 != 51
+	CFLAG:ARG:동행 = 0
+IF FLAG:데이트상대 == ARG
+	FLAG:데이트상대 = 0
+	TFLAG:데이트전호감도 = 0
+	CFLAG:ARG:데이트중 = MAIN_MAP
+ENDIF
+;직장에 이동
+SIF CFLAG:ARG:직장 && SHIRAHU(ARG)
+	CFLAG:ARG:현재위치 = CFLAG:ARG:직장
+SIF CFLAG:ARG:직종 == 49 && !TCVAR:ARG:만취 && (BASE:ARG:술기운 > (MAXBASE:ARG:술기운 / 10) * 8)
+	CALL ENKAI_DRUNK(ARG)
+CFLAG:ARG:행동 = 5
+IF TCVAR:ARG:갈아입음
+	CALL OKIGAE(ARG, TCVAR:ARG:갈아입음)
+ENDIF
+;FileName_JOB.ERB ----------------------------- Rev1. 00
+;일종료 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@CHARA_JOBEND(ARG)
+;일 후 데일리 SET
+SIF CFLAG:ARG:행동 == 5
+	CALL SET_DERAY(3, ARG)
+
+;일량을 0으로 한다
+SIF CFLAG:ARG:행동 == 5
+	BASE:ARG:일량 = 0
+;이 타이밍에 피로 추가
+CALL ADD_TIRED(ARG, MAXBASE:ARG:일량 / 2)
+
+;업무중 플래그 OFF
+CFLAG:ARG:행동 = 0
+IF CFLAG:ARG:현재위치 == CFLAG:ARG:직장 && CFLAG:ARG:직종 != 51
+	SELECTCASE CFLAG:ARG:직종
+	CASE 46
+		IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+			PRINTFORMW %ARG는% 다 놀았습니다.
+			;수고 하셨습니다 말
+			SIF CFLAG:ARG:연회참가 == 0
+				CALL KOJO_MESSAGE_SEND("EVENT", 13, ARG, 3,0)
+		ENDIF
+	CASE 48
+		IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+			PRINTFORMW %CALLNAME:ARG%의 연회 준비가 끝났습니다.
+			SIF ARG == 1
+				PRINTL   수고하셨습니다
+		ENDIF
+		IF DAY == FLAG:개시일 && TIME >= FLAG:33
+			CALL ENKAI_START(ARG)
+		ELSEIF FLAG:연회개최플래그 >= 98
+			CALL ENKAI_START(ARG)
+		ENDIF
+	CASE 49
+		CALL ENKAI_DRUNK(ARG)
+	CASE 50
+		IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+			PRINTFORMW %CALLNAME:ARG%의 연회 정리가 끝났습니다.
+			SIF ARG == 1
+				PRINTL 　수고하셨습니다
+		ENDIF
+		CFLAG:ARG:직종 = 0
+		CFLAG:ARG:연회참가 = 3
+		CALL CHARA_JOBEND_GO_HOME(ARG)
+	CASEELSE
+		IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+			PRINTFORMW %CALLNAME:ARG%의 %조사처리(GET_JOBNAME(ARG),"가")% 끝났습니다.
+			;수고 하셨습니다 말
+			CALL KOJO_MESSAGE_SEND("EVENT", 13, ARG, 3,0)
+			IF MAXBASE:ARG:일량 < (TCVAR:ARG:도운양 * 3) && TCVAR:ARG:답례
+				PRINTFORMW %CALLNAME:ARG%에서 %ITEMNAME:(TCVAR:ARG:답례)%를 받았다
+				ITEM:(TCVAR:ARG:답례) ++
+			ENDIF
+		ENDIF
+		IF CFLAG:ARG:현재위치 / 100 != MAIN_MAP && !CFLAG:ARG:신사거주 && VISIT(ARG)
+			IF !RAND:15
+				CALL 주인공물건으로향한다(ARG)
+			ELSEIF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치 && CAN_DATE(ARG)
+				PRINTFORML %CALLNAME:ARG%에게 데이트 신청할까?
+				CALL ASK_YN
+				IF !RESULT
+					CALL 외출처로부터권할수있을까(ARG)
+					IF RESULT
+						CFLAG:MASTER:동행 = 60
+						CFLAG:ARG:동행 = 60
+						CFLAG:ARG:데이트중 = CFLAG:MASTER:현재위치 / 100
+						FLAG:데이트상대 = ARG
+						TFLAG:데이트전호감도 = CFLAG:ARG:호감도
+						TIME += 1
+						PRINTFORMW 일을 마친 %CALLNAME:ARG%와 데이트하기로 했다
+						;필요한가 모르겠지만 일단
+						RETURN
+					ENDIF
+				ENDIF
+			ENDIF
+		ENDIF
+		CALL CHARA_JOBEND_GO_HOME(ARG)
+	ENDSELECT
+ENDIF
+
+
+@CHARA_JOBEND_GO_HOME(ARG)
+IF CFLAG:ARG:신사거주 && !AT_HOME(ARG)
+	SIF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+		PRINTFORMW %ARG는% %GET_MAPNAME(MAIN_MAP)%로 돌아갔다
+	CFLAG:ARG:현재위치 = MAXROOM
+ENDIF

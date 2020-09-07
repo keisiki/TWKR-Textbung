@@ -1,0 +1,225 @@
+﻿@다누키은행
+#DIM 한도
+#DIM 한도감소
+#DIM 대출량
+#DIM 예상이율
+#DIM 이율감소
+#DIM 예상만기일
+#DIM 상환
+PRINTFORML 
+PRINTFORMW 「머시여, 손님인감」
+PRINTFORML 
+$다누키인터페이스
+한도 = 0
+한도감소 = 0
+대출량 = 0
+예상이율 = 0
+이율감소 = 0
+예상만기일 = 0
+상환 = 0
+PRINTFORML 
+PRINTFORML 「뭘 도와주까?」
+PRINTLC  [1] 대출한다
+PRINTLC  [2] 상환한다
+PRINTFORML 
+PRINTLC [999] 돌아간다
+PRINTFORML 
+INPUT
+IF RESULT == 1
+	PRINTFORML 「대출이라아...흐으음...어디보자」
+	IF FLAG:채무 > 0
+		IF FLAG:연체일 > 0
+			PRINTFORML 「...그짝은 연체자라서 대출이 안되는디?」
+			PRINTFORML 「아쉽지만 도와줄수 없갔구마이...잉...」
+			GOTO 다누키인터페이스
+		ENDIF
+		PRINTFORML 「으잉? 자네는 이미 빚이 있잖여, 여기서 더 빌릴라꼬?」
+		PRINTFORML 「감당할수 있겄어?」
+		PRINTFORML 
+	ELSE
+	ENDIF
+	;한도계산
+	한도 = 0
+	한도 += 1000000
+	한도 += (MONEY/100)
+	IF TALENT:69:연인
+		한도 += 100000
+	ENDIF
+	한도감소 += (MARK:69:반발각인) * 10000
+	한도감소 += FLAG:채무
+	;이율 산정
+	예상이율 += 5
+	예상이율 += MONEY/100000
+	예상이율 += MARK:69:반발각인
+	예상이율 += FLAG:채무/100000
+	IF TALENT:69:연인
+		예상이율 -= 5
+	ENDIF
+	IF 한도 < 한도감소
+		PRINTFORMW 「...잉? 그짝은 더 빌릴수가 없다 나오는디?」
+		PRINTFORMW 「하이구, 미안하게 되았서, 지금으로썬 빌려줄수가 읍겠어」
+		PRINTFORMW 「다음 기회에 빌리러 오든가...잉...」
+		RETURN 1
+	ELSE
+		한도 -= 한도감소
+		PRINTFORML 「얼마나 빌릴라 카는디?」
+		PRINTFORML 
+		PRINTFORML    대출 한도 : {한도}
+		PRINTFORML 
+		PRINTFORML  얼마나 빌릴까...?(0이하의 값으로 취소)
+		INPUT
+		IF RESULT <= 0
+			PRINTFORMW 「그만둘라꼬? 그려」
+			GOTO 다누키인터페이스
+		ELSEIF RESULT > 한도
+			PRINTFORML 「한도 이상으론 못 줘」
+			PRINTFORML 「한도까지만 할텨?」
+			PRINTFORML  [1] 네
+			PRINTFORML  [2] 아니오
+			INPUT
+			IF RESULT == 1
+				PRINTFORML 「그려, 알았어」
+				대출량 = 한도
+			ELSE
+				PRINTFORMW 「이잉...번거롭게시리...」
+				GOTO 다누키인터페이스
+			ENDIF
+		ELSE
+			대출량 = RESULT
+			PRINTFORML 「{대출량}만큼 주면 되나?」
+			PRINTFORML  [1] 네
+			PRINTFORML  [2] 아니오
+			INPUT
+			IF RESULT == 1
+				PRINTFORML 「그려, 알았어」
+			ELSE
+				PRINTFORMW 「이잉...번거롭게시리...」
+				GOTO 다누키인터페이스
+			ENDIF
+		ENDIF
+		IF FLAG:만기일 == 0&&FLAG:연체일 == 0&&FLAG:채무 == 0
+			$다누키만기일설정
+			PRINTFORML 「얼마동안 빌릴낀데?」
+			PRINTFORML 「일주일부터 90일 까지 내키는대로 정하꼬 말혀」
+			PRINTFORML  며칠 빌릴까?(7미만으로 취소)
+			INPUT
+			IF RESULT < 7
+				PRINTFORML 「잉? 그만두게?」
+				PRINTFORMW 「뭐어, 나중에 내키면 또 허면 되는기지」
+				GOTO 다누키인터페이스
+			ELSEIF RESULT >= 91
+				PRINTFORMW 「하따, 90일이 한계라고 내가 말하지 않았는감?」
+				GOTO 다누키만기일설정
+			ELSE
+				PRINTFORML 「{RESULT}일...잉...그럼 보자아....」
+				SELECTCASE RESULT
+					CASE 7 TO 14
+						이율감소 += 3
+					CASE 15 TO 21
+						이율감소 += 2
+					CASE 22 TO 28
+						이율감소 += 1
+					CASE 29 TO 35
+						;그대로
+					CASE 36 TO 42
+						예상이율 += 1
+					CASE 43 TO 49
+						예상이율 += 2
+					CASE 50 TO 56
+						예상이율 += 3
+					CASE 57 TO 63
+						예상이율 += 4
+					CASE 64 TO 90
+						예상이율 += 5
+					CASEELSE
+						예상이율 += 6
+				ENDSELECT
+			ENDIF
+			IF 이율감소 > 예상이율
+				예상이율 = 0
+			ELSE
+				예상이율 -= 이율감소
+			ENDIF
+			예상만기일 = RESULT
+		ELSE
+			PRINTFORML 「상환은 저번에 빌린거 갚는 날까지 허면 되는겨, 알았는감?」
+			예상만기일 = FLAG:만기일
+		ENDIF
+		PRINTFORML 
+		PRINTFORML    대출하는 금액 : {대출량}
+		PRINTFORML    만   기   일 : {예상만기일}
+		PRINTFORML    이        율 : {예상이율}
+		PRINTFORML 
+		PRINTFORML  빌립니까?
+		PRINTFORML  [1] 예
+		PRINTFORML  [2] 아니오
+		INPUT
+		IF RESULT == 1
+			FLAG:채무 += 대출량
+			MONEY += 대출량
+			FLAG:이율 = 예상이율
+			IF FLAG:만기일 == 0
+				FLAG:만기일 = 예상만기일
+			ENDIF
+			PRINTFORML 「꼭 갚아야 혀~ 안 갚으면 큰일날줄 알어!」
+			GOTO 다누키인터페이스
+		ELSE
+			PRINTFORML 「머여? 이제사 안빌린다꼬? 하이구...헛수고만 했구만...」
+			GOTO 다누키인터페이스
+		ENDIF
+	ENDIF
+ELSEIF RESULT == 2
+	PRINTFORML 「갚는다꼬? 그래, 그짝 빚이...」
+	IF FLAG:채무 == 0
+		PRINTFORML 「...그짝은 빚이 읍는디?」
+		PRINTFORML 「좋겠구마, 빚도 읍구, 잉...빚 없는게 좋은거시여...」
+		GOTO 다누키인터페이스
+	ELSE
+		PRINTFORML 「흠흠...{FLAG:채무}...만큼 있구마」
+		PRINTFORML 「그려, 얼마나 갚으려구?」
+		PRINTFORML 
+		PRINTFORML  현 재 자 금 : {MONEY}
+		PRINTFORML  현 재 채 무 : {FLAG:채무}
+		PRINTFORML  얼마나 갚을까...? (0이하 입력으로 취소)
+		INPUT
+		IF RESULT <= 0
+			PRINTFORML 「잉? 지금은 아녀?」
+			PRINTFORML 「뭐, 천천히 갚든가 맘대로 혀, 다만 제때 못갚으면 큰일나는건 그짝이니까」
+			PRINTFORML 「항상 잊으면 안되는겨...」
+			GOTO 다누키인터페이스
+		ELSEIF RESULT > MONEY
+			상환 = MONEY
+			MONEY = 0
+		ELSEIF RESULT >= FLAG:채무
+			MONEY -= FLAG:채무
+			FLAG:채무 = 0
+			FLAG:만기일 = 0
+			FLAG:연체일 = 0
+			PRINTFORML 「잉? 빚을 다 갚았구마이...축하혀, 그짝은 이쟈 빚의 노예가 아녀...」
+			PRINTFORML 「워뗘, 빚 없는 몸이 되니 편한감?」
+			GOTO 다누키인터페이스
+		ELSE
+			상환 = RESULT
+			MONEY -= 상환
+		ENDIF
+		FLAG:채무 -= 상환
+		IF FLAG:채무 == 0
+			FLAG:채무 = 0
+			FLAG:만기일 = 0
+			FLAG:연체일 = 0
+			PRINTFORML 「잉? 빚을 다 갚았구마이...축하혀, 그짝은 이쟈 빚의 노예가 아녀...」
+			PRINTFORML 「워뗘, 빚 없는 몸이 되니 편한감?」
+			GOTO 다누키인터페이스
+		ELSE
+			PRINTFORML 「보자, {상환}만큼 갚았으니 이제...」
+			PRINTFORML 「{FLAG:채무}만큼 남았구마, 힘내서 퍼뜩 갚아야 되겠구마...」
+			PRINTFORML 「뭐어, 힘내쇼잉?」
+			GOTO 다누키인터페이스
+		ENDIF
+	ENDIF
+ELSEIF RESULT == 999
+	PRINTFORML 「그려, 조심히 들어가-」
+	RETURN 1
+ELSE
+	GOTO 다누키인터페이스
+ENDIF

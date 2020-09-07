@@ -1,0 +1,173 @@
+﻿;-------------------------------------------------
+;과자가게에 권한다
+;외출 커맨드
+;-------------------------------------------------
+@COM617
+#DIM 회복전체력1
+#DIM 회복전기력1
+#DIM 회복후체력1
+#DIM 회복후기력1
+#DIM 회복전체력2
+#DIM 회복전기력2
+#DIM 회복후체력2
+#DIM 회복후기력2
+
+회복전체력1 = BASE:MASTER:체력
+회복전기력1 = BASE:MASTER:기력
+회복전체력2 = BASE:TARGET:체력
+회복전기력2 = BASE:TARGET:기력
+LOCAL = RAND:100
+LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+SIF LOCAL:1 > 99
+	LOCAL:1 = 99
+IF LOCAL <= 9
+	;대성공 ;붉은실 KR판 오리지날
+	CALL 붉은실발동
+	EXP:MASTER:회화경험 ++
+	EXP:MASTER:데이트경험 ++
+	EXP:TARGET:데이트경험 ++
+ELSEIF LOCAL >= LOCAL:1
+	;실패
+	TFLAG:193 = -1
+ELSE
+	;성공
+	TFLAG:193 = 0
+ENDIF
+TFLAG:98 += 1
+
+
+DOWNBASE:기력 += 10
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 800
+SOURCE:사랑 = 300
+
+;ABL:욕망을 본다
+IF ABL:욕망 <= 1
+	SOURCE:환락 += (ABL:욕망 * 60)
+ELSEIF ABL:욕망 <= 3
+	SOURCE:환락 += 300 + (ABL:욕망 * 60)
+ELSEIF ABL:욕망 <= 5
+	SOURCE:환락 += 600 + (ABL:욕망 * 60)
+ELSEIF ABL:욕망 <= 8
+	SOURCE:환락 += 900 + (ABL:욕망 * 75)
+ELSEIF ABL:욕망 <= 11
+	SOURCE:환락 += 1500 + (ABL:욕망 * 75)
+ELSE
+	SOURCE:환락 += 2500 + (ABL:욕망 * 30)
+ENDIF
+
+;ABL:봉사정신을 본다
+IF ABL:봉사정신 <= 1
+	SOURCE:사랑 += (ABL:봉사정신 * 30)
+ELSEIF ABL:봉사정신 <= 3
+	SOURCE:사랑 += 200 + (ABL:봉사정신 * 30)
+ELSEIF ABL:봉사정신 <= 5
+	SOURCE:사랑 += 500 + (ABL:봉사정신 * 30)
+ELSEIF ABL:봉사정신 <= 8
+	SOURCE:사랑 += 700 + (ABL:봉사정신 * 45)
+ELSEIF ABL:봉사정신 <= 11
+	SOURCE:사랑 += 1200 + (ABL:봉사정신 * 45)
+ELSE
+	SOURCE:사랑 += 1800 + (ABL:봉사정신 * 20)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 750 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 4
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+
+SOURCE:수동 = 200 + 100 * ABL:순종
+SOURCE:정복 = 200 + 100 * ABL:새드끼
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:사랑 , 0.10
+	TIMES SOURCE:정복 , 0.50
+	TIMES SOURCE:수동 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:사랑 , 1.00
+	TIMES SOURCE:정복 , 1.00
+	TIMES SOURCE:수동 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:사랑 , 1.50
+	TIMES SOURCE:정복 , 2.00
+	TIMES SOURCE:수동 , 2.00
+	SIF TALENT:15 < 1
+		TALENT:15 = 1
+ENDIF
+
+BASE:체력 = MIN(BASE:체력 + MAXBASE:체력 / 25 , MAXBASE:체력)
+BASE:기력 = MIN(BASE:기력 + MAXBASE:기력 / 4 , MAXBASE:기력)
+BASE:MASTER:체력 = MIN(BASE:MASTER:체력 + MAXBASE:MASTER:체력 / 25 , MAXBASE:MASTER:체력)
+BASE:MASTER:기력 = MIN(BASE:MASTER:기력 + MAXBASE:MASTER:기력 / 4 , MAXBASE:MASTER:기력)
+
+TIME += 60
+CALL 붉은실발동
+EXP:MASTER:데이트경험 ++
+EXP:TARGET:데이트경험 ++
+CALL 만복도상승(TARGET,"디저트")
+CALL 만복도상승(MASTER,"디저트")
+MONEY -= 3000
+회복후체력1 = BASE:MASTER:체력
+회복후기력1 = BASE:MASTER:기력
+회복후체력2 = BASE:TARGET:체력
+회복후기력2 = BASE:TARGET:기력
+DRAWLINE
+PRINTFORML 체력+{ABS(회복후체력1 - 회복전체력1)}(%CALLNAME:MASTER%)
+PRINTFORML 기력+{ABS(회복후기력1 - 회복전기력1)}(%CALLNAME:MASTER%)
+PRINTFORML 체력+{ABS(회복후체력2 - 회복전체력2)}(%CALLNAME:TARGET%)
+PRINTFORML 기력+{ABS(회복후기력2 - 회복전기력2)}(%CALLNAME:TARGET%)
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;과자가게로 이끈다
+@COM_ABLE617
+;일괄관리
+SIF GLOBAL_COMABLE(617)
+	RETURN RESULT
+;상대가 없다
+SIF !TARGET
+	RETURN 0
+;데이트중 이외
+SIF !CHK_DATENOW(CFLAG:12)
+	RETURN 0
+;甘味処ではない場所
+SIF !SWEETS_SHOP(CFLAG:MASTER:현재위치)
+	RETURN 0
+;먹었던 바로 직후
+SIF !TIME_PROGRESS(TCVAR:디저트공복시각)
+	RETURN 0
+SIF MONEY < 3000
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+;甘味処を判定する関数
+@SWEETS_SHOP(ARG)
+#FUNCTION
+IF !IN_HOME(ARG)
+	SIF ARG == 상가거리
+		RETURNF 1
+ELSE
+	;甘味所
+	SIF ARG == 217
+		RETURNF 1
+ENDIF
+RETURNF 0

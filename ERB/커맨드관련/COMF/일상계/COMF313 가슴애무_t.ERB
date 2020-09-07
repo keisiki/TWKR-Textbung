@@ -1,0 +1,150 @@
+﻿;-------------------------------------------------
+;가슴애무
+;일상계 커맨드 레벨 3
+;-------------------------------------------------
+@COM313
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+TFLAG:이성깎기 = 1
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 20
+	SOURCE:쾌B = 80
+	IF ABL:PLAYER:손가락 >= 4
+		SOURCE:쾌B += 50
+	ELSE
+		SOURCE:쾌B += ABL:PLAYER:손가락 * 10
+	ENDIF
+	;착의 보정
+	IF TEQUIP:1 > 1
+		TIMES SOURCE:쾌B , 0.80
+		TIMES SOURCE:욕정 , 0.80
+		TIMES SOURCE:노출 , 0.80
+	ENDIF
+ELSE
+	IF FLAG:생활능력무 && !CFLAG:우후후
+		DRAWLINE
+		PRINTFORMW %CALLNAME:MASTER%에게 그런 담력은 없다
+		RETURN -1
+	ENDIF
+	DOWNBASE:체력 += 5
+	DOWNBASE:기력 += 50
+	SOURCE:쾌B = 80
+	SOURCE:환락 = 100
+	SOURCE:욕정 = 50
+	SOURCE:노출 = 70
+	SOURCE:반감 = 700
+	SOURCE:수동 = 120 + 240 * ABL:순종
+
+	;호감도를 본다
+	SELECTCASE ABL:친밀
+		CASE IS < 5
+			SOURCE:반감 -= (ABL:친밀 * 10)
+		CASE IS < 10
+			SOURCE:사랑 += ABL:친밀 * 5
+			SOURCE:욕정 += ABL:친밀 * 10
+			SOURCE:반감 -= (ABL:친밀 * 20)
+		CASEELSE
+			SOURCE:사랑 += ABL:친밀 * 15
+			IF !TALENT:연모 && !TALENT:섹프
+				SOURCE:사랑 += ABL:친밀 * 5
+				SOURCE:욕정 += (ABL:친밀 * 20)
+				SOURCE:반감 -= (ABL:친밀 * 50)
+			ELSE
+				SOURCE:욕정 += (ABL:친밀 * 15)
+				SOURCE:반감 -= (ABL:친밀 * 30)
+			ENDIF
+	ENDSELECT
+	SIF SOURCE:반감 < 0
+		SOURCE:반감 = 0
+	SOURCE:욕정 = MIN(SOURCE:욕정,500)
+	SOURCE:사랑 = MIN(SOURCE:사랑,300)
+
+	IF ABL:PLAYER:손가락 >= 4
+		SOURCE:쾌B += 50
+	ELSE
+		SOURCE:쾌B += ABL:PLAYER:손가락 * 10
+	ENDIF
+	;착의 보정
+	IF TEQUIP:1 > 1
+		TIMES SOURCE:쾌B , 0.80
+		TIMES SOURCE:욕정 , 0.80
+		TIMES SOURCE:노출 , 0.80
+	ENDIF
+
+	;신뢰
+	TFLAG:98 = -5
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 20
+ENDIF
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;노예의 B⇔조교자의 손가락의 더러움이 이동
+STAIN:5 |= STAIN:PLAYER:1
+STAIN:PLAYER:1 |= STAIN:5
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+	ENDIF
+ELSE
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+		EXP:MASTER:레즈경험 += 3
+	ENDIF
+	TIME += 10
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE313
+;가슴애무 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(313)
+	RETURN RESULT
+;시간정지중은 스킵
+IF !FLAG:70
+	;친해져 강도 2
+	SIF (TCVAR:MASTER:친해져 < 2) && !CFLAG:수면
+		RETURN 0
+	;수면중
+	SIF CFLAG:수면 && !CFLAG:장난
+		RETURN 0
+	;동침중
+	SIF CFLAG:동침중
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5
+		RETURN 0
+	;데이트중
+	SIF CHK_DATENOW(CFLAG:데이트중) && CFLAG:현재위치 != OMANEKIBEYA()
+		RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;팔사용중
+SIF TFLAG:61 && MASTER_POSE(SET_B,SET_YUBI) != TARGET
+	RETURN 0
+SIF GETBIT (TCVAR:26,3)
+	RETURN 0
+RETURN 1
+

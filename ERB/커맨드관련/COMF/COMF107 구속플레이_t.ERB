@@ -1,0 +1,178 @@
+﻿;-------------------------------------------------
+;구속
+;SM계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM107
+IF CFLAG:억지로질내사정 == 1 && !TEQUIP:구속
+	PRINTFORML 이전 억지로 질내사정된%타겟은% 무섭고 싫은 것 같다…
+	PRINTFORML [0] 포기한다
+	PRINTFORML [1] 이제(벌써) 하지 않기 때문에
+	$LOOP
+	INPUT
+	IF RESULT == 0
+		PRINTFORML %타겟이% 화내는 것도 지당해서, 구속을 포기했다
+		RETURN -1
+	ELSEIF RESULT == 1
+		IF ABL:마조끼 >= 3 || (CFLAG:4 + ABL:PLAYER:화술기능 * 100) > 1500
+			PRINTFORML 사정사정해 어떻게든%타겟을% 설득했다
+			CFLAG:억지로질내사정 = 2
+		ELSE
+			PRINTFORML %조교자가% 뭐라고 하든, %타겟은% 용서(허락)해 주지 않았다…
+			SOURCE:반감 += 10000
+			BASE:무드 /= 2
+			TFLAG:193 = 1
+			RETURN -1
+		ENDIF
+	ELSE
+		GOTO LOOP
+	ENDIF
+ELSEIF CFLAG:억지로질내사정 == 3 && !TEQUIP:구속
+	PRINTFORML 도 들 까는 것도 또 구속하고 싶다고 말하기 시작한 %CALLNAME:PLAYER%에, %타겟은% 차가운 시선을 향했다
+	CALL ASK_YN("미안해요",@"그런데도 구속된%타겟이% 좋아합니다")
+	IF RESULT == 0
+		PRINTFORML 위험을 헤아린%조교자는% 곧 바로 물러났다
+		RETURN -1
+	ELSEIF RESULT == 1
+		IF ABL:마조끼 >= 3 || (CFLAG:4 + ABL:PLAYER:화술기능 * 100) > 3000
+			PRINTFORML %타겟은% 왠지 그렇게 말하면서도, 마지막에는 구속시켜 주었다
+			PRINTW 아주 쉽다!
+		ELSE
+			PRINTFORML %타겟은% 아무것도 말하지 않고 %CALLNAME:PLAYER%에 등을 돌려 옷을 입어 버렸다
+			CUP:욕정 = 0
+			SOURCE:반감 += 10000
+			BASE:무드 = 0
+			FOR LOCAL, 0, CHARANUM
+				SIF CFLAG:우후후 == 2
+					CALL SET_DERAY(5, LOCAL)
+				CALL ENDUFUFU(LOCAL)
+			NEXT
+			TFLAG:106 = 0
+			;PLAYER와의 접촉 위치를 리셋
+			CALL TOUCH_SET(0,0,0,1)
+			;(은)탈의 플래그를 오프
+			TEQUIP:2 = 0
+			TEQUIP:상반신탈의상태 = 0
+			;캐릭터 전원의 복재세팅
+			FOR LOCAL, 0, CHARANUM
+				CALL CLOTHES_SETTING_TRAIN(LOCAL)
+				;윗도리탈의가끝난상태 플래그를 오프
+				TEQUIP:LOCAL:5 = 0
+			NEXT
+			TFLAG:193 = 1
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;착탈의처리
+IF TEQUIP:구속
+	TEQUIP:구속 = 0
+	TCVAR:억지로 = 0
+ELSE
+	TEQUIP:구속 = 1
+ENDIF
+
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+DOWNBASE:체력 += 10
+DOWNBASE:기력 += 80
+	SOURCE:PLAYER:강요=60
+
+SOURCE:고통 = 60
+SOURCE:공포 = 180
+SOURCE:굴종 = 100
+SOURCE:반감 = 350
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;긴박경험이 높으면 소비 감소
+IF EXP:긴박경험 < EXPLV:3
+	TIMES DOWNBASE:체력 , 1.00
+	TIMES DOWNBASE:기력 , 1.00
+ELSEIF EXP:긴박경험 < EXPLV:4
+	TIMES DOWNBASE:체력 , 0.90
+	TIMES DOWNBASE:기력 , 0.90
+ELSE
+	TIMES DOWNBASE:체력 , 0.70
+	TIMES DOWNBASE:기력 , 0.70
+ENDIF
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:긴박경험 += 1
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+;IF HETEROSEX(TARGET, PLAYER)
+;	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+;	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+;ENDIF
+RETURN 1
+;-------------------------------------------------
+;장착 계속의 처리
+;-------------------------------------------------
+@EQUIP_COM107(ARG)
+PRINTL ＜구속중＞
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+DOWNBASE:ARG:체력 += 10
+
+SOURCE:ARG:고통 += 30
+SOURCE:ARG:공포 += 180
+SOURCE:ARG:굴종 += 50
+SOURCE:ARG:반감 += 200
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;긴박경험이 높으면 소비 감소
+LOCAL = 60
+IF EXP:ARG:긴박경험 < EXPLV:3
+	TIMES LOCAL , 1.00
+ELSEIF EXP:ARG:긴박경험 < EXPLV:4
+	TIMES LOCAL , 0.90
+ELSE
+	TIMES LOCAL , 0.70
+ENDIF
+DOWNBASE:ARG:기력 += LOCAL
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:ARG:긴박경험 ++
+EXP:PLAYER:가학쾌락경험 += 1
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE107
+;구속플레이 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(107)
+	RETURN RESULT
+;아이템 을 가지고 있는인가, 아이템 없음 설정이 아니면 안 돼
+SIF ITEM:27 == 0 && NOITEM == 0
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+;밧줄로 묶고 있으면 안 돼
+SIF TEQUIP:밧줄
+	RETURN 0
+;수면간중
+SIF CFLAG:장난 > 1
+	RETURN 0
+;해제는 언제라도 가능
+SIF TEQUIP:구속
+	RETURN 1
+RETURN 1
+

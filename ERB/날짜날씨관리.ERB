@@ -1,0 +1,857 @@
+﻿;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;계절 관리
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@CHANGE_MONTH
+#DIM 운세뽑기값
+;일자가 달을 넘으면(자) 달변경
+IF DAY:3 > 31
+	DAY:3 = 1
+	DAY:2 ++
+	;겨울의 다음은 봄
+	IF DAY:2 > 4
+		DAY:2 = 1
+		FLAG:연시대출금 = FLAG:지주대출금
+	ENDIF
+	;여름이 되면 발렌타인 플래그 리셋
+	SIF DAY:2 == 2
+		CVARSET CFLAG, 383
+	;징수 발생
+	SIF FLAG:지주
+		FLAG:연공 = 1
+	IF FLAG:물주기대행
+		FLAG:물주기대행 = 0
+		PRINTFORMW 물주기대행의 기한이 지났습니다.
+	ENDIF
+	IF FLAG:신문구독
+		IF MONEY < 3000 && MONEY:2 < 10
+			PRINTFORML 돈이 부족하기에 붕붕마루 신문의 구독을 정지합니다.
+		ELSE
+			PRINTL
+			PRINTFORML ★붕붕마루 신문을 계속 구독하겠습니까? (월액￥3000 or 10 카리스마)
+			CALL ASK_M("해약", 1,"갱신(￥3000)", MONEY >= 3000,"갱신(10 카리스마)", MONEY:2 >= 10)
+			SELECTCASE RESULT
+				CASE 0
+					PRINTFORML 구독을 정지합니다.
+					FLAG:신문구독 = 0
+				CASE 1
+					MONEY -= 3000
+					PRINTFORML 이번 달도 구독합니다.
+				CASE 2
+					MONEY:2 -= 10
+					PRINTFORML 이번 달도 구독합니다.
+			ENDSELECT
+		ENDIF
+	ENDIF
+	IF FLAG:운세뽑기계약
+		운세뽑기값 = 50
+		SIF !MAIN_MAP
+			운세뽑기값 = 30
+		IF MONEY:2 < 운세뽑기값
+			PRINTFORML 카리스마가 부족하기 때문에, 운세뽑기계약이 중지되었습니다
+			FLAG:운세뽑기계약 = 0
+		ELSE
+			PRINTFORML 운세뽑기계약을 계속하겠습니까?
+			CALL ASK_YN
+			IF !RESULT
+				PRINTFORML 계약을 갱신했습니다
+				MONEY:2 -= 운세뽑기값
+			ELSE
+				FLAG:운세뽑기계약 = 0
+				PRINTFORML 계약을 종료합니다
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+;이상치를 고정 수정
+SIF DAY:3 < 1
+	DAY:3 = 1
+SIF DAY:2 < 1 || DAY:2 > 4
+	DAY:2 = 1
+
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;시간대 관리
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@CHANGE_TIMEZONE
+
+;SELECTCASE TIME
+;	CASE 240 TO 599
+;		LOCAL = 1
+;	CASE 600 TO 1139
+;		LOCAL = 2
+;	CASE 1140 TO 1440 , 0 TO 239
+;		LOCAL = 3
+;ENDSELECT
+
+SELECTCASE TIME
+	;AM4~6　이른 아침
+	CASE 240 TO 359
+		LOCAL = 1
+	;AM6~12　정오전
+	CASE 360 TO 719
+		LOCAL = 2
+	;PM12~3　주
+	CASE 720 TO 899
+		LOCAL = 3
+	;PM3~6　오후
+	CASE 900 TO 1079
+		LOCAL = 4
+	;PM6~8　석
+	CASE 1080 TO 1199
+		LOCAL = 5
+	;PM8~11　야
+	CASE 1200 TO 1379
+		LOCAL = 6
+	;PM11~AM4　심야
+	CASE 0 TO 239, IS >= 1380
+		LOCAL = 7
+ENDSELECT
+
+
+IF LOCAL != TIME:2
+	TIME:2 = LOCAL
+	CALL CHANGE_WEATHER
+	TRYCALLFORM MOB_PLACE_{MAIN_MAP}
+	CALL TIMEZONE_MOVE
+ENDIF
+
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;계절 나토리 이득
+;CALL		USER
+;ARG		인수가 없는 경우 DAY:2
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@GET_MONTH(ARG)
+#FUNCTIONS
+SIF !ARG
+	ARG = DAY:2
+SIF !STRLENS(LOCALS)
+	SPLIT "무의 달/봄의 달/여름의 달/가을의 달/겨울의 달", "/", LOCALS
+RETURNF LOCALS:(ARG)
+
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;날씨 나토리 이득
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@GET_WEATHER
+#FUNCTIONS
+#DIMS 표시_이상기상, 15
+IF FLAG:이상기상
+	SPLIT " /C민감/V민감/A민감/B민감/M민감/치마/팬티/분홍색의 바람/태풍/비바람", "/", 표시_이상기상
+	RETURNF 표시_이상기상:(FLAG:이상기상)
+ENDIF
+SIF !STRLENS(LOCALS)
+	SPLIT "맑음/쾌청/약간흐림/흐림/비/폭우/이슬비/안개/눈/눈보라/가루눈/안개눈/진눈깨비/우박", "/", LOCALS
+RETURNF LOCALS:(TIME:5)
+
+;-------------------------------------------------
+;평일 판정(ARG)
+;DAY를 건네주어 츠키～ 금요일이라면 1
+;-------------------------------------------------
+@IS_WEEKDAY(ARG)
+#FUNCTION
+SIF !ARG
+	ARG = DAY
+RETURNF INRANGE(ARG % 7, 1, 5)
+
+;-------------------------------------------------
+;주말 판정(ARG)
+;DAY를 건네주어 토일요일이라면 1
+;-------------------------------------------------
+@IS_WEEKEND(ARG)
+#FUNCTION
+SIF !ARG
+	ARG = DAY
+RETURNF !INRANGE(ARG % 7, 1, 5)
+
+;-------------------------------------------------
+;요일 일치 판정(ARG)
+;DAY와 캐릭터라인을 건네주어, 일치하고 있으면 1
+;판정용 캐릭터라인은 세월화수목금흙에서 각 요일을 나타낸다(=복수 지정 가능)
+;-------------------------------------------------
+@YOUBI_MATCH(ARG, CHECK_STR)
+#FUNCTION
+#DIMS  CHECK_STR
+SIF !ARG
+	ARG = DAY
+SIF STRCOUNT(CHECK_STR, GET_DAY(ARG))
+	RETURNF 1
+RETURNF 0
+
+;-------------------------------------------------
+;함수명 :GET_DAY
+;개요:요일을 나타내는 캐릭터라인을 취득하는 함수
+;인수:인수가 없는 경우 DAY
+;반환값:요일을 나타내는 캐릭터라인(일/월/화/수/목/금/흙)
+;비고:문중 함수
+;-------------------------------------------------
+@GET_DAY(ARG)
+#FUNCTIONS
+#DIMS CONST YOUBI = "일", "월", "화", "수", "목", "금", "토"
+SIF !ARG
+	ARG = DAY
+RETURNF YOUBI:(ARG % 7)
+
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;날씨 관리
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@CHANGE_WEATHER
+#DIM 지저
+#DIM 입수팬티
+#DIM 소유자
+#DIM 루프개시
+#DIM 루프종료
+#DIM 루프가산
+DEBUGPRINTL 【CHANGE_WEATHER】CALL CHANGE_WATHER
+;날씨 관리에 메시지 표시 처리시켜 죄송합니다＞＜；
+;우후후 안은 공기를 읽는 정도의 능력
+;날씨 변화하지 않아도 무지개는 사라진다
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+IF !지저
+	SELECTCASE FLAG:이상기상
+		CASE 7
+			;이러해도 하지 않으면 또 노팬티가 날라와서 끝낸다고 생각해
+			DO
+				CALL RAND_CHARASELECT("주인공 이외의캐릭터리스트")
+				소유자 = RESULT
+				입수팬티 = 오늘의팬티(소유자)
+			LOOP !입수팬티
+			PRINTFORML 츠무지 바람이 %CALLNAME:소유자%의 %PANTSNAME(입수팬티, 소유자)%를 옮겨 왔다
+			CALL ASK_YN("줍는","줍지 않다")
+			IF !RESULT
+				PRINTFORMW %마스터는% %CALLNAME:소유자%의 %PANTSNAME(입수팬티, 소유자)%를 주웠다
+				CALL PANTS_GETTING(소유자, 입수팬티)
+			ELSE
+				PRINTFORML %PANTSNAME(입수팬티, 소유자)%는 그대로 어딘가에 날아 갔다
+			ENDIF
+		CASE 8
+			SETCOLOR 255,100,255
+			FONTBOLD
+			PRINTFORMW 환상향에 분홍색의 바람이 불었다!
+			FOR LOCAL, 1, CHARANUM
+				IF !RAND:8 && !TALENT:LOCAL:임신
+					PRINTFORML 분홍색의 바람을 받은 %조사처리(CALLNAME:LOCAL,"는")% 이상한 기분이 되었다…
+					CFLAG:LOCAL:욕구불만도 += LIMIT((10 + RAND:20 + RAND:20 + RAND:20) * ABL:LOCAL:욕망, 200,1000)
+					SIF !TALENT:LOCAL:비생물
+						TCVAR:LOCAL:발정 = 1
+				ENDIF
+			NEXT
+			RESETCOLOR
+			FONTREGULAR
+	ENDSELECT
+ENDIF
+
+SIF FLAG:이상기상
+	RETURN
+SIF TIME:5 > 15
+	TIME:5 = 0
+;날씨 변화 확률(표준은50%)
+SELECTCASE TIME:5
+	CASE 5
+		LOCAL = 16
+	CASE 9
+		IF DAY:2 == 2
+			LOCAL = 12
+		ELSE
+			LOCAL = 16
+		ENDIF
+	CASE IS >= 8
+		IF DAY:2 == 4
+			LOCAL = 24
+		ELSEIF DAY:2 == 2
+			LOCAL = 12
+		ELSE
+			LOCAL = 16
+		ENDIF
+	CASEELSE
+		LOCAL = 24
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	;날씨 변화 발생으로 무지개는 사라진다
+	;TIME:7 = 0
+	SELECTCASE TIME:5
+		;개이고의 때
+		CASE 0
+			;20%로 맑은 하늘에 이행
+			IF RAND:5 == 0
+				SETBIT TIME:5, 0
+			;20%로 박담에 이행
+			ELSEIF RAND:5 == 0
+				SETBIT TIME:5, 1
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			;5%로 흐림에 이행
+			ELSEIF RAND:20 == 0
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 구름이 나왔다
+			;상기 확률에 걸리지 않았으면 맑음
+			ELSE
+				TIME:5 = 0
+			ENDIF
+		CASE 1
+			;20%로 맑음에 이행
+			IF RAND:5 == 0
+				CLEARBIT TIME:5, 0
+			;20%로 박담에 이행
+			ELSEIF RAND:5 == 0
+				TIME:5 = 2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			ENDIF
+		;흐림때
+		CASE 2,3
+			;25%로 강화 or약체화
+			IF RAND:4 == 0
+				INVERTBIT TIME:5, 0
+			ELSE
+				;20%로 맑음에 이행
+				IF RAND:5 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						IF TIME:2 >= 5 && TIME:2 <= 7
+							PRINTW 별이 보인다
+						ELSE
+							PRINTW 해가 비친다
+						ENDIF
+					ENDIF
+				;박담이라면10%로 비나 눈에 이행
+				ELSEIF TIME:5 == 2 && RAND:10 == 0
+					IF DAY:2 == 4 && RAND:5
+						TIME:5 = 8
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈이 내리기 시작했다!
+					ELSE
+						TIME:5 = 4
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 비가 내리기 시작했다!
+					ENDIF
+					;더욱10%의 확률로 안개비, 가루눈에 이행
+					SIF RAND:10 == 0
+						SETBIT TIME:5, 1
+				;흐림이라면30%로 비에 이행
+				ELSEIF TIME:5 == 3 && RAND:10 < 3
+					IF DAY:2 == 4 && RAND:5
+						TIME:5 = 8
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈이 내리기 시작했다!
+					ELSE
+						TIME:5 = 4
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 비가 내리기 시작했다!
+					ENDIF
+				ENDIF
+			ENDIF
+		;비때
+		CASE 4,5,6,7
+			;25%로 강화 or약체화
+			IF RAND:4 == 0
+				INVERTBIT TIME:5, 0
+				IF TIME:5 == 5
+					PRINTW 억수가 되었다!
+				ELSE
+					PRINTW 비가 약해졌다
+				ENDIF
+			ELSE
+				;25%로 흐림에 이행
+				IF RAND:4 == 0
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 그친 것 같다
+					;만약을 위해 한우산을씀을 해제
+					FOR LOCAL, 0, CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				;비라면10%로 안개비인가 진눈깨비에 이행
+				ELSEIF TIME:5 == 4 && RAND:10 == 0
+					IF DAY:2 == 4
+						TIME:5 = 12
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈이 약간 섞여있다
+					ELSE
+						TIME:5 = 6
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 빗줄기가 가늘어졌다
+					;더욱10%의 확률로 안개, 뻥튀기에 이행
+					SIF RAND:10 == 0
+						SETBIT TIME:5, 0
+					ENDIF
+				;10%로 맑음에 이행
+				ELSEIF RAND:10 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						;일지도 모르면 좋은 개개 확실히 보이는 것은 기분을 자주(잘) 시키는 마법
+						IF TIME:2 >= 5 && TIME:2 <= 7
+							PRINTW 갑자기 밤하늘이 개었다! 달무리가 보일지도 모르겠다
+						ELSE
+							PRINTW 갑자기 해가 비쳤다! 무지개가 보일지도 모르겠다
+						ENDIF
+					FOR LOCAL, 0, CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+					ENDIF
+					;더욱 저확률로 쾌청
+					SIF RAND:100 < 5
+						TIME:5 = 1
+					;비→개이고를 처리하면(자) 무지개가 나온다
+					TIME:7 = 1
+				ENDIF
+			ENDIF
+		;눈때
+		CASE IS >= 8
+			;눈은 겨울 이외 내리지 않는다
+			IF DAY:2 != 4
+				;비가 내린다
+				CLEARBIT TIME:5, 3
+				SETBIT TIME:5, 2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈은 비로 바뀐 것 같다
+			;10%로 강화
+			ELSEIF !GETBIT(TIME:5, 0) && RAND:10 == 0
+				SETBIT TIME:5, 0
+				PRINTW 눈보라가 쳐 왔다!
+			;50%의 확률로 약체화
+			ELSEIF GETBIT(TIME:5, 0) && RAND:2
+				CLEARBIT TIME:5, 0
+				PRINTW 눈보라는 약해진 것 같다
+			
+			ELSE
+				;25%로 흐림에 이행
+				IF RAND:4 == 0
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 그친 것 같다
+					FOR LOCAL, 0, CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				;눈이라면10%로 가루눈이나 진눈깨비에 이행
+				ELSEIF TIME:5 == 8 && RAND:10 == 0
+					IF RAND:2
+						TIME:5 = 10
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈송이가 작아졌다
+					ELSE
+						TIME:5 = 12
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 비도 약간 섞여있다
+					ENDIF
+					;더욱10%의 확률로 안개눈, 우박에 이행
+					SIF RAND:10 == 0
+						SETBIT TIME:5, 0
+				;10%로 맑음에 이행
+				ELSEIF RAND:10 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						IF TIME:2 >= 5 && TIME:2 <= 7
+							PRINTW 갑자기 밤하늘이 개었다! 다이아몬드 더스트가 보일지도 모른다
+						ELSE
+							PRINTW 갑자기 해가 비쳤다! 다이아몬드 더스트가 보일지도 모른다
+						ENDIF
+					FOR LOCAL, 0, CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+					ENDIF
+					;더욱 저확률로 쾌청
+					SIF RAND:100 < 5
+						TIME:5 = 1
+					;눈→개이고를 처리하면(자) 다이아몬드 더스트가 나온다
+					TIME:7 = 2
+				ENDIF
+			ENDIF
+		CASEELSE
+			TIME:5 = RAND:5
+	ENDSELECT
+ENDIF
+[SKIPSTART]
+@현재기온설정
+;높낮이차이를 5 분할
+SELECTCASE TIME
+	;PM11~AM4
+	CASE 0 TO 299, IS >= 1380
+		LOCAL = FLAG:62
+	;AM5~7
+	CASE 300 TO 479
+		LOCAL = FLAG:62 + ((FLAG:61 - FLAG:62) / 5)
+	;AM8~9
+	CASE 480 TO 599
+		LOCAL = FLAG:62 + ((FLAG:61 - FLAG:62) / 5 * 2)
+	;AM10~11
+	CASE 600 TO 719
+		LOCAL = FLAG:62 + ((FLAG:61 - FLAG:62) / 5 * 3)
+	;PM12~2
+	CASE 720 TO 899
+		LOCAL = FLAG:62 + ((FLAG:61 - FLAG:62) / 5 * 4)
+	;PM3~5
+	CASE 900 TO 1079
+		LOCAL = FLAG:61
+	;PM6~7
+	CASE 1080 TO 1199
+		LOCAL = FLAG:62 + ((FLAG:61 - FLAG:62) / 5 * 4)
+	;PM8~9
+	CASE 1200 TO 1259
+		LOCAL = FLAG:62 + ((FLAG:61 - FLAG:62) / 5 * 2)
+	;PM9~10
+	CASE 1260 TO 1379
+		LOCAL = FLAG:62 + ((FLAG:61 - FLAG:62) / 5)
+ENDSELECT
+;해가 나와 있지 않으면 온도 저하
+SELECTCASE TIME
+	;AM5~PM7
+	CASE 300 TO 1199
+		SIF TIME:5 > 1
+			LOCAL -= ((FLAG:61 - FLAG:62) / 5)
+ENDSELECT
+;----------------------------------------------------------------
+@연간기초최고기온(ARG, ARG:1)
+#FUNCTION
+;ARG   지정의 달
+;ARG:1 지정의 날
+SELECTCASE ARG
+	CASE 1
+		SELECTCASE ARG:1
+			CASE 1 TO 3
+				RETURNF 17
+			CASE 4, 5
+				RETURNF 18
+			CASE 6 TO 8
+				RETURNF 19
+			CASE 9 TO 11
+				RETURNF 20
+			CASE 12 TO 14
+				RETURNF 21
+			CASE 15 TO 18
+				RETURNF 22
+			CASE 19 TO 22
+				RETURNF 23
+			CASE 23 TO 27
+				RETURNF 24
+			CASE 28 TO 30
+				RETURNF 25
+		ENDSELECT
+	CASE 2
+		SELECTCASE ARG:1
+			CASE 1, 2
+				RETURNF 25
+			CASE 3 TO 7
+				RETURNF 26
+			CASE 8 TO 13
+				RETURNF 27
+			CASE 14 TO 17
+				RETURNF 28
+			CASE 18 TO 22
+				RETURNF 29
+			CASE 23 TO 28
+				RETURNF 30
+			CASE 29, 30
+				RETURNF 31
+		ENDSELECT
+	CASE 3
+		SELECTCASE ARG:1
+			CASE 1, 2
+				RETURNF 31
+			CASE 3, 4
+				RETURNF 30
+			CASE 5 TO 7
+				RETURNF 29
+			CASE 8 TO 10
+				RETURNF 28
+			CASE 11, 12
+				RETURNF 27
+			CASE 13, 14
+				RETURNF 26
+			CASE 15, 16
+				RETURNF 25
+			CASE 17 TO 19
+				RETURNF 24
+			CASE 20 TO 22
+				RETURNF 23
+			CASE 23, 24
+				RETURNF 22
+			CASE 25 TO 27
+				RETURNF 21
+			CASE 28, 29
+				RETURNF 20
+			CASE 30
+				RETURNF 19
+		ENDSELECT
+	CASE 4
+		SELECTCASE ARG:1
+			CASE 1 TO 4
+				RETURNF 19
+			CASE 5 TO 7
+				RETURNF 18
+			CASE 8 TO 10
+				RETURNF 17
+			CASE 11, 12
+				RETURNF 16
+			CASE 13, 14
+				RETURNF 15
+			CASE 15, 16
+				RETURNF 14
+			CASE 17, 18
+				RETURNF 13
+			CASE 19, 20
+				RETURNF 12
+			CASE 21, 22
+				RETURNF 11
+			CASE 23 TO 25
+				RETURNF 10
+			CASE 26, 27
+				RETURNF 9
+			CASE 28, 29
+				RETURNF 8
+			CASE 30
+				RETURNF 7
+		ENDSELECT
+	CASE 5
+		SELECTCASE ARG:1
+			CASE 1 TO 3
+				RETURNF 7
+			CASE 4 TO 9
+				RETURNF 6
+			CASE 10 TO 14
+				RETURNF 5
+			CASE 15 TO 21
+				RETURNF 4
+			CASE 22 TO 28
+				RETURNF 5
+			CASE 29, 30
+				RETURNF 6
+		ENDSELECT
+	CASE 6
+		SELECTCASE ARG:1
+			CASE 1 TO 6
+				RETURNF 6
+			CASE 7 TO 12
+				RETURNF 7
+			CASE 13, 14
+				RETURNF 8
+			CASE 15, 16
+				RETURNF 9
+			CASE 17, 18
+				RETURNF 10
+			CASE 19, 20
+				RETURNF 11
+			CASE 21, 22
+				RETURNF 12
+			CASE 23, 24
+				RETURNF 13
+			CASE 25, 26
+				RETURNF 14
+			CASE 27, 28
+				RETURNF 15
+			CASE 29
+				RETURNF 16
+			CASE 30
+				RETURNF 17
+		ENDSELECT
+ENDSELECT
+
+;----------------------------------------------------------------
+@연간기초최저기온(ARG, ARG:1)
+#FUNCTION
+;ARG   지정의 달
+;ARG:1 지정의 날
+SELECTCASE ARG
+	CASE 1
+		SELECTCASE ARG:1
+			CASE 1 TO 3
+				RETURNF 11
+			CASE 4 TO 6
+				RETURNF 12
+			CASE 7, 8
+				RETURNF 13
+			CASE 9 TO 11
+				RETURNF 14
+			CASE 12 TO 14
+				RETURNF 15
+			CASE 15 TO 17
+				RETURNF 16
+			CASE 18 TO 20
+				RETURNF 17
+			CASE 21 TO 23
+				RETURNF 18
+			CASE 24 TO 27
+				RETURNF 19
+			CASE 28 TO 30
+				RETURNF 20
+		ENDSELECT
+	CASE 2
+		SELECTCASE ARG:1
+			CASE 1 TO 3
+				RETURNF 20
+			CASE 4 TO 7
+				RETURNF 21
+			CASE 8 TO 10
+				RETURNF 22
+			CASE 11 TO 14
+				RETURNF 23
+			CASE 15 TO 22
+				RETURNF 24
+			CASE 23 TO 30
+				RETURNF 25
+		ENDSELECT
+	CASE 3
+		SELECTCASE ARG:1
+			CASE 1 TO 5
+				RETURNF 25
+			CASE 6 TO 9
+				RETURNF 24
+			CASE 10 TO 12
+				RETURNF 23
+			CASE 13, 14
+				RETURNF 22
+			CASE 15 TO 17
+				RETURNF 21
+			CASE 18 TO 20
+				RETURNF 20
+			CASE 21 TO 23
+				RETURNF 19
+			CASE 24, 25
+				RETURNF 18
+			CASE 26
+				RETURNF 17
+			CASE 27, 28
+				RETURNF 16
+			CASE 29
+				RETURNF 15
+			CASE 30
+				RETURNF 14
+		ENDSELECT
+	CASE 4
+		SELECTCASE ARG:1
+			CASE 1 TO 3
+				RETURNF 14
+			CASE 4, 5
+				RETURNF 13
+			CASE 6, 7
+				RETURNF 12
+			CASE 8, 9
+				RETURNF 11
+			CASE 10, 11
+				RETURNF 10
+			CASE 12 TO 14
+				RETURNF 9
+			CASE 15 TO 17
+				RETURNF 8
+			CASE 18 TO 20
+				RETURNF 7
+			CASE 21 TO 23
+				RETURNF 6
+			CASE 24 TO 26
+				RETURNF 5
+			CASE 27 TO 29
+				RETURNF 4
+			CASE 30
+				RETURNF 3
+		ENDSELECT
+	CASE 5
+		SELECTCASE ARG:1
+			CASE 1, 2
+				RETURNF 3
+			CASE 3 TO 6
+				RETURNF 2
+			CASE 7 TO 10
+				RETURNF 1
+			CASE 11 TO 13
+				RETURNF 0
+			CASE 14 TO 21
+				RETURNF -1
+			CASE 22 TO 30
+				RETURNF 0
+		ENDSELECT
+	CASE 6
+		SELECTCASE ARG:1
+			CASE 1 TO 3
+				RETURNF 0
+			CASE 4 TO 6
+				RETURNF 1
+			CASE 7, 8
+				RETURNF 2
+			CASE 9, 10
+				RETURNF 3
+			CASE 11 TO 14
+				RETURNF 4
+			CASE 15, 16
+				RETURNF 5
+			CASE 17, 18
+				RETURNF 6
+			CASE 19, 20
+				RETURNF 7
+			CASE 21 TO 23
+				RETURNF 8
+			CASE 24, 25
+				RETURNF 9
+			CASE 26 TO 28
+				RETURNF 10
+			CASE 29, 30
+				RETURNF 11
+		ENDSELECT
+ENDSELECT
+[SKIPEND]
+
+@TIMEZONE_MOVE
+#DIMS 이동전
+#DIMS 이동후
+FOR LOCAL, 1, CHARANUM
+	SIF RAND:3 > 0
+		CONTINUE
+	SIF 출현상태(LOCAL) != 1
+		CONTINUE
+	SIF !CHARA_HOLIDAY(LOCAL)
+		CONTINUE
+	SIF CFLAG:LOCAL:초대
+		CONTINUE
+	SIF CFLAG:LOCAL:동행 || CHK_DATENOW(CFLAG:LOCAL:데이트중)
+		CONTINUE
+	SIF !CFLAG:LOCAL:전턴위치
+		CONTINUE
+	SIF CFLAG:LOCAL:수면
+		CONTINUE
+	IF CFLAG:MASTER:현재위치 == CFLAG:LOCAL:현재위치
+		LOCAL:1 = RAND:5
+		IF TALENT:LOCAL:연모 && LOCAL:1 < 3
+			CONTINUE
+		ELSEIF !LOCAL:1
+			CONTINUE
+		ENDIF
+	ENDIF
+	CALL 만남플래그결정(LOCAL)
+;	CFLAG:LOCAL:현재위치 = CFLAG:LOCAL:만난위치
+;	이동전 = %STR:(6000 + CFLAG:LOCAL:전턴위치 / 10)%
+;	SIF CFLAG:LOCAL:전턴위치 == SUKIMA()
+;		이동전 = 방
+;	이동후 = %STR:(6000 + CFLAG:LOCAL:현재위치 / 10)%
+;	SIF CFLAG:LOCAL:현재위치 == SUKIMA()
+;		이동후 = 방
+;	SIF CFLAG:LOCAL:전턴위치 != CFLAG:LOCAL:현재위치 && (CFLAG:MASTER:현재위치 / 100 == CFLAG:LOCAL:전턴위치 / 100) && !AT_HOME() && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+;		PRINTFORML %CALLNAME:LOCAL%는 【%이동전%】에서 【%이동후%】로 이동했다
+NEXT
+;캐릭터를 움직였으므로 TARGET재설정
+;CALL TARGETSET_CHACK

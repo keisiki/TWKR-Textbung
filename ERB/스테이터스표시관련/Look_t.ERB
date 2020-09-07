@@ -1,0 +1,552 @@
+﻿@LOOK_AT
+#DIM 장비부위
+#DIM 착의상황
+#DIMS 삽입상황
+#DIMS 삽입상황2
+#DIMS 표시내용
+CALL PRINTBUTTON_EX(TFLAG:LOOK비표시 ? "▽[＋][Look]----------" # "▼[－][Look]----------", 3003, TFLAG:LOOK비표시)
+IF !FLAG:그림표시 ;KR판 구잔재. AA표시 삭제시 지워야 함.
+	PRINTBUTTON  "[AA 표시]", 816
+ELSE
+	PRINTBUTTON "[그림 표시]", 816
+	SIF FLAG:화상설정
+		SETCOLOR C_ORANGE
+	PRINTBUTTON "[표시 설정]", 3100
+ENDIF
+RESETCOLOR
+IF CFLAG:우후후
+	IF FLAG:삽화표시
+		PRINTBUTTON  "[애니메이션 표시-ON-]", 817
+	ELSE
+		SETCOLOR C_L_GRAY
+		PRINTBUTTON  "[애니메이션 표시-OFF-]", 817
+		RESETCOLOR
+	ENDIF
+ENDIF
+PRINTL
+IF !TFLAG:LOOK비표시
+	;TARGETが大勢居るときはヒマを持て余す
+	CALL ANOTHERTARGET_TALK
+	CALL 정경묘사
+ENDIF
+IF TARGET
+	IF !TFLAG:LOOK비표시
+		PRINT 【상반신】
+		IF TEQUIP:1 == 0
+			PRINT  알몸
+			SIF PALAM:욕정 >= PALAMLV:3
+				PRINTFORM  %NIPPLE_DESCRIPTION(TARGET)%가 서 있다
+		ELSE
+			;바깥쪽의 옷으로부터 표시
+			FOR 장비부위, 17, 6, -1
+				SIF GROUPMATCH(장비부위, 15, 12, 11)
+					CONTINUE
+				표시내용 '= LOOK_AT_CLOTHNAME(TARGET, 장비부위)
+				SIF !STRLENS(표시내용)
+					CONTINUE
+				PRINTFORM %표시내용%
+				BREAK
+			NEXT
+			IF TEQUIP:상반신탈의상태 > 0
+				IF TALENT:가슴사이즈 == 2
+					PRINTFORM  %OPPAI_DESCRIPTION(TARGET, 1)%이 비져 나왔다
+					;PRINTFORM  터질 듯한 가슴이 비져 나왔다
+				ELSEIF TALENT:가슴사이즈 == 1
+					PRINTFORM  %OPPAI_DESCRIPTION(TARGET, 1)%이 툭 나왔다
+					;PRINTFORM  풍만한 가슴이 비져 나왔다
+				ELSEIF TALENT:가슴사이즈 == 0
+					PRINTFORM  %OPPAI_DESCRIPTION(TARGET, 1)%이 드러나왔다
+					;PRINTFORM  모양 좋은 가슴이 드러나왔다
+				ELSEIF TALENT:가슴사이즈 == -1
+					PRINTFORM  %OPPAI_DESCRIPTION(TARGET, 1)%이 드러나왔다
+					;PRINTFORM  작은 축의 가슴이 드러나왔다
+				ELSEIF TALENT:가슴사이즈 == -2
+					PRINTFORM  %OPPAI_DESCRIPTION(TARGET, 1)%이 드러나왔다
+					;PRINTFORM  귀여운 유두가 드러나왔다
+				ENDIF
+				SIF EQUIP:TARGET:보디슈트== 0 && PALAM:욕정 >= PALAMLV:5
+					PRINTFORM  %NIPPLE_DESCRIPTION(TARGET)%가 서 있다
+			ELSE
+				SIF EQUIP:TARGET:보디슈트== 0 && PALAM:욕정 >= PALAMLV:(4 + 2 * (GET_INT(TARGET, "상반신속옷_탈의불가", EQUIP:TARGET:상반신속옷1, "옷감 두께")))
+					PRINTFORM  옷 밖으로도 %NIPPLE_DESCRIPTION(TARGET)%가 발기한 것을 알 수 있다
+			ENDIF
+		ENDIF
+		IF TEQUIP:유두캡 && TEQUIP:가슴주무르기
+			PRINTFORM  유두캡이 %NIPPLE_DESCRIPTION(TARGET)%를 빨아내고 %마스터가% %OPPAI_DESCRIPTION(TARGET)%을 주무르고 있다
+		ELSEIF TEQUIP:유두빨기 && TEQUIP:가슴주무르기
+			PRINTFORM  %마스터가% %OPPAI_DESCRIPTION(TARGET)%을 주무르는 상태로 %NIPPLE_DESCRIPTION(TARGET)%를 \@ ABL:MASTER:혀 > 2? 핥고 있다# 빨고 있다\@
+		ELSEIF TEQUIP:유두캡
+			PRINTFORM  유두캡이 %NIPPLE_DESCRIPTION(TARGET)%에 붙어 있다
+		ELSEIF TEQUIP:착유기
+			PRINT  착유기가 모유를 빨아들이고 있다
+		ELSEIF TEQUIP:유두빨기
+			PRINTFORM  %마스터가% %NIPPLE_DESCRIPTION(TARGET)%를 \@ ABL:MASTER:혀 > 2? 핥고 있다# 빨고 있다\@
+		ELSEIF TEQUIP:가슴주무르기
+			PRINTFORM  %마스터가% %OPPAI_DESCRIPTION(TARGET)%을 주무르고 있다
+		ENDIF
+		SIF CFLAG:구내정액 == 1
+			PRINT  입가에서 정액이 흐르고 있다
+		SIF CFLAG:안면정액 == 1
+			PRINT  얼굴에 정액이 뿌려져 있다
+		SIF CFLAG:손에정액 == 1
+			PRINT  손이 정액 범벅이다
+		PRINTL
+		PRINT 【하반신】
+		;TEQUIP:하반신착의상황 아래 반신 착의상황(비트0=치마1=비켜 놓아 가능 2=비켜 놓아 불가 3=비켜 놓을 수 없는 하반신윗도리)
+		;	(비트를 사용하고 싶지 않은 인용 0=이루어 1=노팬티 치마2=팬티뿐 3=치마+팬티 
+		;	4=스패츠(속옷) 혹은 노팬티 바지5=치마+스패츠 6=바지+팬티 7=풀 장비(이 바리안트에서는 무리))
+		;CFLAG:팬티 팬티 플래그
+		;0 팬티 입고 있다
+		;1 팬티 입지 않다
+
+		;하반신착의 이루어, 혹은 팬티 입지 않았다
+		IF TEQUIP:하반신착의상황 == 0 || CFLAG:노팬티 > 0
+		;	하반신착의가 있지만 노팬티이다
+			IF CFLAG:노팬티 && TEQUIP:하반신착의상황 != 0
+				착의상황 = 0
+				FOR 장비부위, 15, 4, -1
+					SIF GROUPMATCH(장비부위, 8, 7)
+						CONTINUE
+					표시내용 '= LOOK_AT_CLOTHNAME(TARGET, 장비부위)
+					SIF !STRLENS(표시내용)
+						CONTINUE
+					PRINTFORM %표시내용%
+					BREAK
+				NEXT
+				;팬티는 입지 않지만 안보이기 때문에 표시하지 않는다
+				;PRINT  (팬티 안 입음)
+				IF PREVCOM == 330
+					IF PALAM:윤활 >= PALAMLV:5
+						PRINT  허벅지까지 축축하게 젖어있다
+					ELSEIF PALAM:윤활 >= PALAMLV:3
+						PRINT  부끄러운 부분에 덩그러니 얼룩이 져 있다
+					ENDIF
+					IF 충전율(TARGET, 1) >= 100 || 충전율(TARGET, 2) >= 100
+						PRINTFORM  넘친 정액이 꿀럭꿀럭 소리와 함께 역류하고 있다
+					ELSEIF 충전율(TARGET, 1) >= 30 || 충전율(TARGET, 2) >= 30
+						PRINTFORM  넘친 정액이 허벅지를 타고 흘러떨어지고 있다
+					ENDIF
+				ELSEIF 충전율(TARGET, 1) >= 100 || 충전율(TARGET, 2) >= 100
+					PRINTFORM  넘친 \@TALENT:MASTER:농후정액 ? 풀 같은 정액이 발 밑에 산을 이루고 있다 # 정액이 발 밑에 정액 웅덩이를 만들고 있다\@
+				ELSEIF 충전율(TARGET, 1) >= 30 || 충전율(TARGET, 2) >= 30
+					PRINTFORM  넘친 \@TALENT:MASTER:농후정액 ? 풀 같은 정액이 허벅지에 들러붙어있다 # 정액이 허벅지를 타고 흘러떨어지고 있다\@
+				ENDIF
+			ELSEIF EQUIP:하반신속옷1 || EQUIP:하반신속옷2
+				IF EQUIP:하반신속옷2
+					표시내용 '= PANTSNAME(EQUIP:TARGET:하반신속옷2, TARGET)
+					PRINTFORM %표시내용%
+					IF 충전율(TARGET, 1) >= 100 || 충전율(TARGET, 2) >= 100
+						PRINTFORM  %표시내용%는 흘러넘치고 돌아간 정액으로 이제 완전하게 용무를 없음 않다
+					ELSEIF 충전율(TARGET, 1) >= 30 || 충전율(TARGET, 2) >= 30
+						PRINTFORM  %표시내용%는 정액을 흡수 다 할 수 있지 않았다
+					ELSEIF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:3
+						PRINTFORM  %표시내용%에 얼룩이 되어있다
+					ELSEIF PALAM:윤활 >= PALAMLV:2
+						PRINTFORM  %표시내용%가 습기차 있다
+					ENDIF
+				ELSE
+					표시내용 '= GET_STR(TARGET, "하반신속옷_비켜놓기불가", EQUIP:TARGET:하반신속옷1, "이름")
+					PRINTFORM %표시내용%
+					SELECTCASE 표시내용
+					CASE "샅바", "스패츠"
+						IF 충전율(TARGET, 1) >= 100 || 충전율(TARGET, 2) >= 100
+							PRINTFORM  %표시내용%는 넘쳐난 정액으로 이미 완전하게 용무를 없음 않다
+						ELSEIF 충전율(TARGET, 1) >= 30 || 충전율(TARGET, 2) >= 30
+							PRINTFORM  %표시내용%는 정액을 흡수 다 할 수 있지 않았다
+						ELSEIF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:3
+							PRINTFORM  %표시내용%에 얼룩이 되어있다
+						ELSEIF PALAM:윤활 >= PALAMLV:2
+							PRINTFORM  %표시내용%가 습기차 있다
+						ENDIF
+					CASE "마에바리", "반창고"
+						IF 충전율(TARGET, 1) >= 100 || 충전율(TARGET, 2) >= 100
+							PRINTFORM  %표시내용%는 보는 앞으로 벗겨져 하복부에 다시 폈다
+						ELSEIF 충전율(TARGET, 1) >= 30 || 충전율(TARGET, 2) >= 30
+							PRINTFORM  %표시내용%는 이미 걸리고 있을 뿐이다
+						ELSEIF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:5
+							PRINTFORM  %표시내용%가 벗겨져 가고 있다
+						ELSEIF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:3
+							PRINTFORM  %표시내용%에 얼룩이 되어있다
+						ELSEIF PALAM:윤활 >= PALAMLV:2
+							PRINTFORM  %표시내용%가 습기차 있다
+						ENDIF
+					CASE "정조대", "라비아 피어스", "클리 피어스"
+						IF 충전율(TARGET, 1) >= 100 || 충전율(TARGET, 2) >= 100
+							IF 표시내용 == "정조대"
+								PRINTFORM  %표시내용%는 넘쳐나는 정액을 멈출 수 없다
+							ELSE
+								PRINTFORM  %표시내용%는 넘쳐난 정액으로 안보이게 되고 있다
+							ENDIF
+						ELSEIF 충전율(TARGET, 1) >= 30 || 충전율(TARGET, 2) >= 30
+							PRINTFORM  %표시내용%는 넘쳐난 정액을 매달고 있다
+						ELSEIF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:3
+							PRINTFORM  %표시내용%에 물방울이 되어있다
+						ELSEIF PALAM:윤활 >= PALAMLV:2
+							PRINTFORM  %표시내용%가 습기차 있다
+						ENDIF
+					ENDSELECT
+				ENDIF
+			;하반신착의가 없다
+			ELSE
+				PRINT  알몸
+				SIF TEQUIP:클리캡
+					PRINT  클리캡이 클리토리스에 달라붙고 있다
+				SIF TEQUIP:오나홀
+					PRINT  페니스가 오나홀을 박고 있다
+				IF !CFLAG:우후후
+					IF CFLAG:TARGET:질내사정
+						IF CFLAG:TARGET:애널사정 == 1
+							IF 충전율(TARGET, 1) >= 1000 || 충전율(TARGET, 2) >= 1000
+								PRINT  두 구멍으로부터 정액이 분화 같아 보여 날아오르며 있다
+							ELSEIF 충전율(TARGET, 1) >= 100 || 충전율(TARGET, 2) >= 100
+								PRINT  두 구멍으로부터 정액이 폭포처럼 흘러넘치고 있다
+							ELSEIF 충전율(TARGET, 1) >= 30 || 충전율(TARGET, 2) >= 30
+								PRINT  두 구멍으로부터 정액이 흘러넘치고 있다
+							ELSE
+								PRINT  비렬과 항문으로부터 정액이 흘러나오고 있다
+							ENDIF
+						ELSEIF EX:처녀상실체크
+							PRINT  비렬로부터 파과혈이 섞인 정액이 넘쳐 나오고 있다
+						ELSEIF PALAM:윤활 >= PALAMLV:2
+							PRINT  비렬로부터 정액과 애액의 서로 섞인 국물이 넘쳐 나오고 있다
+						ELSE
+							PRINT  비렬로부터 정액이 흘러나오고 있다
+						ENDIF
+					ELSEIF CFLAG:TARGET:애널사정 == 1
+						PRINT  항문으로부터 정액이 흘러나오고 있다
+					ELSEIF PALAM:윤활 >= PALAMLV:2
+						IF PALAM:윤활 >= PALAMLV:6
+							PRINTFORM  비렬로부터 애액\@ EX:처녀상실체크? 이 섞인 파과혈# \@이 뚝뚝 떨어지고 있다
+						ELSEIF EX:처녀상실체크
+							PRINT  비렬로부터 파과혈이 흐르고 있다
+						ELSEIF PALAM:윤활 >= PALAMLV:4
+							PRINT  허벅지를 애액이 타고 있다
+						ELSEIF PALAM:윤활 >= PALAMLV:2
+							PRINT  비렬이 애액으로 습기차 있다
+						ENDIF
+					ENDIF
+				ELSEIF PALAM:윤활 >= PALAMLV:2 && !(CFLAG:TARGET:질내사정 == 1 || TEQUIP:V섹스 == PLAYER || TEQUIP:바이브)
+					IF PALAM:윤활 >= PALAMLV:4
+						PRINTFORM  비렬로부터 애액\@ EX:처녀상실체크? 이 섞인 파과혈# \@이 뚝뚝 떨어지고 있다
+					ELSEIF EX:처녀상실체크
+						PRINT  비렬로부터 파과혈이 흐르고 있다
+					ELSEIF PALAM:윤활 >= PALAMLV:3
+						PRINTFORM  허벅지를 애액이 타고 있다
+					ELSEIF PALAM:윤활 >= PALAMLV:2
+						PRINTFORM  비렬이 애액으로 습기차 있다
+					ELSEIF TALENT:처녀 == 1
+						PRINTFORM 미사유기 딱 닫은 줄기가 이슬 악어 되어 있다
+					ENDIF
+				ENDIF
+			ENDIF
+			CALL LOOK_BELLY(TARGET)
+		;하반신벌을 입고 있다, 한편 속옷도 붙이고 있다
+		ELSE
+			착의상황 = 0
+		;	윗도리가 상하 연결이 되어 있는 옷을 입고 있는 경우, 그것을 표시한다
+		;	없으면, 치마나 바지를 표시한다
+		;	특별히 열중한 차례로도 되어 있지 않았기 때문에 루프를 통합
+			FOR 장비부위, 15, 4, -1
+				SIF GROUPMATCH(장비부위, 8, 7)
+					CONTINUE
+				표시내용 '= LOOK_AT_CLOTHNAME(TARGET, 장비부위)
+				SIF !STRLENS(표시내용)
+					CONTINUE
+				PRINTFORM %표시내용%
+				BREAK
+			NEXT
+			IF !CFLAG:우후후
+				;어쩐지 분기 들어갔지만 TEQUIP:하반신착의상황 == 0은↑으로 처리되므로 죽어 분기
+				;IF TEQUIP:하반신착의상황 != 0
+				;ENDIF
+				IF PALAM:윤활 >= PALAMLV:5
+					PRINT  넙적다리까지 흠뻑젖어(줄줄)에 젖고 있다
+				ELSEIF PALAM:윤활 >= PALAMLV:3
+					PRINT  부끄러운 부분에 툭하고 얼룩이 되어있다
+				ENDIF
+				;난쟁이
+				IF TALENT:TARGET:100 == -5
+					LOCAL = 200
+				;유아 체형, 작은 체형
+				ELSEIF TALENT:TARGET:100 < 0
+					LOCAL = 300
+				;장신 이상
+				ELSEIF TALENT:TARGET:100 >= 1
+					LOCAL = 500
+				;보통 체형
+				ELSE
+					LOCAL = 400
+				ENDIF
+				SIF EX:TARGET:질내정액 > LOCAL || EX:TARGET:애널내정액 > LOCAL
+					PRINTFORM  넘쳐 나온\@TALENT:MASTER:농후정액 ?  풀과 같은 정액이 허벅지에 달라붙어 있는 # 정액이 허벅지를 타 늘어지고 떨어지고 있다\@
+			;여기에서는 우후후 안
+			ELSEIF TEQUIP:하반신착의상황 & 4
+				IF PALAM:윤활 >= PALAMLV:5
+					PRINT  가랑이의 부분이 흠뻑젖어(줄줄)에 젖고 있다
+				ELSEIF PALAM:윤활 >= PALAMLV:3
+					PRINT  부끄러운 부분에 툭하고 얼룩이 되어있다
+				ENDIF
+			ELSE
+				PRINTFORM  걷어 올릴 수 있는 %HIP(TARGET)%가 훤히 들여다 보이게 하고 있는
+				IF PALAM:윤활 >= PALAMLV:1 || CFLAG:TARGET:애널사정 == 1 || CFLAG:TARGET:질내사정 == 1 && !((CFLAG:TARGET:애널사정 == 1 && CFLAG:TARGET:질내사정 == 1) || TEQUIP:V섹스 == PLAYER || TEQUIP:바이브 || TEQUIP:A섹스 == PLAYER || TEQUIP:애널바이브 || TEQUIP:애널비즈 || TEQUIP:관장 || TEQUIP:확장벌룬 || TEQUIP:애널전극)
+					;이것 하반신속옷1이 개미로 하반신속옷2가 없어라고 어떻게 됩니까
+					;IF (EQUIP:하반신속옷1 || EQUIP:하반신속옷2)
+					;수정을 시도 가필;해 두어입니다만 하반신속옷1을 실개 하는 선택지도 있어요
+					IF EQUIP:하반신속옷2
+						표시내용 '= PANTSNAME(EQUIP:TARGET:하반신속옷2, TARGET)
+						IF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:3
+							PRINTFORM  %표시내용%에 얼룩이 되어있다
+						ELSEIF PALAM:윤활 >= PALAMLV:2
+							PRINTFORM  %표시내용%가 습기차 있다
+						ENDIF
+					ELSE
+						표시내용 '= GET_STR(TARGET, "하반신속옷_비켜놓기불가", EQUIP:TARGET:하반신속옷1, "이름")
+						SELECTCASE 표시내용
+						CASE "샅바", "스패츠"
+							IF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:3
+								PRINTFORM  %표시내용%에 얼룩이 되어있다
+							ELSEIF PALAM:윤활 >= PALAMLV:2
+								PRINTFORM  %표시내용%가 습기차 있다
+							ENDIF
+						CASE "마에바리", "반창고"
+							IF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:5
+								PRINTFORM  %표시내용%가 벗겨져 가고 있다
+							ELSEIF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:3
+								PRINTFORM  %표시내용%에 얼룩이 되어있다
+							ELSEIF PALAM:윤활 >= PALAMLV:2
+								PRINTFORM  %표시내용%가 습기차 있다
+							ENDIF
+						CASE "정조대", "라비아 피어스", "클리 피어스"
+							IF CFLAG:TARGET:질내사정 == 1 || CFLAG:TARGET:애널사정 == 1 || PALAM:윤활 >= PALAMLV:3
+								PRINTFORM  %표시내용%에 물방울이 되어있다
+							ELSEIF PALAM:윤활 >= PALAMLV:2
+								PRINTFORM  %표시내용%가 습기차 있다
+							ENDIF
+						ENDSELECT
+					ENDIF
+				ENDIF
+				IF !EQUIP:하반신속옷2
+				ELSEIF TEQUIP:V섹스 == PLAYER || TEQUIP:바이브 || TEQUIP:A섹스 == PLAYER || TEQUIP:애널바이브 || TEQUIP:애널비즈 || TEQUIP:관장 || TEQUIP:확장벌룬 || TEQUIP:애널전극
+					PRINTFORM  %PANTSNAME(EQUIP:TARGET:하반신속옷2, TARGET)%를 비켜 놓아지고 있다
+				ELSEIF CFLAG:TARGET:애널사정 == 1 && CFLAG:TARGET:질내사정 == 1 && !(TEQUIP:V섹스 == PLAYER || TEQUIP:바이브 || TEQUIP:A섹스 == PLAYER || TEQUIP:애널바이브 || TEQUIP:애널비즈 || TEQUIP:관장 || TEQUIP:확장벌룬 || TEQUIP:애널전극)
+					PRINTFORM  %PANTSNAME(EQUIP:TARGET:하반신속옷2, TARGET)%에 큰 얼룩이 되어있다
+				ENDIF
+				IF CFLAG:TARGET:질내사정 == 1 && PALAM:윤활 >= PALAMLV:1 && !(TEQUIP:V섹스 == PLAYER || TEQUIP:바이브)  && (TEQUIP:A섹스 == PLAYER || TEQUIP:애널바이브 || TEQUIP:애널비즈 || TEQUIP:관장 || TEQUIP:확장벌룬 || TEQUIP:애널전극)
+					PRINT  비렬로부터 정액과 애액의 서로 섞인 국물이 넘쳐 나오고 있다
+				ELSEIF CFLAG:TARGET:질내사정 == 1 && !(TEQUIP:V섹스 == PLAYER || TEQUIP:바이브 || PALAM:윤활 >= PALAMLV:1) && (TEQUIP:A섹스 == PLAYER || TEQUIP:애널바이브 || TEQUIP:애널비즈 || TEQUIP:관장 || TEQUIP:확장벌룬 || TEQUIP:애널전극)
+					PRINT  비렬로부터 정액이 흘러나오고 있다
+				ELSEIF CFLAG:TARGET:애널사정 == 1 && !(TEQUIP:A섹스 == PLAYER || TEQUIP:애널바이브 || TEQUIP:애널비즈 || TEQUIP:관장 || TEQUIP:확장벌룬 || TEQUIP:애널전극) && (TEQUIP:V섹스 == PLAYER || TEQUIP:바이브)
+					PRINT  항문으로부터 정액이 흘러나오고 있다
+				ENDIF
+			ENDIF
+			CALL LOOK_BELLY(TARGET)
+		ENDIF
+
+		IF (TCVAR:TARGET:V삽입관리플래그 == PLAYER || TCVAR:TARGET:A삽입관리플래그 == PLAYER) && TALENT:PLAYER:형상 == 10
+			PRINTL
+			PRINT 삽입된 페니스의 형태가 복부에 떠오르고 있다…
+		ENDIF
+		;================================
+		SELECTCASE TEQUIP:TARGET:체위
+			CASE 1 
+				삽입상황 = 정상위
+			CASE 2 
+				삽입상황 = 후배위
+			CASE 3 
+				삽입상황 = 기승위
+			CASE 4 
+				삽입상황 = 대면좌위 
+			CASE 5 
+				삽입상황 = 후배위
+			CASE 6
+				삽입상황 = 오나홀과 같이 취급해
+		ENDSELECT
+
+		IF TEQUIP:TARGET:V섹스 == PLAYER || TEQUIP:바이브
+			PRINTL
+			PRINT 【질내】　
+			IF TCVAR:TARGET:V삽입관리플래그 == PLAYER
+				IF TCVAR:V에질내사정된플래그
+					PRINTFORM  %삽입상황%로\@ EX:처녀상실체크?  처녀질에# \@\@TALENT:MASTER:농후정액 ? 농후한 # \@정액을{NOWEX:TARGET:질내정액}쏟아지고 있다
+				ELSEIF CFLAG:TARGET:생리주기 == 7
+					PRINTFORM  %CALLNAME:MASTER%에%삽입상황%로\@ EX:처녀상실체크?  처녀질에# \@교배되고 있다
+				ELSEIF SHIRAHU(TARGET) && TALENT:TARGET:연모
+					IF EX:처녀상실체크
+						PRINTFORM  %CALLNAME:MASTER%에%삽입상황%로 처녀를 바치고 있다
+					ELSE
+						PRINTFORM  %마스터와%%삽입상황%로 서로 사랑하고 있다
+					ENDIF
+				ELSEIF CFLAG:우후후 == 2
+					PRINTFORM  %CALLNAME:MASTER%에%삽입상황%로\@ EX:처녀상실체크?  처녀질을# \@범해지고 있다
+				ELSE
+					PRINTFORM  %CALLNAME:MASTER%에%삽입상황%로\@ EX:처녀상실체크?  처녀질을# \@범해지고 있다
+				ENDIF
+			ELSEIF TEQUIP:바이브
+				PRINT  바이브가 삽입되고 있다
+			ENDIF
+			SELECTCASE TEQUIP:자궁
+				CASE 1 
+					SETCOLOR C_PINK
+						PRINT  자궁이 내려와 있다
+					RESETCOLOR
+					;리셋하지 않으면 Act_COM행과 [V]까지 핑크가 되었기 때문에 추가
+				CASE 2 
+					FONTBOLD
+					SETCOLOR C_PINK
+						PRINT  자궁이 내려와 있다
+					RESETCOLOR
+					FONTREGULAR
+			ENDSELECT
+		ENDIF
+		IF TEQUIP:TARGET:A섹스 == PLAYER || TEQUIP:애널바이브 || TEQUIP:애널비즈
+			PRINTL
+			PRINT 【애널】
+			IF TCVAR:TARGET:A삽입관리플래그 == PLAYER
+				IF TCVAR:A에질내사정된플래그
+					PRINTFORM  \@TALENT:MASTER:농후정액 ? 농후한 # \@정액을{NOWEX:TARGET:애널내정액}쏟아지고 있다
+				ELSEIF !FLAG:시간정지 && !CFLAG:수면 && TALENT:TARGET:연모
+					PRINTFORM  %CALLNAME:MASTER%에 %삽입상황%로 삽입되고 있다
+				ELSEIF CFLAG:우후후 == 2
+					PRINTFORM  %CALLNAME:MASTER%에 %삽입상황%로 범해지고 있다
+				ELSE
+					PRINTFORM  %CALLNAME:MASTER%에 %삽입상황%로 범해지고 있다
+				ENDIF
+			ELSEIF TEQUIP:애널바이브
+				PRINT  애널바이브가 삽입되고 있다
+			ELSEIF TEQUIP:애널비즈
+				PRINT  애널비즈가 삽입되고 있다
+			ELSEIF TEQUIP:관장
+				PRINT  플러그로 막혀 있다
+			ELSEIF TEQUIP:확장벌룬
+				PRINT  벌룬으로 확장되고 있다
+			ELSEIF TEQUIP:애널전극
+				PRINT  전극이 삽입되고 있다
+			ENDIF
+		ENDIF
+	ENDIF
+	IF FLAG:AA표시 && !FLAG:그림표시
+		PRINTL 　
+		CALL PRINT_AA(TARGET)
+	ELSEIF FLAG:AA표시 && FLAG:그림표시
+		SIF !TFLAG:LOOK비표시
+			PRINTL 　
+		CALL PRINT_TARGET_IMAGE(TARGET)
+	ENDIF
+	IF !TFLAG:LOOK비표시
+		IF TEQUIP:PLAYER:V섹스 == TARGET || TEQUIP:PLAYER:A섹스 == TARGET
+			SELECTCASE TEQUIP:MASTER:체위
+				CASE 1 
+					삽입상황2 = 정상위로
+				CASE 2 
+					삽입상황2 = 후배위로
+				CASE 3 
+					삽입상황2 = 기승위로
+				CASE 4 
+					삽입상황2 = 대면좌위로
+				CASE 5 
+					삽입상황2 = 배면좌위로
+				CASE 6
+					삽입상황2 = 오나홀 같은 취급으로
+				CASEELSE
+					삽입상황2 = 
+			ENDSELECT
+
+			PRINTL 
+			PRINT 【페니스】
+			IF TEQUIP:PLAYER:V섹스 == TARGET
+				PRINTFORM %CALLNAME:PLAYER%의 질내에 %삽입상황2% 삽입되고 있다
+			ELSE
+				PRINTFORM %CALLNAME:PLAYER%의 애널에 %삽입상황2% 삽입되고 있다
+			ENDIF
+		ENDIF
+	ENDIF
+ELSE
+	IF !TFLAG:LOOK비표시
+		;視点が大きくずれるのを防ぐためにTARGETがいないときの余白,パワプロみたいに小さい背景画でもあればいいんだけど
+		FOR LOCAL, 1, 16
+			PRINTL 
+		NEXT
+	ENDIF
+ENDIF
+
+
+
+@LOOK_AT_CLOTHNAME(C_ID, E_ID)
+#FUNCTIONS
+#DIM C_ID;대상 캐릭터
+#DIM E_ID;대상이 되는 EQUIP의 부위
+SIF !EQUIP:C_ID:E_ID
+	RETURNF
+IF CSTR:C_ID:(50 + E_ID) != "" && !CFLAG:C_ID:파자마
+	RETURNF CSTR:C_ID:(50 + E_ID)
+ELSEIF EQUIPNAME:E_ID == "상반신속옷1"
+	RETURNF BRANAME(EQUIP:C_ID:E_ID, C_ID)
+ELSEIF EQUIPNAME:E_ID == "하반신속옷2"
+	RETURNF PANTSNAME(EQUIP:C_ID:E_ID, C_ID)
+ELSE
+	RETURNF CLOTHNAME(E_ID, EQUIP:C_ID:E_ID)
+ENDIF
+
+
+
+;몸부위 1=V, 2=A, 3=VA 4= 자궁
+@충전율(캐릭터등록번호, 몸부위)
+#FUNCTION
+#DIM 캐릭터등록번호
+#DIM 몸부위
+#DIM 정액량
+#DIM 몸용량
+
+VARSET 정액량
+
+;해당 부위의 정액량의 취득
+SELECTCASE 몸부위
+	CASE 1
+		정액량 = EX:캐릭터등록번호:질내정액
+	CASE 2
+		정액량 = EX:캐릭터등록번호:애널내정액
+	CASE 3
+		정액량 = EX:캐릭터등록번호:질내정액 + EX:캐릭터등록번호:애널내정액
+	CASE 4
+		정액량 = EX:캐릭터등록번호:자궁내정액
+ENDSELECT
+
+;해당 부위의 용량을 취득
+SELECTCASE TALENT:캐릭터등록번호:체형
+	CASE -5
+		몸용량 = 300
+	CASE -4 TO -2
+		몸용량 = 600
+	CASE -1
+		몸용량 = 1000
+	CASE 0
+		몸용량 = 1200
+	CASE IS > 0
+		몸용량 = 1500
+ENDSELECT
+
+;자궁이라면 용량 반감
+IF 몸부위 == 4
+	몸용량 /= 2
+ENDIF
+RETURNF 100 * 정액량 / 몸용량
+
+;배묘사
+@LOOK_BELLY(ARG)
+IF CFLAG:ARG:임신경과일수 >= 40
+		PRINT  출산을 가까이 둔 배는 터질 것만 같다
+ELSEIF CFLAG:ARG:임신경과일수 >= 30
+		PRINT  생명을 숨어 배는 크게 부풀어 오르고 있다
+ELSEIF CFLAG:ARG:임신경과일수 >= 20
+		PRINT  배의 부푼 곳이 눈에 띄어 왔다
+ELSEIF CFLAG:ARG:임신경과일수 >= 15
+		PRINT  배가 부풀어 오르기 시작했다
+ELSEIF 충전율(ARG, 3) >= 1000
+		PRINT  고간으로부터 정액이 폭포처럼 분출하고 있다
+ELSEIF 충전율(ARG, 3) >= 200
+		PRINT  체내에 정액은 들어가 자르지 않고, 한없이 분출하고 있다
+ELSEIF 충전율(ARG, 3) >= 100
+		PRINT  배는 정액으로 임산부와 같이 부풀어 오르고 있다
+ELSEIF 충전율(ARG, 3) >= 50
+		PRINT  배는 정액으로 조금 부풀어 올라 버리고 있다
+ENDIF

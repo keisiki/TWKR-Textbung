@@ -1,0 +1,1010 @@
+﻿@ITEM_BUY(ARG)
+#DIM LC
+;모두의 것↓은 거동 확인용 같았기 때문에 없고 좋다
+;PRINTFORML {ITEMSALES:62}
+CALL ITEM_SALES
+
+DRAWLINE
+LC = LINECOUNT
+CALL LIST_ITEM("모두")
+SIF LC != LINECOUNT
+	DRAWLINE
+;우선 무조건 전부 표시로 했지만 TYPE 지정도 가능
+PRINTFORML 구입할 아이템을 선택해주세요 소지금 :\\%TOSTR(MONEY,"#,###")%
+	CALL SHOW_ITEM
+DRAWLINE
+;ARG는 아마 캇파로부터의 도구 구입의 아쉬움? (할인 구입의 흔적이)(으)로 사용하지 않지만 그대로
+SIF !ARG
+	PRINTL [200] - 조교 아이템　[300] - 소모품　[400] - 일용품　[500] - 음식물　[600] - 소질　[700] - 체질 변화
+PRINT [999] - 모두 표시　　　[100] - 돌아간다
+
+;먼저 공통 처리
+;SHOP 구입 가능한 ITEM를 추가하면(자) 무효 범위를 맞추는 것
+DO
+	INPUT
+	LOCAL = RESULT
+	SELECTCASE LOCAL
+	CASE 100
+		RETURN 0
+	CASE 999
+		TFLAG:표시아이템종류 = 0
+		RESTART
+	CASE 200, 300, 400, 500, 600, 700
+		TFLAG:표시아이템종류 = LOCAL / 100
+		RESTART
+	CASE IS < 0, IS > 100, 58, 59, 61, 71, 72, 74, 77, 78
+		; 무효 범위
+	CASEELSE
+		SIF !ITEM_TYPE(LOCAL, TFLAG:표시아이템종류)
+			CONTINUE
+		SELECTCASE ITEMSTOCK(LOCAL)
+		CASE 1, 4
+			;
+		CASE 2
+			REUSELASTLINE 품절입니다
+			;
+		CASE 3
+			REUSELASTLINE 소지금이 충분하지 않습니다
+			;
+		CASE 5
+			REUSELASTLINE 이미 충분히 가지고 있습니다
+			;
+		CASEELSE
+			; 다음의 스텝에
+			BREAK
+		ENDSELECT
+	ENDSELECT
+LOOP 1
+
+;구입 처리 본체
+SELECTCASE LOCAL
+CASE 60, 62
+	PRINTFORML %ITEMNAME:LOCAL%를 습득하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		MONEY -= ITEMPRICE:LOCAL
+		SELECTCASE LOCAL
+		;CASE 61
+		;	TALENT:MASTER:조합지식 = 1
+		CASE 62
+			TALENT:MASTER:금단의지식 = 1
+		ENDSELECT
+		ITEMSALES:LOCAL = -1
+	ENDIF
+CASE 63
+	PRINTFORML 【기교UP】를 구입하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		MONEY -= ITEMPRICE:LOCAL
+		ABL:MASTER:기교 += 1
+	ENDIF
+CASE 64
+	PRINTFORML 【기교DOWN】를 구입하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		MONEY -= ITEMPRICE:LOCAL
+		ABL:MASTER:기교 -= 1
+	ENDIF
+CASE 65
+	PRINTFORML 【오명반납】을 구입하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		MONEY -= ITEMPRICE:LOCAL
+		CFLAG:MASTER:329 -= 1
+	ENDIF
+CASE 66
+	PRINTFORML 【악취내성UP】를 구입하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		MONEY -= ITEMPRICE:LOCAL
+		TALENT:MASTER:61 += 1
+	ENDIF
+CASE 67
+	PRINTFORML 【악취내성DOWN】를 구입하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		MONEY -= ITEMPRICE:LOCAL
+		TALENT:MASTER:61 -= 1
+	ENDIF
+;CASE 71
+;	PRINTFORML 【약의재료(쌍)】를 구입하겠습니까?
+;	CALL ASK_YN
+;	SIF RESULT
+;		RESTART
+;	PRINTL 누구에게 사용하겠습니까?
+;	CALL SHOW_CHARA_LIST("여자")
+;	LOCAL:1 = RESULT
+;	SELECTCASE LOCAL:1
+;	CASE 999
+;	CASEELSE
+;		PRINTFORMW %CALLNAME:(LOCAL:1)%는 후타나리가 되었습니다
+;		MONEY -= ITEMPRICE:LOCAL
+;		TALENT:(LOCAL:1):성별 |= 2
+;		MAXBASE:(LOCAL:1):2 = 10000
+;		MAXBASE:(LOCAL:1):정력 = 1000
+;		MAXBASE:(LOCAL:1):발기 = 1500
+;		SIF BASE:(LOCAL:1):정력 > 1000
+;			BASE:(LOCAL:1):정력 = 1000
+;	ENDSELECT
+;CASE 72
+;	PRINTFORML 【약의재료(소)】를 구입하겠습니까?
+;	CALL ASK_YN
+;	SIF RESULT
+;		RESTART
+;	PRINTL 누구에게 사용하겠습니까?
+;	CALL SHOW_CHARA_LIST("후타나리")
+;	LOCAL:1 = RESULT
+;	SELECTCASE LOCAL:1
+;	CASE 999
+;	CASEELSE
+;		PRINTFORMW %CALLNAME:(LOCAL:1)%는 여자아이가 되었습니다
+;		MONEY -= ITEMPRICE:LOCAL
+;		TALENT:(LOCAL:1):성별 = 1
+;		MAXBASE:(LOCAL:1):2 = 0
+;		MAXBASE:(LOCAL:1):정력 = 0
+;	ENDSELECT
+;CASE 73
+;	PRINTFORML 【푸른 캔디】를 구입하겠습니까?
+;	CALL ASK_YN
+;	SIF RESULT
+;		RESTART
+;	PRINTL 누구에게 사용하겠습니까?
+;	FOR LOCAL:1, 0, CHARANUM
+;		SIF TALENT:(LOCAL:1):성별 == 2
+;			CONTINUE
+;		SIF TALENT:(LOCAL:1):모유체질
+;			CONTINUE
+;		SIF CFLAG:(LOCAL:1):출금
+;			CONTINUE
+;		PRINTFORML [{LOCAL:1, 3}] - %CALLNAME:(LOCAL:1)% 
+;	NEXT
+;	PRINTFORML 
+;	PRINTL [999] - 돌아간다
+;	DO
+;		INPUT
+;		LOCAL:1 = RESULT
+;		SELECTCASE LOCAL:1
+;		CASE 999
+;			BREAK
+;		CASE 0 TO CHARANUM - 1
+;			SIF TALENT:(LOCAL:1):성별 == 2
+;				BREAK
+;			SIF TALENT:(LOCAL:1):모유체질
+;				BREAK
+;			SIF CFLAG:(LOCAL:1):출금
+;				BREAK
+;			PRINTFORMW %CALLNAME:(LOCAL:1)%는 [모유체질]을 얻었습니다
+;			MONEY -= ITEMPRICE:LOCAL
+;			TALENT:(LOCAL:1):모유체질 = 1
+;			BREAK
+;		ENDSELECT
+;	LOOP 1
+;CASE 74
+;	PRINTFORML 【붉은 캔디】를 구입하겠습니까?
+;	CALL ASK_YN
+;	SIF RESULT
+;		RESTART
+;	PRINTL 누구에게 사용하겠습니까?
+;	CALL SHOW_CHARA_LIST("비처녀")
+;	LOCAL:1 = RESULT
+;	SELECTCASE LOCAL:1
+;	CASE 999
+;	CASEELSE
+;		PRINTFORMW %CALLNAME:(LOCAL:1)%의 처녀막이 재생했습니다
+;		MONEY -= ITEMPRICE:LOCAL
+;		TALENT:(LOCAL:1):처녀 = 2
+;	ENDSELECT
+;CASE 77
+;	PRINTFORML 【갈색의캔디】를 구입하겠습니까?
+;	CALL ASK_YN
+;	SIF RESULT
+;		RESTART
+;	PRINTL 누구에게 사용하겠습니까?
+;	CALL SHOW_CHARA_LIST("인간귀")
+;	LOCAL:1 = RESULT
+;	SELECTCASE LOCAL:1
+;	CASE 999
+;	CASEELSE
+;		PRINTFORML [4]고양이 귀
+;		PRINTFORML [3]강아지 귀
+;		PRINTFORML [2]토끼 귀
+;		PRINTFORML [1]동물귀
+;		PRINTFORML 
+;		PRINTFORML [0]역시 그만두고
+;		DO
+;			INPUT
+;			SELECTCASE RESULT
+;			CASE 0
+;				RESTART
+;			CASE 1, 2, 3, 4
+;				MONEY -= ITEMPRICE:LOCAL
+;				TALENT:(LOCAL:1):동물귀 = RESULT
+;				PRINTFORMW %CALLNAME:(LOCAL:1)%에게 %GET_TALENTNAME(GETNUM(TALENT, "동물귀"), TALENT:(LOCAL:1):동물귀)%가 났습니다
+;				BREAK
+;			CASEELSE
+;			ENDSELECT
+;		LOOP 1
+;	ENDSELECT
+;CASE 78
+;	PRINTFORML 【물색의캔디】를 구입하겠습니까?
+;	CALL ASK_YN
+;	SIF RESULT
+;		RESTART
+;	PRINTL 누구에게 사용하겠습니까?
+;	CALL SHOW_CHARA_LIST("케모미미")
+;	LOCAL:1 = RESULT
+;	SELECTCASE LOCAL:1
+;	CASE 999
+;	CASEELSE
+;		PRINTFORMW %CALLNAME:(LOCAL:1)%의 %GET_TALENTNAME(GETNUM(TALENT, "동물귀"), TALENT:(LOCAL:1):동물귀)%가 사라졌습니다
+;		MONEY -= ITEMPRICE:LOCAL
+;		TALENT:(LOCAL:1):동물귀 = 0
+;	ENDSELECT
+CASE 95
+	PRINTFORML 과자상자를 구입하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		MONEY -= ITEMPRICE:LOCAL
+		ITEM:LOCAL ++
+	ENDIF
+CASE 99
+	PRINTFORML 약혼반지를 구입하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		MONEY -= ITEMPRICE:LOCAL
+		ITEM:LOCAL ++
+	ENDIF
+CASE 98
+	SELECTCASE  ITEM:주택
+		CASE 0
+			PRINTFORML 주택을 구입하겠습니까?
+		CASE 1
+			PRINTFORML 저택으로 증축하겠습니까?
+		CASE 2,3
+			PRINTFORML 더욱 증축하겠습니까?
+	ENDSELECT
+	CALL ASK_YN
+	IF !RESULT
+		SELECTCASE  ITEM:주택
+		CASE 1
+			MONEY -= ITEMPRICE:LOCAL*3
+			ITEM:LOCAL ++
+			CALL SET_MAINHOME()
+		CASE 2,3
+			MONEY -= ITEMPRICE:LOCAL*3
+			ITEM:LOCAL ++
+			CALL SET_MAINHOME()
+		CASEELSE
+			MONEY -= ITEMPRICE:LOCAL
+		ITEM:LOCAL ++
+		ENDSELECT
+	ENDIF
+CASE 94
+	PRINTFORML 【크리스마스선물】을 구입하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		MONEY -= ITEMPRICE:LOCAL
+		ITEM:LOCAL ++
+		PRINTFORML 선물을 샀습니다
+		PRINTFORMW 동의 24 기한정 데, 데이트 안에 건네줄 수 있습니다
+	ENDIF
+
+;통계 구매는 할 수 있는 편이 좋은 것인지 정제 한다면 할 수 있는 것은 이상해 의 것인지
+;대량으로 사용하는 것이라도 없음 그렇고? 그렇다고 하는 것으로 현상의 처리를 계승한다
+;여기의 분기를 코멘트 아웃 하면 정리하고 구매 가능
+CASE 41
+	MONEY -= ITEMPRICE:LOCAL
+	ITEM:LOCAL ++
+	PRINTW 미약을 정제 했습니다
+	RESTART
+
+;복수 소지 아이템
+CASE 40 TO 60, 91, 92,
+	CALL ITEM_MATOMEGAI(LOCAL)
+;단품 아이템
+CASE 0 TO 39 
+	PRINTFORML %ITEMNAME:LOCAL%를 구입하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		ITEM:LOCAL ++
+		IF ARG == 1
+			MONEY -= ITEMPRICE:LOCAL / 3
+		ELSE
+			MONEY -= ITEMPRICE:LOCAL
+		ENDIF
+		IF LOCAL == 36 && ITEM:망가진우산
+			PRINTFORMW 새로운 것을 샀으므로 망가진우산은 처분했습니다
+			ITEM:망가진우산 = 0
+		ENDIF
+		SETBIT FLAG:아이템구입끝난상태, LOCAL
+		RESTART
+	ENDIF
+ENDSELECT
+RESTART
+
+
+;----------------------------------------------------------------------
+;  메뉴의 통신 판매로 사용되는 항목의 표시 메뉴
+;	ARGS:0 는 표시 아이템의 타입
+;	ARG:0 (DISCOUNT)는 캇파용
+@SHOW_ITEM, ARGS:0 = "SHOP", ARG:0 = 1
+#DIM DISCOUNT
+#DIM WIDTH
+#DIM 항목수
+#DIM LOOP_LO
+#DIM LOOP_HI
+DISCOUNT = MAX( 1, ARG:0 )
+
+DRAWLINE
+WIDTH = GETCONFIG("PRINTCの文字数")
+항목수 = 0
+CALL ITEM_RANGE, ARGS
+LOOP_LO = RESULT:0
+LOOP_HI = RESULT:1
+
+FOR LOCAL, LOOP_LO, LOOP_HI
+	;표시하지 않는다
+
+	;잡곡(48)을 표시시키지 않았던 것은 왜?
+	;SIF LOCAL == 48
+	;	CONTINUE
+	;증류주와 약주를 제외해 둔다
+	SIF GROUPMATCH(LOCAL, 55, 58, 59, 71, 72, 73, 74, 75, 76, 77, 78)
+		CONTINUE
+	SIF GROUPMATCH( ITEMSTOCK(LOCAL), 1, 4 )
+		CONTINUE
+	SIF ARGS:0 == "SHOP" && !ITEM_TYPE(LOCAL, TFLAG:표시아이템종류)
+		CONTINUE
+
+	LOCALS = [{LOCAL, 2}]%ITEMNAME:LOCAL%
+	SELECTCASE ITEMSTOCK(LOCAL)
+	;품절
+	CASE 2
+		LOCALS:1 = 품절
+		SETCOLOR 150,150,150
+	CASE 5
+		LOCALS:1 = 
+		SETCOLOR 150,150,150
+	CASEELSE
+		IF LOCAL==98&&ITEM:주택>=1
+			LOCALS:1 = ￥{ITEMPRICE:LOCAL*3 / DISCOUNT}
+		ELSE
+			LOCALS:1 = ￥{ITEMPRICE:LOCAL / DISCOUNT}
+		ENDIF
+	ENDSELECT
+	PRINTFORM %LOCALS, WIDTH,LEFT%%LOCALS:1,7% 
+	RESETCOLOR
+	항목수 ++
+	SIF 항목수 % PRINTCPERLINE() == 0
+		PRINTL
+NEXT
+PRINTL
+
+;--------------------------------------------------------------
+; ITEM_RANGE
+;	각종류의 ITEM의 값의 범위의 최소치와 최대치+1를 RESULT:0 와 RESULT:1 로 돌려준다
+;	루프를 돌리기 위한 것이므로, 범위내에서도 반드시 지정의 종별의 ITEM라고는 할 수 없다.
+;	ITEM_TYPE(S)로 확인하는 것
+;--------------------------------------------------------------
+@ITEM_RANGE, ARGS = "", ARG = 0
+#LOCALSIZE 1
+#DIM LO
+#DIM HI
+LO = 0
+HI = 1000
+SIF ARGS == ""
+	ARGS '= TOSTR( ARG )
+SELECTCASE ARGS
+CASE "모두", "0"
+	;0~1000
+CASE "SHOP", "1"
+	LO = 0
+	HI = 100
+CASE "조교", "SHOP_조교", "2"
+	LO = 0
+	HI = 30
+CASE "소모품", "SHOP_소모품", "3"
+	LO = 40
+	HI = 50
+CASE "일용품", "SHOP_일용품", "4"
+	LO = 30
+	HI = 100
+CASE "음식물", "SHOP_음식물", "5"
+	LO = 47
+	HI = 60
+CASE "소질", "SHOP_소질", "6"
+	LO = 60
+	HI = 70
+CASE "체질 변화", "SHOP_체질 변화", "7"
+	LO = 70
+	HI = 80
+
+;커맨드 용
+; 이하는 중복 한다
+CASE "캇파 도구", "10"
+	;풀장과 조교 도구
+	LO = 0
+	HI = 40
+CASE "토끼 약품", "20"
+;토끼용
+	LO = 40
+	HI = 600
+CASE "식재료의 시장", "30"
+	LO = 47
+	HI = 51
+CASE "술집", "40"
+	LO = 51
+	HI = 60
+
+;이후, CSV를 보면서 적당하게
+
+CASE "꽃집", "원예용품", "50"
+;150~는 원예 관련
+	LO = 150
+	HI = 200
+CASE "초콜렛", "60"
+	LO = 120
+	HI = 130
+CASE "야채", "70"
+	LO = 350
+	HI = 390
+CASE "그 외", "80"
+;좋은 이름을 생각해내지 못했기 때문에 이것으로
+;의뢰 용품이나 경품 종류 등?
+	LO = 100
+	HI = 260
+CASE "전용", "90"
+;현재 상태로서는 일종류만? (마수정의팬던트(399))
+	LO = 399
+	HI = 500
+CASE "회복", "100"
+	LO = 500
+	HI = 600
+CASE "소재", "110"
+;600~는 소재
+	LO = 600
+	HI = 700
+CASE "고기", "120"
+;700~는 고기
+	LO = 700
+	HI = 800
+CASE "의상", "130"
+;800~는 의상?
+	LO = 800
+	HI = 900
+CASE "특수", "140"
+;900~는 제단만
+;미실장이니까 어떻게 형용한 것인가 감각이 몰라
+	LO = 900
+	HI = 1000
+ENDSELECT
+RETURN LO, HI
+
+@ITEM_TYPE(ARG, ARG:1)
+#FUNCTION
+SIF ARG < 0 || ARG >= 1000 || ITEMNAME:ARG == ""
+	RETURNF 0
+SELECTCASE ARG:1
+	CASE 0
+		RETURNF 1
+	CASE 2	;조교
+		SIF INRANGE(ARG, 0, 23 )
+			RETURNF 1
+	CASE 3	;소모품
+		SIF INRANGE(ARG, 40, 45 ) || ARG == 49
+			RETURNF 1
+	CASE 4	;일용품
+		SIF INRANGE(ARG, 30, 39)
+			RETURNF 1
+		SIF GROUPMATCH(ARG, 94, 95,99)
+			RETURNF 1
+	CASE 5	;"음식물"
+		SIF INRANGE(ARG, 50, 59)
+			RETURNF 1
+		; 백미, 잡곡
+		SIF GROUPMATCH(ARG, 47, 48)
+			RETURNF 1
+	CASE 6	;"소질"
+		SIF ARG >= 60 && ARG < 70
+			RETURNF 1
+	CASE 7	;"체질 변화"
+		SIF ARG >= 70 && ARG < 80
+			RETURNF 1
+
+	; 이하는 중복 한다
+	CASE 10	;캇파 도구
+		;풀장과 조교 도구
+		SIF ARG == 38 || INRANGE(ARG, 0, 23)
+			RETURNF 1
+	CASE 20	;토끼 약품
+		SIF GROUPMATCH( ARG, 40, 45, 49, 250, 252, 501, 502, 510, 520)
+			RETURNF 1
+	CASE 30	;식재료의 시장
+		SIF GROUPMATCH( ARG, 47, 48, 50 )
+			RETURNF 1
+	CASE 40	;주점
+		SIF INRANGE(ARG, 51, 59)
+			RETURNF 1
+	CASE 50	;꽃집
+		SIF INRANGE(ARG, 150, 199)
+			RETURNF 1
+	CASE 60 ;초콜렛
+		SIF INRANGE(ARG, 120, 129)
+			RETURNF 1
+	CASE 70 ;야채
+		SIF INRANGE(ARG, 350, 389)
+			RETURNF 1
+	CASE 80	;"그 외"
+		SIF INRANGE(ARG, 200, 259)
+			RETURNF 1
+		SIF GROUPMATCH(ARG, 130, 131, 140)
+			RETURNF 1
+		SIF INRANGE(ARG, 101, 109)	;대본을 추가
+			RETURNF 1
+	CASE 90	;"전용"
+		SIF INRANGE(ARG, 399, 499)
+			RETURNF 1
+	CASE 100	;"회복"
+		SIF INRANGE(ARG, 500, 599)
+			RETURNF 1
+	CASE 110	;"소재"
+		SIF INRANGE(ARG, 600, 699)
+			RETURNF 1
+	CASE 120	;"고기"
+		SIF INRANGE(ARG, 700, 799)
+			RETURNF 1
+	CASE 130	;"의상"
+		SIF INRANGE(ARG, 800, 899)
+			RETURNF 1
+	CASE 140	;"특수"
+		SIF INRANGE(ARG, 900, 999)
+			RETURNF 1
+ENDSELECT
+RETURNF 0
+
+;ITEM_TYPE()의 캐릭터라인에서의 타입 지정
+@ITEM_TYPES, ARG:0, ARGS:0
+#FUNCTION
+#LOCALSIZE 1
+#DIM TYPE
+
+TYPE = 0
+SELECTCASE ARGS:0
+CASE "모두"
+	RETURNF 1
+CASE "조교", "SHOP_조교"
+	TYPE = 2
+CASE "소모품", "SHOP_소모품"
+	TYPE = 3
+CASE "일용품", "SHOP_일용품"
+	TYPE = 4
+CASE "음식물", "SHOP_음식물"
+	TYPE = 5
+CASE "소질", "SHOP_소질"
+	TYPE = 6
+CASE "체질 변화", "SHOP_체질 변화"
+	TYPE = 7
+
+; 이하는 중복 한다
+CASE "캇파 도구"
+	;풀장과 조교 도구
+	TYPE = 10
+CASE "토끼 약품"
+	TYPE = 20
+CASE "식재료의 시장"
+	TYPE = 30
+CASE "초콜렛"
+	TYPE = 35
+CASE "술집"
+	TYPE = 40
+CASE "꽃집", "원예용품"
+	TYPE = 50
+CASE "초콜렛"
+	TYPE = 60
+CASE "야채"
+	TYPE = 70
+CASE "그 외"
+	TYPE = 80
+CASE "전용"
+	TYPE = 90
+CASE "회복"
+	TYPE = 100
+CASE "소재"
+	TYPE = 110
+CASE "고기"
+	TYPE = 120
+CASE "의상"
+	TYPE = 130
+CASE "특수"
+	TYPE = 140
+ENDSELECT
+SIF TYPE
+	RETURNF ITEM_TYPE( ARG, TYPE )
+RETURNF 0
+
+
+;조건부 아이템의 처리
+@ITEM_SALES
+;ITEMSALES = 0 구입가능
+;ITEMSALES = -1 품절
+;ITEMSALES = -2 봉인
+
+
+
+
+
+
+;기교
+IF ABL:MASTER:기교 < 5
+	ITEMSALES:【기교UP】 = 0
+ELSE
+	ITEMSALES:【기교UP】 = -2
+ENDIF
+IF ABL:MASTER:기교
+	ITEMSALES:【기교DOWN】 = 0
+ELSE
+	ITEMSALES:【기교DOWN】 = -2
+ENDIF
+
+;악취내성
+IF TALENT:MASTER:악취내성 < 2
+	ITEMSALES:【악취내성UP】 = 0
+ELSE
+	ITEMSALES:【악취내성UP】 = -2
+ENDIF
+	
+IF TALENT:MASTER:악취내성 > -2
+	ITEMSALES:【악취내성DOWN】 = 0
+ELSE
+	ITEMSALES:【악취내성DOWN】 = -2
+ENDIF
+
+;TSLv
+;	미실장(ITEM.csv에서는 코멘트 아웃)
+IF ABL:MASTER:TSLv > 4
+	ITEMSALES:70 = -2
+ENDIF
+
+SIF TALENT:MASTER:금단의지식
+	ITEMSALES:【금단의지식】 = -1
+;SIF TALENT:MASTER:조합지식
+;	ITEMSALES:【조합지식】 = -1
+;미실장
+SIF TALENT:MASTER:악취내성 == 2
+	ITEMSALES:60 = -1
+
+FOR LOCAL, 0, 100
+	;ITEMSTOCK로 연주하므로 고려하지 않는다
+	SIF !STRLENS(ITEMNAME:LOCAL)
+		CONTINUE
+	SELECTCASE LOCAL
+		;한 개까지
+		CASE 0 TO 39, 94, 95,99
+			ITEMSALES:LOCAL = 0
+			SIF ITEM:LOCAL
+				ITEMSALES:LOCAL = -1
+			;소비 아이템은 재차 구입할 수 있도록(듯이) 예외 처리
+			SIF GROUPMATCH(ITEMNAME:LOCAL, "로터", "접는우산", "크리스마스선물", "과자상자","약혼반지")
+				CONTINUE
+			;만약을 위해 에러 피하고
+			IF !INRANGE(LOCAL, 0, 39)
+			ELSEIF GETBIT(FLAG:아이템구입끝난상태, LOCAL)
+				ITEMSALES:LOCAL = -1
+			ENDIF
+		;미약
+		CASE 41
+			ITEMSALES:LOCAL = -2
+			SIF ABL:MASTER:교양 >= 2
+				ITEMSALES:LOCAL = 0
+		;금단
+		CASE 70 TO 99
+			;품절일 경우는 그대로
+			SIF ITEMSALES:LOCAL == -1
+				CONTINUE
+			ITEMSALES:LOCAL = -2
+			;eraTW에서는 ASSI가 발생하지 않기 때문에 고쳐 썼다
+			SELECTCASE LOCAL
+			CASE 90, 71 TO 78
+			;금단의지식
+				SIF TALENT:MASTER:금단의지식
+					ITEMSALES:LOCAL = 0
+				;LOCAL:1 = 
+				SELECTCASE ITEMNAME:LOCAL
+				CASE "약의재료(쌍)"
+					SIF FINDCHARA(TALENT:성별, 1) == -1
+						ITEMSALES:LOCAL = -2
+				CASE "약의재료(소)"
+					SIF FINDCHARA(TALENT:성별, 3) == -1
+						ITEMSALES:LOCAL = -2
+				CASE "푸른 캔디"
+				;몸이 성장하는 캔디. 모유체질이 되는, 코멘트 아웃 상태
+				
+				CASE "붉은 캔디"
+				;몸이 젊어지는 캔디. 처녀막이 재생한다
+				;전원이 처녀로♂당신의 경우는 빠져버린다(남자는 TALENT:처녀 == 0)지만
+				;거기까지 하는 것 멘드이
+					SIF ALLSAMES(-1, FINDCHARA(TALENT:처녀, 0), FINDCHARA(TALENT:처녀, -1))
+						ITEMSALES:LOCAL = -2
+				CASE "갈색의캔디"
+				;짐승의 특성을 얻는 캔디. 동물귀가 난다
+					SIF FINDCHARA(TALENT:동물귀, 0) == -1
+						ITEMSALES:LOCAL = -2
+				CASE "물색의캔디"
+				;짐승의 특성을 잃는 캔디. 동물귀가 사라진다
+					SIF !SUMCARRAY(TALENT:동물귀)
+						ITEMSALES:LOCAL = -2
+				ENDSELECT
+			CASE 70, 91, 92
+			;조합지식
+			;3개와도 미실장
+				SIF TALENT:MASTER:조합지식
+					ITEMSALES:LOCAL = 0
+			CASE 95
+			;과자 선물상자
+				ITEMSALES:LOCAL = 0
+			CASE 98
+			
+				IF ITEM:주택 < 4
+					ITEMSALES:주택 = 0
+				ELSE
+					ITEMSALES:주택 = -2
+				ENDIF
+			ENDSELECT
+	ENDSELECT
+NEXT
+
+;오명반납
+IF CFLAG:MASTER:329
+	ITEMSALES:65 = 0
+ELSE
+	ITEMSALES:65 = -2
+ENDIF
+
+@EX_SHOPPING(ARGS, ARGS:1, ARG, ARG:1)
+;ARGS 상품명　ARGS:1 설명　ARG 입력하는 번호　ARG:1 가격
+VARSET LOCALS
+SIF !ARG:1
+	ARG:1 = ITEMPRICE:ARG
+LOCALS = [{ARG}] %ARGS% ￥{ARG:1}
+SIF GROUPMATCH( ITEMSTOCK(ARG), 2, 5 )
+	SETCOLOR 150,150,150
+PRINTFORML %LOCALS, 48, LEFT%%ARGS:1%
+RESETCOLOR
+
+@BUY_ABLE(ARG, 구입액, 개수=1, ARG:3)
+;ARG=상품
+;ARG:1=가격, 0이라면 ITEMPRICE:ARG
+;ARG:2=개수
+;ARG:3=세일(가격인하율)
+;물건을 구입하면(자) RETURN 1, 뭐양 겨울밤으로 하고 없으면 RETURN 0
+#DIM 개수
+#DIM 구입액
+SIF !구입액
+	구입액 = ITEMPRICE:ARG * 개수
+
+	구입액 = 구입액 * (100 - ARG:3) / 100
+IF MONEY < 구입액
+	PRINTW 돈이 부족하다
+ELSEIF ARG < 0 || ARG >= 1000 || !STRLENS(ITEMNAME:ARG) || ITEMSALES:ARG == -2
+	PRINTW 무효인 수치입니다
+ELSEIF ITEMSALES:ARG == -1
+	PRINTW 품절입니다
+ELSEIF ITEMSALES:ARG > 0 && ITEMSALES:ARG < 개수
+	PRINTW 그렇게 없습니다
+ELSEIF (개수 && ITEM:ARG >= (100 - 개수)) || ITEM:ARG > 99
+	PRINTW 충분히 가지고 있다
+ELSE
+	ITEM:ARG += 개수
+	MONEY -= 구입액
+	SELECTCASE ITEMSALES:ARG
+	CASE IS > 1
+		ITEMSALES:ARG --
+	CASE 1
+		ITEMSALES:ARG = -1
+	ENDSELECT
+	PRINTFORMW %ITEMNAME:ARG%를 ￥{구입액}으로 \@ 개수 > 1 ? {개수}개 #  \@구입했습니다
+	RETURN 1
+ENDIF
+RETURN 0
+
+
+
+;아이템 정리하고 구매 함수
+;우동 로부터 정리하고 사고 하고 싶었기 때문에 독립 함수화
+;반드시 먼저@ITEMSTOCK로 판정해 구입 가능한 아이템만으로 호출하는 것
+;단체 구입 전용이겠지만 정리하고 사 가능하겠지만 구입 가불가의 판정은 필요해서 먼저 공통으로 가 주세요
+;ARG：구입 대상 아이템
+@ITEM_MATOMEGAI(ARG)
+#DIM 구입가능수
+#DIM CONST 최대개수 = 99
+
+PRINTFORM %ITEMNAME:ARG%를 몇 개 구입하겠습니까?
+;ITEM:50이외의개수 한정 아이템에서도 움직이도록(듯이) 했다(여기의 SIF 이후의 처리에서는 원래 그렇게 되었다)
+;불안정 나올지도
+;SIF ARG == 50
+SIF ITEMSALES:ARG > 0
+	PRINTFORM (나머지{ITEMSALES:ARG}개)
+PRINTL 
+
+구입가능수 = MIN(최대개수  - ITEM:ARG, ( ITEMPRICE:ARG > 0 ?  MONEY / ITEMPRICE:ARG # 최대개수  ), ( ITEMSALES:ARG > 0 ?  ITEMSALES:ARG # 최대개수  ) )
+구입가능수 = LIMIT(구입가능수, 0, 최대개수 )
+
+;돈부족, 아이템수의 초과는 나중에 맞춘다
+PRINTL [0]  - 그만둔다
+SIF 구입가능수
+ PRINT [1]  - 1　
+SIF 구입가능수 >= 5
+ PRINT [5]  - 5　
+SIF 구입가능수 >= 10
+ PRINT [10] - 10　
+SIF 구입가능수 >= 20
+ PRINT [20] - 20　
+SIF 구입가능수 >= 50
+ PRINT [50] - 50　
+SIF NOSAMES(구입가능수, 0, 1, 5, 10, 20, 50)
+ PRINT [99] - 살 수 있는 만큼
+INPUT
+
+IF RESULT >= 1
+	RESULT = LIMIT( MIN(구입가능수, RESULT ), 0, 99 )
+	;개수 한정
+	IF ITEMSALES:ARG > 0
+		RESULT = MIN( ITEMSALES:ARG, RESULT )
+		ITEMSALES:ARG -= RESULT
+		SIF ITEMSALES:ARG <= 0
+			ITEMSALES:ARG = -1
+	ENDIF
+	;구입 처리
+	ITEM:ARG += RESULT
+	PRINTFORMW %ITEMNAME:ARG%를 {RESULT}개, \\{RESULT * ITEMPRICE:ARG}으로 구입했습니다
+	MONEY -= RESULT * ITEMPRICE:ARG
+ENDIF
+
+
+
+;ITEM 소지수리스트 표시 함수
+;「우선 현상으로 보기 쉬운 형태에서의 실장」을 하기로 했다
+;본래는@ITEM_TYPE로 판정하는 편이 스마트하지만 인수가 정수형인 것이 해고이다
+;앞으로도 증축에 증축을 거듭해 가면(자) 차질이 생기는 것은 틀림없지만 일단 독자적으로 분류한다
+;향후의 발전에 따라 실정으로부터 괴리해 나갈 우려가 있으므로 주의
+;물정에 밝지 않게 DRAWLINE를 하면(자) TYPE == "모두"로 심한 짓이 되므로 호출원으로 한다
+;ITEM가 없을 때에 DRAWLINE 이중 표시등의 폐해는 있을지도이지만 그럼 없어
+@LIST_ITEM(TYPE = "모두")
+#DIMS TYPE
+#DIM DYNAMIC 표시수
+#DIM DYNAMIC LO
+#DIM DYNAMIC HI
+LO = 0
+HI = 1000
+표시수 = 0
+
+SELECTCASE TYPE
+CASE "모두"
+;보기 쉬운 리스트로 한 생각
+;ITEM 번호순서는 아니고 용도나 성질의 가까운 것으로 늘어놓고 있는 점에 주의
+
+;상비품 등
+	CALL LIST_ITEM("SHOP_조교")
+	CALL LIST_ITEM("SHOP_일용품")
+	CALL LIST_ITEM("SHOP_소질")
+	CALL LIST_ITEM("SHOP_체질 변화")
+
+;소모품류
+;그 외도 아마 소모품
+	CALL LIST_ITEM("SHOP_소모품")
+	CALL LIST_ITEM("SHOP_음식물")
+	CALL LIST_ITEM("초콜렛")
+	CALL LIST_ITEM("야채")
+	CALL LIST_ITEM("원예용품")
+	CALL LIST_ITEM("그 외")
+	CALL LIST_ITEM("회복")
+
+;소재 따위, 현상 거의 미실장?
+	CALL LIST_ITEM("소재")
+	CALL LIST_ITEM("고기")
+	CALL LIST_ITEM("의상")
+
+;귀중품?
+	CALL LIST_ITEM("전용")
+	CALL LIST_ITEM("특수")
+
+;커맨드
+CASE "토끼 약품", "캇파 도구"
+	CALL ITEM_RANGE, TYPE
+	LO = RESULT:0
+	HI = RESULT:1
+	FOR LOCAL, LO, HI
+		IF ITEM:LOCAL && ITEM_TYPES(LOCAL, TYPE)
+			표시수 ++
+			PRINTFORMLC 　%ITEMNAME:LOCAL%\@ ITEM:LOCAL > 1 ?  ×{ITEM:LOCAL} #\@
+			SIF 표시수 % 4 == 0
+				PRINTL 
+		ENDIF
+	NEXT
+	SIF !LINEISEMPTY()
+			PRINTL 
+	
+;각종 ITEM : @ITEM_TYPES 와 ITEM_RANGE에 의한 분류
+; 위의 커맨드 용무와 같게 해도 되지만, 나누어 둔다
+{
+CASE "SHOP_조교", "SHOP_소모품", "SHOP_일용품", "SHOP_음식물", "SHOP_소질", "SHOP_체질 변화",
+		"초콜렛", "원예용품", "야채", "그 외", "전용", "회복",
+		"소재", "고기", "의상", "특수"
+}
+	; 루프 범위의 취득: 별로 0~1000 고정에서도 좋지만
+	CALL ITEM_RANGE, TYPE
+	LO = RESULT:0
+	HI = RESULT:1
+
+	FOR LOCAL, LO, HI
+		IF ITEM:LOCAL && ITEM_TYPES(LOCAL, TYPE)
+			표시수 ++
+			PRINTFORMLC 　%ITEMNAME:LOCAL%\@ ITEM:LOCAL > 1 ?  ×{ITEM:LOCAL} #\@
+			SIF 표시수 % 4 == 0
+				PRINTL 
+		ENDIF
+	NEXT
+	SIF !LINEISEMPTY()
+			PRINTL 
+ENDSELECT
+
+;------------------------------------------------------------------------
+;  쌀·술·모종의 재고 보충
+;	잡곡은 1일의 마지막에+10, 가게에는 최대로 20이 보관됩니다
+;	묵은쌀은 1일의 마지막에+7, 가게의 최대재고는 15입니다
+;	백미는 1일의 마지막에+5, 가게의 최대재고는 10입니다
+;
+@EVENTTURNEND
+#DIM zaiko_lcount
+#DIM loop_lo
+#DIM loop_hi
+#PRI
+CALL 가게에입하, "잡곡",		10,	20
+CALL 가게에입하, "묵은쌀",		7,	15
+CALL 가게에입하, "백미",		5,	10
+
+; 통신 판매의 술은 재고가 적습니다
+;	많이 사고 싶다면, 마을까지 갑시다
+CALL 가게에입하, "탁주",	5,	10
+CALL 가게에입하, "청주",		3,	10
+CALL 가게에입하, "오니고로시",		1,	10
+CALL 가게에입하, "감주",		7,	20
+
+CALL ITEM_RANGE, "꽃집"
+loop_lo = RESULT:0 + 1
+loop_hi = RESULT:1
+FOR zaiko_lcount, loop_lo, loop_hi
+	; 모종은 1종 1일 1개 입하, 최대재고도 3입니다
+	;	모종을 허술하게 하면(자) 할까 링에 화를 들어요?
+	CALL 가게에입하, TOSTR(zaiko_lcount), 1,	3
+NEXT
+; RETURN 1 해서는 안됩니다
+
+;------------------------------------------------
+; 가게에입하 함수
+;	EVENTTURNEND에서의 입하와 술집에서의 매각때에 사용한다
+;
+@가게에입하(이름,입하량,최대재고)
+#LOCALSIZE 1
+#DIMS 이름
+#DIM 입하량
+#DIM 최대재고
+#DIM ITEM_NO
+SIF 이름 == "" || !입하량 || !최대재고
+	RETURN
+IF ISNUMERIC(이름 )
+	ITEM_NO = TOINT(이름 )
+ELSE
+	ITEM_NO = GETNUM( ITEM, 이름 )
+ENDIF
+SIF ITEM_NO < 0
+	RETURN
+
+SELECTCASE ITEMSALES:ITEM_NO
+CASE -1
+	ITEMSALES:ITEM_NO = 입하량
+CASE IS >= 최대재고
+	; 과잉 재고 때는 재고 입하하지 않는다
+CASE IS > 0
+	ITEMSALES:ITEM_NO = MIN( ITEMSALES:ITEM_NO + 입하량, 최대재고 )
+ENDSELECT

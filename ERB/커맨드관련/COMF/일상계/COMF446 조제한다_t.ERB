@@ -1,0 +1,932 @@
+﻿;조제한다
+@COM446
+#DIM 조합물
+#DIM 조제후보
+#DIM 선택레시피
+#DIM 조제건수
+#DIM 조제파워
+#DIM 조제파워M
+#DIM 조제파워T
+#DIM CHARA
+#DIM R_ID
+#DIM PRODUCTION
+#DIM 체력소비
+#DIM 기력소비
+
+조합물 = 0
+조제후보 = 0
+선택레시피 = 0
+조제건수 = 0
+조제파워M = 0
+조제파워T = 0
+
+;참가자 판정
+IF TARGET && ABL:TARGET:친밀 >= 5
+	CHARA = TARGET
+ELSE
+	CHARA = 0
+ENDIF
+
+;조제 파워 설정 조합지식과 교양, 약학 교본을 가지고 있으면 가산
+조제파워M = TALENT:MASTER:조제Lv * 15 + ABL:MASTER:교양 * 5 + TFLAG:행운보정 * 5 + TALENT:MASTER:조합지식 * 30
+SIF ITEM:약학교본
+	조제파워M += 10
+SIF CHARA
+	조제파워T = TALENT:CHARA:조제Lv * 15 + ABL:CHARA:교양 * 5 + TALENT:CHARA:조합지식 * 30
+;참가자로 가장 파워가 높은 것을 기준에,1/2한 이제(이미/벌써/더는/정말) 1명의 파워를 더한다
+IF 조제파워M >= 조제파워T
+	조제파워 = 조제파워M + (조제파워T / 2)
+ELSE
+	조제파워 = 조제파워T + (조제파워M / 2)
+ENDIF
+
+;①조합물 선택 리스트 화면 묘화, 조제 후보를 선택
+CALL PHARMACY_LIST
+
+$INPUT_LOOP01
+INPUT
+SIF RESULT == 1000
+	RETURN -1
+조제후보 = RESULT
+
+;②조합물 선택 리스트내의 능력에 의한 레시피 해방·조제 가능한가를 판정
+SELECTCASE PHARMACY_RANK(조제후보)
+	CASE 0
+		CLEARLINE 1
+		GOTO INPUT_LOOP01
+	CASE 1
+		;무조건 해방
+	CASE 2, 3
+		IF TALENT:MASTER:조제Lv < (PHARMACY_RANK(조제후보) - 1) && ITEM:109 == 0
+			CLEARLINE 1
+			GOTO INPUT_LOOP01
+		ENDIF
+	CASE 4, 5
+		IF TALENT:MASTER:조제Lv < (PHARMACY_RANK(조제후보) - 1)
+			CLEARLINE 1
+			GOTO INPUT_LOOP01
+		ENDIF
+ENDSELECT
+;체질 변화약은【금단의지식】소유시만 가능
+IF PHARMA_VOLATILE(조제후보) && !TALENT:MASTER:금단의지식
+	CLEARLINE 1
+	GOTO INPUT_LOOP01
+ENDIF
+
+;③조제 레시피리스트를 출력
+DRAWLINE
+;★여기에 아이템 리스트를 내?
+
+; 아이템 해설. ERB로부터 설명문을 표기
+SETCOLOR 0x00FF00
+PRINTFORML ●%ITEMNAME:조제후보%　（소지 수：{ITEM:조제후보}）
+PRINTFORML 　%ITEM_EXPLANATION(조제후보)%
+RESETCOLOR
+PRINTL 
+PRINTL 어느 레시피로 조제합니까?
+DRAWLINE
+CALL PHARMACY_RECIPELIST(조제후보)
+
+;④레시피 번호를 입력, 실행 가부를 판정
+$INPUT_LOOP02
+INPUT
+SIF RESULT == 0
+	RESTART
+선택레시피 = RESULT
+R_ID = 조제후보 * 10 + 선택레시피
+IF !CAN_PHARMA(R_ID)
+	CLEARLINE 1
+	GOTO INPUT_LOOP02
+ENDIF
+
+;⑤조제 회수를 입력, 가부를 판정（70 접수대의 체질 변화약의 종류는 1개 한정, 다른 것은 최대 10회까지）
+IF PHARMA_VOLATILE(조제후보)
+	PRINTFORML %조사처리(ITEMNAME:조제후보,"는")% 1개씩 밖에 조제할 수 없습니다
+ELSE
+	PRINTFORML 이 레시피로 %조사처리(ITEMNAME:조제후보,"를")% 몇 개 조제합니까? (1～의 개수를 입력, 0으로 돌아온다)
+ENDIF
+;그 레시피로 소비하는 소재의 현재의 소지수를 표기
+PRINT   소비하는 소재의 소지수:
+
+CALL PHARMACY_CONSUME(R_ID, 0, 1)
+
+PRINTBUTTON "[0] 그만둔다", 0
+PRINT     
+PRINTBUTTON "[1] 1회", 1
+PRINT     
+IF !PHARMA_VOLATILE(조제후보)
+	IF CAN_PHARMA(R_ID, 5)
+		PRINTBUTTON "[5] 5回", 5
+		PRINT   
+	ENDIF
+	IF CAN_PHARMA(R_ID, 10)
+		PRINTBUTTON "[10] 10回", 10
+		PRINT   
+	ENDIF
+ENDIF
+
+$INPUT_LOOP03
+INPUT
+조제건수 = RESULT
+SIF RESULT == 0
+	RESTART
+PRODUCTION = CAN_PHARMA(R_ID, 조제건수)
+IF PRODUCTION && 조제건수 <= 10
+	CLEARLINE 1
+	;体質変化薬は入力回数に関わらず強制的に１回に絞る
+	SIF PHARMA_VOLATILE(조제후보)
+		조제건수 = 1
+	PRINTFORML %조사처리(ITEMNAME:조제후보,"를")% {조제건수}번 레시피로 {PRODUCTION}개 조제하기로 했다
+	;조제시 전후에서의 소비 아이템의 수를 표기
+	PRINT   소비하는 소재:
+	CALL PHARMACY_CONSUME(R_ID, 조제건수, 1)
+	;조제 성공시 아이템 개수가 99를 넘는 경우는 경고를 낸다
+	IF ITEM:(조제후보) + PRODUCTION > 99
+		PRINTFORML   이 상태로는 %조사처리(ITEMNAME:조제후보,"를")% 전부 보관 할 수 없고, {PRODUCTION - 99}개가 사라져 버린다
+	ELSE
+		PRINTFORML   조제 성공시 %ITEMNAME:조제후보%의 개수: ({ITEM:조제후보}→{ITEM:조제후보 + PRODUCTION})
+	ENDIF
+	IF PHARMACY_RANK(조제후보) == 1
+		PRINTL 일단 실패 하지는 않을 것 같다…
+	ELSEIF PHARMACY_RANK(조제후보) >= 2
+		SELECTCASE (조제파워 - (PHARMACY_RANK(조제후보) * 20))
+			CASE IS <= -100
+				PRINTL 계획은 세웠지만, 미지의 요소투성이다…일단 실패할 것 같다
+			CASE -99 TO -50
+				PRINTL 이 조제에 성공하는건 지극히 어려운 편이다…
+			CASE -49 TO -30
+				PRINTL 이 조제는 실패할 확률이 높은 것 같다…
+			CASE -29 TO -10
+				PRINTL 이 조제에는 실패의 리스크가 있다…
+			CASE -9 TO -1
+				PRINTL 이 조제는 거의 성공할 것 같다…
+			CASEELSE
+				PRINTL 일단 실패 하지는 않을 것 같다…
+		ENDSELECT
+	ENDIF
+	PRINT 조제합니까?
+	IF PHARMA_VOLATILE(조제후보)
+		SETCOLOR 0x666666
+		PRINTFORML （이 아이템은 대상을 선택할 수 없으면 파기되기 때문에 소재가 낭비될 위험이 있습니다）
+		RESETCOLOR
+	ELSE
+		PRINTL 
+	ENDIF
+	CALL ASK_YN
+	IF !RESULT
+	;앞으로 나아간다
+	ELSE
+		조제건수 = 0
+		CLEARLINE 8
+		RETURN -1
+	ENDIF
+ELSE
+	조제건수 = 0
+	CLEARLINE 1
+	GOTO INPUT_LOOP03
+ENDIF
+
+;여기까지로 조건을 모두 클리어 하고 있는 경우는 이하에 진행
+REPEAT 5
+	REUSELASTLINE  \@ CHARA ? %조사처리(CALLNAME:CHARA,"와")% 함께 #  \@조제중.%"." * COUNT%
+	TWAIT 150, 1
+REND
+R_ID = 조합물 * 10 + 선택레시피
+;⑥조제의 성공 판정
+IF PHARMACY_RANK(조제후보) != 1
+	IF 조제파워 >= RAND:(PHARMACY_RANK(조제후보) * 20)
+		PRINTFORML 조제에 성공했다!
+		조합물 = 조제후보
+		;조제 후 입수 개수를 흘려 넣는다
+		TFLAG:194 = PRODUCTION
+	ELSE
+		PRINTFORML 조제에 실패했다…
+		조합물 = 0
+	ENDIF
+;조제 LV1 레시피는 100％성공
+ELSE
+	PRINTFORML 조제에 성공했다!
+	조합물 = 조제후보
+	;조제 후 입수 개수를 흘려 넣는다
+	TFLAG:194 = PRODUCTION
+ENDIF
+
+;소재 아이템 소비 처리를 여기서
+PRINT   이번 소비한 소재:
+R_ID = (조제후보 * 10 + 선택레시피)
+CALL PHARMACY_CONSUME(R_ID, 조제건수)
+
+;⑦ 아이템 입수 처리 99개 이상이 되지 않도록 한다
+;  체질 개변약은 입수 처리 대신에 사용 처리로 난다
+IF PHARMA_VOLATILE(조합물)
+	CALL PHARMACY_CONSTITUTIONAL(조합물)
+ELSEIF 조합물 != 0
+	IF ITEM:(조합물) + TFLAG:194 > 99
+		ITEM:(조합물) = 99
+	ELSE
+		ITEM:(조합물) += TFLAG:194
+	ENDIF
+ENDIF
+
+;⑧경험 가산 조제 성공시는 조제 난이도×조제 건수경험
+EXP:MASTER:조제경험 += PHARMACY_EXP(조제후보, 조제건수, 조합물)
+SIF CHARA
+	EXP:CHARA:조제경험 += PHARMACY_EXP(조제후보, 조제건수, 조합물)
+;약학 교본 가지고 있으면 추가
+SIF ITEM:109
+	EXP:MASTER:조제경험 += MAX(RAND:(조제건수), 1)
+
+;능력차이로 가르쳐 받는·가르쳐 준다
+IF 조제파워M >= 조제파워T && CHARA
+	EXP:CHARA:조제경험 ++
+ELSEIF CHARA
+	EXP:MASTER:조제경험 ++
+ENDIF
+
+
+;⑨시간 경과 조제 난이도와 조제 건수에 의해 보정
+TIME += PHARMACY_TIME(조제후보, 조제건수)
+
+;⑩체력·기력 감소 처리
+체력소비 = 30 * SQRT(조제건수)
+기력소비 = MAX((((50 * PHARMACY_RANK(조제후보)) - (15 * TALENT:MASTER:조합지식 + 10 * TALENT:MASTER:조제Lv))), 30) * SQRT(조제건수)
+;自室かつ机椅子があると体力기력소비低減
+IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치 && ITEM:느티책상의자
+	SELECTCASE ITEM:느티책상의자
+		CASE 1
+			TIMES 체력소비, 0.9
+			TIMES 기력소비, 0.9
+		CASE 2
+			TIMES 체력소비, 0.85
+			TIMES 기력소비, 0.85
+		CASE 3
+			TIMES 체력소비, 0.8
+			TIMES 기력소비, 0.8
+	ENDSELECT
+	PRINTFORML 책상 위는 항상 정리정돈이 잘 되어 있어 효율적으로 조제를 진행할 수 있었다
+ENDIF
+DOWNBASE:MASTER:체력 = 체력소비
+DOWNBASE:MASTER:기력 = 기력소비
+
+;참가자의 소스, 동일 커맨드 제한을 받지 않기 때문에 소극적으로, 조제 실패는 반감
+IF CHARA > 0
+	;고정으로 획득하는 소스
+	SOURCE:CHARA:환락 = 200
+	SOURCE:CHARA:사랑 = 50
+	
+	;ABL:순종을 본다
+	IF ABL:순종 <= 1
+		SOURCE:CHARA:환락 += (ABL:순종 * 40)
+		SOURCE:CHARA:사랑 += (ABL:친밀 * 20)
+	ELSEIF ABL:순종 <= 3
+		SOURCE:CHARA:환락 += 200 + (ABL:순종 * 40)
+		SOURCE:CHARA:사랑 += 50 + (ABL:친밀 * 30)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:CHARA:환락 += 500 + (ABL:순종 * 40)
+		SOURCE:CHARA:사랑 += 200 + (ABL:친밀 * 30)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:CHARA:환락 += 750 + (ABL:순종 * 60)
+		SOURCE:CHARA:사랑 += 300 + (ABL:친밀 * 40)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:CHARA:환락 += 1000 + (ABL:순종 * 60)
+		SOURCE:CHARA:사랑 += 600 + (ABL:친밀 * 40)
+	ELSE
+		SOURCE:CHARA:환락 += 1600 + (ABL:순종 * 30)
+		SOURCE:CHARA:사랑 += 1000 + (ABL:친밀 * 20)
+	ENDIF
+	
+	;호감도는 보지 않는다
+	
+	SOURCE:CHARA:수동 = 200 + 100 * ABL:순종
+	SOURCE:CHARA:정복 = 200 + 100 * ABL:새드끼
+	
+	;조제 성과를 보는, 조제 난이도로 설정
+	IF 조합물
+		SELECTCASE PHARMACY_RANK(조합물)
+			CASE 1
+				TIMES SOURCE:CHARA:환락 , 1.00
+				TIMES SOURCE:CHARA:수동 , 1.00
+				TIMES SOURCE:CHARA:정복 , 1.00
+				SOURCE:CHARA:달성 = 80
+			CASE 2
+				TIMES SOURCE:CHARA:환락 , 1.25
+				TIMES SOURCE:CHARA:수동 , 1.25
+				TIMES SOURCE:CHARA:정복 , 1.15
+				SOURCE:CHARA:달성 = 125
+			CASE 3
+				TIMES SOURCE:CHARA:환락 , 1.50
+				TIMES SOURCE:CHARA:수동 , 1.50
+				TIMES SOURCE:CHARA:정복 , 1.25
+				SOURCE:CHARA:달성 = 150
+			CASE 4
+				TIMES SOURCE:CHARA:환락 , 1.75
+				TIMES SOURCE:CHARA:수동 , 1.75
+				TIMES SOURCE:CHARA:정복 , 1.50
+				SOURCE:CHARA:달성 = 200
+			CASE 5
+				TIMES SOURCE:CHARA:환락 , 2.00
+				TIMES SOURCE:CHARA:수동 , 2.00
+				TIMES SOURCE:CHARA:정복 , 1.75
+				SOURCE:CHARA:달성 = 300
+			CASEELSE
+				TIMES SOURCE:CHARA:환락 , 2.25
+				TIMES SOURCE:CHARA:수동 , 2.25
+				TIMES SOURCE:CHARA:정복 , 2.00
+				SOURCE:CHARA:달성 = 350
+		ENDSELECT
+	;조제 실패
+	ELSE
+		TIMES SOURCE:CHARA:환락 , 0.50
+		TIMES SOURCE:CHARA:수동 , 0.50
+		TIMES SOURCE:CHARA:정복 , 0.50
+	ENDIF
+ENDIF
+
+;플래그 인도
+TFLAG:SELECTCOM분기 = 조합물
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;조제한다
+@COM_ABLE446
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(446)
+	RETURN RESULT
+;조제할 수 있는 장소가 아니다
+SIF !PHARMACY_SPOT(CFLAG:MASTER:현재위치)
+	RETURN 0
+;조제 용품 일식을 가지지 않고, 특수 조제 스팟이 아니다
+SIF ITEM:(29) == 0 && PHARMACY_SPOT(CFLAG:MASTER:현재위치) == 1
+	RETURN 0
+;수면중
+SIF CFLAG:MASTER:수면
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;시간 정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+;-----------------------------------------------------------
+;조제 가능 스팟인가 어떤가를 판정하는 함수
+;ARG		현재 위치
+;RETURN		0 불가	1가능	2 조제 세트 없어도 가능（특수 조제 스팟）
+;COMMENT	기본은 초기 위치, 그것 같은 장소가 있을 때는 그 쪽도.
+;			장소를 추가했을 경우, CASE를 변경의 일
+;-----------------------------------------------------------
+@PHARMACY_SPOT(ARG)
+#FUNCTION
+
+SIF ARG == CFLAG:MASTER:초기위치
+	RETURNF 1
+;특수 조제 스팟, 메인 맵에서의 판정
+SELECTCASE MAIN_MAP
+	CASE 0
+		;박영험이 있는 신사:무한 유적·연구실
+		SIF GROUPMATCH(ARG, 49)
+			RETURNF 2
+	CASE 1
+		;묘우렌절:조약실
+		SIF GROUPMATCH(ARG, 132)
+			RETURNF 2
+	CASE 4
+		;영원정:조제실
+		SIF GROUPMATCH(ARG, 405)
+			RETURNF 2
+	CASE 5
+		;마법의숲:마리사택·연구부가게, 인형의 관·연구실
+		SIF GROUPMATCH(ARG, 513, 524)
+			RETURNF 2
+	CASE 6
+		;명계:케이키의 방
+		SIF GROUPMATCH(ARG, 644)
+			RETURNF 2
+	CASE 7
+		;요괴의산 산록:갓빠의 아지트
+		SIF GROUPMATCH(ARG, 704)
+			RETURNF 2
+ENDSELECT
+
+RETURNF 0
+
+
+@CAN_PHARMA(R_ID, AMT = 1)
+#FUNCTION
+#DIM R_ID
+#DIM AMT
+#DIM INGREDIENT
+
+SIF RECIPE_DATA(R_ID) == -1
+	RETURNF 0
+SIF RECIPE_DATA(R_ID, 7) && !TFLAG:물긷기
+	RETURNF 0
+
+;特定キャラの친밀依存アイテムを弾く
+SELECTCASE R_ID / 10
+	CASE 513 
+		SIF ABL:[[아큐]]:친밀 < 5
+			RETURNF 0
+	CASE 514, 515
+		SIF ABL:[[에이린]]:친밀 < 5
+			RETURNF 0
+	CASE 516, 517
+		SIF ABL:[[메디슨]]:친밀 < 5
+			RETURNF 0
+	CASE 850
+		SIF ABL:[[마리사]]:친밀 < 5
+			RETURNF 0
+	CASE 851
+		SIF ABL:[[치르노]]:친밀 < 5
+			RETURNF 0
+	CASE 852
+		SIF ABL:[[후토]]:친밀 < 5
+			RETURNF 0
+	CASE 853
+		SIF ABL:[[유카리]]:친밀 < 5
+			RETURNF 0
+	CASE 854
+		SIF ABL:[[파츄리]]:친밀 < 5
+			RETURNF 0
+	CASE 855
+		SIF ABL:[[나루미]]:친밀 < 5
+			RETURNF 0
+ENDSELECT
+
+FOR LOCAL,0,6
+	INGREDIENT = RECIPE_DATA(R_ID, LOCAL)
+	SIF !INGREDIENT
+		BREAK
+	SIF ITEM:INGREDIENT < AMT
+		RETURNF 0
+NEXT
+SIF ITEM:RECIPE_DATA(R_ID) < AMT * RECIPE_DATA(R_ID, 8)
+	RETURNF 0
+
+RETURNF AMT * RECIPE_DATA(R_ID, 6)
+
+
+;-----------------------------------------------------------
+;조합물 선택 리스트를 묘화 한다
+;  MASTER의 조합지식이나 교양의 레벨에 응해 리스트가 해방되는 구조
+;  체질 변화약의 종류는【금단의지식】하지만 없으면 해방되지 않는다
+;-----------------------------------------------------------
+@PHARMACY_LIST
+#DIMS 아이템명
+
+PRINTL 무엇을 조제합니까?
+PRINTL ■조제 Lv1===========================================================================================================
+LOCAL:1 = 999
+FOR LOCAL:0 ,0, 1000
+	SELECTCASE PHARMACY_RANK(LOCAL:0)
+		CASE 1
+			CALL PHARMACY_LIST_BUTTON(LOCAL:0, LOCAL:1)
+			LOCAL:1 = RESULT
+	ENDSELECT
+NEXT
+PRINTL 
+PRINTL ■조제 Lv2===========================================================================================================
+;교양 혹은 조합지식, 약학 교본으로 리스트 해방
+IF TALENT:MASTER:조제Lv >= 1 || ITEM:약학교본
+	LOCAL:1 = 999
+	FOR LOCAL:0 ,0, 1000
+		SELECTCASE PHARMACY_RANK(LOCAL:0)
+			CASE 2
+				CALL PHARMACY_LIST_BUTTON(LOCAL:0, LOCAL:1)
+				LOCAL:1 = RESULT
+		ENDSELECT
+	NEXT
+ELSE
+	SETCOLOR 0x666666
+	PRINTFORM 　　????
+	RESETCOLOR
+ENDIF
+PRINTL 
+;후는 교양 레벨과 조합지식 레벨을 바꾸어 반복해, 잘 정리하고 싶다（약학 교본에서의 해금은 Lv3까지）
+PRINTL ■조제 Lv3===========================================================================================================
+IF TALENT:MASTER:조제Lv >= 2 || ITEM:약학교본
+	LOCAL:1 = 999
+	FOR LOCAL:0 ,0, 1000
+		SELECTCASE PHARMACY_RANK(LOCAL:0)
+			CASE 3
+				CALL PHARMACY_LIST_BUTTON(LOCAL:0, LOCAL:1)
+				LOCAL:1 = RESULT
+		ENDSELECT
+	NEXT
+ELSE
+	SETCOLOR 0x666666
+	PRINTFORM 　　????
+	RESETCOLOR
+ENDIF
+PRINTL 
+PRINTL ■조제 Lv4===========================================================================================================
+IF TALENT:MASTER:조제Lv >= 3
+	LOCAL:1 = 999
+	FOR LOCAL:0 ,0, 1000
+		SELECTCASE PHARMACY_RANK(LOCAL:0)
+			CASE 4
+				;체질 변화약은【금단의지식】하지만 없는 경우는 스킵
+				SIF PHARMA_VOLATILE(LOCAL:0) && !TALENT:MASTER:금단의지식
+					CONTINUE
+				CALL PHARMACY_LIST_BUTTON(LOCAL:0, LOCAL:1)
+				LOCAL:1 = RESULT
+		ENDSELECT
+	NEXT
+ELSE
+	SETCOLOR 0x666666
+	PRINTFORM 　　????
+	RESETCOLOR
+ENDIF
+PRINTL 
+PRINTL ■조제 Lv5===========================================================================================================
+IF TALENT:MASTER:조제Lv >= 4
+	LOCAL:1 = 999
+	FOR LOCAL:0 ,0, 1000
+		SELECTCASE PHARMACY_RANK(LOCAL:0)
+			CASE 5
+				SIF PHARMA_VOLATILE(LOCAL:0) && !TALENT:MASTER:금단의지식
+					CONTINUE
+				CALL PHARMACY_LIST_BUTTON(LOCAL:0, LOCAL:1)
+				LOCAL:1 = RESULT
+		ENDSELECT
+	NEXT
+ELSE
+	SETCOLOR 0x666666
+	PRINTFORM 　　????
+	RESETCOLOR
+ENDIF
+PRINTL 
+DRAWLINE
+PRINTL 　　[1000] 그만둔다
+
+;-----------------------------------------------------------
+;레시피리스트용 버튼 작성·개행
+;ARGS:0 레시피명（캐릭터 라인）, ARG:1 레시피 번호, ARG:2 아이템 번호
+;PHARMACY 함수로 판정해 소재가 부족한 경우, 버튼을 무효(회색)에
+;-----------------------------------------------------------
+@BUTTON_RECIPE(ARGS:0, ARG:1, ARG:2)
+#DIM R_ID
+R_ID = ARG:2 * 10 + ARG:1
+IF !CAN_PHARMA(R_ID)
+	SETCOLOR 0x606060
+	PRINTPLAINFORM [{ARG:1}] %ARGS:0%
+	RESETCOLOR
+ELSE
+	PRINTBUTTON @"[{ARG:1}] %ARGS:0%", ARG:1
+ENDIF
+PRINTL 
+
+;-----------------------------------------------------------
+;レシピをテキスト化し表示する
+;-----------------------------------------------------------
+@TEXT_FOR_RECIPEBUTTON(R_ID)
+#DIM R_ID
+#DIM INGREDIENT
+VARSET LOCALS
+;単一素材複数使用レシピは×いくつ表記で省略する
+IF RECIPE_DATA(R_ID, 8)
+	LOCALS += ITEMNAME:RECIPE_DATA(R_ID, 0)
+	LOCALS += "("
+	LOCALS += TOSTR(ITEM:RECIPE_DATA(R_ID, 0))
+	LOCALS += ")×"
+	LOCALS += TOSTR(RECIPE_DATA(R_ID, 8))
+	LOCALS += " "
+ELSE
+	FOR LOCAL,0,6
+		INGREDIENT = RECIPE_DATA(R_ID, LOCAL)
+		SIF !INGREDIENT
+			BREAK
+		LOCALS += ITEMNAME:INGREDIENT
+		LOCALS += "("
+		LOCALS += TOSTR(ITEM:INGREDIENT)
+		LOCALS += ")"
+		LOCALS += " "
+	NEXT
+ENDIF
+SIF RECIPE_DATA(R_ID, 7)
+	LOCALS += "水"
+LOCALS += "→（"
+LOCALS += TOSTR(RECIPE_DATA(R_ID, 6))
+LOCALS += "）"
+CALL BUTTON_RECIPE(@"%LOCALS%", R_ID % 10, R_ID / 10)
+
+;-----------------------------------------------------------
+;アイテム番号ARG:0の調合レシピをボタン形式でリスト化し描画する
+;-----------------------------------------------------------
+@PHARMACY_RECIPELIST(ARG:0)
+#DIM R_ID
+
+FOR LOCAL,1,6
+	R_ID = ARG:0 * 10 + LOCAL
+	SIF RECIPE_DATA(R_ID) == -1
+		BREAK
+	CALL TEXT_FOR_RECIPEBUTTON(R_ID)
+NEXT
+PRINTL [0] 그만둔다
+
+;-----------------------------------------------------------
+; 아이템 번호*10 + 레시피 번호 = ARG:0을 ARG:1회 작성했을 경우에
+;기정량의 소재 아이템을 감소시켜, 소비수의 텍스트를 흘린다
+;ARG:2가 1 때는 아이템의 감소는 하지 않는다（소비 예정의 텍스트만 흘린다）
+;한층 더 ARG:1이 0 때는, 필요 소재의 현소지수만을 텍스트 표기
+;ARG:2는 미입력이라면 0
+;COMMENT	 아이템이나 레시피를 추가했을 경우는, CASE에 덧붙여 씀
+;-----------------------------------------------------------
+@PHARMACY_CONSUME(ARG:0, ARG:1, ARG:2 = 0)
+#DIM CONSUMED_ITEM
+#DIM ING, 6
+
+FOR LOCAL,0,6
+	ING:LOCAL = RECIPE_DATA(ARG:0, LOCAL)
+NEXT
+;単一素材複数利用型レシピの場合は表記を変える
+IF RECIPE_DATA(ARG:0, 8)
+	CALL PHARMACY_CONSUME_T_LOT(ING:0, ARG:1, RECIPE_DATA(ARG:0, 8))
+ELSE
+	CALL PHARMACY_CONSUME_T(ING:0, ARG:1, ING:1, ARG:1, ING:2, ARG:1, ING:3, ARG:1, ING:4, ARG:1, ING:5, ARG:1)
+ENDIF
+IF ARG:2 == 0
+	FOR LOCAL,0,6
+		CONSUMED_ITEM = ING:LOCAL
+		SIF !CONSUMED_ITEM
+			BREAK
+		ITEM:CONSUMED_ITEM -= ARG:1
+	NEXT
+ENDIF
+;水汲みフラグを0にするのは、ARG:2が0の時（実際に調合が行われた時）のみ
+SIF RECIPE_DATA(ARG:0, 7) && ARG:2 == 0
+	TFLAG:물긷기 = 0
+;-----------------------------------------------------------
+; 아이템을 조제했을 때의 소재 소비량을 문장으로 표기한다
+;（소재는 물을 제외해 6종이 상한）
+;ARG:0, 2, 4, 6, 8, 10에는 소재의 아이템 번호,
+;ARG:1, 3, 5, 7, 9, 11에는 필요 소재 개수를 입력
+;ARG;2이후는 입력하지 않으면 스킵 된다
+;ARG:1이 0때는, 소재의 현소지량만이 표기된다
+;-----------------------------------------------------------
+@PHARMACY_CONSUME_T(ARG:0, ARG:1, ARG:2 = 0, ARG:3 = 0, ARG:4 = 0, ARG:5 = 0, ARG:6 = 0, ARG:7 = 0, ARG:8 = 0, ARG:9 = 0, ARG:10 = 0, ARG:11 = 0)
+
+IF ARG:1 > 0
+	PRINTFORM %ITEMNAME:(ARG:0)%({ITEM:(ARG:0)}→{ITEM:(ARG:0) - ARG:1})
+	SIF ARG:2
+		PRINTFORM 　%ITEMNAME:(ARG:2)%({ITEM:(ARG:2)}→{ITEM:(ARG:2) - ARG:3})
+	SIF ARG:4
+		PRINTFORM 　%ITEMNAME:(ARG:4)%({ITEM:(ARG:4)}→{ITEM:(ARG:4) - ARG:5})
+	SIF ARG:6
+		PRINTFORM 　%ITEMNAME:(ARG:6)%({ITEM:(ARG:6)}→{ITEM:(ARG:6) - ARG:7})
+	SIF ARG:8
+		PRINTFORM 　%ITEMNAME:(ARG:8)%({ITEM:(ARG:8)}→{ITEM:(ARG:8) - ARG:9})
+	SIF ARG:10
+		PRINTFORM 　%ITEMNAME:(ARG:10)%({ITEM:(ARG:10)}→{ITEM:(ARG:10) - ARG:11})
+ELSE
+	PRINTFORM %ITEMNAME:(ARG:0)%({ITEM:(ARG:0)})
+	SIF ARG:2
+		PRINTFORM 　%ITEMNAME:(ARG:2)%({ITEM:(ARG:2)})
+	SIF ARG:4
+		PRINTFORM 　%ITEMNAME:(ARG:4)%({ITEM:(ARG:4)})
+	SIF ARG:6
+		PRINTFORM 　%ITEMNAME:(ARG:6)%({ITEM:(ARG:6)})
+	SIF ARG:8
+		PRINTFORM 　%ITEMNAME:(ARG:8)%({ITEM:(ARG:8)})
+	SIF ARG:10
+		PRINTFORM 　%ITEMNAME:(ARG:10)%({ITEM:(ARG:10)})
+ENDIF
+PRINTL 
+;-----------------------------------------------------------
+;アイテムを調合したときの素材消費量を文章で表記する
+;同一素材複数必要利用型レシピの表記
+;ARG:0に必要素材アイテム番号、ARG:1に必要素材個数を入力
+;ARG:2にはRECIPE_DATA(ARG:0, 8)のLOT数を入力する
+;現状のレシピでは１種の素材のみを複数個用意すればいいので、とりあえず簡略化
+;ARG:1が0の時は、素材の現所持量のみが表記される
+;-----------------------------------------------------------
+@PHARMACY_CONSUME_T_LOT(ARG:0, ARG:1, ARG:2)
+
+IF ARG:1 > 0
+	PRINTFORM %ITEMNAME:(ARG:0)%({ITEM:(ARG:0)}→{ITEM:(ARG:0) - (ARG:1 * ARG:2)})
+ELSE
+	PRINTFORM %ITEMNAME:(ARG:0)%({ITEM:(ARG:0)})
+ENDIF
+PRINTL 
+;-----------------------------------------------------------
+;ARG:0번의 아이템의 조제에 걸리는 시간을 산출하는 함수
+;ARG:1에 조제 건수를 입력, 건수가 많으면 보정을 걸친다
+;-----------------------------------------------------------
+@PHARMACY_TIME(ARG:0, ARG:1)
+#FUNCTION
+
+SELECTCASE PHARMACY_RANK(ARG:0)
+	CASE 1
+		LOCAL:0 = 30
+	CASE 2
+		LOCAL:0 = 40
+	CASE 3
+		LOCAL:0 = 50
+	CASE 4
+		LOCAL:0 = 65
+	CASE 5
+		LOCAL:0 = 80
+ENDSELECT
+;自室かつ机椅子があると時間短縮
+IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치 && ITEM:느티책상의자
+	SELECTCASE ITEM:느티책상의자
+		CASE 1
+			TIMES LOCAL:0, 0.90
+		CASE 2
+			TIMES LOCAL:0, 0.85
+		CASE 3
+			TIMES LOCAL:0, 0.80
+	ENDSELECT
+ENDIF
+;√조제 건수를 걸친다
+SELECTCASE ARG:1
+	CASE 1
+		TIMES LOCAL:0, 1
+	CASE 2
+		TIMES LOCAL:0, 1.4
+	CASE 3
+		TIMES LOCAL:0, 1.7
+	CASE 4
+		TIMES LOCAL:0, 2
+	CASE 5
+		TIMES LOCAL:0, 2.2
+	CASE 6
+		TIMES LOCAL:0, 2.4
+	CASE 7
+		TIMES LOCAL:0, 2.6
+	CASE 8
+		TIMES LOCAL:0, 2.8
+	CASE 9
+		TIMES LOCAL:0, 3
+	CASE 10
+		TIMES LOCAL:0, 3.1
+ENDSELECT
+RETURNF LOCAL:0
+
+;-----------------------------------------------------------
+;ARG:0번의 아이템의 조제로 얻을 수 있는 경험치를 산출하는 함수
+;ARG:1에 조제 건수, ARG:2에 조제 결과를 입력
+;-----------------------------------------------------------
+@PHARMACY_EXP(ARG:0, ARG:1, ARG:2)
+#FUNCTION
+;성공시
+IF ARG:2
+	SELECTCASE PHARMACY_RANK(ARG:0)
+		CASE 1
+			LOCAL:0 = 1
+		CASE 2
+			LOCAL:0 = 1
+		CASE 3
+			LOCAL:0 = 2
+		CASE 4
+			LOCAL:0 = 2
+		CASE 5
+			LOCAL:0 = 3
+	ENDSELECT
+ELSE
+;실패시
+	SELECTCASE PHARMACY_RANK(ARG:0)
+		CASE 1
+			LOCAL:0 = 2
+		CASE 2
+			LOCAL:0 = 2
+		CASE 3
+			LOCAL:0 = 3
+		CASE 4
+			LOCAL:0 = 5
+		CASE 5
+			LOCAL:0 = 10
+	ENDSELECT
+ENDIF
+;조제 건수를 걸친다
+RETURNF (LOCAL:0 * ARG:1)
+
+;-----------------------------------------------------------
+;ARG:0번의 아이템이 체질 개변약이었던 경우의 처리
+;-----------------------------------------------------------
+@PHARMACY_CONSTITUTIONAL(ARG:0)
+
+SELECTCASE ARG:0
+	CASE 71
+		PRINTFORML 【약의 재료(쌍)】를 누구에게 사용합니까?
+		CALL SHOW_CHARA_LIST("여자")
+		LOCAL:1 = RESULT
+		SELECTCASE LOCAL:1
+			CASE 999
+				PRINTFORML 사용할 마음이 사라져 결국 파기하는 일이 되었다…
+			CASEELSE
+				PRINTFORML %조사처리(CALLNAME:(LOCAL:1),"는")% 후타나리가 되었습니다
+				TALENT:(LOCAL:1):성별 |= 2
+				MAXBASE:(LOCAL:1):2 = 10000
+				MAXBASE:(LOCAL:1):정력 = 1000
+				MAXBASE:(LOCAL:1):발기 = 1500
+				SIF BASE:(LOCAL:1):정력 > 1000
+					BASE:(LOCAL:1):정력 = 1000
+			ENDSELECT
+	CASE 72
+		PRINTFORML 【약의 재료(소)】를 누구에게 사용합니까?
+		CALL SHOW_CHARA_LIST("후타나리")
+		LOCAL:1 = RESULT
+		SELECTCASE LOCAL:1
+			CASE 999
+				PRINTFORML 사용할 마음이 사라져 결국 파기하는 일이 되었다…
+			CASEELSE
+				PRINTFORML %조사처리(CALLNAME:(LOCAL:1),"는")% 여자아이가 되었습니다
+				TALENT:(LOCAL:1):성별 = 1
+				MAXBASE:(LOCAL:1):2 = 0
+				MAXBASE:(LOCAL:1):정력 = 0
+				TALENT:(LOCAL:1):120 = 0
+			ENDSELECT
+	CASE 74
+		PRINTFORML 【붉은 캔디】를 누구에게 사용합니까?
+		CALL SHOW_CHARA_LIST("비처녀")
+		LOCAL:1 = RESULT
+		SELECTCASE LOCAL:1
+			CASE 999
+				PRINTFORML 사용할 마음이 사라져 결국 파기하는 일이 되었다…
+			CASEELSE
+				PRINTFORML %CALLNAME:(LOCAL:1)%의 처녀막이 재생했습니다
+				TALENT:(LOCAL:1):처녀 = 2
+			ENDSELECT
+	CASE 77
+		PRINTFORML 【갈색의 캔디】를 누구에게 사용합니까?
+		CALL SHOW_CHARA_LIST("인간귀")
+		LOCAL:1 = RESULT
+		SELECTCASE LOCAL:1
+			CASE 999
+				PRINTFORML 사용할 마음이 사라져 결국 파기하는 일이 되었다…
+			CASEELSE
+				PRINTFORML [4]고양이 귀
+				PRINTFORML [3]강아지 귀
+				PRINTFORML [2]토끼 귀
+				PRINTFORML [1]동물귀
+				PRINTFORML 
+				PRINTFORML [0]역시 그만둔다
+				DO
+					INPUT
+					SELECTCASE RESULT
+					CASE 0
+						PRINTFORML 사용할 마음이 사라져 결국 파기하는 일이 되었다…
+					CASE 1, 2, 3, 4
+						TALENT:(LOCAL:1):동물귀 = RESULT
+						PRINTFORML %CALLNAME:(LOCAL:1)%에게 %GET_TALENTNAME(GETNUM(TALENT, "동물귀"), TALENT:(LOCAL:1):동물귀)%가 났습니다
+						BREAK
+					CASEELSE
+					ENDSELECT
+				LOOP 1
+		ENDSELECT
+	CASE 78
+		PRINTFORML 【물색의 캔디】를 누구에게 사용합니까?
+		CALL SHOW_CHARA_LIST("동물귀")
+		LOCAL:1 = RESULT
+		SELECTCASE LOCAL:1
+			CASE 999
+				PRINTFORML 사용할 마음이 사라져 결국 파기하는 일이 되었다…
+			CASEELSE
+				PRINTFORML %CALLNAME:(LOCAL:1)%의 %GET_TALENTNAME(GETNUM(TALENT, "동물귀"), TALENT:(LOCAL:1):동물귀)%가 사라졌습니다
+				TALENT:(LOCAL:1):동물귀 = 0
+		ENDSELECT
+ENDSELECT
+
+@PHARMACY_LIST_BUTTON(ARG,개행용)
+#DIMS 아이템명
+#DIM 개행용
+#DIM R_ID
+아이템명 = [{ARG}] %ITEMNAME:(ARG), 18, LEFT% 
+개행용 += STRLENS(아이템명)
+SIF LOCAL:0 < 100
+	개행용 ++
+IF 개행용 > 116
+	IF 개행용 >= 999
+	;최초만 개행하지 않는다
+	ELSE
+		PRINTL 
+	ENDIF
+	개행용 = STRLENS(아이템명)
+	SIF LOCAL:0 < 100
+		개행용 ++
+	PRINT 　　
+ENDIF
+;一旦灰色にセット
+SETCOLOR 0x666666
+FOR LOCAL,1,6
+	R_ID = ARG * 10 + LOCAL
+	;可能なレシピがあれば白に戻す
+	SIF CAN_PHARMA(R_ID)
+		RESETCOLOR
+NEXT
+
+PRINTFORM [{ARG}] %ITEMNAME:(ARG), 18, LEFT%
+SIF ARG < 100
+	PRINT  
+RESETCOLOR
+PRINT 　　
+RETURN 개행용

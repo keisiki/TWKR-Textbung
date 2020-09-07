@@ -1,0 +1,1866 @@
+﻿;홍마 카지노
+;우선 모양만 잡아봤지만 경품이 없는 것은 무슨 일인 걸까
+;외환시장도 여기에 넣고 있습니다
+;각 게임 코너로 보유 카리스마를 확인할 수 없는 것은 카리스마를 착취하기 위한 함정이다
+
+@CASINO_ENTRANCE
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM EXIT
+EXIT = 0
+CALL CASINO_CHECK_EVENT("ENTRANCE")
+PRINTFORML 
+PRINTFORML ～홍마 카지노～
+PRINTFORML 　당신의 보유 ￥　　　　{MONEY, 10, RIGHT}
+PRINTFORML 　당신의 보유 카리스마　{MONEY:2, 10, RIGHT}
+PRINTFORML 
+;SIF ITEM:홍마카지노 VIP 회원증
+;	PRINTFORML [6] - VIP 룸
+;PRINTFORML [5] - 경품 교환
+IF FUNC_CASINO("CLOSE_CASINO")
+	PRINTFORML [-] - 슬롯으로 논다(휴업중)
+	PRINTFORML [-] - 포커로 논다(휴업중)
+	PRINTFORML [-] - 블랙 잭으로 논다(휴업중)
+	PRINTFORML [-] - 카드로 논다(휴업중)
+	PRINTFORML [-] - 주사위로 논다(휴업중)
+	PRINTFORML [-] - 퀴즈로 논다(휴업중)
+ELSE
+	PRINTFORML [6] - 슬롯으로 논다
+	PRINTFORML [5] - 포커로 논다
+	PRINTFORML [4] - 블랙 잭으로 논다
+	PRINTFORML [3] - 카드로 논다
+	PRINTFORML [2] - 주사위로 논다
+	PRINTFORML [1] - 퀴즈로 논다
+ENDIF
+PRINTFORML 
+PRINTFORML [0] - 돌아간다
+PRINTFORML [9] - 설명
+SIF FLAG:회원랭크
+	PRINTFORML [8] - 카리스마 거래
+DO
+	INPUT
+	;휴업중은 게임계는 닫히고 있다
+	SIF FUNC_CASINO("CLOSE_CASINO") && INRANGE(RESULT, 1, 6)
+		GOTO RETRY
+	SELECTCASE RESULT
+	CASE 9
+		CALL CASINO_CHECK_EVENT("HELP")
+	CASE 8
+	SIF FLAG:회원랭크
+		CALL CASINO_TRADE
+	CASE 0
+		;IF MONEY:2 >= TFLAG:카지노입장시카리스마 + 100
+		;	PRINTFORML 「카리스마를 현금으로 교환하시겠어요?」
+		;	PRINTFORML 「지금이라면 수수료에서 이득이에요」
+		;ENDIF
+		EXIT = 1
+	CASE 6
+		CALL CASINO_SLOT
+	CASE 5
+		CALL CASINO_POKER
+	CASE 4
+		CALL CASINO_BLACKJACK
+	CASE 3
+		CALL CASINO_CARD
+	CASE 2
+		CALL CASINO_DICE
+	CASE 1
+		CALL CASINO_QUIZ
+	CASEELSE
+		$RETRY
+		REUSELASTLINE 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+	SIF NEMUKE() >= 700
+		EXIT = 1
+	BREAK
+LOOP 1
+SIF !EXIT
+	RESTART
+CALL CASINO_CHECK_EVENT("EXIT")
+
+
+
+;카지노계 이벤트의 독자 함수화
+;설명 패널도 여기에 돌진했다
+;가독성의 확보를 위해서(때문에) magic number-를 억지로 배제한 결과 진묘한 구문마스터
+@CASINO_CHECK_EVENT(TYPE)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS TYPE
+#DIM COUNT_ENTER ;오늘 입점한 회수
+#DIM COUNT_EXIT  ;오늘점을 나온 회수
+SELECTCASE TYPE
+CASE "ENTRANCE"
+	;홍마관 멤버에 대해서 무정한 반응은 어떤건데라고 생각했다
+	;너무 금전적으로 번창한 것은 용서이지만
+	;롤 플레이적으로 입자 될 생각이 든다
+	IF !FLAG:카지노방문일
+	;첫회
+		PRINTFORML 
+		SELECTCASE CSVCALLNAME(FLAG:역극)
+		CASE "레밀리아", "플랑"
+			PRINTFORML 메이드 요정
+			PRINTFORML 　%CALLNAME:MASTER% 님!
+			PRINTFORML 　잘 와주셨습니다
+			PRINTFORML 　여기, 맡겨주셨던 250 카리스마입니다
+			PRINTFORMW 　느긋하게 즐겨주십시오
+			MONEY:2 += 250
+		CASE "파츄리"
+			PRINTFORML 메이드 요정
+			PRINTFORML 　어서 오세요 %CALLNAME:MASTER% 님
+			PRINTFORML 　네, 덕분에 대성황입니다
+			PRINTFORMW 　아가씨께서 200 카리스마를 맡겨주셨으니 부디 사용해주세요
+			MONEY:2 += 200
+		CASE "사쿠야"
+			PRINTFORML 메이드 요정
+			PRINTFORML 　어서 오세요 %CALLNAME:MASTER% 씨
+			PRINTFORML 　점내 시찰이신가요? 다들 열심히 일하고 있답니다
+			PRINTFORMW 　아가씨께서 200 카리스마를 맡겨주셨으니 부디 사용해주세요
+			MONEY:2 += 200
+		CASE "메이링", "소악마"
+			PRINTFORML 메이드 요정
+			PRINTFORML 　어서 오세요 %CALLNAME:MASTER% 씨
+			IF GET_DAY() == "일" || GET_DAY() == "토"
+				PRINTFORML 　오늘은 쉬시는 날인가요? 적당히 하고 가주세요
+			ELSE
+				PRINTFORML 　일은 괜찮으세요? 나중에 혼나도 몰라요
+			ENDIF
+			PRINTFORMW 　아가씨께서 150 카리스마를 맡겨주셨으니 부디 사용해주세요
+			MONEY:2 += 150
+		CASE "마리사"
+		;도서관 관련으로 출금창고는이라고도 이상하지 않지요
+			PRINTFORML 메이드 요정
+			PRINTFORML 　%CALLNAME:MASTER% 씨시네요?
+			PRINTFORML 　여기, 100 카리스마가 됩니다
+			PRINTFORMW 　처음으로 방문하신 손님께 환영의 표시로서 건네드리라고 분부 받고 있습니다
+			PRINTFORML 　그러나 귀하는 아가씨께 별로 환영받지 못하십니다
+			PRINTFORMW 　당 카지노 내에서는 부디 예의를 지키며 즐겨주시길 부탁드립니다
+			MONEY:2 += 100
+		CASE "당신"
+			IF MAIN_MAP == 3
+				PRINTFORML 메이드 요정
+				PRINTFORML 　어머, 우리 쪽에서 일하는 사람이구나?
+				PRINTFORML 　여기는 전속 환경미화원이 있으니 청소 안 해도 돼
+				PRINTFORML 　아니면 놀러 온 거야?
+				PRINTFORMW 　아가씨께서 120 카리스마를 지급하셨어. 소중히 써.
+				MONEY:2 += 120
+			ELSE
+				PRINTFORML 메이드 요정
+				PRINTFORML 　홍마 카지노에 어서 오세요. 손님께선 당 카지노를 처음 이용하시죠?
+				PRINTFORMW 　첫 손님께는, 기념으로 아가씨께서 100 카리스마를 증정하십니다
+				MONEY:2 += 100
+			ENDIF
+		CASEELSE
+			PRINTFORML 메이드 요정
+			PRINTFORML 　홍마 카지노에 어서 오세요. 손님께선 당 카지노를 처음 이용하시죠?
+			PRINTFORMW 　첫 손님께는, 기념으로 아가씨께서 100 카리스마를 증정하십니다
+			MONEY:2 += 100
+		ENDSELECT
+		CM_LIMIT = 100
+		COUNT_EXIT = 0
+		COUNT_ENTER = 1
+	ELSEIF DAY - FLAG:카지노방문일
+	;1날 1회만
+		PRINTFORML 
+		SELECTCASE DAY - FLAG:카지노방문일
+		CASE 1 TO 5
+			IF MAIN_MAP == 3 && (CSVCALLNAME(FLAG:역극) == "메이링" || CSVCALLNAME(FLAG:역극) == "소악마")
+				PRINTFORML 메이드 요정
+				PRINTFORML 　%CALLNAME:MASTER% 씨, 이러시면 안 되죠오
+				PRINTFORMW 　너무 놀고 있으면 저희까지 야단맞거든요―？
+			ELSEIF MAIN_MAP == 3 && CSVCALLNAME(FLAG:역극) == "당신"
+				PRINTFORML 메이드 요정
+				PRINTFORML 　어머나, 또 왔어?
+				PRINTFORMW 　정도껏 즐기다 가
+			ELSE
+				PRINTFORML 메이드 요정
+				PRINTFORML 　어서 오세요
+				PRINTFORMW 　즐겨주시는 것 같아서 다행입니다
+			ENDIF
+		CASEELSE
+			IF MAIN_MAP == 3 && CSVCALLNAME(FLAG:역극) == "당신"
+				PRINTFORML 메이드 요정
+				PRINTFORML 　청소 수고했어
+				PRINTFORMW 　즐기다 가
+			ELSE
+				PRINTFORML 메이드 요정
+				PRINTFORML 　어서 오십시오
+				PRINTFORMW 　느긋히 즐겨주세요
+			ENDIF
+		ENDSELECT
+		COUNT_EXIT = 0
+		COUNT_ENTER = 1
+	ELSEIF COUNT_ENTER == COUNT_EXIT
+	;재래점시
+		PRINTFORML 
+		IF MAIN_MAP == 3 && CSVCALLNAME(FLAG:역극) == "당신"
+			PRINTFORML 메이드 요정
+			PRINTFORML 　어머나, 또 왔어?
+			PRINTFORMW 　정도껏 즐기다 가
+		ELSE
+			PRINTFORML 메이드 요정
+			PRINTFORML 　어서 오십시오
+			PRINTFORMW 　느긋히 즐겨주세요
+		ENDIF
+		COUNT_ENTER ++
+	ELSE
+		IF !RAND:10
+		;이 손의 활기차게 해는 있으면(자) 즐겁다고 생각한다
+			;놓친 ETC
+			PRINTDATAL
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　마을에서 행차하신 ×××× 님
+				DATAFORM 　일행이신 손님께서 기다리십니다
+				DATAFORM 　접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　태양의 밭에서 행차하신 ×××× 님
+				DATAFORM 　일행이신 해바라기 요정님께서 기다리십니다
+				DATAFORM 　접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　미혹의 죽림에서 행차하신 ×××× 님
+				DATAFORM 　일행이신 토끼님께서 기다리십니다
+				DATAFORM 　접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　달에서 행차하신 ×××× 님
+				DATAFORM 　일행이신 토끼님께서 기다리십니다
+				DATAFORM 　접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　요괴의 산에서 행차하신 ×××× 님
+				DATAFORM 　일행이신 텐구님께서 기다리십니다
+				DATAFORM 　접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　현무의 늪에서 행차하신 ×××× 님
+				DATAFORM 　일행이신 캇파님께서 기다리십니다
+				DATAFORM 　접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　촉수궁에서 행차하신 ×××× 님
+				DATAFORM 　일행이신 촉수님께서 기다리십니다
+				DATAFORM 　접수까지 와주십시오
+			ENDLIST
+			DATALIST
+			;자면만 보면(자) 굉장히-무서워!
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　삼도천에서 행차하신 ×××× 님
+				DATAFORM 　일행이신 사신님깨서 기다리십니다
+				DATAFORM 　접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　삼도천에서 행차하신 ×××× 님
+				DATAFORM 　염마님께서 기다리십니다
+				DATAFORM 　가능하면 빨리, 접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　네―, 안내 말씀드립니다
+				DATAFORM 　요괴의 산에서 행차하신 ×××× 님
+				DATAFORM 　대텐구님께서 기다리십니다
+				DATAFORM 　가능하면 빨리, 접수까지 와주십시오
+			ENDLIST
+			
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　분실물 안내를 말씀드립니다
+				DATAFORM 　오이가 대량으로 든 종이봉투를 맡고 있습니다
+				DATAFORM 　짚이는 곳이 있는 분께선 접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　분실물 안내를 말씀드립니다
+				DATAFORM 　비두만 분께서 분실하신 「목 아래」입니다
+				DATAFORM 　이쪽에 「목 위」께서 계시므로
+				DATAFORM 　「목 아래」를 발견하신 분께선 가까운 메이드 요정에게 전해주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　분실물 안내를 말씀드립니다
+				DATAFORM 　분실 우산입니다
+				DATAFORM 　가지색에 눈과 긴 혀가 있는 괴상한 우산을 맡고 있습니다
+				DATAFORM 　짚이는 곳이 있는 분께선 접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　분실물 안내를 말씀드립니다
+				DATAFORM 　저기, 음, 손바닥 크기의 수정구에 지붕이 달린
+				DATAFORM 　오브제 같은 물건을 맡고 있습니다
+				DATAFORM 　짚이는 곳이 있는 분께선 접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　분실물 안내를 말씀드립니다
+				DATAFORM 　저기, 음, 뭐지 이거
+				DATAFORM 　핑크색으로 포동포동한 손바닥 크기의 덩어리를 맡고 있습니다
+				DATAFORM 　짚이는 곳이 있는 분께선 접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 점내 안내방송이 흘렀다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　분실물 안내를 말씀드립니다
+				DATAFORM 　분실된 절굿공이입니다
+				DATAFORM 　끝부분이 붉게 물든, 오래 쓴 절굿공이를 맡고 있습니다
+				DATAFORM 　짚이는 곳이 있는 분께선 접수까지 와주십시오
+			ENDLIST
+			DATALIST
+				DATAFORM 접수대의 메이드 요정은 다른 메이드 요정과 이야기를 하고 있다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　아, 잠깐 괜찮을까?
+				DATAFORM 　그래, 이 애 우리 쪽에서 일하고 싶다나 봐
+				DATAFORM 　사쿠야 씨 계신 곳까지 안내해줄 수 있어?
+				DATAFORM 　응, 잘 부탁할게
+			ENDLIST
+			DATALIST
+				DATAFORM 접수대의 메이드 요정은 다른 메이드 요정과 이야기를 하고 있다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　저기, 잠깐 괜찮아?
+				DATAFORM 　이 사람이 작은 아가씨와 놀고 싶대
+				DATAFORM 　뭔가 맛있는 거라도 먹여줘
+				DATAFORM 　응, 잘 부탁할게
+			ENDLIST
+			DATALIST
+				DATAFORM 접수대의 메이드 요정은 다른 메이드 요정과 이야기를 하고 있다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　저기, 잠깐 괜찮아?
+				DATAFORM 　맞아, 아가씨와 함께 하는 식사의 출석자 분
+				DATAFORM 　언제나처럼 잘 부탁해
+			ENDLIST
+			DATALIST
+				DATAFORM 접수대의 메이드 요정은 다른 메이드 요정과 이야기를 하고 있다
+				DATAFORM 
+				DATAFORM 메이드 요정
+				DATAFORM 　그렇구나, 슬슬 교대할 시간이던가?
+				DATAFORM 　그럼 뒷일은 잘 부탁해
+				DATAFORM 　먼저 실례합니다~
+			ENDLIST
+			
+			ENDDATA
+		ELSE
+			PRINTFORML 접수대의 메이드 요정은 접객 중이다
+			PRINTFORML 
+			PRINTFORML 메이드 요정
+			PRINTDATAL
+			DATALIST
+				DATAFORM 　어머, 그 쪽의 손님은 마법사분이신가요?
+				DATAFORM 　어서 오십시오
+				DATAFORM 　교양을 살릴 수 있는 게임이요?
+				DATAFORM 　그러면 퀴즈 게임 등은 어떠신가요?
+			ENDLIST
+			DATALIST
+				DATAFORM 　이런, 그 훌륭한 뿔은 오니의 손님이군요
+				DATAFORM 　「한 방 터지면 대박인 도박」입니까?
+				DATAFORM 　그러면 포커 등은 어떠신가요?
+				DATAFORM 　로열 스트레이트 족보라면 배당이 무려 300배가 되어요
+			ENDLIST
+			DATALIST
+				DATAFORM 　어서 오십시오
+				DATAFORM 　「제일 벌 수 있는 게임」입니까?
+				DATAFORM 　그러면 주사위 게임 등은 어떠신가요?
+				DATAFORM 　계속 이기면 천정 부지로 배당금을 늘려 갈 수가 있어요
+			ENDLIST
+			DATALIST
+				DATAFORM 　어서 오십시오
+				DATAFORM 　언제나 이용 감사합니다
+				DATAFORM 　「새롭게 할 수 있던 슬롯 머신을 찾고 있다」?
+				DATAFORM 　에에에, 그거라면 저 편의 안쪽에 있습니다
+			ENDLIST
+			DATALIST
+				DATAFORM 　저기, 손님?
+				DATAFORM 　카지노 내에의 시체의 반입은 사양하실 수 있습니까?
+				DATAFORM 　에에에, 살아 있는 인간의 손님도 보이기 때문에
+			ENDLIST
+			DATALIST
+				DATAFORM 　뭐, 오늘은 상당히 트이라고 오셨습니다!
+				DATAFORM 　즐기실 수 있던 것 같고 최상입니다
+				DATAFORM 　다음 행차를 기다리고 있습니다
+			ENDLIST
+			DATALIST
+				DATAFORM 　마침내 인형으로 변할 수가 있게 되었습니다!
+				DATAFORM 　축하합니다
+				DATAFORM 　앞으로도 잘 부탁드려요
+			ENDLIST
+			ENDDATA
+		ENDIF
+	ENDIF
+	FLAG:카지노방문일 = DAY
+CASE "EXIT"
+	COUNT_EXIT ++
+	CALL CASINO_MEMBER_RANKUP
+	PRINTFORML 
+	PRINTFORML 메이드 요정
+	PRINTFORML 　이용 감사합니다
+	PRINTDATAW
+		DATAFORM 　조심해서 돌아가세요
+		DATAFORM 　또 와주세요
+		DATAFORM 　다음 방문을 기다리고 있습니다
+	ENDDATA
+CASE "HELP"
+;기능
+	PRINTFORML 
+	PRINTFORML 카지노의 입구에 설명의 패널이 놓여져 있었다
+	PRINTFORML 
+	PRINTFORML [9] - 폐를 끼치는 행위에 대해
+	PRINTFORML [8] - 카리스마에 대해
+	PRINTFORML 
+	PRINTFORML [6] - 슬롯에 대해
+	PRINTFORML [4] - 블랙 잭에 대해
+	PRINTFORML [3] - 카드 게임에 대해
+	PRINTFORML [2] - 주사위 게임에 대해
+	PRINTFORML [1] - 퀴즈 게임에 대해
+	PRINTFORML 
+	PRINTFORML [0] - 돌아간다
+	DO
+		INPUT
+		SELECTCASE RESULT
+		CASE 9
+			;마리사 분기를 가르친 것으로 설명서에 「절도」가 없었다와 눈치챈다
+			PRINTFORML ☆폐를 끼치는 행위에 대해
+			PRINTFORML 　마법 및 특수한 능력의 사용, 위조통화의 사용, 절도, 사기, 폭력, 협박, 공갈, 성희롱,
+			PRINTFORML 　가게 안에서의 탄막 놀이, 스펠 카드의 사용, 피츙―, 연회, 독경, 청소, 입욕, 차 타기 등
+			PRINTFORML 　가게 안의 질서를 현저히 어지럽히는 행위를 실시했다고 인정된 손님에 대해서는
+			PRINTFORML 　아가씨의 식사에 초대한다, 혹은 작은 아가씨의 놀이 상대가 되어주셔야 할 때가 있으므로 주의해주십시오
+			PRINTFORML 
+			PRINTFORML 　제발 여러분 부디 예의범절 자주(잘) 즐거움 주시도록
+			PRINTFORMW 　점원 모두들, 진심으로 부탁 말씀드립니다
+		CASE 8
+			PRINTFORML ☆카리스마에 대해
+			PRINTFORML 　당 카지노에서는 부정행위 방지를 위해 전용 통화 “카리스마”를 사용해 놀아 받고 있습니다
+			PRINTFORML 　부담없이 프런트에서 요구해 주세요
+			PRINTFORMW 　또한 현금을 직접 사용해서 놀 수 없기 때문에 미리 양해해 주십시오
+			PRINTFORML 
+			PRINTFORML 　현재의 카리스마 지불 대응 점포
+			PRINTFORML 　·깨끗하고 바른　　　　　　　 「붕붕마루 신문」
+			PRINTFORML 　·인간마을의 대본소　　　　　 「스즈나안」
+			PRINTFORML 　·이익은 보증합니다　　　　　 「모리야복권」
+			PRINTFORML 　·절경은 바로 그곳에　　　　　「모리야 신사 참배삭도」
+			PRINTFORML 　·낙원의 멋진 운세　　 　「하쿠레이 신사 운세」
+			PRINTFORML 　·새보다 장어　　　　　　　　 「죽림 요스즈메 포장마차」
+			PRINTFORML 　·분실물을 찾으려면 명련사로　「다우저 나즈린」
+			PRINTFORML 
+			PRINTFORML 　이 밖에, 홍마관 홉고블린의 출장 서비스도 있습니다
+			PRINTFORML 　·홍마관 홉고블린 물주기대행 서비스
+			PRINTFORMW 　·홍마관 홉고블린 출장 청소 서비스
+		CASE 6
+			CALL HELP_SLOT()
+			RESTART
+		CASE 4
+			PRINTFORML ☆블랙 잭에 대해
+			PRINTFORML 　※현실의 블랙 잭과는 규칙이 다릅니다
+			PRINTFORML 　카드의 점수를 겨루어, 보다 높은 점수를 획득한 (분)편의 승리입니다
+			PRINTFORML 　다만 21을 초과 해서는 안됩니다
+			PRINTFORML 　21을 넘어 버린 플레이어는 패배입니다
+			PRINTFORML 　
+			PRINTFORML 　점수의 계산은 이하대로입니다
+			PRINTFORML 　　 1～10：숫자 그대로의 점수
+			PRINTFORML 　　ＪＱＫ：10점 고정
+			PRINTFORML 　　　　A：점수가 21을 넘지 않으면 10점, 넘어 버리는 경우는 1점
+			PRINTFORMW 　
+			PRINTFORML －－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+			PRINTFORML 　우선 딜러와 당신에게 2장씩 카드가 배부됩니다
+			PRINTFORML 　이 때 딜러의 카드 중 1장은 앞이 됩니다
+			PRINTFORML 　당신에게는 이하의 선택지가 주어집니다
+			PRINTFORML 　　　　히트：카드를 1매 추가해 승부합니다
+			PRINTFORML 　　　스탠드：카드를 추가하지 않고 승부합니다
+			PRINTFORML 　　　　더블：판돈을 2배로 한 다음 카드를 1매 추가해 승부합니다
+			PRINTFORML 　　사렌다：판돈의 반을 받아 게임을 내립니다
+			PRINTFORML 　
+			PRINTFORML 　카드를 깎은 시점에서 21을 넘어버리면 그 시점에서 당신의 패배입니다
+			PRINTFORML 　그렇지 않은 경우는 딜러가 덮은 카드를 앞으로 합니다
+			PRINTFORML 　이 때 17점 미만이었던 경우, 딜러는 반드시 카드를 1매 추가합니다
+			PRINTFORML 　딜러가 21을 넘어버리면 당신의 승리입니다
+			PRINTFORML 　
+			PRINTFORML 　딜러의 점수가 17점이상, 혹은 카드를 1매 추가해 21점이하였던 경우
+			PRINTFORML 　점수의 높은 플레이어의 승리가 됩니다
+			PRINTFORML 　갈라 놓았을 경우는 판돈이 되돌아 옵니다
+			PRINTFORMW 　
+			PRINTFORML －－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+			PRINTFORML 　2장의 카드로 21점(A＋10점의 카드)의 경우, 블랙 잭이라고 하는 역이 성립합니다
+			PRINTFORML 　블랙 잭은 카드 3장의 21점에 이깁니다
+			PRINTFORML 　한층 더 블랙 잭에서 우수했을 경우 보너스가 붙습니다
+			PRINTFORML 　
+			PRINTFORML 　딜러의 앞이 된 카드가 A였던 경우, 인슈어런스(INS)를 선택할 수가 있습니다
+			PRINTFORML 　INS는 판돈의 반을 보험금으로 해서 추가로 겁니다
+			PRINTFORML 　딜러가 블랙 잭으로 당신이 INS를 하고 있었을 경우, 판돈과 보험금이 그대로 되돌아 옵니다
+			PRINTFORML 　딜러가 블랙 잭이 아니었던 경우, 보험금은 되돌아 오지 않습니다
+			PRINTFORML 　
+			PRINTFORML 　INS를 선택할 수 있어 당신이 블랙 잭이었던 경우, 대신에 이븐 머니를 선택할 수가 있습니다
+			PRINTFORML 　이븐 머니를 선택하면 판돈의 2배의 배당을 받아 게임을 종료합니다
+			PRINTFORMW 　
+			PRINTFORML －－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+			PRINTFORML 　배당은 이하와 같습니다
+			PRINTFORML 　　BJ로 승리：2.5배
+			PRINTFORML 　　　　 승리：2.0배
+			PRINTFORML 　　　　 패배：0.0배
+			PRINTFORML 　　　 서렌더：0.5배
+			PRINTFORML 　　 INS 성공：1.0배
+			PRINTFORMW ※속임수는 미구현입니다
+		CASE 3
+			PRINTFORML ☆카드 게임에 대해
+			PRINTFORML 　속임수 포함한 트럼프 게임입니다
+			PRINTFORML 　이 관의 메이드장이 감수한 게임입니다
+			PRINTFORML 　각각이 3회 행동을 실시한 후에 승패 결과가 확정해 정산이 됩니다
+			PRINTFORML 　게임 개시시에 1~50 카리스마를 판돈으로 해서 맡겨
+			PRINTFORML 　메이드 요정에 이기는 것이 가능하다면 판돈의 2.5배의 금액을 그 자리에서 받을 수가 있습니다
+			PRINTFORML 
+			PRINTFORML 　게임중에서는 3종류의 행동을 선택할 수가 있어
+			PRINTFORML 　이것들은 견제하여 꼼짝 못하게 함의 관계가 되어 있습니다(가짜＞정정당당＞주시＞가짜)
+			PRINTFORML 　　가짜：가짜로 유리하게 게임을 진행시킵니다
+			PRINTFORML 　　정정당당：룰에 준거해 게임을 진행시킵니다
+			PRINTFORML 　　　주시　：상대의 가짜를 저지합니다
+			PRINTFORMW 　덧붙여서 가짜를 걸려면  요리기능을, 가짜를 간파하려면  청소기능을 사용합니다
+		CASE 2
+			PRINTFORML ☆주사위 게임에 대해
+			PRINTFORML 　이른바 정반도박입니다
+			PRINTFORML 　이 저택의 당주가 스스로 감수한 게임입니다
+			PRINTFORML 　게임 개시시에 손에 가지고 있는 카리스마로부터 100 카리스마를 배당금으로 해서 맡겨
+			PRINTFORML 　예상 적중 직후에 정산을 실시하는 것으로 증가한 배당금을 받을 수가 있습니다
+			PRINTFORML 　정반을 적중시킬 때마다 배당금의 금액은 1.5배가 되어 갑니다만, 예상이 빗나가면 0이 됩니다
+			PRINTFORML 　또, 게임을 속행하려면 매회 100 카리스마를 지불할 필요가 있습니다
+			PRINTFORML 　
+			PRINTFORML 　메이드 요정은 정답을 적확하게 지켜봐 가르쳐 줍니다만 거짓말을 하고 있을지도 모릅니다
+			PRINTFORMW 　화술에 뛰어나고 있다면 그 거짓말을 간파할 수도 있겠지요
+		CASE 1
+			PRINTFORML ☆퀴즈 게임에 대해
+			PRINTFORML 　아무런 특색도 없는 퀴즈 게임입니다
+			PRINTFORML 　이 저택 당주의 친구가 감수한 게임입니다
+			PRINTFORML 　요금은 난이도에 상관없이 1개의 문제에 대해 5 카리스마입니다
+			PRINTFORML 　문제에 정답 한 시점에서 난이도에 응한 상금이 지불되어 다음의 문제의 난이도가 공개됩니다
+			PRINTFORMW 　딱히 심리전 요소는 없고, 순수하게 지식이 거론됩니다
+		CASE 0
+			RETURN
+		CASEELSE
+			REUSELASTLINE 무효인 입력입니다
+			CONTINUE
+		ENDSELECT
+		BREAK
+	LOOP 1
+	RESTART
+ENDSELECT
+
+
+
+;D/P는 딜러, 플레이어
+;딜러의 능력은 사쿠야 씨보다 조금 약할 정도 로 꽤 우수
+;POINT 주:9, 정:12, 이:15
+;전투 수지
+;　주　vs정=-3, vs이=-6or+9
+;　정　vs주=+3, vs이=-3
+;　이　vs주=+6 or-9, vs정=+3
+;주시에는 청소, 가짜에는 요리가 필요
+;당연히 대응 기능이 딜러를 밑돌고 있다고(면) 전혀 성공하지 않는다
+;
+;가위바위보로서 파악하면(자) 알기 쉽겠지만
+;시스템상, 대응 기능이 4 이하로 도전하면(자) 장기적인 손익은 반드시 마이나스가 된다
+;속임수 관련의 사양으로 「굿이 쵸키에 이길 수 없거나 한다」일이 있기 때문에 있다
+;별로(호빵) 자세하게 검증하고 있지 않지만 아마 기능이 대항하고 있을 때의 승률이1/3미만
+
+@CASINO_CARD
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM LCOUNT
+#DIM D_POINT
+#DIM D_ACT
+#DIM D_STOP_IKASAMA
+#DIM D_DO_IKASAMA
+#DIM P_BET
+#DIM P_POINT
+#DIM P_ACT
+#DIM P_STOP_IKASAMA
+#DIM P_DO_IKASAMA
+D_STOP_IKASAMA = POWER(4, 3)
+D_DO_IKASAMA = POWER(4, 3)
+P_STOP_IKASAMA = POWER(MAX(1, ABL:MASTER:청소기능), 3)
+P_DO_IKASAMA = POWER(MAX(1, ABL:MASTER:요리기능), 3)
+IF MONEY:2 <= 0
+	PRINTFORML 메이드 요정
+	PRINTFORML 　손님, 당 카지노 점내에서는 전용 통화 “카리스마”만을 사용해 놀아 주시고 있습니다
+	PRINTFORMW 　수고스럽겠지만 카리스마의 구입을 부탁 드리겠습니다
+	RETURN
+ENDIF
+PRINTFORML 메이드 요정
+PRINTFORML 　카드 게임 코너 거치자야말로
+PRINTFORML 　이 게임은 손님과 당관 메이드장 전언의 기술을 가져요 싶게 해가 팔을 서로 경쟁한다
+PRINTFORMW 　환상향 제일의 “가사의 게임”이 되고 있습니다
+PRINTFORML 
+PRINTFORML 메이드 요정
+PRINTFORML 　손님의 솜씨가 저를 웃돌았을 경우, 건 금액을 3배로 해 돌려 드리겠습니다
+PRINTFORML 　우선은 판돈을 입력해 주세요
+PRINTFORML 
+CALL CASINO_INPUTLOOP("카드 판돈")
+IF !RESULT
+	GOTO CANCEL
+ELSE
+	P_BET = RESULT
+	CALL CASINO_MONEY("카리스마", -P_BET)
+	CALL CASINO_MONEY("것", P_BET)
+ENDIF
+PRINTFORML 메이드 요정
+PRINTFORML 　받았습니다
+PRINTFORML 　그러면 시작합시다
+PRINTFORMW 　잘 부탁 드리겠습니다
+DO
+	TIME += 5
+	D_POINT = 0
+	P_POINT = 0
+	PRINTFORML 
+	FOR LCOUNT, 1, 4
+		PRINTFORML ~{LCOUNT}순목~
+		;[3]속임수[2]정정당당[1]주시
+		CALL CASINO_INPUTLOOP("카드 전술")
+		P_ACT = RESULT
+		D_ACT = RAND(1, 4)
+		SELECTCASE P_ACT
+		CASE 1
+		;주시
+			P_POINT += 9
+			SELECTCASE D_ACT
+			CASE 1
+			;주시
+				D_POINT += 9
+				PRINTFORML 당신은 메이드 요정과 서로 응시했다
+				PRINTFORML 메이드 요정은 뺨을 붉혀 눈을 떼었다
+			CASE 2
+			;정정당당
+				D_POINT += 12
+				PRINTFORML 메이드 요정에는 특별히 신경이 쓰이는 모습은 볼 수  없다
+			CASE 3
+			;속임수
+				PRINTFORML 어딘지 모르게 의심스러운 움직임을 보이는 메이드 요정을 주시했다
+				LOCAL = D_DO_IKASAMA + P_STOP_IKASAMA
+				IF RAND:LOCAL <= D_DO_IKASAMA
+					D_POINT += 15
+					PRINTFORML 메이드 요정은 여유 길이 해 관
+				ELSE
+					PRINTFORML 메이드 요정은 초조한 모습이다
+				ENDIF
+			ENDSELECT
+		CASE 2
+		;정정당당
+		P_POINT += 12
+			SELECTCASE D_ACT
+			CASE 1
+			;주시
+				D_POINT += 9
+				PRINTFORML 이쪽을 지키는 메이드 요정의 시선을 느끼면서 당당히 게임을 진행시켰다
+			CASE 2
+			;정정당당
+				D_POINT += 12
+				PRINTFORML 게임은 막혀 없게 진행되고 있고 구
+			CASE 3
+			;속임수
+				D_POINT += 15
+				PRINTFORML 입길에 미소를 띠는 메이드 요정을 무시해 보통으로 게임을 진행시켰다
+			ENDSELECT
+		CASE 3
+		;속임수
+			SELECTCASE D_ACT
+			CASE 1
+			;주시
+				D_POINT += 9
+				LOCAL = D_STOP_IKASAMA + P_DO_IKASAMA
+				PRINTFORML 이쪽을 지키는 메이드 요정의 시선을 느끼면서 가짜를 시도했다
+				IF RAND:LOCAL <= D_STOP_IKASAMA
+					PRINTFORML 그러나, 실패해 버렸다
+				ELSE
+					P_POINT += 15
+					PRINTFORML 가짜는 성공했다
+				ENDIF
+			CASE 2
+			;정정당당
+				D_POINT += 12
+				P_POINT += 15
+				PRINTFORML 솜씨 좋게 게임을 진행하는 메이드 요정이 몰래 해 가짜를 가르쳤다
+			CASE 3
+			;속임수
+				D_POINT += 15
+				P_POINT += 15
+				PRINTFORML 메이드 요정과 당신은 사이 좋고 가짜를 가르쳤다
+			ENDSELECT
+		ENDSELECT
+		WAIT
+	NEXT
+	PRINTFORML 
+	PRINTFORML ~게임 결과~
+	IF D_POINT >= P_POINT
+		PRINTFORMW 당신은 져 버렸다
+	ELSE
+		PRINTFORMW 당신 승리다
+		PRINTFORML 
+		PRINTFORML 메이드 요정
+		PRINTFORML 　축하합니다
+		PRINTFORML 　그럼 약속대로, 이쪽을 받아 주세요
+		PRINTFORML 
+		PRINTFORMW 손에 가지고 있는 카리스마가 {P_BET * 3}증가했다
+		CALL CASINO_MONEY("카리스마", P_BET * 3)
+	ENDIF
+	IF NEMUKE() >= 700
+		PRINTFORML 
+		PRINTFORML 메이드 요정
+		PRINTFORML 　저기, 손님?
+		PRINTFORML 　상당히 수고했어의 모습이에요
+		PRINTFORML 　오늘은 이제 게임을 끝내는 편이 좋은 것이 아닐까
+		PRINTFORMW 　다음 행차를 기다리고 있어요
+		RETURN
+	ELSEIF MONEY:2 <= 0
+		PRINTFORML 
+		PRINTFORML 메이드 요정
+		PRINTFORML 　손에 가지고 있는 카리스마가 다해 버린 것 같네요
+		PRINTFORMW 　다음 행차를 기다리고 있어요
+		RETURN
+	ENDIF
+	PRINTFORML 
+	PRINTFORML 메이드 요정
+	PRINTFORML 　아직 승부 하십니까?
+	PRINTFORML 
+	;[2]판돈의 재설정[1]속행[0]그만둔다
+	CALL CASINO_INPUTLOOP("카드 속행")
+	SELECTCASE RESULT
+	CASE 0
+		GOTO CANCEL
+	CASE 1
+		IF MONEY:2 < P_BET
+			PRINTFORML 메이드 요정
+			PRINTFORML 　손에 가지고 있는 카리스마가 부족한 것 같네요
+			PRINTFORML 　판돈을 재설정 해주세요
+			PRINTFORML 
+			CALL CASINO_INPUTLOOP("카드 판돈")
+			IF !RESULT
+				GOTO CANCEL
+			ELSE
+				P_BET = RESULT
+				PRINTFORML 
+			ENDIF
+		ENDIF
+	CASE 2
+		PRINTFORML 메이드 요정
+		PRINTFORML 　그러면 판돈을 입력해 주세요
+		PRINTFORML 
+		CALL CASINO_INPUTLOOP("카드 판돈")
+		IF !RESULT
+			GOTO CANCEL
+		ELSE
+			P_BET = RESULT
+			PRINTFORML 
+		ENDIF
+	ENDSELECT
+	CALL CASINO_MONEY("카리스마", -P_BET)
+	CALL CASINO_MONEY("것", P_BET)
+	PRINTFORML 메이드 요정
+	PRINTFORML 　네, 판돈 {P_BET}카리스마 확실히 받았습니다
+	PRINTFORMW 　그러면 계속 잘 부탁 드리겠습니다
+LOOP 1
+$CANCEL
+PRINTFORML 
+PRINTFORML 메이드 요정
+PRINTFORML 　잘 알았습니다
+PRINTFORMW 　다음 행차를 기다리고 있어요
+
+
+
+;D/P는 딜러와 플레이어
+;
+;적당하게 만들었지만 이것 꽤 교묘한 수법이구나……
+;· 실은 2승, 3승의 상금보다 1승의 상금이 많다
+;·획득 기회가 많을 것이다 3승 이하의 상금은 새발의 피
+;·불규칙한 타이밍에 정답이 판명하기 위해(때문에) 원 장있을지도와 착각한다
+;
+;상금×1.5의 조작과 플레이어 수입
+;01회_150　__50
+;02회_225　__25
+;03회_337　__37
+;04회_506　_106
+;05회_759　_259
+;06회 1139　_539
+;07회 1708　1008
+;08회 2562　1762
+;09회 3840　2940
+;10회 5766　4766
+;
+;딜러의 화술은 4, 이것도 나는 난 성능의 사람이다
+;
+;플레이어의 능력에 응한 정오 검지율과 오답율
+;화술 1=_1→검지율_1/16=_6%, 불명율 94%2=오답율 47%
+;화술 2=_4→검지율_4/17=23.5%, 불명율 76.5%2=오답율 38%
+;화술 3=_9→검지율_9/_25=36%, 불명율 64%2=오답율 32%
+;화술 4=16→검지율_16/32=50%, 불명율 50%2=오답율 25%
+;화술 5=25→검지율25/41=61%, 불명율 39%2=오답율 20%
+;화술 6=36→검지율_36/_52=69%, 불명율 31%2=오답율 16%
+
+;감 파업에서의 10연승율 17.4%
+
+;2승은 아니고 단순 계산이라면
+
+;화술 1→검지율_1/5=_20%, 불명율 80%2=오답율 40%
+;화술 2→검지율_2/6=33.3%, 불명율 66.6%2=오답율 33.3%
+;화술 3→검지율_3/_7=36%, 불명율 42.8%2=오답율 21.4%
+;화술 4→검지율_4/8=50%, 불명율 50%2=오답율 25%
+;화술 5→검지율5/9=55.6%, 불명율 44.4%2=오답율 22.2%
+;화술 6→검지율6/10=60%, 불명율 40%2=오답율 20%
+
+;감 파업에서의 10연승율 10.7%
+
+
+;단순 계산으로 딜러를 5에
+
+;화술 1→검지율_1/6 불명율 83%2=오답율 41.5%
+;화술 2→검지율_2/7 불명율 71.4%2=오답율 35.7%
+;화술 3→검지율_3/8 불명율 62.5%2=오답율 31.3%
+;화술 4→검지율_4/9 불명율 55.6%2=오답율 27.8%
+;화술 5→검지율5/10 불명율 50%2=오답율 25%
+;화술 6→검지율6/11 불명율 45.5%2=오답율 22.8%
+
+;감 파업에서의 10연승율 7.5%
+
+;
+
+;
+;화술 6으로 200회 정도 하면 맞는 것은 맞는 것일까
+;액면은 4766이지만 2000을 빼면(자) 벌이는 반 정도다
+@CASINO_DICE
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM HAITOU
+#DIM DICE_1
+#DIM DICE_2
+#DIM DICE_SUM
+#DIM D_YOSOU
+#DIM D_TALK
+#DIM P_YOSOU
+#DIM P_TALK
+D_TALK = POWER(4, 2)
+P_TALK = POWER(MAX(ABL:MASTER:화술기능, 1), 2)
+IF MONEY:2 <= 0
+	PRINTFORML 메이드 요정
+	PRINTFORML 　아차―, 손님 카리스마 가지지 않잖아
+	PRINTFORMW 　먼저 사 오지 않으면 놀 수 없어
+	RETURN
+ELSEIF MONEY:2 < 100
+	PRINTFORML 메이드 요정
+	PRINTFORML 　이것 1회 100 카리스마야―
+	PRINTFORMW 　미안해―
+	RETURN
+ENDIF
+PRINTFORML 메이드 요정
+PRINTFORML 　주사위 게임 코너입니다
+PRINTFORMW 　어딘가 그 정도옆에 앉아 버려서 주세요
+HAITOU = 100
+DO
+	TIME += 5
+	PRINTFORML 
+	PRINTFORML 메이드 요정
+	PRINTFORML 　그럼 우선은 게임의 참가료 100 카리스마를 받네요―
+	CALL CASINO_MONEY("카리스마", -100)
+	CALL CASINO_MONEY("것", 100)
+	DICE_1 = FUNC_CASINO("DICE", 1, 6)
+	DICE_2 = FUNC_CASINO("DICE", 1, 6)
+	DICE_SUM = DICE_1 + DICE_2
+	D_YOSOU = RAND(1, 3)
+	PRINTFORML 
+	PRINTFORML 메이드 요정
+	PRINTFORML 　그러면-적당하게 코로코로와
+	PRINTFORML 　예~, 정반 어느 쪽입니까
+	IF D_YOSOU % 2
+		PRINTFORML 　그럼 나의 예상, 반
+	ELSE
+		PRINTFORML 　그럼 나의 예상, 정
+	ENDIF
+	WAIT
+	PRINTFORML 
+	LOCAL = D_TALK + P_TALK
+	IF RAND:LOCAL <= D_TALK
+		PRINTDATAL
+			DATAFORM 이것은 거짓말일까?
+			DATAFORM 이것은 진실? ……아니, 모른다
+			DATAFORM 눈썹의 움직임이 부자연스럽다, 거짓말인가?
+			DATAFORM 생각하면 생각할수록 모르게 되어 왔다
+			DATAFORM 메이드 요정은 후암~ 하고 크게 하품했다
+			DATAFORM 메이드 요정은 멍청이와 이쪽의 얼굴을 바라보고 있다
+			DATAFORM 메이드 요정은 달 그래 무엇을 생각하고 있는지 잘 모른다
+			DATAFORM 메이드 요정의 콧방울이 꿈틀꿈틀 하고 있어요…… 하고 생각했더니 사랑스러운 재채기를 했다
+		ENDDATA
+	ELSE
+		IF DICE_SUM % 2 == D_YOSOU % 2
+			PRINTFORML 이 요정이 말하는 것은 진실이다!
+		ELSE
+			PRINTFORML 이 요정은 거짓말을 하고 있다!
+		ENDIF
+	ENDIF
+	PRINTFORML 
+	;[2]정[1]반
+	CALL CASINO_INPUTLOOP("정반예상")
+	P_YOSOU = RESULT
+	PRINTFORML 
+	PRINTFORML 메이드 요정
+	PRINTFORML 　그러면-결과 발표의 시간 입니다
+	PRINTFORML 　벌컥 열자…… 어때?
+	PRINTFORML 
+	PRINTFORML ～결과～
+	IF DICE_SUM % 2
+		PRINTFORML 나온 눈은 {DICE_1}와 {DICE_2}로 반이었다
+	ELSE
+		PRINTFORML 나온 눈은 {DICE_1}와 {DICE_2}로 정이었다
+	ENDIF
+	
+	IF DICE_SUM % 2 == P_YOSOU % 2
+	;손님의 승리
+		TIMES HAITOU, 1.50
+		PRINTFORML 메이드 요정
+		PRINTFORML 　아 적중, 배당금이 1.5배의 {HAITOU}가 됩니다
+		IF MONEY:2 < 100
+			PRINTFORML 　손님은 속행의 요금 지불할 수 없기 때문에 여기서 한 번 정산이구나
+			CALL CASINO_MONEY("카리스마", HAITOU)
+			SIF 500000 - FLAG:카리스마유통 < 10000
+				GOTO CLOSE_SHOP
+			PRINTFORML 　그럼, 아직 계속합니까? 그렇지 않으면 내립니까?
+			;[1]속행[0]그만둔다
+			CALL CASINO_INPUTLOOP("속행")
+			IF !RESULT
+				PRINTFORML 메이드 요정
+				PRINTFORMW 　또 와 주세요
+				RETURN
+			ELSE
+				PRINTFORML 메이드 요정
+				PRINTFORMW 　그~래요, 그래 오지 않지 않으면
+				HAITOU = 100
+			ENDIF
+		ELSEIF NEMUKE() >= 700
+			CALL CASINO_MONEY("카리스마", HAITOU)
+			$EXIT_NEMUI
+			PRINTFORML 
+			PRINTFORML 메이드 요정
+			PRINTFORML 　응∼, 손님도 졸린 것인지
+			PRINTFORML 　오늘의 게임은 여기까지 란 것으로
+			PRINTFORMW 　다시 봐요∼
+			RETURN
+		ELSEIF 500000 - FLAG:카리스마유통 - HAITOU * 15 / 10 < 10000
+			CALL CASINO_MONEY("카리스마", HAITOU)
+			$CLOSE_SHOP
+			PRINTFORML 
+			PRINTFORML 메이드 요정
+			PRINTFORML 　이런, 가게금 때문인지 다
+			PRINTFORML 　오늘은 이제 계속하고들 응 없어
+			PRINTFORMW 　또 와 주세요
+			RETURN
+		ELSE
+			PRINTFORML 　그럼, 아직 계속합니까? 그렇지 않으면 내립니까?
+			;[2]속행[1]정산하고 속행[0]정산하고 그만둔다
+			CALL CASINO_INPUTLOOP("주사위 속행")
+			SELECTCASE RESULT
+			CASE 0
+				PRINTFORML 메이드 요정
+				PRINTFORML 　그럼 배당금 {HAITOU}카리스마를 받아 주세요
+				PRINTFORMW 　또 와 주세요
+				CALL CASINO_MONEY("카리스마", HAITOU)
+				RETURN
+			CASE 1
+				PRINTFORML 메이드 요정
+				PRINTFORML 　신중하네요
+				PRINTFORMW 　그럼 배당금 {HAITOU}카리스마를 받아 주세요
+				CALL CASINO_MONEY("카리스마", HAITOU)
+				HAITOU = 100
+			CASE 2
+				PRINTFORML 메이드 요정
+				PRINTFORMW 　그~래요, 그래 오지 않지 않으면
+			ENDSELECT
+		ENDIF
+	ELSE
+	;손님의 패배
+		PRINTFORML 메이드 요정
+		PRINTFORML 　어머 유감
+		IF MONEY:2 < 100
+			PRINTFORMW 　카리스마가 없지 계속되지 않아요
+			RETURN
+		ELSEIF NEMUKE() >= 700
+			WAIT
+			GOTO EXIT_NEMUI
+		ELSE
+			PRINTFORML 　100 카리스마 지불해 계속합니까?
+			;[1]속행[0]그만둔다
+			CALL CASINO_INPUTLOOP("속행")
+			IF !RESULT
+				PRINTFORML 메이드 요정
+				PRINTFORMW 　또 와 주세요
+				RETURN
+			ELSE
+				PRINTFORML 메이드 요정
+				PRINTFORMW 　그~래요, 그래 오지 않지 않으면
+				HAITOU = 100
+			ENDIF
+		ENDIF
+	ENDIF
+LOOP 1
+
+
+
+;D/P는 딜러와 플레이어
+;최고 상금은 90으로 소비 카리스마의 4.5배라고 하는 굴지의 아이 온천을 자랑하는 것도 교양 6으로 간신히 정답율 50%
+;한층 더 움직이는 액면이 고정해 작기 때문에 그다지 벌 수 없다
+;확률로 정답이 결정되기 (위해)때문에 아무리 교양을 올려도 오답율은 0은 되지 않는다고 하는 수수한 함정도 있다
+@CASINO_QUIZ
+#LOCALSIZE 1
+#LOCALSSIZE 10
+#DIM Q_LV
+#DIM Q_COUNT
+#DIM Q_CHECK
+Q_COUNT = 1
+SIF !STRLENS(LOCALS)
+	SPLIT "/요정이라도 아는 문제/보통의 인간 사람들인 문제/보통이 아닌 인간 사람들의 문제/마법사라면 알아줬으면 해 문제/마법사도 머리를 감쌌다 어려운 문제/누구나가 신음소리를 내는 기문", "/", LOCALS
+PRINTFORML 메이드 요정
+PRINTFORML 　시작되었습니다!
+PRINTFORML 　「움직이지 않는 대도서관」 바로 마법사 파츄리 널릿지 님 완전 감수!
+PRINTFORMW 　“파츄리 퀴즈”의 시간입니다!
+IF MONEY:2 < 5
+	PRINTFORMW 　……라는 어―, 손님 카리스마 충분하지 않아요―
+	RETURN
+ENDIF
+
+Q_LV = 1
+PRINTFORML 메이드 요정
+PRINTFORMW 　그러면 빨리 제1문!
+DO
+	TIME += 5
+	CALL CASINO_MONEY("카리스마", -5)
+	CALL CASINO_MONEY("것", 5)
+	PRINTFORML 　·
+	PRINTFORML 　·
+	PRINTFORML 　·
+	PRINTFORML 
+	PRINTFORMW 당신은 퀴즈에 대답했다
+	PRINTFORML 
+
+	Q_CHECK = POWER(Q_LV, 3)
+	LOCAL = Q_CHECK + POWER(MAX(ABL:MASTER:교양, 1), 3)
+	IF RAND:LOCAL <= Q_CHECK
+		PRINTFORML 메이드 요정
+		PRINTFORML 　유감! 오답 입니다
+	ELSE
+		PRINTFORML 메이드 요정
+		PRINTFORML 　대단하다, 대발견!
+		PRINTFORML 　상금 {Q_LV * 5}―！！！
+		CALL CASINO_MONEY("카리스마", Q_LV * 5)
+	ENDIF
+	WAIT
+	PRINTFORML 
+	IF MONEY:2 < 5
+		PRINTFORML 메이드 요정
+		PRINTFORML 　그러니까, 여기서 손님이 카리스마 조각이다―！！
+		PRINTFORMW 　또 놀러 와 주세요∼
+		RETURN
+	ELSEIF FUNC_CASINO("CLOSE_CASINO")
+		PRINTFORML 메이드 요정
+		PRINTFORML 　아 와 오늘은 이 근처에서 폐점 같습니다!
+		PRINTFORMW 　또 놀러 와 주세요∼
+		RETURN
+	ELSEIF NEMUKE() >= 700
+		PRINTFORML 메이드 요정
+		PRINTFORML 　이런이런? 손님 대단히 수고했어의 모습이군요!
+		PRINTFORMW 　또 놀러 와 주세요∼
+		RETURN
+	ENDIF
+
+	Q_COUNT ++
+	SELECTCASE RAND(1, 101)
+	CASE 1 TO 8
+		Q_LV = 1
+	CASE 9 TO 22
+		Q_LV = 2
+	CASE 23 TO 50
+		Q_LV = 3
+	CASE 51 TO 78
+		Q_LV = 4
+	CASE 79 TO 92
+		Q_LV = 5
+	CASE 93 TO 100
+		Q_LV = 6
+	ENDSELECT
+	PRINTFORML 메이드 요정
+	PRINTFORML 　계속되어 제{Q_COUNT}문!
+	PRINTFORML 　이 문제는 %LOCALS:Q_LV%입니다
+	PRINTFORML 　여기서 위축되어 멈추어 버려서도 상관하지 않아요∼
+	PRINTFORML 　어떻게 합니까―！？
+	PRINTFORML 
+	;[1]속행[0]그만둔다
+	CALL CASINO_INPUTLOOP("속행")
+	IF !RESULT
+		PRINTFORML 메이드 요정
+		PRINTFORML 　이용 감사합니다―！！
+		PRINTFORMW 　또 놀러 와 주세요∼
+		RETURN
+	ENDIF
+	PRINTFORML 메이드 요정
+	PRINTFORMW 　그러면 다음의 문제를 읽어 내립니다!
+LOOP 1
+
+
+
+;카지노용 펑션
+@FUNC_CASINO(TYPE, ARG, ARG:1)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS TYPE
+#DIM LCOUNT
+#DIM YEN
+#DIM CHARISMA
+SELECTCASE TYPE
+CASE "DICE"
+;범용으로 사용할 수 있지만 주사위 함수
+;개인적으로 개조마다 뭐양 겨울밤 매회 만들어 넣고 있는 것 같은 생각이 든다
+	LOCAL = 0
+	FOR LCOUNT, 0, ARG
+		LOCAL += RAND(1, ARG:1)
+	NEXT
+CASE "TRADE"
+;홍마관용의 외환거래 레이트
+;기본 레이트￥200 == 1 카리스마
+	LOCAL = CHARISMA_NOW()
+CASE "CLOSE_CASINO"
+;카지노 휴업 판정
+;폐지가 된 것 같은 생각도 들지만, 읽기 쉽게
+	IF 500000 - FLAG:카리스마유통 < 10000
+		LOCAL = 1
+	ELSE
+		LOCAL = 0
+	ENDIF
+ENDSELECT
+RETURNF LOCAL
+
+
+
+;카지노 금전 거래 함수
+;당신이 1만￥을 얻었을 경우에는
+;CALL CASINO_MONEY("￥", 10000)
+;당신이 100 카리스마를 잃었을 경우에는
+;CALL CASINO_MONEY("카리스마", -100)
+;
+;당신의 최고 수입은 아마 1개월에 100만에는 닿지 않는다
+;홍마관측에서 1억＄으로 50만 카리스마를 준비
+@CASINO_MONEY(TYPE, ARG)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS TYPE
+SELECTCASE TYPE
+CASE "￥"
+	;환불 상한
+	IF ARG > 0
+		LOCAL = MIN(ARG, 100000000 - FLAG:￥유통)
+		SIF LOCAL < 0
+			LOCAL = 0
+	ELSE
+		LOCAL = ARG
+	ENDIF
+	MONEY += LOCAL
+	FLAG:￥유통 += LOCAL
+CASE "카리스마"
+	;환불 상한
+	IF ARG > 0
+		LOCAL = MIN(ARG, 500000 - FLAG:카리스마유통)
+		SIF LOCAL < 0
+			LOCAL = 0
+	ELSE
+		LOCAL = ARG
+	ENDIF
+	MONEY:2 += LOCAL
+	FLAG:카리스마유통 += LOCAL
+CASE "것"
+	FLAG:것지수 += ARG
+ENDSELECT
+
+
+
+;범용성도 제길도
+;별로 의미도 없는 DO-LOOP가 시끄러웠다
+@CASINO_INPUTLOOP(TYPE)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS TYPE
+#DIM C_MAX
+#DIM LCOUNT
+SELECTCASE TYPE
+CASE "카드 판돈"
+	C_MAX = MIN(50, MONEY:2, (500000 - FLAG:카리스마유통 - 10000) / 2)
+	PRINTFORML 소지 카리스마：{MONEY:2}(상한{C_MAX})
+	SIF C_MAX >= 1
+		PRINTFORML [{1, LOG10(C_MAX) + 1}] - 1 카리스마를 건다
+	SIF C_MAX >= 10
+		PRINTFORML [{10, LOG10(C_MAX) + 1}] - 10 카리스마를 건다
+	SIF C_MAX >= 4
+		PRINTFORML [{C_MAX / 2, LOG10(C_MAX) + 1}] - 최대치의 반을 건다
+	PRINTFORML [{C_MAX, LOG10(C_MAX) + 1}] - 최대치를 건다
+	DO
+		INPUT
+		IF INRANGE(RESULT, 0, C_MAX)
+			BREAK
+		ELSE
+			REUSELASTLINE 무효인 입력입니다
+			CONTINUE
+		ENDIF
+	LOOP 1
+CASE "카드 전술"
+	PRINTFORML 당신의 전술은……
+	PRINTFORML [3] - 속임수
+	PRINTFORML [2] - 정정당당
+	PRINTFORML [1] - 주시
+	DO
+		INPUT
+		IF INRANGE(RESULT, 1, 3)
+			BREAK
+		ELSE
+			REUSELASTLINE 무효인 입력입니다
+			CONTINUE
+		ENDIF
+	LOOP 1
+CASE "카드 속행"
+	PRINTFORML [2] - 판돈의 변경
+	PRINTFORML [1] - 속행
+	PRINTFORML [0] - 그만둔다
+	DO
+		INPUT
+		IF INRANGE(RESULT, 0, 2)
+			BREAK
+		ELSE
+			REUSELASTLINE 무효인 입력입니다
+			CONTINUE
+		ENDIF
+	LOOP 1
+CASE "속행"
+	PRINTFORML [1] - 계속한다
+	PRINTFORML [0] - 그만둔다
+	DO
+		INPUT
+		IF INRANGE(RESULT, 0, 1)
+			BREAK
+		ELSE
+			REUSELASTLINE 무효인 입력입니다
+			CONTINUE
+		ENDIF
+	LOOP 1
+CASE "정반예상"
+	PRINTFORML ~당신의 예상~
+	PRINTFORML [2] - 정
+	PRINTFORML [1] - 반
+	DO
+		INPUT
+		IF INRANGE(RESULT, 1, 2)
+			BREAK
+		ELSE
+			REUSELASTLINE 무효인 입력입니다
+			CONTINUE
+		ENDIF
+	LOOP 1
+CASE "주사위 속행"
+	PRINTFORML [2] - 속행
+	PRINTFORML [1] - 정산해 속행
+	PRINTFORML [0] - 정산해 그만둔다
+	DO
+		INPUT
+		IF INRANGE(RESULT, 0, 2)
+			BREAK
+		ELSE
+			REUSELASTLINE 무효인 입력입니다
+			CONTINUE
+		ENDIF
+	LOOP 1
+ENDSELECT
+LOCAL = RESULT
+RETURN LOCAL
+
+
+
+;카지노용 정보 표시 함수
+;주인의 블랙 잭 관련
+@CASINO_DISP(TYPE, ARG, ARG:1)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS TYPE
+#DIM PL
+#DIMS HAND_OP
+SELECTCASE TYPE
+CASE "BJ_CLOSE"
+;	DRAWLINEFORM ━
+;	PRINTFORML 카드더미 나머지 {52 - CARD_DECK:0}
+	DRAWLINEFORM ━
+	PRINTFORML 【메이드 요정】
+	CALL CARD_DISP("CARD", CARD_HAND:0:0)
+	CALL CARD_DISP("CARD_L")
+	DRAWLINEFORM ━
+	CALL CASINO_DISP("BJ_PL_HAND")
+	DRAWLINEFORM ━
+CASE "BJ_OPEN"
+	DRAWLINEFORM ━
+	CALL CASINO_DISP("BJ_DL_HAND")
+	DRAWLINEFORM ━
+	CALL CASINO_DISP("BJ_PL_HAND")
+	DRAWLINEFORM ━
+CASE "BJ_PL_HAND"
+	PRINTFORML 【%CALLNAME:MASTER%】
+	CALL CARD_DISP("HAND", 1)
+	PRINTFORML 
+	CALL CASINO_DISP("BJ_POINT", 1)
+	PRINTFORML 
+CASE "BJ_DL_HAND"
+	PRINTFORML 【메이드 요정】
+	CALL CARD_DISP("HAND", 0)
+	PRINTFORML 
+	CALL CASINO_DISP("BJ_POINT", 0)
+	PRINTFORML 
+CASE "BJ_POINT"
+	PL = ARG
+	PRINTFORM 　점수：
+	;정보 갱신의 타이밍에 주의
+	IF CARD_PLAYER("GET_BJ_BUST", PL)
+		SETCOLOR 255, 0, 0
+		PRINTFORM %TOSTR(CARD_PLAYER("GET_BJ_POINT", PL)), 2% BUST!!
+		RESETCOLOR
+	ELSEIF CARD_PLAYER("GET_BJ_BJ", PL)
+		SETCOLOR 255, 255, 0
+		PRINTFORM %TOSTR(CARD_PLAYER("GET_BJ_POINT", PL)), 2% BLACK JACK!!
+		RESETCOLOR
+	ELSE 
+		PRINTFORM %TOSTR(CARD_PLAYER("GET_BJ_POINT", PL)), 2%
+	ENDIF
+CASE "RESULT"
+	IF ARG
+		PRINTL
+		PRINTFORML ～결과～
+		PRINTFORML 　판돈 총액： {ARG:0, 10}
+		PRINTFORML 　배당 총액： {ARG:1, 10}
+		PRINTFORML 　　　 수지：\@ ARG:1 - ARG:0 >= 0 ?  + #   \@{ARG:1 - ARG:0, 10}
+		PRINTW
+	ENDIF
+ENDSELECT
+
+
+
+;여기에서 카드 관련 함수군
+;카지노 이외에도 사용할 수 있는 것은 사용할 수 있을 것
+
+;카드게임계는 범용화하는 묘미가 크다고 생각했다
+
+
+;카드(트럼프) 용 범용 함수
+@PLAY_CARDS(TYPE, ARG:0, ARG:1)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS TYPE
+#DIM  PL_ID
+SELECTCASE TYPE
+CASE "SHUFFLE"
+;카드의 카드더미를 셔플한다
+;인수=사용하는 조커의 수(상한 8)
+	VARSET CARD_DECK
+	NUM_JOKER = LIMIT((ARG:0), 0, MAX_JOKER)
+	NUM_CARD  = 52 + NUM_JOKER
+	;0~52까지 만들어 0을 제거한다
+	CALL FISHER_YATES_SHAFFLE(NUM_CARD + 1)
+	ARRAYREMOVE SHAFFLE_ARRAY, FINDELEMENT(SHAFFLE_ARRAY, 0), 1
+	ARRAYCOPY "SHAFFLE_ARRAY", "CARD_DECK"
+	NEW_CARD = 0
+CASE "RESET_HAND"
+;모든 플레이어의 패를 파기한다
+;NEW_CARD의 수치는 리셋 하지 않는다
+	VARSET NUM_HAND
+	VARSET CARD_HAND
+CASE "HIT"
+;특정 플레이어가 카드를 산표로부터 깎는다
+;인수=플레이어 번호
+	CARD_HAND:(ARG:0):(NUM_HAND:(ARG:0)) = CARD_DECK:NEW_CARD
+	NUM_HAND:(ARG:0) ++
+	NEW_CARD ++
+CASE "HIT_BJ"
+;블랙 잭용
+	CALL PLAY_CARDS("HIT", (ARG:0))
+	CALLF CARD_PLAYER("RENEW_BJ_POINT", (ARG:0))
+
+CASE "NUM_HIT"
+;ARG:0의 플레이어의 패를 ARG:1매만 보충한다
+	FOR LOCAL, NUM_HAND:(ARG:0) , NUM_HAND:(ARG:0) + ARG:1
+		CALL PLAY_CARDS("HIT", ARG)
+	NEXT
+CASE "REHIT"
+;ARG:0의 플레이어의 패, ARG:1을 「덧쓰기」한다
+;원래 패은 참조할 수 없다( 「버린다」는 아니다)
+;패 매수는 변함없다
+;현상으로 버리기지폐의 기록이 필요하게 되는 시스템은 없기 때문에 우선 이것으로 실장
+	CARD_HAND:(ARG:0):(ARG:1) = CARD_DECK:NEW_CARD
+	NEW_CARD ++
+
+CASE "POKER_FIRST_HAND"
+;포커의 최초의 패, ARG:0의 플레이어의 패를 5장
+	CALL PLAY_CARDS("NUM_HIT", ARG:0, 5)
+
+ENDSELECT
+
+
+
+;카드 표시 함수
+@CARD_DISP(TYPE, ARG)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS TYPE
+#DIM PL
+#DIMS HAND_OP
+#DIM C_HAND
+
+SELECTCASE TYPE
+CASE "CARD", "CARD_L"
+;범용의 카드 표시용
+	;0(와)과 JK는 별취급
+	IF !ARG
+		PRINT ［ ?  ］
+		SIF TYPE == "CARD_L"
+			PRINTL
+		RETURN
+	ELSEIF CARD_CHECK("JOKER", ARG)
+		PRINT ［ JK ］
+		SIF TYPE == "CARD_L"
+			PRINTL
+		RETURN
+	ENDIF
+	PRINT ［
+	;스트 표시, 스페이드, 클로버, 하트, 다이어의 순서
+	SELECTCASE CARD_CHECK("SUIT", ARG)
+	CASE 1
+		SETCOLOR C_BLUE
+	CASE 2
+		SETCOLOR C_GREEN
+	CASE 3
+		SETCOLOR C_RED
+	CASE 4
+		SETCOLOR C_YELLOW
+	ENDSELECT
+	PRINTFORM %CARD_SUIT:CARD_CHECK("SUIT", ARG)% 
+	RESETCOLOR
+	;숫자 표시, 너무 0은 13, 놀이로 9를 ⑨로 하거나 색을 바꾸거나 하고 있습니다
+	;기호나 AA로 회찰을 표현하는 것도 재미있을 것 같다(귀찮아서)
+	SELECTCASE CARD_CHECK("RANK", ARG)
+	CASE 1
+		SETCOLOR 255, 0, 0
+		PRINTFORM %CARD_RANK:CARD_CHECK("RANK", ARG)%
+		RESETCOLOR
+	CASE 9
+		SETCOLOR 0, 255, 255
+		PRINTFORM %CARD_RANK:CARD_CHECK("RANK", ARG)%
+		RESETCOLOR
+	CASEELSE
+		PRINTFORM %CARD_RANK:CARD_CHECK("RANK", ARG)%
+	ENDSELECT
+	PRINT ］　
+	SIF TYPE == "CARD_L"
+		PRINTL
+CASE "HAND", "HAND_L", "HAND_BUTTON"
+;범용의 패 표시용
+	PL = ARG
+	HAND_OP = %TYPE%
+	FOR C_HAND, 0, NUM_HAND:PL
+		SIF CARD_HAND:PL:C_HAND == 0
+			BREAK
+		SIF HAND_OP == "HAND_BUTTON"
+			PRINTFORM [{C_HAND, 2}]
+		IF HAND_OP == "HAND_L"
+			CALL CARD_DISP("CARD_L", CARD_HAND:PL:C_HAND)
+		ELSE
+			CALL CARD_DISP("CARD", CARD_HAND:PL:C_HAND)
+		ENDIF
+	NEXT
+ENDSELECT
+
+
+
+;카드의 플레이어 변수의 관리용 F함수
+;"GET"가 없는 TYPE는 CALLF로 사용한다
+@CARD_PLAYER(TYPE, PL)
+#FUNCTION
+#DIMS TYPE     ;처리 내용
+#DIM DYNAMIC PL;판정 대상 플레이어
+#DIM PL_HAND   ;패판정루프용
+#DIM PL_ID     ;플레이어 판정 루프용
+
+;블랙 잭용 변수
+;burst·블랙 잭 근처는 BIT 사용하면 1 변수로 끝나지만 이것으로 좋아
+#DIM P_BJ,    MAX_CARD_PL ;각 플레이어의 득점
+#DIM BJ_ACE,  MAX_CARD_PL ;소지하는 에이스의 수
+#DIM BJ_BJ,   MAX_CARD_PL ;블랙 잭을 달성 하고 있을지 어떨지
+#DIM BJ_BUST, MAX_CARD_PL ;burst 했는지 어떠했는지
+
+;포커용 변수
+;우선 같은 사람 플레이는 고려하고 있지 않다
+#DIM PL_RANK,  5  ;패 정보의 일시 취득용
+#DIM PL_SUIT,  5  ;패 정보의 일시 취득용
+#DIM PK_GROUP     ;연번 판정용
+#DIM CNT_RANK, 14 ;각 숫자의 매수 취득
+#DIM CNT_SUIT, 5  ;각 스트의 매수 취득
+#DIM PK_RATE      ;얻을 수 있던 배율, 반환값으로서 사용(%)
+SELECTCASE TYPE
+
+;여기서부터 블랙 잭용
+CASE "CLEAR_BJ_ALL"
+;계산용 수치의 초기화
+	VARSET P_BJ
+	VARSET BJ_ACE
+	VARSET BJ_BJ
+	VARSET BJ_BUST
+CASE "CLEAR_BJ"
+;특정 플레이어전용
+	P_BJ:PL = 0
+	BJ_ACE:PL = 0
+	BJ_BJ:PL = 0
+	BJ_BUST:PL = 0
+CASE "RENEW_BJ_POINT_ALL"
+;전플레이어의 상황을 재계산
+	CALLF CARD_PLAYER("CLEAR_BJ_ALL", PL)
+	FOR PL_ID, 0, NUM_CARD_PL
+		CALLF CARD_PLAYER("CALC_BJ_POINT", PL_ID)
+	NEXT
+CASE "RENEW_BJ_POINT"
+;특정 플레이어의 상황을 재계산
+	CALLF CARD_PLAYER("CLEAR_BJ", PL)
+	CALLF CARD_PLAYER("CALC_BJ_POINT", PL)
+CASE "CALC_BJ_POINT"
+;블랙 잭의 점수 계산용
+;특정의 플레이어의 현재의 패의 득점을 계산한다
+	;12매로 확실히 burst 하지만 일단 계산은 한다
+	FOR PL_HAND, 0, NUM_HAND:PL
+		;당기지 않다(있을 수 없는 것 같지만 일단)
+		SIF CARD_HAND:PL:PL_HAND == 0
+			BREAK
+		;조커 분기만 만들었지만 조금 아직 대응하고 있지 않아
+		IF CARD_CHECK("JOKER", CARD_HAND:PL:PL_HAND)
+		ELSEIF CARD_CHECK("RANK", CARD_HAND:PL:PL_HAND) == 1
+			BJ_ACE:PL ++
+		ELSE
+			P_BJ:PL += CARD_CHECK("BJ_POINT", CARD_CHECK("RANK", CARD_HAND:PL:PL_HAND))
+		ENDIF
+	NEXT
+	IF BJ_ACE:PL
+	;4패턴, 1or11, 2or12, 3or13, 4or14
+	;2매이상을  11취급하면(자) 그 만큼으로 burst이므로 고려할 필요는 없다
+		IF P_BJ:PL + 10 + BJ_ACE:PL <= 21
+			P_BJ:PL += 10 + BJ_ACE:PL
+		ELSE
+			P_BJ:PL += BJ_ACE:PL
+		ENDIF
+	ENDIF
+	SIF NUM_HAND:PL == 2 && P_BJ:PL == 21
+		BJ_BJ:PL = 1
+	SIF P_BJ:PL > 21
+		BJ_BUST:PL = 1
+CASE "GET_BJ_POINT"
+;특정의 플레이어의 득점
+	RETURNF P_BJ:PL
+CASE "GET_BJ_BJ"
+;특정의 플레이어가 블랙 잭을 달성 하고 있을지 어떨지
+	RETURNF BJ_BJ:PL
+CASE "GET_BJ_BUST"
+;특정의 플레이어가 burst 했는지 어떠했는지
+	RETURNF BJ_BUST:PL
+
+
+CASE "GET_POKER_RATE"
+;포커의 레이트 계산
+;지금 응과 개패 5매의 1명 플레이 밖에 상정하고 있지 않다
+;침대를 할 수 있는 편이 「답다」지만 AI라든지 평가 함수라든지 생각하고 싶지 않아
+	VARSET PL_RANK
+	VARSET PL_SUIT
+	VARSET PK_GROUP
+	VARSET CNT_RANK
+	VARSET CNT_SUIT
+	VARSET PK_RATE
+	;패 배열의 Copy(복사)
+	FOR PL_HAND, 0, NUM_HAND:PL
+		PL_RANK:PL_HAND = CARD_CHECK("RANK", CARD_HAND:PL:PL_HAND)
+		PL_SUIT:PL_HAND = CARD_CHECK("SUIT", CARD_HAND:PL:PL_HAND)
+	NEXT
+	PK_GROUP = 0
+	
+	;매수 카운트
+	FOR LOCAL, 1, 14
+		;랭크의 매수 취득
+		CNT_RANK:LOCAL = MATCH(PL_RANK, LOCAL)
+		;내친 김에 스트의 카운트도 해 치운다
+		SIF !INRANGE(LOCAL, 1, 4)
+			CONTINUE
+		CNT_SUIT:LOCAL = MATCH(PL_SUIT, LOCAL)
+	NEXT
+	
+	;스트레이트 판정 처리
+	;10, J, Q, K, A는 스트레이트 취급
+	IF GROUPMATCH(1, CNT_RANK:1, CNT_RANK:10, CNT_RANK:11, CNT_RANK:12, CNT_RANK:13) == 5
+		PK_GROUP = 5
+	ELSEIF MATCH(CNT_RANK, 1) == 5
+		;페어 없음 한편 「패 최대치 - 패 최소치 == 4」가 스트레이트 판정 조건
+		;A~5, 9~K 등
+		SIF FINDLASTELEMENT(CNT_RANK, 1) - FINDELEMENT(CNT_RANK, 1) == 4
+			PK_GROUP = 5
+	ENDIF
+	
+	;레이트는%표기 데스(소수는 돌려줄 수 없기 때문에)
+	IF MATCH(CNT_SUIT, 5) && GROUPMATCH(1, CNT_RANK:1, CNT_RANK:10, CNT_RANK:11, CNT_RANK:12, CNT_RANK:13) == 5
+	;Royal Straight
+		PK_RATE = 30000
+	ELSEIF MATCH(CNT_SUIT, 5) && PK_GROUP == 5
+	;Straight Flush
+		PK_RATE = 5000
+	ELSEIF MATCH(CNT_RANK, 4)
+	;Four of a Kind
+		PK_RATE = 3000
+	ELSEIF MATCH(CNT_RANK, 3) && MATCH(CNT_RANK, 2)
+	;Full House
+		PK_RATE = 2000
+	ELSEIF MATCH(CNT_SUIT, 5)
+	;Flush
+		PK_RATE = 1000
+	ELSEIF PK_GROUP == 5
+	;Straight
+		PK_RATE = 500
+	ELSEIF MATCH(CNT_RANK, 3)
+	;Three of a Kind
+		PK_RATE = 300
+	ELSEIF MATCH(CNT_RANK, 2) == 2
+	;Two Pair
+		PK_RATE = 100
+	ELSEIF MATCH(CNT_RANK, 2)
+	;One Pair
+		PK_RATE = 50
+	ELSE
+	;No Pair
+		PK_RATE = 0
+	ENDIF
+	RETURNF PK_RATE
+ENDSELECT
+
+
+
+;카드게임 판정 F함수
+;카드의 한 장 한 장에 대한 판정
+@CARD_CHECK(TYPE, D_ARG)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS TYPE
+#DIM DYNAMIC D_ARG ;적당하게 DYNAMIC화하고 싶었던 것 뿐이야 도이 있고 이름이 생각해내지 못하다
+#DIM P_BJ
+#DIM ACE_COUNT
+#DIM C_HAND
+SELECTCASE TYPE
+CASE "JOKER"
+;RANK/SUIT는 반환값 0으로 조커/수치 없음의 판별이 불능이기 때문에
+;먼저 JOKER를 체크해 주세요
+	SIF D_ARG > 52
+		RETURNF 1
+	RETURNF 0
+CASE "RANK"
+;반환값 1~13
+;조커 때 0
+	SIF !D_ARG
+		RETURNF
+	SIF D_ARG > 52
+		RETURNF 0
+	SIF !(D_ARG % 13)
+		RETURNF 13
+	RETURNF D_ARG % 13
+CASE "SUIT"
+;반환값 1~4
+;조커 때 0
+	SIF !D_ARG
+		RETURNF
+	SIF D_ARG > 52
+		RETURNF 0
+	RETURNF (D_ARG - 1) / 13 + 1
+
+CASE "BJ_POINT"
+;블랙 잭의 점수 계산용
+;ACE의 포인트가 패 나름으로 바뀌어 버려 이 함수만으로는 취급할 수 없다
+;변수의 덧쓰기 문제가 귀찮아서 독립시켰다
+;인수는 RANK로 해 주세요
+;인 조커 비대응
+	SIF GROUPMATCH(D_ARG, 11, 12, 13)
+		RETURNF 10
+	RETURNF D_ARG
+
+CASE "BJ_BUST"
+	SIF D_ARG > 21
+		RETURNF 1
+	RETURNF 0
+ENDSELECT
+
+
+@CASINO_MEMBER_RANKUP
+
+
+IF FLAG:것지수 >= 100 && FLAG:회원랭크 < 1
+	PRINTFORMW 점을 나오려고 하면 메이드 요정에 불러 세울 수 있었다
+	PRINTFORML 「언제나 당 카지노를 애고해 주셔, 정말로 감사합니다」
+	PRINTFORM 「다녀왔습니다를 기하여 , 손님의 회원랭크가
+	CALL COLORMESSAGE("브론즈 카리스마 회원", C_YELLOW)
+	PRINTFORML 가 되어, 카리스마 보유 상한의 상승, 및 카리스마의 매각이 해금되었습니다」
+	PRINTFORMW 「향후도 편애를 받도록 부탁합니다」
+	FLAG:회원랭크 = 1
+	CM_COMMISSION = 25
+	CM_LIMIT = 500
+	FLAG:것지수 = 0
+ENDIF
+IF FLAG:것지수 >= 3000 && FLAG:회원랭크 < 2
+	PRINTFORMW 점을 나오려고 하면 메이드 요정에 불러 세울 수 있었다
+	PRINTFORML 「언제나 당 카지노를 애고해 주셔, 정말로 감사합니다」
+	PRINTFORM 「다녀왔습니다를 기하여 , 손님의 회원랭크가
+	CALL COLORMESSAGE("실버 카리스마 회원", C_YELLOW)
+	PRINTFORML 가 되어, 카리스마 보유 상한의 상승과 카리스마의 매각 수수료의 내리고가 적용됩니다」
+	PRINTFORMW 「향후도 편애를 받도록 부탁합니다」
+	FLAG:회원랭크 = 2
+	CM_COMMISSION = 20
+	CM_LIMIT = 1000
+	FLAG:것지수 = 0
+ENDIF
+
+IF FLAG:것지수 >= 10000 && FLAG:회원랭크 < 3
+	PRINTFORMW 점을 나오려고 하면 메이드 요정에 불러 세울 수 있었다
+	PRINTFORML 「언제나 당 카지노를 애고해 주셔, 정말로 감사합니다」
+	PRINTFORM 「다녀왔습니다를 기하여 , 손님의 회원랭크가
+	CALL COLORMESSAGE("골드 카리스마 회원", C_YELLOW)
+	PRINTFORML 가 되어, 새로운 카리스마 보유 상한의 상승과 카리스마의 매각 수수료의 내리고가 적용됩니다」
+	PRINTFORMW 「향후도 편애를 받도록 부탁합니다」
+	FLAG:회원랭크 = 3
+	CM_COMMISSION = 18
+	CM_LIMIT = 3000
+	FLAG:것지수 = 0
+ENDIF
+[SKIPSTART]
+IF !ITEM:홍마카지노 VIP 회원증
+PRINTFORML 
+PRINTFORMW 점을 나오려고 하면 메이드 요정에 불러 세울 수 있었다
+PRINTFORML 
+;VIP-의 사양이 굳어져 싫은 있고 것으로 봉인
+;봉인 해 두어 문장만 확충하는 것은 어때
+;등 어젯밤은 얼굴 패스로도 좋을 것 같지만
+	SELECTCASE CSVCALLNAME(FLAG:역극)
+	CASE "레밀리아", "플랑", "파츄리"
+		PRINTFORML 메이드 요정
+		PRINTFORML 　%CALLNAME:MASTER% 님, 조금 시간을 받아도 좋을까요?
+		PRINTFORML 　아시는 일이라고는 생각합니다만 당점에는 VIP 룸이 있습니다
+		PRINTFORML 　상당히 카지노를 마음에 드신 모습이었으므로 VIP 회원증을 준비했습니다
+	CASE "사쿠야"
+		PRINTFORML 메이드 요정
+		PRINTFORML 　%CALLNAME:MASTER% 씨, VIP 회원증을 가져왔습니다
+		PRINTFORMW 　VIP 룸에 안내하네요
+	CASE "메이링", "소악마"
+		PRINTFORML 메이드 요정
+		PRINTFORML 　%CALLNAME:MASTER% 씨, 완전하게 빠져 버리고 있습니다군요
+		PRINTFORML 　네, 이것 VIP 회원증입니다
+		PRINTFORMW 　VIP 룸에 안내하기 때문에 따라 와 주세요
+	CASE "당신"
+		IF MAIN_MAP == 3
+			PRINTFORML 메이드 요정
+			PRINTFORML 　이젠 완전히 단골 손님이군요
+			PRINTFORML 　저희 딜러가 되어 버립니까?
+			PRINTFORML 　네, 이것 VIP 회원증입니다
+			PRINTFORMW 　VIP 룸에 안내하기 때문에 따라 와 주세요
+		ELSE
+			PRINTFORML 메이드 요정
+			PRINTFORML 　조금 시간을 받아도 좋을까요?
+			PRINTFORML 　언제나 당점을 이용하셔 감사합니다
+			PRINTFORML 　손님은 당점의 VIP 회원으로서 인정되었습니다
+			PRINTFORMW 　이쪽이 VIP 회원증입니다
+		ENDIF
+	CASEELSE
+			PRINTFORML 메이드 요정
+			PRINTFORML 　조금 시간을 받아도 좋을까요?
+			PRINTFORML 　언제나 당점을 이용하셔 감사합니다
+			PRINTFORML 　손님은 당점의 VIP 회원으로서 인정되었습니다
+			PRINTFORMW 　이쪽이 VIP 회원증입니다
+	ENDSELECT
+	PRINTFORML 
+	PRINTFORML 메이드 요정은 당신에게 회원증을 전하면(자) 딸려 드립니다 게라고 촉구했다
+	PRINTFORMW 안내된 앞은 아무런 특색도 없는 붉은 벽의 앞에 보이지만……?
+	PRINTFORML 
+	SELECTCASE CSVCALLNAME(FLAG:역극)
+	CASE "레밀리아", "플랑", "파츄리"
+		PRINTFORML 메이드 요정
+		PRINTFORMW 　%CALLNAME:MASTER% 님, 방금 전의 회원증을 이쪽의 벽의 앞에 언덕 좌시가 되어 주세요
+	CASE "사쿠야"
+		PRINTFORML 메이드 요정
+		PRINTFORMW 　%CALLNAME:MASTER% 씨, 방금 전의 회원증을 이쪽의 벽의 앞에 가려 봐 주세요
+	CASE "메이링", "소악마"
+		PRINTFORML 메이드 요정
+		PRINTFORMW 　%CALLNAME:MASTER% 씨, 조금 전의 회원증을 이쪽의 벽의 앞에 가려 봐 주세요
+	CASE "당신"
+		IF MAIN_MAP == 3
+			PRINTFORML 메이드 요정
+			PRINTFORMW 　조금 전의 회원증을 이쪽의 벽의 앞에 가려 봐 주세요
+		ELSE
+			PRINTFORML 메이드 요정
+			PRINTFORMW 　손님, 방금 전의 회원증을 이쪽의 벽의 앞에 언덕 좌시가 되어 주세요
+		ENDIF
+	CASEELSE
+			PRINTFORML 메이드 요정
+			PRINTFORMW 　손님, 방금 전의 회원증을 이쪽의 벽의 앞에 언덕 좌시가 되어 주세요
+	ENDSELECT
+	PRINTFORML 
+	PRINTFORMW %마스터가% 말한 대로 따르자 아련한 기계음과 함께 눈앞의 벽이 열렸다
+	PRINTFORML 
+	PRINTFORML 메이드 요정
+	PRINTFORML 　이쪽, 당점 자랑의 VIP 룸입니다
+	PRINTFORML 　VIP 룸 내부에서는 다양한 서비스를 제공하고 있습니다
+	PRINTFORML 　귀중한 시간을 받아 감사합니다
+	PRINTFORML 　그러면 조심해 어서와 주십시오
+	PRINTFORMW 　점원 모두들, 다음 내점을 진심으로 대기 하고 있고 내립니다
+	PRINTFORML 
+	PRINTFORMW VIP 룸이 이용 가능하게 되었다
+	ITEM:홍마카지노 VIP 회원증 = 1
+ENDIF
+[SKIPEND]

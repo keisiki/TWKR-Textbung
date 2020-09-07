@@ -1,0 +1,128 @@
+﻿;-------------------------------------------------
+;클리애무
+;애무系コマンド　レベル1
+;-------------------------------------------------
+@COM15
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+;行為者
+TCVAR:116 = PLAYER
+;봉사快楽
+TCVAR:PLAYER:108 = 1
+CSTR:TARGET:10 += @"{PLAYER}/"
+
+;TCVAR:2 사정장소フラグ（-1=콘돔 1=질내 2=애널 3=수음 4=口淫 5=파이즈리 6=스마타 7=풋잡 8=体表 9=애널봉사 10=道具）
+TCVAR:TARGET:2 = 3
+;-------------------------------------------------
+;ソース追加処理 ほぼ315の流用
+;-------------------------------------------------
+;消費체력、기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 20
+	SOURCE:쾌C = 80
+	IF ABL:PLAYER:손가락 >= 4
+		SOURCE:쾌C += 50
+	ELSE
+		SOURCE:쾌C += ABL:PLAYER:손가락 * 10
+	ENDIF
+	;手を突っ込めない衣装
+	IF TEQUIP:0 & 16
+		TIMES SOURCE:쾌C , 0.80
+		TIMES SOURCE:욕정 , 0.80
+		TIMES SOURCE:노출 , 0.80
+	;치마以外の何かを履いてる
+	ELSEIF TEQUIP > 1
+		TIMES SOURCE:쾌C , 0.90
+		TIMES SOURCE:욕정 , 0.90
+		TIMES SOURCE:노출 , 0.90
+	ENDIF
+	
+	;-------------------------------------------------
+	;経験の処理
+	;-------------------------------------------------
+	;同性愛　レズなら戻り値1ゲイなら戻り値2
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+	ENDIF
+	
+	;수음경험
+	EXP:PLAYER:수음경험 ++
+ELSE
+	DOWNBASE:체력 += 5
+	DOWNBASE:기력 += 50
+
+	SOURCE:환락 = 100
+	SOURCE:사랑 = 150
+	SOURCE:욕정 = 150
+	SOURCE:노출 = 100
+	SOURCE:반감 = 370
+	SOURCE:쾌C = 80
+	SOURCE:수동 = 145 + 270 * ABL:순종
+	IF ABL:PLAYER:손가락 >= 4
+		SOURCE:쾌C += 50
+	ELSE
+		SOURCE:쾌C += ABL:PLAYER:손가락 * 10
+	ENDIF
+	;手を突っ込めない衣装
+	IF TEQUIP:0 & 16
+		TIMES SOURCE:쾌C , 0.80
+		TIMES SOURCE:욕정 , 0.80
+		TIMES SOURCE:노출 , 0.80
+	;치마以外の何かを履いてる
+	ELSEIF TEQUIP > 1
+		TIMES SOURCE:쾌C , 0.90
+		TIMES SOURCE:욕정 , 0.90
+		TIMES SOURCE:노출 , 0.90
+	ENDIF
+
+	;-------------------------------------------------
+	;特殊ソース処理
+	;-------------------------------------------------
+	;抑圧、저항持ちには、억울ソース追加
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 20
+		
+	;-------------------------------------------------
+	;経験の処理
+	;-------------------------------------------------
+	;同性愛　レズなら戻り値1ゲイなら戻り値2
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+	ENDIF
+	
+	;수음경험
+	EXP:PLAYER:수음경험 ++
+ENDIF
+;調教者の능숙한손가락によって、快感のソース増加
+IF TALENT:PLAYER:능숙한손가락
+	TIMES SOURCE:쾌C , 1.50
+	TIMES SOURCE:액체 , 1.50
+ENDIF
+;-------------------------------------------------
+;汚れの処理
+;-------------------------------------------------
+;奴隷のＶ⇔調教者の手の汚れが이동
+STAIN:3 |= STAIN:PLAYER:1
+STAIN:PLAYER:1 |= STAIN:3
+
+RETURN 1
+
+;-------------------------------------------------
+;클리애무実行判定
+;-------------------------------------------------
+@COM_ABLE15
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(15)
+	RETURN RESULT
+;男だと無理（【수음한다】コマンドと被るので）
+SIF GETBIT(TALENT:TARGET:성별,1)
+	RETURN 0
+;腕使用中 挿れながらクリは弄れるのでコメントアウト
+;SIF TFLAG:61 && MASTER_POSE(SET_C,3) != TARGET && MASTER_POSE(SET_P,SET_YUBI) != TARGET && MASTER_POSE(SET_V,SET_YUBI) != TARGET && MASTER_POSE(SET_A,SET_YUBI) != TARGET
+;	RETURN 0
+RETURN 1
+

@@ -1,0 +1,106 @@
+﻿@DAIRY_CONDITION_EV20
+SIF RAND:15 > 0
+	RETURN -1
+SIF CFLAG:[[반키]]:신사거주
+	RETURN -1
+SIF CFLAG:[[반키]]:출금
+	RETURN -1
+SIF !TALENT:[[반키]]:사모 && !TALENT:[[반키]]:연모
+	RETURN -1
+CALL DAIRY_EV20
+RETURN 1
+
+@DAIRY_EV20
+#DIM 손님수
+
+PRINTFORML 한밤중, 창가에서 목소리가 들렸다
+PRINTFORMW %마스터가% 졸린 눈을 비비며 창문을 열자, 머리가 떠 있었다
+PRINTFORML ……세키반키의 머리다
+PRINTFORML 지나가는 길에 들러봤다고 한다
+;通りがかったから寄ってみたという
+CALL ASK_YN("들어오게 한다","졸리다")
+IF RESULT
+	PRINTFORMW 졸리기 때문에 되돌려 보냈다
+	RETURN
+ENDIF
+PRINTFORML 들어오도록 했다
+
+손님수 = 1
+IF ABL:[[반키]]:친밀 >= 10 && !RAND:3
+	PRINTFORML 창문으로 머리가 들어왔다… …하지만, 하나뿐이 아니었다
+	FOR LOCAL, 2, ABL:73:친밀 - 5
+		SIF !RAND:2
+			CONTINUE
+		손님수 ++
+		PRINTFORMW {손님수}번째 머리가 들어왔다
+		SIF 손님수 >= 9
+			BREAK
+	NEXT
+	SIF 손님수 == 1
+		PRINTFORML 라고 생각했지만, 역시 하나였다
+	SIF 손님수 >= 4
+		PRINTFORMW 이만큼 같은 얼굴에 둘러싸지면, 역시 지내기가 불편하다……
+ENDIF
+IF TIME:5 >= 4
+	PRINTFORML 젖어있었기 때문에 목욕타올을 건네주었다
+	PRINTFORML 타올 위에서 굴러다니는 머리는 꽤 재미있는 광경이다
+ELSE
+	SELECTCASE RAND:3
+		CASE 0
+			PRINTFORML 눈높이를 맞추기 위해 책상 위에 방석을 놓고 앉도록 했다
+			SIF 손님수 > 1
+				PRINTFORML 책상 위에 생목이 늘어서 있는 광경은 마치 베어진 적군의 머리 수를 확인하는 것 같았다
+				;獄門か首実検だ
+		CASE 1
+			PRINTFORML 차를 끓였더니 마시기 힘들어해서 빨대를 꽂았다
+			PRINTFORML 마신 것은 도대체 어디로 가는 것일까……
+		CASE 2
+			PRINTFORML 뒷머리에 잎사귀가 걸려 있어서 때주었다
+	ENDSELECT
+ENDIF
+PRINTFORMW 
+PRINTFORMW …
+PRINTFORMW ……
+PRINTFORMW ………
+
+IF RAND:100 < ABL:[[반키]]:친밀 * 3 + TALENT:[[반키]]:연모 * 15
+	PRINTFORM 잠시 담소한 후, 머리
+	IF 손님수 > 1
+	PRINTFORM 들은 
+	ELSE
+	PRINTFORM 는 
+	ENDIF
+	PRINTFORM 내일은 몸통째 온다며 
+	IF !PRIVATEROOM:(CFLAG:MASTER:초기위치 % 100) && TALENT:[[반키]]:연모
+		PRINTFORML 돌아가려고 했지만 어차피 내일 올거면 자고 가라고 했다
+		PRINTFORM %마스터는% 머리맡에 머리를 
+		IF 손님수 > 1
+		PRINTFORM 나란히 
+		ENDIF
+		PRINTFORML 놓고 잠들었다……
+	ELSE
+		PRINTFORML 돌아갔다
+	ENDIF
+	CFLAG:[[반키]]:다음날내방 = 1
+ELSE
+	PRINTFORM 잠시 담소한 후, 머리
+	IF 손님수 > 1
+	PRINTFORM 들은 
+	ELSE
+	PRINTFORM 는 
+	ENDIF
+	PRINTFORML 창문으로 돌아갔다
+	SIF !RAND:2
+		CFLAG:[[반키]]:다음날내방 = 1
+ENDIF
+;시스템 메시지 다하고 호감도 변화
+;마지막 인수만 호감도가 변화
+CALL CHANGE_CFLAG(2,[[반키]], 50)
+
+;시스템 메시지 다하고 신뢰도 변화
+;마지막 인수만 신뢰도가 변화
+CALL CHANGE_CFLAG(4,[[반키]], 20)
+
+;수면시간 감소
+CFLAG:MASTER:취침시간 += 60
+CALL COLORMESSAGE("수면시간이 1시간 줄어들었다", C_YELLOW, 2)

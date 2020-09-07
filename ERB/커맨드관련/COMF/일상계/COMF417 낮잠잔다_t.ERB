@@ -1,0 +1,120 @@
+﻿;-------------------------------------------------
+;선잠
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM417
+#DIM 회복전체력, 2
+#DIM 회복전기력, 2
+#DIM 회복후체력, 2
+#DIM 회복후기력, 2
+#DIM 회복률_체력, 4
+#DIM 회복률_기력, 4
+#DIM 회복률_정력, 4
+
+회복률_체력:0 = 125
+회복률_기력:0 = 150
+회복률_정력:0 = 50
+
+회복률_체력:1 = 150
+회복률_기력:1 = 150
+회복률_정력:1 = 60
+
+회복률_체력:2 = 160
+회복률_기력:2 = 180
+회복률_정력:2 = 70
+
+회복률_체력:3 = 180
+회복률_기력:3 = 200
+회복률_정력:3 = 80
+
+회복전체력:0 = BASE:MASTER:체력
+회복전기력:0 = BASE:MASTER:기력
+IF TARGET > 0 && CFLAG:TARGET:6 > 0
+	회복전체력:1 = BASE:TARGET:체력
+	회복전기력:1 = BASE:TARGET:기력
+	CALL RECOVER_PERMIL(TARGET,회복률_체력:(ITEM:오동나무침대),"체력",1)
+	CALL RECOVER_PERMIL(TARGET,회복률_기력:(ITEM:오동나무침대),"기력",1)
+	CALL RECOVER_PERMIL(TARGET,회복률_정력:(ITEM:오동나무침대),"정력",1)
+	회복후체력:1 = BASE:TARGET:체력
+	회복후기력:1 = BASE:TARGET:기력
+		;ABL:친밀을 본다
+		IF ABL:친밀 <= 1
+			SOURCE:사랑 += (ABL:친밀 * 30)
+		ELSEIF ABL:친밀 <= 3
+			SOURCE:환락 += 100 + (ABL:친밀 * 40)
+			SOURCE:사랑 += 200 + (ABL:친밀 * 30)
+		ELSEIF ABL:친밀 <= 5
+			SOURCE:환락 += 400 + (ABL:친밀 * 50)
+			SOURCE:사랑 += 300 + (ABL:친밀 * 30)
+		ELSEIF ABL:친밀 <= 8
+			SOURCE:환락 += 700 + (ABL:친밀 * 60)
+			SOURCE:사랑 += 400 + (ABL:친밀 * 40)
+		ELSEIF ABL:친밀 <= 11
+			SOURCE:환락 += 1200 + (ABL:친밀 * 80)
+			SOURCE:사랑 += 600 + (ABL:친밀 * 40)
+		ELSE
+			SOURCE:환락 += 2000 + (ABL:친밀 * 50)
+			SOURCE:사랑 += 1500 + (ABL:친밀 * 20)
+		ENDIF
+		;호감도를 본다
+		IF CFLAG:2 <= 500
+			SOURCE:환락 += CFLAG:2
+		ELSEIF CFLAG:2 <= 5000
+			SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+		ELSE
+			SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+		ENDIF
+		SIF SOURCE:환락 < 0
+		SOURCE:환락 = 0
+		CFLAG:333 += 90
+		TFLAG:98 += 3
+	TFLAG:194 = 1
+	PRINTFORML %타겟과% 함께 \@ TIME > 660 && TIME < 900? 낮잠# 선잠\@자기로 했다
+ELSE
+ 	PRINTFORML %마스터는% 조금 \@ TIME > 660 && TIME < 900? 낮잠# 선잠\@자기로 했다
+ 	TFLAG:194 = 2
+ENDIF
+
+CALL RECOVER_PERMIL(MASTER,회복률_체력:(ITEM:오동나무침대),"체력",1)
+CALL RECOVER_PERMIL(MASTER,회복률_기력:(ITEM:오동나무침대),"기력",1)
+CALL RECOVER_PERMIL(MASTER,회복률_정력:(ITEM:오동나무침대),"정력",1)
+
+TIME += 90
+TFLAG:낮잠 = 90
+회복후체력:0 = BASE:MASTER:체력
+회복후기력:0 = BASE:MASTER:기력
+DRAWLINE
+PRINTFORML 체력+{ABS(회복후체력- 회복전체력)}(%CALLNAME:MASTER%)
+PRINTFORML 기력+{ABS(회복후기력- 회복전기력)}(%CALLNAME:MASTER%)
+IF TFLAG:194 == 1
+	PRINTFORML 체력+{ABS(회복후체력:1 - 회복전체력:1)}(%CALLNAME:TARGET%)
+	PRINTFORML 기력+{ABS(회복후기력:1 - 회복전기력:1)}(%CALLNAME:TARGET%)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE417
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;이동 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(417)
+	RETURN RESULT
+;개인 방 설정
+SIF CFLAG:MASTER:현재위치 != CFLAG:MASTER:311
+	RETURN 0
+SIF NEMUKE() < 180
+	RETURN 0
+SIF NEMUKE() > 720
+	RETURN 0
+SIF TFLAG:낮잠 > 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+RETURN 1
+

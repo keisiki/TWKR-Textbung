@@ -1,0 +1,320 @@
+﻿;
+;	입력한 장소 ID가 자택 내부라면0-99에 갈아넣는 함수
+;
+;	FLAG:(XXX + 자택 장소 ID)에 FLAG:(XXX + CHK_INHOME(자택 장소 ID))라고 하는 형태로 사용하고 있다
+;
+;ARG, 장소 ID
+@CHK_INHOME(ARG)
+#FUNCTION
+SIF MAIN_MAP == GET_MAPID(ARG)
+	RETURNF (ARG) % 100
+RETURNF ARG
+;
+;	장소에 대한 판정을 함수화할 수 없을까 만든 것.
+;
+@CHK_PLACE(ARG, ARGS, ARG:1 = 0, MAPID = -1)
+#FUNCTION
+#DIM MAPID
+#DIM TARGET_INHOME
+IF MAPID == -1
+	MAPID = GET_MAPID(ARG:1)
+ENDIF
+IF MAPID == MAIN_MAP
+	TARGET_INHOME = CFLAG:ARG:현재위치 % 100
+ELSE
+	TARGET_INHOME = -1
+ENDIF
+
+IF ARGS == "MASTER"
+	SIF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+		RETURNF 1
+ELSEIF ARGS == "ADDRESS"
+	SIF CFLAG:ARG:현재위치 == ARG:1 + MAPID * 100 && CFLAG:ARG:현재위치 != 1000
+		RETURNF 1
+ELSEIF ARGS == "FLAG"
+	SIF CFLAG:ARG:현재위치 == FLAG:(ARG:1)
+		RETURNF 1
+ENDIF
+RETURNF 0
+
+;
+;	장소에 대한 입력을 함수화할 수 없을까 만든 것
+;
+@SET_PLACE(ARG, ARGS, ARG:1 = 0, MAPID = -1)
+#DIM MAPID
+#DIM TARGET_INHOME
+IF MAPID == -1
+	MAPID = GET_MAPID(ARG:1)
+ENDIF
+
+IF ARGS == "MASTER"
+	CFLAG:ARG:현재위치 = CFLAG:MASTER:현재위치
+ELSEIF ARGS == "ADDRESS"
+	CFLAG:ARG:현재위치 = ARG:1 + MAPID * 100
+ELSEIF ARGS == "FLAG"
+	CFLAG:ARG:현재위치 = FLAG:(ARG:1)
+ENDIF
+;-------------------------------------------------
+;
+;	입력한 MAPID가 MAIN_MAP와 일치하는 경우에 0을 돌려주는 함수
+;	IF CFLAG:캐릭터:데이트중의 종류에서는 반드시 사용하는 것
+;	
+;	입력 :MAIN_MAP, 0, 1, ... , MAIN_MAP-1, MAIN_MAP+1, ...
+;	출력:             0, 1, 2, ... ,    MAIN_MAP, MAIN_MAP+1, ...
+;MAPID_DATE, 기본 CFLAG:~:데이트중을 안에 넣는다
+;-------------------------------------------------
+@CHK_DATENOW(MAPID_DATE)
+#FUNCTION
+#DIM MAPID_DATE
+SIF MAPID_DATE < MAIN_MAP
+	RETURNF MAPID_DATE + 1
+SIF MAPID_DATE == MAIN_MAP
+	RETURNF 0
+SIF MAPID_DATE > MAIN_MAP
+	RETURNF MAPID_DATE
+
+;-------------------------------------------------
+;장소 ID가 속하는 MAPID를 돌려주는 함수
+;ARG, 장소 ID
+;-------------------------------------------------
+@GET_MAPID(ARG)
+#FUNCTION
+RETURNF ARG / 100
+
+@GET_DATE_PLACE(ARG)
+#FUNCTION
+RETURNF ARG % 100 % 10
+;-------------------------------------------------
+;이른바 ROUND 함수 판정
+;ARG <= ARG:1 <= ARG:2라면 1을, 그렇지 않으면 0을 돌려준다
+;-------------------------------------------------
+@CHK_FOCUS(ARG, ARG:1, ARG:2)
+#FUNCTION
+;SIF CALC_FOCUS(ARG, ARG:1, ARG:2) != ARG:1
+;	RETURNF 0
+;RETURNF 1
+SIF INRANGE(ARG:1, ARG:0, ARG:2)
+	RETURNF 1
+SIF ARG > ARG:2
+	PRINT ARG:0 > ARG:2 에러
+RETURNF 0
+;-------------------------------------------------
+;이른바 ROUND 함수 출력
+;-------------------------------------------------
+@CALC_FOCUS(ARG, ARG:1, ARG:2)
+#FUNCTION
+SIF ARG >= ARG:1
+	RETURNF ARG
+SIF ARG	:1 >= ARG:2
+	RETURNF ARG:2
+RETURNF ARG:1 
+
+
+;-------------------------------------------------
+;재택 판정
+;CALL		USER
+;ARG		캐릭터 번호
+;RETURN		0=거점에 없는,1=거점에 있는,2=참배길저편
+;COMMENT	지정 캐릭터가 거점에 있을까 판정
+;-----------------------------------------------------------
+@AT_HOME(ARG)
+#FUNCTION
+RETURNF IN_HOME(CFLAG:ARG:현재위치)
+
+;-------------------------------------------------
+;거점 판정
+;CALL		USER
+;ARG		장소 ID
+;RETURN		0=거점은 아닌,1=거점,2=참배길저편
+;COMMENT	지정 캐릭터가 거점에 있을까 판정
+;-----------------------------------------------------------
+@IN_HOME(ARG)
+#FUNCTION
+LOCAL = MAXROOM
+IF ARG == LOCAL
+	RETURNF 2
+ELSEIF CHK_FOCUS(MINROOM(), ARG, LOCAL)
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+
+;-------------------------------------------------
+;지역구분 판정 함수
+;하쿠레이 신사 맵에 있어서의 「하쿠레이 신사」 「삼요정의집」 「몽환유적」과 같은 지역구분
+;지점 ID→AREA→MAP→환상향 전체, 같은
+;외출 MAP의 스폿보다 약간 조잡합니다(약속 장소의 지정에는 사용할 수 없는 정도? )
+;MAIN_MAP를 참조해 거점 맵 판정/외출 맵 판정을 바꾸고 있는 점에 주의
+;하쿠레이 신사 거주시에 하쿠레이 신사의 외출 맵상에서의 번호를 건네주어도 능숙하게 동작하지 않는다
+;-------------------------------------------------
+@MAP_AREANAME(PLACE_ID)
+#FUNCTIONS
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM PLACE_ID
+SIF PLACE_ID == OMANEKIBEYA()
+	RETURNF "방"
+SIF PLACE_ID == SUKIMA()
+	RETURNF "스키마 공간"
+SELECTCASE GET_MAPID(PLACE_ID)
+CASE 0
+	RETURNF MAP0_AREANAME(PLACE_ID)
+CASE 1
+	RETURNF MAP1_AREANAME(PLACE_ID)
+CASE 2
+	RETURNF MAP2_AREANAME(PLACE_ID)
+CASE 3
+	RETURNF MAP3_AREANAME(PLACE_ID)
+CASE 4
+	RETURNF MAP4_AREANAME(PLACE_ID)
+CASE 5
+	RETURNF MAP5_AREANAME(PLACE_ID)
+CASE 6
+	RETURNF MAP6_AREANAME(PLACE_ID)
+CASE 7
+	RETURNF MAP7_AREANAME(PLACE_ID)
+CASE 8
+	RETURNF MAP8_AREANAME(PLACE_ID)
+CASE 9
+	RETURNF MAP9_AREANAME(PLACE_ID)
+CASE 10
+	RETURNF MAP10_AREANAME(PLACE_ID)
+CASE 13
+	RETURNF MAP13_AREANAME(PLACE_ID)
+CASE 14
+	RETURNF MAP14_AREANAME(PLACE_ID)
+ENDSELECT
+
+
+
+@MAP10_AREANAME(PLACE_ID)
+#FUNCTIONS
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM PLACE_ID
+IF MAIN_MAP == 10
+ELSE
+	SELECTCASE PLACE_ID
+	CASE 101
+		RETURNF "회안통로"
+	CASE 1050, 1060, 1070
+		RETURNF "달의도시"
+	CASE 1080, 1090
+		RETURNF "달도시 교외"
+	CASEELSE
+		RETURNF "월면"
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+;ROOMDATAを参照して施設の有無を表示する関数
+;ARG	MAP_ID
+;-------------------------------------------------
+@건물데이터(ARG)
+#DIM MAPDATA
+VARSET MAPDATA
+VARSET LOCAL
+PRINT 시설：
+;マップデータの参照
+FOR LOCAL, 1, 100
+	SIF (ROOMDATA:LOCAL & 장소_목욕탕) != 0
+		MAPDATA |= 장소_목욕탕
+	SIF (ROOMDATA:LOCAL & 장소_주방) != 0
+		MAPDATA |= 장소_주방
+	SIF (ROOMDATA:LOCAL & 장소_훈련) != 0
+		MAPDATA |= 장소_훈련
+	SIF (ROOMDATA:LOCAL & 장소_공부) != 0
+		MAPDATA |= 장소_공부
+	SIF (ROOMDATA:LOCAL & 장소_채소밭) != 0
+		MAPDATA |= 장소_채소밭
+	SIF (ROOMDATA:LOCAL & 장소_하늘의소리) != 0
+		MAPDATA |= 장소_하늘의소리
+NEXT
+FONTBOLD
+CALL COLORMESSAGE(@"【목욕탕】", (MAPDATA & 장소_목욕탕) ? C_WHITE # C_GRAY, 0)
+CALL COLORMESSAGE(@"【주방】", (MAPDATA & 장소_주방) ? C_WHITE # C_GRAY, 0)
+CALL COLORMESSAGE(@"【훈련】", (MAPDATA & 장소_훈련) ? C_WHITE # C_GRAY, 0)
+CALL COLORMESSAGE(@"【공부】", (MAPDATA & 장소_공부) ? C_WHITE # C_GRAY, 0)
+CALL COLORMESSAGE(@"【텃밭】", (MAPDATA & 장소_채소밭) ? C_WHITE # C_GRAY, 0)
+CALL COLORMESSAGE(@"【하늘의소리】", (MAPDATA & 장소_하늘의소리) ? C_WHITE # C_GRAY, 0)
+FONTREGULAR
+
+;地点の参照
+FOR LOCAL, MINROOM(), MAXROOM
+	SIF FISHING_SPOT(LOCAL)
+		LOCAL:1 = 1
+	SIF IS_LIBRARY(LOCAL, 1)
+		LOCAL:2 = 1
+	SIF GATHERING_SPOT(LOCAL)
+		LOCAL:3 = 1
+	SIF PHARMACY_SPOT(LOCAL) == 2
+		LOCAL:4 = 1
+	SIF STALL_SPOT(LOCAL)
+		LOCAL:5 = 1
+	SIF PLACE_SENTO(LOCAL)
+		LOCAL:6 = 1
+	SIF OMIKUJI_SPOT(LOCAL)
+		LOCAL:7 = 1
+	SIF MORIYA_OMIKUJI(LOCAL)
+		LOCAL:8 = 1
+	SIF KAIDASHI_SHOP(LOCAL)
+		LOCAL:9 = 1
+	SIF FLOWER_SHOP(LOCAL)
+		LOCAL:10 = 1
+	SIF SAKE_SHOP(LOCAL)
+		LOCAL:11 = 1
+	SIF BOOK_RENTAL(LOCAL)
+		LOCAL:12 = 1
+	SIF YASAI_SHOP(LOCAL)
+		LOCAL:13 = 1
+	SIF CASINO_SPOT(LOCAL)
+		LOCAL:14 = 1
+NEXT
+FOR LOCAL, 1, 20
+	IF LOCAL:LOCAL
+		SELECTCASE LOCAL
+		CASE 1
+			PRINTFORM 【낚시】
+		CASE 2
+			PRINTFORM 【독서】
+		CASE 3
+			PRINTFORM 【채집】
+		CASE 4
+			PRINTFORM 【조제】
+		CASE 5
+			PRINTFORM 【노점】
+		CASE 6
+			PRINTFORM 【대중목욕탕】
+		CASE 7
+			PRINTFORM 【제비뽑기】
+		CASE 8
+			PRINTFORM 【모리야복권】
+		CASE 9
+			PRINTFORM 【식료품가게】
+		CASE 10
+			PRINTFORM 【꽃집】
+		CASE 11
+			PRINTFORM 【술집】
+		CASE 12
+			PRINTFORM 【스즈나안】
+		CASE 13
+			PRINTFORM 【야채가게】
+		CASE 14
+			PRINTFORM 【카지노】
+		ENDSELECT
+	ENDIF
+NEXT
+PRINTL
+PRINT 거주자：
+;キャラクター表示
+FOR LOCAL, 1, CHARANUM
+	IF MAP_거주자(MAIN_MAP, LOCAL)
+		SIF LOCAL:21
+			PRINTFORM 、
+		RESULT = 0
+		TRYCALLFORM M_KOJO_K{LOCAL}
+		PRINTFORM \@ LOCAL:20 ? 、 # \@\@ RESULT ? * # \@%CALLNAME:LOCAL%
+		LOCAL:21 ++
+	ENDIF
+NEXT
+PRINTL 

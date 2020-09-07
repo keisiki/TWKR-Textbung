@@ -1,0 +1,134 @@
+﻿;변수의 개서등을 따르는 버전 업용
+@VERSION_UP
+SIF !GETBIT(FLAG:1000, 1)
+	CALL KAISYONASI
+SIF !GETBIT(FLAG:1000, 2) && FLAG:지주
+	CALL MODE_NOUMIN
+;SIF !GETBIT(FLAG:1000, 3)
+;  	CALL BUGFIX_KOIBITO
+;SETBIT FLAG:1000, 3
+; SIF !GETBIT(FLAG:1000, 4)
+; 	CALL BUGFIX_KOIBITO
+;SETBIT FLAG:1000, 4
+SIF !GETBIT(FLAG:1000, 5)
+	CALL TWKR_VARFIX
+SETBIT FLAG:1000, 5
+SIF !GETBIT(FLAG:1000, 6)
+	CALL TWKR_ITEMFIX
+SETBIT FLAG:1000, 6
+@KAISYONASI
+SETBIT FLAG:1000, 1
+PRINTFORML 스스로 상대에게 고백할 수준의 배짱은 있어?
+CALL ASK_YN("그야 있지","못해요")
+IF !RESULT
+	PRINTFORMW 무능력 모드를 사용하지 않습니다
+	FLAG:생활능력무 = 0
+ELSE
+	PRINTFORMW 무능력 모드를 켭니다(일부 커맨드를 사용 불가·상대 쪽의 덮치기 강화)
+	FLAG:생활능력무 = 1
+ENDIF
+;KR판 참고사항
+;BUGFIX_KOIBITO 는 일판의 복수연인 기능 삭제를 위해 사용했던 함수로, 복수연인 기능이 살아있다면 필요없는 기능임.
+;1) 연인 시스템을 일판에 맞게 수정하거나
+;2) 복수연인 시스템을 삭제하지 않을 거라면 함부로 활성화하지 말것
+@BUGFIX_KOIBITO
+VARSET LOCAL
+
+PRINTFORML 이전 버전의 오류 해결을 위해、한 사람을 제외한 연인을 리셋합니다.
+PRINTFORMW 그 사과의 대가로서 미라다의돌을 드립니다.
+
+FLAG:추가연인수 = 0
+ITEM:미라다의돌 += 1
+
+FOR LOCAL,1,CHARANUM
+	SIF TALENT:LOCAL:연인
+		LOCAL:1 ++
+NEXT
+
+
+
+SIF LOCAL:1 <= 1
+	RETURN
+
+
+PRINTFORML 연인 상태를 유지할 캐릭터를 고르세요.
+
+FOR LOCAL,1,CHARANUM
+	SIF TALENT:LOCAL:연인
+		PRINTFORMLC [{LOCAL}] %CALLNAME:LOCAL%
+NEXT
+PRINTFORML 
+INPUT
+SIF TALENT:RESULT:연인
+	LOCAL:2 = RESULT
+
+FOR LOCAL,1,CHARANUM
+	TALENT:LOCAL:연인 = 0
+NEXT
+
+TALENT:(LOCAL:2):연인 = 1
+;TALENT:MASTER:연인 = LOCAL:2
+;KR판 복수연인가능 호환 위해 1로 설정. 
+TALENT:MASTER:연인 = 1
+
+PRINTFORMW 리셋했습니다.
+;===============================================
+;이하 KR판 고유기능
+;일판과의 호환성 개선을 위해 0.15버전 기준에서 작성됨.
+;기능이 포함된다면 0.16버전일것
+;날짜 2020.07.24
+;===============================================
+@TWKR_VARFIX
+#DIM CLOTH, 5
+VARSET LOCAL ;1: 천적곤신
+PRINTFORMW KR판의 CSV 내 변수 위치 조정에 따른 변수값 초기화 및 조정을 실시합니다.
+;FLAG.CSV
+;신체측정 관련 플래그 변동됨
+FLAG:1066 = 0
+FLAG:1068 = 0
+FLAG:1069 = 0
+
+LOCAL:1 = FLAG:1500
+FLAG:천적곤신 = LOCAL:1
+FLAG:1500 = 0
+
+;삭제된 연인플래그 관련 변수 초기화
+FLAG:50 = 0 ;구 연인플래그1
+FLAG:51 = 0 ;구 연인플래그2
+FLAG:52 = 0 ;구 연인플래그3
+FLAG:53 = 0 ;구 연인플래그4
+FLAG:59 = 0 ;구 가랑이수
+FLAG:60 = 0 ;구 걸레최저치
+FLAG:61 = 0 ;구 걸레최고치
+
+;EQUIP.CSV
+FOR LOCAL,1,CHARANUM
+	SIF EQUIP:LOCAL:13
+	CLOTH:0 = EQUIP:LOCAL:13
+	SIF EQUIP:LOCAL:14
+	CLOTH:1 = EQUIP:LOCAL:14
+	SIF EQUIP:LOCAL:15
+	CLOTH:2 = EQUIP:LOCAL:15
+	SIF EQUIP:LOCAL:16
+	CLOTH:3 = EQUIP:LOCAL:16
+	SIF EQUIP:LOCAL:17
+	CLOTH:4 = EQUIP:LOCAL:17
+
+	EQUIP:LOCAL:치마 = CLOTH:0
+	EQUIP:LOCAL:상반신윗도리1 = CLOTH:1
+	EQUIP:LOCAL:상반신윗도리2 = CLOTH:2
+	EQUIP:LOCAL:원피스 = CLOTH:3
+	EQUIP:LOCAL:기모노 = CLOTH:4
+NEXT
+PRINTFORMW 초기화 및 이관을 완료했습니다.
+;--------------------------------------------------------
+;2020.08.07
+;아이템 변수 인덱스값 이관용
+;--------------------------------------------------------
+@TWKR_ITEMFIX
+
+;문따기기능 28 > 69 이관
+LOCAL = ITEM:28
+ITEM:【문따기기능】 = LOCAL
+ITEM:28 = 0
+PRINTL 문따기기능을 이관했습니다.

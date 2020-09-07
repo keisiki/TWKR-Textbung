@@ -1,0 +1,1341 @@
+﻿;*********************************************************************************
+;K53_PLIST_NUM			허덕여소리 리스트수 허덕여소리 패턴을 추가하면(자) 이 수를 만진다
+;K53_PVOICE_FRAG			사용 가능한 허덕여소리 리스트		(=0 사용 불가　=1 사용가능
+;		0:대상 부위　1:당신 부위　2:쾌감　3:고통　4:반감　5:키스　6:펠라　7:한숨　8:이라마치오　9:소리 인내
+;
+;K53_대사사용가능 대사계는 사용 1회까지		(=0 사용 불가　=1 사용가능
+;RAND:K53_대사발생확률
+;*********************************************************************************
+@K53_AUTO_PVOICE
+
+;초기화·초기설정
+VARSET LOCALS
+
+K53_NUM = 40
+K53_대사발생확률 = 3
+
+;사용 허덕여 리스트 초기화
+FOR LOCAL, 0, K53_PLIST_NUM
+	K53_PVOICE_FRAG:LOCAL = 0
+NEXT
+K53_대사사용가능 = 1
+
+
+;*********************************************************************************
+;합계 쾌감량, 쾌감으로부터 접촉부위를 판정
+;총PALAMLV와 비치지만 아마 사용하지 않을지도
+;*********************************************************************************
+;쾌감 총량 판정
+K53_쾌감 = CUP:쾌C + CUP:쾌V + CUP:쾌A + CUP:쾌B + CUP:쾌M
+
+;쾌감이 주어지고 있는 부위의 총PALAMLV와
+;쾌감이 주어지고 있는 부위를 검색
+;검색하는 쾌감0:쾌C 1:쾌V 2:쾌A 3:쾌B 4:쾌M
+K53_총PALAMLV = 0
+K53_접촉부위 = 
+FOR LOCAL, 0, 5
+	;쾌감이 주어지고 있다
+	IF CUP:TARGET:LOCAL > 0
+		;총PALAMLV 증가
+		K53_총PALAMLV += GETPALAMLV(PALAM:TARGET:LOCAL, 4)
+		
+		;접촉부위 기억
+		SELECTCASE LOCAL
+			CASE 0
+				K53_접촉부위 += "C"
+			CASE 1
+				K53_접촉부위 += "V"
+			CASE 2
+				K53_접촉부위 += "A"
+			CASE 3
+				K53_접촉부위 += "B"
+			CASE 4
+				K53_접촉부위 += "M"
+		ENDSELECT
+
+	ENDIF
+	
+NEXT
+;*********************************************************************************
+;사용 가능 허덕여소리 리스트 판정
+;*********************************************************************************
+;이라마치오중
+IF SELECTCOM == 140
+	;이마라치오
+	K53_PVOICE_FRAG:8 = 1
+	IF STRCOUNT(K53_접촉부위, "C") || STRCOUNT(K53_접촉부위, "V") || STRCOUNT(K53_접촉부위, "A") || STRCOUNT(K53_접촉부위, "B")
+		;헐떡이는 소리
+		IF K53_자극LV("반감") >= 1
+			;반감
+			K53_PVOICE_FRAG:4 = 1
+		;강렬한 쾌감
+		ELSEIF K53_자극LV("쾌감") >= 2
+			;입 막아 부위 쾌감
+			K53_PVOICE_FRAG = 1
+			K53_PVOICE_FRAG:2 = 1
+			K53_PVOICE_FRAG:9 = 1
+		ENDIF
+	ELSE
+		;이라마치오혐
+		IF K53_자극LV("반감") >= 1
+			;반감
+			K53_PVOICE_FRAG:4 = 1
+		ENDIF
+	ENDIF
+ELSEIF STRCOUNT(K53_접촉부위, "M")
+	;펠라중
+	IF TEQUIP:TARGET:입접촉부위 == 1
+		;M 이외의접촉부위가 있다
+		IF STRCOUNT(K53_접촉부위, "C") || STRCOUNT(K53_접촉부위, "V") || STRCOUNT(K53_접촉부위, "A") || STRCOUNT(K53_접촉부위, "B")
+			;강렬한 쾌감
+			IF K53_자극LV("쾌감") >= 2
+				;쾌감이 강한 경우구 막아 강쾌감으로 대용, 펠라 허덕여 없음
+				K53_PVOICE_FRAG:2 = 1
+				K53_PVOICE_FRAG:9 = 1
+			ELSE
+				;펠라 쾌감 부위
+				K53_PVOICE_FRAG = 1
+				K53_PVOICE_FRAG:1 = 1
+				K53_PVOICE_FRAG:2 = 1
+				K53_PVOICE_FRAG:6 = 1
+			ENDIF
+			
+		;펠라계만
+		ELSE
+			;펠라
+			K53_PVOICE_FRAG:1 = 1
+			K53_PVOICE_FRAG:6 = 1
+		ENDIF
+		
+	;키스 or애무 or계속키스중의 행위
+	ELSE
+		;M 이외의접촉부위가 있다
+		IF STRCOUNT(K53_접촉부위, "C") || STRCOUNT(K53_접촉부위, "V") || STRCOUNT(K53_접촉부위, "A") || STRCOUNT(K53_접촉부위, "B")
+			;츄파
+			;강렬한 쾌감의 경우구사기로 대용
+			IF K53_자극LV("쾌감") >= 2
+				K53_PVOICE_FRAG:9 = 1
+			ELSE
+				K53_PVOICE_FRAG:5 = 1
+			ENDIF
+			;키스중에 반발이 붙을 수도 있는 커맨드 실행
+			IF K53_자극LV("고통") >= 1 || K53_자극LV("반감") >= 1
+				;계속키스중에 손가락 넣고 처녀막 상실, 자궁구 고문등
+				
+				IF K53_자극LV("고통") >= 1
+					;고통
+					K53_PVOICE_FRAG = 1
+					K53_PVOICE_FRAG:1 = 1
+					K53_PVOICE_FRAG:3 = 1
+				ELSE
+					;반감
+					K53_PVOICE_FRAG = 1
+					K53_PVOICE_FRAG:1 = 1
+					K53_PVOICE_FRAG:4 = 1
+				ENDIF
+				
+			;키스＋허덕여
+			ELSE
+				;츄파 쾌감 부위
+				K53_PVOICE_FRAG = 1
+				K53_PVOICE_FRAG:1 = 1
+				K53_PVOICE_FRAG:2 = 1
+			ENDIF
+			
+		;키스
+		ELSE
+			;키스혐 이 분기는 발생 하지 않을 지도 모르다
+			IF K53_자극LV("반감") >= 1
+				;츄파 반감
+				K53_PVOICE_FRAG:4 = 1
+				K53_PVOICE_FRAG:5 = 1
+				
+			;키스, 계속키스
+			ELSE
+				;츄파
+				K53_PVOICE_FRAG:5 = 1
+			ENDIF
+		ENDIF
+	ENDIF
+
+;봉사계 봉사 쾌락 판정
+;기승위, 역강간계도 포함된다
+ELSEIF TCVAR:108 == 1
+	;허덕여소리만
+	IF K53_자극LV("쾌감") >= 2
+		;쾌감 부위
+		K53_PVOICE_FRAG = 1
+		K53_PVOICE_FRAG:2 = 1
+		
+	;한숨＋허덕여
+	ELSEIF STRCOUNT(K53_접촉부위, "C") || STRCOUNT(K53_접촉부위, "V") || STRCOUNT(K53_접촉부위, "A") || STRCOUNT(K53_접촉부위, "B")
+		;봉사 쾌감
+		K53_PVOICE_FRAG = 1
+		K53_PVOICE_FRAG:1 = 1
+		K53_PVOICE_FRAG:2 = 1
+		K53_PVOICE_FRAG:7 = 1
+		
+	;한숨만
+	ELSE
+		;한숨
+		K53_PVOICE_FRAG:1 = 1
+		K53_PVOICE_FRAG:7 = 1
+	ENDIF
+;
+ELSE
+	;고통
+	;아픔 기준 처녀:1250 자궁구 고문:~500 스팬킹:450+유치 350 애널애무:100 정상위애널:800
+	IF K53_자극LV("고통") >= 1
+		;쾌감도 강하다
+		IF K53_자극LV("쾌감") >= 2
+			;고통 쾌감
+			K53_PVOICE_FRAG = 1
+			K53_PVOICE_FRAG:1 = 1
+			K53_PVOICE_FRAG:2 = 1
+			K53_PVOICE_FRAG:3 = 1
+			
+		;비명만
+		ELSE
+			;고통 부위
+			K53_PVOICE_FRAG = 1
+			K53_PVOICE_FRAG:1 = 1
+			K53_PVOICE_FRAG:3 = 1
+		ENDIF
+		
+	;반감·공포
+	;반감 기준 후배위:600 삽입 G 스폿·자궁구 고문:500+정조 관념 1000
+	ELSEIF K53_자극LV("반감") >= 1 || K53_자극LV("공포") >= 1
+		;쾌감도 강한 삽입 G 스폿 등	2000 정도?
+		IF K53_자극LV("쾌감") >= 2
+			;반감 부위 쾌감
+			K53_PVOICE_FRAG = 1
+			K53_PVOICE_FRAG:1 = 1
+			K53_PVOICE_FRAG:2 = 1
+			K53_PVOICE_FRAG:4 = 1
+			
+		;비명만
+		ELSE
+			;반감 당신 부위　
+			K53_PVOICE_FRAG = 1
+			K53_PVOICE_FRAG:1 = 1
+			K53_PVOICE_FRAG:4 = 1
+		ENDIF
+		
+	;쾌감
+	ELSEIF STRCOUNT(K53_접촉부위, "C") || STRCOUNT(K53_접촉부위, "V") || STRCOUNT(K53_접촉부위, "A") || STRCOUNT(K53_접촉부위, "B")
+		;쾌감 부위 당신 부위
+		K53_PVOICE_FRAG = 1
+		K53_PVOICE_FRAG:1 = 1
+		K53_PVOICE_FRAG:2 = 1
+	
+	;그 외
+	ELSE
+		;약계·도구 미사용의 아무것도 하지 않는, 등
+		;한숨
+		K53_PVOICE_FRAG:7 = 1
+	ENDIF
+ENDIF
+
+;수정
+;수간중
+IF CFLAG:수면
+	;대사계 없음
+	K53_PVOICE_FRAG = 0
+	K53_PVOICE_FRAG:1 = 0
+	
+	;고통, 공포, 반감 없음
+	K53_PVOICE_FRAG:3 = 0
+	K53_PVOICE_FRAG:4 = 0
+	
+	;쾌감을 한숨에
+	IF STRCOUNT(K53_접촉부위, "C") || STRCOUNT(K53_접촉부위, "V") || STRCOUNT(K53_접촉부위, "A") || STRCOUNT(K53_접촉부위, "B")
+		K53_PVOICE_FRAG:2 = 0
+		K53_PVOICE_FRAG:7 = 1
+	ENDIF
+
+ELSE
+	[SKIPSTART]
+	;허덕여소리 인내(만들어 내기 지문이 없기 때문에, 잘 모르게 되어 있다
+	
+	;M 이외의접촉부위가 있다
+	IF STRCOUNT(K53_접촉부위, "C") || STRCOUNT(K53_접촉부위, "V") || STRCOUNT(K53_접촉부위, "A") || STRCOUNT(K53_접촉부위, "B")
+		;소질
+		IF TALENT:자존심 || TALENT:자제심 || TALENT:정조 || TALENT:수치심 || TALENT:쾌감응답 == -1
+			K53_PVOICE_FRAG:9 = 1
+			;확립으로 완전 참을 수
+			SELECTCASE RAND:4
+				CASE 0
+					K53_PVOICE_FRAG:2 = 0
+			ENDSELECT
+		;상황
+		;침대 룸에서 후배위
+		ELSEIF BEDROOM() && TEQUIP:체위 == 2
+			K53_PVOICE_FRAG:9 = 1
+			;확립으로 완전 참을 수
+			SELECTCASE RAND:4
+				CASE 0
+					K53_PVOICE_FRAG:2 = 0
+			ENDSELECT
+		ENDIF
+	ENDIF
+	[SKIPEND]
+ENDIF
+
+
+;밀어넘어뜨려지고
+IF CFLAG:우후후 == 2
+
+ENDIF
+;*********************************************************************************
+;K53_부위대사 설정
+;괴롭힘 당하는이라고 있는 부위에의 대사
+;*********************************************************************************
+K53_부위대사 =
+IF STRCOUNT(K53_접촉부위, "C")
+	IF TEQUIP:클리캡
+		SELECTCASE RAND:2
+			CASE 0
+				K53_부위대사 = 구, 구리 부들부들 , 시, 싫어
+			CASE 1
+				K53_부위대사 = 구, 절의 부엌 새종류
+		ENDSELECT
+	ELSE
+		SELECTCASE RAND:3
+			CASE 0
+				K53_부위대사 = 구리
+			CASE 1
+				K53_부위대사 = 깨지고 째
+			CASE 2
+				K53_부위대사 = 공알
+		ENDSELECT
+	ENDIF
+ELSEIF STRCOUNT(K53_접촉부위, "V")
+	IF TEQUIP:바이브
+		K53_부위대사 = 얏, 이얏, 배, (안)중…,…괴롭다 응, 괴롭다 응, 이라고…
+	ELSE
+		SELECTCASE RAND:3
+			CASE 0
+				K53_부위대사 = 또
+			CASE 1
+				K53_부위대사 = (안)중
+			CASE 2
+				K53_부위대사 = 깨지고 째
+		ENDSELECT
+	ENDIF
+ELSEIF STRCOUNT(K53_접촉부위, "A")
+	IF TEQUIP:애널바이브
+		K53_부위대사 = 웃, 후우 , 엉덩이, , …,…부들부들, 떨리고…
+	ELSE
+		SELECTCASE RAND:3
+			CASE 0
+				K53_부위대사 = 사리 구멍
+			CASE 1
+				K53_부위대사 = 똥구멍
+			CASE 2
+				K53_부위대사 = 엉덩이
+		ENDSELECT
+	ENDIF
+ELSEIF STRCOUNT(K53_접촉부위, "B")
+	SELECTCASE RAND:3
+		CASE 0
+			K53_부위대사 = 가슴
+		CASE 1
+			K53_부위대사 = 젖가슴
+		CASE 2
+			K53_부위대사 = 젖꼭지
+	ENDSELECT
+ELSE
+	K53_PVOICE_FRAG = 0
+ENDIF
+
+;*********************************************************************************
+;커맨드 대사 설정
+;커맨드에 대한 대사
+;*********************************************************************************
+K53_커맨드대사 =
+SELECTCASE SELECTCOM
+	;애무
+	CASE 0
+		IF TEQUIP:유두캡 || TEQUIP:클리캡
+			SELECTCASE RAND:2
+				CASE 0
+					K53_커맨드대사 = 개인 , 그것, 개인 , 아아아아앙∼~~
+				CASE 1
+					K53_커맨드대사 = 있고, 는, 튕긴데, 캡과 함께, 금지, 히앗
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				CASE 0
+					K53_커맨드대사 = 얏, 거기…동글동글은 , 만진다…
+				CASE 1
+					K53_커맨드대사 = 이런 건, 별로, 기분 자주(잘)…없다……
+				CASE 2
+					K53_커맨드대사 = 손가락, 거기뿐, 해, 끈질기다∼…
+			ENDSELECT
+		ENDIF
+	;쿠니
+	CASE 1
+		IF TCVAR:102
+			K53_커맨드대사 = 아, 당신이 더럽혔으니까, 분명하게 깨끗하게 했겠지요…
+		ELSE
+			SELECTCASE RAND:2
+				CASE 0
+					K53_커맨드대사 = 할짝 할짝
+				CASE 1
+					K53_커맨드대사 = 혀
+					SELECTCASE RAND:2
+						CASE 0
+							K53_커맨드대사 += "로 쿡쿡"
+						CASE 1
+							K53_커맨드대사 += "로 할짝 할짝"
+					ENDSELECT
+			ENDSELECT
+		ENDIF
+	;손가락 넣고
+	CASE 3
+		IF EX:질내정액 > 300
+			K53_커맨드대사 = 정액…%K53_하트부여()%중으로, 질퍽질퍽은…
+		ELSE
+			IF TEQUIP:바이브
+				K53_커맨드대사 = 다, 안 돼 , 그것, 부짝부짝 , 하는 것, 이나 야∼~~
+			ELSE
+				SELECTCASE RAND:2
+					CASE 0
+						K53_커맨드대사 = 손가락
+					CASE 1
+						K53_커맨드대사 = 손가락 자지
+				ENDSELECT
+			ENDIF
+		ENDIF
+	;애널빨기
+	CASE 4
+		SELECTCASE RAND:2
+			CASE 0
+				K53_커맨드대사 = 할짝 할짝
+			CASE 1
+				K53_커맨드대사 = 이얏, 거기 더러운 , 오고 싶은 나
+		ENDSELECT
+	;애널애무
+	CASE 5
+		IF TEQUIP:애널바이브
+			K53_커맨드대사 = 하, , 히, 끈데 , 그것, 나무 찔러, 나, 그만두고
+		ELSE
+			SELECTCASE RAND:3
+				CASE 0
+					K53_커맨드대사 = 얕으면 개, 고육에는 , 이상한, 한자…
+				CASE 1
+					K53_커맨드대사 = 엉덩이 보전 보전, , 로부터 빠지면…
+				CASE 2
+					K53_커맨드대사 = 나 , , 손가락, 구라고 해 움찔움찔, 라고…
+			ENDSELECT
+		ENDIF
+	;가슴애무계
+	CASE 6, 7, 12
+		IF TEQUIP:유두캡
+			K53_커맨드대사 = 얏, 젖꼭지 부들부들 이얏, 그만, 함께 하는 것 이얏
+		ELSE
+			SELECTCASE RAND:2
+				CASE 0
+					K53_커맨드대사 = 젖꼭지, 라고 하는 것…, 이나 …
+				CASE 1
+					K53_커맨드대사 = 시, 싫어 …, 젖꼭지, 손가락에서는 축인…
+			ENDSELECT
+		ENDIF
+	;유두빨기
+	CASE 11
+		SELECTCASE RAND:3
+			CASE 0
+				K53_커맨드대사 = …, 유두 ??…, 이나…
+			CASE 1
+				K53_커맨드대사 =!인가, 씹은데 , 살짝 깨물기 금지…
+			CASE 2
+				K53_커맨드대사 = 이, 이봐, 쮸욱쮸욱 들이마신데…
+		ENDSELECT
+	;음부·애널개장
+	CASE 8, 13
+		;리스트 조작:반감 닫는 한숨 개방
+		K53_PVOICE_FRAG:4 = 0
+		K53_PVOICE_FRAG:7 = 1
+		;질내사정되었다
+		IF TCVAR:102
+			K53_커맨드대사 = 아아~, 이혼 자지 오 되어 버렸다, 스승님에게 명령하면 일까∼
+		;ELSEIF TCVAR:104
+		ELSE
+			K53_커맨드대사 = …이봐, 이것으로 만족? ……변태
+		ENDIF
+	;자위
+	CASE 9
+		;리스트 조작
+		K53_PVOICE_FRAG = 0
+		K53_PVOICE_FRAG:4 = 0
+		;IF ABL:노출벽 >= 3
+		;TEQUIP:바이브 && TEQUIP:애널바이브
+		;IF TEQUIP:바이브
+		;IF TEQUIP:애널바이브
+		;IF TEQUIP:바이브 && TEQUIP:애널바이브 && ABL:V감각 >= 5 && ABL:A감각 >= 5 && ABL:C감각 >= 5 && ABL:B감각 >= 5 && PALAM:욕정 >= PALAMLV:4
+		;ELSEIF TEQUIP:바이브 && ABL:V감각 >= 5 && ABL:C감각 >= 5 && ABL:B감각 >= 5 && PALAM:욕정 >= PALAMLV:4
+		;ELSEIF TEQUIP:애널바이브 && ABL:A감각 >= 5 && ABL:C감각 >= 5 && ABL:B감각 >= 5 && PALAM:욕정 >= PALAMLV:4
+		;ELSEIF ABL:자위중독 >= 3 && ABL:C감각 >= 5 && ABL:B감각 >= 5 && PALAM:욕정 >= PALAMLV:4
+			
+		;ELSE
+			K53_커맨드대사 = 보고, 본데…, 변태…변태∼…
+		;ENDIF
+	;성교 V계
+	CASE 60, 61, 64, 65, 67, 68, 71
+		K53_커맨드대사 = %K53_TINPO()%
+	;G스포 고문
+	CASE 72
+		K53_커맨드대사 = 얏, 거기%K53_하트부여()%해 극 강한
+	;자궁 고문
+	CASE 73
+		SELECTCASE EXP:TARGET:자궁구개발경험
+			CASE IS < 25
+				K53_커맨드대사 = , 오는…%K53_하트부여()%, 인가…있고,……!,"
+			CASE 25 TO 50
+				SELECTCASE RAND:3
+					CASE 0
+						K53_커맨드대사 = 얏, 거기…%K53_하트부여()%감색, 감색은…, 사락……
+					CASE 1
+						K53_커맨드대사 = 아앗, 머리까지…%K53_하트부여()%척척은…구, 온다……
+					CASE 2
+						K53_커맨드대사 = 거기, 둥글둥글 안 돼 , 놔줘 %K53_하트부여()%자지 놔줘∼~
+				ENDSELECT
+			CASE IS > 50
+				SELECTCASE RAND:3
+					CASE 0
+						K53_커맨드대사 = 있고, 가장 두는…, 옛이라고, ……%K53_하트부여()%"
+					CASE 1
+						K53_커맨드대사 = , 째%K53_하트부여()%자지, 거기 들어가면, 째……
+					CASE 2
+						K53_커맨드대사 = 해, 꽉%K53_하트부여()%척척, 안 돼, 부서져, …
+				ENDSELECT
+		ENDSELECT
+	;성교 A계
+	CASE 62, 63, 66, 69, 70, 71, 74, 75
+		SELECTCASE RAND:3
+			CASE 0
+				K53_커맨드대사 = 후우 , 눌러, …, 오고, 있고……
+			CASE 1
+				K53_커맨드대사 = 얏, 좀 더 천천히…, 쉬어…
+			CASE 2
+				K53_커맨드대사 = , 로부터, 빠짐, 웃, 안 돼…, 안 돼 헤에…
+		ENDSELECT
+	;수음
+	CASE 80
+		SELECTCASE RAND:2
+			CASE 0
+				K53_커맨드대사 = 이런 건 잡게 하다니…, 정말, 최저―…
+			CASE 1
+				K53_커맨드대사 =∼…%K53_TINPO()%국물 너무 내고 ···
+		ENDSELECT
+	;펠라치오·진공펠라
+	CASE 81, 88
+		IF GETPALAMLV(PALAM:욕정, 15) >= 9
+			SELECTCASE RAND:3
+				CASE 0
+					K53_커맨드대사 = 도, 이제(벌써)…, %K53_TINPO()%로, 머리 가득, 된다…
+				CASE 1
+					K53_커맨드대사 = 응 으응…%K53_TINPO()%국물, 맛있다…? 루루루…
+				CASE 2
+					K53_커맨드대사 = 수기…%CALLNAME:MASTER%%K53_TINPO()%의 향기, 좋아…
+			ENDSELECT
+		ELSEIF GETPALAMLV(PALAM:욕정, 15) >= 6
+			SELECTCASE RAND:3
+				CASE 0
+					K53_커맨드대사 = 슨슨…하아 …%CALLNAME:MASTER%의, 풀틴포…
+				CASE 1
+					K53_커맨드대사 = 이, %K53_TINPO()%…, 내가 깨끗하게 해 주기 때문에…
+				CASE 2
+					K53_커맨드대사 = 하아∼…이 냄새…머리 후와~는, 사락…
+			ENDSELECT
+		ELSEIF GETPALAMLV(PALAM:욕정, 15) >= 3
+			SELECTCASE RAND:3
+				CASE 0
+					K53_커맨드대사 = 앙 …여기에도 조리 앙금 붙어 있다……
+				CASE 1
+					K53_커맨드대사 = 구…? 루루루……정말, 최악…
+				CASE 2
+					K53_커맨드대사 = 이얏, %K53_TINPO()%핥고 있는 얼굴, 본데∼…
+			ENDSELECT
+		ELSEIF GETPALAMLV(PALAM:욕정, 15) >= 0
+			SELECTCASE RAND:3
+				CASE 0
+					K53_커맨드대사 = 으응 …는…이상한 맛, 사락…
+				CASE 1
+					K53_커맨드대사 = …는 이상한 냄새, 하는데…
+				CASE 2
+					K53_커맨드대사 = …저기, 이것 분명하게 씻어? …냄새가 나지만…
+			ENDSELECT
+		ENDIF
+	;파이즈리
+	CASE 82
+		K53_커맨드대사 = %K53_TINPO()%
+	;가랑이
+	CASE 83
+		IF EQUIP:0
+			SELECTCASE RAND:3
+				CASE 0
+					K53_커맨드대사 = 얏, 팬티에, %K53_TINPO()%, 먹어 넣는다…
+				CASE 1
+					K53_커맨드대사 =∼…팬티에, %K53_TINPO()%의 냄새 붙어버리는…
+				CASE 2
+					K53_커맨드대사 = 또로부터 자지, 나오거나 들어가거나 해…야해…
+			ENDSELECT
+		ELSE
+			;자지 넣고 싶다
+			IF BASE:MASTER:발기 >= 1000 && EXP:V경험 >= 100 && ABL:욕망 >= 8
+				K53_커맨드대사 = 이런 움켜 떠 , 보지 넣지 않는거야? 넣어라? 보지 하자?
+			;자지 들어가버린다
+			ELSEIF BASE:MASTER:발기 >= 1000 && EXP:V경험 >= 50 && PALAM:윤활 >= PALAMLV:4
+				K53_커맨드대사 = 나 …격렬하게 하면(자), 자지 들어가버린다, 아, 안 돼로부터
+			ELSE
+				SELECTCASE RAND:3
+					CASE 0
+						K53_커맨드대사 = %K53_TINPO()%가, 깨지고 째에, 넘는 비비어…
+					CASE 1
+						K53_커맨드대사 = 이, 이것은, 당신의 %K53_TINPO()%로, 뭐-하고 있을 뿐이니까…
+					CASE 2
+						K53_커맨드대사 = 얏, 엉덩이, 잡는데 , 손가락, 먹어 넣게 한 좋앗, 변태, 변태…
+				ENDSELECT
+			ENDIF
+		ENDIF
+	;거품춤
+	CASE 84
+		K53_커맨드대사 = 어째서 내가, 이런…
+	;풋잡
+	CASE 85
+		SELECTCASE RAND:3
+			CASE 0
+				K53_커맨드대사 = 다리로 %K53_TINPO()%기분 좋아?
+			CASE 1
+				K53_커맨드대사 = 작은 아이에게 밟혀 개-흥 한다, 후~응
+			CASE 2
+				K53_커맨드대사 = …쿡쿡, %K53_TINPO()%꿈틀꿈틀 하고 있다, 카와이∼
+		ENDSELECT
+	;미약, 이뇨제
+	CASE 181, 182
+		;구전
+		SIF ABL:MASTER:기교 >= 3
+			K53_PVOICE_FRAG:5 = 1
+	;허리를움직인다(V)
+	CASE 317
+		SELECTCASE TFLAG:194
+			;격렬하고
+			CASE 1
+				SELECTCASE RAND:2
+					CASE 0
+						K53_커맨드대사 = 나 나~%K53_하트부여()%하는 하지%K53_하트부여()%벗길 수 있는 해 종류∼~~
+					CASE 1
+						K53_커맨드대사 = 안 돼 %K53_하트부여()%안 돼 %K53_하트부여()%안 돼 %K53_하트부여()%안 돼 헤에 네∼~~~
+				ENDSELECT
+			;끈질기고
+			CASE 2
+			;그라인드
+			CASE 3
+				K53_커맨드대사 = 뭐, 돌린다 째, %K53_하트부여()%보지아인 퍼져∼~~
+			;통상
+			CASEELSE
+				K53_커맨드대사 = , 매우%K53_하트부여()%내가 하는 것 , 있으면, 얏, 이얏
+		ENDSELECT
+	;상대 주도 성교계
+	CASE 320, 321, 322, 323
+		K53_커맨드대사 = 으응,…온…%K53_하트부여() %%K53_TINPO()%옛이라고 왔다~
+	
+	CASEELSE
+		;커맨드 대사 다문다
+		K53_PVOICE_FRAG:1 = 0
+ENDSELECT
+;파생계
+SELECTCASE TFLAG:50
+	;식스나인
+	CASE 1
+	;이와시미즈
+	CASE 2
+	;G 스폿 자극
+	CASE 3
+	;흐트러지고 모란
+	CASE 4
+	;수음 펠라
+	CASE 5
+	;파이즈리 펠라
+	CASE 12
+ENDSELECT
+
+;*********************************************************************************
+;이기초 대사
+;커맨드 대사에 덧쓰기
+;*********************************************************************************
+IF NOWEX:C절정 || NOWEX:V절정 || NOWEX:A절정 || NOWEX:B절정 || NOWEX:M절정
+	
+	;일단 커맨드 대사 개방
+	;수간중이 아니다
+	SIF !CFLAG:수면
+		K53_PVOICE_FRAG:1 = 1
+	;공통
+	IF K53_합계절정수 >= 1
+		SELECTCASE RAND:2
+			CASE 0
+				K53_커맨드대사 = 뭐, 또 오는 %K53_하트부여()%또, 또 큰 것, 온다…!
+			CASE 1
+				K53_커맨드대사 = 아앗, 또 이구%K53_하트부여()%또, 가, 윽∼~~…!
+		ENDSELECT
+	ELSEIF K53_합계절정수 == 0
+		SELECTCASE RAND:3
+			CASE 0
+				K53_커맨드대사 = 아, 라고%K53_하트부여()%해 나무……이…~~~!
+			CASE 1
+				K53_커맨드대사 = 인 , 뭔가 오는…와, 오면 %K53_하트부여()%오면…~!
+			CASE 2
+				K53_커맨드대사 = 인, 응인가, , 후와~는%K53_하트부여()%의, 올라, 아!
+		ENDSELECT
+	ENDIF
+	
+	SELECTCASE SELECTCOM
+		;성교 V계
+ 		CASE 60, 61, 64, 65, 67, 68, 71, 72, 73, 317
+		;삽입 직후
+		K53_커맨드대사 = 있고, 좋다…%K53_하트부여()%이 쿳, %K53_TINPO()%로, 질이키아크메…사락~
+	ENDSELECT
+	
+	K53_합계절정수 = EX:C절정 + EX:V절정 + EX:A절정 + EX:B절정 + EX:M절정
+	
+ENDIF
+
+;*********************************************************************************
+;허덕여소리 작성
+;개방되고 있는 리스트로부터 랜덤에 선택해, LOCALS에 추가하는, 을 반복한다
+;대사계는 한 번 사용하면(자) 닫는다
+;개방되어 있지 않은 리스트도 선택할 가능성이 있기 (위해)때문에, 헛됨 처리가 발생하기 쉽다
+;문자수가 일정(K53_NUM)에 이르면(자) 종료 대사계로 큰폭으로 초과할 가능성 있어
+;*********************************************************************************
+REPEAT 999
+	;랜덤에 리스트 선택
+	SELECTCASE RAND:K53_PLIST_NUM
+		;괴롭힘 당하는이라고 있는 부위
+		CASE 0
+			IF K53_PVOICE_FRAG
+				LOCALS += K53_부위대사
+				K53_PVOICE_FRAG = 0
+				K53_PVOICE_FRAG:1 = 0
+				
+				LOCALS += K53_하트부여()
+			ENDIF
+		;당신이 탓하고 있는 부위
+		CASE 1
+			IF K53_PVOICE_FRAG:1
+				LOCALS += K53_커맨드대사
+				K53_PVOICE_FRAG:1 = 0
+				K53_PVOICE_FRAG = 0
+				
+				LOCALS += K53_하트부여()
+			ENDIF
+		;쾌감
+		CASE 2
+			;사용 가능
+			IF K53_PVOICE_FRAG:2
+				;허덕여소리
+				IF K53_자극LV("쾌감") >= 2
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "히아"
+						CASE 1
+							LOCALS += "아"
+						CASE 2
+							LOCALS += "아앗"
+						CASE 3
+							LOCALS += "아앗"
+						CASE 4
+							LOCALS += "이얏"
+						CASE 5
+							LOCALS += ""
+						CASE 6
+							LOCALS += "으으응"
+						CASE 7
+							LOCALS += "~~~"
+						CASE 8
+							LOCALS += "~"
+					ENDSELECT
+					SELECTCASE RAND:6
+						CASE 1
+							LOCALS += "!"
+						CASE 2
+							LOCALS += "!"
+						CASEELSE
+							LOCALS += K53_하트부여()
+					ENDSELECT
+				ELSEIF K53_자극LV("쾌감") == 1
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "아"
+						CASE 1
+							LOCALS += "아"
+						CASE 2
+							LOCALS += "아앙"
+						CASE 3
+							LOCALS += "나"
+						CASE 4
+							LOCALS += "이얏"
+						CASE 5
+							LOCALS += "아앗"
+						CASE 6
+							LOCALS += "으응"
+						CASE 7
+							LOCALS += "하앗"
+						CASE 8
+							LOCALS += "히"
+					ENDSELECT
+					SELECTCASE RAND:4
+						CASE 1
+							LOCALS += "…"
+						CASEELSE
+							LOCALS += K53_하트부여()
+					ENDSELECT
+				ELSEIF K53_자극LV("쾌감") == 0
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "응"
+						CASE 1
+							LOCALS += "응"
+						CASE 2
+							LOCALS += "으응"
+						CASE 3
+							LOCALS += "…"
+						CASE 4
+							LOCALS += "아앗"
+						CASE 5
+							LOCALS += "아…"
+						CASE 6
+							LOCALS += ""
+						CASE 7
+							LOCALS += "………"
+						CASE 8
+							LOCALS += "응…"
+					ENDSELECT
+					SELECTCASE RAND:4
+						CASE 0
+							LOCALS += "…"
+						CASEELSE
+							LOCALS += K53_하트부여()
+					ENDSELECT
+				ENDIF
+				
+				;대사
+				IF K53_대사사용가능
+					SELECTCASE RAND:K53_대사발생확률
+						CASE 0
+							IF K53_자극LV("쾌감") >= 2
+								SELECTCASE RAND:3
+									CASE 0
+										LOCALS += "스윽, 수호"
+									CASE 1
+										LOCALS += "다, 안 돼∼~"
+									CASE 2
+										LOCALS += "개, 강한"
+								ENDSELECT
+							ELSEIF K53_자극LV("쾌감") == 1
+								SELECTCASE RAND:3
+									CASE 0
+										LOCALS += "……이것…"
+									CASE 1
+										LOCALS += "와, 기분……"
+									CASE 2
+										LOCALS += "꿈틀꿈틀 …, 라고…"
+								ENDSELECT
+							ELSEIF K53_자극LV("쾌감") == 0
+								SELECTCASE RAND:3
+									CASE 0
+										LOCALS += "인 , 뭔가…거치지 않는…"
+									CASE 1
+										LOCALS += "이상한, 느낌이…"
+									CASE 2
+										LOCALS += "근질근질, 는…"
+								ENDSELECT
+							ENDIF
+						K53_대사사용가능 = 0
+						LOCALS += K53_하트부여(1)
+					ENDSELECT
+				ENDIF
+			ENDIF
+		;고통
+		CASE 3
+			IF K53_PVOICE_FRAG:3
+				IF K53_자극LV("고통") == 2
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "히"
+						CASE 1
+							LOCALS += ""
+						CASE 2
+							LOCALS += ""
+						CASE 3
+							LOCALS += ""
+						CASE 4
+							LOCALS += "아흑"
+						CASE 5
+							LOCALS += "아악"
+						CASE 6
+							LOCALS += "아프다"
+						CASE 7
+							LOCALS += ""
+						CASE 8
+							LOCALS += "~~~"
+					ENDSELECT
+					SELECTCASE RAND:4
+						CASE 0
+							LOCALS += "!"
+						CASE 1
+							LOCALS += "!"
+						CASE 2
+							LOCALS += "…"
+						CASE 3
+							LOCALS += ","
+					ENDSELECT
+				ELSEIF K53_자극LV("고통") == 1
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "있고"
+						CASE 1
+							LOCALS += "있던"
+						CASE 2
+							LOCALS += "아악"
+						CASE 3
+							LOCALS += "나"
+						CASE 4
+							LOCALS += "그만두어"
+						CASE 5
+							LOCALS += "나다"
+						CASE 6
+							LOCALS += "싫어"
+						CASE 7
+							LOCALS += "………"
+						CASE 8
+							LOCALS += "있고"
+					ENDSELECT
+					SELECTCASE RAND:5
+						CASE 0
+							LOCALS += "!"
+						CASE 1
+							LOCALS += "!"
+						CASE 2
+							LOCALS += "…"
+						CASE 3
+							LOCALS += "……"
+						CASE 4
+							LOCALS += ","
+					ENDSELECT
+				ENDIF
+				;대사
+				IF K53_대사사용가능
+					SELECTCASE RAND:K53_대사발생확률
+						CASE 0
+							IF K53_자극LV("반감") == 2
+								SELECTCASE RAND:3
+									CASE 0
+										LOCALS += "아니아니 싫엇"
+									CASE 1
+										LOCALS += "그만두어 주세요"
+									CASE 2
+										LOCALS += "이제(벌써) 그만두어"
+								ENDSELECT
+							ELSEIF K53_자극LV("반감") == 1
+								SELECTCASE RAND:3
+									CASE 0
+										LOCALS += "싫엇"
+									CASE 1
+										LOCALS += "이제(벌써)나 …"
+									CASE 2
+										LOCALS += "그만두어…"
+								ENDSELECT
+							ENDIF
+						K53_대사사용가능 = 0
+					ENDSELECT
+					
+				ENDIF
+			ENDIF
+		;반감
+		CASE 4
+			IF K53_PVOICE_FRAG:4
+				IF K53_자극LV("반감") >= 2  || K53_자극LV("공포") >= 2
+					SELECTCASE RAND:8
+						CASE 0
+							LOCALS += "나다"
+						CASE 1
+							LOCALS += "나다"
+						CASE 2
+							LOCALS += "나다나다"
+						CASE 3
+							LOCALS += "야"
+						CASE 4
+							LOCALS += "싫엇"
+						CASE 5
+							LOCALS += "싫어"
+						CASE 6
+							LOCALS += "그만두어"
+						CASE 7
+							LOCALS += "그만두고 그만두어"
+						CASE 8
+							LOCALS += "이제(벌써)나다"
+					ENDSELECT
+					SELECTCASE RAND:3
+						CASE 0
+							LOCALS += "!"
+						CASE 1
+							LOCALS += "!"
+						CASE 2
+							LOCALS += ","
+					ENDSELECT
+				ELSEIF K53_자극LV("반감") == 1 || K53_자극LV("공포") == 1
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "나"
+						CASE 1
+							LOCALS += "나다"
+						CASE 2
+							LOCALS += "아니"
+						CASE 3
+							LOCALS += "싫엇"
+						CASE 4
+							LOCALS += "그만두고"
+						CASE 5
+							LOCALS += "그만두어"
+						CASE 6
+							LOCALS += "…"
+						CASE 7
+							LOCALS += "~~~"
+						CASE 8
+							LOCALS += "이얏"
+					ENDSELECT
+					SELECTCASE RAND:3
+						CASE 0
+							LOCALS += "…"
+						CASE 1
+							LOCALS += "!"
+						CASE 2
+							LOCALS += ","
+					ENDSELECT
+				ENDIF
+				;대사
+				IF K53_대사사용가능
+					SELECTCASE RAND:K53_대사발생확률
+						CASE 0
+							IF K53_자극LV("반감") >= 2  || K53_자극LV("공포") >= 2
+								SELECTCASE RAND:3
+									CASE 0
+										LOCALS += "아니아니 싫엇"
+									CASE 1
+										LOCALS += "그만두어"
+									CASE 2
+										LOCALS += "이제(벌써) 그만두어"
+								ENDSELECT
+							ELSEIF K53_자극LV("반감") == 1 || K53_자극LV("공포") == 1
+								SELECTCASE RAND:3
+									CASE 0
+										LOCALS += "있고, 아니…"
+									CASE 1
+										LOCALS += "이제(벌써) 싫어…"
+									CASE 2
+										LOCALS += "고례나…"
+								ENDSELECT
+							ENDIF
+						K53_대사사용가능 = 0
+					ENDSELECT
+					
+				ENDIF
+			ENDIF
+		;키스
+		CASE 5
+			IF K53_PVOICE_FRAG:5
+				SELECTCASE RAND:9
+					CASE 0
+						LOCALS += "응"
+					CASE 1
+						LOCALS += "응"
+					CASE 2
+						LOCALS += "쮸웁"
+					CASE 3
+						LOCALS += "쪽"
+					CASE 4
+						LOCALS += "쭙"
+					CASE 5
+						LOCALS += ""
+					CASE 6
+						LOCALS += "하아…"
+					CASE 7
+						LOCALS += "하…"
+					CASE 8
+						LOCALS += "………"	
+				ENDSELECT
+				SELECTCASE RAND:2
+					CASE 0
+						LOCALS += "…"
+					CASE 1
+						LOCALS += K53_하트부여()
+				ENDSELECT
+			ENDIF
+		;펠라
+		CASE 6
+			IF K53_PVOICE_FRAG:6
+				IF ABL:TARGET:혀 >= 5
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "쑤욱"
+						CASE 1
+							LOCALS += "쮸욱"
+						CASE 2
+							LOCALS += ""
+						CASE 3
+							LOCALS += ""
+						CASE 4
+							LOCALS += "? 루루루"
+						CASE 5
+							LOCALS += ""
+						CASE 6
+							LOCALS += ""
+						CASE 7
+							LOCALS += ""
+						CASE 8
+							LOCALS += "쭙 쭙"
+					ENDSELECT
+					SELECTCASE RAND:4
+						CASE 0
+							LOCALS += K53_하트부여()
+						CASE 1
+							LOCALS += "~~"
+						CASEELSE
+							LOCALS += ""
+					ENDSELECT
+				ELSEIF ABL:TARGET:혀 >= 3
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "우훅"
+						CASE 1
+							LOCALS += "쮸웁"
+						CASE 2
+							LOCALS += ""
+						CASE 3
+							LOCALS += "쪽"
+						CASE 4
+							LOCALS += ""
+						CASE 5
+							LOCALS += ""
+						CASE 6
+							LOCALS += "쮸웁"
+						CASE 7
+							LOCALS += "응 으응"
+						CASE 8
+							LOCALS += ""	
+					ENDSELECT
+					SELECTCASE RAND:4
+						CASE 0
+							LOCALS += K53_하트부여()
+						CASE 1
+							LOCALS += "~~"
+						CASEELSE
+							LOCALS += ""
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "아암"
+						CASE 1
+							LOCALS += "응"
+						CASE 2
+							LOCALS += "쮸웁"
+						CASE 3
+							LOCALS += "으응"
+						CASE 4
+							LOCALS += "쪽"
+						CASE 5
+							LOCALS += ""
+						CASE 6
+							LOCALS += "하"
+						CASE 7
+							LOCALS += ""
+						CASE 8
+							LOCALS += ""	
+					ENDSELECT
+					SELECTCASE RAND:3
+						CASE 0
+							LOCALS += "…"
+						CASE 1
+							LOCALS += "……"
+						CASE 2
+							LOCALS += K53_하트부여()
+					ENDSELECT
+				ENDIF
+			ENDIF
+		;한숨
+		CASE 7
+			IF K53_PVOICE_FRAG:7
+				IF GETPALAMLV(PALAM:욕정, 15) >= 4
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "응"
+						CASE 1
+							LOCALS += "응"
+						CASE 2
+							LOCALS += "으응"
+						CASE 3
+							LOCALS += "후훗"
+						CASE 4
+							LOCALS += "하"
+						CASE 5
+							LOCALS += "하앗"
+						CASE 6
+							LOCALS += "후우"
+						CASE 7
+							LOCALS += "후우"
+						CASE 8
+							LOCALS += "하앗"
+					ENDSELECT
+					SELECTCASE RAND:4
+						CASE 0
+							LOCALS += ","
+						CASE 1
+							LOCALS += "…"
+						CASEELSE
+							LOCALS += K53_하트부여()
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "응"
+						CASE 1
+							LOCALS += "응"
+						CASE 2
+							LOCALS += "으응"
+						CASE 3
+							LOCALS += "…"
+						CASE 4
+							LOCALS += "하"
+						CASE 5
+							LOCALS += "하아…"
+						CASE 6
+							LOCALS += "후우"
+						CASE 7
+							LOCALS += "………"
+						CASE 8
+							LOCALS += "응…"
+					ENDSELECT
+					SELECTCASE RAND:4
+						CASE 0
+							LOCALS += "…"
+						CASEELSE
+							LOCALS += K53_하트부여()
+					ENDSELECT
+				ENDIF
+			ENDIF
+		;이라마치오
+		CASE 8
+			IF K53_PVOICE_FRAG:8
+				SELECTCASE RAND:9
+					CASE 0
+						LOCALS += ""
+					CASE 1
+						LOCALS += "우훅"
+					CASE 2
+						LOCALS += ""
+					CASE 3
+						LOCALS += "우욱"
+					CASE 4
+						LOCALS += ""
+					CASE 5
+						LOCALS += ""
+					CASE 6
+						LOCALS += "으음"
+					CASE 7
+						LOCALS += "하암"
+					CASE 8
+						LOCALS += ""
+				ENDSELECT
+				IF CFLAG:수면
+					SELECTCASE RAND:5
+						CASE 0
+							LOCALS += "? "
+						CASE 1
+							LOCALS += "…"
+						CASEELSE
+							LOCALS += K53_하트부여()
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:5
+						CASE 0
+							LOCALS += "!"
+						CASE 1
+							LOCALS += "!"
+						CASEELSE
+							LOCALS += K53_하트부여()
+					ENDSELECT
+				ENDIF
+			ENDIF
+		;소리 참을 수·입 막아
+		CASE 9
+			IF K53_PVOICE_FRAG:9
+				;자극이 큰 경우 키스 감각외 처리
+				IF K53_자극LV("쾌감") >= 2 || K53_자극LV("고통") >= 1 || K53_자극LV("반감") >= 1
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "흐으응"
+						CASE 1
+							LOCALS += "응"
+						CASE 2
+							LOCALS += "앙∼~!"
+						CASE 3
+							LOCALS += "으응!"
+						CASE 4
+							LOCALS += "∼~"
+						CASE 5
+							LOCALS += "으으응!"
+						CASE 6
+							LOCALS += "우훅"
+						CASE 7
+							LOCALS += "앙"
+						CASE 8
+							LOCALS += "~~~"	
+					ENDSELECT
+					SELECTCASE RAND:2
+						CASE 0
+							LOCALS += K53_하트부여()
+					ENDSELECT
+				ELSEIF K53_자극LV("쾌감") >= 0
+					SELECTCASE RAND:9
+						CASE 0
+							LOCALS += "응"
+						CASE 1
+							LOCALS += "응"
+						CASE 2
+							LOCALS += "응∼"
+						CASE 3
+							LOCALS += "흐응"
+						CASE 4
+							LOCALS += ""
+						CASE 5
+							LOCALS += "후우"
+						CASE 6
+							LOCALS += ""
+						CASE 7
+							LOCALS += ""
+						CASE 8
+							LOCALS += ""	
+					ENDSELECT
+					SELECTCASE RAND:2
+						CASE 0
+							LOCALS += K53_하트부여()
+						CASE 1
+							LOCALS += "…"
+					ENDSELECT
+				ENDIF
+			ENDIF
+	ENDSELECT
+	
+	;문자수가 일정에 이르면(자) 종료
+	SIF STRLENSU(LOCALS) > K53_NUM
+		BREAK
+REND
+
+;*********************************************************************************
+;헐떡이는 소리 묘화
+PRINTFORML 「%LOCALS%」
+PRINTW
+
+

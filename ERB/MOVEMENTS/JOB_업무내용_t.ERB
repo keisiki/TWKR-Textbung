@@ -1,0 +1,1388 @@
+﻿;FileName_JOB.ERB ----------------------------- Rev1. 00
+;휴일 판정 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;ARG:1(생략가능)	0:일이 끝나 있으면 휴일 1:일인 어느 날은 일일(일량·종료시각을 보지 않는다)
+;RETURN		0:일일, 1:휴일
+;COMMENT	
+;-----------------------------------------------------------
+@CHARA_HOLIDAY(ARG, ARG:1=0)
+#FUNCTION
+
+;잔일량·일종료시간을 확인할까 분기
+IF !ARG:1
+	SIF BASE:ARG:일량 <= 0
+		RETURNF 1
+	SIF TCVAR:ARG:일종료 > 0 && TIME > TCVAR:ARG:일종료
+		RETURNF 1
+ENDIF
+RETURNF TCVAR:ARG:일개시 == -1
+
+;-----------------------------------------------------------
+;@CHARA_HOLIDAY로부터 분리
+;MOVEMENT가 불릴 때에 갱신된다
+;ARG:1에 1을 설정하면(자) 연회나 업무중에 의한 스킵을 무시
+;-----------------------------------------------------------
+@일내용설정(ARG, ARG:1)
+#DIM 청소하기
+VARSET LOCAL
+
+;CFLAG:350 직종(40, 청소　41, 회화　42, 전투　43, 교양　44, 요리　45, 음악 46, 놀이 47, 장사중(도울수없다) 48, 연회준비 49, 연회참가 50, 연회 정리 51, 연회 후의 취기 52, 여자 모임
+;TCVAR:도울수없다 =1 도울수없다 =2 도와도 빨리는 끝나지 않는다
+;연회계의 일은 여기에서는 설정하지 않습니다. 연회. ERB를 참조해 주세요.
+
+;에이키 님은 일이 있습니다. 일꾼이군요.
+;IF ARG == 30
+	;기수일은 비번입니다
+;	IF (DAY % 2 == 1) 
+;		BASE:ARG:일량 = 0
+;	ENDIF
+
+
+IF !ARG:1
+	;현재 업무중이라면 돌아간다
+	SIF CFLAG:ARG:행동 == 5
+		RETURN
+
+	;연회에 참가하는 놈은 그 날의 일을 쉰다
+	IF FLAG:연회개최플래그 > 0 && CFLAG:ARG:연회참가 > 0
+		IF !GROUPMATCH(CFLAG:ARG:직종, 48, 49, 50, 51)
+			TCVAR:ARG:일개시 = -1
+			TCVAR:ARG:일종료 = -1
+		ENDIF
+		RETURN
+	ENDIF
+ENDIF
+
+IF CFLAG:ARG:출산휴가
+	TCVAR:ARG:일개시 = -1
+	TCVAR:ARG:일종료 = -1
+	RETURN
+ENDIF
+
+;일개시·일종료시각을―1으로 한다(개시시각이―1이라면 휴일이라고 판정)
+TCVAR:ARG:일개시 = -1
+TCVAR:ARG:일종료 = -1
+
+;일의 처리
+SELECTCASE ARG
+CASE [[레이무]]
+	청소하기 = 0
+	IF YOGORE:참배길 > 1000
+		청소하기 = 참배길
+	ELSE
+		청소하기 = FINDELEMENT(YOGORE, MAXARRAY(YOGORE, 1, 6), 1, 6)
+	ENDIF
+	IF 청소하기 <= 0
+	ELSEIF YOGORE:청소하기 <= 1000
+	ELSEIF TIME < CLOCK_TO_TIME(8, 0)
+		CFLAG:ARG:직장 = 청소하기
+		;아침 2시간 정도 청소하기
+		MAXBASE:ARG:일량 = 600 * 2
+		CFLAG:ARG:직종 = 40
+		;TCVAR:ARG:도울수없다 = 1
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 6, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME( 8, 0)
+	ENDIF
+CASE [[루코토]]
+	IF IS_WEEKDAY(DAY)
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 8
+		CFLAG:ARG:직종 = 44
+		TCVAR:ARG:급료 = 2
+	ENDIF
+CASE [[미마]]
+	IF YOUBI_MATCH(DAY, "월수")
+	;월요일은 마리사, 수요일은 스이카의 상대
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(16, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(19, 0)
+		CFLAG:ARG:직장 = 11
+		CFLAG:ARG:직종 = 42
+		TCVAR:ARG:급료 = 5
+		TCVAR:ARG:답례 = GETNUM(ITEM, "엿")
+	ELSEIF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+	;누가 뭐라고 말하건 여자 모임
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 211
+		CFLAG:ARG:직종 = 52
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[서니]]
+	IF IS_WEEKEND(DAY)
+		MAXBASE:ARG:일량 = 600 * 7
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(17, 0)
+		CFLAG:ARG:직장 = 32
+		CFLAG:ARG:직종 = 46
+		TCVAR:ARG:급료 = 0
+	ENDIF
+CASE [[루나]]
+	IF IS_WEEKEND(DAY)
+		MAXBASE:ARG:일량 = 600 * 7
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(17, 0)
+		CFLAG:ARG:직장 = 32
+		CFLAG:ARG:직종 = 46
+		TCVAR:ARG:급료 = 0
+	ENDIF
+CASE [[스타]]
+	IF IS_WEEKEND(DAY)
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(13, 0)
+		CFLAG:ARG:직장 = 32
+		CFLAG:ARG:직종 = 46
+		TCVAR:ARG:급료 = 0
+	ENDIF
+;치유리는 평일 일찍 일어나 연구실에
+CASE [[치유리]]
+	IF IS_WEEKDAY(DAY)
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 6, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+		CFLAG:ARG:직장 = 49
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 3
+	ENDIF
+;유메미도 연구 짓고
+CASE [[유메미]]
+	IF IS_WEEKDAY(DAY)
+		;사이에 1시간 자는 거야로 이 양
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(11, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(17, 0)
+		CFLAG:ARG:직장 = 49
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 3
+	ENDIF
+CASE [[스이카]]
+	;스이카 월요일은 술마시기, 수요일은 트레이닝
+	IF YOUBI_MATCH(DAY, "월")
+		MAXBASE:ARG:일량 = 600 * 5
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(16, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 10
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 0
+	ELSEIF YOUBI_MATCH(DAY, "수")
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(16, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(19, 0)
+		CFLAG:ARG:직장 = 11
+		CFLAG:ARG:직종 = 42
+		TCVAR:ARG:급료 = 1
+	ENDIF
+CASE [[마리사]]
+	IF YOUBI_MATCH(DAY, "월")
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(19, 0)
+		CFLAG:ARG:직장 = 6
+		CFLAG:ARG:직종 = 40
+		TCVAR:ARG:급료 = 1
+	ENDIF
+CASE [[루미아]]
+	IF YOUBI_MATCH(DAY, "화") && CFLAG:ARG:임신경과일수 <= 36 && MAIN_MAP != 1 ;일본판 임신경과일수 71
+		MAXBASE:ARG:일량 = 600 * 2
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(22,  0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(24, 00)
+		CFLAG:ARG:직장 = 지장길
+		CFLAG:ARG:직종 = 42
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:답례 = GETNUM(ITEM, "정체불명고기")
+		RETURN
+	ENDIF
+CASE [[대요정]]
+	IF IS_WEEKEND(DAY)
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 32
+		CFLAG:ARG:직종 = 46
+		TCVAR:ARG:급료 = 0
+	ENDIF
+CASE [[치르노]]
+	IF IS_WEEKEND(DAY)
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 32
+		CFLAG:ARG:직종 = 46
+		TCVAR:ARG:급료 = 0
+	;아침에 일어 나, 눈이 내리고 있으면(자) 논다
+	ELSEIF TIME:5 == 8
+		MAXBASE:ARG:일량 = 600 * 1
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 6, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME( 7, 0)
+		CFLAG:ARG:직장 = 343
+		CFLAG:ARG:직종 = 46
+		TCVAR:ARG:급료 = 0
+	;여름 개이고 맑은 하늘 아이스크림 가게
+	ELSEIF (DAY:2 == 2 && TIME:5 < 2)
+		MAXBASE:ARG:일량 = 600 * 5
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(15, 0)
+		CFLAG:ARG:직장 = 202
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:답례 = GETNUM(ITEM, "아이스크림")
+	ENDIF
+CASE [[사쿠야]]
+	IF YOUBI_MATCH(DAY, "월수금")
+		IF TIME <= CLOCK_TO_TIME(12, 0)
+		;~12:00
+			MAXBASE:ARG:일량 = 600 * 4
+			TCVAR:ARG:일개시 = CLOCK_TO_TIME( 8, 0)
+			TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+			CFLAG:ARG:직장 = 309
+			CFLAG:ARG:직종 = 40
+			TCVAR:ARG:급료 = 5
+			TCVAR:ARG:답례 = GETNUM(ITEM, "홍차")
+		ELSEIF !BASE:ARG:일량 && TIME <= CLOCK_TO_TIME(16, 59)
+		;12:01~16:59
+			BASE:ARG:일량 = 1200
+		ELSE
+		;17:00~
+			MAXBASE:ARG:일량 = 600 * 2
+			TCVAR:ARG:일개시 = CLOCK_TO_TIME(17, 0)
+			TCVAR:ARG:일종료 = CLOCK_TO_TIME(19, 0)
+			CFLAG:ARG:직장 = 313
+			CFLAG:ARG:직종 = 44
+			TCVAR:ARG:급료 = 5
+			TCVAR:ARG:답례 = GETNUM(ITEM, "홍차")
+		ENDIF
+	ENDIF
+CASE [[레밀리아]]
+	IF YOUBI_MATCH(DAY, "일")
+		MAXBASE:ARG:일량 = 300
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 30)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(19,  0)
+		CFLAG:ARG:직장 = 327
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[앨리스]]
+	IF DAY % 14 == 0
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(13, 0)
+		CFLAG:ARG:직장 = 202
+		CFLAG:ARG:직종 = 40
+		TCVAR:ARG:급료 = 5
+		TCVAR:ARG:답례 = GETNUM(ITEM, "엿")
+		TCVAR:ARG:도울수없다 = 1
+	ELSEIF GROUPMATCH(DAY:3, 7, 16, 17, 27)
+		MAXBASE:ARG:일량 = 600 * 2
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+		;자신의 집의 부엌
+		CFLAG:ARG:직장 = 525
+		;신사에 거주해 하고 있는 경우 신사의 부엌
+		SIF FLAG:더부살이캐릭터 == ARG && MAIN_MAP == 0
+			CFLAG:ARG:직장 = 8
+		CFLAG:ARG:직종 = 44
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:답례 = GETNUM(ITEM, "엿")
+	ENDIF
+CASE [[유메코]]
+	IF YOUBI_MATCH(DAY,"월목")
+		;掃除が仕事だけど、基本앨리스의 인형がやってくれてるから月木のみ
+		MAXBASE:ARG:일량 = 600 * 4;=2400=4時間
+		CFLAG:ARG:직종 = 40;掃除
+		CFLAG:ARG:직장 = 520;洋館前 스타트
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(7, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(11, 00)
+		TCVAR:ARG:급료 = 3
+		TCVAR:ARG:답례 = GETNUM(ITEM, "홍차")
+	ENDIF
+CASE [[루나사]], [[메를랑]], [[리리카]]
+	IF  DAY % 28 == 21
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(19, 0)
+		CFLAG:ARG:직장 = 202
+		TCVAR:ARG:도울수없다 = 1
+		CFLAG:ARG:직종 = 47
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[요우무]]
+	IF YOUBI_MATCH(DAY, "수")
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 216
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 3
+	ENDIF
+CASE [[란]]
+	IF GROUPMATCH(DAY:3, 5, 20)
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 4
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[유카리]]
+	IF (DAY:2 == 4 && DAY:3 == 30)
+		MAXBASE:ARG:일량 = 600 * 14
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13,  0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(24, 00)
+		;원래는 180≒다음날 3시를 상정?
+		;날 넘어 처리는 귀찮지만 하려고 생각하면 할 수 없지는 않는, 은 두
+		CFLAG:ARG:직장 = 4
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 5
+	ELSEIF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+	;누가 뭐라고 말하건 여자 모임
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 211
+		CFLAG:ARG:직종 = 52
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[미스티아]]
+	;-는 이따금 포장마차를 열고 있습니다. 미 술 정말 좋아합니다.
+	;3일에 한 번 포장마차 열고 있습니다
+	;이렇게 한다고 캘린더의 일자 준거가 되어 알기 쉽다고 생각하지만 제발
+	;IF DAY:3 % 3 == 0
+	IF DAY % 3 == 0
+		MAXBASE:ARG:일량 = 600 * 8
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(16,  0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(24, 00)
+		CFLAG:ARG:직종 = 44
+		TCVAR:ARG:급료 = 2
+		CFLAG:ARG:직장 = 444
+		TCVAR:ARG:답례 = GETNUM(ITEM, "야트메꼬치")
+	ENDIF
+CASE [[아야]]
+	IF YOUBI_MATCH(DAY, "금")
+		;시간에 비해 일량 빈데 해
+		MAXBASE:ARG:일량 = 600 * 4
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(19, 0)
+		CFLAG:ARG:직장 = 808
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 4
+	ENDIF
+CASE [[사나에]]
+	IF YOUBI_MATCH(DAY, "화금")
+		MAXBASE:ARG:일량 = 600 * 4
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(12, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 202
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 3
+	ENDIF
+CASE [[카나코]]
+	IF DAY:2 == 2 && DAY:3 == 5
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 9, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+		CFLAG:ARG:직장 = 222
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:답례 = GETNUM(ITEM, "떡잎으로싼떡")
+	ELSEIF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+	;누가 뭐라고 말하건 여자 모임
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 211
+		CFLAG:ARG:직종 = 52
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[스와코]]
+	IF MONEY < 500 && !MAIN_MAP
+		MAXBASE:ARG:일량 = 600 * 2
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(11, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(13, 0)
+		CFLAG:ARG:직장 = 8
+		CFLAG:ARG:직종 = 44
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[텐시]]
+	IF YOUBI_MATCH(DAY, "토")
+		MAXBASE:ARG:일량 = 100
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10,  0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(10, 10)
+		CFLAG:ARG:직장 = 3
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[이쿠]]
+	IF YOUBI_MATCH(DAY, "화")
+		MAXBASE:ARG:일량 = 600 * 1
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(20, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 830
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[오린]]
+	IF IS_WEEKDAY(DAY)
+		;시간 준거라면600*5=3000
+		MAXBASE:ARG:일량 = 5000
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 7, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+		CFLAG:ARG:직장 = 928
+		CFLAG:ARG:직종 = 42
+		TCVAR:ARG:급료 = 3
+		TCVAR:ARG:도울수없다 = 2
+	ENDIF
+CASE [[오쿠]]
+	IF IS_WEEKDAY(DAY)
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(13, 0)
+		CFLAG:ARG:직장 = 930
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 2
+		TCVAR:ARG:도울수없다 = 2
+	ENDIF
+CASE [[코가사]]
+	IF YOUBI_MATCH(DAY, "화금")
+		MAXBASE:ARG:일량 = 600 * 4
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(20, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(24, 0)
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 1
+		CFLAG:ARG:직장 = 222
+
+		;명련사 응접실
+		SIF YOUBI_MATCH(DAY, "화")
+			CFLAG:ARG:직장 = 109
+	ENDIF
+CASE [[누에]]
+	;누에는 매월6일에 소악마와 요리
+	IF DAY:3 == 6
+		MAXBASE:ARG:일량 = 600 * 1
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(22, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(23, 0)
+		CFLAG:ARG:직장 = 313
+		CFLAG:ARG:직종 = 44
+		TCVAR:ARG:급료 = 5
+		TCVAR:ARG:도울수없다 = 2
+	ENDIF
+CASE [[카센]]
+	IF YOUBI_MATCH(DAY, "토")
+		MAXBASE:ARG:일량 = 600 * 5
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(11, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 217
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:도울수없다 = 2
+	ELSE
+		MAXBASE:ARG:일량 = 600 * 2
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(7, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(9, 0)
+		CFLAG:ARG:직장 = 722
+		CFLAG:ARG:직종 = 42
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:도울수없다 = 2
+	ENDIF
+CASE [[엘렌]]
+	;매월 15, 30일에 마을에 마법가게 출장
+	IF GROUPMATCH(DAY:3, 15, 30)
+		CFLAG:ARG:직장 = 202
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 3
+		MAXBASE:ARG:일량 = 600 * 5
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(14, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(19, 0)
+	;그 이외의해는 개이고인가 흐림이라면5%의 확률로 마법의숲의 채집, 다만 메인 맵이 마법의숲 때 한정
+	ELSEIF TIME:5 <= 3 && FLAG:일일이벤트 < 50 && MAIN_MAP == 5
+		IF !RAND:2
+			CFLAG:ARG:직장 = 540
+		ELSE
+			CFLAG:ARG:직장 = 507
+		ENDIF
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 3
+		MAXBASE:ARG:일량 = 600 * 5
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 7, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+		TCVAR:ARG:도울수없다 = 2
+	ENDIF
+CASE [[플랑]]
+	IF DAY % 2
+		MAXBASE:ARG:일량 = 600 * 1
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(19, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(20, 0)
+		CFLAG:ARG:직장 = 329
+		CFLAG:ARG:직종 = 46
+		TCVAR:ARG:급료 = 0
+	ENDIF
+CASE [[우동게]]
+	IF YOUBI_MATCH(DAY, "화")
+		MAXBASE:ARG:일량 = 600 * 5
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(15, 0)
+		CFLAG:ARG:직장 = 202
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 3
+		TCVAR:ARG:갈아입음 = OBJNAME_TO_ID(ARG, "GET", "의상세트", "우동게 약장수 세트")
+	ELSEIF YOUBI_MATCH(DAY, "목")
+		MAXBASE:ARG:일량 = 600 * 8
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(18, 0)
+		CFLAG:ARG:직장 = 405
+		CFLAG:ARG:직종 = 53
+		TCVAR:ARG:급료 = 2
+		SIF TALENT:MASTER:조합지식
+			TCVAR:ARG:급료 = 3
+	ENDIF
+CASE [[파츄리]]
+	;쳇은 진짜 은둔 형 외톨이
+	IF !TALENT:ARG:연모 || YOUBI_MATCH(DAY, "토")
+		CFLAG:ARG:직장 = 310
+		TCVAR:ARG:일개시 = 480
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 8, 0)
+		SELECTCASE CFLAG:ARG:2
+		CASE IS <  100
+			MAXBASE:ARG:일량 = 600 * 15
+			TCVAR:ARG:일종료 = CLOCK_TO_TIME(23, 0)
+		CASE IS <  500
+			MAXBASE:ARG:일량 = 600 * 9
+			TCVAR:ARG:일종료 = CLOCK_TO_TIME(20, 0)
+		CASE IS < 1000
+			MAXBASE:ARG:일량 = 600 * 6
+			TCVAR:ARG:일종료 = CLOCK_TO_TIME(14, 0)
+		CASE IS < 3000
+			MAXBASE:ARG:일량 = 600 * 4
+			TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+		CASEELSE
+			MAXBASE:ARG:일량 = 600 * 2
+			TCVAR:ARG:일종료 = CLOCK_TO_TIME(10, 0)
+		ENDSELECT
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[뱌쿠렌]]
+	;팔꿈치 링은 절의 선전으로 전직했습니다
+	IF YOUBI_MATCH(DAY, "월목")
+		MAXBASE:ARG:일량 = 600 * 4
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(12, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 202
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 3
+		TCVAR:ARG:답례 = GETNUM(ITEM, "엿")
+	ELSEIF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+	;누가 뭐라고 말하건 여자 모임
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 211
+		CFLAG:ARG:직종 = 52
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[미코]]
+	IF YOUBI_MATCH(DAY, "월수금")
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 126
+		CFLAG:ARG:직종 = 42
+		TCVAR:ARG:급료 = 1
+	ENDIF
+CASE [[코코로]]
+	IF FESTIVAL() == "예대제"
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(13, 0)
+		CFLAG:ARG:직장 = 경내
+		TCVAR:ARG:도울수없다 = 1
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 0
+	ELSEIF YOUBI_MATCH(DAY, "일")
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(13, 0)
+		CFLAG:ARG:직장 = 11
+		TCVAR:ARG:도울수없다 = 1
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 0
+	ENDIF
+CASE [[메이링]]
+	;메이링은 토일요일 이외 점심까지 문지기
+	IF IS_WEEKDAY(DAY)
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 6, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+		CFLAG:ARG:직장 = 301
+		CFLAG:ARG:직종 = 42
+		TCVAR:ARG:급료 = 2
+		TCVAR:ARG:도울수없다 = 2
+	ENDIF
+CASE [[소악마]]
+	;소악마는 매월6일에 요리
+	IF DAY:3 == 6
+		MAXBASE:ARG:일량 = 600
+		CFLAG:ARG:직장 = 313
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(22, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(23, 0)
+		CFLAG:ARG:직종 = 44
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[파르시]]
+	IF IS_WEEKDAY(DAY)
+		MAXBASE:ARG:일량 = 600
+		CFLAG:ARG:직장 = 946
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(18, 0)
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 2
+	ENDIF
+CASE [[카구야]]
+	;공주님은 매일 분재 를 돌보는 것
+	MAXBASE:ARG:일량 = 600
+	TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
+	TCVAR:ARG:일종료 = CLOCK_TO_TIME(14, 0)
+	CFLAG:ARG:직장 = 421
+	CFLAG:ARG:직종 = 43
+	TCVAR:ARG:급료 = 0
+CASE [[유기]]
+	IF YOUBI_MATCH(DAY, "목")
+		MAXBASE:ARG:일량 = 600 * 5
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(16, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 10
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[모미지]]
+	;수목일은 잘자, 6시간격 22시 취침
+	;월 화는 아침에 일어 나 곧으로부터 오후, 7시부터 14시
+	IF YOUBI_MATCH(DAY, "월화")
+		MAXBASE:ARG:일량 = 600 * 7
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 7, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(14, 0)
+		CFLAG:ARG:직장 = 802
+		CFLAG:ARG:직종 = 42
+		TCVAR:ARG:급료 = 2
+		TCVAR:ARG:도울수없다 = 2
+	;금토은 오후부터 잘 때까지, 14시부터 21시
+	ELSEIF YOUBI_MATCH(DAY, "금토")
+		MAXBASE:ARG:일량 = 600 * 7
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(14, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 805
+		CFLAG:ARG:직종 = 42
+		TCVAR:ARG:급료 = 2
+		TCVAR:ARG:도울수없다 = 2
+	ENDIF
+CASE [[케이네]]
+	;케이네은 토일요일 이외 14시까지 서당으로 수업중, 나머지의 30분은 뒷정리
+	IF IS_WEEKDAY(DAY) && FESTIVAL() == ""
+		MAXBASE:ARG:일량 = 600 * 6 + 300
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 8,  0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(14, 30)
+		CFLAG:ARG:직장 = 222
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 3
+	ENDIF
+CASE [[유카]]
+	;유카 4일에 한 번의 꽃의 손질
+	;일자 의존의 판정 어째서 엄밀하게는 4일에 한 번에는 되지 않다
+	IF DAY:2 < 4 && DAY:3 % 4 == 2
+		MAXBASE:ARG:일량 = 600 * 4
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 6, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(10, 0)
+		CFLAG:ARG:직장 = 438
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 2
+	ENDIF
+CASE [[코스즈]]
+	IF YOUBI_MATCH(DAY, "수목")
+		MAXBASE:ARG:일량 = 600 * 8
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 9, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(17, 0)
+		CFLAG:ARG:직장 = 213
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:도울수없다 = 2
+		TCVAR:ARG:급료 = 2
+	ELSEIF YOUBI_MATCH(DAY, "월화금")
+		MAXBASE:ARG:일량 = 600 * 2
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(20, 0)
+		CFLAG:ARG:직장 = 213
+		CFLAG:ARG:직종 = 40
+		TCVAR:ARG:급료 = 3
+	ENDIF
+CASE [[에이린]]
+	;에이린은 일요일 이외 저녁까지 꼭 진찰. 의사니까, 어쩔 수 없다
+	IF !YOUBI_MATCH(DAY, "일") ;일판 수정되어 월화금만
+		MAXBASE:ARG:일량 = 600 * 8
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(18, 0)
+		CFLAG:ARG:직장 = 404
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 5
+		TCVAR:ARG:도울수없다 = 2
+		TCVAR:ARG:답례 = GETNUM(ITEM, "불끈불끈Z")
+		;조합지식과 교양이 필요
+		SIF !TALENT:MASTER:조합지식
+			TCVAR:ARG:도울수없다 = 1
+	ELSEIF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+	;누가 뭐라고 말하건 여자 모임(선생님은 일 있으므로 조금 늦춤에)
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 211
+		CFLAG:ARG:직종 = 52
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[메디슨]]
+	IF DAY % 7 == 3
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 7, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(13, 0)
+		CFLAG:ARG:직장 = 436
+		CFLAG:ARG:직종 = 40
+		TCVAR:ARG:급료 = 1
+	ENDIF
+CASE [[코마치]]
+	;코마치는 월수금에 나룻배사공 하지만 2분의 1으로 게으름 피운다
+	IF YOUBI_MATCH(DAY, "월수금")
+		;추석은 바빠서 강제 출근
+		SIF GET_MONTH() == "여름의 달" && INRANGE(DAY:3, 1, 15)
+			TCVAR:ARG:일의유무 = 2
+		SIF !TCVAR:ARG:일의유무
+			TCVAR:ARG:일의유무 = RAND:2 + 1
+		IF TCVAR:ARG:일의유무 == 2
+			MAXBASE:ARG:일량 = 600 * 6
+			TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+			TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+			CFLAG:ARG:직장 = 602
+			CFLAG:ARG:직종 = 41
+			TCVAR:ARG:급료 = 2
+		ENDIF
+	ENDIF
+CASE [[히나]]
+	;???
+	청소하기 = 0
+	FOR LOCAL,701,733
+		SELECTCASE LOCAL
+			CASE 703,704
+				CONTINUE
+			CASE 708
+				CONTINUE
+			CASE 712 TO 730
+				CONTINUE
+		ENDSELECT
+		IF YOGORE:LOCAL > 1000
+			CFLAG:ARG:직장 = LOCAL
+			청소하기 = 1
+		ENDIF
+	NEXT
+	IF FESTIVAL() == "히나마츠리"
+		MAXBASE:ARG:일량 = 600 * 10
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 7, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(20, 0)
+		CFLAG:ARG:직종 = 40
+		TCVAR:ARG:급료 = 2
+	ELSEIF YOUBI_MATCH(DAY, "토")
+		MAXBASE:ARG:일량 = 600 * 5
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(12, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(17, 0)
+		CFLAG:ARG:직종 = 40
+		TCVAR:ARG:급료 = 1
+	ENDIF
+CASE [[아큐]]
+	IF INRANGE(DAY:3, 15, 20)
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(10, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(13, 0)
+		CFLAG:ARG:직장 = 221
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[렌코]]
+	IF INRANGE(DAY:3, 25, 28)
+		MAXBASE:ARG:일량 = 600 * 2
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(19, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 232
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 3
+	ENDIF
+CASE [[메리]]
+	IF INRANGE(DAY:3, 25, 28)
+		MAXBASE:ARG:일량 = 600 * 2
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(19, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 232
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 3
+	ENDIF
+CASE [[이치린]]
+	;이치린 언니(누나)와  일을 교대했습니다
+	IF YOUBI_MATCH(DAY, "화목")
+		MAXBASE:ARG:일량 = 600 * 5
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 7, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+		CFLAG:ARG:직장 = 102
+		CFLAG:ARG:직종 = 40
+		TCVAR:ARG:급료 = 4
+	ENDIF
+CASE [[쇼]]
+	IF YOUBI_MATCH(DAY, "금")
+		MAXBASE:ARG:일량 = 600 * 1
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(14, 0)
+		CFLAG:ARG:직장 = 103
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:도울수없다 = 2
+	ELSEIF IS_WEEKDAY(DAY)
+		MAXBASE:ARG:일량 = 600 * 7
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 5, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(12, 0)
+		CFLAG:ARG:직장 = 103
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:도울수없다 = 0
+	ENDIF
+CASE [[요시카]]
+	IF DAY:3 == 4
+		MAXBASE:ARG:일량 = 600 * 16
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 8, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(23, 0)
+		CFLAG:ARG:직장 = 121
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 0
+		TCVAR:ARG:도울수없다 = 0
+	ENDIF
+CASE [[청아]]
+	IF DAY:3 == 4
+		MAXBASE:ARG:일량 = 600 * 16
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 8, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(23, 0)
+		CFLAG:ARG:직장 = 121
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 5
+		TCVAR:ARG:도울수없다 = 2
+	ENDIF
+CASE [[토지코]]
+	IF YOUBI_MATCH(DAY, "화")
+		MAXBASE:ARG:일량 = 600 * 1
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(20, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 830
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[후토]]
+	;후토신령묘의 권유 담당
+	IF YOUBI_MATCH(DAY, "수토")
+		MAXBASE:ARG:일량 = 600 * 4
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(12, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 202
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 3
+	ENDIF
+CASE [[벤벤]], [[야츠하시]]
+	IF  DAY % 28 == 7
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(15, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 202
+		TCVAR:ARG:도울수없다 = 1
+		CFLAG:ARG:직종 = 47
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[라이코]]
+	IF  DAY % 28 == 7
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(15, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 202
+		TCVAR:ARG:도울수없다 = 1
+		CFLAG:ARG:직종 = 47
+		TCVAR:ARG:급료 = 5
+	ELSEIF YOUBI_MATCH(DAY, "화")
+		MAXBASE:ARG:일량 = 600 * 1
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(20, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 830
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 5
+	ENDIF
+CASE [[세이자]]
+	IF YOUBI_MATCH(DAY, "월수")
+		MAXBASE:ARG:일량 = 600 * 4
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(20, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(24, 0)
+		CFLAG:ARG:직장 = 301
+		SIF YOUBI_MATCH(DAY, "수")
+			CFLAG:ARG:직장 = 540
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 1
+	ENDIF
+CASE [[유유코]]
+	IF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+	;누가 뭐라고 말하건 여자 모임
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 211
+		CFLAG:ARG:직종 = 52
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[오키나]]
+	IF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+	;누가 뭐라고 말하건 여자 모임
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 211
+		CFLAG:ARG:직종 = 52
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[신키]]
+	IF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+	;누가 뭐라고 말하건 여자 모임
+		MAXBASE:ARG:일량 = 600 * 3
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(18, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(21, 0)
+		CFLAG:ARG:직장 = 211
+		CFLAG:ARG:직종 = 52
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[久侘歌]]
+	IF IS_WEEKDAY(DAY)
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(9, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(15, 0)
+		CFLAG:ARG:직장 = 640
+		CFLAG:ARG:직종 = 41
+		TCVAR:ARG:급료 = 3
+	ENDIF
+;다른 사람들은 지금 바쁜 일에는 붙지 않았습니다. 일안 모집. 아마 요우무와 란 님은 부정기에 바쁘겠지……
+ENDSELECT
+
+;휴가 플래그 사용하지 않아도 TCVAR:ARG:일개시에 판별할 수 있었으므로
+;일이 없는 경우의 리셋 처리를 정리했다
+IF TCVAR:ARG:일개시 >= 0
+	;GET_JOBPLACE는 주인의 REPLACEMENT유기 처리
+	CFLAG:ARG:직장 = GET_JOBPLACE("일", ARG)
+	RETURN
+ELSE
+	MAXBASE:ARG:일량 = 0
+ENDIF
+
+;FileName_JOB.ERB ----------------------------- Rev1. 00
+;업무중의 이동 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@JOBMOVE(ARG)
+#DIM 전의직장
+#DIM 청소하기
+SIF CFLAG:ARG:연회참가 > 0 || GROUPMATCH(CFLAG:ARG:직종, 48,49,50,51)
+	RETURN 
+전의직장 = CFLAG:ARG:직장
+
+SELECTCASE ARG
+CASE [[레이무]]
+	IF YOGORE:(CFLAG:ARG:직장) > 1000
+	ELSEIF YOGORE:참배길 > 1000
+		LOCAL = 참배길
+	ELSE
+		LOCAL = FINDELEMENT(YOGORE, MAXARRAY(YOGORE, 1, 6), 1, 6)
+	ENDIF
+	IF LOCAL <= 0
+	ELSEIF YOGORE:LOCAL <= 1000
+	ELSE
+		CFLAG:ARG:직장 = LOCAL
+	ENDIF
+CASE [[스이카]]
+	IF YOUBI_MATCH(DAY, "수")
+		TCVAR:ARG:도울수없다 = 0
+	ELSE
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[마리사]]
+	IF TIME >= CLOCK_TO_TIME(16, 0)
+		CFLAG:ARG:직장 = 11
+		CFLAG:ARG:직종 = 42
+	ELSE
+		CFLAG:ARG:직장 = 6
+		CFLAG:ARG:직종 = 40
+	ENDIF
+CASE [[앨리스]]
+	;공연이 끝나면 뒷정리를 도울 수 있다
+	IF TIME >= CLOCK_TO_TIME(12, 0)
+		TCVAR:ARG:도울수없다 = 0
+	;공연일에 없으면 도울 수 있다
+	ELSEIF DAY % 14 > 0
+		TCVAR:ARG:도울수없다 = 0
+	;공연중은 도울수없다
+	ELSE
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+CASE [[유메코]]
+	CFLAG:ARG:직종 = 40
+	;屋敷中のお掃除 汚れている部分から4か所順次移動
+	;今一番汚れているところから4つを探す　洋館前～人形の館全域
+	;一律掃除時間は1時間とする
+	IF TIME <= CLOCK_TO_TIME(8, 0)
+		청소하기 = FINDELEMENT( YOGORE, MAXARRAY(YOGORE,520, 531), 520, 531)
+		CFLAG:ARG:직장 = 청소하기
+	ELSEIF TIME <= CLOCK_TO_TIME(9, 0)
+		청소하기 = FINDELEMENT( YOGORE, MAXARRAY(YOGORE,520, 531), 520, 531)
+		CFLAG:ARG:직장 = 청소하기
+	ELSEIF TIME <= CLOCK_TO_TIME(10, 0)
+		청소하기 = FINDELEMENT( YOGORE, MAXARRAY(YOGORE,520, 531), 520, 531)
+		CFLAG:ARG:직장 = 청소하기
+	ELSEIF TIME <= CLOCK_TO_TIME(11, 00)
+		청소하기 = FINDELEMENT( YOGORE, MAXARRAY(YOGORE,520, 531), 520, 531)
+		CFLAG:ARG:직장 = 청소하기
+	ENDIF
+CASE [[미스티아]]
+	;교육은 도울 수 있다
+	IF BASE:ARG:일량 > 3000
+		TCVAR:ARG:도울수없다 = 0
+	;포장마차를 내면(자) 도와도 시간은 변함없다
+	ELSE
+		TCVAR:ARG:도울수없다 = 2
+	ENDIF
+CASE [[아야]]
+	;교양과 신뢰가 필요
+	IF CFLAG:ARG:신뢰도 < 500 || ABL:MASTER:교양 < 3
+		TCVAR:ARG:도울수없다 = 1
+	ELSE
+		TCVAR:ARG:도울수없다 = 0
+	ENDIF
+CASE [[카센]]
+	IF YOUBI_MATCH(DAY, "토")
+		IF TIME >= CLOCK_TO_TIME(14, 0)
+			CFLAG:ARG:직장 = 212
+			CFLAG:ARG:직종 = 41
+		ELSE
+			CFLAG:ARG:직장 = 218
+			CFLAG:ARG:직종 = 41
+		ENDIF
+	ENDIF
+CASE [[엘렌]]
+	IF TIME:0 == TCVAR:ARG:357
+	;전회의 처리로부터 시간이 경과하고 있지 않으면 패스
+	ELSEIF GROUPMATCH(DAY:3, 15, 30)
+	;출장
+		;객수의 증감, 계상, 기본은-3~＋5
+		LOCAL:1 = RAND:8 - 3
+		
+		;날씨
+		SELECTCASE TIME:5
+		;안개비, 안개는-1
+		CASE 6, 7
+			LOCAL:1 -= 1
+		;비, 눈은-2
+		CASE 4, 8
+			LOCAL:1 -= 2
+		;큰 비, 눈보라, 진눈깨비, 뻥튀기는-3
+		CASE 5, 9, 12, 13
+			LOCAL:1 -= 3
+		ENDSELECT
+		;무지개, 다이아몬드 더스트는＋2
+		SIF TIME:7 >= 1
+			LOCAL:1 += 2
+		
+		;객수가 적으면보다 늘린다
+		SIF TCVAR:ARG:354 < 5
+			LOCAL:1 += 1
+		;객수가 많으면보다 줄인다
+		SIF TCVAR:ARG:354 > 25
+			LOCAL:1 -= 3
+		
+		;음수 방지
+		TCVAR:ARG:354 = MAX(0, TCVAR:ARG:354 + LOCAL:1)
+		SIF LOCAL:1 > 0
+			TCVAR:ARG:355 += LOCAL:1
+		;현재의 객수가 일정 이상이라면 엘렌의 응원자로 돈다
+		IF TCVAR:ARG:354 > 25
+			CFLAG:ARG:직종 = 43
+		;그렇지 않으면 유객 행위에
+		ELSE
+			CFLAG:ARG:직종 = 41
+		ENDIF
+	;채집 엘렌의 채집량을 계상
+	ELSE
+		;채집량이 이상하게 안 되게
+		SIF !INRANGE(TCVAR:ARG:357, 420, 720)
+			TCVAR:ARG:357 = 420
+		;계산식은(현재의 TIME-전회 계산한 TIME)*1~20의 난수
+		TCVAR:ARG:354 += (TIME:0 - TCVAR:ARG:357) * (RAND:20 + 1)
+		;채집량이 최대 일량을 웃돌면(자) 종료
+		SIF TCVAR:ARG:354 > MAXBASE:ARG:일량
+			BASE:ARG:일량 = 1
+	ENDIF
+CASE [[케이네]]
+	;수업이 끝나면 뒷정리를 도울 수 있다
+	IF TIME >= CLOCK_TO_TIME(14, 0)
+		CFLAG:ARG:직종 = 40
+		TCVAR:ARG:도울수없다 = 0
+	;점심시간은 당연히 무리
+	ELSEIF INRANGE(TIME, CLOCK_TO_TIME(12, 0), CLOCK_TO_TIME(12, 59))
+		TCVAR:ARG:도울수없다 = 1
+	;교양이 3이상 또한 신뢰도가 50이상이라면 수업을 도울 수 있다
+	ELSEIF ABL:MASTER:교양 >= 3 && CFLAG:ARG:신뢰도 >= 50
+		TCVAR:ARG:도울수없다 = 2
+	;그 이외는 도울수없다
+	ELSE
+		TCVAR:ARG:도울수없다 = 1
+	ENDIF
+ENDSELECT
+
+;직장 갱신
+SIF 전의직장 != CFLAG:ARG:직장
+	CFLAG:ARG:직장 = GET_JOBPLACE("일", ARG)
+
+
+;FileName_JOB.ERB ------------------------------- Rev1. 00
+;일나토리 이득
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@GET_JOBNAME(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+CASE [[레이무]]
+	LOCALS = 청소
+CASE [[루코토]]
+	LOCALS = 가사
+CASE [[미마]]
+	IF YOUBI_MATCH(DAY, "월수")
+		LOCALS = 트레이닝
+	ELSEIF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+		LOCALS = 정례 여자 모임
+	ENDIF
+CASE [[치유리]], [[유메미]]
+	LOCALS = 연구
+CASE [[스이카]]
+	IF YOUBI_MATCH(DAY, "수")
+		LOCALS = 트레이닝
+	ELSE
+		LOCALS = 음주
+	ENDIF
+CASE [[마리사]]
+	IF TIME >= CLOCK_TO_TIME(16, 0)
+		LOCALS = 트레이닝
+	ELSE
+		LOCALS = 발굴 작업
+	ENDIF
+CASE [[루미아]]
+	LOCALS = 식료 확보
+CASE [[치르노]]
+	SIF CFLAG:ARG:직종 == 41
+		LOCALS = 아이스 가게
+CASE [[레밀리아]]
+	LOCALS = 일요일의 일과
+CASE [[앨리스]]
+;도울 수 없으면 인형극, 요리라면 가사
+	IF TCVAR:ARG:도울수없다
+		LOCALS = 인형극
+	ELSEIF CFLAG:ARG:직종 == 44
+		LOCALS = 가사
+	ELSE
+		LOCALS = 뒷정리
+	ENDIF
+;3 자매
+CASE [[유메코]]
+	LOCALS = 청소
+CASE [[루나사]], [[메를랑]], [[리리카]]
+	LOCALS = 콘서트
+CASE [[요우무]]
+	LOCALS = 시장
+CASE [[란]]
+	LOCALS = 결계 관리
+CASE [[유카리]]
+	IF (DAY:2 == 4 && DAY:3 == 30)
+		LOCALS = 결계 관리
+	ELSEIF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+		LOCALS = 정례 여자 모임
+	ENDIF
+CASE [[미스티아]]
+	IF BASE:ARG:일량 > 3000
+		LOCALS = 교육
+	ELSE
+		LOCALS = 포장마차 일
+	ENDIF
+CASE [[아야]]
+	LOCALS = 기사 집필
+CASE [[사나에]]
+	LOCALS = 권유
+CASE [[카나코]]
+	SIF DAY:2 == 2 && DAY:3 == 5
+		LOCALS = 신체측정
+	SIF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+		LOCALS = 정례 여자 모임
+CASE [[스와코]]
+	LOCALS = 요리
+CASE [[텐시]]
+	LOCALS = 발원
+CASE [[이쿠]]
+	LOCALS = 회화
+CASE [[오린]]
+	LOCALS = 원령 관리
+CASE [[오쿠]]
+	LOCALS = 출력 관리
+CASE [[코가사]]
+	LOCALS = 보모
+CASE [[누에]]
+	LOCALS = 요리
+CASE [[카센]]
+	IF YOUBI_MATCH(DAY, "토")
+		LOCALS = 식도락
+	ELSE
+		LOCALS = 수행
+	ENDIF
+CASE [[엘렌]]
+	IF GROUPMATCH(DAY:3, 15, 30)
+		LOCALS = 마법가게 출장
+	ELSE
+		LOCALS = 채집
+	ENDIF
+CASE [[우동게]]
+	IF YOUBI_MATCH(DAY, "화")
+		LOCALS = 약 행상인
+	ELSE
+		LOCALS = 조제
+	ENDIF
+CASE [[파츄리]]
+	LOCALS = 독서
+CASE [[뱌쿠렌]]
+	IF YOUBI_MATCH(DAY, "월목")
+		LOCALS = 포교
+	ELSEIF YOUBI_MATCH(DAY, "토") && INRANGE(DAY:3, 8, 14)
+		LOCALS = 정례 여자 모임
+	ENDIF
+CASE [[미코]]
+	LOCALS = 수행
+CASE [[코코로]]
+	IF FESTIVAL() == "예대제"
+		LOCALS = 노가쿠
+	ELSE
+		LOCALS = 노가쿠 연습
+	ENDIF
+CASE [[메이링]]
+	LOCALS = 문지기
+CASE [[소악마]]
+	LOCALS = 요리
+CASE [[파르시]]
+	LOCALS = 다리 파수꾼
+CASE [[카구야]]
+	LOCALS = 분재 가꾸기
+CASE [[유기]]
+	LOCALS = 음주
+CASE [[모미지]]
+	LOCALS = 경비
+CASE [[케이네]]
+	IF INRANGE(TIME, CLOCK_TO_TIME(12, 0), CLOCK_TO_TIME(12, 59))
+		LOCALS = 점심 시간
+	ELSEIF TIME >= CLOCK_TO_TIME(14, 0)
+		LOCALS = 뒷정리
+	ELSE
+		LOCALS = 서당 수업
+	ENDIF
+CASE [[유카]]
+	LOCALS = 꽃의 손질
+CASE [[코스즈]]
+	IF YOUBI_MATCH(DAY, "수목")
+		LOCALS = 가게 보기
+	ELSE
+		LOCALS = 장서 정리
+	ENDIF
+CASE [[에이린]]
+	SIF !YOUBI_MATCH(DAY, "일")
+		LOCALS = 진찰
+	SIF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+		LOCALS = 정례 여자 모임
+CASE [[메디슨]]
+	LOCALS = 독 채집
+CASE [[코마치]]
+	LOCALS = 사공
+CASE [[히나]]
+	LOCALS = 액 모으기
+CASE [[아큐]]
+	LOCALS = 집필 작업
+CASE [[렌코]]
+	LOCALS = 리포트
+CASE [[메리]]
+	LOCALS = 리포트
+CASE [[이치린]]
+	LOCALS = 청소
+CASE [[쇼]]
+	IF YOUBI_MATCH(DAY, "돈")
+		LOCALS = 설법
+	ELSE
+		LOCALS = 근행
+	ENDIF
+CASE [[요시카]]
+	LOCALS = 정비(피)
+CASE [[청아]]
+	LOCALS = 정비
+CASE [[후토]]
+	LOCALS = 회화
+CASE [[벤벤]], [[야츠하시]]
+	LOCALS = 콘서트
+CASE [[라이코]]
+	IF DAY % 28 == 7
+		LOCALS = 콘서트
+	ELSE
+		LOCALS = 회화
+	ENDIF
+CASE [[유유코]]
+	IF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+		LOCALS = 정례 여자 모임
+	ENDIF
+CASE [[오키나]]
+	IF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+		LOCALS = 정례 여자 모임
+	ENDIF
+CASE [[신키]]
+	IF YOUBI_MATCH(DAY, "일") && INRANGE(DAY:3, 8, 14)
+		LOCALS = 정례 여자 모임
+	ENDIF
+CASE [[久侘歌]]
+	LOCALS = 관문지기
+CASEELSE
+	LOCALS = 일
+ENDSELECT
+RETURNF LOCALS
+
+@SPECIALJOB(ARG)
+SELECTCASE ARG
+	CASE 1
+		PRINTFORML 오늘 %ARG는% 요괴 퇴치 일이 있다고 한다
+		INPUT
+		PRINTL [0]돕는다
+		PRINTL [1]열심히 해
+		IF RESULT == 0
+			IF ABL:MASTER:전투능력 < 2
+				PRINTL 방해가 되니까 오지마~ 라는 소리를 들었다…
+			ELSE
+				PRINTFORML %ARG는% 주저하면서도 동행을 허락해 주었다
+				PRINTFORML %STR:(CFLAG:ARG:직장 / 10 + 6000)%로 갑니다
+			ENDIF
+		ELSE
+			PRINTFORML %마스터는% %CALLNAME:ARG%에게 응원을 보냈다
+		ENDIF
+ENDSELECT

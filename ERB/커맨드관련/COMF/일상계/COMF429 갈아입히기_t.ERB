@@ -1,0 +1,418 @@
+﻿;-------------------------------------------------
+;갈아입히기
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM429
+#DIM C_ID
+#DIM ID_갈아입히기대상, 캐릭터수상한
+#DIM 갈아입히기가능인원수
+#DIM L_ID ;사용 리스트의 ID
+CALL MAKE_CHARA_LIST("갈아입히기 가능 캐릭터리스트", L_ID, ID_갈아입히기대상, 갈아입히기가능인원수)
+IF 갈아입히기가능인원수 <= 1
+	PRINTFORMW %마스터는% 갈아입기로 했다
+	CALL 복장갈아입히기(MASTER)
+	CALL CLOTHES_SETTING_TRAIN(MASTER)
+	RETURN -1
+ENDIF
+
+;갈아입음 대상의 선택
+;리스트 작성시에 가부 판정 하고 있기 때문에 여기에서는 필요없습니다
+PRINTFORML 옷을 갈아입을 수가 있습니다
+PRINTFORML 누가 갈아입을까요?
+PRINTFORML 
+CALL SIMPLE_CHARA_LIST(ID_갈아입히기대상, 갈아입히기가능인원수)
+;캔슬했다
+SIF RESULT == 999
+	RETURN -1
+
+;RESULT는 곧 썩으므로
+C_ID = ID_갈아입히기대상:(RESULT)
+SIF FLAG:시간정지 == 1 && !(C_ID == MASTER)
+	CFLAG:C_ID:시간정지착의 = 1
+CALL 복장갈아입히기(C_ID)
+CALL CLOTHES_SETTING_TRAIN(C_ID)
+RETURN 0
+
+
+
+
+;CLOTHES_SETTING_TRAIN에 신발벗어 처리를 이동시켰으므로
+;여기서 CLOTHES_SETTING_TRAIN 하면(자) 신발를 벗으며 끝내, 신발설정의 보존을 할 수 없습니다
+;호출원으로 CLOTHES_SETTING_TRAIN 하는 것
+@복장갈아입히기(C_ID)
+#DIM C_ID
+CALL SHOW_CLOTHES(C_ID, "현재의 의상")
+PRINTFORML %CALLNAME:C_ID%의 옷 갈아입는중
+PRINTFORML 
+PRINTFORML [6] - 의상 확인
+PRINTFORML [5] - 의상 거름필요 지정
+PRINTFORML [4] - 파자마의 변경
+PRINTFORML [3] - 매일의 의상의 변경
+PRINTFORML [2] - 의상의 일시 변경
+PRINTFORML [1] - 팬티
+PRINTFORML 
+PRINTFORML [0] - 돌아간다
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 6
+		CALL SHOW_CHARA_CLOTHES(C_ID, 0)
+	CASE 5
+		CALL SHOW_CLOTHES(C_ID, "거름필요한의상")
+		PRINTFORML %CALLNAME:C_ID%의 거름필요한의상을 설정중
+		PRINTFORML 
+		PRINTFORML [4] - 현재의 의상을 지정한다
+		PRINTFORML [3] - 의상세트를 지정한다
+		PRINTFORML [2] - 특정 캐릭터의 평상복의 흉내
+		PRINTFORML [1] - 거름필요 지정의 리셋
+		PRINTFORML 
+		PRINTFORML [0] - 그만둔다
+		DO
+			INPUT
+			SELECTCASE RESULT
+			CASE 4
+				CALL DECIDE_CLOTHES(C_ID, "거름필요한의상", "현재의 의상")
+			CASE 3
+				CALL COSPLAY_SET(C_ID, "거름필요한의상")
+			CASE 2
+				CALL COSPLAY_CHARA(C_ID, "거름필요한의상")
+			CASE 1
+				PRINTFORML 정말로 리셋 합니까?
+				PRINTFORML 
+				PRINTFORML [1] - 리셋 한다
+				PRINTFORML [0] - 그만둔다
+				DO
+					INPUT
+					SELECTCASE RESULT
+					CASE 1
+						CALL CTRL_CLOTHES_SET(C_ID, "거름필요한의상의 리셋")
+					CASE 0
+					CASEELSE
+						REUSELASTLINE 무효인 입력입니다
+						CONTINUE
+					ENDSELECT
+					RESTART
+				LOOP 1
+			CASE 0
+				RESTART
+			CASEELSE
+			ENDSELECT
+			RESTART
+		LOOP 1
+	CASE 4
+		SIF C_ID == MASTER
+			RESTART
+		CALL SHOW_CLOTHES(C_ID, "오늘의 파자마")
+		PRINTFORML %CALLNAME:C_ID%의 파자마를 설정중
+		PRINTFORML 
+		PRINTFORML [5] - 좋아하는 대로 시킨다
+		PRINTFORML [4] - 거름필요한의상으로 자 준다
+		PRINTFORML [3] - 파자마를 지정한다
+		PRINTFORML [2] - 전라로 자 준다
+		PRINTFORML [1] - 팬티만으로 자 준다
+		PRINTFORML 
+		PRINTFORML [0] - 그만둔다
+		DO
+			INPUT
+			SELECTCASE RESULT
+			CASE 5
+				CFLAG:C_ID:파자마지정 = 0
+			CASE 4
+				SIF CFLAG:C_ID:거름필요한의상
+					CALL CTRL_CLOTHES_SET(C_ID, "파자마의 변경_거름필요한의상")
+			CASE 3
+				CALL COSPLAY_SELECT(C_ID, "파자마", "파자마 세트")
+			CASE 2
+				CALL CTRL_CLOTHES_SET(C_ID, "파자마의 변경_전라")
+			CASE 1
+				CALL CTRL_CLOTHES_SET(C_ID, "파자마의 변경_판이치")
+			CASE 0
+			CASEELSE
+				REUSELASTLINE 무효인 입력입니다
+				CONTINUE
+			ENDSELECT
+			RESTART
+		LOOP 1
+	CASE 3
+		CALL SHOW_CLOTHES(C_ID, "오늘의 의상")
+		PRINTFORML %CALLNAME:C_ID%의 평상복을 설정중
+		PRINTFORML 
+		PRINTFORML [4] - 현재의 의상을 지정한다( 거름필요에 덧쓰기됩니다)
+		PRINTFORML [3] - 의상세트를 지정한다
+		PRINTFORML [2] - 특정 캐릭터의 평상복의 흉내
+		PRINTFORML [1] - 본인 맡김
+		PRINTFORML 
+		PRINTFORML [0] - 그만둔다
+		DO
+			INPUT
+			SELECTCASE RESULT
+			CASE 4
+				CALL DECIDE_CLOTHES(C_ID, "평상복", "현재의 의상")
+			CASE 3
+				CALL COSPLAY_SET(C_ID, "평상복")
+			CASE 2
+				CALL COSPLAY_CHARA(C_ID, "평상복")
+			CASE 1
+				PRINTFORMW 평상복의 설정은 본인의 기분에 맡깁니다
+				CFLAG:C_ID:기본복장세트 = 0
+			CASE 0
+			ENDSELECT
+			RESTART
+		LOOP 1
+	CASE 2
+		;#;PRINTFORML CFLAG:C_ID:의상일시변경 {CFLAG:C_ID:의상일시변경}
+		CALL SHOW_CLOTHES(C_ID, "현재의 의상")
+		PRINTFORML %CALLNAME:C_ID%의 현재의 의상을 갈아입히기중
+		PRINTFORML 
+		PRINTFORML [4] - 거름필요한의상에 갈아입히기
+		PRINTFORML [3] - 의상세트를 지정한다
+		PRINTFORML [2] - 특정 캐릭터의 평상복의 흉내
+		PRINTFORML [1] - 오늘의 Default에 되돌린다
+		PRINTFORML 
+		PRINTFORML [0] - 그만둔다
+		DO
+			INPUT
+			SELECTCASE RESULT
+			CASE 4
+				SIF !CFLAG:C_ID:거름필요한의상
+					RESTART
+				CALL DECIDE_CLOTHES(C_ID, "현재의 의상", "거름필요한의상")
+			CASE 3
+				CALL COSPLAY_SET(C_ID, "현재의 의상")
+			CASE 2
+				CALL COSPLAY_CHARA(C_ID, "현재의 의상")
+			CASE 1
+				PRINTFORMW 오늘의 의상을 다시 입혔다
+				CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_평상복")
+			CASE 0
+			ENDSELECT
+			RESTART
+		LOOP 1
+	CASE 1
+		PRINTFORML %CALLNAME:C_ID%의 팬티를 음미중
+		PRINTFORML 현재 착용중의 팬티：%GET_STR(C_ID, "하반신속옷_비켜놓기가능", EQUIP:C_ID:하반신속옷2, "이름")%
+		SELECTCASE CFLAG:C_ID:지정팬티
+		CASE 0
+			PRINTFORML 　현재의 팬티 설정：지정 없음
+		CASE 100
+			PRINTFORML 　현재의 팬티 설정：노팬티 지정
+		CASEELSE
+			PRINTFORML 　현재의 팬티 설정：%GET_STR(C_ID, "하반신속옷_비켜놓기가능", CFLAG:C_ID:지정팬티, "이름")%
+		ENDSELECT
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML [2] - 현재의 팬티를 거름필요 지정
+		PRINTFORML [1] - 팬티의 거름필요 지정을 해제한다
+		PRINTFORML 
+		PRINTFORML [0] - 그만둔다
+		DO
+			INPUT
+			SELECTCASE RESULT
+			CASE 2
+				PRINTFORMW 현재의 팬티를 거름필요로 지정했습니다
+				CFLAG:C_ID:지정팬티 = EQUIP:C_ID:하반신속옷2
+				SIF !CFLAG:C_ID:지정팬티
+					CFLAG:C_ID:지정팬티 = 100
+			CASE 1
+				PRINTFORMW 팬티의 거름필요 지정을 해제했습니다
+				CFLAG:C_ID:지정팬티 = 0
+			CASE 0
+			ENDSELECT
+			RESTART
+		LOOP 1
+	CASE 0
+		RETURN
+	CASEELSE
+		REUSELASTLINE 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+	RESTART
+LOOP 1
+
+
+
+;모방시키는 대상 캐릭터의 선택
+@COSPLAY_CHARA(C_ID, TYPE)
+#DIM  C_ID
+#DIMS TYPE
+#DIM  COS_CHARA
+PRINTFORML %CALLNAME:C_ID%의 %조사처리(TYPE,"을")% 설정중
+PRINTFORML 누구의 의상을 흉내내게 합니까?
+CALL SHOW_CHARA_LIST("평상복 모방 가능 캐릭터리스트", "체력 기력")
+COS_CHARA = RESULT
+IF GROUPMATCH(COS_CHARA, 0, 999)
+	PRINTFORMW 의상의 설정을 중단했다
+	RETURN
+ELSEIF COS_CHARA == C_ID
+	SELECTCASE TYPE
+	CASE "거름필요한의상"
+		PRINTFORMW 의상의 설정을 중단했다
+	CASE "평상복"
+		PRINTFORMW 평상복의 설정은 본인의 기분에 맡깁니다
+		CFLAG:C_ID:기본복장세트 = 0
+	CASE "현재의 의상"
+		PRINTFORMW 오늘의 의상을 다시 입혔다
+		CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_평상복")
+	ENDSELECT
+	RETURN
+ENDIF
+CALL DECIDE_CLOTHES(C_ID, TYPE, "캐릭터 평상복", COS_CHARA)
+SIF RESULT
+	RESTART
+
+
+;의상세트의 카테고리 선택
+@COSPLAY_SET(C_ID, TYPE)
+#DIM  C_ID
+#DIM  SET_ID
+#DIMS TYPE
+#DIMS CATEGORY
+CALL SHOW_CLOTHES(C_ID, TYPE)
+PRINTFORML %CALLNAME:C_ID%의 %조사처리(TYPE,"을")% 설정중
+PRINTFORML 의상의 종류의 선택
+PRINTFORML 
+PRINTFORML [3] - 기본 의상세트
+PRINTFORML [2] - 코스프레 의상세트
+PRINTFORML [1] - 캐릭터 특수 의상세트
+PRINTFORML 
+PRINTFORML [0] - 그만둔다
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 3
+		CATEGORY '= "기본 의상세트"
+	CASE 2
+		CATEGORY '= "코스프레 의상세트"
+	CASE 1
+		CATEGORY '= "캐릭터 특수 의상세트"
+	CASE 0
+		RETURN
+	CASEELSE
+		REUSELASTLINE 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+	BREAK
+LOOP 1 
+CALL COSPLAY_SELECT(C_ID, TYPE, CATEGORY)
+
+
+
+;개개의 의상세트의 선택
+@COSPLAY_SELECT(C_ID, TYPE, CATEGORY)
+#DIM  C_ID
+#DIM  SET_ID
+#DIMS TYPE
+#DIMS CATEGORY
+PRINTFORML %CALLNAME:C_ID%의%조사처리(TYPE,"을")% 설정중(%CATEGORY%)
+PRINTFORML 사용하는 의상세트를 선택해 주세요
+PRINTFORML 
+CALL CLASS_LIST("의상세트", CATEGORY)
+PRINTFORML 
+PRINTFORML [0] - 그만둔다
+DO
+	INPUT
+	SET_ID = RESULT
+	SELECTCASE SET_ID
+	CASE 0
+		RETURN
+	CASEELSE
+		SIF GET_INT(0, "의상세트" , SET_ID, CATEGORY)
+			BREAK
+		REUSELASTLINE 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+LOOP 1 
+CALL DECIDE_CLOTHES(C_ID, TYPE, "의상세트", SET_ID)
+SIF RESULT
+	RESTART
+
+
+
+;의상 결정의 최종 확인
+@DECIDE_CLOTHES(C_ID, COS_SAVE, COS_LOAD, SET_ID)
+#DIM  C_ID     ;설정하는 캐릭터
+#DIMS COS_SAVE ;의상의 보존처
+#DIMS COS_LOAD ;의상의 참조원
+#DIM  SET_ID   ;참조 의상등의 ID
+;#; PRINTFORML C_ID{C_ID}, COS_SAVE%COS_SAVE%, COS_LOAD%COS_LOAD%, SET_ID{SET_ID}
+PRINTFORMW 최종 확인
+CALL SHOW_CLOTHES(C_ID, COS_LOAD, SET_ID)
+PRINTFORML 
+PRINTFORML 이 의상으로 괜찮겠습니까?
+PRINTFORML 
+PRINTFORML [1] - 결정
+PRINTFORML [0] - 다시 생각한다
+PRINTFORML 
+PRINTFORML [9] - 그만둔다
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 1
+		BREAK
+	CASE 0
+		RETURN 1
+	CASE 9
+		RETURN
+	CASEELSE
+		REUSELASTLINE 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+LOOP 1
+
+
+SELECTCASE COS_LOAD
+CASE "현재의 의상"
+	SELECTCASE COS_SAVE
+	CASE "평상복"
+		PRINTFORMW 지금 착용하고 있는 의상을 매일 입어 주기로 했다
+		CFLAG:C_ID:기본복장세트 = 100
+		CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 보존_거름필요")
+	CASE "거름필요한의상"
+		PRINTFORMW 지금 착용하고 있는 의상을 거름필요로 지정했다
+		CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 보존_거름필요")
+	ENDSELECT
+	
+CASE "의상세트"
+	PRINTFORMW %CALLNAME:C_ID%의 %COS_SAVE%에서 %조사처리(GET_STR(C_ID, "의상세트", SET_ID, "이름"),"를")% 지정했습니다
+	SELECTCASE COS_SAVE
+	CASE "현재의 의상"
+		CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_의상세트", SET_ID)
+	CASE "평상복"
+		CALL CTRL_CLOTHES_SET(C_ID, "평상복의 변경_의상세트", SET_ID)
+	CASE "거름필요한의상"
+		CALL CTRL_CLOTHES_SET(C_ID, "거름필요한의상의 변경_의상세트", SET_ID)
+	CASE "파자마"
+		CALL CTRL_CLOTHES_SET(C_ID, "파자마의 변경_의상세트", SET_ID)
+	ENDSELECT
+
+CASE "캐릭터 평상복"
+	PRINTFORMW %CALLNAME:C_ID%에게 %CALLNAME:SET_ID%의 모습을 흉내내게 하기로 했다
+	SELECTCASE COS_SAVE
+	CASE "현재의 의상"
+		CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_캐릭터 의상", SET_ID, "평상복")
+	CASE "평상복"
+		CALL CTRL_CLOTHES_SET(C_ID, "평상복의 변경_캐릭터 의상", SET_ID, "평상복")
+	CASE "거름필요한의상"
+		CALL CTRL_CLOTHES_SET(C_ID, "거름필요한의상의 변경_캐릭터 의상", SET_ID, "평상복")
+	ENDSELECT
+
+ENDSELECT
+
+
+
+;갈아입히기
+@COM_ABLE429
+;이동 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(429)
+	RETURN RESULT
+;개인 방 설정
+SIF (CFLAG:MASTER:현재위치 != CFLAG:MASTER:311) && (CFLAG:현재위치 != CFLAG:311)
+	RETURN 0
+SIF !GETBIT(CFLAG:TARGET:기정사실, 1) && TARGET
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+RETURN 1

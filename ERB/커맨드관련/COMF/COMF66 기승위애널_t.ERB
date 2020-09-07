@@ -1,0 +1,383 @@
+﻿;-------------------------------------------------
+;기승위애널
+;섹스계 커맨드, 레벨 2
+;-------------------------------------------------
+@COM66
+;전회의 조교가 3 P 때 3 P에
+IF PREVCOM == 71
+	CALL COM_ABLE71
+	SIF RESULT
+		JUMP COM71
+ENDIF
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = TARGET
+
+;봉사 쾌락 플래그
+TCVAR:108 = 1
+
+CSTR:PLAYER:10 += @"{TARGET}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:PLAYER:2 = 2
+TCVAR:PLAYER:동정상실 = 1
+TCVAR:A상실발생 = 1
+;강도
+TCVAR:PLAYER:4 = 2200
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 12
+;강도
+TCVAR:TARGET:4 = 1300
+
+DOWNBASE:PLAYER:체력 += 20
+DOWNBASE:PLAYER:기력 += 40
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 200
+	SOURCE:PLAYER:쾌C = 400
+	SOURCE:PLAYER:성행동+= 25
+
+	SOURCE:쾌A = 500
+	SOURCE:고통 = 400
+
+ELSE
+
+	DOWNBASE:체력 += 90
+	DOWNBASE:기력 += 50
+	SOURCE:PLAYER:쾌C = 400
+	SOURCE:PLAYER:성행동+= 25
+
+	SOURCE:쾌A = 500
+	SOURCE:사랑 = 250
+	SOURCE:성행동 = 250
+	SOURCE:달성 = 250
+	SOURCE:고통 = 800
+	SOURCE:노출 = 120
+	SOURCE:일탈 = 700
+	SOURCE:반감 = 900
+
+	;위 쪽으로 계산한 더러운 데이터
+	SOURCE:불결 = Y*10 + 60
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 900
+ENDIF
+;A에의 고통은 먼저 처리해 둔다
+CALL PAIN_CHECK_A(TARGET)
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;사정에 관계없이 행해지는 처리는 여기에서
+;노예의 A⇔조교자의 P의 더러움이 이동
+CALL STAIN_애널P삽입
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;A경험
+EXP:A경험 ++
+
+;성교경험
+
+EXP:PLAYER:삽입경험 ++
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 7
+	ENDIF
+		EXP:PLAYER:시간경험 += 1
+ELSE
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 7
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 7
+	ENDIF
+	EXP:A성교경험 ++
+	;애정경험
+	SIF !ASSIPLAY
+		EXP:애정경험 += TALENT:연모
+ENDIF
+RETURN 1
+
+@CAN_COM66(ARG)
+IF FLAG:70 == 1
+	SKIPDISP ARG
+	PRINTL 기승위로 애널을 범한다
+ELSE
+	SKIPDISP ARG
+	PRINTL 기승위애널
+	;-------------------------------------------------
+	;실행 판정 처리
+	;-------------------------------------------------
+	A = 0
+	S = 0
+
+	;모든 명령에 공통의 요소를 고려
+	;(순종이 높다고 명령에 따르기 쉬운 등)
+	CALL COM_ORDER
+
+	;ABL:욕망
+	IF ABL:욕망
+		SIF S
+			PRINT  + 
+		A += ABL:욕망 * 3
+		PRINT 욕망
+		PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 3, ')
+		S = 1
+	ENDIF
+	;ABL:A감각
+	IF ABL:A감각
+		SIF S
+			PRINT  + 
+		A += ABL:A감각 * 2
+		PRINT A감각
+		PRINTV 'LV, ABL:A감각, '(, ABL:A감각 * 2, ')
+		S = 1
+	ENDIF
+	;ABL:봉사정신
+	IF ABL:봉사정신
+		SIF S
+			PRINT  + 
+		A += ABL:봉사정신 * 4
+		PRINT 봉사정신
+		PRINTV 'LV, ABL:봉사정신, '(, ABL:봉사정신 * 4, ')
+		S = 1
+	ENDIF
+	IF MARK:쾌락각인
+		SIF S
+			PRINT  + 
+		A += MARK:쾌락각인 * 3
+		PRINT 쾌락각인
+		PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 3, ')
+		S = 1
+	ENDIF
+
+	;PALAM:윤활(의 부족)
+	IF PALAM:윤활 < PALAMLV:3
+		PRINT  - 
+		A -= 5
+		PRINT 윤활 부족
+		PRINTV '(, 5, ')
+		S = 1
+	ENDIF
+	;PALAM:욕정
+	IF GETPALAMLV(PALAM:욕정, 5)
+		SIF S
+			PRINT  + 
+		A += GETPALAMLV(PALAM:욕정, 5) * 3
+		PRINT 욕정
+		PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 3, ')
+		S = 1
+	ENDIF
+	;수줍음
+	IF TALENT:수치심 > 0
+		PRINT  - 
+		A -= 2
+		PRINT 수줍음
+		PRINTV '(, 2, ')
+		S = 1
+	ENDIF
+	;쾌감에 부정(음란, 창부로 무효)
+	IF TALENT:쾌감응답 < 0 && !TALENT:음란
+		PRINT  - 
+		A -= 5
+		PRINT 쾌감에 부정
+		PRINTV '(, 5, ')
+		S = 1
+	ENDIF
+	;남성기피(연모, 친애로 무효)
+	IF OTOKOGIRAI(TARGET)
+		PRINT  - 
+		A -= 12
+		PRINT 남성기피
+		PRINTV '(, 12, ')
+		S = 1
+	ENDIF
+	;음란
+	IF TALENT:음란 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 15
+		PRINT 음란
+		PRINTV '(, 15, ')
+		S = 15
+	ENDIF
+	;창부
+	IF TALENT:음란 > 1 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 창부
+		PRINTV '(, 5, ')
+		S = 5
+	ENDIF
+
+
+	;A경험
+	IF EXP:A경험 < EXPLV:2
+		PRINT  - 
+		A -= 30
+		PRINT A경험
+		PRINT 부족
+		PRINTV '(, 30, ')
+		S = 1
+	ENDIF
+
+	;조교자가 후타나리
+	IF (TALENT:PLAYER:2 & 3) == 3
+		SIF S
+			PRINT  + 
+		A += 4
+		PRINT 후타나리
+		PRINTV '(, 4, ')
+		S = 1
+	ENDIF
+
+	;미약
+	IF TCVAR:춘약
+		SIF S
+			PRINT  + 
+		A += 6
+		PRINT 춘약
+		PRINTV '(, 6, ')
+		S = 1
+	ENDIF
+
+	Y = 0
+	;애액의 더러움
+	SIF STAIN:PLAYER:2 & 1
+		Y += 1
+	;정액의 더러움
+	SIF STAIN:PLAYER:2 & 4
+		Y += 3
+	;애널의 더러움
+	SIF STAIN:PLAYER:2 & 8
+		Y += 7
+	SIF STAIN:PLAYER:2 & 16
+		Y += 15
+	Y = Y * (2 - TALENT:악취내성) / 2
+
+	;서로 더러워져
+	IF Y
+		PRINT  - 
+		A -= Y
+		PRINT 서로 더러워져
+		;악취 둔감
+		IF TALENT:악취내성 > 0
+			PRINT , 악취 둔감
+		ELSEIF TALENT:악취내성 < 0
+			PRINT , 악취 민감
+		ENDIF
+		PRINTV '(, Y, ')
+		S = 1
+	ENDIF
+
+	;합계를 표시(45이상으로 실행)
+	PRINT  = 
+	PRINTV A
+
+	V = 45
+	SIF A < V
+		PRINT  < 
+	SIF A == V
+		PRINT  = 
+	SIF A > V
+		PRINT  > 
+	PRINT 실행치
+	PRINTV V
+
+	WAIT
+	SKIPDISP 0
+	;실행할 수 없다
+	SIF A < V
+		RETURN 0
+;;	IF TALENT:임신 && (CFLAG:903 <= 30 || CFLAG:903 >= 71)
+;		PRINTFORMW 배의 아이를 위해도 지금은 %CALLNAME:ARG%에 무리는 시키지 않는 것이 좋을 것이다
+;		RETURN 0
+;	ENDIF
+ENDIF
+SKIPDISP 0
+RETURN 1
+
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE66
+;기승위애널 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+SIF GLOBAL_COMABLE(66)
+	RETURN RESULT
+;수면간중
+SIF CFLAG:장난 > 1
+	RETURN 0
+;조교자가 남자, 후타나리의 경우는 어느 정도 발기하고 있지 않으면 안 돼
+SIF (TALENT:PLAYER:2 & 2) && BASE:PLAYER:발기 < 1000
+	RETURN 0
+;애널바이브 삽입중은 안 돼
+SIF TEQUIP:14
+	RETURN 0
+;애널비즈 사용중은 불가
+SIF TEQUIP:15
+	RETURN 0
+;보통 관장 사용중은 불가
+SIF TEQUIP:21
+	RETURN 0
+;풍선 사용중은 불가
+SIF TEQUIP:22
+	RETURN 0
+;전극 사용중은 불가
+SIF TEQUIP:23
+	RETURN 0
+;시간정지중은 스킵
+IF FLAG:70 != 1
+	;일정한 A경험이 필요
+	SIF EXP:2 < EXPLV:3
+		RETURN 0
+	;밧줄 사용 중에는 불가
+	SIF TEQUIP:밧줄
+		RETURN 0
+ENDIF
+;체격 차이가 있는 경우는 주인이 금단의지식 소유가 아니면 안 돼
+SIF 삽입불가(TARGET) == 1 && !TALENT:PLAYER:금단의지식 && !TALENT:PLAYER:금단의지식
+	RETURN 0
+;한층 더 체격 차이가 있으면(자) 경험이 필요
+SIF 삽입불가(TARGET) == 2 && (!TALENT:PLAYER:금단의지식 || EXP:A경험 < 50)
+	RETURN 0
+SIF 삽입불가(TARGET) == 3
+	RETURN 0
+;조교자가 남자나 반인반요인가 후타나리이 아니면 안 돼
+SIF !(TALENT:PLAYER:2 & 2)
+	RETURN 0
+
+
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+;목욕탕플레이중은 플레이매트가 없으면 안 돼
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+;윤활 부족해, 순종 3 이하·레즈끼 3 이하의 ASSI의 경우는 할 수 없다(새드라면 OK)
+IF PALAM:윤활 < PALAMLV:2 && ASSIPLAY
+	SIF (ABL:ASSI:순종 <= 3 || ABL:ASSI:기교 <= 3) && TALENT:ASSI:새드 == 0
+		RETURN 0
+ENDIF
+;침대 룸 or욕실에서 플레이매트가 없으면 안 돼
+SIF !BEDROOM(CFLAG:PLAYER:현재위치) && !(BATHROOM() && ITEM:20)
+	RETURN 0
+RETURN 1
+

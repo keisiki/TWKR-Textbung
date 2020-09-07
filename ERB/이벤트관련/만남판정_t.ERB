@@ -1,0 +1,136 @@
+﻿@만남판정
+#DIM 기본만남율
+#DIM 만남율
+
+만남율 = 0
+FOR LOCAL, 1, CHARANUM
+	;자택 거주 캐릭터라면 조우하지 않는다
+	SIF CFLAG:LOCAL:신사거주 > 0
+		CONTINUE
+;방문자 각각의 만남 플래그 초기화
+	CFLAG:LOCAL:만난위치 = 0
+NEXT
+LOCAL:2 = CHARANUM
+
+;자주(잘) 생각하면(자) 이 계산 몇 번도 하지 않아 좋은 일을 눈치챘다
+;캐릭터수 증가할 때마다 조정 하는 것도 뭐하고,%로 설정하는 것이 좋으면 좋은 생각이 들었으므로 변경
+;%과 만남 확률의 밸런스 조정은 내던지는 것(작자님에게 맡깁니다)
+SELECTCASE (FLAG:출금인원수 * 100 / CHARANUM)
+	CASE IS >= 60
+		기본만남율 = 26
+	CASE IS >= 45
+		기본만남율 = 28
+	CASE IS >= 30
+		기본만남율 = 30
+	CASE IS >= 15
+		기본만남율 = 32
+	CASE IS >= 10
+		기본만남율 = 34
+	CASEELSE
+		기본만남율 = 36
+ENDSELECT
+
+FOR LOCAL, 1, CHARANUM
+	;자택 거주 캐릭터라면 조우하지 않는다
+	SIF CFLAG:LOCAL:신사거주 > 0
+		CONTINUE
+	IF !(CFLAG:LOCAL:거점내방 && CFLAG:LOCAL:연회참가)
+		;10이하가 되면 Default 설정이라고 확정으로 만남 플래그가 설 뿐(만큼)이므로(0 이하가 아니면) 문제 없음
+		만남율 = 기본만남율 - (TALENT:LOCAL:사모 + TALENT:LOCAL:연모 * 2)
+		SIF CFLAG:LOCAL:의뢰상황
+			만남율 -= 3
+		SELECTCASE LOCAL
+			;캐릭터별로 만남율을 바꾸는 경우는 CASE를 더하는·Default는10/(기본만남율)
+			CASEELSE
+				SIF RAND:만남율 + 1 <= 10
+					CALL 만남플래그결정(LOCAL)
+		ENDSELECT
+	ENDIF
+	SIF CFLAG:LOCAL:현재위치 == SUKIMA() && CFLAG:LOCAL:신사거주
+		CFLAG:LOCAL:현재위치 = CFLAG:LOCAL:신사거주
+NEXT
+
+@만남플래그결정(ARG)
+;CFLAG:ARG:만난위치 = ARG의 만남 지점
+;LOCAL = 산출된 가지점(만남 지점/10)
+;LOCAL:1 = 랜덤에 결정할 수 있던 지역
+
+;25%로 자택에 출현. 자택이 미해금의 경우는 스킵
+;이 후 자택이 될 가능성도 있으므로 실제로는 좀 더 높다
+IF !RAND:4 && INRANGE(CFLAG:ARG:자택위치 , 100 , 1100)
+	CFLAG:ARG:만난위치 = CFLAG:ARG:자택위치
+;33%(자택이 있는 경우 약25%)로 자주가는지역. 자주가는지역이 미설정의 경우는 스킵
+;이 후 자주가는지역이 될 가능성도 있으므로 실제로는 좀 더 높다
+ELSEIF !RAND:2 && CFLAG:ARG:자주가는지역 >= 0 && CFLAG:ARG:자주가는지역 != MAIN_MAP
+	CALL FISHER_YATES_SHAFFLE(9)
+	;1~10의 숫자를 셔플 해 차례로 당겨 체크, 최대 10회의 판정으로 끝날 것.
+	FOR LOCAL:10 , 0 , 9
+		LOCAL = CFLAG:ARG:자주가는지역 * 10 + SHAFFLE_ARRAY:(LOCAL:10) + 1
+		;출현 장소나 체크
+		CALLFORM CHARAMOVE_DATA_{ARG}(7, LOCAL)
+		;출현 장소가 아니면 재추첨(출현 장소가 설정되어 있지 않으면 만난위치가 변경되지 않기 때문에 주의)
+		SIF !RESULT
+			CONTINUE
+		;출현 장소로 설정
+		BREAK
+	NEXT
+	;장소를 설정
+	;만일 자주가는지역내에 출현 장소가 설정되어 있지 않았던 경우, 마지막에 당긴 장소가 들어가도록(듯이)
+	CFLAG:ARG:만난위치 = LOCAL * 10
+;자주가는지역이 있는 경우66%·자택도 있는 경우 약50%·자택만 있는 경우75%·아무것도 없는 경우100%
+;자택·자주가는지역도 포함해 선출
+ELSE
+	CALL FISHER_YATES_SHAFFLE(11)
+	FOR LOCAL:10 , 0 , 11
+		;랜덤에 지역 선택
+		LOCAL:1 = SHAFFLE_ARRAY:(LOCAL:10)
+		;거점 맵이라면 재추첨
+		SIF LOCAL:1 == MAIN_MAP
+			CONTINUE
+		;CHARAMOVE를 참조해 가지 않는 지역이라면 재추첨
+		RESULT = 0
+		CALLFORM CHARAMOVE_DATA_{ARG}(6, LOCAL:1)
+		SIF !RESULT
+			CONTINUE
+		BREAK
+	NEXT
+	;가는 지역이 설정되어 있지 않았던 경우, 마지막에 당긴 지역에 간다
+	
+	CALL FISHER_YATES_SHAFFLE(9)
+	FOR LOCAL:10 , 0 , 9
+		;랜덤에 장소를 선택
+		LOCAL = LOCAL:1 * 10 + SHAFFLE_ARRAY:(LOCAL:10) + 1
+		;CHARAMOVE를 참조해 가지 않는 지역이라면 재추첨
+		RESULT = 0
+		CALLFORM CHARAMOVE_DATA_{ARG}(7, LOCAL)
+		SIF !RESULT
+			CONTINUE
+		SIF STR:(6000 + LOCAL) == ""
+			CONTINUE
+		BREAK
+	NEXT
+	;출현 장소로 설정
+	;만일 출현 장소가 설정되어 있지 않았던 경우, 마지막에 당긴 장소가 들어가도록(듯이)
+	CFLAG:ARG:만난위치 = LOCAL * 10
+ENDIF
+
+@출현상태(ARG)
+;=1거점에는 오지 않는 =2오는 =3 살고 있다
+#FUNCTION
+IF CFLAG:ARG:출금 || TALENT:ARG:스침
+	RETURNF 0
+ELSEIF CFLAG:ARG:신사거주
+	RETURNF 3
+ELSEIF CFLAG:ARG:거점내방
+	RETURNF 2
+ELSEIF CFLAG:ARG:연회참가
+	RETURNF 2
+ELSEIF !CHARA_HOLIDAY(ARG)
+	RETURNF 1
+ELSEIF CFLAG:ARG:초대
+	RETURNF 1
+ELSEIF CFLAG:ARG:만난위치
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF

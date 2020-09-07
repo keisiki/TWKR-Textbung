@@ -1,0 +1,211 @@
+﻿;-------------------------------------------------
+;차를넣는(약넣은)
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM331
+#DIM 후끈응
+#DIM 발각확률
+#DIM 성공확률
+후끈응 = 0
+성공확률 = RAND:100
+IF 성공확률 <= 9
+	;10%로 대성공
+	EXP:MASTER:회화경험 ++
+	TFLAG:193 = 1
+	TFLAG:98 = 2
+ELSE
+	;나머지는 일시적으로 성공
+	TFLAG:193 = 0
+	TFLAG:98 = 0
+ENDIF
+LOCAL:2 = 0
+LOCAL:1 = TARGET
+발각확률 = TALENT:MASTER:조합지식 ?  5 # 3
+;IF TALENT:MASTER:조합지식
+;	발각확률 = 5
+;ELSE
+;	발각확률 = 3
+;ENDIF
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	;자고 있는 사람에게 먹일 수 없다
+	SIF CFLAG:(TARGET:LOCAL):수면
+		CONTINUE
+	TARGET = TARGET:LOCAL
+	CALL KOJO_MESSAGE_SEND("SUCCESS",-1, TARGET,-1,-1)
+	SELECTCASE TFLAG:192
+		;통상
+		CASE 0
+			;수면제 아이스티는 졸음을 느끼고 있으면(자) 마시지 않는다
+			IF TCVAR:TARGET:수면제강도 >= 2 && TFLAG:131 == 252
+				;PRINTFORML %타겟은% 하품을 하면서 차를 끊었다
+				TCVAR:TARGET:수면제차사용 = 0
+				CONTINUE
+			;[악취 민감][결벽증]은 차이를 아는 사람
+			;발각될 가능성은 조합지식의 유무로1/2인가1/1
+			ELSEIF TALENT:TARGET:61 < 0
+				IF (발각확률 - 3) ?  !RAND:(발각확률 - 3) # 1
+					;LOCAL:2 ++
+					;PRINTFORML %타겟은% 차에 입을 대지 않았다
+					CONTINUE
+				ENDIF
+			;악취내성의 소질이 없으면 발각될 가능성은 조합지식의 유무로1/5인가1/3
+			ELSEIF TALENT:TARGET:61 == 0
+				IF !RAND:발각확률
+					;LOCAL:2 ++
+					;PRINTFORML %타겟은% 차에 입을 대지 않았다
+					CONTINUE
+				ENDIF
+			ENDIF
+		;강제 성공 or대성공
+		CASE 1
+			;수면제 아이스티는 졸음을 느끼고 있으면(자) 마시지 않는다
+			IF TCVAR:TARGET:수면제강도 >= 2 && TFLAG:131 == 252
+				;PRINTFORML %타겟은% 하품을 하면서 차를 끊었다
+				TCVAR:TARGET:수면제차사용 = 0
+				CONTINUE
+			ENDIF
+		;강제 실패
+		CASE -1,-2
+			CONTINUE
+		;커맨드 종료
+		;CASE -2
+			;RETURN 0
+	ENDSELECT
+	;[악취 둔감][더러움 무시]가 있으면 확정으로 마시는, 잘되었네
+	;SIF LOCAL:2
+		;BREAK
+	CALL COM331_1
+	;TFLAG:193의 성공 여부 판정은 COM의 TARGET 전용이므로 수정
+	SIF TARGET == LOCAL:1
+		후끈응 = 1
+NEXT
+;SIF TCVAR:TARGET:미약 != 210 && TCVAR:TARGET:이뇨제 != 210 && TCVAR:TARGET:춘약 != 1 && !TCVAR:TARGET:수면제강도 >= 2
+SIF !후끈응
+	TFLAG:193 = -1
+TFLAG:98 += 3
+SIF TFLAG:193 == -1
+	TFLAG:98 = 0
+;SIF LOCAL:2 > 0
+	;TFLAG:98 = 0
+DOWNBASE:MASTER:기력 += 100
+DOWNBASE:MASTER:체력 += 50
+TIME += 30
+TARGET = LOCAL:1
+TFLAG:131 = 0
+RETURN 1
+
+
+
+@COM331_1
+
+DOWNBASE:기력 += 10
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 500
+
+;ABL:순종을 본다
+IF ABL:순종 <= 1
+	SOURCE:환락 += (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 3
+	SOURCE:환락 += 200 + (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 5
+	SOURCE:환락 += 500 + (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 8
+	SOURCE:환락 += 750 + (ABL:순종 * 75)
+ELSEIF ABL:순종 <= 11
+	SOURCE:환락 += 1000 + (ABL:순종 * 75)
+ELSE
+	SOURCE:환락 += 2000 + (ABL:순종 * 30)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+
+SOURCE:수동 = 200 + 100 * ABL:순종
+SOURCE:정복 = 200 + 100 * ABL:새드끼
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:정복 , 0.50
+	TIMES SOURCE:수동 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:정복 , 1.00
+	TIMES SOURCE:수동 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:정복 , 2.00
+	TIMES SOURCE:수동 , 2.00
+ENDIF
+IF TFLAG:131 == 41
+	TCVAR:TARGET:미약 = 210
+	DOWNBASE:TARGET:기력 += 150
+	DOWNBASE:TARGET:체력 += 150
+	;PRINTFORML %타겟은% 미약들이의 차를 말했다
+ELSEIF TFLAG:131 == 42
+	TCVAR:TARGET:이뇨제 = 210
+	DOWNBASE:TARGET:기력 += 150
+	DOWNBASE:TARGET:체력 += 150
+	;PRINTFORML %타겟은% 이뇨제들이의 차를 말했다
+ELSEIF TFLAG:131 == 250
+	;PRINTFORML %타겟은% 춘약들이의 차를 말했다
+	TCVAR:TARGET:춘약 = 210
+	DOWNBASE:TARGET:기력 += 150
+	DOWNBASE:TARGET:체력 += 150
+ELSEIF TFLAG:131 == 252
+	;PRINTFORML %타겟은% 수면제들이의 차를 말했다
+	IF TCVAR:TARGET:수면제강도 < 2
+		TCVAR:TARGET:수면제강도 = 2
+		TCVAR:TARGET:수면제차사용 = 1
+	ENDIF
+ENDIF
+;차를 마신 플래그
+TCVAR:300 = 1440 * DAY + TIME
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE331
+;차를넣는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(301)
+	RETURN RESULT
+;2시간 간격
+SIF TIME_PROGRESS(TCVAR:300) < 120
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+SIF !TFLAG:131
+	RETURN 0
+;목욕탕
+;SIF CFLAG:MASTER:현재위치 == 13 || CFLAG:MASTER:현재위치 == 24 || CFLAG:MASTER:현재위치 == 30 || CFLAG:MASTER:현재위치 == 39
+SIF BATHCHECK(CFLAG:MASTER:현재위치) && GET_MAPID(CFLAG:MASTER:현재위치) == MAIN_MAP
+	RETURN 0
+;데이트중
+SIF CHK_DATENOW(CFLAG:데이트중) && CFLAG:현재위치 != OMANEKIBEYA()
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+

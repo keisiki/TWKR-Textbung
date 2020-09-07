@@ -1,0 +1,469 @@
+﻿@밀어넘어뜨려지고
+#DIM 사람의기척
+#DIM 밀어넘어뜨려지고판정
+#DIM 안아다하고값
+#DIM 밀어넘어뜨려지고값
+#DIM 안아다하고우선
+#DIM C_ID
+
+;MASTER의 위치로부터 봐 다른 방에 누군가 있을지 어떨지
+사람의기척 = 0
+FOR LOCAL, 1, CHARANUM
+	SIF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+		CONTINUE
+	SIF CAN_MOVE(CFLAG:MASTER:현재위치, CFLAG:LOCAL:현재위치) & 2
+		사람의기척 ++
+	;공공의 장소
+	SIF ROOMDATA:(CFLAG:MASTER:현재위치 % 100) & 장소_공공장소
+		사람의기척 ++
+NEXT
+
+IF FLAG:덮치기
+	밀어넘어뜨려지고판정 = 0
+	밀어넘어뜨려지고판정 += ABL:TARGET:전투능력 - ABL:MASTER:전투능력
+	밀어넘어뜨려지고판정 += TALENT:TARGET:체형 - TALENT:MASTER:체형
+	IF CFLAG:TARGET:수줍음 > 0
+		밀어넘어뜨려지고판정 += 1
+	ELSEIF CFLAG:TARGET:수줍음 < 0
+		밀어넘어뜨려지고판정 -= 1
+	ENDIF
+	IF CFLAG:TARGET:유혹 > 0
+		밀어넘어뜨려지고판정 += 1
+	ELSEIF CFLAG:TARGET:유혹 < 0
+		밀어넘어뜨려지고판정 -= 1
+	ENDIF
+	IF CFLAG:TARGET:적극성 > 0
+		밀어넘어뜨려지고판정 += 1
+	ELSEIF CFLAG:TARGET:적극성 < 0
+		밀어넘어뜨려지고판정 -= 1
+	ENDIF
+	IF CFLAG:TARGET:질 > 0
+		밀어넘어뜨려지고판정 += 1
+	ELSEIF CFLAG:TARGET:질 < 0
+		밀어넘어뜨려지고판정 -= 1
+	ENDIF
+	IF GROUPMATCH(CFLAG:TARGET:성격경향, 1,3)
+		밀어넘어뜨려지고판정 += 1
+	ELSEIF GROUPMATCH(CFLAG:TARGET:성격경향, 2,4)
+		밀어넘어뜨려지고판정 -= 1
+	ENDIF
+	;밀어넘어뜨려지고판정 += ABL:TARGET:새드끼 + ABL:MASTER:마조끼
+	;밀어넘어뜨려지고판정 -= TALENT:MASTER:담력 + TALENT:MASTER:태도 + TALENT:MASTER:응답 + TALENT:MASTER:자존심 + TALENT:MASTER:일선을넘지않음 + TALENT:MASTER:저항 + TALENT:MASTER:정조
+	;밀어넘어뜨려지고판정 += (CFLAG:TARGET:약점잡음 * 2) + (TALENT:TARGET:새드 * 3) + (TALENT:MASTER:마조 * 3) + (TCVAR:TARGET:발정 * 3)
+	IF CFLAG:TARGET:욕구불만도 < 600&&!FLAG:생활능력무
+		밀어넘어뜨려지고판정 = 0
+	ELSEIF CFLAG:TARGET:욕구불만도 < 800
+		밀어넘어뜨려지고판정 += 1
+	ELSEIF CFLAG:TARGET:욕구불만도 < 1000
+		밀어넘어뜨려지고판정 += 2
+	ELSE
+		밀어넘어뜨려지고판정 += 3
+	ENDIF
+ENDIF
+
+IF CFLAG:우후후 == 1
+	TFLAG:102 = 2
+ELSEIF CFLAG:우후후 == 2
+	TFLAG:102 = 3
+ELSEIF TFLAG:102 == 3 && CFLAG:MASTER:우후후 == 2
+	;이미 처리필 모두의로 스킵
+ELSE
+	TFLAG:102 = 1
+ENDIF
+
+IF !(TFLAG:102 == 3 && CFLAG:MASTER:우후후 == 2)
+	TFLAG:껴안기모드 = 0
+ENDIF
+
+;안아 붙어 있는 or 밀어넘어뜨려지고의 처리
+;데이트중은 발생하지 않는다
+IF !CHK_DATENOW(CFLAG:TARGET:데이트중)
+	;안아 다하고와 밀어 넘어뜨려져 어느 쪽이 우선해 실행되는지를 판정. 안아 다하고는 여자끼리 한정
+	IF (TALENT:MASTER:성별 & 1) && (TALENT:성별 & 1)
+		안아다하고값 = 안아다하고판정(TARGET)
+	ELSE
+		안아다하고값 = 0
+	ENDIF
+	밀어넘어뜨려지고값 = ENDURE(TARGET)
+
+	안아다하고우선 = (안아다하고값 >= 1 && 안아다하고값 > 밀어넘어뜨려지고값 + 40 && !(밀어넘어뜨려지고값 >= 600 && BASE:이성 <= 300))
+
+	;안아 다하고가 우선의 경우
+	IF 안아다하고우선
+		IF !CFLAG:우후후 && TFLAG:102 != 3 && 안아다하고값 >= RAND:250 + 250 && TCVAR:안아다하고금지시간 <= 0
+			;실외에서는 안아 지치지 않는다
+			IF (!사람의기척 && INROOM(CFLAG:MASTER:현재위치) && AT_HOME(MASTER)) || CFLAG:MASTER:현재위치 == OMANEKIBEYA()
+				;동실에 있는 것이 1명만의 경우(안아 다하고는 같은 사람 불가)
+				IF GET_TARGETNUM() == 1
+					PRINTL
+					PRINTFORMW %마스터는% %CALLNAME%에 안아 지쳤다!
+					CALL KOJO_MESSAGE_SEND("EVENT", 10, TARGET, 1,1)
+					TFLAG:껴안기해방포인트 = 2 + RAND:(MIN(ABL:욕망, 10) / 2 + 2) + MIN(CFLAG:욕구불만도, 1000) / 200
+					CFLAG:우후후 = 2
+					CFLAG:MASTER:우후후 = 2
+					TFLAG:102 = 3
+					TFLAG:껴안기모드 = 1
+					IF !TCVAR:발정 && !TCVAR:춘약 && !GETBIT(CFLAG:기정사실 , 1)
+						SETBIT CFLAG:기정사실 , 1
+						CALL COLORMESSAGE(@"%CALLNAME%의 합의를 얻은", C_YELLOW, 2)
+					ELSE
+						CFLAG:대주고말았다 = 1
+					ENDIF
+				ENDIF
+			ENDIF
+		ENDIF
+	;밀어넘어뜨려지고가 우선의 경우
+	ELSE
+		IF ((!CFLAG:우후후 && TFLAG:102 != 3) || (TFLAG:102 == 3 && TFLAG:껴안기모드)) && 밀어넘어뜨려지고값 >= RAND:300 + 300
+			;실외에서는 밀어 넘어뜨려지지 않다
+			IF (!사람의기척 && INROOM(CFLAG:MASTER:현재위치) && AT_HOME(MASTER)) || CFLAG:MASTER:현재위치 == OMANEKIBEYA()
+				;동실에 있는 것이 1명만의 경우 또는 같은 사람에 밀어 넘어뜨려졌을 때
+				IF GET_TARGETNUM() == 1 || 복수밀어넘어뜨려지고() == 1
+					;밀어 넘어뜨려지지 않은 효과
+					IF FLAG:덮치기 && 밀어넘어뜨려지고판정 <= 0
+						PRINTL
+						PRINTFORML 돌연%CALLNAME:TARGET%에 안아 지쳤다!
+						PRINTFORM %타겟은%
+						IF PALAM:TARGET:욕정 >= PALAMLV:10
+							PRINT 번들거리는
+						ELSE
+							PRINT 물기를 띠었다
+						ENDIF
+						PRINTFORML 눈동자로 응시해 왔다
+					;데일리중은 덤벼 들어 오지 않는다
+					ELSEIF CFLAG:TARGET:데일리 > 0
+
+					ELSE
+						PRINTL
+						PRINTFORMW %마스터는% 밀어 넘어뜨려졌다!
+						;CALL KOJO_EVENT(12, TARGET)
+						CALL KOJO_MESSAGE_SEND("EVENT", 10, TARGET, 1,0)
+						FOR LOCAL, 1, GET_TARGETNUM() + 1
+							C_ID = TARGET:LOCAL
+							CFLAG:C_ID:우후후 = 2
+							IF !TCVAR:C_ID:발정 && !TCVAR:C_ID:춘약 && !GETBIT(CFLAG:기정사실 , 1)
+								SETBIT CFLAG:C_ID:기정사실 , 1
+								CALL COLORMESSAGE(@"%CALLNAME:C_ID%의 합의를 얻은", C_YELLOW, 2)
+							ELSE
+								CFLAG:C_ID:대주고말았다 = 1
+							ENDIF
+						NEXT
+						CFLAG:MASTER:우후후 = 2
+						TFLAG:102 = 3
+						TFLAG:껴안기모드 = 0
+						TFLAG:덮치기개시시간 = TIME + DAY * 1440
+					ENDIF
+				ENDIF
+				IF INROOM(CFLAG:MASTER:현재위치) == 2
+					CALL DATUI_SHOES(MASTER, 0)
+					CALL DATUI_SHOES(TARGET, 0)
+				ENDIF
+			;실외(혼숙여관와 러브호텔 제외하다)에서 밀어넘어뜨려지고 조건을 채웠을 경우
+			ELSEIF CFLAG:MASTER:현재위치 != 260 && CFLAG:MASTER:현재위치 != 950
+				PRINTL
+				SELECTCASE CFLAG:TARGET:욕구불만도
+					CASE IS < 600
+						PRINTFORML %타겟이% 살짝 주의를 주어 왔다
+						PRINTFORMW 어딘가 남의 눈에 띄지 않는 장소에 가고 싶은 것 같다
+					CASE IS < 800
+						PRINTFORMW %타겟은% %CALLNAME:MASTER%에 동행해, 눈을 치켜 뜨고 응시해 왔다…
+					CASE IS < 1000
+						PRINTFORML %타겟이% %CALLNAME:MASTER%에 동행해,\@ BATHROOM(CFLAG:현재위치) ?  노출의 # 옷 위로부터 \@고간을 살며시 쓰다듬고 있고 왔다…
+						PRINTFORMW %타겟은% 욕정을 시선으로 호소하고 있다
+						IF TCVAR:TARGET:유혹시각 != TIME
+							PALAM:TARGET:윤활 += 500
+							TCVAR:TARGET:유혹시각 = TIME
+						ENDIF
+					CASEELSE
+						PRINTFORML %타겟은% 상기 한 얼굴로 %CALLNAME:MASTER%로 하고 눈사태 걸려, %CALLNAME:MASTER%의 손을 잡으며 자신의 커어억 처리와 습기찬 비부에 이끌었다…
+						PRINTFORMW %타겟은% 지금 당장이라도 %CALLNAME:MASTER%에 안기고 싶어서 감등 없는 같다
+						IF TCVAR:TARGET:유혹시각 != TIME
+							PALAM:TARGET:윤활 += 2000
+							TCVAR:TARGET:유혹시각 = TIME
+						ENDIF
+				ENDSELECT
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+
+;복수밀어넘어뜨려지고의 판정
+@복수밀어넘어뜨려지고()
+#FUNCTION
+#DIM 판정치
+#DIM 캐릭터별판정치
+#DIM 궁합보정
+#DIM NUM_TARGET
+#DIM C_ID
+
+판정치 = 0
+NUM_TARGET = GET_TARGETNUM()
+SIF NUM_TARGET <= 1
+	RETURNF 0
+FOR LOCAL, 1, NUM_TARGET + 1
+	C_ID = TARGET:LOCAL
+	SIF CFLAG:C_ID:동실 != 1
+		CONTINUE
+	SIF ENDURE(C_ID) < 450
+		RETURNF 0
+	;판정을 다니면(자) 캐릭터별 판정값에 입금시킨다
+	캐릭터별판정치 = ENDURE(C_ID)
+	DEBUGPRINTFORML 보정 전：({C_ID}) {ENDURE(C_ID)}
+	;여기에서 캐릭터별판정치를 보정해 나간다
+	;레즈끼에서의 보정(3 미만에는 페널티)
+	SIF ABL:(C_ID):레즈끼 == 0
+		TIMES 캐릭터별판정치, 0
+	SIF ABL:(C_ID):레즈끼 == 1
+		TIMES 캐릭터별판정치, 0.50
+	SIF ABL:(C_ID):레즈끼 == 2
+		TIMES 캐릭터별판정치, 0.80
+	;3이상에서는(1+0. 1*(레즈끼 - 3)) 배
+	SIF ABL:(C_ID):레즈끼 >= 3
+		캐릭터별판정치 = 캐릭터별판정치 * (100 + 10 * (ABL:(C_ID):레즈끼 - 3)) / 100
+	DEBUGPRINTFORML 레즈끼 보정 후：({C_ID}) {캐릭터별판정치}
+	;레즈중독에서의 보정 (1+0. 1*레즈중독) 배
+	캐릭터별판정치 = 캐릭터별판정치 * (100 + 10 * ABL:(C_ID):레즈중독) / 100
+	DEBUGPRINTFORML 레즈중독보정 후：({C_ID}) {캐릭터별판정치}
+	
+	;궁합에서의 보정
+	;사이가 좋은 캐릭터가 있으면(자) 함께 MASTER를 덮치기이나 빈다(완전하게 취미)
+	궁합보정 = 0
+	;동실의 캐릭터를 찾아 각 캐릭터에 대해서 궁합치를 봐 간다
+	FOR LOCAL:1, 1, NUM_TARGET + 1
+		SIF CFLAG:(TARGET:(LOCAL:1)):동실 != 1
+			CONTINUE
+		SIF LOCAL == LOCAL:1
+			CONTINUE
+		;궁합보정 += RELATION:LOCAL:(LOCAL:2)
+		;사실은 위의 일문만으로 끝마치고 싶지만......
+		;_Replace.csv의 RELATION의 초기치가 일하지 않는다(울음)
+		;그래서 고육지책으로서 0은 100으로 간주한다(폭론)
+		궁합보정 += RELATION:(C_ID):(TARGET:(LOCAL:1))
+		SIF RELATION:(C_ID):(TARGET:(LOCAL:1)) == 0
+			궁합보정 += 100
+	NEXT
+	;평균치를 취하는(소수점 이하 잘라서 버리고) 당사자를 제외한(GET_TARGETNUM() - 1) 인으로 나눈다
+	;0제산 주의(없다고 생각하는데)
+	궁합보정 /= NUM_TARGET - 1
+	캐릭터별판정치 = 캐릭터별판정치 * 궁합보정 / 100
+	DEBUGPRINTFORML 궁합보정 후：({(C_ID)}) {캐릭터별판정치}
+	;보정 후의 캐릭터별판정치를 전체의 판정값에 입금시킨다
+	판정치 += 캐릭터별판정치
+NEXT
+;평균치를 취한다(소수점 이하 잘라버림)
+;0제산이 오니
+판정치 /= NUM_TARGET
+DEBUGPRINTFORML 판정치：{판정치}
+;판정치가 최대라고 해, 확률은 「(400+200*동실의 인원수) 분의 150」으로 설정(인원수 증가하면(자) 난이도 상승)
+SIF RAND:(400 + 200 * NUM_TARGET) + 450 <= 판정치
+	RETURNF 1
+RETURNF 0
+
+
+;==============================================================
+;FileName_ATTITUDE.ERB ------------------------------- Rev1. 00
+;덮치기율 판정
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		0:덮치기 불성립, 1:덮치기 성립
+;COMMENT	차 흐려 계 함수. 할 수 있고가 나쁘다.
+
+
+;-----------------------------------------------------------
+@ENDURE(ARG)
+#FUNCTION
+;소질에 의해 판정 변화
+LOCAL = CFLAG:ARG:합의판정
+LOCAL += (EX:ARG:C절정직전 + EX:ARG:V절정직전 + EX:ARG:A절정직전 + EX:ARG:B절정직전 + EX:ARG:M절정직전) * 20
+;안아 도착하면(자) 밀어넘어뜨려지고 비율 상승
+SIF SELECTCOM == 311
+	LOCAL += 30
+LOCAL += TALENT:ARG:성적흥미 * 20
+SIF TALENT:ARG:처녀
+	LOCAL -= 50
+SIF TALENT:ARG:연모
+	LOCAL = LOCAL + 50
+SIF TALENT:ARG:자존심 > 0
+	LOCAL -= 20
+SIF CFLAG:ARG:생해금 == 2
+	LOCAL = LOCAL + 50
+SIF CFLAG:ARG:억지로질내사정
+	LOCAL -= 100
+SIF TALENT:ARG:담력 < 0 || TALENT:ARG:응답 < 0 || TALENT:ARG:무관심
+	LOCAL = LOCAL - 30
+SIF TALENT:ARG:수치심 > 0
+	LOCAL -= 30
+SIF TALENT:ARG:수치심 < 0
+	LOCAL = LOCAL + 20
+SIF TALENT:ARG:자제심 
+	LOCAL = LOCAL - 20
+SIF TALENT:ARG:정조 < 0 || TALENT:ARG:소악마
+	LOCAL = LOCAL + 20
+SIF TALENT:ARG:정조 > 0 || TALENT:ARG:일선을넘지않음
+	LOCAL -= 20
+IF !GETBIT(CFLAG:ARG:기정사실, 1) && TALENT:ARG:정조 > 0
+	LOCAL -= 30
+	SIF !TALENT:ARG:연모 && !TALENT:ARG:섹프
+		LOCAL -= 50
+ENDIF
+SIF OTOKOGIRAI(ARG) && !(TCVAR:ARG:발정 || TCVAR:ARG:춘약)
+	LOCAL = LOCAL / 2
+SIF TALENT:ARG:일선을넘지않음 && TALENT:ARG:연모
+	LOCAL = LOCAL * 12 / 5
+SIF TALENT:ARG:성별기호 == 3 || MARK:ARG:반발각인 == 3
+	LOCAL = 0
+SIF TFLAG:120 && TFLAG:120 != ARG
+	LOCAL = 0
+SIF !SHIRAHU(ARG)
+	LOCAL = 0
+SIF CFLAG:ARG:행동 == 5
+	LOCAL = 0
+SIF CFLAG:ARG:데일리
+	LOCAL = 0
+SIF CFLAG:ARG:동침중
+	LOCAL = 0
+SELECTCASE CFLAG:ARG:욕구불만도
+	CASE IS >= 1000
+		LOCAL *= 3
+	CASE IS >= 800
+		LOCAL = LOCAL * 3 / 2
+	CASE IS >= 600
+		LOCAL = LOCAL * 5 / 4
+	CASE IS >= 500
+	CASE IS >= 300
+		LOCAL /= 2
+	CASE IS >= 200
+		LOCAL /= 4
+	CASE IS >= 100
+		LOCAL /= 10
+	CASEELSE
+		LOCAL = 0
+ENDSELECT
+
+;체력에 의존해 덮치기율 감소
+
+SELECTCASE BASE:ARG:체력
+	CASE IS < 750
+		LOCAL = 0
+	CASE IS < 1000
+		LOCAL /= 2
+	CASE IS < 1500
+		LOCAL = LOCAL * 3 / 4
+	CASEELSE
+ENDSELECT
+
+SELECTCASE BASE:ARG:기력
+	CASE 0
+		LOCAL = 0
+	CASE IS < 500
+		LOCAL /= 2
+	CASEELSE
+ENDSELECT
+
+;이성에 의존해 덮치기율 감소
+IF BASE:ARG:이성 > 800
+	LOCAL = LOCAL / 5
+ELSEIF BASE:ARG:이성 > 600
+	LOCAL = LOCAL / 2
+ELSE
+	;Do Notting
+ENDIF
+SELECTCASE BASE:ARG:무드
+	CASE IS < 200
+		LOCAL = 0
+	CASE 201 TO 400
+		LOCAL /= 4
+	CASE 401 TO 600
+		LOCAL /= 2
+	CASE 601 TO 800
+	CASEELSE
+		LOCAL = LOCAL * 6 / 5
+ENDSELECT
+SIF FLAG:생활능력무
+	LOCAL = LOCAL * 2
+SIF CFLAG:ARG:빡침
+	LOCAL = 0
+SIF CFLAG:ARG:덮침금지
+	LOCAL = 0
+SIF TFLAG:펄기한
+	LOCAL = 0
+RETURNF LOCAL
+
+;==============================================================
+;안아다하고판정
+;==============================================================
+@안아다하고판정(ARG)
+#FUNCTION
+;소질에 의해 판정 변화
+LOCAL = CFLAG:ARG:합의판정
+SIF TALENT:ARG:연모
+	LOCAL = LOCAL + 50
+SIF CFLAG:ARG:억지로질내사정
+	LOCAL -= 100
+;안아 도착하면(자) 안아 도착해 판정 상승
+SIF SELECTCOM == 311
+	LOCAL += 30
+SIF TALENT:ARG:담력 < 0 || TALENT:ARG:응답 < 0 || TALENT:ARG:무관심 || TALENT:ARG:수치심 > 0
+	LOCAL = LOCAL - 30
+SIF TALENT:ARG:성적흥미 > 0 || TALENT:ARG:수치심 < 0
+	LOCAL = LOCAL + 20
+SIF TALENT:ARG:자제심 || TALENT:ARG:성적흥미 < 0
+	LOCAL = LOCAL - 20
+SIF TALENT:ARG:정조 < 0 || TALENT:ARG:소악마
+	LOCAL = LOCAL + 20
+SIF TALENT:ARG:정조 > 0 || TALENT:ARG:일선을넘지않음
+	LOCAL = LOCAL / 2
+SIF OTOKOGIRAI(ARG)
+	LOCAL = LOCAL / 2
+SIF TALENT:ARG:성별기호 == 3 || MARK:ARG:반발각인 == 3
+	LOCAL = 0
+SIF TFLAG:120 && TFLAG:120 != ARG
+	LOCAL = 0
+SIF !SHIRAHU(ARG)
+	LOCAL = 0
+SIF CFLAG:ARG:행동 == 5
+	LOCAL = 0
+SIF CFLAG:ARG:데일리
+	LOCAL = 0
+SIF CFLAG:ARG:동침중
+	LOCAL = 0
+SELECTCASE CFLAG:ARG:욕구불만도
+	CASE IS >= 1000
+		LOCAL *= 2
+	CASE IS >= 800
+		LOCAL = LOCAL * 7 / 5
+	CASE IS >= 600
+		LOCAL = LOCAL * 6 / 5
+	CASE IS >= 400
+	CASE IS >= 300
+		LOCAL /= 2
+	CASE IS >= 150
+		LOCAL /= 4
+	CASEELSE
+		LOCAL = 0
+ENDSELECT
+
+;체력에 의존해 덮치기율 감소
+SELECTCASE BASE:ARG:체력
+	CASE IS < 750
+		LOCAL = 0
+	CASE IS < 1000
+		LOCAL /= 2
+	CASE IS < 1500
+		LOCAL = LOCAL * 3 / 4
+	CASEELSE
+ENDSELECT
+
+SELECTCASE BASE:ARG:무드
+	CASE IS < 200
+		LOCAL = 0
+	CASE 201 TO 500
+		LOCAL = LOCAL * 2 / 3
+	CASE 501 TO 800
+	CASEELSE
+		LOCAL = LOCAL * 3 / 2
+ENDSELECT
+SIF FLAG:생활능력무
+	LOCAL = LOCAL * 2
+RETURNF LOCAL

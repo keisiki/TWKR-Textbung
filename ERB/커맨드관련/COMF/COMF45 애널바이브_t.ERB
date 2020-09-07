@@ -1,0 +1,198 @@
+﻿;-------------------------------------------------
+;애널바이브
+;도구 사용 커맨드, 레벨 2
+;-------------------------------------------------
+@COM45
+;착탈의처리
+TEQUIP:애널바이브 = !TEQUIP:애널바이브 
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;봉사 쾌락 플래그
+TCVAR:PLAYER:108 = 1
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 12
+;강도
+TCVAR:TARGET:4 = 900
+TCVAR:A상실발생 = 1
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 150
+SOURCE:PLAYER:성행동+= 10
+	SOURCE:쾌A = 250
+	SOURCE:고통 = 130
+
+ELSE
+
+	DOWNBASE:체력 += 60
+	DOWNBASE:기력 += 150
+SOURCE:PLAYER:성행동+= 10
+
+	SOURCE:쾌A = 250
+	SOURCE:고통 = 250
+	SOURCE:노출 = 50
+	SOURCE:굴종 = 50
+	SOURCE:일탈 = 50
+	SOURCE:반감 = 200
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 70
+ENDIF
+;A에의 고통은 먼저 처리해 둔다
+CALL PAIN_CHECK_A(TARGET)
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+STAIN:7 |= STAIN:4
+STAIN:4 |= STAIN:7
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;A경험
+EXP:A경험 ++
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ELSE
+	;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ENDIF
+EXP:PLAYER:도구사용경험 ++
+
+RETURN 1
+;-------------------------------------------------
+;장착 계속의 처리
+;-------------------------------------------------
+@EQUIP_COM45(ARG)
+;애널바이브 삽입중
+PRINTL ＜애널바이브 삽입중＞
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+TCVAR:TARGET:2 = 12
+TCVAR:TARGET:4 = 450
+
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 80
+	SOURCE:ARG:쾌A += 125
+
+ELSE
+
+
+	DOWNBASE:ARG:체력 += 30
+	DOWNBASE:ARG:기력 += 80
+
+	SOURCE:ARG:쾌A += 125
+	SOURCE:ARG:고통 += 100
+	SOURCE:ARG:노출 += 25
+	SOURCE:ARG:일탈 += 25
+	SOURCE:ARG:반감 += 40
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:ARG:자기애 < 0 || TALENT:ARG:저항
+		SOURCE:ARG:울굴 += 35
+
+	;A에의 고통은 먼저 처리해 둔다
+	;EXP:A경험을 본다
+	LOCAL = 100
+	LOCAL:1 = 40
+	IF EXP:ARG:A경험 < EXPLV:1
+		TIMES LOCAL , 3.00
+		TIMES LOCAL:1 , 3.00
+	ELSEIF EXP:ARG:A경험 < EXPLV:2
+		TIMES LOCAL , 1.20
+		TIMES LOCAL:1 , 2.00
+	ELSEIF EXP:ARG:A경험 < EXPLV:3
+		TIMES LOCAL , 0.80
+		TIMES LOCAL:1 , 1.50
+	ELSEIF EXP:ARG:A경험 < EXPLV:4
+		TIMES LOCAL , 0.60
+		TIMES LOCAL:1 , 1.20
+	ELSEIF EXP:ARG:A경험 < EXPLV:5
+		TIMES LOCAL , 0.40
+	ELSEIF EXP:ARG:A경험 >= EXPLV:5
+		TIMES LOCAL , 0.20
+	ENDIF
+
+	;PALAM:윤활을 본다
+	IF PALAM:ARG:윤활 < PALAMLV:1
+		TIMES LOCAL , 1.20
+		TIMES LOCAL:1 , 2.00
+	ELSEIF PALAM:ARG:윤활 < PALAMLV:2
+		TIMES LOCAL , 1.00
+		TIMES LOCAL:1 , 1.50
+	ELSEIF PALAM:ARG:윤활 < PALAMLV:3
+		TIMES LOCAL , 0.60
+	ELSEIF PALAM:ARG:윤활 < PALAMLV:4
+		TIMES LOCAL , 0.30
+	ELSEIF PALAM:ARG:윤활 >= PALAMLV:4
+		TIMES LOCAL , 0.20
+	ENDIF
+	SOURCE:ARG:고통 += LOCAL
+	SOURCE:ARG:반감 += LOCAL:1
+
+	;-------------------------------------------------
+	;경험의 처리
+	;-------------------------------------------------
+	;자위 실행시는 경험＋1
+	SIF EXP_UP(22, TARGET)
+		EXP:ARG:A경험 ++
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE45
+;애널바이브 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(45)
+	RETURN RESULT
+;해제는 언제라도 가능
+SIF TEQUIP:14
+	RETURN 1
+;아이템 을 가지고 있는인가, 아이템 없음 설정이 아니면 안 돼
+SIF ITEM:5 == 0 && NOITEM == 0
+	RETURN 0
+;윤활 부족해, 순종 3 이하·레즈끼 3 이하의 ASSI의 경우 애널바이브는 할 수 없다(새드라면 OK)
+IF PALAM:윤활 < PALAMLV:2 && ASSIPLAY
+	SIF (ABL:ASSI:순종 <= 3 || ABL:ASSI:레즈끼 <= 3) && TALENT:ASSI:새드 == 0
+		RETURN 0
+ENDIF
+
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+;관장＋애널 플러그 사용중은 안 돼
+SIF TEQUIP:21
+	RETURN 0
+;애널비즈 사용중은 불가
+SIF TEQUIP:15
+	RETURN 0
+;풍선 사용중은 불가
+SIF TEQUIP:22
+	RETURN 0
+;전극 사용중은 불가
+SIF TEQUIP:23
+	RETURN 0
+RETURN 1
+

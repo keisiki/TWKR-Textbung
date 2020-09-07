@@ -1,0 +1,220 @@
+﻿
+;FileName_TRACHECK.ERB ----------------------------- Rev1. 00
+;각인 취득의 체크
+;CALL		USER
+;ARG		0:캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@MARK_GOT_CHECK(ARG)
+#DIM 각인취득치
+;-------------------------------------------------
+;고통각인
+;-------------------------------------------------
+IF CUP:ARG:고통 >= 2000 && CUP:ARG:고통 < 4000 && MARK:ARG:고통각인 <= 0
+	MARK:ARG:고통각인 = 1
+	TFLAG:고통각인취득 = 1
+ELSEIF CUP:ARG:고통 >= 4000 && CUP:ARG:고통 < 8000 && MARK:ARG:고통각인 <= 1
+	MARK:ARG:고통각인 = 2
+	TFLAG:고통각인취득 = 2
+	;다부짐·감정결여의 경우는 고통각인에 의한 순종 업은 없음
+	IF !ABL:ARG:순종 && TALENT:ARG:담력 > 0 && !TALENT:ARG:감정결여
+		ABL:ARG:순종 = 1
+		TFLAG:각인순종변화 = 1
+	ENDIF
+ELSEIF CUP:ARG:고통 >= 8000 && MARK:ARG:고통각인 <= 2
+	MARK:ARG:고통각인 = 3
+	TFLAG:고통각인취득 = 3
+	;다부짐·감정결여의 경우는 고통각인에 의한 순종 업은 없음
+	IF !ABL:ARG:순종 && TALENT:ARG:담력 > 0 && !TALENT:ARG:감정결여
+		ABL:ARG:순종 = 1
+		TFLAG:각인순종변화 = 1
+	ENDIF
+	IF TALENT:PLAYER:새드
+		EXP:ARG:이상경험 += 2
+	ELSEIF TALENT:PLAYER:바늘질 && SELECTCOM == 103
+		EXP:ARG:이상경험 += 2
+	ELSE
+		EXP:ARG:이상경험 += 1
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;시간각인
+;-------------------------------------------------
+IF TCVAR:ARG:시간각인취득용 == 1 && MARK:ARG:시간각인 <= 0
+	MARK:ARG:시간각인 = 1
+	TFLAG:시간각인취득 = 1
+ELSEIF TCVAR:ARG:시간각인취득용 == 2 && MARK:ARG:시간각인 <= 1
+	MARK:ARG:시간각인 = 2
+	TFLAG:시간각인취득 = 2
+ELSEIF TCVAR:ARG:시간각인취득용 == 3 && MARK:ARG:시간각인 <= 2
+	MARK:ARG:시간각인 = 3
+	TFLAG:시간각인취득 = 3
+ENDIF
+;-------------------------------------------------
+;쾌락각인
+;-------------------------------------------------
+IF TCVAR:ARG:쾌락강도 == 1 && MARK:ARG:쾌락각인 <= 0
+	MARK:ARG:쾌락각인 = 1
+	TFLAG:23 = 1
+ELSEIF TCVAR:쾌락강도 == 2 && MARK:ARG:쾌락각인 <= 1
+	MARK:ARG:쾌락각인 = 2
+	TFLAG:23 = 2
+ELSEIF TCVAR:쾌락강도 == 3 && MARK:ARG:쾌락각인 <= 2
+	MARK:ARG:쾌락각인 = 3
+	TFLAG:23 = 3
+	;자제심·감정결여의 경우는 쾌락각인에 의한 순종 업은 없음
+	IF !ABL:ARG:순종 && !TALENT:ARG:자제심 && !TALENT:ARG:감정결여
+		ABL:ARG:순종 = 1
+		TFLAG:각인순종변화 = 1
+	ENDIF
+;ELSEIF  TCVAR:쾌락강도 == 3 && TALENT:유치 && !TALENT:초경
+;		TALENT:초경 = 1
+;		TFLAG:23 = 4
+ENDIF
+;-------------------------------------------------
+;괘씸각인
+;-------------------------------------------------
+IF FLAG:70 == 1 || CFLAG:ARG:장난
+ELSE
+[SKIPSTART]
+	A = CUP:ARG:쾌C + CUP:ARG:쾌V + CUP:ARG:쾌B + CUP:ARG:쾌A
+
+	;쾌락에 의한 LvUP는 10번+취득한 괘씸각인의 레벨의 TFLAG를 준다
+	IF A >= 3000 && A < 5000 && MARK:ARG:쾌락각인 > MARK:ARG:괘씸각인 && MARK:ARG:괘씸각인 <= 0
+		MARK:ARG:괘씸각인 = 1
+		TFLAG:24 = 11
+	ELSEIF A >= 5000 && A < 9000 && MARK:ARG:쾌락각인 > MARK:ARG:괘씸각인 && MARK:ARG:괘씸각인 <= 1
+		MARK:ARG:괘씸각인 = 2
+		TFLAG:24 = 12
+		;감정결여의 경우는 괘씸각인에 의한 순종 업은 없음
+		IF !ABL:ARG:순종 && !TALENT:ARG:감정결여
+			ABL:ARG:순종 = 1
+			TFLAG:각인순종변화 = 1
+		ENDIF
+	ELSEIF A >= 9000 && MARK:ARG:쾌락각인 > MARK:ARG:괘씸각인 && MARK:ARG:괘씸각인 <= 2
+		MARK:ARG:괘씸각인 = 3
+		TFLAG:24 = 13
+		;감정결여의 경우는 괘씸각인에 의한 순종 업은 없음
+		IF ABL:ARG:순종 <= 1 && !TALENT:ARG:감정결여
+			ABL:ARG:순종 = 2
+			TFLAG:각인순종변화 = 1
+		ENDIF
+	ENDIF
+	A = CUP:ARG:고통 + CUP:ARG:공포
+
+	;고통과 공포에 의한 LvUP는 20번+취득한 괘씸각인의 레벨의 TFLAG를 준다
+	IF A >= 1500 && A < 2400 && MARK:ARG:괘씸각인 <= 0
+		MARK:ARG:괘씸각인 = 1
+		TFLAG:24 = 21
+	ELSEIF A >= 2400 && A < 6000 && MARK:ARG:괘씸각인 <= 1
+		MARK:ARG:괘씸각인 = 2
+		TFLAG:24 = 22
+		;감정결여의 경우는 괘씸각인에 의한 순종 업은 없음
+		IF !ABL:ARG:순종 && !TALENT:ARG:감정결여
+			ABL:ARG:순종 = 1
+			TFLAG:각인순종변화 = 1
+		ENDIF
+	ELSEIF A >= 6000 && MARK:ARG:괘씸각인 <= 2
+		MARK:ARG:괘씸각인 = 3
+		TFLAG:24 = 23
+		;감정결여의 경우는 괘씸각인에 의한 순종 업은 없음
+		IF ABL:ARG:순종 <= 1 && !TALENT:ARG:감정결여
+			ABL:ARG:순종 = 2
+			TFLAG:각인순종변화 = 1
+		ENDIF
+	ENDIF
+[SKIPEND]
+
+A = CUP:ARG:복종 + CUP:ARG:굴복
+
+;복종과 굴복에 의한 LvUP는 30번+취득한 괘씸각인의 레벨의 TFLAG를 준다
+IF A >= 4500 && A < 7000 && MARK:ARG:괘씸각인 <= 0
+	MARK:ARG:괘씸각인 = 1
+	TFLAG:24 = 31
+ELSEIF A >= 7000 && A < 10000 && MARK:ARG:괘씸각인 <= 1
+	MARK:ARG:괘씸각인 = 2
+	TFLAG:24 = 32
+	;감정결여의 경우는 괘씸각인에 의한 순종 업은 없음
+	IF !ABL:ARG:순종 && !TALENT:ARG:감정결여
+		ABL:ARG:순종 = 1
+		TFLAG:각인순종변화 = 1
+	ENDIF
+ELSEIF A >= 10000 && MARK:ARG:괘씸각인 <= 2
+	MARK:ARG:괘씸각인 = 3
+	TFLAG:24 = 33
+	;감정결여의 경우는 괘씸각인에 의한 순종 업은 없음
+	IF ABL:ARG:순종 <= 1 && !TALENT:ARG:감정결여
+		ABL:ARG:순종 = 2
+		TFLAG:각인순종변화 = 1
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;반발각인
+;------------------------------------------------- 
+;MASTER는 제외
+SIF CFLAG:ARG:장난
+	RETURN 0
+SIF ARG == MASTER
+	RETURN 0
+SIF TFLAG:150
+	RETURN 0
+각인취득치 = CUP:ARG:반감+CUP:ARG:불쾌
+SELECTCASE 각인취득치
+	CASE 400 TO 1000
+		IF MARK:ARG:반발각인 < 1
+			MARK:ARG:반발각인 = 1
+			MARK:ARG:반발취득이력 = MAX(MARK:ARG:반발취득이력, 1)
+			TFLAG:반발각인취득 = 1
+			CFLAG:ARG:언짢음 = 1
+			CFLAG:ARG:빡침 = 1
+			TALENT:ARG:기분 = -1
+		ENDIF
+	CASE 1001 TO 2000
+		IF MARK:ARG:반발각인 < 2
+			MARK:ARG:반발각인 = 2
+			TFLAG:반발각인취득 = 2
+			MARK:ARG:반발취득이력 = MAX(MARK:ARG:반발취득이력, 2)
+			CFLAG:ARG:언짢음 = 2
+			CFLAG:ARG:빡침 = 1
+			TALENT:ARG:기분 = -1
+			IF MARK:ARG:반발취득이력 < 2 || 각인취득치 >= 1200
+				;감정결여의 경우는 반발각인에 의한 순종 다운은 없음
+				IF INRANGE(ABL:ARG:순종, 1,5) && !TALENT:ARG:감정결여
+					ABL:순종 = MAX(ABL:순종 - 1, 0)
+					ABL:친밀 = MAX(ABL:친밀 - 1, 0)
+					TFLAG:각인순종변화 = 1
+				ELSEIF ABL:ARG:순종 > 5 && !TALENT:ARG:감정결여
+					ABL:순종 = MAX(ABL:순종 - 1, 0)
+					TFLAG:각인순종변화 = 2
+				ENDIF
+			ENDIF
+		ENDIF
+	CASE IS > 2000
+		IF MARK:ARG:반발각인 < 3
+			MARK:ARG:반발각인 = 3
+			TFLAG:반발각인취득 = 3
+			MARK:ARG:반발취득이력 = MAX(MARK:ARG:반발취득이력, 3)
+			CFLAG:ARG:언짢음 = 3
+			CFLAG:ARG:빡침 = 1
+			TALENT:ARG:기분 = -1
+			IF MARK:ARG:반발취득이력 < 3 || 각인취득치 >= 2400
+				;감정결여의 경우는 반발각인에 의한 순종 다운은 없음
+				IF INRANGE(ABL:ARG:순종, 1,5) && !TALENT:ARG:감정결여
+					ABL:순종 = MAX(ABL:순종 - 2, 0)
+					ABL:친밀 = MAX(ABL:친밀 - 2, 0)
+					TFLAG:각인순종변화 = 1
+				ELSEIF ABL:ARG:순종 > 5 && !TALENT:ARG:감정결여
+					ABL:순종 = MAX(ABL:순종 - 1, 0)
+					ABL:친밀 = MAX(ABL:친밀 - 1, 0)
+					TFLAG:각인순종변화 = 2
+				ENDIF
+			ENDIF
+		ENDIF
+ENDSELECT
+ENDIF
+;경고장 발행 체크
+SIF !TALENT:ARG:연모 || RAND:(ABL:ARG:친밀 + 1) == 0 || MARK:ARG:반발각인 == 3 && FLAG:18
+	CALL CARD_GOT_CHECK(ARG)
+TFLAG:150 = 0

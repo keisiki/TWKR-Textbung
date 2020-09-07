@@ -1,0 +1,333 @@
+﻿;==================================================
+;弾幕勝負
+;==================================================
+;
+@M_KOJO_MESSAGE_COM_K13_DANMAKU(ARGS, 相手残機)
+#DIM 相手残機
+#DIM LCOUNT
+;全体の流れ
+;①【戦闘前】→②ダイスロールとプレイヤー選択肢、ハンデをつけた場合は【ハンデ口上】→③対応スキルが発動した場合【スキル口上】→④被弾判定、キャラが被弾したなら【被弾口上】→
+;どちらかの残機が0になっていなければ②に戻る→⑤【戦闘後口上】
+
+;--------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------
+IF LOCAL
+SIF FLAG:대사색깔
+	TRYCALLFORM M_KOJO_COLOR_K{NO:TARGET}
+	;-------------------------------------------------
+	;小分岐
+	;-------------------------------------------------
+	;戦闘前
+	;HANDICAP_FIXED = 0
+	;HANDICAP_RAND = 0
+	IF CFLAG:TARGET:욕구불만도 > 500 && TALENT:MASTER:성별 != 1 && CFLAG:2 > 1500 && ARGS == "戦闘前"
+		PRINTFORML
+		PRINTFORML
+		PRINTFORML 대요정의 모습이 어딘가 이상하다…
+		PRINTFORML 호흡이 거칠게 뺨이 홍조 하고 있다.
+		PRINTFORMW
+		PRINTFORML
+		PRINTFORML [0] 걱정이기 때문에 손대중 하자
+		PRINTFORML [1] 손대중은 하지 않는다
+		LCOUNT ++
+		$INPUT_LOOP_K13_ENCOUNTER
+		INPUT 
+		IF RESULT == 0
+			PRINTFORMW %마스터는% 깨닫아지지 않게 핸디캡을 붙이기로 했다.
+			LCOUNT ++
+			HANDICAP_FIXED = 3000
+			HANDICAP_RAND = 3000
+		ELSEIF RESULT == 1
+			PRINTFORMW 어디에 가 무엇을 하든지,%CALLNAME:MASTER%의 자유이다―！
+			LCOUNT ++
+			HANDICAP_FIXED = 0
+			HANDICAP_RAND = 0
+			PRINTFORML
+			PRINTFORML
+		ELSE
+			IF LCOUNT >5
+				PRINTFORML 설정되어 개는 이겠지！
+			ELSE
+				PRINTFORML 설정되어 있지 않습니다.
+				LCOUNT ++
+			ENDIF
+			GOTO INPUT_LOOP_K13_ENCOUNTER
+		ENDIF
+	LCOUNT = 0
+	ENDIF
+	;ハンデをつけることができ、数値が大きいほどあなたが不利になる　数値が負ならあなたが有利に
+	;キャラの能力に関わらずクッソ強くしたり弱くしたりできる
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "戦闘前"
+		;怒り
+		IF CFLAG:318 == 1
+			PRINTFORMW 「…장난은 미안할지도 모릅니다」
+		ELSEIF RAND:4 == 0
+			PRINTFORMW 「스펠 카드가 없어도…！」
+		ELSEIF RAND:3 == 0
+			PRINTFORMW 「 나도 치르노 분명하게 탄막 짓거리 합니까들！」
+		ELSEIF RAND:2 == 0
+			PRINTFORMW 「요정이니까는 손대중 하지 말아 주세요」
+		ELSE
+			PRINTFORMW 「이변때의 요정은 악령보다 흉포합니다！」
+		ENDIF
+		RETURN 0
+	ENDIF
+	;-------------------------------------------------
+	;ハンデ
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "ハンデ"
+		;ハンデつけなかったら表示されないので無記入でよい
+		IF RAND:3 == 0
+			PRINTFORMW %마스터는% 양손을 들고 한쪽 발을 들어 포즈를 취했다.
+		ELSEIF RAND:2 == 0
+			PRINTFORMW %마스터는% 머리를 움켜 쥐어 카리스마 포즈를 취했다.
+		ELSE
+			PRINTFORMW %마스터는% 야 참새의 울어 흉내를 냈다.
+		ENDIF
+		RETURN 0
+	ENDIF
+	;-------------------------------------------------
+	;戦闘中TARGET被弾時口上
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "被弾" 
+		;別に一律で「やられたー」だけでもいいよ
+		SELECTCASE 相手残機
+			;残り残機3が表示されるのは【洽覧深識】持ちのみ
+			CASE 3
+				PRINTFORML 
+			CASE 2
+				;怒り
+				IF CFLAG:318 == 1
+					PRINTFORMW 「늘고…」
+				ELSEIF RAND:4 == 0
+					PRINTFORMW 「이탁…」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「뭐, 아직 지지 않습니다」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「캐！」
+				ELSE
+					PRINTFORMW 「 아직 간바！」
+				ENDIF
+			CASE 1
+				;怒り
+				IF CFLAG:318 == 1
+					PRINTFORMW 「그슥…」
+				ELSEIF RAND:4 == 0
+					PRINTFORMW 「이번은 화염탄을 가득…」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「이대로는…」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「치르노 분명하게 노력해…」
+				ELSE
+					PRINTFORMW 「실마리, 승부는 이것으로부터입니다！」
+				ENDIF
+			CASE 0
+				;怒り
+				IF CFLAG:318 == 1
+					PRINTFORMW 「아파…」
+				ELSEIF RAND:4 == 0
+					PRINTFORMW 「당했다―」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「당해 버렸습니다…」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「야라레체타…」
+				ELSE
+					PRINTFORMW  [싸움에 진 개]
+				ENDIF
+		ENDSELECT
+	ENDIF
+	;-------------------------------------------------
+	;戦闘中
+	;TARGETの【残忍酷薄】発動時
+	;ARGはTARGETの残機
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "残忍酷薄"
+		
+	ENDIF
+	;-------------------------------------------------
+	;戦闘中
+	;TARGETの【乾坤一擲】発動時
+	;ARGはTARGETの残機
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "乾坤一擲"
+		
+	ENDIF
+	;-------------------------------------------------
+	;戦闘中
+	;TARGETの【怪力乱神】発動時
+	;ARGはTARGETの残機
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "怪力乱神"
+		
+	ENDIF
+	
+	;-------------------------------------------------
+	;戦闘後
+	;記入チェック（=0, 非表示、1, 表示）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARGS == "戦闘後" 
+		PRINTFORML 
+		;残り残機4が表示されうるのは【洽覧深識】持ちのみ
+		;残機が1以上ならあなたの負け、0の場合はあなたの勝利
+		SELECTCASE 相手残機
+			CASE 4
+				PRINTFORML 
+			CASE 3
+				;怒り
+				IF CFLAG:318 == 1
+					PRINTFORMW 「내가 매우 화내, 알아 주었습니다？」
+				ELSEIF RAND:4 == 0
+					PRINTFORMW 「저, 상처는 없습니까？」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「좋았으면 함께 훈련하지 않겠습니까？」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「이나, 너무 해 버렸다 일까…」
+				ELSE
+					PRINTFORMW 「요정의 내가 이길 수 있다니 매우 기쁘다…」
+				ENDIF
+			CASE 2
+				;怒り
+				IF CFLAG:318 == 1
+					PRINTFORMW 「화내고 있는 만큼 강해진 것 같습니다」
+				ELSEIF RAND:4 == 0
+					PRINTFORMW 「요정이니까는 방심하지 말아 주세요」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「조금 쉬지 않습니까？」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「치르노 분명하게 탄막 짓거리 한 덕분에 토라지고」
+				ELSE
+					PRINTFORMW 「순간 이동을 좀 더 사용하는 것이 좋은 것인지？」」
+				ENDIF
+			CASE 1
+				;怒り
+				IF CFLAG:318 == 1
+					PRINTFORMW 「하…하…」
+				ELSEIF RAND:4 == 0
+					PRINTFORMW 「이나, 했다…이겨 버렸습니다！」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「그 탄막을 주고 받지 않았으면 반대로 내가 당하고 있었던일지도…」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「 나라도 이것 정도…！」
+				ELSE
+					PRINTFORMW 「좋았다, 이길 수 있으며」
+				ENDIF
+			CASE 0
+				;怒り
+				IF CFLAG:318 == 1
+					PRINTFORMW 「이식하고 응･･･」
+				ELSEIF RAND:4 == 0
+					PRINTFORMW 「역시 나는 무리인가…」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「강하네요…본받지 않으면 안된다 」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「괜찮았으면, 이번 탄막 짓거리의 훈련 가르쳐 주세요」
+				ELSE
+					PRINTFORMW 「치르노 보다 강할지도…」
+				ENDIF
+		ENDSELECT
+		IF 相手残機 != 0 && CFLAG:TARGET:욕구불만도 > 700 && TALENT:MASTER:성별 != 1 && CFLAG:2 > 1500
+			SETCOLOR COLOR("桃")
+			PRINTFORMW 
+			PRINTFORMW 
+			PRINTFORMW 
+			PRINTFORMW 
+			PRINTFORMW 「괜찮아…입니까？」
+			PRINTFORMW 일어나려고 한다%CALLNAME:MASTER%(으)로, 대요정은 얼굴을 숙이게 한이면서 손을 내민다.
+			PRINTFORMW 그 표정이 붉고 불 비치고 있는 것에 깨닫았을 때에는, 내며진 손을 잡아 버린 후였다.
+			PRINTFORMW 순간, 그라리와 시야가 흔들려 풍경이 일순간중으로 바뀌어간다.
+			PRINTFORMW 몇 초도 하지 않는 동안에 부드러운 이불의 감촉을 키에 받아%마스터는% 탄막 승부로 완전히 지쳐 버린 신체를 일으키려고 한다.
+			PRINTFORMW 
+			PRINTFORMW 「미안해요, 이런 난폭한 일 해 버려서…」
+			PRINTFORMW 「 아직 몸이 제대로 움직일 수 없는데…」
+			PRINTFORMW 
+			PRINTFORMW 대요정은 정욕이 물기를 띤 눈동자로 응시한 채로, 스커트를 넘긴다.
+			PRINTFORMW 공공연하게 된 밀혈로부터 떠도는 달콤한 암컷의 향기. 사랑스러운 팬츠는 밀로 젖어 이미 속옷이 의미를 만들어내지 않았었다.
+			PRINTFORMW 
+			PRINTFORMW 「 이제(벌써)…자제 할 수 없습니다…」
+			PRINTFORMW 「탄막 짓거리로 기분이 흥분되어 버려서…%UNICODE(0x2665) *1%…훈%UNICODE(0x2665) *1%」
+			PRINTFORMW 
+			PRINTFORMW 대요정은 속옷을 비켜 놓아 애액 투성이가 된 와레메를 가냘픈 손가락으로 농절의 부엌 위로한다.
+			PRINTFORMW (와)과 목표 없게 와레메로부터 밀이 흘려 보내게 해 문득 모모에 몇의 물방울이 늘어지고 떨어지고 있었다. 
+			PRINTFORMW 
+			PRINTFORMW 「아…%UNICODE(0x2665) *1%아%UNICODE(0x2665) *1%」
+			PRINTFORMW 「이나…%UNICODE(0x2665) *1%부족하다…손가락만은, 이제(벌써)…」
+			PRINTFORMW 
+			PRINTFORMW 소리를 진동시키는 대요정은,%CALLNAME:MASTER%의 눈앞에서 젖은 의복을 벗어 던지고 태어난 채로의 모습이 된다.
+			PRINTFORMW 난폭한 한숨과 함께 핀과 핑크색의 유두가 서게 해 체내가 불 비쳐 어린 몸이면서도 표현이 없는 성적 매력을 자아내고 있다.
+			PRINTFORMW 그 염이나 주위 지체를%CALLNAME:MASTER%(으)로 넘어지고 넣었다고 생각하면(자) 자기를 잊고 열중함으로%CALLNAME:MASTER%의 의복으로 손을 기어들게 해 욕망대로 남근을 찾아냈다.
+			PRINTFORMW 대요정의 자위와 달콤한 냄새에 매료되었다%CALLNAME:MASTER%의 남근은, 대요정의 손으로 강직을 바깥 공기로 우뚝 솟게 했다.
+			PRINTFORMW 
+			PRINTFORMW 「아…이렇게 귀의…%UNICODE(0x2665) *1%」
+			PRINTFORMW 「안 됨…이제(벌써)…몸이 캇테에……」
+				IF TALENT:처녀 == 1
+					PRINTFORMW 대요정은%CALLNAME:MASTER%에 걸치면(자), 벌 끊어질 것 같은 남근에 와레메를 문지르고 오로지에 쾌락을 탐내기 시작했다.
+					PRINTFORMW 
+					PRINTFORMW 「후~…아%UNICODE(0x2665) *1%…응%UNICODE(0x2665) *1%아%UNICODE(0x2665) *1%」
+					PRINTFORMW 「응…%UNICODE(0x2665) *1%딱딱해서…벌벌 해…(이)나%UNICODE(0x2665) *1%키모치 좋아%UNICODE(0x2665) *1%」
+					PRINTFORMW 
+					PRINTFORMW 스스로의 작은 콩과 와레메를 자극시켜, 대요정은 열심히 남근을 치부에 칠한다.
+					PRINTFORMW 쾌락에 패배%CALLNAME:MASTER%하지만 정액을 토해내는 것도, 대요정을 한층 더 흥분시키고 한층 더 허리를 격렬하게 움직인다.
+					PRINTFORMW 
+					PRINTFORMW 「미안해요%UNICODE(0x2665) *1%미안해요%UNICODE(0x2665) *1%…아%UNICODE(0x2665) *1%」
+					PRINTFORMW 
+					PRINTFORMW 대요정의 절인 사죄의 소리와 함께 추잡한 물소리가 방에 울린다.
+					EXP:13:C경험 += 3
+				ELSE
+					PRINTFORMW 대요정%CALLNAME:MASTER%에 걸치면(자), 자제국물로 젖은 남근을 와레메로 권한다.
+					PRINTFORMW 
+					PRINTFORMW 「이런 건 나쁜 일인데…%UNICODE(0x2665) *1%아…%UNICODE(0x2665) *1%」
+					PRINTFORMW 
+					PRINTFORMW 대요정은 파렴치와 죄악감을 토로하면서도, 허리를 떨어뜨려 단번에 밀혈로 남근붐비게 한다.
+					PRINTFORMW 
+					PRINTFORMW 「아…%UNICODE(0x2665) *1%%UNICODE(0x2665) *1%」
+					PRINTFORMW 
+					PRINTFORMW 넑을 잃은 표정으로 쳐 떨리는 대요정. 이윽고, 욕망대로 허리를 흔들어,%CALLNAME:MASTER%의 위에서 작은 지체를 뛰게 한다.
+					PRINTFORMW %CALLNAME:MASTER%(을)를 염려할려고도 하지 않는, 일방적으로 밀혈로 남근달라붙어서 놓지 않아, 밀을 비산시키면서 오로지 아주.
+					PRINTFORMW 
+					PRINTFORMW 「은 , 히,%UNICODE(0x2665) *1%키모치 좋아%UNICODE(0x2665) *1%」
+					PRINTFORMW 
+					PRINTFORMW 이윽고 페니스가 벌벌맥중  정액을 토해낼려고도 그만둘 것은 없다. 백탁액을 결합부로부터 흘러넘치게 한이면서도 허리를 계속 움직인다.
+					PRINTFORMW 대요정은 울 듯한 안타까운 표정인 채 페니스를 아래의 입으로 입에 물고 붐비어, 결코 놓으려고는 하지 않는다.
+					PRINTFORMW 
+					PRINTFORMW 「미안해요%UNICODE(0x2665) *1%미안해요%UNICODE(0x2665) *1%…아%UNICODE(0x2665) *1%」
+					PRINTFORMW 
+					PRINTFORMW 파틀파틀과 고기와 고기가 서로 부딪치는 소리에 섞여 대요정의 사죄가 방에 울린다.
+					EXP:13:질내사정경험 += 3
+					EXP:13:V성교경험 += 3
+					EXP:MASTER:삽입경험 += 3
+					CALL ADD_SAMEN_V(13, BASE:MASTER:정력)
+				ENDIF
+			PRINTFORMW 벌 끊어져 버린 성욕에 미치는 요정의 못된 장난은, 대요정의 체력이 계속될 때까지 반복해진다….
+			EXP:13:정음경험 += 3
+			EXP:13:절정경험 += 3
+			EXP:MASTER:절정경험 += 3
+			EXP:MASTER:사정경험 += 3
+			BASE:MASTER:정력 = 0
+			BASE:MASTER:발기 = 0
+			RESETCOLOR
+		ELSE
+		ENDIF
+	ENDIF
+RESETCOLOR
+ENDIF
+
+$INPUT_K13_RAPE
+
+RETURN 1
+

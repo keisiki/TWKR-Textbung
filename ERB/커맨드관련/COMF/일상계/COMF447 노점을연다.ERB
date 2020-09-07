@@ -1,0 +1,892 @@
+﻿;露店を開く
+@COM447
+#DIM 候補個数
+#DIM 商人パワーM
+#DIM 商人パワーT
+#DIM 商人パワー
+#DIM 来客数
+#DIM 売却値
+#DIM 合計売却値
+#DIM CHARA
+#DIM GoodsID, 6
+#DIM GoodsQty, 6
+#DIM GoodsSold, 6
+#DIM Lineup
+#DIM LinesToErase
+
+;売却アイテムの種類を増やすときは、★  を検索してください
+;管理者がはっきりしている人の敷地での無断での商売はしない
+IF STALL_PERMISSION(CFLAG:MASTER:현재위치)
+	DRAWLINE
+	PRINTFORML 여기서 무단으로 장사를 하는 것은 문제가 될 것 같다… 세력과 친해지는 편이 좋을 것이다
+	RETURN -1
+ENDIF
+
+商人パワー = 0
+商人パワーM = 0
+商人パワーT = 0
+売却値 = 0
+合計売却値 = 0
+Lineup = 0
+VARSET LOCAL
+VARSET GoodsID
+VARSET GoodsQty
+VARSET GoodsSold
+DRAWLINE
+PRINTL 
+;来客数を算出し、にぎわいを可視化
+来客数 = STALL_SHOPPER(STALL_SPOT(CFLAG:MASTER:현재위치)) + IN_ROOM_NUMBER(CFLAG:MASTER:현재위치)
+;PRINTFORML {来客数}人
+IF AT_HOME()
+	PRINTFORMS NAME_FROM_PLACE(CFLAG:MASTER:현재위치)
+ELSE
+	PRINTFORM %DATENAME_SPOT()%
+ENDIF
+SELECTCASE 来客数
+	CASE 0
+		PRINTFORML 에는 사람 한사람 없다…
+	CASE 1 TO 5
+		PRINTFORML (은)는 한산하다
+	CASE 6 TO 10
+		PRINTFORML 에는 적지만 왕래가 있다
+	CASE 11 TO 20
+		PRINTFORML (은)는 적당히 성황을 보이고 있다
+	CASE 21 TO 30
+		PRINTFORML (은)는 꽤 떠들썩하다
+	CASEELSE
+		PRINTFORML (은)는 입추의 여지도 없을 정도의 성황이다！
+ENDSELECT
+PRINTL 
+PRINTFORML 그런데, 무엇을 팔까…
+DRAWLINE
+
+;１個目のアイテムからスタート
+Lineup = 1
+$SELECT_LOOP
+;LinesToErase は消去行数の計算に利用
+LinesToErase = 1
+;所持しているアイテムの売却可能物・個数をリスト化
+LOCAL:10 = 999
+FOR LOCAL, 351, 710
+	SELECTCASE LOCAL
+		CASE 399 TO 499, 513, 516, 520 TO 599, 601 TO 610, 612 TO 615, 618 TO 625, 630 TO 699
+			;★持っていても売れないアイテムを上のCASEへ追加
+		CASEELSE
+			;アイテム未所持と、永遠亭での薬品販売を弾く
+			IF ITEM:(LOCAL) > 0 || (STALL_SPOT(CFLAG:MASTER:현재위치) == 5 && INRANGE(LOCAL, 501, 516))
+				LOCALS:0 = [{LOCAL}] %ITEMNAME:(LOCAL), 16, LEFT%×{ITEM:(LOCAL)}    
+				LOCAL:10 += STRLENS(LOCALS:0)
+				SIF ITEM:(LOCAL) < 10
+					LOCAL:10 ++
+				IF LOCAL:10 > 90
+					IF LOCAL:10 >= 999
+					;最初のみ改行しない
+					ELSE
+						LinesToErase ++
+						PRINTL 
+					ENDIF
+					LOCAL:10 = 0
+					PRINT 　　
+				ENDIF
+				IF GROUPMATCH(LOCAL, GoodsID:1, GoodsID:2, GoodsID:3, GoodsID:4, GoodsID:5)
+					SETCOLOR 0x666666
+					PRINTPLAINFORM [{LOCAL}] %ITEMNAME:(LOCAL), 16, LEFT%×{ITEM:(LOCAL)}
+					RESETCOLOR
+				ELSE
+					PRINTFORM [{LOCAL}] %ITEMNAME:(LOCAL), 16, LEFT%×{ITEM:(LOCAL)}
+				ENDIF
+				SIF ITEM:(LOCAL) < 10
+					PRINT  
+				PRINT 　　
+			ENDIF
+	ENDSELECT
+NEXT
+PRINTL 
+DRAWLINE
+PRINTL 　　[999] 노점을 여는 것을 그만둔다
+LinesToErase += 3
+IF Lineup > 1
+	PRINTL 　　[1000] 이 상품으로 노점을 연다
+	DRAWLINE
+	SIF Lineup > 1
+		PRINTFORML 매물１：%ITEMNAME:(GoodsID:1)%×{GoodsQty:1}
+	SIF Lineup > 2
+		PRINTFORML 매물２：%ITEMNAME:(GoodsID:2)%×{GoodsQty:2}
+	SIF Lineup > 3
+		PRINTFORML 매물３：%ITEMNAME:(GoodsID:3)%×{GoodsQty:3}
+	SIF Lineup > 4
+		PRINTFORML 매물４：%ITEMNAME:(GoodsID:4)%×{GoodsQty:4}
+	DRAWLINE
+	LinesToErase += 3 + (Lineup - 1)
+ENDIF
+PRINTL 
+PRINTFORML {Lineup}매대의 매물을 선택해 주세요
+LinesToErase += 2
+$INPUT_LOOP01
+INPUT
+SELECTCASE RESULT
+	CASE 999
+		RETURN -1
+	CASE 1000
+		IF Lineup > 1
+			CLEARLINE 2
+			GOTO SET_SALE
+		ELSE
+			CLEARLINE 1
+			GOTO INPUT_LOOP01
+		ENDIF
+	;★売れるアイテムを下のCASEに追加
+	CASE 351 TO 398, 500 TO 512, 600, 611, 616, 626 TO 629, 700 TO 708
+		;GoodsIDに売りに出すアイテムの番号を流し込む
+		GoodsID:Lineup = RESULT
+		;アイテム名が無名の場合、アイテムを所持してない場合、永遠亭での薬品販売はやり直し
+		IF ITEMNAME:(GoodsID:Lineup) == "" || ITEM:(GoodsID:Lineup) <= 0  || (STALL_SPOT(CFLAG:MASTER:현재위치) == 5 && INRANGE(LOCAL, 501, 516))
+			CLEARLINE 1
+			GoodsID:Lineup = 0
+			GOTO INPUT_LOOP01
+		ENDIF
+		;重複選択防止
+		IF Lineup > 1
+			FOR LOCAL, 1, Lineup
+				IF GoodsID:Lineup == GoodsID:LOCAL
+					CLEARLINE 1
+					GoodsID:Lineup = 0
+					GOTO INPUT_LOOP01
+				ENDIF
+			NEXT
+		ENDIF
+		候補個数 = ITEM:(GoodsID:Lineup)
+		SETCOLOR 0x777777
+		PRINTFORML 　%조사처리(ITEMNAME:(GoodsID:Lineup),"를")% 몇 개 팝니까？(1～{候補個数}의 개수를 입력, 0으로 돌아간다)
+		RESETCOLOR
+		PRINTL   
+		PRINTBUTTON "[0] 그만둔다", 0
+		PRINT     
+		PRINTBUTTON "[1] 1개", 1
+		PRINT     
+		IF 候補個数 >= 5
+			PRINTBUTTON "[5] 5개", 5
+			PRINT     
+		ENDIF
+		IF 候補個数 >= 10
+			PRINTBUTTON "[10] 10개", 10
+			PRINT    
+		ENDIF
+		IF 候補個数 >= 20
+			PRINTBUTTON "[20] 20개", 20
+			PRINT    
+		ENDIF
+		LinesToErase += 3
+		$INPUT_LOOP02
+		INPUT
+		SELECTCASE RESULT
+			CASE 0
+				CLEARLINE 3
+				LinesToErase -= 3
+				GoodsID:Lineup = 0
+				RETURN -1
+			CASE 1 TO 候補個数
+				CLEARLINE (LinesToErase + 1)
+				;GoodsQtyに売りに出す個数を流し込む
+				GoodsQty:Lineup = RESULT
+			CASEELSE
+				CLEARLINE 1
+				GOTO INPUT_LOOP02
+		ENDSELECT
+	CASEELSE
+		CLEARLINE 1
+		GOTO INPUT_LOOP01
+ENDSELECT
+
+IF Lineup < 5
+	Lineup ++
+	GOTO SELECT_LOOP
+ELSE
+	PRINTFORML 매물１：%ITEMNAME:(GoodsID:1)%×{GoodsQty:1}
+	PRINTFORML 매물２：%ITEMNAME:(GoodsID:2)%×{GoodsQty:2}
+	PRINTFORML 매물３：%ITEMNAME:(GoodsID:3)%×{GoodsQty:3}
+	PRINTFORML 매물４：%ITEMNAME:(GoodsID:4)%×{GoodsQty:4}
+	PRINTFORML 매물５：%ITEMNAME:(GoodsID:5)%×{GoodsQty:5}
+	PRINTL 
+	PRINTFORML 이 상품으로 노점을 엽니까？
+	CALL ASK_YN
+	IF !RESULT
+		CLEARLINE 1
+	ELSE
+		RETURN -1
+	ENDIF
+ENDIF
+
+;商品選択を終え、能力算定へ移る
+$SET_SALE
+
+;参加者判定
+IF FLAG:데이트상대
+	CHARA = FLAG:데이트상대
+ELSEIF TARGET && ABL:TARGET:친밀 >= 10
+	CHARA = TARGET
+ELSE
+	CHARA = 0
+ENDIF
+
+;商人パワー設定
+商人パワーM = ABL:MASTER:화술기능 * 25 + ABL:MASTER:교양 * 10 + TFLAG:행운보정 * 3
+
+SIF CHARA
+	商人パワーT = ABL:CHARA:화술기능 * 25 + ABL:CHARA:교양 * 10
+;参加者で最もパワーが高いものを基準に、1/2したもう１人のパワーを足す
+IF 商人パワーM >= 商人パワーT
+	商人パワー = 商人パワーM + (商人パワーT / 2)
+ELSE
+	商人パワー = 商人パワーT + (商人パワーM / 2)
+ENDIF
+
+DRAWLINE
+PRINTFORML 개점！
+PRINTL 
+
+FOR COUNT, 0, 来客数
+
+	SELECTCASE RAND:6
+		CASE 0
+			REUSELASTLINE \@ CHARA ? %조사처리(CALLNAME:CHARA,"와")% 함께 #  \@ 장사중.....
+		CASE 1
+			REUSELASTLINE 어섭셔ー
+		CASE 2
+			REUSELASTLINE 오셔서 보고가셔ー
+		CASE 3
+			REUSELASTLINE 【가격표 없음　선제시 요망】
+		CASE 4
+			REUSELASTLINE 손님, 꽤 안목이 높으시네요
+		CASEELSE
+			REUSELASTLINE 거기 아가씨, 싸게 해드릴게ー
+	ENDSELECT
+	TWAIT 750, 1
+
+	$SARCH_START
+
+	IF GoodsID:5
+		LOCAL = RAND:6
+	ELSEIF GoodsID:4
+		LOCAL = RAND:5
+	ELSEIF GoodsID:3
+		LOCAL = RAND:4
+	ELSEIF GoodsID:2
+		LOCAL = RAND:3
+	ELSE
+		LOCAL = RAND:2
+	ENDIF
+
+	IF LOCAL == 0
+		SETCOLOR C_L_GRAY
+		PRINTDATAL
+			DATAFORM 　「좀 더 깎아줄 수 없어요？」　……그렇게 말씀하셔도 말이죠
+			DATAFORM 　작은 아이가 침을 흘리며 상품을 보고 있었지만, 부모님에게 손을 잡아 당겨져 가 버렸다…
+			DATAFORM 　손님은 힐끔힐끔 곁눈질로 상품을 보고 있었지만, 얘기하자 놀란 모습으로 도망쳐 가 버렸다…
+			DATAFORM 　말이 많은 손님이, 잡담만 하다 돌아갔다…
+			DATAFORM 　대충 상품을 음미해, 고민하는 기색은 보이면서도, 고객은 떠나 갔다…
+			DATAFORM 　에누리 교섭이 결렬했다…
+			DATAFORM 　그냥 지나쳐갔다…
+			DATAFORM 　상품을 언뜻 보자, 손님은 떠나 버렸다…
+		ENDDATA
+		RESETCOLOR
+		GOTO SARCH_END
+	;在庫ゼロの場合は、再度選択
+	ELSEIF GoodsQty:LOCAL ==  GoodsSold:LOCAL
+		GOTO SARCH_START
+	ENDIF
+
+	;売る個数を設定
+	候補個数 = MAX(RAND:(5 + ABL:MASTER:화술기능), 1)
+	;売る個数が商品の在庫より多い場合の処理
+	SIF (候補個数 + GoodsSold:LOCAL) > GoodsQty:LOCAL
+		候補個数 = GoodsQty:LOCAL - GoodsSold:LOCAL
+
+	SETCOLOR C_YELLOW
+	PRINTFORM %조사처리(ITEMNAME:(GoodsID:LOCAL),"가")% {候補個数}개,
+	;売却値を設定
+	売却値 = STALL_PRICE_SET(商人パワー, GoodsID:LOCAL, 候補個数)
+	PRINTFORML \\{売却値}으로 팔렸다！
+	RESETCOLOR
+
+;	利率判定に応じてテキスト
+;	SELECTCASE STALL_PRICE_SET(商人パワー, GoodsID:LOCAL, 候補個数, 1)
+;		CASE 0 TO 50
+;			PRINTFORML 買い叩かれてしまった…
+;		CASE 51 TO 100
+;			PRINTFORML 市場価格で売れた…
+;		CASE 101 TO 150
+;			PRINTFORML ちょっと価格を上げて売った…
+;		CASEELSE
+;			PRINTFORML 上手く丸め込み、売値をだいぶ釣り上げた…
+;	ENDSELECT
+
+	;GoodsSoldに売れた個数を流し込む
+	GoodsSold:LOCAL += 候補個数
+	合計売却値 += 売却値
+
+	$SARCH_END
+	TWAIT 300, 1
+	LOCAL:3 ++
+	;すべての商品を売りつくしたら抜ける
+	IF GoodsSold:1 == GoodsQty:1 && GoodsSold:2 == GoodsQty:2 && GoodsSold:3 == GoodsQty:3 && GoodsSold:4 == GoodsQty:4 && GoodsSold:5 == GoodsQty:5
+		PRINTL
+		PRINTFORML 완매 사례！
+		BREAK
+	ENDIF
+NEXT
+
+LOCAL:3 = MAX((25 - LOCAL:3), 5)
+
+IF GoodsSold:1 != GoodsQty:1 || GoodsSold:2 != GoodsQty:2 || GoodsSold:3 != GoodsQty:2 || GoodsSold:4 != GoodsQty:4 || GoodsSold:5 != GoodsQty:5
+	PRINTL 
+	REPEAT LOCAL:3
+		REUSELASTLINE  .%"." * COUNT%
+		TWAIT 150, 1
+	REND
+ENDIF
+PRINTFORMW 이제 폐점 하자
+DRAWLINE
+PRINTFORMW 이번 거래의 성과…
+
+SETCOLOR 0x00FF00
+;売れた個数を列挙、同時にアイテムを減らす
+FOR LOCAL, 1, 6
+	IF GoodsQty:LOCAL
+		PRINTFORM 　%조사처리(ITEMNAME:(GoodsID:LOCAL),"는")%
+		IF GoodsSold:LOCAL
+			PRINTFORM {GoodsSold:LOCAL}
+			SELECTCASE GoodsID:LOCAL
+				CASE 627
+					PRINTFORMW 병 팔렸다
+				CASE 707, 708
+					PRINTFORMW 마리 팔렸다
+				CASEELSE
+					PRINTFORMW 개 팔렸다
+			ENDSELECT
+		ELSE
+			PRINTFORMW 전혀 팔리지 않았다…
+		ENDIF
+		ITEM:(GoodsID:LOCAL) -= GoodsSold:LOCAL
+	ENDIF
+NEXT
+RESETCOLOR
+PRINTL 
+;合計売却値の表記、同時に売上分の金を増やす
+IF 合計売却値
+	PRINTFORM 합계로
+	SETCOLOR 0x00FF00
+	PRINTFORM \\{合計売却値}
+	RESETCOLOR
+	PRINTFORMW 의 벌이가 되었다！
+	MONEY += 合計売却値
+	TFLAG:193 = 1
+	TFLAG:194 = 合計売却値
+ELSE
+	PRINTFORMW 완전히 벌이가 나오지 않았다…
+	TFLAG:193 = 0
+ENDIF
+
+;基本の経験
+EXP:MASTER:회화경험 += 来客数
+SIF CHARA
+	EXP:CHARA:회화경험 += 来客数
+
+SIF ABL:MASTER:교양 <= 3
+	EXP:MASTER:학습경험 ++
+
+;能力差で教えてもらう・教えてあげる
+IF ABL:MASTER:교양 >=  ABL:CHARA:교양 && CHARA
+	EXP:CHARA:학습경험 ++
+ELSEIF CHARA
+	EXP:MASTER:학습경험 ++
+ENDIF
+
+;デート経験
+IF CHK_DATENOW(CFLAG:CHARA:데이트중) && CHARA > 0
+	EXP:MASTER:데이트경험 ++
+	EXP:CHARA:데이트경험 ++
+ENDIF
+
+;時間経過
+TIME += 120
+;体力・気力減少は来客数によって増減
+DOWNBASE:MASTER:체력 = MAX(15 * 来客数, 150)
+DOWNBASE:MASTER:기력 = MAX(20 * 来客数, 200)
+
+;参加者のソース,同一コマンド制限を受けないので控えめに,売れないと激減
+IF CHARA > 0
+	;固定で獲得するソース
+	SOURCE:CHARA:환락 = 300
+	SOURCE:CHARA:사랑 = 50
+	
+	;ABL:순종をみる
+	IF ABL:순종 <= 1
+		SOURCE:CHARA:환락 += (ABL:순종 * 30)
+		SOURCE:CHARA:사랑 += (ABL:친밀 * 15)
+	ELSEIF ABL:순종 <= 3
+		SOURCE:CHARA:환락 += 200 + (ABL:순종 * 20)
+		SOURCE:CHARA:사랑 += 50 + (ABL:친밀 * 15)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:CHARA:환락 += 500 + (ABL:순종 * 20)
+		SOURCE:CHARA:사랑 += 200 + (ABL:친밀 * 15)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:CHARA:환락 += 750 + (ABL:순종 * 30)
+		SOURCE:CHARA:사랑 += 300 + (ABL:친밀 * 20)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:CHARA:환락 += 1000 + (ABL:순종 * 30)
+		SOURCE:CHARA:사랑 += 600 + (ABL:친밀 * 20)
+	ELSE
+		SOURCE:CHARA:환락 += 1600 + (ABL:순종 * 15)
+		SOURCE:CHARA:사랑 += 1000 + (ABL:친밀 * 10)
+	ENDIF
+	SIF CHARA != FLAG:데이트상대 
+		SOURCE:CHARA:사랑 = 0
+	
+	;好感度はみない
+	
+	SOURCE:CHARA:수동 = 200 + 100 * ABL:순종
+	SOURCE:CHARA:정복 = 200 + 100 * ABL:새드끼
+	
+	;売却成果をみる、合計売却値に応じてとりあえず設定
+	IF 合計売却値
+		SELECTCASE 合計売却値
+			CASE 1 TO 2000
+				TIMES SOURCE:CHARA:환락 , 1.00
+				TIMES SOURCE:CHARA:수동 , 1.00
+				TIMES SOURCE:CHARA:정복 , 1.00
+				SOURCE:CHARA:달성 = 80
+			CASE 2001 TO 4000
+				TIMES SOURCE:CHARA:환락 , 1.10
+				TIMES SOURCE:CHARA:수동 , 1.10
+				TIMES SOURCE:CHARA:정복 , 1.10
+				SOURCE:CHARA:달성 = 115
+			CASE 4001 TO 7000
+				TIMES SOURCE:CHARA:환락 , 1.25
+				TIMES SOURCE:CHARA:수동 , 1.25
+				TIMES SOURCE:CHARA:정복 , 1.15
+				SOURCE:CHARA:달성 = 125
+			CASE 7001 TO 10000
+				TIMES SOURCE:CHARA:환락 , 1.50
+				TIMES SOURCE:CHARA:수동 , 1.50
+				TIMES SOURCE:CHARA:정복 , 1.25
+				SOURCE:CHARA:달성 = 150
+			CASE 10001 TO 20000
+				TIMES SOURCE:CHARA:환락 , 1.75
+				TIMES SOURCE:CHARA:수동 , 1.75
+				TIMES SOURCE:CHARA:정복 , 1.50
+				SOURCE:CHARA:달성 = 200
+			CASE 20001 TO 40000
+				TIMES SOURCE:CHARA:환락 , 2.00
+				TIMES SOURCE:CHARA:수동 , 2.00
+				TIMES SOURCE:CHARA:정복 , 1.75
+				SOURCE:CHARA:달성 = 300
+			CASEELSE
+				TIMES SOURCE:CHARA:환락 , 2.25
+				TIMES SOURCE:CHARA:수동 , 2.25
+				TIMES SOURCE:CHARA:정복 , 2.00
+				SOURCE:CHARA:달성 = 350
+		ENDSELECT
+	;売れなかった
+	ELSE
+		TIMES SOURCE:CHARA:환락 , 0.20
+		TIMES SOURCE:CHARA:수동 , 0.20
+		TIMES SOURCE:CHARA:정복 , 0.20
+	ENDIF
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行可能判定
+;-------------------------------------------------
+;露店を開く
+@COM_ABLE447
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(447)
+	RETURN RESULT
+;露店を開ける場所である
+SIF !STALL_SPOT(CFLAG:MASTER:현재위치)
+	RETURN 0
+;デート中はデート相手とだけ
+SIF FLAG:데이트상대 && TARGET != FLAG:데이트상대
+	RETURN 0
+;睡眠中
+SIF CFLAG:MASTER:수면
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+;体力・気力不足
+SIF BASE:MASTER:기력 < 300 || BASE:MASTER:체력 < 400
+	RETURN 0
+;時間停止中
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+;-----------------------------------------------------------
+;現在位置が露店を開ける場所か判定する
+;ARG		現在位置
+;RETURN		0 該当なし	1～各露店地点を返す
+;COMMENT	場所を追加した場合、CASEを変更の事
+;-----------------------------------------------------------
+@STALL_SPOT(ARG)
+#FUNCTION
+IF !IN_HOME(ARG)
+;サブマップなどでの判定
+	SELECTCASE ARG
+		CASE 20				;神社境内（博麗神社）
+			RETURNF 1
+		CASE 130			;命蓮寺境内
+			RETURNF 2
+		CASE 210			;広場（人里）
+			RETURNF 3
+		CASE 310			;霧の湖
+			RETURNF 4
+		CASE 450			;永遠亭
+			RETURNF 5
+		CASE 510			;森の入り口
+			RETURNF 6
+		CASE 610			;中有の道
+			RETURNF 7
+		CASE 720			;玄武の沢
+			RETURNF 8
+		CASE 820			;絶景の丘
+			RETURNF 9
+		CASE 840			;守矢神社境内
+			RETURNF 10
+		CASE 890			;天界
+			RETURNF 11
+		CASE 930			;旧地獄街道
+			RETURNF 12
+		CASE 1050			;月の都
+			RETURNF 13
+	ENDSELECT
+ELSE
+	;メインマップでの判定
+	SELECTCASE MAIN_MAP
+		CASE 0
+			;博麗神社：境内
+			SIF ARG == 2
+				RETURNF 1
+		CASE 1
+			;命蓮寺：境内
+			SIF ARG == 102
+				RETURNF 2
+		CASE 2
+			;人里：中央広場
+			SIF ARG == 202
+				RETURNF 3
+		CASE 3
+			;紅魔館：湖畔
+			SIF ARG == 343
+				RETURNF 4
+		CASE 4
+			;永遠亭：永遠亭入り口
+			SIF ARG == 401
+				RETURNF 5
+		CASE 5
+			;魔法の森：魔法の広場
+			SIF ARG == 508
+				RETURNF 6
+		CASE 6
+			;冥界：中有の道
+			SIF ARG == 601
+				RETURNF 7
+		CASE 7
+			;妖怪の山山麓：玄武の沢
+			SIF ARG == 703
+				RETURNF 8
+		CASE 8
+			;妖怪の山山頂：頂上、守矢神社・境内、有頂天街
+			SELECTCASE ARG
+				CASE 805
+					RETURNF 9
+				CASE 811
+					RETURNF 10
+				CASE 832
+					RETURNF 11
+			ENDSELECT
+		CASE 9
+			;地底：大通り
+			SIF ARG == 931
+				RETURNF 12
+	ENDSELECT
+ENDIF
+RETURNF 0
+
+;-----------------------------------------------------------
+;現在位置で露店を開く際のざっくりした来客数を割り出す
+;祝祭日、天気、時間でも補正をかける
+;ARG		STALL_SPOTのRETURN値
+;RETURN		来客数
+;COMMENT	場所を追加した場合、CASEを変更の事
+;-----------------------------------------------------------
+@STALL_SHOPPER(ARG)
+#FUNCTION
+
+RANDOMIZE (DAY:0 + TIME:0)
+
+SELECTCASE ARG
+	CASE 1	;博麗神社  ケの来客は少なそう  祭日はドンと増える
+		LOCAL:0 = RAND:5
+		SIF FESTIVAL() == "예대제"
+			LOCAL:0 += MAX(RAND:50, 35)
+		SIF GROUPMATCH(FESTIVAL(), "설날", "히나마츠리", "칠석", "추석", "풍신 「입춘으로부터 210일째 되는 날」", "보름", "수확제", "절분", "그믐날")
+			LOCAL:0 += MAX(RAND:40, 25)
+	CASE 2	;命蓮寺  人里に近いので
+		LOCAL:0 = MAX(RAND:12, 2)
+		SIF GROUPMATCH(FESTIVAL(), "설날", "추석", "수확제", "그믐날")
+			LOCAL:0 += MAX(RAND:35, 15)
+	CASE 3	;人里  鉄板
+		LOCAL:0 = MAX(RAND:35, 10)
+		SIF IS_WEEKEND(DAY)
+			LOCAL:0 += RAND:15
+		SIF GROUPMATCH(FESTIVAL(), "설날", "화이트 데이", "수확제", "발렌타인 데이", "크리스마스 이브", "크리스마스")
+			LOCAL:0 += RAND:15
+	CASE 4	;霧の湖湖畔  あんまり人通りは…
+		LOCAL:0 = RAND:5
+		SIF GROUPMATCH(FESTIVAL(), "화이트 데이", "수확제", "할로윈", "발렌타인 데이", "크리스마스 이브", "크리스마스")
+			LOCAL:0 += MAX(RAND:30, 15)
+	CASE 5	;永遠亭入り口  医院なのでそれなりに
+		LOCAL:0 = MAX(RAND:14, 3)
+	CASE 6	;魔法の森  客は来るのか…？
+		LOCAL:0 = RAND:5
+		SIF GROUPMATCH(FESTIVAL(), "설날", "칠석", "추석", "보름", "수확제", "그믐날")
+			LOCAL:0 += MAX(RAND:30, 20)
+	CASE 7	;中有の道  他にも露店が出てる設定なので
+		LOCAL:0 = MAX(RAND:30, 7)
+		SIF GROUPMATCH(FESTIVAL(), "추석")
+			LOCAL:0 += MAX(RAND:30, 20)
+	CASE 8	;玄武の沢  商売人の河童たちの経済圏
+		LOCAL:0 = MAX(RAND:25, 15)
+		SIF IS_WEEKEND(DAY)
+			LOCAL:0 += RAND:15
+		SIF GROUPMATCH(FESTIVAL(), "설날", "수확제")
+			LOCAL:0 += RAND:15
+	CASE 9	;妖怪の山頂上  天狗の縄張り
+		LOCAL:0 = MAX(RAND:20, 5)
+		SIF IS_WEEKEND(DAY)
+			LOCAL:0 += RAND:15
+		SIF GROUPMATCH(FESTIVAL(), "설날", "풍신 「입춘으로부터 210일째 되는 날」", "수확제")
+			LOCAL:0 += RAND:15
+	CASE 10	;守矢神社  索道のおかげで少しマシになった？
+		LOCAL:0 = MAX(RAND:10, 4)
+		SIF GROUPMATCH(FESTIVAL(), "설날", "예대제", "히나마츠리", "칠석", "추석", "풍신 「입춘으로부터 210일째 되는 날」", "보름", "수확제", "절분", "그믐날")
+			LOCAL:0 += MAX(RAND:30, 20)
+	CASE 11	;有頂天街  天人も買い物はするのか…
+		LOCAL:0 = MAX(RAND:20, 2)
+		SIF IS_WEEKEND(DAY)
+			LOCAL:0 += RAND:15
+		SIF GROUPMATCH(FESTIVAL(), "설날", "칠석", "보름", "수확제", "절분", "그믐날")
+			LOCAL:0 += RAND:15
+	CASE 12	;地底大通り  妖怪たちの吹き溜まり
+		LOCAL:0 = MAX(RAND:35, 15)
+		SIF GROUPMATCH(FESTIVAL(), "설날", "수확제")
+			LOCAL:0 += RAND:15
+	CASE 13	;月の都  月人の興味があるものって…
+		LOCAL:0 = MAX(RAND:25, 2)
+ENDSELECT
+;時間補正　地底大通りと月の都は時間・天候補正をかけない
+IF !GROUPMATCH(ARG, 12, 13)
+	;時間補正
+	SELECTCASE TIME:2
+		CASE 1
+			TIMES LOCAL:0, 0.3
+		CASE 2
+			TIMES LOCAL:0, 0.8
+		CASE 3 TO 4
+			;補正なし
+		CASE 5
+			TIMES LOCAL:0, 0.8
+		CASE 6
+			TIMES LOCAL:0, 0.5
+		CASEELSE
+			TIMES LOCAL:0, 0.2
+	ENDSELECT
+	;天候補正
+	SELECTCASE TIME:5
+		CASE 0 TO 3
+			;補正なし
+		CASE 4, 6, 7
+			TIMES LOCAL:0, 0.4
+		CASEELSE
+			TIMES LOCAL:0, 0.1
+	ENDSELECT
+ENDIF
+
+RETURNF LOCAL:0
+
+;-----------------------------------------------------------
+;現在位置で露店を開く際の親密許可判定をする
+;ARG		現在位置
+;RETURN		0 許可	1 不許可
+;COMMENT	場所を追加した場合、CASEを変更の事
+;-----------------------------------------------------------
+@STALL_PERMISSION(ARG)
+#FUNCTION
+IF !AT_HOME(MASTER)
+;サブマップなどでの判定
+	SELECTCASE ARG
+		CASE 20				;神社境内（博麗神社）
+			SIF ABL:[[레이무]]:친밀 < 5
+				RETURNF 1
+		CASE 130			;命蓮寺境内
+			SIF ABL:[[뱌쿠렌]]:친밀 < 5
+				RETURNF 1
+		CASE 450			;永遠亭
+			SIF ABL:[[에이린]]:친밀 < 5 && ABL:[[카구야]]:친밀 < 5
+				RETURNF 1
+		CASE 720			;玄武の沢
+			SIF ABL:[[니토리]]:친밀 < 5
+				RETURNF 1
+		CASE 820			;絶景の丘
+			SIF ABL:[[아야]]:친밀 < 5 && ABL:[[하타테]]:친밀 < 5
+				RETURNF 1
+		CASE 840			;守矢神社境内
+			SIF ABL:[[사나에]]:친밀 < 5 && ABL:[[카나코]]:친밀 < 5 && ABL:[[스와코]]:친밀 < 5
+				RETURNF 1
+		CASE 890			;天界
+			SIF ABL:[[텐시]]:친밀 < 5
+				RETURNF 1
+	ENDSELECT
+ELSE
+	;メインマップでの判定
+	SELECTCASE MAIN_MAP
+		CASE 0
+			;博霊神社：境内
+			SIF ARG == 2 && ABL:[[레이무]]:친밀 < 5
+				RETURNF 1
+		CASE 1
+			;命蓮寺：境内
+			SIF ARG == 102 && ABL:[[뱌쿠렌]]:친밀 < 5
+				RETURNF 1
+		CASE 4
+			;永遠亭：永遠亭入り口
+			SIF ARG == 401 && (ABL:[[에이린]]:친밀 < 5 && ABL:[[카구야]]:친밀 < 5)
+				RETURNF 1
+		CASE 7
+			;妖怪の山山麓：玄武の沢
+			SIF ARG == 703 && ABL:[[니토리]]:친밀 < 5
+				RETURNF 1
+		CASE 8
+			;妖怪の山山頂：頂上、守矢神社・境内、有頂天街
+			SELECTCASE ARG
+				CASE 805
+					SIF ABL:[[아야]]:친밀 < 5 && ABL:[[하타테]]:친밀 < 5
+						RETURNF 1
+				CASE 811
+					SIF ABL:[[사나에]]:친밀 < 5 && ABL:[[카나코]]:친밀 < 5 && ABL:[[스와코]]:친밀 < 5
+						RETURNF 1
+				CASE 832
+					SIF ABL:[[텐시]]:친밀 < 5
+						RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ENDIF
+RETURNF 0
+
+;-----------------------------------------------------------
+;露店で１人の来客がいくらで買ったかを算出
+;ARG:0		商人パワー
+;ARG:1		売るアイテム番号
+;ARG:2		売れた個数
+;ARG:3		0 = 購入額を返す, 1=利率を返す　省略は0
+;RETURN		購入額
+;-----------------------------------------------------------
+@STALL_PRICE_SET(ARG:0, ARG:1, ARG:2, ARG:3 = 0)
+#FUNCTION
+#DIM 利率
+#DIM 購入額
+#DIM 補正価格
+
+;利率をアイテム価格の（商人パワーの半分～商人パワー）％に設定
+利率 = MAX(RAND:(ARG:0), (ARG:0 / 2))
+
+補正価格 = ITEMPRICE:(ARG:1) / 2
+
+;補正価格の決定
+SELECTCASE ARG:1
+	;野菜たちは旬から遠いと価値が上がる
+	CASE 351 TO 361
+		SIF DAY:2 == 3
+			TIMES 補正価格, 1.3
+	CASE 362 TO 374
+		SIF DAY:2 == 4
+			TIMES 補正価格, 1.3
+	CASE 375 TO 386
+		SIF DAY:2 == 1
+			TIMES 補正価格, 1.3
+	CASE 387 TO 398
+		SIF DAY:2 == 2
+			TIMES 補正価格, 1.3
+	;価格調整
+	CASE 500
+		補正価格 += 150
+	CASE 600
+		補正価格 += 150
+	CASE 611
+		補正価格 += 145
+	CASE 616
+		補正価格 += 200
+	CASE 626
+		補正価格 += 125
+	CASE 627
+		補正価格 += 200
+	CASE 628
+		補正価格 += 50
+	CASE 707
+		補正価格 += 250
+	CASE 708
+		補正価格 += 350
+ENDSELECT
+
+;露店の場所による補正
+SELECTCASE STALL_SPOT(CFLAG:MASTER:현재위치)
+	CASE 1	;博麗神社
+
+	CASE 2	;命蓮寺
+
+	CASE 3	;人里  山の幸系統に補正
+		SIF GROUPMATCH(ARG:1, 600, 611, 616, 626, 627, 628, 629, 707, 708)
+			TIMES 補正価格, 1.3
+	CASE 4	;霧の湖湖畔
+
+	CASE 5	;永遠亭入り口  にんじん
+		SIF GROUPMATCH(ARG:1, 388)
+			TIMES 補正価格, 1.5
+	CASE 6	;魔法の森  
+
+	CASE 7	;中有の道  
+
+	CASE 8	;玄武の沢  きゅうり↑  おさかな↓
+		SIF GROUPMATCH(ARG:1, 362)
+			TIMES 補正価格, 1.5
+		SIF GROUPMATCH(ARG:1, 707, 708)
+			TIMES 補正価格, 0.5
+	CASE 9	;妖怪の山頂上  おさかな
+		SIF GROUPMATCH(ARG:1, 707, 708)
+			TIMES 補正価格, 1.3
+	CASE 10	;守矢神社
+
+	CASE 11	;有頂天街  山の幸系統
+		SIF GROUPMATCH(ARG:1, 600, 611, 616, 626, 627, 628, 629, 707, 708)
+			TIMES 補正価格, 1.3
+	CASE 12	;地底大通り  野菜
+		SIF INRANGE(ARG:1, 351, 398)
+			TIMES 補正価格, 1.3
+	CASE 13	;月の都  山の幸系統
+		SIF GROUPMATCH(ARG:1, 600, 611, 616, 626, 627, 628, 629, 707, 708)
+			TIMES 補正価格, 1.3
+ENDSELECT
+
+購入額 = 補正価格 * ARG:2 * 利率 / 100
+
+IF ARG:3 == 0
+	RETURNF 購入額
+ELSE
+	RETURNF 利率
+ENDIF
+

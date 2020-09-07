@@ -1,0 +1,98 @@
+﻿;-------------------------------------------------
+;파이즈리한다
+;봉사系コマンド、レベル3
+;-------------------------------------------------
+@COM96
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+;行為者
+TCVAR:116 = PLAYER
+;봉사快楽
+TCVAR:PLAYER:108 = 1
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소フラグ（-1=콘돔 1=질내 2=애널 3=수음 4=口淫 5=파이즈리 6=스마타 7=풋잡 8=体表 9=애널봉사 10=道具 11=触手 12=Ａ責め 13=Ｖ責め）
+TCVAR:TARGET:2 = 5
+;사정쾌감강도
+TCVAR:TARGET:4 = 1200
+
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費체력、기력
+IF FLAG:70 == 1
+;	BASE:MASTER:TSP -= 50
+	BASE:MASTER:TSP -= 60
+	SOURCE:PLAYER:쾌B = 150
+	SOURCE:쾌C = 110
+ELSE
+
+	DOWNBASE:체력 += 30
+	DOWNBASE:기력 += 80
+	SOURCE:쾌C = 110
+	;性技補正
+	SOURCE:쾌C += MIN(ABL:PLAYER:가슴 * 25,100)
+	
+	SOURCE:PLAYER:쾌B = 50
+	SOURCE:노출 = 20
+	SOURCE:일탈 = 20
+	SOURCE:반감 = 20
+
+	;-------------------------------------------------
+	;特殊ソース処理
+	;-------------------------------------------------
+	;抑圧、저항持ちには、억울ソース追加
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 30
+ENDIF
+;-------------------------------------------------
+;汚れの処理
+;-------------------------------------------------
+;調教者のＢ⇔奴隷のＰの汚れが이동
+STAIN:PLAYER:5 |= STAIN:2
+STAIN:2 |= STAIN:PLAYER:5
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF FLAG:70 == 1 || CFLAG:장난
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+	ENDIF
+	EXP:PLAYER:파이즈리경험 += 1
+ELSE
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+	ENDIF
+	EXP:PLAYER:파이즈리경험 += 2
+	;애정경험
+	SIF TALENT:연모 == 1 && ASSIPLAY == 0
+		EXP:애정경험 ++
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE96
+;파이즈리実行判定
+SIF !TFLAG:100
+	RETURN 0
+SIF GLOBAL_COMABLE(96)
+	RETURN RESULT
+;オトコかふたなりじゃないとダメ
+SIF !(HAS_PENIS(TARGET))
+	RETURN 0
+;調教者がオンナかふたなりじゃないとダメ
+SIF !(TALENT:PLAYER:2 & 2)
+	RETURN 0
+SIF TEQUIP:계속키스
+	RETURN 0
+;上半身着衣
+SIF TEQUIP:PLAYER:1 > 1 && TEQUIP:PLAYER:3 == 0
+	RETURN 0
+RETURN 1
+

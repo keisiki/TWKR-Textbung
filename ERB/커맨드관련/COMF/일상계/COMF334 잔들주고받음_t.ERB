@@ -1,0 +1,149 @@
+﻿;-------------------------------------------------
+;잔을주고받는다
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM334
+CALL SUC_FAIL()
+SELECTCASE TFLAG:193
+	;실패
+	CASE -1
+		SIF TFLAG:192 == -2
+			RETURN 0
+		TFLAG:98 = -1
+		LOCAL:2 = 20
+	;대성공
+	CASE 1
+		TFLAG:98 = 2
+		LOCAL:2 = 80
+		EXP:MASTER:회화경험 ++
+	;성공
+	CASE 0
+		LOCAL:2 = 60
+ENDSELECT
+
+EXP:MASTER:회화경험 ++
+
+IF !(TALENT:술내성 == -2 || CFLAG:임신자각상태 == 1)
+	LOCAL:3 = (MAXBASE:술기운 + MAXBASE:MASTER:술기운) * (LOCAL:2 + RAND:41) / 2000
+	LOCAL:4 = (MAXBASE:술기운 + MAXBASE:MASTER:술기운) * (LOCAL:2 + RAND:41) / 2000
+	BASE:술기운 += LOCAL:3
+	BASE:MASTER:술기운 += LOCAL:4
+
+	;술을 권하는 만큼 빨리 만족해 떠나 가버리는 것은 외롭기 때문에 코멘트 아웃
+	;BASE:일량 = BASE:일량 - LOCAL:3
+ENDIF
+
+DOWNBASE:MASTER:체력 += 20
+DOWNBASE:MASTER:기력 += 100
+
+;소요시간
+TIME += 30
+
+DOWNBASE:기력 += 10
+
+;신뢰
+TFLAG:98 += 4
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 700
+
+;ABL:순종을 본다
+IF ABL:순종 <= 1
+	SOURCE:환락 += (ABL:순종 * 50)
+ELSEIF ABL:순종 <= 3
+	SOURCE:환락 += 100 + (ABL:순종 * 40)
+ELSEIF ABL:순종 <= 5
+	SOURCE:환락 += 200 + (ABL:순종 * 50)
+ELSEIF ABL:순종 <= 8
+	SOURCE:환락 += 400 + (ABL:순종 * 70)
+ELSEIF ABL:순종 <= 11
+	SOURCE:환락 += 500 + (ABL:순종 * 60)
+ELSE
+	SOURCE:환락 += 800 + (ABL:순종 * 40)
+ENDIF
+
+;ABL:친밀 체크
+IF ABL:친밀 <= 1
+	SOURCE:환락 += (ABL:친밀 * 60)
+ELSEIF ABL:친밀 <= 3
+	SOURCE:환락 += 120 + (ABL:친밀 * 60)
+ELSEIF ABL:친밀 <= 5
+	SOURCE:환락 += 300 + (ABL:친밀 * 60)
+ELSEIF ABL:친밀 <= 8
+	SOURCE:환락 += 600 + (ABL:친밀 * 50)
+ELSEIF ABL:친밀 <= 11
+	SOURCE:환락 += 900 + (ABL:친밀 * 50)
+ELSE
+	SOURCE:환락 += 1400 + (ABL:친밀 * 30)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+ENDIF
+
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+SOURCE:수동 = 150 + 150 * ABL:순종
+SOURCE:정복 = 150 + 150 * ABL:새드끼
+
+SELECTCASE ABL:MASTER:화술기능
+	CASE 0
+		TIMES SOURCE:환락 , 0.60
+		TIMES SOURCE:정복 , 0.60
+		TIMES SOURCE:수동 , 0.60
+	CASE 1
+		TIMES SOURCE:환락 , 0.70
+		TIMES SOURCE:정복 , 0.70
+		TIMES SOURCE:수동 , 0.70
+	CASE 2
+		TIMES SOURCE:환락 , 0.85
+		TIMES SOURCE:정복 , 0.85
+		TIMES SOURCE:수동 , 0.85
+	CASE 3
+		TIMES SOURCE:환락 , 1.00
+		TIMES SOURCE:정복 , 1.00
+		TIMES SOURCE:수동 , 1.00
+	CASE 4
+		TIMES SOURCE:환락 , 1.10
+		TIMES SOURCE:정복 , 1.10
+		TIMES SOURCE:수동 , 1.10
+	CASEELSE
+		TIMES SOURCE:환락 , 1.20
+		TIMES SOURCE:정복 , 1.20
+		TIMES SOURCE:수동 , 1.20
+ENDSELECT
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE334
+;잔을 주고 받는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(334)
+	RETURN RESULT
+;일내용이 연회 이외
+SIF CFLAG:직종 != ENKAI_SANKA
+	RETURN 0
+;일량(연회에서 마시는 나머지량)이 제로
+SIF BASE:일량 <= 0
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+IF RAND:3 == 0&&!TALENT:TARGET:연모&&!TALENT:TARGET:연인
+	PRINTFORML %CALLNAME:TARGET%은 %마스터를% 흘겨보더니 잔을 거절했다
+	RETURN 0
+ENDIF
+RETURN 1

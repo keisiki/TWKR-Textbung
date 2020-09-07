@@ -1,0 +1,157 @@
+﻿@SHOW_JUEL
+
+@SHOW_ABLUP_SELECT
+#DIM 올리는ABL
+#DIM 캐릭터
+#DIM 능력치부족
+#DIM 경험부족
+
+FOR 캐릭터, 0, CHARANUM
+	FOR LOCAL:11, 0,30
+		SELECTCASE LOCAL:11
+			;많은 요소가 필요한 능력으로부터 올려 간다
+			;자위중독
+			CASE 0
+				올리는ABL= 30
+			;질내사정중독
+			CASE 1
+				올리는ABL= 34
+			;항내사정중독
+			CASE 2
+				올리는ABL= 35
+			;정액중독
+			CASE 3
+				올리는ABL= 31
+			;레즈중독
+			CASE 4
+				올리는ABL= 32
+			;게이중독
+			CASE 5
+				올리는ABL= 33
+			;봉사정신
+			CASE 6
+				올리는ABL= 13
+			;레즈끼
+			CASE 7
+				올리는ABL= 17
+			;호모끼
+			CASE 8
+				올리는ABL= 18
+			;마조끼
+			CASE 9
+				올리는ABL= 15
+			;새드끼
+			CASE 10
+				올리는ABL= 16
+			;노출벽
+			CASE 11
+				올리는ABL= 14
+			;친밀
+			CASE 12
+				올리는ABL= 9
+			;순종
+			CASE 13
+				올리는ABL= 10
+			;욕망
+			CASE 14
+				올리는ABL= 11
+			;기교
+			CASE 15
+				올리는ABL= 12
+			;C감각
+			CASE 16
+				올리는ABL= 0
+			;V감각
+			CASE 17
+				올리는ABL= 1
+			;A감각
+			CASE 18
+				올리는ABL= 2
+			;B감각
+			CASE 19
+				올리는ABL= 3
+			;M감각
+			CASE 20
+				올리는ABL= 4
+			CASEELSE
+				CONTINUE
+		ENDSELECT
+		FOR LOCAL, 0,4
+			$AGAIN
+			능력치부족 = 0
+			경험부족 = 0
+			SIF JUEL_DEMAND(올리는ABL, LOCAL, 0, 캐릭터) == -2
+				BREAK
+			SIF JUEL_DEMAND(올리는ABL, LOCAL, 0, 캐릭터) < 0
+				CONTINUE
+			;필요한 보주를 찾는다
+			FOR LOCAL:1, 0,100
+				IF JUEL_DEMAND(올리는ABL, LOCAL, LOCAL:1, 캐릭터) > 0
+					IF JUEL:(캐릭터):(LOCAL:1) < JUEL_DEMAND(올리는ABL, LOCAL, LOCAL:1, 캐릭터)
+						능력치부족 ++
+						BREAK
+					ENDIF
+				ENDIF
+			NEXT
+			SIF 능력치부족
+				CONTINUE
+			;필요한 경험을 찾는다
+			FOR LOCAL:1, 0,100
+				IF EXP_DEMAND(올리는ABL, LOCAL, LOCAL:1, 캐릭터) > 0
+					IF  EXP:(캐릭터):(LOCAL:1) < EXP_DEMAND(올리는ABL, LOCAL, LOCAL:1, 캐릭터)
+						경험부족 ++
+						BREAK
+					ENDIF
+				ENDIF
+			NEXT
+			SIF 경험부족
+				CONTINUE
+			FOR LOCAL:1, 0,40
+				JUEL:(캐릭터):(LOCAL:1) -= JUEL_DEMAND(올리는ABL, LOCAL, LOCAL:1, 캐릭터)
+			NEXT
+			IF !LOCAL:5
+				PRINTFORM %CALLNAME:(캐릭터), 14, RIGHT% … 
+				LOCAL:5 ++
+			ELSE
+				;18문자 공백을 삽입
+				PRINTFORM                   
+			ENDIF
+			PRINTFORM %ABLNAME:(올리는ABL), 8, RIGHT%LVUP
+			PRINTFORM  (
+			;성장전
+			CALL PRINT_RANK(ABL:캐릭터:올리는ABL, "MAX_99")
+			PRINTFORM {ABL:(캐릭터):(올리는ABL), 2, RIGHT} → 
+			;성장은 여기서
+			ABL:(캐릭터):(올리는ABL) += 1
+			;성장 후
+			CALL PRINT_RANK(ABL:캐릭터:올리는ABL, "MAX_99")
+			PRINTFORMW {ABL:(캐릭터):(올리는ABL), 2, RIGHT}) 
+			;BREAK
+			GOTO AGAIN
+		NEXT
+	NEXT
+	;값의 초기화
+	LOCAL:5 = 0
+NEXT
+PRINT [100] - 확인
+
+@USERABLUP
+IF RESULT == 100
+	CALL JUJUN_UP_CHECK
+	CALL YOKUBO_UP_CHECK
+	BEGIN TURNEND
+	RETURN 1
+ENDIF
+RETURN 0
+
+;ABL의 상한
+@MAXABL(ARG)
+;연모는 MAXLV99
+IF ABL:ARG >= 99
+	PRINTW 이미 MAX입니다
+	RETURN 1
+ELSEIF ABL:ARG >= 5 && !TALENT:연모
+	PRINTW 이미 MAX입니다
+	RETURN 1
+ENDIF
+RETURN 0

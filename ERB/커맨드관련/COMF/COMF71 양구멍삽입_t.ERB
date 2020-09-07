@@ -1,0 +1,357 @@
+﻿;-------------------------------------------------
+;양구멍삽입
+;섹스계 파생 커맨드
+;-------------------------------------------------
+@COM71
+VARSET LOCAL
+IF GROUPMATCH(TALENT:TARGET:처녀, 1, -1)
+	CALL LOST_VIRGIN_STOP(TARGET)
+	SIF RESULT
+		RETURN 0
+ENDIF
+SIF SHIRAHU(TARGET)
+	CALL 피임요구(TARGET)
+IF TFLAG:16 && !(TEQUIP:PLAYER:콘돔 || TCVAR:피임약)
+	TFLAG:16 -= 1
+	RETURN 0
+ENDIF
+
+LOCAL:1 = MASTER_POSE(SET_V, SET_P, 1)
+LOCAL:2 = MASTER_POSE(SET_A, SET_P, 1)
+IF LOCAL:1
+	LOCAL = LOCAL:1
+ELSEIF LOCAL:2
+	LOCAL = LOCAL:2
+ENDIF
+;LOCAL 두 구멍삽입 물러날 수 있는 사람
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자(이것 설정하는 것은 무리, 잠정적으로 했지만
+TCVAR:116 = LOCAL
+TCVAR:LOCAL:116 = PLAYER
+;-------------------------------------------------
+;삽입 부위 관리
+;-------------------------------------------------
+;PLAYER가 A, TARGET가 V삽입
+IF LOCAL == LOCAL:2
+	CSTR:10 += @"{LOCAL}/"
+	;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+	TCVAR:2 = 1
+	;강도
+	TCVAR:4 = 1500
+
+	CSTR:PLAYER:10 += @"{LOCAL}/"
+	;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+	TCVAR:PLAYER:2 = 2
+	;이미 A에 삽입중이니까 이것 필요한 구 없어?
+	TCVAR:PLAYER:동정상실 = 1
+	TCVAR:A상실발생 = 1
+	;강도
+	TCVAR:PLAYER:4 = 2500
+;PLAYER가 V, TARGET가 A삽입
+ELSE
+	CSTR:PLAYER:10 += @"{LOCAL}/"
+	;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+	TCVAR:PLAYER:2 = 1
+	;강도
+	TCVAR:PLAYER:4 = 1500
+
+	CSTR:10 += @"{LOCAL}/"
+	;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+	TCVAR:2 = 2
+	TCVAR:TARGET:동정상실 = 1
+	TCVAR:LOCAL:A상실발생 = 1
+	;강도
+	TCVAR:4 = 2500
+ENDIF
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 220
+	SOURCE:PLAYER:쾌C = 400
+	SOURCE:쾌C = 400
+	SOURCE:성행동= 40
+	SOURCE:LOCAL:쾌V = 400
+	SOURCE:LOCAL:쾌A = 400
+	SOURCE:LOCAL:고통 = 650
+
+	;처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:LOCAL:처녀 == 1
+		SOURCE:LOCAL:고통 += 2750
+	ENDIF
+
+	;재생 처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:LOCAL:처녀 == 2
+		SOURCE:LOCAL:고통 += 1750
+	ENDIF
+
+	EXP:PLAYER:시간경험 += 1
+
+ELSE
+
+	DOWNBASE:체력 += 40
+	DOWNBASE:기력 += 220
+	SOURCE:PLAYER:쾌C = 400
+
+	SOURCE:쾌C = 400
+	SOURCE:성행동 = 500
+	SOURCE:굴종 = 1000
+	SOURCE:일탈 = 500
+	SOURCE:반감 = 500
+
+	DOWNBASE:LOCAL:체력 += 160
+	DOWNBASE:LOCAL:기력 += 350
+
+	SOURCE:LOCAL:쾌V = 400
+	SOURCE:LOCAL:쾌A = 400
+	SOURCE:LOCAL:사랑 = 300
+	SOURCE:LOCAL:성행동 = 300
+	SOURCE:LOCAL:고통 = 1300
+	SOURCE:LOCAL:굴종 = 500
+	SOURCE:LOCAL:일탈 = 500
+	SOURCE:LOCAL:반감 = 500
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 500
+	SIF TALENT:LOCAL:자기애 < 0 || TALENT:LOCAL:저항
+		SOURCE:LOCAL:울굴 += 500
+
+	;정조 관념 소유로 연모, 친애 가져 이외에는 항상 반발의 소스를 추가한다(섹스계만)
+	SIF TALENT:LOCAL:정조 && !TALENT:LOCAL:연모
+		SOURCE:LOCAL:반감 += 1000
+
+	;처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:LOCAL:처녀 == 1
+		SOURCE:LOCAL:고통 += 5500
+		SOURCE:LOCAL:반감 += 3000
+	ENDIF
+
+	;재생 처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:LOCAL:처녀 == 2
+		SOURCE:LOCAL:고통 += 3500
+		SOURCE:LOCAL:반감 += 1000
+	ENDIF
+ENDIF
+;V에의 고통은 먼저 처리해 둔다
+CALL PAIN_CHECK_V(LOCAL)
+;A에의 고통은 먼저 처리해 둔다
+CALL PAIN_CHECK_A(LOCAL)
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;PLAYER가 V, TARGET가 A삽입
+IF LOCAL == LOCAL:1
+	;질내에 파과의 피의 더러움을 부가
+	SIF TALENT:LOCAL:처녀 && TALENT:처녀 != -1
+		STAIN:LOCAL:6 |= 64
+	;LOCAL의 질내⇔주인의 P의 더러움이 이동
+	IF TALENT:PLAYER:2 & 2
+		STAIN:PLAYER:2 |= STAIN:LOCAL:6
+		STAIN:PLAYER:2 |= STAIN:LOCAL:3
+		STAIN:LOCAL:6 |= STAIN:PLAYER:2
+		STAIN:LOCAL:3 |= STAIN:PLAYER:2
+	ENDIF
+	;LOCAL의 A⇔TARGET의 P의 더러움이 이동
+	IF HAS_PENIS(TARGET)
+		STAIN:2 |= STAIN:LOCAL:7
+		STAIN:2 |= STAIN:LOCAL:4
+		STAIN:LOCAL:7 |= STAIN:2
+		STAIN:LOCAL:4 |= STAIN:2
+	ENDIF
+ELSE
+	;질내에 파과의 피의 더러움을 부가
+	SIF TALENT:LOCAL:처녀 && TALENT:처녀 != -1
+		STAIN:LOCAL:6 |= 64
+	;LOCAL의 질내⇔TARGET의 P의 더러움이 이동
+	IF TALENT:PLAYER:2 & 2
+		STAIN:2 |= STAIN:LOCAL:6
+		STAIN:2 |= STAIN:LOCAL:3
+		STAIN:LOCAL:6 |= STAIN:2
+		STAIN:LOCAL:3 |= STAIN:2
+	ENDIF
+	;LOCAL의 A⇔PLAYER의 P의 더러움이 이동
+	IF HAS_PENIS(TARGET)
+		STAIN:PLAYER:2 |= STAIN:LOCAL:7
+		STAIN:PLAYER:2 |= STAIN:LOCAL:4
+		STAIN:LOCAL:7 |= STAIN:PLAYER:2
+		STAIN:LOCAL:4 |= STAIN:PLAYER:2
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:PLAYER:삽입경험 ++
+
+;EXP:LOCAL:A경험 ++
+EXP:LOCAL:V성교경험 ++
+EXP:LOCAL:A성교경험 ++
+
+EXP:삽입경험 ++
+
+
+;이상경험
+IF TALENT:LOCAL:처녀  && TALENT:처녀 != -1 && !GETBIT(CFLAG:3, 9)
+	EXP:LOCAL:이상경험 += 2
+	SETBIT CFLAG:LOCAL:3, 9
+ENDIF
+
+IF LOCAL == TARGET
+	IF FLAG:70 == 1
+		IF HETEROSEX(LOCAL, PLAYER)
+			EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+		ENDIF
+		EXP:PLAYER:시간경험 += 1
+	ELSE
+		;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+		IF HETEROSEX(LOCAL, PLAYER)
+			EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+			EXP:LOCAL:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+		ENDIF
+	ENDIF
+ELSE
+	;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+	IF FLAG:70 == 1
+		IF HETEROSEX(TARGET, PLAYER)
+			EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+		ENDIF
+		IF HETEROSEX(LOCAL, PLAYER)
+			EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+		ENDIF
+		EXP:PLAYER:시간경험 += 1
+	ELSE
+		IF HETEROSEX(TARGET, PLAYER)
+			EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+			EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+		ENDIF
+		;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+		IF HETEROSEX(LOCAL, PLAYER)
+			EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+			EXP:LOCAL:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+		ENDIF
+		IF HETEROSEX(TARGET, LOCAL)
+			EXP:(50 + HETEROSEX(TARGET, LOCAL)) += 3
+			EXP:LOCAL:(50 + HETEROSEX(TARGET, LOCAL)) += 3
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE71
+;양구멍삽입 실행 판정
+VARSET LOCAL
+LOCAL = MASTER_POSE(SET_V, SET_P, 1)
+LOCAL:1 = MASTER_POSE(SET_A, SET_P, 1)
+IF LOCAL
+	LOCAL:2 = LOCAL
+ELSEIF LOCAL:1
+	LOCAL:2 = LOCAL:1
+ENDIF
+SIF !TFLAG:100
+	RETURN 0
+SIF GLOBAL_COMABLE(71)
+	RETURN RESULT
+[SKIPSTART]
+;바이브 삽입중은 안 돼
+SIF TEQUIP:13
+	RETURN 0
+;애널바이브 삽입중은 안 돼
+SIF TEQUIP:14
+	RETURN 0
+;애널비즈 사용중은 불가
+SIF TEQUIP:15
+	RETURN 0
+;보통 관장 사용중은 불가
+SIF TEQUIP:21
+	RETURN 0
+;풍선 사용중은 불가
+SIF TEQUIP:22
+	RETURN 0
+;전극 사용중은 불가
+SIF TEQUIP:23
+	RETURN 0
+[SKIPEND]
+
+;쌍창소유라면 혼자서 가능
+IF TALENT:PLAYER:쌍창 == 1
+	SIF BASE:PLAYER:발기 < 1000
+	RETURN 0
+	;자신이 삽입하고 있지 않으면 안 돼
+	SIF !LOCAL:2
+		RETURN 0
+	RETURN 1
+ELSE
+	;TARGET가 남자, 양성의 경우는 어느 정도 발기하고 있지 않으면 안 돼
+	SIF (HAS_PENIS(TARGET)) && BASE:발기 < 1000
+		RETURN 0
+	;TARGET 이외의누군가에게 삽입하고 있지 않으면 안 돼
+	SIF !LOCAL:2 || LOCAL:2 == TARGET
+		RETURN 0
+	;상대가 처녀로, 순종 4 이하·레즈끼 4 이하의 경우는 할 수 없다(새드라면 OK)
+	IF LOCAL:2 && TALENT:(LOCAL:2):처녀
+		SIF (ABL:순종 <= 4 || ABL:레즈끼 <= 4) && TALENT:새드 == 0
+			RETURN 0
+	ENDIF
+	;윤활 부족해, 순종 3 이하·레즈끼 3 이하의 ASSI의 경우는 할 수 없다(새드라면 OK)
+	IF LOCAL:2 && PALAM:(LOCAL:2):윤활 < PALAMLV:2
+		SIF (ABL:순종 <= 3 || ABL:레즈끼 <= 3) && TALENT:새드 == 0
+			RETURN 0
+	ENDIF
+ENDIF
+;남자라면 안 돼
+SIF LOCAL:2 && !(TALENT:(LOCAL:2):2 & 1)
+	RETURN 0
+;페니스가 없으면 안 돼
+SIF !(HAS_PENIS(TARGET)) && ITEM:PBAND == 0
+	RETURN 0
+;바이브 장착중은 안 돼
+SIF TEQUIP:(LOCAL:2):13
+	RETURN 0
+;애널바이브 사용중은 불가
+SIF TEQUIP:(LOCAL:2):14
+	RETURN 0
+;애널비즈 사용중은 불가
+SIF TEQUIP:(LOCAL:2):15
+	RETURN 0
+;보통 관장 사용중은 불가
+SIF TEQUIP:(LOCAL:2):21
+	RETURN 0
+;풍선 사용중은 불가
+SIF TEQUIP:(LOCAL:2):22
+	RETURN 0
+;전극 사용중은 불가
+SIF TEQUIP:(LOCAL:2):23
+	RETURN 0
+;새댁플레이중은 안 돼
+SIF TEQUIP:(LOCAL:2):33 || TEQUIP:33
+	RETURN 0
+;체격 차이가 있는 경우는 경험이 없으면 안 돼
+SIF 삽입불가(TARGET) == 1 && EXP:A경험 < 50 && !TALENT:PLAYER:금단의지식
+	RETURN 0
+;한층 더 체격 차이가 있으면(자) 금단의지식이 필요
+SIF 삽입불가(TARGET) == 2 && (!TALENT:PLAYER:금단의지식 || EXP:A경험 < 50)
+	RETURN 0
+SIF 삽입불가(TARGET) == 3
+	RETURN 0
+;시간정지중은 스킵
+IF FLAG:70 != 1
+	;일정한 A경험이 필요
+	SIF EXP:(LOCAL:2):2 < EXPLV:3
+		RETURN 0
+ENDIF
+;하반신착의
+SIF TEQUIP:(LOCAL:2):0 > 1
+	RETURN 0
+
+RETURN 1
+

@@ -1,0 +1,316 @@
+﻿;-------------------------------------------------
+;텃밭
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM418
+LOCAL:1 = 1 + FLAG:밭확장
+FOR LOCAL,0, LOCAL:1
+	CALL SHOW_PLANT(LOCAL)
+NEXT
+PRINTL [999] 그만둔다
+$INPUT_LOOP
+INPUT
+;현재 시간정지중은 표시만 가능
+IF INRANGE(RESULT / 100, 0, LOCAL:1) && FLAG:70 == 0
+	CALL FARMING(RESULT / 100, RESULT % 100)
+	IF RESULT == 0
+		RETURN -1
+	ELSEIF FLAG:70 == 0
+		TIME += RESULT
+	ELSE
+		BASE:MASTER:TSP -= RESULT * 3
+	ENDIF
+	RETURN 0
+ELSE
+	;TIME += 5
+	RETURN -1
+ENDIF
+
+
+@FARMING(ARG, 행동번호)
+#DIM 행동번호
+#DIM 행동코스트
+행동코스트 = 0
+LOCALS = %HATAKE_NAME:ARG%
+IF 행동번호 == 0
+	IF PLANT_TYPE:ARG > 0
+		PRINTFORML 이미 %조사처리(LOCALS,"가")% 심어져 있다
+		;행동코스트 += 5
+	ELSE
+		PRINTL 어떤 것을 심습니까?
+		CALL INPLANT(ARG)
+		IF RESULT
+			행동코스트 += 10
+		ENDIF
+	ENDIF
+ELSEIF 행동번호 == 1
+	IF !PLANT_DRY:ARG
+		PRINTL 오늘은 이제 괜찮겠지
+	ELSEIF !TFLAG:물긷기
+		PRINTL 물를 길어 와야해
+	ELSE
+		PLANT_DRY:ARG = 0
+		PRINTFORML %LOCALS%에게 물을 주었다
+		SIF ITEM:세방울의천수
+			FLAG:천적곤신 = 1
+		행동코스트 += 5
+	ENDIF
+ELSEIF 행동번호 == 2
+	;채소가게에서 구매할 수 있게 되었기에 수확조건의 엄격화
+	IF 수확가능(ARG) == 0
+		PRINTL 수확할 형편이 못된다
+		RETURN 0
+	ENDIF
+		SIF PLANT_DAYS:ARG > 9
+		PLANT_GROW:ARG += 2
+	SIF PLANT_FOOD:ARG
+		PLANT_GROW:ARG ++
+	SIF FLAG:천적곤신 && RAND:2 == 1
+		PLANT_GROW:ARG += 2									  
+	;大豊作…天滴と거름補正でないと到達不能
+	IF PLANT_GROW:ARG > 12
+		PRINTL 대풍작이다!
+		IF PLANT_FOOD:ARG
+			LOCAL = 14 + RAND:6
+		ELSE
+			LOCAL = 14
+		ENDIF
+	ELSEIF PLANT_GROW:ARG > 10
+		PRINTL 풍작이다!
+		IF PLANT_FOOD:ARG
+			LOCAL = 10 + RAND:4
+		ELSE
+			LOCAL = 10
+		ENDIF
+	ELSEIF PLANT_GROW:ARG > 7
+		IF PLANT_FOOD:ARG
+			LOCAL = 5 + RAND:3
+		ELSE
+			LOCAL = 5
+		ENDIF
+	ELSE
+		LOCAL = 3
+	ENDIF
+	PRINTFORML {LOCAL}개의 %조사처리(LOCALS,"를")% 수확했다
+	ITEM:(모종대응작물번호취득(PLANT_TYPE:ARG)) += LOCAL
+	PLANT_TYPE:ARG = 0
+	PLANT_DAYS:ARG = 0
+	PLANT_GROW:ARG = 0
+	PLANT_DRY:ARG = 0
+	HATAKE_NAME:ARG =
+	PLANT_FOOD:ARG = 0
+	행동코스트 += 20
+ELSEIF 행동번호 == 3
+	IF PLANT_DRY:ARG <= 4 && PLANT_GROW:ARG <= 10
+		PRINTFORML %조사처리(LOCALS,"를")% 뽑아냅니까?
+		CALL ASK_YN
+		IF RESULT
+			;행동코스트 += 5
+			RETURN 0
+		ENDIF
+	ENDIF
+	PLANT_TYPE:ARG = 0
+	PLANT_DAYS:ARG = 0
+	PLANT_GROW:ARG = 0
+	PLANT_DRY:ARG = 0
+	HATAKE_NAME:ARG =
+	PLANT_FOOD:ARG = 0
+	PRINTFORML %조사처리(LOCALS,"를")% 뽑아냈다
+	행동코스트 += 10
+;밭이 확장되면 전체로 합니다
+ELSEIF 행동번호 == 4 && ITEM:간이풀장 && GETBIT (FLAG:풀장, 2)
+	IF !PLANT_DRY:ARG
+		PRINTL 오늘은 이제 괜찮겠지
+	ELSE
+		PLANT_DRY:ARG = 0
+		PRINTFORML %LOCALS%에게 물을 주었다
+		SIF ITEM:세방울의천수
+			FLAG:천적곤신 = 1
+		행동코스트 += 5
+	ENDIF
+ELSEIF 행동번호 == 5 && ITEM:거름
+	IF PLANT_FOOD:ARG
+		PRINTL 비료를 너무 뿌리는 것도 좋지 않다
+	ELSE
+		PLANT_FOOD:ARG = 1
+		PRINTFORML %LOCALS%에게 비료를 뿌렸다
+		행동코스트 += 20
+		ITEM:거름 --
+	ENDIF
+ELSE
+	행동코스트 += 5
+	RETURN 0
+ENDIF
+RETURN 행동코스트
+
+@INPLANT(ARG)
+#DIM 모종번호개시
+#DIM 모종번호종료
+CALL ITEM_RANGE("원예용품")
+모종번호개시 = RESULT:0
+모종번호종료 = RESULT:1
+FOR LOCAL, 모종번호개시, 모종번호종료
+	;모종 이외를 제외
+	SIF ITEM:LOCAL && 모종판정(LOCAL)
+		PRINTFORML [{LOCAL}]%ITEMNAME:(LOCAL), 14, LEFT%({ITEM:(LOCAL), 2, RIGHT}/{ITEM:(모종대응작물번호취득(LOCAL)), 2, RIGHT})
+NEXT
+PRINTL [999] 그만둔다
+$INPUT_LOOP
+INPUT
+IF ITEM:RESULT && 모종판정(RESULT)
+	PRINTFORML 밭 {ARG}에 %조사처리(ITEMNAME:(RESULT),"를")% 심었다
+	ITEM:RESULT -= 1
+	PLANT_TYPE:ARG = RESULT
+	PLANT_DRY:ARG = 1
+	;세방울의천수を持っている場合、植えてすぐに施肥、水撒き完了状態に
+	IF ITEM:세방울의천수
+		PLANT_DRY:ARG = 0
+		PLANT_FOOD:ARG = 1
+		FLAG:천적곤신 = 1
+	ENDIF
+	HATAKE_NAME:ARG = %ITEMNAME:(모종대응작물번호취득(PLANT_TYPE:ARG))%
+	RETURN 1
+ELSE
+	RETURN 0
+ENDIF
+
+@SHOW_PLANT(ARG)
+PRINTFORM 밭 {ARG}：
+IF PLANT_TYPE:ARG > 0
+	SETCOLOR 0x00FF00
+	PRINTFORM %HATAKE_NAME:ARG + "재배중", 16, LEFT%
+	IF PLANT_DRY:ARG > 4 || PLANT_GROW:ARG > 10
+		SETCOLOR 0x994C00
+		PRINT (마름)
+	ELSE
+		SELECTCASE PLANT_GROW:ARG
+			CASE 10
+				SETCOLOR 0xFF0000
+				PRINT (익음)
+			CASE 8,9
+				SETCOLOR 0xFF8000
+				PRINT (열매)
+			CASE 6,7
+				SETCOLOR 0xFFFF00
+				PRINT (꽃)
+			CASE 4,5
+				PRINT (잎)
+			CASEELSE
+				PRINT (모종)
+		ENDSELECT 
+	ENDIF
+	IF !PLANT_DRY:ARG
+		SETCOLOR C_AQUA
+		PRINT 　물 뿌리기가 끝난 상태
+	ENDIF
+	IF PLANT_FOOD:ARG
+		SETCOLOR C_CREAM
+		IF ITEM:세방울의천수
+			PRINT 　곤신의 축복이 느껴진다
+		ELSE
+			PRINT   거름주기가 끝난 상태
+		ENDIF
+	ENDIF
+	RESETCOLOR
+	PRINTL
+	;시간정지중에는 텃밭의 상태를 보는것만
+	SIF FLAG:70 == 1
+		RETURN
+	;물 뿌리기
+	IF PLANT_DRY:ARG
+		LOCAL = ARG * 100 + 1
+		LOCALS = [%TOSTR(LOCAL, "000")%] - 물을 뿌린다
+		PRINTBUTTONLC LOCALS, LOCAL
+	ELSE
+		PRINTLC 　
+	ENDIF
+	;수확
+	IF 수확가능(ARG)
+		LOCAL = ARG * 100 + 2
+		LOCALS = [%TOSTR(LOCAL, "000")%] - 수확한다
+		SIF PLANT_GROW:ARG == 10
+			SETCOLOR 0xFF0000
+		PRINTBUTTONLC LOCALS, LOCAL
+		RESETCOLOR
+	ELSE
+		PRINTLC 　
+	ENDIF
+	;정지
+	LOCAL = ARG * 100 + 3
+	LOCALS = [%TOSTR(LOCAL, "000")%] - 뽑아낸다
+	PRINTBUTTONLC LOCALS, ARG * 100 + 03
+	;스프링 쿨러
+	IF ITEM:간이풀장 && GETBIT (FLAG:풀장, 2) && PLANT_DRY:ARG
+		LOCAL = ARG * 100 + 4
+		LOCALS = [%TOSTR(LOCAL, "000")%] - 스프링 쿨러
+		PRINTBUTTONLC LOCALS, LOCAL
+	ELSE
+		PRINTLC 　
+	ENDIF
+	;비료를 뿌린다
+	IF ITEM:195 && PLANT_FOOD:ARG == 0
+		LOCAL = ARG * 100 + 5
+		LOCALS = [%TOSTR(LOCAL, "000")%] - 비료를 뿌린다
+		PRINTBUTTONLC LOCALS, LOCAL
+	ELSE
+		PRINTLC 　
+	ENDIF
+ELSE
+	PRINTL 빈 곳
+	;시간정지중에는 텃밭의 상태를 보는것만
+	SIF FLAG:70 == 1
+		RETURN
+	;모종 심기
+	LOCAL = ARG * 100 + 0
+	LOCALS = [%TOSTR(LOCAL, "000")%] - 모종을 심는다
+	PRINTBUTTONLC LOCALS, LOCAL
+ENDIF
+PRINTL
+
+@모종판정(ARG)
+#FUNCTION
+RETURNF ITEM_TYPES(ARG, "원예용품") && STRFIND(ITEMNAME:ARG, "의모종") != -1
+
+@모종대응작물번호취득(ARG)
+#FUNCTION
+IF 모종판정(ARG)
+	IF ARG == GETNUM(ITEM, "로터의모종")
+		LOCAL = GETNUM(ITEM, "로터")
+	ELSE
+		LOCAL = ARG + 200
+	ENDIF
+ELSE
+	LOCAL = ARG
+ENDIF
+RETURNF LOCAL
+
+@수확가능(ARG)
+#FUNCTION
+RETURNF PLANT_GROW:ARG > 7 && !(PLANT_DRY:ARG > 4 || PLANT_GROW:ARG > 10)
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE418
+;정지 중에는 불가
+;SIF FLAG:70 == 1
+;	RETURN 0
+;청소 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(418)
+	RETURN RESULT
+;뜰
+SIF !텃밭가능(CFLAG:MASTER:현재위치)
+	RETURN 0
+;텃밭 세트
+SIF !ITEM:150
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+RETURN 1
+

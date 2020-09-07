@@ -1,0 +1,493 @@
+﻿
+
+;C/Y는 카리스마·￥
+@CASINO_TRADE
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM LCOUNT
+#DIM C_RATE
+#DIM C_MAX
+#DIM C_PRICE
+#DIM Y_RATE
+#DIM Y_MAX
+#DIM Y_PRICE
+C_RATE = CHARISMA_NOW()
+;Y_RATE는 C_RATE의 것1/100이지만 정밀도의 관계로 사용하지 않는다
+;Y_RATE = FUNC_CASINO("TRADE") / 100
+;C구입 거래에 사용하는 카리스마 입력의 상한
+C_MAX = MIN(CM_LIMIT - MONEY:2, MONEY / C_RATE)
+
+PRINTFORML 메이드 요정
+PRINTFORML 　어서 오십시오
+PRINTFORML 　이쪽에서는 ￥과 카리스마의 교환을 받고 있습니다
+IF C_RATE < 100
+	PRINTFORML 　죄송합니다
+	PRINTFORML 　다녀왔습니다, 카리스마의 구입은 이용하실 수 없습니다.
+ENDIF
+PRINTFORML 당신의 보유￥　　　　　　{MONEY}
+PRINTFORML 당신의 보유 카리스마　　　{MONEY:2} / {CM_LIMIT}
+PRINTFORMW 현재의 ￥/카리스마 환율 　\\{C_RATE}
+DRAWLINE
+CALL ASK_M(@"카리스마 구입", C_RATE > 100 && C_MAX > 0, @"카리스마 매각", FLAG:회원랭크,"그만둔다", 1)
+SELECTCASE RESULT
+	CASE 0
+		IF CM_LIMIT <= MONEY:2
+			PRINTFORML 죄송합니다만, 손님의 카리스마는 보유 상한에 이르러서 더 이상은 구입하실 수 없습니다
+			PRINTFORML 회원랭크를 올리는지, 대패한 다음에 다시 와주십시오
+			RETURN
+		ENDIF
+		PRINTFORML 메이드 요정
+		PRINTFORML 　카리스마의 구입 금액을 입력해주세요(상한{C_MAX})
+		FOR LCOUNT, 0, LOG10(C_MAX) + 1
+			LOCAL = POWER(10, LCOUNT)
+			PRINTFORML [{LOCAL, LOG10(C_MAX) + 1}] - {LOCAL}카리스마를 구입
+		NEXT
+		SIF C_MAX >= 4
+			PRINTFORML [{C_MAX / 2, LOG10(C_MAX) + 1}] - 최대치의 반을 구입
+		PRINTFORML [{C_MAX, LOG10(C_MAX) + 1}] - 최대치를 구입
+		INPUT
+		IF INRANGE(RESULT, 1, C_MAX)
+			C_PRICE = RESULT
+			Y_PRICE = C_PRICE * C_RATE
+			CALL CASINO_MONEY("￥", -Y_PRICE)
+			CALL CASINO_MONEY("카리스마", C_PRICE)
+			PRINTFORML 메이드 요정
+			PRINTFORML 　이용 감사합니다
+			PRINTFORMW 　{C_PRICE}카리스마의 구입으로, 요금은\\{Y_PRICE}가 됩니다
+		ENDIF
+	CASE 1
+		CALL CM_BALANCE
+	CASE 2
+		RETURN
+ENDSELECT
+
+;환시세의 변동
+@MOENY_HENDOU
+#LOCALSIZE 1
+#LOCALSSIZE 1
+IF FLAG:카리스마변동누적 >= 10
+	FLAG:카리스마변동상황 = RAND(1, 10)
+	SELECTCASE FLAG:카리스마변동상황
+		CASE 9
+			PRINTFORML 레밀리아 자기화의 소문이 흐르고 있습니다!
+			PRINTFORMW 이것을 받아 카리스마 가격이 상승하고 있습니다!
+		CASE 1
+			CALL SHOW_CHARISMA_GUARD
+	ENDSELECT
+	FLAG:카리스마변동누적 = 0
+ENDIF
+
+;극단적인 상황의 보정
+IF FLAG:카리스마인기 >= 300
+	SIF RAND:(FLAG:카리스마인기 / 50)
+		FLAG:카리스마변동상황 = MAX(1, FLAG:카리스마변동상황 - 2)
+ELSEIF FLAG:카리스마인기 <= 50 && INRANGE(FLAG:카리스마변동상황, 1, 4)
+	SIF RAND:(6 - FLAG:카리스마변동상황)
+		FLAG:카리스마변동상황 += 2
+ENDIF
+
+SELECTCASE FLAG:카리스마변동상황
+CASE 1
+	LOCAL = 60 + RAND:10
+CASE 2
+	LOCAL = 70 + RAND:10
+CASE 3
+	LOCAL = 80 + RAND:10
+CASE 4
+	LOCAL = 95 + RAND:5
+CASE 5
+	IF FLAG:카리스마인기 <= 85
+		FLAG:카리스마인기 += RAND(1, 10)
+	ELSEIF FLAG:카리스마인기 >= 150
+		FLAG:카리스마인기 -= RAND(1, 10)
+	ELSEIF RAND:2
+		FLAG:카리스마인기 += RAND(1, 10)
+	ELSE
+		FLAG:카리스마인기 -= RAND(1, 10)
+	ENDIF
+CASE 6
+	LOCAL = 105 + RAND:5
+CASE 7
+	LOCAL = 125 + RAND:10
+CASE 8
+	LOCAL = 150 + RAND:50
+CASE 9
+	LOCAL = 200 + RAND:100
+ENDSELECT
+
+IF FLAG:카리스마변동상황 == 5
+	FLAG:카리스마변동누적 += 5
+ELSE
+	FLAG:카리스마인기 = FLAG:카리스마인기 * LOCAL / 100
+	FLAG:카리스마변동누적 += ABS(5 - FLAG:카리스마변동상황) + RAND:2
+ENDIF
+
+FLAG:카리스마인기 = MAX(10, FLAG:카리스마인기)
+TIMES FLAG:카리스마유통, 0.98
+
+
+
+;￥, 하고 있는 (일)것은 카리스마와 같이
+IF FLAG:￥변동누적 >= 10
+	FLAG:￥변동상황 = RAND(1, 10)
+	FLAG:￥변동누적 = 0
+ENDIF
+
+;극단적인 상황의 보정
+IF FLAG:￥인기 >= 300
+	SIF RAND:(FLAG:￥인기 / 50)
+		FLAG:￥변동상황 = MAX(1, FLAG:￥변동상황 - 2)
+ELSEIF FLAG:￥인기 <= 30 && INRANGE(FLAG:￥변동상황, 1, 4)
+	SIF RAND:(6 - FLAG:￥변동상황)
+		FLAG:￥변동상황 += 2
+ENDIF
+
+SELECTCASE FLAG:￥변동상황
+CASE 1
+	LOCAL = 60 + RAND:10
+CASE 2
+	LOCAL = 70 + RAND:10
+CASE 3
+	LOCAL = 80 + RAND:10
+CASE 4
+	LOCAL = 95 + RAND:5
+CASE 5
+	IF FLAG:￥인기 <= 85
+		FLAG:￥인기 += RAND(1, 10)
+	ELSEIF FLAG:￥인기 >= 150
+		FLAG:￥인기 -= RAND(1, 10)
+	ELSEIF RAND:2
+		FLAG:￥인기 += RAND(1, 10)
+	ELSE
+		FLAG:￥인기 -= RAND(1, 10)
+	ENDIF
+CASE 6
+	LOCAL = 105 + RAND:5
+CASE 7
+	LOCAL = 125 + RAND:10
+CASE 8
+	LOCAL = 150 + RAND:50
+CASE 9
+	LOCAL = 200 + RAND:100
+ENDSELECT
+
+IF FLAG:￥변동상황 == 5
+	FLAG:￥변동누적 += 5
+ELSE
+	FLAG:￥인기 = FLAG:￥인기 * LOCAL / 100
+	FLAG:￥변동누적 += ABS(5 - FLAG:￥변동상황) + RAND:2
+ENDIF
+
+FLAG:￥인기 = MAX(10, FLAG:￥인기)
+TIMES FLAG:￥유통, 0.98
+
+
+@TODAYS_CHARISMA
+#DIM 년월
+
+GETTIME
+DEBUGPRINTFORML {RESULT / 10000000000000}년 {(RESULT / 100000000000) % 100}월 {(RESULT / 1000000000) % 100}일 {(RESULT / 10000000) % 100}시야
+
+년월 = RESULT / 100000000000
+
+IF 년월 != FLAG:전회카리스마설정월
+	DUMPRAND
+	PRINTFORMW {RESULT / 10000000000000}년 {(RESULT / 100000000000) % 100}월의 카리스마 시세를 설정합니다.
+	FLAG:전회카리스마설정월 = 년월
+	RANDOMIZE 년월
+	CALL SET_THISMONTHCHARISMA
+	INITRAND
+ENDIF
+CALL SHOW_CHARISMA
+
+[SKIPSTART]
+
+#LOCALSIZE 1
+#LOCALSSIZE 1
+PRINTFORML 
+PRINTFORML ~오늘의 것인가∼
+PRINTFORML 　1 카리스마=\\{FUNC_CASINO("TRADE")}
+PRINTFORML 　＜카리스마＞
+PRINTFORML 　　경향{FLAG:카리스마변동상황}　누적{FLAG:카리스마변동누적, 2}　인기{FLAG:카리스마인기}\%
+PRINTFORML 　＜￥＞
+PRINTFORML 　　경향{FLAG:￥변동상황}　누적{FLAG:￥변동누적, 2}　인기{FLAG:￥인기}\%
+PRINTFORMW 
+
+[SKIPEND]
+
+
+;홍마카지노용 초기설정
+@SET_CHARISMA(TYPE)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS TYPE
+#DIM LCOUNT
+SELECTCASE TYPE
+;아직 카리스마를 설정하고 있지 않는 데이터용
+CASE "NEW"
+	FLAG:카리스마인기 = 100
+	FLAG:카리스마변동상황 = 5
+	FLAG:￥인기 = 100
+	FLAG:￥변동상황 = 5
+;벌써 카리스마를 설정해 있는 주회용
+;요컨데 홍마카지노의 초기화 커맨드이지만 것지수는 초기화하지 않는다
+CASE "RESET"
+	FLAG:카리스마유통 = 0
+	FLAG:카리스마인기 = 100
+	FLAG:카리스마변동상황 = 5
+	FLAG:카리스마변동누적 = 0
+
+	FLAG:￥유통 = 0
+	FLAG:￥인기 = 100
+	FLAG:￥변동상황 = 5
+	FLAG:￥변동누적 = 0
+ENDSELECT
+
+@SET_THISMONTHCHARISMA
+#DIM 카리스마변동누적
+#DIM 변동폭
+
+카리스마변동누적 = 0
+
+;첫날은150~250
+CHARISMA_RATE:0 = 150 + RAND:100
+CHARISMA_TENDENCY:0 = 5
+FOR LOCAL, 1,32
+	IF 카리스마변동누적 >= 10
+		;적정 환율이면 안정되기 쉽다
+		IF INRANGE(CHARISMA_TENDENCY:(LOCAL - 1), 150,250) && !RAND:2
+			CHARISMA_TENDENCY:LOCAL = 5
+		ELSEIF CHARISMA_TENDENCY:(LOCAL - 1) == 5
+			;안정으로부터는 극단적인 변동을 하지 않는다
+			CHARISMA_TENDENCY:LOCAL = RAND(3,8)
+		ELSEIF CHARISMA_RATE:(LOCAL -1) > 250
+			CHARISMA_TENDENCY:LOCAL = RAND(2, 8)
+		ELSEIF CHARISMA_RATE:(LOCAL -1) < 150
+			CHARISMA_TENDENCY:LOCAL = RAND(3, 9)
+		ELSE
+			CHARISMA_TENDENCY:LOCAL = RAND(2, 9)
+		ENDIF
+		카리스마변동누적 = 0
+	ELSE
+		;변동하지 않으면 전기와 같다
+		CHARISMA_TENDENCY:LOCAL = CHARISMA_TENDENCY:(LOCAL -1)
+	ENDIF
+	;전기 카리스마 가격에 응해 보정
+	SELECTCASE CHARISMA_RATE:(LOCAL -1)
+		CASE IS < 50
+			IF !RAND:4
+				CHARISMA_TENDENCY:LOCAL = 9
+				카리스마변동누적 = 0
+			ENDIF
+		CASE 50 TO 100
+			IF !RAND:5
+				CHARISMA_TENDENCY:LOCAL = 8
+				카리스마변동누적 = 0
+			ENDIF
+		CASE 250 TO 300
+			IF !RAND:5
+				CHARISMA_TENDENCY:LOCAL = 2
+				카리스마변동누적 = 0
+			ENDIF
+		CASE IS > 300
+			IF !RAND:4
+				CHARISMA_TENDENCY:LOCAL = 1
+				카리스마변동누적 = 0
+			ENDIF
+	ENDSELECT
+
+	SELECTCASE CHARISMA_TENDENCY:LOCAL
+		CASE 1
+			변동폭 = - RAND:30 - 100
+			카리스마변동누적 += 3 + RAND:2 + RAND:3
+		CASE 2
+			변동폭 = RAND:20 - 50
+			카리스마변동누적 += 2 + RAND:2 + RAND:2
+		CASE 3
+			변동폭 = RAND:10 - 30
+			카리스마변동누적 += 1 + RAND:3 + RAND:2
+		CASE 4
+			변동폭 = -RAND:5 - 5
+			카리스마변동누적 += 1 + RAND:3 + RAND:2
+		CASE 5
+			변동폭 = RAND:10 - 5
+			카리스마변동누적 += 1 + RAND:3
+		CASE 6
+			변동폭 = RAND:5 + 5
+			카리스마변동누적 += 1 + RAND:3 + RAND:2
+		CASE 7
+			변동폭 = 30 - RAND:10
+			카리스마변동누적 += 1 + RAND:3 + RAND:3
+		CASE 8
+			변동폭 = RAND:20 + 50
+			카리스마변동누적 += 2 + RAND:2 + RAND:2
+		CASE 9
+			변동폭 = RAND:30 + 100
+			카리스마변동누적 += 3 + RAND:2 + RAND:3
+	ENDSELECT
+
+	CHARISMA_RATE:LOCAL = CHARISMA_RATE:(LOCAL -1) + 변동폭
+	CHARISMA_RATE:LOCAL = LIMIT(CHARISMA_RATE:LOCAL, 1,400)
+	SIF CHARISMA_RATE:LOCAL == 1 || CHARISMA_RATE:LOCAL == 400
+		카리스마변동누적 = 10
+NEXT
+
+@SHOW_CHARISMA
+#DIM 전기카리스마경향
+IF NOW_PERIOD()
+	전기카리스마경향 = CHARISMA_TENDENCY:(NOW_PERIOD() -1)
+	LOCAL = CHARISMA_TENDENCY:(NOW_PERIOD()-1)
+	IF CHARISMA_TENDENCY:NOW_PERIOD() != 전기카리스마경향 && NOW_PERIOD() > 1
+	SETCOLOR C_YELLOW
+		SELECTCASE CHARISMA_TENDENCY:NOW_PERIOD()
+			CASE 9
+				PRINTFORML 레밀리아 자기화의 소문이 흐르고 있습니다!
+				PRINTFORML 이것을 받아 카리스마 가격이 상승하고 있습니다!
+			CASE 5
+				SIF GROUPMATCH(전기카리스마경향, 1,2,8,9)
+					PRINTFORML %SHOW_TENDENCY(전기카리스마경향)%하던 카리스마 가격변동은 안정된 것 같습니다.
+			CASE 1
+				CALL SHOW_CHARISMA_GUARD
+		ENDSELECT
+	RESETCOLOR
+	PRINTFORMW 
+	ENDIF
+ENDIF
+PRINTL
+PRINTFORML ◇이번 달 {NOW_PERIOD()}일의 카리스마 시세는, 1 카리스마=\\{CHARISMA_NOW()}
+PRINTFORMW 변동 상황은 %SHOW_TENDENCY(CHARISMA_TENDENCY:NOW_PERIOD())%입니다
+
+IF FLAG:신문구독
+	PRINTFORML 
+	PRINTFORML 바로 옆의 카리스마 가격변동
+	FOR LOCAL, 1,40
+		SIF !INRANGE(LOCAL, NOW_PERIOD()-9, NOW_PERIOD())
+			CONTINUE
+		CALL PRINT_COLORBAR, CHARISMA_RATE:LOCAL, 400, 40, UNICODE(0x2585), UNICODE(0x2585), BARCOLORSET("물색"),
+		PRINTFORML 　{LOCAL}기\\{CHARISMA_RATE:LOCAL}　%SHOW_TENDENCY(CHARISMA_TENDENCY:LOCAL)%
+	NEXT
+ENDIF
+
+@SHOW_TENDENCY(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+	CASE 1
+		LOCALS = 폭락
+	CASE 2
+		LOCALS = 하락
+	CASE 3
+		LOCALS = 하강
+	CASE 4
+		LOCALS = 미묘한 감소
+	CASE 5
+		LOCALS = 안정
+	CASE 6
+		LOCALS = 견조
+	CASE 7
+		LOCALS = 상승
+	CASE 8
+		LOCALS = 상승
+	CASE 9
+		LOCALS = 폭등
+ENDSELECT
+RETURNF LOCALS
+
+@NOW_PERIOD()
+#FUNCTION
+GETTIME
+;카리스마 변동은 하루 한 번으로 변경
+LOCAL = (RESULT / 1000000000) % 100
+;LOCAL = ((RESULT / 1000000000) % 100 - 1) * 6 + ((RESULT / 10000000) % 100) / 4
+RETURNF LOCAL
+
+@NOW_MONTH()
+#FUNCTION
+GETTIME
+LOCAL = RESULT / 100000000000
+RETURNF LOCAL
+
+@CHARISMA_NOW()
+#FUNCTION
+RETURNF CHARISMA_RATE:NOW_PERIOD()
+
+@CM_BALANCE(ARG)
+#DIM 매각카리스마
+#DIM 매각액
+#DIM 수수료
+#DIM 정산액
+#DIM 환율
+
+환율 = CHARISMA_NOW()
+
+IF FLAG:신문구독
+	PRINTFORML 
+	PRINTFORML 바로 옆의 카리스마 가격변동
+	FOR LOCAL, 1,40
+		SIF !INRANGE(LOCAL, NOW_PERIOD()-9, NOW_PERIOD())
+			CONTINUE
+		CALL PRINT_COLORBAR, CHARISMA_RATE:LOCAL, 400, 40, UNICODE(0x2585), UNICODE(0x2585), BARCOLORSET("물색"),
+		PRINTFORML 　{LOCAL}기\\{CHARISMA_RATE:LOCAL}　%SHOW_TENDENCY(CHARISMA_TENDENCY:LOCAL)%
+	NEXT
+ENDIF
+PRINTFORML 매각하는 카리스마량을 입력해 주세요
+PRINTFORML 수수료는 {CM_COMMISSION}\%입니다
+PRINTFORML [{MONEY:2}] - 모두 매각
+PRINTFORML [0] - 그만둔다
+INPUT
+IF !INRANGE(RESULT, 0, MONEY:2)
+	PRINTFORMW 무효인 수치입니다
+	RETURN
+ELSEIF !RESULT
+	RETURN
+ENDIF
+매각카리스마 = RESULT
+매각액 = 매각카리스마 * 환율
+수수료 = 매각액 * CM_COMMISSION / 100
+
+정산액 = 매각액 - 수수료
+PRINTFORML 매각 환율：￥{CHARISMA_NOW()} × 매각액：{매각카리스마} = ￥{매각액}
+PRINTFORML 수수료：￥{수수료}
+PRINTFORML 정산액　￥{정산액}
+
+PRINTFORML 괜찮겠습니까?
+CALL ASK_YN
+SIF RESULT
+	RETURN
+
+MONEY += 정산액
+MONEY:2 -= 매각카리스마
+
+@SHOW_CHARISMA_GUARD
+IF FLAG:신문구독
+	RESETCOLOR
+	PRINTFORML ────────────────────────
+	FONTBOLD
+	PRINTDATAL
+		DATAFORM 　　　　홍마관 당주 그실태에 강요한다!
+		DATAFORM 　　　이것이 철벽의 카리스마 가드다!
+		DATAFORM 　　　　　갑작스러운 카리스마 브레이크!
+	ENDDATA
+	FONTREGULAR
+	PRINTFORML ────────────────────────
+	SETFONT "ＭＳ Pゴシック"
+	PRINTL 　　　　　　　　　　　　　 　 　,. -‐'''''"￣￣｀"''ヽ. 　 〉､
+	PRINTL 　　　　　　　 ,.-ｧ　　　　r'/´　　　　　　　　　　　｀Y/ヽヽ.
+	PRINTL 　　　　　　／::〈　　　r‐､iY　　　　　　　　　　　　　 ', 　 ｀ヽ.
+	PRINTL 　　　　　//ヽ:::::' , 　 i:::|:::ヽ>,r'^ｰ､､,___________,r'ヽ,イ　　　　',
+	PRINTL 　　　　 //　　｀ヽ:ヽ〈::〈::::::::7 　 r'´､r-､__,. ->i 　iカ.　　　　 !
+	PRINTL 　　　　,','　　　　　｀'ｰ|_!._::::,' 　 ﾊ_!_,.ｨ　ﾊ　i､ ﾊ　|_「　　__　　|
+	PRINTL 　　 　 |'　　　　　 　　　レ7　　|./--'､ﾚ'　V,ﾆ.! 　|/ ./´　｀ヽ|
+	PRINTL 　　 　 |　　　　　　　　〈,rﾍﾊﾍr|ﾊ"　　____ 　 ,ﾊﾝヽ./　っ
+	PRINTL 　　 　 |　　,.-‐､／´￣｀ヽ!｀￣ > !ヽr´--'＜'ﾊ〉　　っ　
+	PRINTL 　　　　ﾚ'´　　　　 　 く￣ﾍ´　イ＞''"´￣｀'ヽr-ｧ
+	PRINTL 　　　　　　　　　　　　 ヽ:::::ヽr ´ ／　　/　　　ヽ!
+	PRINTL 　　　　　　　　　　　　 く:::::＞!イ　　　/　 i　　　ﾊ
+	PRINTL 　　　　　　　　　　　　　｀7:::く /__r､__ﾄ､　i__r! _,rﾍ>
+	PRINTL 　　　　　　　　　　　　 　 レ'｀ﾄ!.二Y　 ￣Y'ｰ'ｲ￣
+	SETFONT
+	PRINTFORMW ────────────────────────
+	SETCOLOR C_YELLOW
+ENDIF
+PRINTFORML 붕붕마루 신문의 일면에 레밀리아의 하단 가드 모습이 게재되었습니다!
+PRINTFORML 그 영향으로 카리스마가 대폭락하고 있습니다!
+RESETCOLOR

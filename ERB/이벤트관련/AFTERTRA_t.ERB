@@ -1,0 +1,680 @@
+﻿;────────────────────────────────────
+;조교 종료의 처리
+;────────────────────────────────────
+@EVENTEND
+#LATER
+#DIM 변동치
+#DIM 만나지않은날짜
+#DIM YANUSHI
+PRINTL 하루가 끝났습니다
+PRINTFORML 
+;SIF STRLENS(TSTR:1)
+;	CALL SELL_VIDEO
+
+;수면 플래그
+CALL SET_SLEEP(1, MASTER, 0)
+
+CFLAG:MASTER:286 = 0
+CFLAG:MASTER:287 = 0
+CFLAG:MASTER:288 = 0
+CFLAG:MASTER:289 = 0
+CFLAG:MASTER:290 = 0
+CFLAG:MASTER:노팬티 = 0
+
+;제비를 파하도록(듯이) 플래그 리셋
+CLEARBIT FLAG:999, 1
+;あなた懐妊処理
+;CALL MasterPregnancy
+
+;질내사정 플래그 리셋
+FOR LOCAL, 1, CHARANUM
+	CFLAG:LOCAL:286 = 0
+	CFLAG:LOCAL:287 = 0
+	CFLAG:LOCAL:288 = 0
+	CFLAG:LOCAL:289 = 0
+	CFLAG:LOCAL:290 = 0
+	;발원함에 의한 감도 상승 해제
+	SIF GROUPMATCH(TCVAR:LOCAL:발원함보정, 23,31,41,70,80,82,83,101,102,103,104,106)
+		TALENT:LOCAL:(TCVAR:LOCAL:발원함보정) -= 1
+	;좋아하는체위 결정
+	SIF CFLAG:LOCAL:좋아하는체위 > 10 
+		CFLAG:LOCAL:좋아하는체위 = 0
+	FOR COUNT, 1,10
+		SIF EXP:LOCAL:(COUNT + 100) > EXP:LOCAL:(CFLAG:LOCAL:좋아하는체위 + 100) + 50
+			CFLAG:LOCAL:좋아하는체위 = COUNT
+	NEXT
+	;팬티 플래그
+	CFLAG:LOCAL:노팬티 = 0
+	CFLAG:LOCAL:의상일시변경 = 0
+	SIF TCVAR:LOCAL:본래의복장
+		CFLAG:LOCAL:기본복장세트 = TCVAR:LOCAL:본래의복장
+	SELECTCASE ABL:LOCAL:정액중독
+		CASE 0
+			LOCAL:1 = 5
+		CASE 1 TO 3
+			LOCAL:1 = 7
+		CASE 4 TO 7
+			LOCAL:1 = 10
+		CASEELSE
+			LOCAL:1 = 20
+	ENDSELECT
+	;기분
+	TALENT:LOCAL:기분 = 0
+	CALL KIGEN_CHANGE(LOCAL, 10)
+	SIF TALENT:MASTER:농후정액
+		LOCAL:1 *= 2
+	SETCOLOR 0xEE60EE
+	IF EX:LOCAL:질내정액 > 200 || EX:LOCAL:애널내정액 > 200
+		PRINTFORM %CALLNAME:MASTER%에 충분히 쏟아진 정액으로, %CALLNAME:LOCAL%의
+		IF EX:LOCAL:질내정액 > 200 && EX:LOCAL:애널내정액 > 200
+			PRINTL 질내와 애널이 뜨겁게 쑤시고 있다…
+		ELSEIF EX:LOCAL:질내정액 > 200
+			PRINTL 질내가 뜨겁게 쑤시고 있다…
+		ELSE
+			PRINTL 애널이 뜨겁게 쑤시고 있다…
+		ENDIF
+		IF EX:LOCAL:질내정액 > 200
+			JUEL:LOCAL:굴복 += LOCAL:1 * (ABL:LOCAL:질내사정중독 + 1) * EX:LOCAL:질내정액
+			JUEL:LOCAL:욕정 += LOCAL:1 * (ABL:LOCAL:질내사정중독 + 1) * EX:LOCAL:질내정액
+		ENDIF
+		IF EX:LOCAL:애널내정액 > 200
+			JUEL:LOCAL:굴복 += LOCAL:1 * (ABL:LOCAL:항내사정중독 + 1) * EX:LOCAL:애널내정액
+			JUEL:LOCAL:욕정 += LOCAL:1 * (ABL:LOCAL:항내사정중독 + 1) * EX:LOCAL:애널내정액
+		ENDIF
+	ENDIF
+	IF (EX:LOCAL:20 + EX:LOCAL:21 + EX:LOCAL:22 + EX:LOCAL:23 + EX:LOCAL:24) > 0
+		PRINTFORM %CALLNAME:LOCAL%는 
+		SIF EX:LOCAL:20
+			PRINT 클리토리스
+		SIF EX:LOCAL:20 && (EX:LOCAL:21 || EX:LOCAL:22 || EX:LOCAL:23 || EX:LOCAL:24)
+			PRINT 와 
+		SIF EX:LOCAL:21
+			PRINT 질내
+		SIF EX:LOCAL:21 && (EX:LOCAL:22 || EX:LOCAL:23 || EX:LOCAL:24)
+			PRINT 와 
+		SIF EX:LOCAL:22
+			PRINT 애널
+		SIF EX:LOCAL:22 && (EX:LOCAL:23 || EX:LOCAL:24)
+			PRINT 와 
+		SIF EX:LOCAL:23
+			PRINT 가슴
+		SIF EX:LOCAL:23 && EX:LOCAL:24
+			PRINT 와 
+		SIF EX:LOCAL:24
+			PRINT 입술
+		PRINTFORMW 의 쑤심에 괴로워하고 있다…
+		CFLAG:LOCAL:욕구불만도 += (EX:LOCAL:20 + EX:LOCAL:21 + EX:LOCAL:22 + EX:LOCAL:23 + EX:LOCAL:24) * 100
+	ENDIF
+	{
+	IF (TALENT:LOCAL:150 || TALENT:LOCAL:151) && !TALENT:LOCAL:초경 && EXP:LOCAL:V절정경험 > MAX(0, 200 - CFLAG:LOCAL:자식보정)
+	 && !RAND:(10 - MIN(9, CFLAG:LOCAL:자식보정 / 10 + ABL:LOCAL:질내사정중독)) && EX:LOCAL:질내정액
+	 }
+		PRINTFORML 어린 몸이 알기에는 너무 빠른 쾌락이 %CALLNAME:LOCAL%를 「여자」로 바꾸어 간다……
+		PRINTFORMW %CALLNAME:LOCAL%는 초경을 맞이했다
+		PRINTFORMW %CALLNAME:LOCAL%는 아이를 임신할 수 있는 몸이 되었다
+		TALENT:LOCAL:초경 = 1
+	ENDIF
+	IF ABL:LOCAL:정액중독 < 3
+		IF CFLAG:LOCAL:누계뿌려짐 + CFLAG:LOCAL:누계정음 * 3 +CFLAG:LOCAL:누계질내정액 + CFLAG:LOCAL:누계애널정액 >= 15000 * (10 - 2 * TALENT:LOCAL:중독되기쉬움) / 10
+			PRINTFORML 몇 번이나 정액을 쏟아진 %CALLNAME:LOCAL%의 몸은 %CALLNAME:MASTER%의 정액의 맛을 기억해 버렸다…
+			PRINTL 향후는 무의식적이어도 스스로 갖고 싶어하게 될 것이다
+			PRINTFORMW %CALLNAME:LOCAL%의 정액중독이 3이 되었다
+			ABL:LOCAL:정액중독 = 3
+		ELSEIF CFLAG:LOCAL:누계뿌려짐 + CFLAG:LOCAL:누계정음 * 3 +CFLAG:LOCAL:누계질내정액 + CFLAG:LOCAL:누계애널정액 >= 7500 * (10 - 2 * TALENT:LOCAL:중독되기쉬움) / 10 && ABL:LOCAL:정액중독 < 2
+			PRINTFORML %CALLNAME:LOCAL%의 몸은, 정액에 친숙해 지고 있다…
+			PRINTFORMW %CALLNAME:LOCAL%의 정액중독이 2가 되었다
+			ABL:LOCAL:정액중독 = 2
+		ELSEIF CFLAG:LOCAL:누계뿌려짐 + CFLAG:LOCAL:누계정음 * 3 +CFLAG:LOCAL:누계질내정액 + CFLAG:LOCAL:누계애널정액 >= 3000 * (10 - 2 * TALENT:LOCAL:중독되기쉬움) / 10 && !ABL:LOCAL:정액중독
+			PRINTFORML %CALLNAME:LOCAL%의 몸은, 정액의 맛을 알아 버렸다…
+			PRINTFORMW %CALLNAME:LOCAL%의 정액중독이 1이 되었다
+			ABL:LOCAL:정액중독 = 1
+		ENDIF
+	ENDIF
+	IF CFLAG:LOCAL:누계정음 > 10000 * (10 - 2 * TALENT:LOCAL:중독되기쉬움) / 10 && !TALENT:LOCAL:정애미각
+		PRINTFORML 정액을 계속 먹은 %CALLNAME:LOCAL%의 몸은 정액의 맛 자체에서 즐거움을 느끼게 되고 말았다…
+		PRINTFORMW %CALLNAME:LOCAL%는 【정애미각】을 얻었다
+		TALENT:LOCAL:정애미각 = 1
+	ENDIF
+	IF ABL:LOCAL:정액중독 >= 3
+		IF CFLAG:LOCAL:누계질내정액 > 3000 * ABL:LOCAL:질내사정중독 * (10 - 2 * TALENT:LOCAL:중독되기쉬움) / 10 &&  EX:LOCAL:질내정액 > 200 && ABL:LOCAL:질내사정중독 < 3
+			PRINTFORMW %CALLNAME:LOCAL%의 핑크색의 점막에 정액이 널리 스며든다…
+			PRINTFORMW %CALLNAME:LOCAL%의 질은 \@ ABL:LOCAL:질내사정중독 ? 보다 강하게# \@%CALLNAME:MASTER%의 정액을 바라게 되었다
+			ABL:LOCAL:질내사정중독 ++
+		ELSEIF CFLAG:LOCAL:누계애널정액 > 3000 * ABL:LOCAL:항내사정중독 * (10 - 2 * TALENT:LOCAL:중독되기쉬움) / 10 && EX:LOCAL:애널내정액 > 200 && ABL:LOCAL:항내사정중독 < 3
+			PRINTFORMW %CALLNAME:LOCAL%의 직장에 정액이 널리 스며든다…
+			PRINTFORMW %CALLNAME:LOCAL%의 애널은 \@ ABL:LOCAL:항내사정중독 ? 보다 강하게# \@%CALLNAME:MASTER%의 정액을 바라게 되었다
+			ABL:LOCAL:항내사정중독 ++
+		ENDIF
+	ENDIF
+	RESETCOLOR
+	IF FLAG:임신스위치 == 1
+		SIF CFLAG:LOCAL:임신경과일수 == 0 && !FLAG:피임 && !TCVAR:LOCAL:피임약 && TALENT:LOCAL:스침 != 2
+			CALL GET_CHILD(LOCAL)
+	ELSE
+	;
+	ENDIF
+	CALL 출산경과(LOCAL)
+	SIF CFLAG:LOCAL:600
+		CFLAG:LOCAL:600 = 0
+	IF CFLAG:LOCAL:안면
+		만나지않은날짜 = DAY - CFLAG:LOCAL:마지막에만난날
+		CALL KOJO_MESSAGE_SEND("EVENT", 31, LOCAL, 만나지않은날짜)
+	ENDIF
+NEXT
+
+IF CFLAG:MASTER:누계정음 > 10000 * (10 - 2 * TALENT:MASTER:중독되기쉬움) / 10 && !TALENT:MASTER:정애미각
+	PRINTFORML 정액을 계속 먹은 %CALLNAME:MASTER%의 몸은 정액의 맛 자체에서 즐거움을 느끼게 되고 말았다…
+	PRINTFORMW %마스터는% 【정애미각】을 얻었다
+	TALENT:MASTER:정애미각 = 1
+ENDIF
+;自分に자식보정は掛けられないため、暫定で30回分の補正が掛った値で判定する
+{
+IF (TALENT:PLAYER:150 || TALENT:PLAYER:151) && !TALENT:PLAYER:초경 && EXP:PLAYER:V절정경험 > MAX(0, 200 - 30)
+ && !RAND:(10 - MIN(9, 30 / 10 + ABL:PLAYER:질내사정중독)) && EX:PLAYER:질내정액
+ }
+	PRINTFORML 어린 몸이 알기에는 너무 빠른 쾌락이 %CALLNAME:PLAYER%를 「여자」로 바꾸어 간다……
+	PRINTFORMW %CALLNAME:PLAYER%은 초경을 맞았다
+	PRINTFORMW %CALLNAME:PLAYER%는 아이를 임신할 수 있는 몸이 되었다
+	TALENT:PLAYER:초경 = 1
+ENDIF
+
+FOR LOCAL, MINROOM(), MAXROOM
+	YOGORE:LOCAL += RAND:50
+	YANUSHI = PRIVATEROOM:(LOCAL % 100)
+	IF YANUSHI && YOGORE:LOCAL > (4000 - ABL:YANUSHI:청소기능 * 500)
+		PRINTFORML %CALLNAME:YANUSHI%는 자신의 방을 청소했다
+		EXP:YANUSHI:청소경험 ++
+		YOGORE:LOCAL /= 4
+	ENDIF
+NEXT
+IF FLAG:가호
+	FLAG:가호 = 0
+	DRAWLINE
+	PRINTFORMW 신의 가호의 효과가 끊어졌다
+ENDIF
+IF FLAG:이상기상
+	FLAG:이상기상 = 0
+	DRAWLINE
+	PRINTFORMW 이상기상은 들어갔다
+ENDIF
+IF FLAG:패션
+	FLAG:패션 = 0
+	DRAWLINE
+	PRINTFORMW 패션게임이 진정되었다
+ENDIF
+IF GatheringSeason
+	GatheringSeason = 0
+	PRINTFORMW 계절이 제자리를 찾았다
+ENDIF
+IF TFLAG:출장청소
+	DRAWLINE
+	PRINTFORML 부탁해둔 청소 서비스가 왔다
+	PRINTFORMW …
+	PRINTFORMW ……
+	PRINTFORMW %GET_MAPNAME(MAIN_MAP)% 안이 깨끗해졌다!
+	FOR LOCAL, MINROOM(), MAXROOM
+		YOGORE:LOCAL /= 4
+	NEXT
+ENDIF
+
+[SKIPSTART]
+;의뢰의 기한 마감을 체크
+FOR LOCAL, 1,6
+	SIF !IRAI_SLOT:LOCAL
+		CONTINUE
+	SIF IRAI_DEADLINE:LOCAL > DAY
+		CONTINUE
+	DRAWLINE
+	PRINTFORML %CALLNAME:(IRAI_SLOT_TO_CLIENT(LOCAL))%로부터의 의뢰의 기한이 지났다……
+	CALL COLORMESSAGE("【의뢰 실패】", C_YELLOW, 2,1)
+	CFLAG:(IRAI_CLIENT:LOCAL):의뢰상황 = 4
+NEXT
+[SKIPEND]
+
+;데일리
+;SIF CFLAG:MASTER:현재위치 != OMANEKIBEYA() && CFLAG:MASTER:데이트중 == MAIN_MAP
+SIF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치
+	CALL DAIRYEVENT
+;밭의 관리
+CALL YASAI
+
+;대본소
+CALL BOOKLEND
+
+CALL 주조
+
+CALL MOENY_HENDOU
+
+
+
+MONEY:1 += MAXBASE:MASTER:TSP - BASE:MASTER:TSP
+IF MAXBASE:MASTER:TSP >= 4000&&(MAXBASE:MASTER:TSP - BASE:MASTER:TSP)>MAXBASE:MASTER:TSP/2 ; 첫 IF행 KR판 구잔재 또는 오리지날
+	DRAWLINE
+	PRINTFORML TSP가 {(MAXBASE:MASTER:TSP - BASE:MASTER:TSP)/100}만큼 올랐다.
+	MAXBASE:MASTER:TSP+=(MAXBASE:MASTER:TSP - BASE:MASTER:TSP)/100
+ELSEIF MONEY:1 >= 30000 && MAXBASE:MASTER:TSP == 2500
+	DRAWLINE
+	PRINTFORML 시간정지 능력이 극한 진화했다!
+	MAXBASE:MASTER:TSP = 4000
+ELSEIF MONEY:1 >= 10000 && MAXBASE:MASTER:TSP == 1500
+	DRAWLINE
+	PRINTFORML 시간정지 능력의 취급이 최고로 능숙해졌다!
+	MAXBASE:MASTER:TSP = 2500
+ELSEIF MONEY:1 >= 5000 && MAXBASE:MASTER:TSP == 800
+	DRAWLINE
+	PRINTFORML 시간정지 능력의 취급이 꽤 능숙해졌다!
+	MAXBASE:MASTER:TSP = 1500
+ELSEIF MONEY:1 >= 1800 && MAXBASE:MASTER:TSP == 500
+	DRAWLINE
+	PRINTFORML 시간정지 능력의 취급이 능숙해졌다!
+	MAXBASE:MASTER:TSP = 800
+ELSEIF MONEY:1 >= 500 && MAXBASE:MASTER:TSP == 200
+	DRAWLINE
+	PRINTFORML 시간정지 능력의 취급이 조금 능숙해졌다!
+	MAXBASE:MASTER:TSP = 500
+ELSEIF MONEY:1 >= 150 && MAXBASE:MASTER:TSP == 100
+	DRAWLINE
+	PRINTFORML 시간정지 능력의 취급이 살짝 능숙해졌다!
+	MAXBASE:MASTER:TSP = 200
+ENDIF
+
+BASE:MASTER:TSP = MAXBASE:MASTER:TSP
+
+IF TALENT:MASTER:2 & 2
+	IF BASE:MASTER:정력 == MAXBASE:MASTER:정력 && !GETBIT(TFLAG:일일일회, 8)
+		FLAG:71 ++
+		IF FLAG:71 >= 5 && !RAND:3
+			DRAWLINE
+			PRINTFORML 최근 뽑지 않은 키 있고로 응 짜증 한다……!
+			PRINTFORML %마스터는% 이불 속에서 몸부림쳐 돌았다
+			CALL COLORMESSAGE("스트레스로 일시적으로 기력의 최대치가 감소했다", C_YELLOW, 2,1)
+			변동치 = MIN(MAXBASE:MASTER:기력 * 20 / 100, 500)
+			CALL BUFF_BASE(MASTER, BASE_기력,-변동치)
+		ELSEIF FLAG:71 >= 3
+			TALENT:MASTER:120 = 1
+			PRINTL 그러고 보니  요즈음 뽑지 않았다…
+		ENDIF
+	ELSE
+		FLAG:71 = 0
+		TALENT:MASTER:120 = 0
+	ENDIF
+	IF BASE:MASTER:정력 < MAXBASE:MASTER:정력 * 2 / 10 && BASE:MASTER:체력 > 500
+		DRAWLINE
+		PRINTFORML 오늘은 가득 사정하고 싶다……
+		PRINTFORML %마스터는% 기분 좋은 권태감 속에서 행복하게 잠들었다
+		CALL COLORMESSAGE("일시적으로 TSP와 기력의 최대치가 증가했다", C_YELLOW, 2,1)
+		변동치 = MIN(MAXBASE:MASTER:기력 / 10, 300)
+		CALL BUFF_BASE(MASTER, BASE_기력, 변동치)
+		변동치 = MIN(MAXBASE:MASTER:TSP / 2, 500)
+		CALL BUFF_BASE(MASTER, BASE_TSP, 변동치)
+	ENDIF
+ENDIF
+
+
+
+CALL ONANISM
+
+SIF FLAG:술집매입강화 > 0
+	FLAG:술집매입강화 --
+;무슨주를 얻을 수 있었는지
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:LOCAL:출금
+		CONTINUE
+	CALL SOURCE_ABLUP(LOCAL)
+	CALL JUEL_CHECK(LOCAL)
+	CALL DENIAL_CHECK(LOCAL)
+	SIF TALENT:LOCAL:스침 
+		CFLAG:LOCAL:출금 = 2
+NEXT
+
+BEGIN ABLUP
+
+
+
+@JUEL_CHECK(ARG)
+FOR LOCAL, 0,100
+	IF PALAM:ARG:LOCAL < PALAMLV:1
+		LOCAL:1 = 0
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:1*3
+		LOCAL:1 = 1
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:2
+		LOCAL:1 = 2
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:2*3
+		LOCAL:1 = 10
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:3
+		LOCAL:1 = 20
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:3*2
+		LOCAL:1 = 100
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:4
+		LOCAL:1 = 200
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:5
+		LOCAL:1 = 1000
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:6
+		LOCAL:1 = 2000
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:7
+		LOCAL:1 = 3000
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:8
+		LOCAL:1 = 5000
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:9
+		LOCAL:1 = 8000
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:10
+		LOCAL:1 = 12000
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:11
+		LOCAL:1 = 25000
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:12
+		LOCAL:1 = 40000
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:13
+		LOCAL:1 = 60000
+	ELSEIF PALAM:ARG:LOCAL < PALAMLV:14
+		LOCAL:1 = 100000
+	ELSE
+		LOCAL:1 = 150000
+	ENDIF
+	;쾌감계
+	IF LOCAL >= 0 && LOCAL < 9
+		GOTJUEL:ARG:LOCAL = LOCAL:1 + EX:ARG:LOCAL * 1000
+	;그 외
+	ELSEIF LOCAL < 30
+		GOTJUEL:ARG:LOCAL = LOCAL:1
+	;부정의 구슬
+	ELSEIF LOCAL == 30 || LOCAL == 31 || LOCAL == 32
+		GOTJUEL:ARG:100 += LOCAL:1
+	ENDIF
+NEXT
+JUEL:ARG:100 += GOTJUEL:ARG:100
+FOR LOCAL, 0,100
+	SIF !STRLENS(PALAMNAME:LOCAL)
+		CONTINUE
+	SIF LOCAL != 9 &&LOCAL != 30 && LOCAL != 31 && LOCAL != 32
+		JUEL:ARG:LOCAL += GOTJUEL:ARG:LOCAL
+NEXT
+@DENIAL_CHECK(ARG)
+SIF JUEL:ARG:100 == 0
+	RETURN 0
+LOCAL = 1
+WHILE LOCAL
+	SIF !JUEL:ARG:부정 || (!JUEL:ARG:복종 && !JUEL:ARG:욕정 && !JUEL:ARG:굴복)
+		BREAK
+	LOCAL:1 = JUEL:ARG:부정 == 1 ? 1 # JUEL:ARG:부정 / 2
+	;JUEL:10~12로 소비
+	LOCAL:2 = RAND:3 + 10
+	SIF LOCAL:1 > JUEL:ARG:(LOCAL:2)
+		LOCAL:1 = JUEL:ARG:(LOCAL:2)
+	JUEL:ARG:부정 -= LOCAL:1
+	JUEL:ARG:(LOCAL:2) -= LOCAL:1
+WEND
+LOCAL = 1
+WHILE LOCAL
+	SIF !JUEL:ARG:부정 || (!JUEL:ARG:치정 && !JUEL:ARG:고통 && !JUEL:ARG:공포 && !JUEL:ARG:호의 && !JUEL:ARG:우월)
+		BREAK
+	LOCAL:1 = JUEL:ARG:부정 == 1 ? 1 # JUEL:ARG:부정 / 2
+	;JUEL:14~16으로 소비
+	LOCAL:2 = RAND:5
+	SELECTCASE LOCAL:2
+		CASE 0
+			LOCAL:2 = 14
+		CASE 1
+			LOCAL:2 = 15
+		CASE 2
+			LOCAL:2 = 16
+		CASE 3
+			LOCAL:2 = 20
+		CASE 4
+			LOCAL:2 = 21
+	ENDSELECT
+	SIF LOCAL:1 > JUEL:ARG:(LOCAL:2)
+		LOCAL:1 = JUEL:ARG:(LOCAL:2)
+	JUEL:ARG:부정 -= LOCAL:1
+	JUEL:ARG:(LOCAL:2) -= LOCAL:1
+WEND
+
+@ONANISM
+#DIM 욕구불만
+#DIM 만족도
+#DIM 질투도
+#DIM 구슬입수배율
+#DIM 부위지정
+#DIM 추가V자위
+#DIM 추가A자위
+#DIM 추가B자위
+#DIM 자위타입
+#DIM 자위발생최소치
+#DIM CONST 문자사아즈 = 15
+#DIM 자위화상
+VARSET LOCAL
+
+FOR LOCAL,1,CHARANUM
+	SIF CFLAG:LOCAL:출금
+		CONTINUE
+	부위지정 = 0
+	자위타입 = 0
+	추가V자위 = 0
+	추가A자위 = 0
+	추가B자위 = 0
+	자위발생최소치 = LIMIT(750 - 200 * TALENT:LOCAL:자위하기쉬움 - 100 * TALENT:LOCAL:쾌감응답 - 100 * TALENT:LOCAL:자기애 + 200 * TALENT:LOCAL:자제심, 500,999)
+	자위발생최소치 -= 300 * TALENT:LOCAL:자위중독
+	IF CFLAG:LOCAL:딸딸이들킴
+		PRINTFORML %CALLNAME:LOCAL%는 베개에 얼굴을 묻어 푸드득푸드득 하고 있다…
+	ELSEIF CFLAG:LOCAL:욕구불만도 > 자위발생최소치
+		CALL PrintOnanismImage(LOCAL)
+		LOCAL:1 = 0
+		IF TALENT:LOCAL:애욕
+			LOCAL:1 = 4
+		ELSEIF TALENT:LOCAL:연모
+			LOCAL:1 = 3
+		ELSEIF TALENT:LOCAL:섹프
+			;정부도 여기
+			LOCAL:1 = 2
+		ELSEIF TALENT:LOCAL:사모
+			LOCAL:1 = 1
+		ENDIF
+		IF TALENT:LOCAL:자제심 && LOCAL:1 < 5
+			LOCAL:1 += 1
+		ENDIF
+		IF CFLAG:LOCAL:기정사실 & 합의_우후후 && !RAND:(8 - LOCAL:1)
+			PRINTFORML %CALLNAME:LOCAL%는 몸의 쑤심에 괴로워하면서도, 내일 %CALLNAME:MASTER%에 안아주려고 생각해 당신을 억지로 잠에 올랐다……
+			자위타입 = 7
+			;CALL KOJO_MESSAGE_SEND("EVENT", 22, LOCAL, 7)
+			CFLAG:LOCAL:욕구불만도 = LIMIT(CFLAG:LOCAL:욕구불만도 + 100, 0 , 1000)
+			SIF !CFLAG:LOCAL:신사거주 
+				CFLAG:LOCAL:다음날내방 = 1
+			PRINTL
+		ELSEIF CFLAG:MASTER:현재위치 == CFLAG:LOCAL:초기위치
+			PRINTFORML 한밤중, %마스터는% 소리를 들어 눈을 떴다
+			PRINTFORML ……%CALLNAME:LOCAL%가 %CALLNAME:MASTER%의 손을 잡으면서 소리를 눌러 참아 자위에 빠지고 있었다……
+			자위타입 = 2
+		ELSEIF ABL:LOCAL:정액중독 > 2 && EX:LOCAL:질내정액 && !RAND:4
+			PRINTFORML 참을 수 없어진 %CALLNAME:LOCAL%는, 질내에 남는 %CALLNAME:MASTER%의 정액을 박아 넣어 친숙해 지게 하도록(듯이) 자위를 했다……
+			자위타입 = 3
+		ELSEIF TALENT:LOCAL:무지
+			LOCAL:1 = 0
+			LOCAL:1 = EXP:LOCAL:자위경험 - EXP:LOCAL:조교자위경험
+			IF LOCAL:1 >= 120 - (MIN(ABL:LOCAL:친밀, 6) * 10) && !FLAG:무지자동상실금지
+				PRINTFORMW 마침내 %CALLNAME:LOCAL%는 보호자에게 상담했다……
+				PRINTFORMW %CALLNAME:LOCAL%는 무지를 잃었다……
+				TALENT:LOCAL:무지 = 0
+			ELSEIF LOCAL:1 >= 80 - (MIN(ABL:LOCAL:친밀,4) * 10)
+				PRINTFORML %CALLNAME:LOCAL%는 자위를 자위와 모르는 채 자위에 몰두하고 있다……
+			ELSEIF LOCAL:1 >= 50 - (MIN(ABL:LOCAL:친밀,3) * 10)
+				PRINTFORML %CALLNAME:LOCAL%는 책상의 모퉁이에 가랑이를 꽉 누르면서 허리를 거절해, 비소를 자극했다……
+			ELSEIF LOCAL:1 >= 30 - (MIN(ABL:LOCAL:친밀,2) * 10)
+				PRINTFORML %CALLNAME:LOCAL%는 책을 가랑이에 끼워 어린 비렬을 자극했다……
+			ELSEIF LOCAL:1 >= 15 - (MIN(ABL:LOCAL:친밀,1) * 10)
+				PRINTFORML %CALLNAME:LOCAL%는 공부중에 붓을 고간에 맞혀, 말랑말랑의 균열부를 켰다 ……
+			ELSE
+				PRINTFORML %CALLNAME:LOCAL%는 침상에 옆으로 누워서면서 태퇴를 조정 괴로워하고 있다……
+			ENDIF
+			자위타입 = 4
+		ELSEIF ABL:LOCAL:자위중독 > 3 && (TALENT:LOCAL:사모 || TALENT:LOCAL:연모 || TALENT:LOCAL:연인 || TALENT:LOCAL:애욕 || TALENT:LOCAL:섹프) && !RAND:3
+			PRINTFORML 어떻게도 참을 수 없게 된%CALLNAME:LOCAL%는, 옷에 배어든%CALLNAME:MASTER%의 냄새를 맡아면서 격렬한 자위를 했다……
+			LOCAL:2 = RAND:5
+			IF (TALENT:LOCAL:C감도 == 1 || ABL:LOCAL:C감각 >= 10) && LOCAL:2 == 4
+				PRINTFORM 음핵을 깎아, 애액을 분출하면서 지관, 행위에 몰두했지만
+				부위지정 = 1
+			ELSEIF (TALENT:LOCAL:V감도 == 1 || ABL:LOCAL:V감각 >= 10) && LOCAL:2 == 3
+				PRINTFORM 꿀 단지에 손가락을 깊숙이 삽입해 애액을 계속 긁어냈지만
+				부위지정 = 2
+				추가V자위 = 1
+			ELSEIF (TALENT:LOCAL:A감도 == 1 || ABL:LOCAL:A감각 >= 10) && LOCAL:2 == 2
+				PRINTFORM 비소 뿐만이 아니라 항문도 요계속했지만
+				부위지정 = 3
+				추가A자위 = 1
+			ELSEIF (TALENT:LOCAL:B감도 == 1 || ABL:LOCAL:B감각 >= 10) && LOCAL:2 == 1
+				IF TALENT:LOCAL:가슴사이즈 >= 1
+					PRINTFORM 스스로의 풍만한 유방을 질네라고 빨아 올려
+				ELSEIF TALENT:LOCAL:가슴사이즈 <= -1
+					PRINTFORM 얇은 가슴을 어루만지고 돌리면서 유두를 문지르며,
+				ELSE
+					PRINTFORM 부드러운 유방을 부드럽게 비비어 하기 만여,
+				ENDIF
+				PRINTFORM 몇 번이고 절정을 맞이하는 것도
+				부위지정 = 4
+				추가B자위 = 1
+			ELSE
+				;PRINTFORML 그러나 아무리 쾌감을 얻으려 해도 %CALLNAME:MASTER%에의 구상은 다스려질 것은 없고, %CALLNAME:LOCAL%는 아침까지 괴로워한 시간을 보냈다……
+				PRINTFORM 체내에 울리는 열락에 몸을 진동시키면서도
+				부위지정 = 5
+			ENDIF
+			IF TALENT:LOCAL:사모 || TALENT:LOCAL:연모 || TALENT:LOCAL:연인
+				PRINTFORML , %CALLNAME:MASTER%에의 구상은 다스려질 것은 없었다……
+			ELSE
+				PRINTFORML , 타오른 몸의 열은 들어가지 않았다……
+			ENDIF
+			추가V자위 = 1
+			자위타입 = 5
+		ELSEIF ABL:LOCAL:자위중독 > 3 && !RAND:2
+			PRINTFORM 이미 손가락에서는 만족할 수 없어진 %CALLNAME:LOCAL%는 캇파로부터 입수한 완구
+			IF ABL:LOCAL:A감각 >= 5
+				IF TALENT:LOCAL:정조 == -1 && TALENT:LOCAL:처녀 == 0
+					PRINTFORM 를 질과 아누스의 깊숙한 곳까지 질네 붐비어
+					추가V자위 = 1
+				ELSEIF TALENT:LOCAL:정조 == 1
+					PRINTFORM 를 비소와 항문에 꽉 눌러
+				ELSE
+					PRINTFORM 로 비소와 항문을 만지작거려
+				ENDIF
+				부위지정 = 3
+				추가A자위 = 1
+			ELSE
+				IF TALENT:LOCAL:정조 == -1 && TALENT:LOCAL:처녀 == 0
+					PRINTFORM 를 질의 깊숙한 곳까지 질네 붐비어
+					추가V자위 = 1
+				ELSEIF TALENT:LOCAL:정조 == 1
+					PRINTFORM 를 비소에 꽉 눌러
+				ELSE
+					PRINTFORM 로 비소를 만지작거려
+				ENDIF
+				부위지정 = 1
+			ENDIF
+			PRINTFORML 자위에 빠지고 있다…
+			자위타입 = 6
+		ELSE
+			PRINTFORML 쑤시는 몸을 끝내 억누를 수 없어진 %CALLNAME:LOCAL%는 음부를 자기 손가락으로 만지작거렸다…
+			자위타입 = 1
+		ENDIF
+		CALL KOJO_MESSAGE_SEND("EVENT", 22, LOCAL, 자위타입, 부위지정)
+		SIF 자위타입 == 7
+			CONTINUE
+		EXP:LOCAL:자위경험 += ABL:LOCAL:자위중독 * 2 + 1
+		CALL COLORMESSAGE(@"자위경험＋{ABL:LOCAL:자위중독 * 2 + 1}", C_PINK, 1)
+		SELECTCASE ABL:LOCAL:자위중독
+			CASE 0 TO 2
+				구슬입수배율 = 5
+			CASE 3 TO 5
+				구슬입수배율 = 3
+			CASEELSE
+				구슬입수배율 = 1
+		ENDSELECT
+		;쾌C
+		CALL JUEL_UP_SPECIAL(LOCAL,"쾌C","C감각", 구슬입수배율, 1)
+		SIF 추가V자위
+			CALL JUEL_UP_SPECIAL(LOCAL,"쾌V","V감각", 구슬입수배율, 1)
+		SIF 추가A자위
+			CALL JUEL_UP_SPECIAL(LOCAL,"쾌A","A감각", 구슬입수배율, 1)
+		SIF CFLAG:LOCAL:패배자위 == 1
+			CALL JUEL_UP_SPECIAL(LOCAL,"고통","마조끼", 구슬입수배율 * ABL:LOCAL:마조끼, 1)
+		;치정
+		CALL JUEL_UP_SPECIAL(LOCAL,"치정","자위중독", 구슬입수배율 * 2,1)
+		;욕정
+		CALL JUEL_UP_SPECIAL(LOCAL,"욕정","욕망", 구슬입수배율, 1)
+		CFLAG:LOCAL:욕구불만도 /= 4
+		PRINTFORML 
+	ENDIF
+	;우선 욕망으로 기초치를 결정한다
+	SELECTCASE ABL:LOCAL:욕망
+		CASE 0 TO 2
+			욕구불만 = 10
+		CASE 3 TO 5
+			욕구불만 = 20
+		CASE 6 TO 10
+			욕구불만 = 30
+		CASE 10 TO 15
+			욕구불만 = 50
+		CASEELSE
+			욕구불만 = 80
+	ENDSELECT
+
+	욕구불만 += ABL:LOCAL:자위중독 * 7 + (ABL:LOCAL:질내사정중독 + ABL:LOCAL:항내사정중독) * 3
+	욕구불만 = 욕구불만소질보정(LOCAL, 욕구불만)
+	SELECTCASE 욕구불만
+		CASE IS > 400
+			욕구불만 = (욕구불만 - 400) / 10 + 400
+		CASE IS > 200
+			욕구불만 = (욕구불만 - 200) / 4 + 200
+		CASE IS > 100
+			욕구불만 = (욕구불만 - 100) / 2 + 100
+	ENDSELECT
+	SIF 자위타입
+		욕구불만 = 0
+	SIF TCVAR:LOCAL:오늘만났는지
+		욕구불만 /= 2
+	SIF TALENT:LOCAL:임신
+		욕구불만 /= 5
+	SIF TALENT:LOCAL:육아중
+		욕구불만 /= 2
+	;욕구불만도는0~1000의 사이에
+	CFLAG:LOCAL:욕구불만도 = LIMIT(CFLAG:LOCAL:욕구불만도 + 욕구불만, 0, 1000)
+	DEBUGPRINTFORML %CALLNAME:LOCAL%의 만족도：{만족도}　욕구 불만 상승치：{욕구불만}　욕구불만도：{CFLAG:LOCAL:욕구불만도}
+NEXT
+
+@DAIRYEVENT
+;우선 30만.
+#DIM EVENT_DAY, 30
+
+CALL FISHER_YATES_SHAFFLE(30)
+ARRAYCOPY "SHAFFLE_ARRAY" , "EVENT_DAY"
+
+DRAWLINE
+FOR LOCAL, 0,30
+	RESULT = 0
+	TRYCALLFORM DAIRY_CONDITION_EV{EVENT_DAY:LOCAL}
+	IF RESULT > 0
+		DEBUGPRINTFORML 데일리 이벤트{EVENT_DAY:LOCAL}가 발생했어
+		DRAWLINE
+		BREAK
+	ENDIF
+	SIF RESULT == -1
+		DEBUGPRINTFORML 데일리 이벤트{EVENT_DAY:LOCAL}는 발생 조건을 채우지 않았다
+NEXT
+;PRINTFORMW 
+PRINTFORML 
+
+
+@욕구불만소질보정(ARG, ARG:1)
+#FUNCTION
+LOCAL = ARG:1
+SIF TALENT:ARG:자제심
+	LOCAL /= 2
+SIF TALENT:ARG:자기애 < 0
+	LOCAL /= 2
+SIF TALENT:ARG:자기애 > 0
+	LOCAL = LOCAL * 5 / 4
+SIF TALENT:ARG:유치 && !TALENT:ARG:초경
+	LOCAL /= 4
+SIF TALENT:ARG:임신
+	LOCAL /= 4
+SIF TALENT:ARG:육아중
+	LOCAL /= 2
+SIF CFLAG:ARG:딸딸이들킴
+	LOCAL /= 4
+RETURNF LOCAL

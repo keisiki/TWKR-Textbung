@@ -1,0 +1,371 @@
+﻿;목재상
+@COM623
+#DIM 제재판정
+#DIM 판매가
+#DIM 루프수
+#DIM 결과보관
+#DIM 후보번호
+#DIM 후보개수
+#DIM 매각개수
+#DIM ProcessingCharge
+루프수 = 0
+
+;開店時間・閉店時間
+IF INRANGE(TIME:0, 540, 1080) == 0
+	PRINTFORMW 영업시간 외 같다
+	RETURN -1
+ENDIF
+
+
+;初回イベント
+IF FLAG:마지막목재상방문일 == 0
+	;初回イベント前は、통나무持ちでなければ店にも入れない
+	IF ITEM:통나무 == 0
+		PRINTFORMW 特に今は用はない…売り物になる材木を伐ってこなくては
+		RETURN -1
+	ENDIF
+	;依頼の報酬など、伐採以外で통나무を入手してしまった場合の退避用
+	SIF !FLAG:통나무종류
+		FLAG:통나무종류 = MAX(RAND:12, 1)
+	PRINTFORMW 「はいどうも、私がここの主です。お客さまが、통나무を納めたいという方で？」
+	PRINTFORMW 「では、品のほうを拝見させていただきましょうか」
+	PRINTFORMW 「………」
+	PRINTFORMW 「ほう、なかなかのものですね……」
+	PRINTFORMW 「……え？　その気になれば、毎日でも持って来られる？　里の外ならいっぱい生えてるから？」
+	PRINTFORMW 「…………」
+	PRINTFORMW 「……ただ者じゃあないね、お客さん」
+	PRINTFORMW 「いいだろう。伐採してきた통나무、ウチで買い取らせてもらおう」
+	PRINTFORMW 「もちろん、材として価値のあるものは高く、そうでないものは安く買い取るぞ」
+	PRINTFORMW 「家具やらなにやらで제재が必要なら、持ってきた통나무を제재に加工してやってもいい。それなりに作業代はいただくがな」
+	PRINTFORMW 「それじゃあ、今回の品物をもう一度検めさせてもらおうか」
+	;판매가はここで設定、基本的に中途キャンセルはしない
+	판매가 = WOOD_VALUE(FLAG:통나무종류)
+	SETCOLOR 0x00FF00
+	PRINTFORMD 「
+	PRINTFORM %WOOD_NAME(FLAG:통나무종류)%
+	PRINTFORMD だな……
+	PRINTFORM \\{판매가}
+	RESETCOLOR
+	PRINTFORMW で買い取らせてもらおう」
+	PRINTFORMW 　　所持金: \\%TOSTR(MONEY,"#,###")% → \\%TOSTR(MONEY + 판매가,"#,###")%
+	PRINTFORMW 「これで取引終了だ。じゃあ、次の商品も待ってるぞ」
+	PRINTFORMW 「なに、妖精や妖怪が跋扈する山林から木を伐り出してこれる木こりなんて、そう多くはないからな。期待してるぞ？」
+	PRINTW 
+	MONEY += 판매가
+	ITEM:통나무 = 0
+	FLAG:통나무종류 = 0
+	루프수 = 1
+ENDIF
+
+$LOOP_SELECT
+
+IF 루프수
+	PRINTL 
+	PRINTFORMW 「さて、ほかにも用はあるか？」
+ELSE
+	;平常来店
+	PRINTL 
+	IF DAY:0 - FLAG:마지막목재상방문일 > 28
+		PRINTFORMW 「おう、なんだ。てっきり山仕事からは足を洗ったのかと思ったぞ」
+	ELSEIF DAY:0 - FLAG:마지막목재상방문일 > 14
+		PRINTFORMW 「おう、久しぶりだな」
+	ELSEIF FLAG:마지막목재상방문일 == DAY:0
+		PRINTFORMW 「なんだ、忘れ物か？　せわしないやつだな」
+	ELSE
+		PRINTFORMW 「おう、今日は何の用だ？」
+	ENDIF
+ENDIF
+
+루프수 ++
+FLAG:마지막목재상방문일 = DAY:0
+
+PRINTFORML 　　소지금: \\%TOSTR(MONEY,"#,###")%
+DRAWLINE
+
+CALL ASK_M("통나무매각・제재", ITEM:통나무, "목재를 판다", ITEM:목재, "제재를 판다", 4, "取引内容を確認する", 5, "店を出る", 6)
+결과보관 = RESULT
+ProcessingCharge = LUMBERING(FLAG:통나무종류, "목재상")
+CLEARLINE 12
+SELECTCASE 결과보관
+	;통나무を売る　제재してほしい
+	CASE 0
+		;依頼の報酬など、伐採以外で통나무を入手してしまった場合の退避用
+		SIF !FLAG:통나무종류
+			FLAG:통나무종류 = MAX(RAND:12, 1)
+		SETCOLOR 0x00FF00
+		PRINTFORML 「%WOOD_NAME(FLAG:통나무종류)%だな……」
+		판매가 = WOOD_VALUE(FLAG:통나무종류)
+		PRINTFORMD 「買取なら買値は
+		PRINTFORM \\%TOSTR(판매가,"#,###")%
+		PRINTFORMD 、제재するなら手間賃
+		PRINTFORM \\%TOSTR(ProcessingCharge,"#,###")%
+		RESETCOLOR
+		PRINTFORMW いただくぞ」
+		CALL ASK_M("매각", 1, "제재", MONEY > ProcessingCharge,"やっぱり그만둔다", 1)
+		SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 　所持金: \\ → \\%TOSTR(MONEY + 판매가,"#,###")%
+				PRINTFORMW 「毎度。じゃあ、次の商品を待ってるぞ」
+				PRINTL 
+				MONEY += 판매가
+			CASE 1
+				PRINTL 
+				PRINTFORMW 　所持金: \\%TOSTR(MONEY,"#,###")% → \\%TOSTR(MONEY - ProcessingCharge,"#,###")%
+				PRINT 　
+				CALL PAY_MONEY_YEN(ProcessingCharge, 2)
+				PRINTL 
+				PRINTFORMW 「はいよ。じゃあ、作業にかからせよう」
+				CALL LogRefine("목재상")
+			CASE 2
+				PRINTFORMW 「なんだ、別にアテがあるのか？」
+				PRINTL 
+				GOTO LOOP_SELECT
+		ENDSELECT
+		ITEM:통나무 = 0
+		FLAG:통나무종류 = 0
+	;목재を売る
+	CASE 1
+		후보개수 = ITEM:목재
+		후보번호 = 610
+		PRINTFORM 「%ITEMNAME:후보번호%なら　\\%TOSTR(ITEMPRICE:후보번호 / 2,"#,###")%で買い取るが、どうだ？」
+		CALL COM623_SELL(후보개수)
+		SELECTCASE RESULT
+			CASE 0
+				PRINTL 
+				GOTO LOOP_SELECT
+			CASE 1 TO 후보개수
+				CLEARLINE 2
+				매각개수 = RESULT
+				PRINTFORML 「それじゃあ%ITEMNAME:후보번호%を{매각개수}つ、\\%TOSTR((ITEMPRICE:(후보번호) / 2 * 매각개수),"#,###")%で買い取らせてもらおう」
+				PRINTFORMW 　所持金: \\%TOSTR(MONEY,"#,###")% → \\%TOSTR(MONEY + (ITEMPRICE:(후보번호) / 2 * 매각개수),"#,###")%
+				MONEY += (ITEMPRICE:(후보번호) / 2 * 매각개수)
+				ITEM:후보번호 -= 매각개수
+				PRINTL 
+				GOTO LOOP_SELECT
+		ENDSELECT
+	;제재を売る
+	CASE 2
+		제재판정 = 0
+		FOR LOCAL, 1, 50
+			SIF LOG_SALES:LOCAL
+				BREAK
+			제재판정 ++
+		NEXT
+		IF 제재판정 > 48
+			PRINTFORMW 제재を持ってない
+			PRINTL 
+			GOTO LOOP_SELECT
+		ENDIF
+		PRINTFORMW 「제재を仕入れてきたのか。どれどれ」
+		DRAWLINE
+		FOR LOCAL, 1, 50
+			SIF LOG_SALES:LOCAL == 0
+				CONTINUE
+			PRINTFORM 　
+			SIF LOCAL < 10
+				PRINTFORM  
+			PRINTFORM [{LOCAL}] 
+			PRINTFORM %WOOD_NAME(LOCAL), 16, LEFT%
+			PRINTFORM 제재数： 
+			SELECTCASE LOG_SALES:LOCAL
+				CASE IS < 10
+					PRINTFORM     
+				CASE IS < 100
+					PRINTFORM    
+				CASE IS < 1000
+					PRINTFORM   
+				CASE IS < 10000
+					PRINTFORM  
+			ENDSELECT
+			PRINTFORML {LOG_SALES:LOCAL}
+		NEXT
+		PRINTFORML 　 [0] 그만둔다
+
+		$INPUT_LOOP03
+		INPUT
+		
+		결과보관 = RESULT
+		IF 결과보관 && LOG_SALES:결과보관
+			판매가 = WOOD_VALUE(결과보관, "제재")
+			후보개수 = LOG_SALES:결과보관
+			SETCOLOR 0x00FF00
+			PRINTFORMD 「
+			PRINTFORM %WOOD_NAME(결과보관)%
+			PRINTFORMD の제재なら
+			PRINTFORM \\%TOSTR(판매가,"#,###")%
+			RESETCOLOR
+			PRINTFORML で買い取るが、どうだ？」
+			CALL COM623_SELL(후보개수)
+			SELECTCASE RESULT
+				CASE 0
+					PRINTL 
+					GOTO LOOP_SELECT
+				CASE 1 TO 후보개수
+					CLEARLINE 2
+					매각개수 = RESULT
+					PRINTFORML 「それじゃあ%WOOD_NAME(결과보관)%の제재を{매각개수}本、\\%TOSTR(판매가 * 매각개수,"#,###")%で買い取らせてもらおう」
+					PRINTFORMW 　所持金: \\%TOSTR(MONEY,"#,###")% → \\%TOSTR(MONEY + (판매가 * 매각개수),"#,###")%
+					MONEY += 판매가 * 매각개수
+					LOG_SALES:결과보관 -= 매각개수
+					PRINTL 
+			ENDSELECT
+		ELSEIF 결과보관 == 0
+			PRINTL 
+			GOTO LOOP_SELECT
+		ELSE
+			CLEARLINE 1
+			GOTO INPUT_LOOP03
+		ENDIF
+	;取引内容を確認する
+	CASE 3
+		PRINTFORMW 「持ち込みの통나무や竹材、제재を買い取り中だ」
+		PRINTFORMW 「持て余してるなら、端材・목재の類も引き取るぞ。まあ、二束三文にしかならないがな」
+		PRINTFORMW 「必要なら통나무の제재も請け負おう。ただし、통나무の種類・大きさに応じて作業費を払ってもらう」
+		PRINTFORMW 「ちなみに、此処で제재したものを此処に卸しても損しかしないからな。寄付のつもりなら歓迎するが」
+		PRINTFORMW 「……なに、家具が欲しい？　それはうちの領分じゃないな。家具職人をあたってくれよ」
+		PRINTL 
+	CASE 4
+		PRINTFORMW 「おう、それじゃあな」
+		PRINTL 
+		TIME += 루프수 * 5
+		RETURN -1
+ENDSELECT
+GOTO LOOP_SELECT
+
+;-------------------------------------------------
+;実行可能判定
+;-------------------------------------------------
+;목재상
+@COM_ABLE623
+;一括管理
+SIF GLOBAL_COMABLE(623)
+	RETURN RESULT
+
+IF !AT_HOME(MASTER)
+	SIF CFLAG:MASTER:현재위치 != 상가거리
+		RETURN 0
+ELSE
+	;西通り
+	SIF CFLAG:MASTER:현재위치 != 206
+		RETURN 0
+ENDIF
+;睡眠中
+SIF CFLAG:수면
+	RETURN 0
+;時間停止中
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;통나무・제재の매각価格を設定する関数
+;何回か見る場合もあるので、その日の中では固定値出力
+;ARG:0		FLAG:통나무종류
+;Type		매각価格  省略時は통나무
+;-------------------------------------------------
+@WOOD_VALUE(ARG:0, Type)
+#FUNCTION
+#DIM Species
+#DIM 판매가베이스
+#DIM 입담보정
+#DIMS Type
+
+Species = ARG % 100
+
+IF Type == "제재"
+	판매가베이스 =WoodValue_Plank:Species
+ELSE
+	판매가베이스 = WoodValue_Log:Species
+ENDIF
+
+;日替わり変動
+판매가베이스 += FLAG:일일이벤트 * 2
+
+;입담보정  日付で乱数を固定
+RANDOMIZE DAY:0
+입담보정 = RAND:(1 + ABL:MASTER:화술기능 * 5 + ABL:MASTER:교양)
+
+SELECTCASE 입담보정
+	CASE 0 TO 10
+
+	CASE 11 TO 20
+		TIMES 판매가베이스, 1.05
+	CASE 21 TO 30
+		TIMES 판매가베이스, 1.07
+	CASEELSE
+		TIMES 판매가베이스, 1.10
+ENDSELECT
+
+;통나무の時のみ、巨木・大木補正
+IF Type != "제재"
+	IF ARG > 200
+		판매가베이스 *= 5
+	ELSEIF ARG > 100
+		판매가베이스 *= 3
+	ENDIF
+ENDIF
+RETURNF 판매가베이스
+
+
+;-------------------------------------------------
+;FLAG:통나무종류から、巨木・大木を無視して목재種番号を取り出す関数
+;ARG…FLAG:통나무종류
+;-------------------------------------------------
+@WOOD_NUM(ARG)
+#FUNCTION
+
+RETURNF ARG % 100
+
+;-------------------------------------------------
+;제재コスト、제재数を割り出す関数
+;複数回選べるので、固定値を出す
+;ARG	FLAG:통나무종류
+;Type	価格ないし제재数
+;-------------------------------------------------
+@LUMBERING(ARG, Craft, Type)
+#FUNCTION
+#DIM 비용베이스
+#DIMS Craft
+#DIMS Type
+
+IF Type == "QTY"
+	RETURNF 1 + (ARG / 100) * 2
+ENDIF
+
+비용베이스 = WOOD_VALUE(ARG)
+
+SELECTCASE Craft
+	CASE "목재상"
+		RETURNF 비용베이스 / 2
+	CASE "제재소"
+		RETURNF 비용베이스 / 4
+ENDSELECT
+
+RETURNF 0
+
+@COM623_SELL(후보개수)
+#DIM 후보개수
+SETCOLOR 0x777777
+PRINTFORML 　몇 개 판매하겠습니까? (1～{후보개수}개 숫자를 입력、0으로 돌아간다)
+RESETCOLOR
+PRINTL 
+PRINT 　
+PRINTBUTTON "[0] 그만둔다", 0
+PRINT     
+PRINTBUTTON "[1] 1개", 1
+PRINT     
+IF 후보개수 >= 5
+	PRINTBUTTON "[5] 5개", 5
+	PRINT     
+ENDIF
+IF 후보개수 >= 10
+	PRINTBUTTON "[10] 10개", 10
+	PRINT    
+ENDIF
+INPUT
+SIF RESULT > 후보개수
+	RETURN 0
+SIF RESULT <= 0
+	RETURN 0
+RETURN RESULT

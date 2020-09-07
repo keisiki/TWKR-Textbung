@@ -1,0 +1,919 @@
+﻿;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;비TARGET 의존성 SOURCE
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_EXP(ARG)
+VARSET LOCAL
+SIF SOURCE:ARG:쾌C
+	EXP:ARG:0 ++
+SIF SOURCE:ARG:쾌V && (!TALENT:ARG:처녀 || TALENT:처녀 == -1|| !TFLAG:2)
+	EXP:ARG:1 ++
+SIF SOURCE:ARG:쾌A
+	EXP:ARG:2 ++
+SIF SOURCE:ARG:쾌B
+	EXP:ARG:3 ++
+SIF SOURCE:ARG:쾌M
+	EXP:ARG:4 ++
+SIF CFLAG:ARG:로터삽입 && EXP_UP(1, ARG) > 0
+	EXP:ARG:1 --
+SIF CFLAG:ARG:로터A삽입 && EXP_UP(2, ARG) > 0
+	EXP:ARG:2 --
+SIF TFLAG:펄삽입개수 && EXP_UP(2,MASTER) > 0 && ARG == MASTER
+	EXP:MASTER:2 --
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;사랑의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_사랑(ARG)
+VARSET LOCAL
+SIF TCVAR:ARG:억지로
+	SOURCE:ARG:사랑 /= 5
+LOCAL = SOURCE:ARG:사랑
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 1.20
+;ABL:순종을 본다
+LOCAL = ABL보정(LOCAL,ABL:ARG:순종,1)
+CUP:ARG:복종 += LOCAL
+
+LOCAL = SOURCE:ARG:사랑
+SIF FLAG:생활능력무 && !CFLAG:ARG:우후후
+	LOCAL = LOCAL * 3 / 2
+
+IF TALENT:ARG:스침 == 1
+	TIMES LOCAL, 1.50
+	SIF CFLAG:ARG:몸목적
+		TIMES LOCAL, 2.00
+ENDIF
+
+;욕망을 본다
+LOCAL = ABL보정(LOCAL,ABL:ARG:욕망,2)
+
+CUP:ARG:욕정 += LOCAL
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;성행동의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_성행동(ARG)
+VARSET LOCAL
+LOCAL = SOURCE:ARG:성행동
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 1.50
+;ABL:기교를 본다
+LOCAL = ABL보정(LOCAL,ABL:ARG:기교,1)
+
+;ABL:봉사정신을 본다
+SELECTCASE ABL:ARG:봉사정신
+	CASE 0
+		TIMES LOCAL , 0.60
+	CASE 1
+		TIMES LOCAL , 0.80
+	CASE 2
+		TIMES LOCAL , 1.00
+	CASE 3
+		TIMES LOCAL , 1.20
+	CASE 4
+		TIMES LOCAL , 1.40
+	CASE 5
+		TIMES LOCAL , 1.70
+	CASE 6
+		TIMES LOCAL , 2.00
+	CASE 7
+		TIMES LOCAL , 2.40
+	CASE 8
+		TIMES LOCAL , 2.80
+	CASE 9
+		TIMES LOCAL , 4.00
+	CASEELSE
+		TIMES LOCAL , 5.00
+ENDSELECT
+CUP:ARG:습득 += LOCAL
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;달성의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_달성(ARG)
+VARSET LOCAL
+LOCAL = SOURCE:ARG:달성
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 1.50
+;ABL:순종을 본다
+LOCAL = ABL보정(LOCAL,ABL:ARG:순종,1)
+
+;ABL:봉사정신을 본다
+LOCAL = ABL보정(LOCAL,ABL:ARG:봉사정신,1)
+
+CUP:ARG:복종 += LOCAL
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;고통의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_고통(ARG)
+VARSET LOCAL
+LOCAL = SOURCE:ARG:고통
+LOCAL:1 = SOURCE:ARG:고통
+LOCAL:2 = SOURCE:ARG:고통 / 20
+
+;마조끼
+SELECTCASE ABL:ARG:마조끼
+	CASE 0
+		TIMES LOCAL:1 , 0.00
+	CASE 1
+		TIMES LOCAL:1 , 0.10
+	CASE 2
+		TIMES LOCAL:1 , 0.20
+	CASE 3
+		TIMES LOCAL:1 , 0.30
+	CASE 4
+		TIMES LOCAL:1 , 0.45
+	CASE 5
+		TIMES LOCAL:1 , 0.60
+	CASE 6
+		TIMES LOCAL:1 , 0.75
+	CASE 7
+		TIMES LOCAL:1 , 0.90
+	CASE 8
+		TIMES LOCAL:1 , 1.20
+	CASE 9
+		TIMES LOCAL:1 , 1.50
+	CASEELSE
+		TIMES LOCAL:1 , 3.00
+ENDSELECT
+
+;난쟁이 체형
+IF TALENT:ARG:체형 < -2
+	TIMES LOCAL , 2.00
+	TIMES LOCAL:1 , 0.75
+ENDIF
+
+;조교자가【새드】
+SIF TALENT:PLAYER:새드
+	TIMES LOCAL:1 , 2.50
+
+;겁장이
+SIF TALENT:ARG:담력 < 0
+	TIMES LOCAL:2 , 2.00
+
+;마조마음이 있으면(자) PALAM:욕정도 오른다
+;그 때 조교자가【새드】라면 효과적
+;고통에 응해 공포의 소스가 증가한다
+CUP:ARG:고통 += LOCAL
+CUP:ARG:욕정 += LOCAL:1
+CUP:ARG:공포 += LOCAL:2
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;공포의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_공포(ARG)
+VARSET LOCAL
+
+LOCAL= SOURCE:ARG:공포
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 0.50
+;ABL:순종을 본다(공포보다는 외포에 가깝다고 해석)
+LOCAL = ABL보정(LOCAL,ABL:ARG:순종, )
+
+CUP:ARG:공포 += LOCAL
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;액체의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_액체(ARG)
+VARSET LOCAL
+LOCAL = SOURCE:ARG:액체
+;난쟁이 체형
+IF TALENT:ARG:체형 < -2
+	SIF SELECTCOM != 50 && SELECTCOM != 180
+		TIMES LOCAL , 0.40
+ENDIF
+
+CUP:ARG:윤활 += LOCAL
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;욕정의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_욕정(ARG)
+VARSET LOCAL
+LOCAL = SOURCE:ARG:욕정
+SIF WITH_MOB()
+	TIMES LOCAL, 0.70
+SIF TALENT:ARG:동물귀 && !TCVAR:ARG:발정
+	TIMES LOCAL, 0.80
+IF TALENT:ARG:츠쿠모가미
+	LOCAL:1 = MIN(100, 80 + EXP:MASTER:도구사용경험 / 100)
+	LOCAL = LOCAL * LOCAL:1 / 100
+ENDIF
+IF TALENT:ARG:스침 == 1
+	TIMES LOCAL, 1.50
+	SIF CFLAG:ARG:몸목적
+		TIMES LOCAL, 2.00
+ENDIF
+;욕망을 본다
+LOCAL = ABL보정(LOCAL,ABL:ARG:욕망,2)
+
+CUP:ARG:욕정 += LOCAL
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;복종의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_복종(ARG)
+VARSET LOCAL
+SIF FLAG:생활능력무
+	SOURCE:ARG:복종 /= 2
+LOCAL = SOURCE:ARG:복종
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 0.50
+;ABL:순종을 본다
+SELECTCASE ABL:ARG:순종
+	CASE 0
+		TIMES LOCAL , 0.50
+	CASE 1
+		TIMES LOCAL , 0.80
+	CASE 2
+		TIMES LOCAL , 1.00
+	CASE 3
+		TIMES LOCAL , 1.20
+	CASE 4
+		TIMES LOCAL , 1.40
+	CASE 5
+		TIMES LOCAL , 1.60
+	CASE 6
+		TIMES LOCAL , 1.80
+	CASE 7
+		TIMES LOCAL , 2.00
+	CASE 8
+		TIMES LOCAL , 2.40
+	CASE 9
+		TIMES LOCAL , 3.00
+	CASEELSE
+		TIMES LOCAL , 5.00
+ENDSELECT
+CUP:ARG:복종 += LOCAL
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;노출의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_노출(ARG)
+VARSET LOCAL
+;수줍음과 수치심 없음은 여기서 처리
+SIF TALENT:ARG:수치심 > 0
+	TIMES SOURCE:ARG:노출 , 2.00
+SIF TALENT:ARG:수치심 < 0
+	TIMES SOURCE:ARG:노출 , 0.50
+SIF WITH_MOB()
+	TIMES SOURCE:ARG:노출 , 1.50
+;윤활 업의 50%를 노출의 소스에 가세한다
+;다만 액체 추가의 소스의 만큼은 당긴다
+SOURCE:ARG:노출 += (CUP:ARG:윤활 - SOURCE:ARG:액체) / 2
+
+LOCAL = SOURCE:ARG:노출
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 0.75
+;ABL:노출벽을 본다
+SELECTCASE ABL:ARG:노출벽
+	CASE 0
+		TIMES LOCAL , 0.00
+	CASE 1
+		TIMES LOCAL , 0.10
+	CASE 2
+		TIMES LOCAL , 0.20
+	CASE 3
+		TIMES LOCAL , 0.40
+	CASE 4
+		TIMES LOCAL , 0.60
+	CASE 5
+		TIMES LOCAL , 0.80
+	CASE 6
+		TIMES LOCAL , 1.00
+	CASE 7
+		TIMES LOCAL , 1.20
+	CASE 8
+		TIMES LOCAL , 1.40
+	CASE 9
+		TIMES LOCAL , 1.60
+	CASEELSE
+		TIMES LOCAL , 2.00
+ENDSELECT
+CUP:ARG:욕정 += LOCAL
+
+LOCAL = SOURCE:ARG:노출
+
+;PALAM:치정을 본다
+;부끄러움을 느끼면 느낄수록 너무 부끄럽지 않게 된다
+IF PALAM:ARG:치정 < PALAMLV:1
+	TIMES LOCAL , 1.00
+ELSEIF PALAM:ARG:치정 < PALAMLV:2
+	TIMES LOCAL , 0.90
+ELSEIF PALAM:ARG:치정 < PALAMLV:3
+	TIMES LOCAL , 0.80
+ELSEIF PALAM:ARG:치정 < PALAMLV:4
+	TIMES LOCAL , 0.70
+ELSEIF PALAM:ARG:치정 >= PALAMLV:4
+	TIMES LOCAL , 0.60
+ENDIF
+
+SIF LOCAL < 0
+	LOCAL = 0
+CUP:ARG:치정 += LOCAL
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;굴종의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_굴종(ARG)
+VARSET LOCAL
+SIF FLAG:생활능력무
+	SOURCE:ARG:굴종 /= 2
+LOCAL = SOURCE:ARG:굴종
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 0.50
+;ABL:순종을 본다
+LOCAL = ABL보정(LOCAL,ABL:ARG:순종, 1)
+
+;ABL:봉사정신을 본다
+SELECTCASE ABL:ARG:봉사정신
+	CASE 0
+		TIMES LOCAL , 1.00
+	CASE 1
+		TIMES LOCAL , 1.50
+	CASE 2
+		TIMES LOCAL , 2.00
+	CASE 3
+		TIMES LOCAL , 2.50
+	CASE 4
+		TIMES LOCAL , 3.00
+	CASE 5
+		TIMES LOCAL , 3.50
+	CASE 6
+		TIMES LOCAL , 4.00
+	CASE 7
+		TIMES LOCAL , 4.50
+	CASE 8
+		TIMES LOCAL , 5.00
+	CASE 9
+		TIMES LOCAL , 5.50
+	CASEELSE
+		TIMES LOCAL , 7.00
+ENDSELECT
+CUP:ARG:굴복 += LOCAL
+
+;---------------------------------------------------
+;PLAYER에도 영향을 주는 SOURCE
+;---------------------------------------------------
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;환락의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_환락(ARG)
+VARSET LOCAL
+
+LOCAL = SOURCE:ARG:환락
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 1.50
+;연모
+LOCAL = LOCAL * (10 + 5 * TALENT:ARG:연모) / 10
+;사모
+LOCAL = LOCAL * (10 + 3 * TALENT:ARG:사모) / 10
+;기분
+LOCAL = LOCAL * (10 + 2 * TALENT:ARG:기분) / 10
+;미약
+SIF TCVAR:ARG:미약
+	LOCAL /= 5
+;이뇨제
+SIF TCVAR:ARG:이뇨제
+	LOCAL /= 5
+
+SIF WITH_MOB() && BASE:ARG:무드 < (MAXBASE:ARG:무드 / 2)
+	TIMES LOCAL , 1.20
+SIF CFLAG:ARG:데이트중
+	TIMES LOCAL , 1.30
+	
+;ABL:친밀을 본다
+IF LOCAL < 100000
+	LOCAL = LOCAL * (ABL:ARG:친밀 * 5 + 100) / 100
+ELSEIF LOCAL < 100000000
+	LOCAL = LOCAL / 100 * (ABL:ARG:친밀 * 5 + 100)
+ENDIF
+
+;ABL:욕망을 본다
+IF LOCAL < 100000
+	LOCAL = LOCAL * (ABL:ARG:욕망 * 5 + 100) / 100
+ELSEIF LOCAL < 100000000
+	LOCAL = LOCAL / 100 * (ABL:ARG:욕망 * 5 + 100)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:ARG:2 <= 10
+	TIMES LOCAL , 0.50
+ELSEIF CFLAG:ARG:2 <= 50
+	TIMES LOCAL , 0.80
+ELSEIF CFLAG:ARG:2 <= 100
+	TIMES LOCAL , 1.00
+ELSEIF CFLAG:ARG:2 <= 300
+	TIMES LOCAL , 1.10
+ELSEIF CFLAG:ARG:2 <= 500
+	TIMES LOCAL , 1.20
+ELSEIF CFLAG:ARG:2 <= 700
+	TIMES LOCAL , 1.30
+ELSEIF CFLAG:ARG:2 <= 1000
+	TIMES LOCAL , 1.40
+ELSEIF CFLAG:ARG:2 <= 3000
+	TIMES LOCAL , 1.50
+ELSEIF CFLAG:ARG:2 <= 5000
+	TIMES LOCAL , 1.70
+ELSEIF CFLAG:ARG:2 <= 500000
+	IF LOCAL < 100000
+		LOCAL = LOCAL * (CFLAG:ARG:2 / 50 + 100) / 100
+	ELSEIF LOCAL < 10000000
+		LOCAL = LOCAL / 100 * (CFLAG:ARG:2 / 50 + 100)
+	ELSEIF LOCAL < 100000000
+		IF CFLAG:ARG:2 <= 50000
+			LOCAL = LOCAL / 100 * (CFLAG:ARG:2 / 50 + 100)
+		ELSE
+			LOCAL = 1000000000
+		ENDIF
+	ENDIF
+ENDIF
+
+CUP:ARG:호의 += LOCAL
+CUP:PLAYER:욕정 += MIN(LOCAL / 10 , 100)
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1. 00
+;정복의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_정복(ARG)
+SIF TCVAR:ARG:마음대로해
+	SOURCE:ARG:정복 += 10 * (ABL:ARG:새드끼 + 1)
+SIF FLAG:생활능력무
+	SOURCE:ARG:정복 *= 2
+
+VARSET LOCAL
+;지위에서 분기
+IF CFLAG:ARG:310 > CFLAG:PLAYER:310
+	;고위의 캐릭터
+	LOCAL:1 = SOURCE:ARG:정복 / 4
+	;ABL:욕망을 본다
+	SELECTCASE ABL:ARG:욕망
+		CASE 0
+			TIMES LOCAL:1 , 0.10
+		CASE 1,2
+			TIMES LOCAL:1 , 0.15
+		CASE 3,4
+			TIMES LOCAL:1 , 0.20
+		CASE 5,6,7
+			TIMES LOCAL:1 , 0.25
+		CASE 8,9
+			TIMES LOCAL:1 , 0.30
+		CASEELSE
+			IF LOCAL:1 < 100000
+				LOCAL:1 = LOCAL:1 * (ABL:ARG:욕망 * 5 + 15) / 100
+			ELSEIF LOCAL:1 < 100000000
+				LOCAL:1 = LOCAL:1 / 100 * (ABL:ARG:욕망 * 5 + 15)
+			ENDIF
+	ENDSELECT
+	;ABL:새드끼를 본다
+	IF LOCAL:1 < 100000
+		LOCAL:1 = LOCAL:1 * (ABL:ARG:새드끼 * 30 + 100) / 100
+	ELSEIF LOCAL:1 < 100000000
+		LOCAL:1 = LOCAL:1 / 100 * (ABL:ARG:새드끼 * 30 + 100)
+	ENDIF
+ELSE
+	;저위의 캐릭터
+	LOCAL:2 = SOURCE:ARG:정복 / 2
+	;ABL:친밀을 본다
+	SELECTCASE ABL:ARG:친밀
+		CASE 0
+			TIMES LOCAL:2 , 0.10
+		CASE 1
+			TIMES LOCAL:2 , 0.15
+		CASE 2
+			TIMES LOCAL:2 , 0.20
+		CASE 3
+			TIMES LOCAL:2 , 0.25
+		CASE 4
+			TIMES LOCAL:2 , 0.30
+		CASEELSE
+			IF LOCAL:2 < 100000
+				LOCAL:2 = LOCAL:2 * (ABL:ARG:친밀 * 5 + 15) / 100
+			ELSEIF B < 100000000
+				LOCAL:2 = LOCAL:2 / 100 * (ABL:ARG:친밀 * 5 + 15)
+			ENDIF
+	ENDSELECT
+ENDIF
+
+LOCAL = SOURCE:ARG:정복
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 2.00
+;ABL:새드끼를 본다
+SELECTCASE ABL:ARG:새드끼
+	CASE 0
+		TIMES LOCAL , 0.70
+	CASE 1
+		TIMES LOCAL , 1.00
+	CASE 2
+		TIMES LOCAL , 1.30
+	CASE 3
+		TIMES LOCAL , 1.70
+	CASE 4
+		TIMES LOCAL , 2.00
+	CASEELSE
+		IF LOCAL < 100000
+			LOCAL = LOCAL * (ABL:ARG:새드끼 * 15 + 175) / 100
+		ELSEIF LOCAL < 100000000
+			LOCAL = LOCAL / 100 * (ABL:ARG:새드끼 * 15 + 175)
+		ENDIF
+ENDSELECT
+SIF FLAG:생활능력무
+	LOCAL *= 2
+CUP:ARG:우월 += LOCAL
+CUP:ARG:욕정 += LOCAL:1
+CUP:PLAYER:굴복 += LOCAL:1
+CUP:ARG:치정 += LOCAL:2
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1. 00
+;수동의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_수동(ARG)
+VARSET LOCAL
+SIF FLAG:생활능력무
+	SOURCE:ARG:수동 /= 2
+IF CFLAG:ARG:310 > CFLAG:PLAYER:310
+	;고위의 캐릭터
+	LOCAL:1 = SOURCE:ARG:수동 / 3
+	;ABL:욕망을 본다
+	SELECTCASE ABL:ARG:욕망
+		CASE 0
+			TIMES LOCAL:1 , 0.30
+		CASE 1
+			TIMES LOCAL:1 , 0.35
+		CASE 2
+			TIMES LOCAL:1 , 0.40
+		CASE 3
+			TIMES LOCAL:1 , 0.45
+		CASE 4
+			TIMES LOCAL:1 , 0.50
+		CASEELSE
+			IF LOCAL:1 < 100000
+				LOCAL:1 = LOCAL:1 * (ABL:ARG:욕망 * 10 + 10) / 100
+			ELSEIF LOCAL:1 < 100000000
+				LOCAL:1 = LOCAL:1 / 100 * (ABL:ARG:욕망 * 10 + 10)
+			ENDIF
+	ENDSELECT
+ELSE
+	LOCAL:2 = SOURCE:ARG:수동 / 2
+	;ABL:봉사정신을 본다
+	SELECTCASE ABL:ARG:봉사정신
+		CASE 0
+			TIMES LOCAL:2 , 0.30
+		CASE 1
+			TIMES LOCAL:2 , 0.35
+		CASE 2
+			TIMES LOCAL:2 , 0.40
+		CASE 3
+			TIMES LOCAL:2 , 0.45
+		CASE 4
+			TIMES LOCAL:2 , 0.50
+		CASEELSE
+			IF LOCAL:2 < 100000
+				LOCAL:2 = LOCAL:2 * (ABL:ARG:봉사정신 * 10 + 10) / 100
+			ELSEIF LOCAL:2 < 100000000
+				LOCAL:2 = LOCAL:2 / 100 * (ABL:ARG:봉사정신 * 10 + 10)
+			ENDIF
+	ENDSELECT
+ENDIF
+
+LOCAL = SOURCE:ARG:수동
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 0.50
+;ABL:친밀을 본다
+IF LOCAL < 100000
+	LOCAL = LOCAL * (ABL:ARG:친밀 * 10 + 70) / 100
+ELSEIF LOCAL < 100000000
+	LOCAL = LOCAL / 100 * (ABL:ARG:친밀 * 10 + 70)
+ENDIF
+
+CUP:ARG:호의 += LOCAL
+CUP:ARG:굴복 += LOCAL:1
+CUP:PLAYER:복종 += LOCAL:1
+CUP:ARG:복종 += LOCAL:2
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;유혹의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_유혹(ARG)
+SIF FLAG:생활능력무
+	SOURCE:ARG:유혹 *= 2
+SOURCE:ARG:유혹 = SOURCE:ARG:유혹 * GET_REVISION(ABL:ARG:욕망 + 2, 500, 10) / 100
+LOCAL = SOURCE:ARG:유혹
+LOCAL:1 = SOURCE:ARG:유혹
+;상대 주도
+IF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 2.00
+	TIMES LOCAL:1, 2.00
+ENDIF
+CUP:ARG:우월 += LOCAL
+LOCAL = LOCAL * (100 + GET_REVISION(ABL:PLAYER:욕망, 500, 20)) / 100
+CUP:PLAYER:욕정 += LOCAL
+LOCAL:1 = LOCAL:1 * (100 + GET_REVISION(ABL:PLAYER:순종, 500, 5)) / 100
+CUP:PLAYER:복종 += LOCAL:1
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;송구스러운 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_송구스러운(ARG)
+SIF FLAG:생활능력무
+	SOURCE:ARG:송구스러운 *= 2
+SOURCE:ARG:송구스러운 = SOURCE:ARG:송구스러운 * GET_REVISION(ABL:ARG:새드끼 + 2, 500, 10) / 100
+LOCAL = SOURCE:ARG:송구스러운
+;상대 주도
+SIF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 2.00
+LOCAL = LOCAL * (100 + GET_REVISION(ABL:PLAYER:마조끼, 500, 20)) / 100
+LOCAL = LOCAL * (100 + GET_REVISION(ABL:PLAYER:노출벽, 500, 20)) / 100
+
+;PALAM:치정을 본다
+;부끄러움을 느끼면 느낄수록 너무 부끄럽지 않게 된다
+IF PALAM:PLAYER:치정 < PALAMLV:1
+	TIMES LOCAL , 1.00
+ELSEIF PALAM:PLAYER:치정 < PALAMLV:2
+	TIMES LOCAL , 0.90
+ELSEIF PALAM:PLAYER:치정 < PALAMLV:3
+	TIMES LOCAL , 0.80
+ELSEIF PALAM:PLAYER:치정 < PALAMLV:4
+	TIMES LOCAL , 0.70
+ELSEIF PALAM:PLAYER:치정 >= PALAMLV:4
+	TIMES LOCAL , 0.60
+ENDIF
+CUP:PLAYER:치정 += LOCAL
+CUP:ARG:우월 += LOCAL / 2
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;도발의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_도발(ARG)
+SIF FLAG:생활능력무
+	SOURCE:ARG:도발 *= 2
+SOURCE:ARG:도발 = SOURCE:ARG:도발 * GET_REVISION(ABL:ARG:새드끼 + 2, 500, 10) / 100
+LOCAL = SOURCE:ARG:도발
+LOCAL:1 = SOURCE:ARG:도발
+;상대 주도
+IF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 2.00
+	TIMES LOCAL:1, 2.00
+ENDIF
+
+CUP:ARG:우월 += LOCAL
+LOCAL = LOCAL * (100 + GET_REVISION(ABL:PLAYER:욕망, 500, 10)) / 100
+CUP:PLAYER:욕정 += LOCAL
+LOCAL:1 = LOCAL:1 * (100 + GET_REVISION(ABL:PLAYER:마조끼, 500, 5)) / 100
+CUP:PLAYER:굴복 += LOCAL:1
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;봉사의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_봉사(ARG)
+SOURCE:ARG:봉사 = SOURCE:ARG:봉사 * GET_REVISION(ABL:ARG:기교 + ABL:ARG:봉사정신 + 2, 500, 10) / 100
+LOCAL = SOURCE:ARG:봉사
+LOCAL:1 = SOURCE:ARG:봉사
+;상대 주도
+IF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 0.75
+	TIMES LOCAL:1, 0.75
+ENDIF
+LOCAL = LOCAL * (100 + GET_REVISION(ABL:PLAYER:욕망, 500, 10)) / 100
+CUP:PLAYER:욕정 += LOCAL
+LOCAL:1 = LOCAL:1 * (100 + GET_REVISION(ABL:PLAYER:마조끼, 500, 5)) / 100
+CUP:PLAYER:굴복 += LOCAL:1
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1. 00
+;강요의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_강요(ARG)
+SIF FLAG:생활능력무
+	SOURCE:ARG:강요 *= 2
+SOURCE:ARG:강요 = SOURCE:ARG:강요 * GET_REVISION(ABL:ARG:새드끼 +ABL:ARG:욕망 + 2, 500, 10) / 100
+LOCAL = SOURCE:ARG:강요
+LOCAL:1 = SOURCE:ARG:강요
+;상대 주도
+IF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 2.00
+	TIMES LOCAL:1, 2.00
+ENDIF
+CUP:ARG:우월 += LOCAL
+LOCAL = LOCAL * (100 + GET_REVISION(ABL:PLAYER:봉사정신, 500, 5)) / 100
+CUP:PLAYER:복종 += LOCAL
+LOCAL:1 = LOCAL:1 * (100 + GET_REVISION(ABL:PLAYER:순종, 500, 10)) / 100
+CUP:PLAYER:굴복 += LOCAL:1
+CUP:PLAYER:공포 += LOCAL:1 / 2
+;FileName_SOURCE1.ERB ------------------------------ Rev1. 00
+;가학의 소스 처리
+;CALL		USER
+;ARG		캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@SOURCE_가학(ARG)
+SIF TCVAR:ARG:마음대로해
+	SOURCE:ARG:가학 += 10 * (ABL:ARG:새드끼 + 1)
+SIF FLAG:생활능력무
+	SOURCE:ARG:가학 *= 2
+SOURCE:ARG:가학 = SOURCE:ARG:가학 * GET_REVISION(ABL:ARG:새드끼 + ABL:ARG:욕망 + 2, 1000, 5) / 100
+LOCAL = SOURCE:ARG:가학
+LOCAL:1 = SOURCE:ARG:가학
+;상대 주도
+IF ARG != MASTER && CFLAG:ARG:우후후 == 2
+	TIMES LOCAL, 2.00
+	TIMES LOCAL:1, 2.00
+ENDIF
+SIF ABL:ARG:새드끼 < ABL:MASTER:새드끼
+	TIMES LOCAL, 0.75
+CUP:ARG:우월 += LOCAL * 2
+LOCAL = LOCAL * (100 + GET_REVISION(ABL:PLAYER:마조끼, 500, 10)) / 100
+CUP:PLAYER:고통 += LOCAL
+LOCAL = LOCAL * (100 + GET_REVISION(ABL:PLAYER:마조끼, 500, 5)) / 100
+CUP:PLAYER:공포 += LOCAL
+LOCAL:1 = LOCAL:1 * (100 + GET_REVISION(ABL:PLAYER:순종, 500, 10)) / 100
+CUP:PLAYER:굴복 += LOCAL:1
+
+
+
+;FileName_SOURCE1.ERB ------------------------------ Rev1.00
+;ARG= 보정이 걸리는 소스
+;ARG:1= 참조하는 ABL치
+;ARG:2= 보정의 종류
+;-----------------------------------------------------------
+@ABL보정(ARG, ARG:1, ARG:2)
+#FUNCTION
+IF ARG:2 == 1
+	SELECTCASE ARG:1
+		CASE 0
+			TIMES ARG , 0.10
+		CASE 1
+			TIMES ARG , 0.30
+		CASE 2
+			TIMES ARG , 0.50
+		CASE 3
+			TIMES ARG , 1.00
+		CASE 4
+			TIMES ARG , 1.50
+		CASE 5
+			TIMES ARG , 2.00
+		CASE 6
+			TIMES ARG , 2.50
+		CASE 7
+			TIMES ARG , 3.00
+		CASE 8
+			TIMES ARG , 3.50
+		CASE 9
+			TIMES ARG , 4.00
+		CASE 10
+			TIMES ARG , 5.00
+		CASEELSE
+			TIMES ARG , 6.00
+	ENDSELECT
+ELSEIF ARG:2 == 2
+	SELECTCASE ARG:1
+		CASE 0
+			TIMES ARG , 0.20
+		CASE 1
+			TIMES ARG , 0.40
+		CASE 2
+			TIMES ARG , 0.80
+		CASE 3
+			TIMES ARG , 1.20
+		CASE 4
+			TIMES ARG , 1.60
+		CASE 5
+			TIMES ARG , 2.00
+		CASE 6
+			TIMES ARG , 2.40
+		CASE 7
+			TIMES ARG , 2.80
+		CASE 8
+			TIMES ARG , 3.20
+		CASE 9
+			TIMES ARG , 3.60
+		CASEELSE
+			TIMES ARG , 5.00
+	ENDSELECT
+ENDIF
+RETURNF ARG
+;-------------------------------------------------
+;함수명 :SOURCE_REVISION1
+;쾌락계 SOURCE의 쾌락계 ABL에 의한 보정
+;1/10된다
+;-------------------------------------------------
+@SOURCE_REVISION1(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE 0 TO 5
+		RETURNF 10 + 7 * ARG
+	CASE 6 TO 9
+		RETURNF 30 + 4 * ARG
+	CASE 10 TO 15
+		RETURNF 45 + 2 * ARG
+	CASE 16 TO 19
+		RETURNF 70 + ARG
+	CASE IS >= 20
+		RETURNF 90
+ENDSELECT
+
+;-------------------------------------------------
+;함수명 :SOURCE_REVISION2
+;쾌락계 SOURCE에 의존하는 UP:욕망의 ABL:욕망에 의한 보정
+;1/100된다
+;-------------------------------------------------
+@SOURCE_REVISION2(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE 0 TO 5
+		RETURNF 25 + 7 * ARG
+	CASE 6 TO 9
+		RETURNF 45 + 3 * ARG
+	CASE 10 TO 15
+		RETURNF 60 + 2 * ARG
+	CASE 16 TO 19
+		RETURNF 80 + ARG
+	CASE IS >= 20
+		RETURNF 100
+ENDSELECT

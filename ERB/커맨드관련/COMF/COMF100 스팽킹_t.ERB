@@ -1,0 +1,88 @@
+﻿;-------------------------------------------------
+;스팬킹
+;SM계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM100
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 60
+	SOURCE:PLAYER:강요=450
+	SOURCE:고통 = 450
+
+ELSE
+
+	DOWNBASE:체력 += 60
+	DOWNBASE:기력 += 20
+	SOURCE:PLAYER:강요=450
+
+	SOURCE:고통 = 450
+	SOURCE:공포 = 400
+	SOURCE:일탈 = 50
+	SOURCE:반감 = 500
+	IF TALENT:유치
+	SOURCE:PLAYER:강요+=350
+		SOURCE:고통 += 350
+		SOURCE:공포 += 200
+		SOURCE:일탈 += 50
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;고통의 파라미터에 의한 고통의 소스 증가는 먼저 처리해 둔다
+SOURCE:고통 = SOURCE:고통 * (10 + 5 * MAX(GETPALAMLV(PALAM:고통, 5) - 1, 0)) / 10
+;∨(와)과 A에 쾌락 보정이 들어가도록(듯이) TCVAR를 세운다
+TCVAR:커맨드V보정 = 2 * (ABL:마조끼 - 1)
+TCVAR:커맨드A보정 = 4 * (ABL:마조끼 - 1)
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 2
+	ENDIF
+ELSE
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 2
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 2
+	ENDIF
+ENDIF
+
+EXP:PLAYER:가학쾌락경험 += 1
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE100
+;스팬킹 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(100)
+	RETURN RESULT
+;순종 3 미만의 ASSI의 경우 스팬킹은 할 수 없다(새드라면 OK)
+IF ASSIPLAY
+	SIF ABL:ASSI:순종 < 3 && TALENT:ASSI:새드 == 0
+		RETURN 0
+ENDIF
+;수면간중
+SIF CFLAG:장난 > 1
+	RETURN 0
+;하반신착의
+SIF TEQUIP:0 & 8
+	RETURN 0
+
+RETURN 1
+

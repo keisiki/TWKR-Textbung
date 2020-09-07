@@ -1,0 +1,3357 @@
+﻿;※※※※※※※※※※※※※※※※※※※※※※※※※
+;日常系コマンド
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+;==================================================
+;300,会話
+;TFLAG:193(1=大成功 0=成功 -1=失敗 -2=大失敗（TARGETがMASTERより教養が4以上高い)
+;TCVAR:302(0=会話可能 1>=非恋慕時会話不能)
+;MARK:반발각인(3以上=会話不能)(4以上はバグ
+;TCVAR:만취(1=通常成功or大失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_300
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_300
+;コマンド共通メッセージ(TRAIN_MESSAGE) 
+;削除すると「～話をした。」とかが消えます。また、削除した場合は自動で口上色が付きません。
+CALL TRAIN_MESSAGE
+;口上メイン呼出
+CALL M_KOJO_MESSAGE_COM_K55_300_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_300_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+LOCAL = 1
+IF LOCAL
+	;うふふが解除されたのを念押しする処理
+	CFLAG:1211 = 0
+	;◆
+	IF CFLAG:빡침
+		PRINTFORMW 「……이야기 할 마음이 생길 수 없습니다」
+	;一回きりの特殊会話 ※CFLAG:1001を使用(対象bitは各タイトル部分に)
+
+	;恋慕後初会話、一回のみ
+	ELSEIF TALENT:연모 && CFLAG:1204 == 0
+		PRINTFORMW 「……」
+		PRINTFORMW 백련-로 한 표정으로 당신을 응시하고 있다.
+		PRINTFORMW 「무엇인가 있었는지, 입니까……응…후후. 무엇입니까？」
+		PRINTFORMW 백련은 당신에게 휙 등을 돌리면(자), 매우 기분이 좋아 걷기 시작했다.
+		CFLAG:1204 = 1
+	;◆デート中
+	;1/2で通常会話も呼び出す
+	ELSEIF CHK_DATENOW(CFLAG:TARGET:데이트중) && RAND:2 == 0
+;		SELECTCASE CFLAG:MASTER:현재위치
+;		;人間の里
+;		;博麗神社
+;			;神社縁側
+;			CASE 340
+;				
+;		;迷いの竹林
+;			;小雀の宿
+;			CASE 460
+;			
+;		;魔法の森
+;			;香霖堂
+;			CASE 520
+;				
+;			;人形の洋館
+;			CASE 550
+;				
+;		ENDSELECT
+		IF TALENT:연인
+			A = RAND:5
+			IF A == 0
+				PRINTFORMW 「……모처럼 둘이서이니까, 무엇인가 특별한 일이라도 하고 싶네요」
+				PRINTFORMW 「이라고는 말해 보았지만, 무엇인가안이 있는 것도 아니지요」
+				PRINTFORMW 「…뭐, 이상하게 분발하지 않고, 즐기는 것이 제일입니까」
+			ELSEIF A == 1
+				PRINTFORMW 「……아니요 조금 걱정거리를」
+				PRINTFORMW 「 나, 적당히얼굴의 팔리고 있는 (분)편이다고 생각하고, 저희들을 본 분들은 어떻게 생각할까, 라고」
+				PRINTFORMW 「풍부해져 나의 마음숲은 정해져 있고, 누구에게 어떻게 생각되려고 보람이 없는 것이군요」
+			ELSEIF A == 2
+				PRINTFORMW 「이렇게 해 밖에 나와 이야기 하면(자) , 평소보다 즐거운 느낌이 들네요」
+				PRINTFORMW 「뭐, 당신과 함께인 것입니다로부터, 무엇을 하고 있어도 즐거운데요」
+			ELSEIF A == 3
+				PRINTFORMW 「아, 이상한 형태의 구름입니다」
+				PRINTFORMW 「……아, 사실. 저것도 재미있는 형태군요」
+			ELSE
+				PRINTFORMW 「……봉인을 풀렸을 때에는, 좋아하는 사람과 함께 외출한다고 생각해도 있지 않았습니다」
+				PRINTFORMW 「장수는 해 보는 것이군요」
+			ENDIF
+		ENDIF
+	;通常会話
+		;悪天候で外(山門、境内、裏庭、墓地)にいる
+		;吹雪
+		ELSEIF OUTROOF(CFLAG:MASTER:현재위치) && TIME:5 == 9
+			IF RAND:3 == 0 
+				PRINTFORML 「원, 일부러 이런 날씨때에 밖에서 이야기하지 않아도！」
+				PRINTFORMW 「빨리, 빨리 절가운데에！」
+			ELSEIF RAND:2 == 0
+				PRINTFORML 「빨리 안에 돌아옵시다？」
+				PRINTFORMW 「이런 곳에 계속 있으면(자) 감기는 끝나지 않아요」 
+			ELSE 
+				PRINTFORMW 「춥다든가 말하는 소동으로는 없습니다！빨리 옥내에 갑시다, 군요！？」
+			ENDIF 
+		;あられ
+		ELSEIF OUTROOF(CFLAG:MASTER:현재위치) && TIME:5 == 13
+			;傘を持っている
+			IF ITEM:561 > 0
+				PRINTFORML 넓힌 우산에 있어지고가 맞아, 화려한 소리를 내고 있다
+				PRINTFORML 「우산을 가지고 있어도, 언제 망가지는지 모를 정도 군요」
+				PRINTFORMW 「빨리 안에 들어옵시다. 이대로 밖에 있어 위험해요」
+			ELSE
+				PRINTFORML 「…그렇게 말하면 저기의 선반에 써 떡이 남아 있었어요」
+				PRINTFORMW 「…정말 것을 말하는 경우가 아닙니다. 빨리 돌아옵시다,%CALLNAME:MASTER%」
+			ENDIF
+		;成功
+		ELSEIF TFLAG:193 == 1
+			IF CFLAG:행동 == 5
+				PRINTFORML 「후후,%CALLNAME:MASTER%(와)과 이야기 하는 것은 즐겁네요」
+				PRINTFORMW 「업무중이 아니면, 이야기의 계속과 가고 싶은 곳입니다만…」
+			ELSE
+				IF RAND:3 == 0
+					PRINTFORML 「아, 과연…확실히 그렇게 말한 시점도 있네요」
+					PRINTFORMW 백련은 마음 속 감탄한 것 같다.
+				ELSEIF RAND:2 == 0
+					PRINTFORML 「아하하, 그것은 걸작이군요」
+					PRINTFORMW 아무래도 이 농담은 정답이었던 것 같다
+				ELSE
+					PRINTFORMW 「우우-응,%CALLNAME:MASTER%(와)과 이야기 하는 것은 즐겁네요」
+				ENDIF
+			ENDIF
+		;失敗
+		ELSEIF TFLAG:193 == -1
+			IF RAND:5 == 0 && OUTROOF(CFLAG:MASTER:현재위치)  
+				PRINTFORML 「아, 바뀐 형태의 구름입니다」
+				PRINTFORMW 「……그것이야, 와는 무엇입니까」
+			ELSEIF RAND:4 == 0
+				PRINTFORML 「……음, 아하하……」
+				PRINTFORMW 백련은 쓴웃음하고 있다…
+			ELSEIF RAND:3 == 0
+				PRINTFORML 「그런 일, 농담에서도 하는 것이 아니어요？」
+				PRINTFORMW 나무랄 수 있어 버렸다…
+			ELSEIF RAND:2 == 0
+				PRINTFORML 「……(은)는 , 그렇네요」
+				PRINTFORMW 그다지 흥미가 없는 화제였던 것 같다.
+			ELSE
+				PRINTFORML 「…그러한 말투는 감탄하지 않아요」
+				PRINTFORMW 그다지 접해야 할 화제는 아니었던 것 같다…
+			ENDIF
+		;会話累積値が閾値を超えての失敗
+		ELSEIF TCVAR:302 && !TALENT:연모 
+			IF RAND:2 == 0
+				PRINTFORMW (……어떻게 할까요, 화제가 다해 버렸습니다)
+			ELSE
+				PRINTFORMW 「……무리하게 이야기하려고 하지 않아도 괜찮아요？」
+			ENDIF
+		;普通
+		ELSE
+			;添い寝中
+			IF CFLAG:동침중
+				IF RAND:5 == 0
+					PRINTFORMW 「식응…당신도 꽤, 고생해 응…」
+				ELSEIF RAND:4 == 0
+					PRINTFORMW 「가끔별이 잠에 취해 이불에 들어 옵니다. 그렇게 되면(자), 어떻게 할까요…」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「이렇게 해 같은 이불에 들어가 보면, 당신의 신체는 상당히 따뜻하네요…」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「응…이불이 조금 좁을지도 모르겠네요. 좀 더 모이지 않으면…」
+				ELSE
+					;季節の話
+					SELECTCASE DAY:2
+					;春
+					CASE 1
+						IF RAND:2 == 0 
+							PRINTFORML 「특히 더운 것도 아니고, 추운 것도 아니고. 기분 좋게 잘 수 있는 계절이군요」
+							PRINTFORMW 「후와～…. 아, 미안해요. 상스럽네요」
+						ELSE 
+							PRINTFORMW 「…밤은 조금 차가워집니까」
+							SIF TALENT:연모
+								PRINTFORMW 「…조금 당신을 안아 베개 대신에…뭐라고 말해 보거나…」
+						ENDIF 
+					;夏
+					CASE 2
+						IF RAND:3 == 0 
+							PRINTFORML 「후~,…덥습니다」
+							PRINTFORMW 「바람이기도 하면 약간 나은의겠지만…」
+							SIF TALENT:연인
+								PRINTFORMW 「차라리 격렬하게 운동하면 오히려 시원하게 느껴집니까…？」
+						ELSEIF RAND:2 == 0
+							PRINTFORML 「야조…호랑이 개똥지빠귀는 여름의 계어입니다 하지만…」
+							PRINTFORMW 「우리가 꿰맬 수 있는이 새가 밤중에 욺 하고 있는 것은 (들)물었던 적이 없겠네요」
+						ELSE
+							PRINTFORML 「너무 땀을 흘리면(자), 속옷이 피부에 붙어 버려…」
+							PRINTFORMW 「…, 그렇게 빤히 보지 말아 주세요. 부끄럽습니다」
+						ENDIF
+					;秋
+					CASE 3
+						IF RAND:4 == 0 
+							PRINTFORML 「여름용의 이불에서는 조금 춥습니다만, 모포에서는 더운 것 같네요」
+							PRINTFORMW 「응……좀 더 이쪽에 들러 줄 수 있습니까」
+						ELSEIF RAND:3 == 0 
+							PRINTFORML 「내일의 메뉴는 어떻게 할까요. 무엇인가 요망은 있습니까？」
+							PRINTFORMW 「미각의 가을이나 말하니까요. 팔의 털어 보람이 있습니다」
+						ELSEIF RAND:4 == 0
+							;出現しにくいのは仕様。結構美味らしい。
+							PRINTFORML 밖으로부터는 벌레의 소리가 조용하게 들려 온다
+							PRINTFORMW 「…귀뚜라미도 먹을 수 있는 것입니까」
+							PRINTFORML 「아니요 메뚜기도 외형에조차 익숙해져 버리면 꽤 맛좋고, 혹은…」
+							PRINTFORMW 「……윤지우기에 지나네요. 이 이야기는 그만두기로 합시다」
+						ELSE 
+							PRINTFORML 밖으로부터는 벌레의 소리가 조용하게 들려 온다
+							PRINTFORML 「가을의 긴 밤을 노래해 통해, 사랑하는 것에 계속 호소한다…」
+							PRINTFORMW 「후후, 멋진 것이군요」
+						ENDIF 
+					;冬
+					CASE 4
+						IF RAND:3 == 0 
+							PRINTFORMW 「응, 역시 근처에 사람이 있으면(자) 따뜻하겠네요」
+							SIF TALENT:연모
+								PRINTFORMW 「…또 부탁해도 좋습니까？%CALLNAME:MASTER%」
+						ELSEIF RAND:2 == 0
+							PRINTFORML 「오늘 밤은 특별히 차가워지네요…」
+							PRINTFORMW 「…」
+							SIF TALENT:연인
+								PRINTFORMW 「…안아 도착해도 좋지요？」
+						ELSE
+							PRINTFORMW 「이렇게 차가워지면(자), 내일에는 서릿발이 서 있을지도 모르네요」
+						ENDIF
+					ENDSELECT
+				ENDIF 
+			;仕事中
+			ELSEIF CFLAG:행동 == 5
+				IF RAND:2 == 0
+					PRINTFORML 「이렇게 일의 사이에 이야기를 하는 것도, 기분 전환이 되어도 좋네요」
+					PRINTFORMW 「……도움을 받을 수 있는 것이 제일 기쁜 것이지만」
+				ELSE
+					PRINTFORML 「별은 우수하네요. 그 아이의 덕분에 언제나 살아나고 있습니다」
+					PRINTFORMW 「…무엇보다, 없어지고 것 버릇만은 어떻게든 해 주었으면 하는 것이지만」
+				ENDIF
+			;浴場にいる
+			ELSEIF BATHROOM(CFLAG:현재위치)
+				;お風呂でくつろぐの後
+				IF PREVCOM == 403
+					IF RAND:4 == 0
+					;季節の話
+						;夏
+						IF DAY:2 == 2
+							PRINTFORML 「―…역시, 땀을 흘리면(자) 기분이 좋네요…」
+						;冬
+						ELSEIF DAY:2 == 4
+							PRINTFORMW 「우우～응, 겨울의 욕실은 최고군요」
+						ELSE
+							PRINTFORMW 「후~～♪소생해요～」
+						ENDIF
+					ELSEIF RAND:3 == 0 && TALENT:연인
+						PRINTFORML 「…이러한 경우, 「 나를 스펀지 대신에 사용해%UNICODE(0x2665)%」(이)라든가 말해야 하는 것인가 해들 」
+						PRINTFORMW 백련은 매우 어려울 것 같은 얼굴을 하면서 물어 봐 왔다.
+					ELSEIF RAND:2 == 0
+						PRINTFORML 「식…」
+						PRINTFORMW 「…어깨결림이 괴롭습니다」
+					ELSE
+						PRINTFORMW 「응, 이렇게 해 기다리거나 따뜻해지는 것은 좋네요…」
+					ENDIF
+				ELSE
+					;朝
+					IF TIME:2 == 1
+						IF RAND:2 == 0
+							PRINTFORML 「응, 아침 목욕과는 사치군요 」
+						ELSE
+							PRINTFORMW 「어머나, 당신도 아침부터？」
+						ENDIF
+					ELSE
+						IF TALENT:연인
+							IF RAND:4 == 0 
+								PRINTFORMW 「함께 욕실이라고 하는 것도, 좋아요…」
+							ELSEIF RAND:3 == 0 
+								PRINTFORML 「-, 나무3」
+								PRINTFORML 백련에 물총을 걸 수 있었다.
+								PRINTFORMW 「후후후, 이 거리라면 반격은…！？」
+							ELSEIF RAND:2 == 0 
+								PRINTFORMW 「응, 따끈따끈 하네요」
+							ELSE
+								PRINTFORMW 「…손대고 싶었으면, 손대어도 상관하지 않아요？」
+							ENDIF
+						ELSE
+							IF RAND:3 == 0 
+								PRINTFORMW 「……침착하지 않아요」
+							ELSEIF RAND:2 == 0 
+								PRINTFORMW 「 나는 이제 곧 오르기 때문에, 상관없이」
+							ELSE
+								PRINTFORML 「-, 나무3」
+								PRINTFORML 백련에 물총을 걸 수 있었다.
+								PRINTFORMW 「후후, 꽤 능숙한 것으로 짊어진다」
+							ENDIF
+						ENDIF
+					ENDIF
+				ENDIF
+			;添い寝中でも現在地が浴場でもない、普通の会話。
+			;ひじりんの食欲はおっぱいに還元されているに違いない。そうであってほしい。
+			ELSE
+				IF RAND:7 == 0
+				;季節の話
+					SELECTCASE DAY:2
+					;春
+					CASE 1
+						IF RAND:4 == 0
+							PRINTFORML 「봄이군요…」
+							PRINTFORML 「……」
+							PRINTFORMW 「…하！자지 않았습니다 , 자지 않았습니다 」 
+						ELSEIF RAND:3 == 0 && GROUPMATCH(CFLAG:현재위치, 1, 2, 6, 21) == 0  
+							PRINTFORML 「밀가루 반죽하여 벚나무잎으로 ?먹습니다？」
+							PRINTFORML 「소금절이의 잎을 실어 보자, 라고 생각한 사람은 천재군요. 용모가 사랑스러우며」
+							PRINTFORMW 「짠다…♪딱 좋은 엑센트가 되어 맛좋습니다」
+						ELSEIF RAND:2 == 0
+							PRINTFORML 「이 시기가 되면(자), 봉인을 풀렸을 무렵을 생각해 내군요」
+							PRINTFORML 「길 때를 거치고 있어도, 많은 인간은 변하지 않습니다」
+							PRINTFORML 「…그렇지만, 천천히 이해가 깊어져 가 주면, 반드시 세계를 바꿀 수 있다」
+							PRINTFORMW 「 나는 그렇게 믿고 있습니다」
+						ELSE
+							PRINTFORML 「꽃놀이의 시기군요. 이 근처에서는 하쿠레이신사가 유명이라고 (듣)묻습니다」
+							PRINTFORMW 「할 수 있으면 모두가 가고 싶습니다만, 너무 여럿이라면 불필요한 소동이 될 것 같고 응…」
+						ENDIF
+					;夏
+					CASE 2
+						IF RAND:3 == 0 
+							PRINTFORML 「더운 시분에는, 참작해 세우고의 우물물이 있기 어렵네요」
+							PRINTFORMW 「땀도 흘리고, 수분 보급은 빠뜨릴 수 없습니다」
+						ELSEIF RAND:2 == 0
+							PRINTFORML 「이렇게 더우면 가슴의 사이에 땀이 쌓여…」
+							PRINTFORMW 백련은 어려운 얼굴을 하고 있다.
+						ELSE
+							PRINTFORML 「덥네요…」
+							PRINTFORMW 백련은 이마의 땀을 닦았다.
+						ENDIF
+					;秋
+					CASE 3
+						IF RAND:4 == 0 
+							PRINTFORML 「이제 심마이가 나오는 무렵입니까」
+							PRINTFORML 「시주가 가져와 주시는 일도 있습니다만,
+							PRINTFORML 　사람의 후의를 부탁으로 하는 것은 좋지 않기 때문에」
+							PRINTFORMW 「이번에 마을에 갔을 때에 시에서도 봅시다」
+						ELSEIF RAND:3 == 0 
+							PRINTFORMW 「산이 물이 들어 오면(자), 바야흐로 가을이라고 말한 느낌이 들네요」
+						ELSEIF RAND:2 == 0
+							PRINTFORML 「산에 단풍놀이라도 갈 수 있으면 좋겠습니다만」
+							PRINTFORMW 「너무 대가대로 가게 되면(자), 텐구들의 설득이 어렵네요」
+						ELSE
+							PRINTFORML 「가을은 맛있는 것이 많이 있기 때문에, 요리도 한층 즐겁네요」
+							PRINTFORMW 「무엇인가 먹고 싶은 것은 있습니까？」
+						ENDIF
+					;冬
+					CASE 4
+						IF RAND:4 == 0 
+							PRINTFORML 「별이 돌층계를 빗나가 걷는 계절이 된 원이군요」
+							PRINTFORMW 「반드시 서릿발에서도 밟고 있겠지요. 꽤 흐뭇한 경치예요」
+						ELSEIF RAND:3 == 0
+							PRINTFORML 「추운 시분이라도, 순의 식품 재료는 맛있는 것입니다」
+							PRINTFORMW 「연근, 무, 참마, 장 파, 후키노트우…아, 마음이 뜁니다」 
+						ELSEIF RAND:2 == 0
+							PRINTFORML 「아……춥네요」
+							PRINTFORMW 「당분간 밖에 나와 있던 것만으로, 손이 조향타나 로 끝냈습니다…」
+						ELSE
+							PRINTFORML 「쿄코가 모아 준 낙엽으로, 모닥불이라도 할까」
+							PRINTFORMW 「하는 김에 군고구마를 만들면, 일석이조군요」
+						ENDIF
+					ENDSELECT
+				;天気の話
+				;/死にやすいが仕方ない
+				ELSEIF RAND:6 == 0
+					SELECTCASE DAY:5
+					 ;晴れ、晴天
+					CASE 0,1
+						;夜
+						IF TIME:2 == 3
+							PRINTFORMW 「별이 자주(잘) 보이네요…별자리의 이름이라도 기억하면, 한층 즐거운 것일까요」
+						;春、秋
+						ELSEIF GROUPMATCH(DAY:2, 1, 3)
+							PRINTFORMW 「기분이 좋은 맑은 하늘이군요. 이런 날이 계속되면 좋겠습니다만」
+						;夏
+						ELSEIF DAY:2 == 2
+							PRINTFORMW 「응, 여름인것 같은 양기, 등이라고 하면 소문은 좋을지도 모릅니다만…」
+						;冬
+						ELSE
+							PRINTFORMW 「햇볕이 있는 분에는, 비교적 보내기 쉽습니까」
+						ENDIF
+					;薄曇
+					CASE 2
+						;夜
+						IF TIME:2 == 3
+							PRINTFORMW 「밤안개의 서라고 가지고 싶고, 라고. 이런 달도 꽤 좋은 것입니다만」
+						;夏
+						ELSEIF DAY:2 == 2
+							PRINTFORMW 「찝니다만, 햇볕이 강하지 않은 것뿐 좋네요」
+						ELSE
+							PRINTFORMW 「약간 흐림, 이라고 말했는데입니까. 아무튼, 그렇게 나쁜 날씨가 아니겠네요」
+						ENDIF
+					;曇
+					CASE 3
+						;夜
+						IF TIME:2 == 3
+							PRINTFORMW 「달의 빛이 없으면 많이 어둡네요」
+						ELSE
+							PRINTFORMW 「많이 흐리네요. 내리지 않으면 좋습니다만」
+						ENDIF
+					;雨、大雨、霧雨
+					CASE 4,5,6
+						;外(山門、境内、裏庭、墓地)
+						IF OUTROOF(CFLAG:MASTER:현재위치)
+							;傘を持っている
+							IF ITEM:561 > 0
+								PRINTFORML 「우산이 있다고는 해도, 젖을 때는 젖어 버리는 거에요」
+								PRINTFORML 「꽤 곤란한 것입니다」
+								PRINTFORMW 백련은 어려운 얼굴을 하고 있다.
+							ELSE
+								PRINTFORML 백련은 양손을 가려 비를 피하고 있다.
+								PRINTFORMW 「너무 젖으면(자) 감기에 걸려 버리기 때문에, 빨리 옥내에 들어갑시다」
+							ENDIF
+						ELSE
+							PRINTFORMW 「은혜의 비, 군요. 새로운 소득이 땅으로 가득 차, 우리의 식탁에…후후」
+						ENDIF
+					;霧
+					CASE 7
+						;外(山門、境内、裏庭、墓地)
+						IF OUTROOF(CFLAG:MASTER:현재위치)
+							PRINTFORML 「대단히 깊은 안개군요」
+							PRINTFORMW 「발밑에는 조심해 주세요,%CALLNAME:MASTER%」
+						ELSE
+							PRINTFORMW 「우와 시야가 효과가 있기 힘들네요」
+						ENDIF
+					;雪、細雪、霧雪
+					CASE 8,10,11
+						;外(山門、境内、裏庭、墓地)
+						IF OUTROOF(CFLAG:MASTER:현재위치)
+							PRINTFORMW 「우우-응, 눈은 깨끗하다 하지만, 춥기 때문에 가운데에 들어와 화로에 해당하고 싶네요」
+						ELSE
+							PRINTFORML 「춥기 때문에 눈이 내리는지, 눈이 내리기 때문에 추운 것인지…어느 쪽이지요」
+							PRINTFORMW 백련은 싱글벙글로 하면서 말했다.
+						ENDIF
+					;吹雪
+					CASE 9
+					;※この天候で外でのんびり話すのもおかしいので外で話すのは上に移動
+						PRINTFORML 「꽤 강한 눈보라군요」
+						PRINTFORMW 「옥외에 나올 때에는 충분히 조심해 주세요,%CALLNAME:MASTER%」
+					;みぞれ
+					CASE 12
+						;外(山門、境内、裏庭、墓地)
+						IF OUTROOF(CFLAG:MASTER:현재위치)
+							PRINTFORML 「어중간하게 눈이 섞이고 있는 분 , 귀찮네요」
+							PRINTFORMW 「발밑에는 조심해 주세요,%CALLNAME:MASTER%」
+						ELSE
+							PRINTFORML 「응, 진눈깨비입니까…」
+							PRINTFORMW 「그러던 중 비가 내리는지, 그렇지 않으면 눈이 될까…」
+						ENDIF
+					;あられ
+					CASE 13
+					;※吹雪に同じ
+						PRINTFORML 뻥튀기가 지붕을 두드려, 격렬한 소리를 내고 있다.
+						PRINTFORMW 「말할 필요도 없는 것이겠지만, 위험하기 때문에 외출은 삼가해 주세요？」
+					ENDSELECT
+				;◆前コマンドがお茶淹れ＆1/2
+				ELSEIF PREVCOM == 301 && RAND:2 == 0 
+						PRINTFORML 「응, 역시 차는 좋네요」
+						PRINTFORMW 「따뜻해서, 기분에 여유가 나온다고 할까요」
+				;ここから汎用の普通会話
+				ELSEIF RAND:8 == 0 
+					PRINTFORMW 「후~. 설법을 생각하는 것도, 꽤 큰 일이네요」
+				ELSEIF RAND:7 == 0
+					PRINTFORML 「아, 바뀐 형태의 구름입니다. 쿠모야마같네요, 후후」
+					PRINTFORMW 「혹은 저것도 입도의 종류일까요」
+				ELSEIF RAND:6 == 0
+					PRINTFORML 「신앙을 넓히기 위해서(때문에)는, 어떻게 해야 할 무엇이지요…」
+					IF RAND:4 == 0
+						PRINTFORML 「쉽게 친숙 해짐을 테마로, 스님·온·스테이지, 라든지…」
+					ELSEIF RAND:3 == 0
+						PRINTFORML 「”수도고최고 속도”(이)라든가 하는 것이 되면, 혹은…」
+					ELSEIF RAND:2 == 0
+						PRINTFORML 「한송이나 나즈린에 부탁해, 약간의 상연물을 받는다든가…」
+					ELSE
+						PRINTFORML 「역시 착실하게 다리를 사용해 시주를 늘려 갈 수 밖에…」
+					ENDIF
+					PRINTFORMW 백련은 성실한 얼굴로 생각하고 있다…
+				ELSEIF RAND:5 == 0 
+					PRINTFORML 백련은 어려운 얼굴을 하고 생각하고 있다…
+						IF CFLAG:2 >= 1000
+							IF RAND:2 == 0
+								PRINTFORMW 「여기서 이 전떡을 먹어야할 것인가 아닌가…」
+							ELSE
+								PRINTFORMW 「내일의 저녁밥은 어떻게 할까요…」
+							ENDIF
+						ELSE
+							PRINTFORMW 너무 방해를 해도 나쁘기 때문에, 서서히 회화를 끝맺었다.
+						ENDIF
+				ELSEIF RAND:4 == 0 
+					PRINTFORML 「에 네, 그런 일이 있었습니다」
+					PRINTFORMW 백련은 상냥하게 맞장구를 치고 있다.
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「시주에게 과자 때를 받았습니다. 후후, 다음에 열어 봅시다」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「경내의 청소도 불도 수행의 1개이기 때문에, 제대로 하지 않으면 안되어요？」
+				ELSE
+					PRINTFORML 「그렇게 자주, 엿이라든지 먹습니까？」
+					PRINTFORMW 백련은 품으로부터 엿을 꺼냈다.
+				ENDIF
+			ENDIF
+		ENDIF
+
+ENDIF
+RETURN 1
+
+;==================================================
+;301,お茶を淹れる
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_301
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_301
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_301_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_301_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+;うふふが解除されていることを念押しする処理
+CFLAG:1211 = 0
+	IF CFLAG:빡침
+		PRINTFORMW 「……차에 대해서는, 인사를 해요」
+	;初めて
+	ELSEIF FIRSTTIME(SELECTCOM)
+		PRINTFORML 「아, 차를 엄라고 주었습니다. 고마워요,%CALLNAME:MASTER%」
+		PRINTFORM 그렇게 말하고 받은 차를 마신 백련은
+			;マズー
+			IF TFLAG:193 == -1
+				PRINTFORML 한입 마셔,.
+				PRINTFORMW 「……. , 독특한 맛이군요」
+			;ウマー
+			ELSEIF TFLAG:193 == 1
+				PRINTFORML 한입 포함해, 기쁜듯이 웃음을 띄웠다. 
+				PRINTFORMW 「아, 능숙하시네요,%CALLNAME:MASTER%」
+			;フツー
+			ELSE
+				PRINTFORML 생긋 미소지었다.
+				PRINTFORMW 「후후, 맛있습니다」
+			ENDIF
+	;二回目以降
+	ELSE
+		;◆睡眠薬だぜひゃっはー
+		IF TFLAG:194
+			IF TFLAG:194 < 0
+				PRINTFORMW 「……그, 무엇인가 말할 수 없는 악의를 느낍니다. 죄송합니다만…」
+			ELSE
+				IF TFLAG:193 == 1
+					PRINTFORMW 「무엇인가 조미료에서도 넣었는지 해들. 평상시와는 다르지만, 맛있었어요」
+				ELSEIF TFLAG:193 == -1
+					PRINTFORMW 「……잡미, 라고 하는 이상으로 그, 무엇인가 수상한 맛이」
+				ELSE
+					PRINTFORML 「―？」
+					PRINTFORMW 백련은 무엇인가 위화감을 느낀 것 같지만, 그대로 다 마셨다…
+				ENDIF
+			ENDIF
+		;混ぜ物なし
+		ELSE
+			;不味い
+			IF TFLAG:193 == -1
+				;4～5時(寝起きと仮定)
+				IF TIME:0 >= 240 && TIME:0 <= 300
+					PRINTFORMW 「……그, 눈은 깨었습니다…」
+				;◆
+				ELSE
+					IF RAND:2 == 0
+						PRINTFORMW 「응, 이래서야 아 단순한 색이 붙은 더운 물이군요」
+					ELSE
+						PRINTFORMW 「…, 독특한 맛이군요」
+					ENDIF 
+				ENDIF
+			;美味しい
+			ELSEIF TFLAG:193 == 1
+				;4～5時(寝起きと仮定)
+				IF TIME:0 >= 240 && TIME:0 <= 300
+					PRINTFORML 「일어나고 누락에 특출 맛있는 차를 받는다…이것도 하나의 행복하네요」
+					PRINTFORMW 「고마워요,%CALLNAME:MASTER%」
+				ELSEIF CFLAG:행동 == 5
+					PRINTFORML 「아. 맛있어요,%CALLNAME:MASTER%」
+					PRINTFORMW 「어쩐지 힘이 생겨 났습니다. 나머지도 노력하지 않으면 안되겠네요」
+				ELSE
+					IF RAND:2 == 0
+						PRINTFORMW 「아…이 차잎, 이렇게 맛있고 엄것이군요」
+					ELSE
+						PRINTFORMW 「정말로 맛있습니다」
+						PRINTFORMW 「손님에게 낼 때 도,%CALLNAME:MASTER%에 맡기고 싶을 정도 군요」
+					ENDIF
+				ENDIF
+			;普通
+			ELSE
+				;4～5時(寝起きと仮定)
+				IF TIME:0 >= 240 && TIME:0 <= 300
+					PRINTFORML 「응…눈을 뜨고의 한 잔이라고 하는 것도, 좋아요」
+				;縁側で、夜(19～4時)で、満月
+				ELSEIF CFLAG:현재위치 == 10 && TIME:2 == 3 && DAY:4 == 15
+					PRINTFORML 「아…감사합니다,%CALLNAME:MASTER%. 모처럼이니까, 함께 어떻습니까？」
+					PRINTFORMW 기분을 자주(잘) 한 백련은, 자신의 근처를 펑펑두드렸다…
+				;食事を取るまたは食事をふるまう の直後
+				ELSEIF PREVCOM == 414 || PREVCOM == 415
+					PRINTFORML 「식후의 차입니까？감사합니다」
+					PRINTFORMW 「응응…맛있다. 정말로, 고마운 사람」
+				ELSEIF CFLAG:행동 == 5
+					IF RAND:2 ==0
+						PRINTFORMW 「고마워요,%CALLNAME:MASTER%. 지금 일손을 놓을 수가 없었으니까, 딱 좋아요」
+					ELSE
+						PRINTFORMW 「응…중단할 수 있었어요. 고마워요,%CALLNAME:MASTER%」
+					ENDIF
+				ELSE
+					IF RAND:3 == 0
+						PRINTFORMW 「맛있었어요. 맛있는 음식님,%CALLNAME:MASTER%」
+					ELSEIF RAND:2 == 0
+						PRINTFORMW 「아, 감사합니다」
+					ELSE
+						PRINTFORMW 「응…후후, 맛있는 음식님」
+					ENDIF
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;302,スキンシップ
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_302
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_302
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_302_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_302_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;デート中
+	IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+	
+	;普段
+	ELSE
+		;恋人
+		IF TALENT:연인
+			;失敗
+			IF TFLAG:193 == -1
+				PRINTFORMW 「조금, 유석에 그것은…」
+			;成功or普通
+			ELSE
+				;浴場
+				IF BATHROOM(CFLAG:현재위치)
+					IF RAND:4 == 0 
+						PRINTFORMW 「아, , 어디를 씻습니까」
+						PRINTFORMW 「이타가 지나요, 이제(벌써)……%UNICODE(0x2665)%」
+					ELSEIF RAND:3 == 0 
+						PRINTFORML 손바닥으로 직접 백련의 몸을 씻으면(자), 백련의 매끈매끈한 피부가 붉은 빛을 띠어 간다…
+						PRINTFORMW 「, 라고…%CALLNAME:MASTER%, 손놀림 외야인것 같습니다…」
+					ELSEIF RAND:2 == 0
+						PRINTFORMW 「후후, 기분이 좋아요♪　끝나면(자) 교대합시다, 군요？」
+					ELSE
+						PRINTFORML 「언제나 감사합니다.…세탁개라고 하는 것도, 꽤 좋은 것이군요」
+						PRINTFORMW 등의 개수대합 있고의 그리고, 백련은 상냥하게 미소지었다
+					ENDIF
+				;縁側
+				ELSEIF CFLAG:현재위치 == 110
+					;流れ星
+					IF TIME:7 == 3
+						PRINTFORML 백련과 함께 유성을 바라보았다
+						PRINTFORML 「이봐요, 어！보였는지 해들 ,%CALLNAME:MASTER%」
+						PRINTFORMW 「후후, 당신은 무엇인가 부탁했어？」
+					;夏で晴れ
+					ELSEIF DAY:2 == 2 && (TIME:5 == 0 || TIME:5 == 1)
+						;7～11時
+						IF TIME:0 >= 420 && TIME:0 <= 660
+							PRINTFORML 백련과 함께 물을 뿌림을 한다…작정(생각)이었던 것이지만.
+							PRINTFORML 「아하하, 그렇게 간단하게 맞는 것입니까-！」
+							PRINTFORMW 어느새인가, 물의 교섭이 되어 있었다…
+						;17～19時
+						ELSEIF TIME:0 >= 1020 && TIME:0 <= 1140
+							PRINTFORML 백련과 저녁 납량을 했다.
+							PRINTFORML 「아, 바람이 나왔습니다. 이렇게 되면, 비교적 보내기 쉽네요」
+							PRINTFORMW 백련은 다 안심한 표정으로 당신에게 몸을 맡기고 있다…
+						ENDIF
+					ELSE
+						PRINTFORML 백련과 밖의 경치를 뿌옇게 바라보았다
+						PRINTFORMW 「이 툇마루로부터의 경치만으로도, 의외로 계절의 변천은 아는 것이에요」
+						PRINTFORMW 「쭉 이렇게 해,%CALLNAME:MASTER%(와)과 함께 계절의 변화를 즐겨 아파요」
+					ENDIF
+				ELSE
+					IF RAND:7 == 0 
+						PRINTFORML 백련의 등을 손가락끝으로 개개-와 어루만졌다.
+						PRINTFORML 「！…이제(벌써), 그러한 못된 장난은 안되어요？」
+						PRINTFORMW 백련은 당신의 머리를 손바닥문득 두드렸다.
+					ELSEIF RAND:6 == 0 
+						PRINTFORMW 「후후, 당신의 손, 좋아해요…%UNICODE(0x2665)%」
+					ELSEIF RAND:5 == 0 
+						PRINTFORMW 「 이제(벌써), 불쾌한 손놀림이군요 」
+					ELSEIF RAND:4 == 0 
+						PRINTFORMW 「후후…응…%UNICODE(0x2665)%」
+					ELSEIF RAND:3 == 0
+						PRINTFORML 백련의 배후로부터 천천히 가까워져, 옆구리에 손을 들어가게 할 수 있어 간질였다.
+						PRINTFORMW 「아！？」
+						PRINTFORML 놀란 백련이 순간에 몸을 굽힌 것으로, 손이 옆구리로부터 멀어지고――
+						PRINTFORML …그대로 유방을 머리카락 하는 형태가 되어 버렸다.
+						PRINTFORMW 「응…이제(벌써). 번성한 사람…」
+					ELSEIF RAND:2 == 0
+						PRINTFORML 당신은 백련의 머리카락을 둥실둥실 희롱했다.
+						PRINTFORMW 「……후후%UNICODE(0x2665)%」
+					ELSE
+						PRINTFORML 「네？어깨를 비비어 줍니까？감사합니다」
+						PRINTFORMW ………
+						PRINTFORML 　
+						PRINTFORML 「후후…기분 좋습니다…」
+						PRINTFORMW 「…이렇게 해 당신과 접촉하고 있는 것만으로, 어쩔 수 없고 행복하게 됩니다」
+						PRINTFORMW 「이것도 하나의 마법일까…, 이번은%CALLNAME:MASTER%의 차례예요」
+					ENDIF
+				ENDIF
+			ENDIF
+		;恋慕
+		ELSEIF TALENT:연모
+			;失敗
+			IF TFLAG:193 == -1
+				PRINTFORMW 「조금…과연, 부끄럽습니다…」
+			;成功or普通
+			ELSE
+				;浴場
+				IF BATHROOM(CFLAG:현재위치)
+					IF RAND:2 == 0
+						PRINTFORMW 백련에 등을 흘려 주었다
+						PRINTFORML 「이렇게 해 차분히 보면(자), 꽤\@ TALENT:PLAYER:2 & 2 ? たくましい # きれいな \@등 해」
+						PRINTFORM 「네？나의 등을…？
+						IF RAND:2 == 0 
+							PRINTFORMW 응…그러면, 부탁할까」
+						ELSE
+							PRINTFORMW 아하하, 사양해 둡니다」
+						ENDIF
+					ELSE
+						PRINTFORML 「옛날은 이런 식으로 별의 몸을 씻어 준 적도 있었군요…」
+						PRINTFORMW 「그 아이는 구 곧 하고 싶어하기 때문에, 꽤 손이 많이 간 것입니다」
+						PRINTFORML 「뭐, 손이 걸리는 아이만큼 사랑스럽다고 할까요」
+						PRINTFORMW 「당신도 사랑스러워요,%CALLNAME:MASTER%. 후후」
+						;お風呂に特攻かましてくるスケベニンゲンに手がかかるのはあたりまえだよなぁ？
+					ENDIF
+				;縁側
+				ELSEIF CFLAG:현재위치 == 110
+					;流れ星
+					IF TIME:7 == 3
+						PRINTFORML 백련과 함께 유성을 바라보았다
+						PRINTFORML 「이봐요, 어！보였는지 해들 ,%CALLNAME:MASTER%」
+						PRINTFORMW 「 나의 소원？…후후, 비밀입니다」
+					;夏で晴れ
+					ELSEIF DAY:2 == 2 && (TIME:5 == 0 || TIME:5 == 1)
+						;7～11時
+						IF TIME:0 >= 420 && TIME:0 <= 660
+							PRINTFORML 백련과 함께 물을 뿌림을 하기로 했다.
+							PRINTFORMW 「당신이 있어 살아나요. 꽤 애를 먹습니다, 이것」
+						;17～19時
+						ELSEIF TIME:0 >= 1020 || TIME:0 <= 1140
+							PRINTFORML 백련과 저녁 납량을 했다.
+							PRINTFORML 「아, 바람이 나왔습니다. 이렇게 되면, 비교적 보내기 쉽네요」
+							PRINTFORMW 백련은 당신에게 좋게 미소지어 걸쳤다.
+						ENDIF
+					ELSE
+						PRINTFORML 백련과 밖의 경치를 뿌옇게 바라보았다
+						PRINTFORMW 「이 툇마루로부터의 경치만으로도, 의외로 계절의 변천은 아는 것이에요」
+					ENDIF
+				ELSE
+					IF RAND:6 == 0 
+						PRINTFORML 백련의 등을 손가락끝으로 개개-와 어루만졌다.
+						PRINTFORML 「！…이제(벌써), 그러한 못된 장난은 안되어요？」
+						PRINTFORMW 곤란한 것처럼 미소짓고 있지만, 그렇게 나쁜 기분이라도 없을 것 같다.
+					ELSEIF RAND:5 == 0 
+						PRINTFORML 「 이제(벌써), 장난이 지납니다」
+						PRINTFORMW 그렇게 말하면서도, 백련은 만갱에서도 없을 것 같게 웃고 있다.
+					ELSEIF RAND:4 == 0 
+						PRINTFORMW 「…후후」
+						PRINTFORMW 성은 은근히 신체를 대어 왔다…
+					ELSEIF RAND:3 == 0
+						PRINTFORML 백련의 배후로부터 천천히 가까워져, 옆구리에 손을 들어가게 할 수 있어 간질였다.
+						PRINTFORMW 「아！？」
+						PRINTFORML 놀란 백련이 순간에 몸을 굽힌 것으로, 손이 옆구리로부터 멀어지고――
+						PRINTFORML …그대로 유방을 머리카락 하는 형태가 되어 버렸다.
+						PRINTFORMW 「……그렇게 강하게 잡으면(자), 아픕니다…」
+					ELSEIF RAND:2 == 0
+						PRINTFORML 당신은 백련의 머리카락을 둥실둥실 희롱했다.
+						PRINTFORMW 「후후, 촉감 마음은 어떻게든 해들 」
+					ELSE
+						PRINTFORML 「네？어깨를 비비어 줍니까？…후후, 부탁합니다」
+						PRINTFORMW ………
+						PRINTFORML 　
+						PRINTFORML 「…응, 꽤 능숙해요」
+						PRINTFORMW 「고마워요, 많이 편해졌습니다. 다음은 내가%CALLNAME:MASTER%의 어깨를 비비어 주는 차례군요」
+					ENDIF
+				ENDIF
+			ENDIF
+		;恋人、恋慕なし
+		ELSE
+			;失敗
+			IF TFLAG:193 == -1
+				PRINTFORMW 「…이제(벌써)」
+			;成功or普通
+			;/古き良き日本の伝統により、混浴でも特に気にされないと強引に解釈するしかない。何その理想郷
+			ELSE
+				;浴場
+				IF BATHROOM(CFLAG:현재위치)
+					IF RAND:2 == 0
+						PRINTFORMW 백련에 등을 흘려 주었다
+						PRINTFORML 「이렇게 해 차분히 보면(자), 꽤\@ TALENT:PLAYER:2 & 2 ? たくましい # きれいな \@등 해」
+					ELSE
+						PRINTFORML 「옛날은 이런 식으로 별의 몸을 씻어 준 적도 있었군요…」
+						PRINTFORMW 「그 아이는 구 곧 하고 싶어하기 때문에, 꽤 손이 많이 간 것입니다」
+					ENDIF
+				;縁側
+				ELSEIF CFLAG:현재위치 == 110
+					;流れ星
+					IF TIME:7 == 3
+						PRINTFORML 백련과 함께 유성을 바라보았다
+						PRINTFORML 「이봐요, 어！보였는지 해들 ,%CALLNAME:MASTER%」
+					;夏で晴れ
+					ELSEIF DAY:2 == 2 && (TIME:5 == 0 || TIME:5 == 1)
+						;7～11時
+						IF TIME:0 >= 420 && TIME:0 <= 660
+							PRINTFORML 백련과 함께 물을 뿌림을 하기로 했다.
+							PRINTFORMW 「그렇게, 그렇게 응달에 따돌려 주세요」
+						;17～19時
+						ELSEIF TIME:0 >= 1020 || TIME:0 <= 1140
+							PRINTFORML 백련과 저녁 납량을 했다.
+							PRINTFORMW 「아, 바람이 나왔습니다. 이렇게 되면, 비교적 보내기 쉽네요」
+						ENDIF
+					ELSE
+						PRINTFORML 백련과 밖의 경치를 뿌옇게 바라보았다
+						PRINTFORML 「…후와～. 어머나, 실례」
+						PRINTFORMW 백련은 기지개를 켰다.
+					ENDIF
+				ELSE
+					IF RAND:6 == 0 
+						PRINTFORMW 「응…」
+					ELSEIF RAND:5 == 0 
+						PRINTFORMW 「조금, 너무 어루만집니다…」
+					ELSEIF RAND:4 == 0
+						PRINTFORML 당신은 백련의 머리카락을 둥실둥실 희롱했다.
+						PRINTFORMW 「신경이 쓰입니까？…응, 확실히 드문 색일지도 모르겠네요」
+					ELSEIF RAND:3 == 0
+ 						PRINTFORML 백련의 등을 손가락끝으로 개개-와 어루만졌다.
+						PRINTFORML 「아！？」
+						PRINTFORMW …다음에 조금 설교하셨다.
+					ELSEIF RAND:2 == 0
+						PRINTFORML 백련의 배후로부터 천천히 가까워져, 옆구리에 손을 들어가게 할 수 있어 간질였다.
+						PRINTFORMW 「아！？」
+						PRINTFORML 놀란 백련이 몸등키연으로, 머리가 힘차게 차이고――
+						PRINTFORML ……그대로 강렬한 박치기를 받아 버렸다.
+						PRINTFORMW 「아！？%CALLNAME:MASTER%, 괜찮습니까！？」
+					ELSE
+
+						PRINTFORML 「네？어깨를 비비어 줍니까？」
+						PRINTFORMW ………
+						PRINTFORML 　
+						PRINTFORML 「…응, 조금 낯간지러울까」
+						PRINTFORML 「후후, 조금 편해졌어요. 고마워요,%CALLNAME:MASTER%」
+					ENDIF
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;303,謝る
+;TFLAG:193(2=菓子折成功 1=大成功 0=成功 -1=失敗 -2=菓子折失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_303
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_303
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_303_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_303_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;304,仕事を手伝う
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;CFLAG:350(仕事内容(JOB_仕事内容.ERB参照のこと
+;TCVAR:도울수없다(=2 手伝っても早くは終わらない、時間停止中不可 永琳の診察等)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_304
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_304
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_304_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_304_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;大成功
+	IF TFLAG:193  == 1
+		;恋慕
+		IF TALENT:연모
+			IF RAND:3 == 0 
+				PRINTFORMW 「응, 바야흐로 이심전심이라고 하는 느낌이군요」
+				PRINTFORMW 「…성격이 잘 맞을까요, 우리」
+			ELSEIF RAND:2 == 0 
+				PRINTFORMW 「우와 우수한 일하는 태도예요,%CALLNAME:MASTER%」
+				PRINTFORMW 「쭉 조력을 부탁하고 싶을 정도 」
+			ELSE
+				PRINTFORMW 「이 분이라고 되어 빨리 정리되네요」
+				PRINTFORMW 「다음번도 조력을 부탁해도 좋을까？」
+			ENDIF
+		ELSE
+			IF RAND:3 == 0 
+				PRINTFORMW 「응, 바야흐로 이심전심이라고 하는 일하는 태도군요」
+				PRINTFORMW 「유석입니다,%CALLNAME:MASTER%」
+			ELSEIF RAND:2 == 0 
+				PRINTFORMW 「우와 우수한 일하는 태도예요,%CALLNAME:MASTER%」
+				PRINTFORMW 「나중에 무엇인가 포상을 줍시다. 콩큰 복이라든지 싫습니까？」
+			ELSE
+				PRINTFORMW 「이 분이라고 되어 빨리 정리되네요」
+				PRINTFORMW 「다음번도 조력을 부탁하고 싶네요」
+			ENDIF
+		ENDIF
+	;失敗
+	ELSEIF TFLAG:193  == -1
+		IF RAND:3 == 0 
+			PRINTFORMW 「응, 도우려는 기분은 고마운 것이지만…」
+		ELSEIF RAND:2 == 0 
+			PRINTFORMW 「아, 그건 좀 맛이 없을까…」
+		ELSE
+			PRINTFORML 「…위, 그것은 귀찮은 것으로 되고 그렇구나…」
+			PRINTFORMW 「아, 낙심하지 마. 나 혼자로 어떻게든 할 수 있는 정도의 문제이기 때문에…」
+		ENDIF
+	;成功
+	ELSE
+		IF RAND:5 == 0 
+			PRINTFORMW 「꽤, 머리의 아픈 문제군요…」
+			;PRINTFORMW 「なかなか、頭の痛い問題ね…」
+		ELSEIF RAND:4 == 0 
+			PRINTFORMW 백련과 함께 시주 회전을 했다.
+			;PRINTFORMW 「色々なものが増えると、供養の仕方もいろいろになるものねえ…」
+		ELSEIF RAND:3 == 0 
+			PRINTFORMW 「모처럼이고, 함께 불경을 주창해 봅니까?」
+			;PRINTFORMW 「こういった大きな企画となると、連絡をつけるべきなのは…」
+		ELSEIF RAND:2 == 0
+			PRINTFORMW 「후후, 덕분에 많은 사람에게 이야기를 들어 줄 수 있었습니다.」
+			;PRINTFORMW 「はい。次の書類、お願いします」
+		ELSE
+			PRINTFORMW 「우우～응, 이것은 나의 손에도 끝낼지 어떨지…뭐, 무기력이 되어도 어쩔 수 없습니까」 
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;305,膝枕してもらう
+;TFLAG:193(-5=MASTERがTARGETよりも巨体の場合(TALENT:MASTER:체형 > TALENT:체형 + 2) 1=大成功 0=成功 -1=失敗)(-5以外は地の文分岐無し)
+;ABL:친밀(6以上=顔をのぞき込みながら頭を撫でてくれる 3以上=ただ頭を撫でてくれる 2以下=縮こまっている)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_305
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_305
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_305_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_305_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+;うふふが解除されていることを念押しする処理
+CFLAG:1211 = 0
+	IF ABL:TARGET:친밀 > 2
+		IF RAND:6 == 0 && ABL:TARGET:친밀 >= 5
+			PRINTFORMW 「후후, 이번은 나에게도 받을까」
+		ELSEIF RAND:5 == 0
+			PRINTFORMW 「후후. 언제나 수고했습니다,%CALLNAME:MASTER%」
+		ELSEIF RAND:4 == 0 
+			PRINTFORML 살집이 자주(잘) 여성다운, 부드러운 태퇴다.
+			PRINTFORMW 「…뺨를 하는 것 같이 머리를 작동되면(자), 유석에 부끄럽네요」
+		ELSEIF RAND:3 == 0 
+			PRINTFORML 「……♪」
+			PRINTFORMW 백련은 당신의 머리를 상냥하게 쓰다듬고 있다…
+		ELSEIF RAND:2 == 0 
+			PRINTFORMW 「지쳤는지 해들？후후, 이대로 자도 상관하지 않아요」
+		ELSE
+			PRINTFORMW 백련이 등골을 펴고 있으면(자), 가슴 팍의 가림물로 표정이 묻기 힘들다.
+		ENDIF
+	ELSE
+		IF RAND:2 == 0
+			PRINTFORMW 「응―, 이런 느낌 까？」
+		ELSE
+			PRINTFORMW 「…이제 만족했습니다？」
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;306,お腹を撫でる
+;TFLAG:193(1=ABL:친밀6以上かつ妊娠時 0=成功 -1=ABL:친밀5以下)
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_306
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_306_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_306_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	;時間停止中
+	IF FLAG:70
+	;通常
+	ELSE
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;307,頬をつまむ
+;TFLAG:193(1=大成功 0=成功 -1=失敗)(地の文分岐無し
+	;以下は先に書いた条件が優先される
+	;TALENT:연모(受け入れつつ笑顔でやり返す
+	;ABL:친밀(6以上=おずおずとやり返す
+	;ABL:순종(5以上=されるがまま
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_307
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗(注、抱きつきモード中は自動成功)、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_307
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_307_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_307_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	;時間停止中
+	IF FLAG:70
+	;睡眠中
+	ELSEIF CFLAG:수면
+	;通常
+	ELSE
+	ENDIF
+
+ENDIF
+RETURN 1
+;==================================================
+;308,頬をつつく
+;添い寝中or睡眠中限定
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_308
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗(注、抱きつきモード中は自動成功)、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_308
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_308_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_308_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	IF CFLAG:수면
+		IF TFLAG:193 == 1 
+			IF RAND:2 == 0
+				PRINTFORMW 「…응응……후후…」
+			;◆
+			ELSE
+				PRINTFORMW 「응응…후후…………」
+			ENDIF
+		ELSEIF TFLAG:193 == -1
+			IF RAND:2 == 0
+				PRINTFORML 「…응응」
+			;◆
+			ELSE
+				PRINTFORML 「응…그만두어…………」
+			ENDIF
+			PRINTFORMW 백련은 얼굴을 밖에 째라고 배반했다…
+		ELSE
+			IF RAND:2 == 0
+				PRINTFORML 「응응……………」
+				PRINTFORMW 백련의 뺨은 부드러웠다…
+			ELSE
+				PRINTFORML 「응응…」
+				PRINTFORMW 백련은 숨소리를 내고 있다…
+			ENDIF
+		ENDIF
+	ELSE
+		;連続
+		IF PREVCOM == SELECTCOM
+			IF RAND:2 == 0
+				PRINTFORMW 「…그렇게 즐거운 것인가 해들？」
+			ELSE
+				PRINTFORML 「응, 뭐, 아프게 하지 않다면 상관하지 않습니까」
+			ENDIF
+		;成功
+		ELSEIF TFLAG:193 == 1
+			;◆
+			IF RAND:2 == 0
+				PRINTFORMW 「……응 이제(벌써), 무엇입니까―？」
+				PRINTFORMW 백련은 싱글벙글로 하면서 당신에게 뺨을 쿡쿡 찔러지고 있다…
+			ELSE
+				PRINTFORMW 「완전히 이제(벌써). 당하면(자), 해 반환있어요―？」
+				PRINTFORMW 백련과 당신은 당분간 뺨을 서로 쿡쿡 찔렀다.
+			ENDIF
+		;失敗
+		ELSEIF TFLAG:193 == -1
+			IF RAND:3 == 0 
+				PRINTFORMW 「…후~」
+				PRINTFORMW 백련은 귀찮을 것 같은 얼굴이다.
+			ELSEIF RAND:2 == 0
+				PRINTFORMW 「…너무 조금 할까」
+			ELSE
+				PRINTFORMW 「…」
+				PRINTFORMW 어떤 리액션도 돌려주어 주지 않는다. 아무래도 기분을 해친 것 같다…
+			ENDIF
+		ELSE
+			IF RAND:3 == 0 
+				PRINTFORMW 「 이제(벌써)…아이같은 조롱하는 방법을 해…」
+			ELSEIF RAND:2 == 0 
+				PRINTFORMW 「…후후, 부드럽습니까？」
+			ELSE
+				PRINTFORMW 곤란한 표정을 띄우면서도, 백련은 되는 대로 쿡쿡 찔러지고 있다…
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;309,頭を撫でる
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;ABL:친밀(6以上=通常成功時分岐
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_309
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗(注、抱きつきモード中は自動成功)、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_309
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_309_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_309_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;うふふが解除されていることを念押しする処理
+	CFLAG:1211 = 0
+	;眠ってる白蓮をなでなで
+	IF CFLAG:TARGET:수면
+		IF ABL:친밀 > 5
+			;◆
+			IF RAND:2 == 0
+				PRINTFORMW 「응…후후…………」
+			ELSE
+				PRINTFORMW 자고 있는 백련의 머리를 어루만지면(자), 그녀는 기쁜듯이 웃음을 띄웠다.
+			ENDIF
+		ELSE
+			IF RAND:2 == 0
+				PRINTFORMW 「응응…」
+			;◆
+			ELSE
+				PRINTFORMW 「…응응…………」
+			ENDIF
+		ENDIF
+	;◆初めて
+	ELSEIF FIRSTTIME(SELECTCOM)
+		PRINTFORMW 「꺄……」
+		PRINTFORMW 「…누군가에게 어루만질 수 있다니 대단히 오래간만이니까, 조금 놀라 버렸습니다」
+	;◆怒り
+	ELSEIF CFLAG:빡침
+		PRINTFORMW 「……기분 잡기의 작정(생각)일까？」
+	;添い寝中
+	;/添い寝中だと多少素直に
+	ELSEIF CFLAG:동침중
+		;恋人
+		IF TALENT:연인
+			;◆
+			IF RAND:5 == 0
+				PRINTFORMW 「…후후. 이렇게 되고 있자, 당장이라도 자고 할 것 같다」
+				PRINTFORMW 「당신이 접할 수 있는 것만으로, 매우 안심해. 이상하구나」
+			;◆
+			ELSEIF RAND:4 == 0
+				PRINTFORMW 「……어쩐지, 아이에게라도 된 것 같은 기분이군요」
+				PRINTFORMW 「후후. 저기, 좀 더 쓰다듬고 있어 주세요. 좋은 아이, 좋은 아이는…」
+			ELSEIF RAND:3 == 0 
+				PRINTFORML 「응…」
+				PRINTFORMW 백련은 편하게 눈감아 당신이 어루만질 수 있고 있다…
+			ELSEIF RAND:2 == 0 
+				PRINTFORMW 「…응…%CALLNAME:MASTER%…」
+				PRINTFORMW 아무래도 의식을 손떼기 걸려 있는 것 같다…
+			ELSE
+				PRINTFORML 「…응후후」
+				PRINTFORMW 「행복합니다」
+			ENDIF
+		;恋慕
+		ELSEIF TALENT:연모
+			IF RAND:5 == 0
+				PRINTFORMW 「입니까……아이 취급입니까」
+				PRINTFORMW 「……아, 조금, 그만두지 말아 주세요」
+			ELSEIF RAND:4 == 0
+				PRINTFORMW 「…상냥하게 쓰다듬고 있고 줍니다」
+			ELSEIF RAND:3 == 0
+				PRINTFORMW (아,…아무래도, 이 손이 사랑 아깝게 느껴져…)
+			ELSEIF RAND:2 == 0
+				PRINTFORMW 「후와……, 졸려져 버립니다…」
+			ELSE
+				PRINTFORMW 「응, 좀 더만, 이대로 계속해 주지 않겠습니까……」
+			ENDIF
+		;親密5以上
+		ELSEIF ABL:친밀 > 5
+			IF RAND:2 == 0
+				PRINTFORMW 「후~. 조금 안심하고 버리는 자신이 싫어집니다…」
+			ELSE
+				PRINTFORMW 「…상냥하게 쓰다듬고 있고 줍니다」
+			ENDIF
+		ELSE
+			IF RAND:2 == 0
+				PRINTFORMW 「…이제(벌써). 어쩔 수 없는 사람입니다」
+			;◆
+			ELSE
+				PRINTFORMW 「……그런 금년 없어도 잠들 수 있어요」
+			ENDIF
+		ENDIF
+	;浴場にいる
+	ELSEIF BATHROOM(CFLAG:현재위치)
+		;お風呂でくつろぐの直後
+		IF PREVCOM == 403
+			;恋人
+			IF TALENT:연인
+				PRINTFORMW 백련은 입다물고 눈감아 당신에게 신체를 맡기고 있다…
+			;恋慕
+			ELSEIF TALENT:연모
+				IF RAND:2 == 0
+					PRINTFORML 「이렇게 머리카락을 정리하고 있으면(자) 어쩐지 신선…입니까？」
+					PRINTFORMW 「응―, 이메튠이라고 하는 것도 좋을지도 모르겠네요」
+					PRINTFORMW 「…그리고, 당신은 어떤 머리 모양을 좋아하는가 해들？」
+				ELSE
+					PRINTFORML 「…후~」
+					PRINTFORML 백련은 욕조 중(안)에서 무릎을 움켜 쥐었다.
+					PRINTFORMW 풍유가 다리압와 변형했다.
+				ENDIF
+			;親密5以上
+			ELSEIF ABL:친밀 > 5
+				IF RAND:2 == 0
+					PRINTFORML 「이렇게 머리카락을 정리하고 있으면(자) 어쩐지 신선…입니까？」
+					PRINTFORMW 「응―. 가끔 씩은, 이메튠이라고 하는 것도 좋을지도 모르겠네요」
+				ELSE
+					PRINTFORML 「…여기에서도 어루만지군요」
+					PRINTFORMW 「…응―, 뭐, 그래 나쁜 기분도 하지 않아요」
+				ENDIF
+			ELSE
+				IF RAND:2 == 0
+					PRINTFORMW 「……후~. 부끄러워요」
+				ELSE
+					PRINTFORMW 「…저기요」
+					PRINTFORMW 「아니요 역시 그만두기로 합시다.…무슨 말을 해도 쓸데없구나, 반드시」
+					;結局超許す
+				ENDIF
+			ENDIF
+		ELSE
+			PRINTFORML 백련이 머리를 감아 주었다.
+			;ランダム1/2、MASTERの技巧が5以上か器用な指
+			IF RAND:2 == 0  && (ABL:MASTER:기교 >= 5 || TALENT:MASTER:51 == 1)
+				IF RAND:2 == 0
+					PRINTFORMW 「응―…능숙한 것이군요. 앞으로도 가끔 부탁하고 싶을 정도 군요」
+				ELSE
+					PRINTFORMW 「원아…이것은 꽤 기분이 좋네요. 마을에서 이발업이라도 하고 있었어？」
+				ENDIF
+			ELSEIF TALENT:연인
+				IF RAND:4 == 0
+					PRINTFORMW 「귀의 뒤근처가 가렵네요.……아, 그래, 적당히. 응. 기분이 좋아요, 고마워요」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「후후, 사랑을 담아 씻어 주세요？」 
+				ELSEIF RAND:2 == 0 
+					PRINTFORMW 「길기 때문에 큰 일이겠지요？지치면(자), 교대해도 돼？」
+				ELSE
+					PRINTFORMW 「아하하, 조금 낯간지러워요」
+				ENDIF
+			ELSEIF TALENT:연모
+				IF RAND:4 == 0 
+					PRINTFORMW 「…응…낯간지럽다」
+					PRINTFORMW 백련않고가 같게 신체를 흔들었다.
+				ELSEIF RAND:3 == 0 
+					PRINTFORMW 「…여성이 이발사도 아닌 사람에게 머리카락을 씻게 한다 라고, 꽤일이라고 생각한다 하지만」
+					PRINTFORMW 「……음, 그. 당신은 어떻게 생각하고 있을까」
+				ELSEIF RAND:2 == 0 
+					PRINTFORMW 「…길기 때문에 큰 일이겠지요？」
+					PRINTFORMW 「 나는 손질 하고 있어 즐겁지만, 상당히 수고가 아닙니까」
+				ELSE
+					PRINTFORMW 「……」
+					PRINTFORMW 「…아무것도 아니어요, 계속해 정대」
+				ENDIF
+			ELSEIF ABL:친밀 > 5
+				IF RAND:3 == 0 
+					PRINTFORMW 「…여성이 이발사도 아닌 사람에게 머리카락을 씻게 한다 라고, 꽤일이라고 생각한다 하지만」
+				ELSEIF RAND:2 == 0 
+					PRINTFORMW 「귀의 뒤근처가 가렵네요.……아, 그래, 적당히. 응. 고마워요,%CALLNAME:MASTER%」
+				ELSE
+					PRINTFORMW 「그렇게 자주…그 상태…」
+				ENDIF
+			ELSE
+				IF RAND:3 == 0 && (ABL:MASTER:기교 < 5 || TALENT:MASTER:51 == 0)
+					PRINTFORMW 「…, 이끌지 말아 줘」
+				ELSEIF RAND:2 == 0 
+					PRINTFORMW 「맡겨 괜찮아？사실일까…？」
+				ELSE
+					PRINTFORMW 「…어쩐지 불안합니다」
+				ENDIF
+			ENDIF
+		ENDIF
+	ELSE
+		;抱き付くの直後
+		IF PREVCOM == 311
+			PRINTFORML 꼭 껴안은 백련을 상냥하게 어루만졌다
+			IF TALENT:연인
+				PRINTFORMW 「아……좀 더, 이대로……」
+				PRINTFORMW 백련은 당신의 허리에 양팔을 돌리면(자), 몸을 밀착시키도록(듯이) 제대로 꼭 껴안았다.
+			ELSEIF TALENT:연모
+				PRINTFORMW 「……응」
+				PRINTFORMW 백련은 당신의 가슴 팍에 머리를 맡겼다.
+				PRINTFORMW 긴 머리카락으로부터, 달콤한 향기가 후와리와 솟아오른다.
+			ELSEIF ABL:친밀 > 5
+				PRINTFORMW 「응응…뭐, 이런 것도 가끔 씩은 나쁘지 않을 것입니다」
+			ELSE
+				PRINTFORMW 「원원…좀, 이것은 정말로 부끄럽습니다」
+			ENDIF
+		ELSE
+			;恋人
+			IF TALENT:연인
+				;失敗
+				;/恋人で撫でるのに失敗ってどういう状況だ
+				IF TFLAG:193 == -1
+					PRINTFORMW 「…너무 어루만져요」
+				;欲情Lv.3以上で、強めのランダム分岐が2つ追加される
+				ELSEIF RAND:4 == 0 && PALAM:욕정 >= PALAMLV:3
+					PRINTFORMW 「…저기, 머리로 좋은거야…？」
+				ELSEIF RAND:3 == 0 && PALAM:욕정 >= PALAMLV:3
+					PRINTFORMW 「응……심술쟁이인 사람. 이런 때에도 머리를 어루만지군요」
+					PRINTFORMW 「응. 그 밖에도 하는 일이 있겠지요…？」
+				ELSEIF RAND:2 == 0 && PALAM:욕정 >= PALAMLV:3
+					PRINTFORMW 백련은 은근히 신체를 접대어 왔다…
+				ELSEIF RAND:6 == 0 
+					PRINTFORMW 「당신이 그렇게 쓰다듬고 있고 주기 때문에, 옛날보다 머리카락의 손질에 신경을 쓰고 있어」
+					PRINTFORMW 「그런데, 그러니까 좀 더 쓰다듬고 있어 깨끗하다고 칭찬해 줘…？」
+				ELSEIF RAND:5 == 0 
+					PRINTFORMW 「우우-응…나, 여기의 긴 응이지만요 」
+					PRINTFORMW 「뭐, 그것과 이것과는 이야기가 별도입니다.%CALLNAME:MASTER%, 좀 더 쓰다듬고 있어 주세요」
+				ELSEIF RAND:4 == 0 
+					PRINTFORMW 「 이제(벌써). 그렇게 더듬으면(자), 머리카락이 혼란있습니다」
+					PRINTFORMW 「이봐요 이봐요, 해 반환있어요―？」
+					PRINTFORMW 당신과 백련은 당분간의 사이 서로의 머리를 서로 어루만지고 있었다.
+				ELSEIF RAND:5 == 0
+					PRINTFORML 오 좋아 좋아 좋아.
+					PRINTFORMW 「응후후―♪」
+					PRINTFORMW 「……라고, 나는 동물인가 무엇인가입니까」
+				ELSEIF RAND:4 == 0 
+					PRINTFORMW 「응…. 후후, 어쩐지 기운 나네요♪」
+				ELSEIF RAND:3 == 0 
+					PRINTFORMW 「응…」
+					PRINTFORMW 「기분 좋다」
+				ELSEIF RAND:2 == 0 
+					PRINTFORMW 백련은 마음이야 유혹하는에 눈감고 있다…
+				ELSE
+					PRINTFORMW 백련은 다 안심한 표정으로 당신의 손에 몸을 맡기고 있다.
+				ENDIF
+			;恋慕
+			ELSEIF TALENT:연모
+				IF TFLAG:193 == -1
+					PRINTFORMW 「…(와)과와 머리카락이 혼란있습니다」
+					PRINTFORMW 정말로 머리카락의 혼란을 신경쓰고 있는 것 같아서, 손을 히담았다.
+				;欲情Lv.3以上で、強めのランダム分岐が3つ追加される
+				ELSEIF RAND:4 == 0 && PALAM:욕정 >= PALAMLV:3
+					PRINTFORMW 「…%CALLNAME:MASTER%, 그…말해라. 무엇이든지 있지 않습니다」
+				ELSEIF RAND:3 == 0 && PALAM:욕정 >= PALAMLV:3
+					PRINTFORMW 백련은 은근히 신체를 대어 왔다…
+				ELSEIF RAND:2 == 0 && PALAM:욕정 >= PALAMLV:3
+					PRINTFORMW 「…」
+					PRINTFORMW 「…좀 더, 부탁합니다…」
+				ELSEIF RAND:6 == 0
+ 					PRINTFORMW 「머리카락은 여자의 생명, 고도 말하고, 나도 상당히 신경을 쓰고 있습니다」
+					PRINTFORMW 「촉감 마음은 어떻습니까？」
+					PRINTFORMW %CALLNAME:MASTER%하지만 머리카락을 칭찬하면(자), 백련은 행복하게 미소지었다.
+					PRINTFORMW 「후후. 좋다면 좀 더 손대어도 괜찮아요？」
+				ELSEIF RAND:5 == 0 
+					PRINTFORMW 「…그래, 머리카락을 빗고 쌍 싶은……」
+					PRINTFORMW 「……응. 능숙하네요,%CALLNAME:MASTER%」
+					PRINTFORMW 「매우 기분이 좋습니다. 당신의 어루만지는 방법, 좋아해요」
+				ELSEIF RAND:4 == 0 
+					PRINTFORMW 「우우-응…나, 여기의 긴 응이지만요 」
+					PRINTFORMW 「아니요 호의적으로 접해 줄 수 있는 것은 고맙습니다만」
+					PRINTFORMW 백련은 조금 곤란한 것처럼 미소짓고 있다.
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「 이제(벌써). 그렇게 더듬으면(자), 머리카락이 혼란있습니다」
+					PRINTFORMW 백련은 기쁜듯이 웃음을 띄우고 있다.
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「%마스터는%, 이렇게 나의 머리를 쓰다듬고 있어 즐겁습니까？」
+					PRINTFORMW 「 나는, 응…비밀입니다」
+				ELSE
+					PRINTFORMW 「……후후」
+					PRINTFORMW 백련은 희미하게 뺨을 붉히면서 당신의 손에 몸을 맡기고 있다.
+				ENDIF
+			;親密5以上
+			ELSEIF ABL:친밀 > 5
+				IF TFLAG:193 == -1
+					PRINTFORMW 「…너무 과연 손댈까. 자중 해 주세요」
+				ELSEIF RAND:7 == 0
+ 					PRINTFORMW 「머리카락은 여자의 생명, 고도 말하고, 나도 상당히 신경을 쓰고 있습니다？」
+					PRINTFORMW 「촉감 마음은 어떻습니까？」
+				ELSEIF RAND:6 == 0 
+					PRINTFORMW 「…그래, 머리카락을 빗고 쌍 싶은……」
+					PRINTFORMW 「……응. 능숙하네요,%CALLNAME:MASTER%」
+				ELSEIF RAND:5 == 0 
+					PRINTFORMW 「……후후. 꽤 나쁘지 않은 기분입니다」
+					PRINTFORMW 「그대로 계속해 상관하지 않아요」
+				ELSEIF RAND:4 == 0 
+					PRINTFORMW 「우우-응…나, 여기의 긴 응이지만요 」
+					PRINTFORMW 「혹은 「쉽게 친숙 해진 주직」이라고 하는 이미지를 밝힐 수 있고 있다고 하는 일입니까」
+					PRINTFORMW 백련은 어려운 얼굴을 해 골똘히 생각하고 있다.
+				ELSEIF RAND:3 == 0 
+					PRINTFORMW 「 이제(벌써). 그렇게 더듬으면(자), 머리카락이 혼란있습니다」
+					PRINTFORMW 그러나 진심으로 싫어하고 있는 바람은 아니기 때문에, 어루만지고 어루만지고를 속행했다
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「%마스터는%, 이렇게 나의 머리를 쓰다듬고 있어 즐겁습니까？」
+					PRINTFORMW 「 나는…응, 그렇게 나쁜 생각은 들지 않아요. 후후」
+				ELSE
+					PRINTFORMW 「…. 역시, 부끄럽지는 있습니다만」
+					PRINTFORMW 「이렇게 해 머리를 어루만질 수 있는 것도, 꽤 기분이 좋아요」
+				ENDIF
+			ELSE
+				IF TFLAG:193 == -1
+					PRINTFORMW 「적당, 너무 손대구나」
+				ELSEIF RAND:4 == 0 && ABL:친밀 >= 3
+					PRINTFORMW 「아니요 어루만질 수 있는 것 자체는 의외로 기분이 좋습니다만」
+					PRINTFORMW 「부끄럽네요. 조금」
+				ELSEIF RAND:3 == 0 
+					PRINTFORMW 「응…. 역시, 조금 부끄럽네요」
+				ELSEIF RAND:2 == 0 
+					PRINTFORMW 「 이제(벌써). 그렇게 더듬으면(자), 머리카락이 혼란있습니다」
+				ELSE
+					PRINTFORMW 「응, 어쩐지 신선합니다…」
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;331,お茶を淹れる（薬入り）
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_331
+;成否判定
+;TFLAG:192(-2=強制失敗(注、非コマンド終了）、-1＝強制失敗、0=COM依存、1=強制成功or大成功(注、睡眠薬アイスティーは眠気を感じていると飲まない)
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_331
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_331_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_331_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;332,お酒をふるまう
+;TFLAG:193(0=下戸飲み成功 -1=下戸飲み失敗 -2=下戸飲み大失敗 -5=下戸飲みあきらめ)
+;TFLAG:194(51=どぶろく 52=清酒 53=鬼殺し)
+;ALCOHOL_TASTE(TFLAG:194)(15以上=気に入る 9以下=口に合わない)
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_332
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_332_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_332_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;333,愚痴を聞く
+;TFLAG:193(6=大成功(酔い) 5=成功(酔い) 4=失敗(酔い) 3=大成功 2=成功 1=失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_333
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_333
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_333_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_333_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	SELECTCASE TFLAG:193
+		CASE 6
+		;大成功（酔い）
+		CASE 5
+		;成功（酔い）
+		CASE 4
+		;失敗（酔い）
+		CASE 3
+		;大成功
+		CASE 2
+		;成功
+		CASE 1
+		;失敗
+	ENDSELECT
+ENDIF
+RETURN 1
+;==================================================
+;334,杯を交わす
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;CFLAG:임신자각상태(1=食事)
+;TALENT:술내성(-2=食事)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_334
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_334
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_334_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_334_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	SELECTCASE TFLAG:193
+		CASE 1
+		;大成功
+		CASE 0
+		;成功
+		CASE -1
+		;失敗
+	ENDSELECT
+ENDIF
+RETURN 1
+;==================================================
+;335,介抱する
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_335
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_335
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_335_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_335_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	SELECTCASE TFLAG:193
+		CASE 1
+		;大成功
+		CASE 0
+		;成功
+		CASE -1
+		;失敗
+	ENDSELECT
+ENDIF
+RETURN 1
+;==================================================
+;336,膝枕する
+;ABL:친밀(4以下=居心地悪げ 9以下=恥ずかしげ それ以上=幸せそう
+;TIME_PROGRESS(TFLAG:무릎베개)(44以下=失敗
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_336
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_336
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_336_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_336_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	IF TFLAG:193 > 0
+	;寝ちゃった
+	ELSE
+	;それ以外
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;350,押し倒す（時姦時イタズラする
+;TFLAG:194 (0=成功 1=人目がある　2=野外は嫌でござりまする　3=多人数プレイは勘弁　4=合意があってもムードが足りぬ　100=合意はあるが口上内特殊判定によって失敗）
+;TCVAR:껴안고첫회　1=普通に合意ゲット　2=先にキスぐらいしろよ　3=媚薬or発情には勝てなかったよお…　4=悔しい…刻印さえなければﾋﾞｸﾋﾞｸﾝ
+;5=強引に迫られると断れぬ(素質臆病持ち専用) 6=まんざらでもない　7=駄目　8=論外 98=口上内特殊判定による失敗 99=口上内特殊判定による成功
+;口上内特殊判定は該当するCFLAGが0だと無効
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_350
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_350_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_350_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;初めて
+	IF CFLAG:1350 == 0
+		;MASTERが押し倒された経験あり
+		IF CFLAG:1200 == 2
+			;押し倒されてた
+			IF CFLAG:1211 == 1
+				IF TALENT:연인
+					PRINTFORMW 「아……후후, 겨우 나를 요구해 주군요」
+					PRINTFORML 「저기요,%CALLNAME:MASTER%…나, 훨씬 무서웠어요.
+					PRINTFORMW 　당신이 사실은, 나를 정말 생각하지 않지 않을까는」
+					PRINTFORMW 「…그러니까, 조금 전 내가 당신에게 강요했을 때래, 거절되어버리는 는, 은…」
+					PRINTFORML 백련의 어깨가 작게 떨려 소리도 점차 떨고 있고 구.
+					PRINTFORMW 당신은 애인의 어깨를 긁어 안으면(자), 불안을 안게 하고 있던 무례를 사과했다.
+					PRINTFORMW 「응, 이제(벌써)…어쩔 수 없는 사람.…후후, 이번(뿐)만은, 다만 사과할 뿐(만큼)은 허락해 주지 않습니다」
+					PRINTFORMW 「 나를 전력으로 사랑해, 「좋아한다」는 기분을, 많이 전해 주세요…」
+					PRINTFORML
+					PRINTFORMW 백련은, 당신의 등에 손을 써, 꽉 꼭 껴안았다……
+					PRINTFORML
+				ELSEIF TALENT:연모
+					PRINTFORML 「아……」
+					PRINTFORML 당신이 억누를 수 있었던 백련은, 물기를 띤 눈동자를 슥이라고 딴 데로 돌렸다.
+					PRINTFORMW 그 행동은 수약녀 그 자체이며, 방금전까지의 공격기분은 미진도 느껴지지 않는다.
+					PRINTFORML 백련의 풍만한 지체를 가까이서 재차 관찰하고 있으면(자), 그녀는 불안에 입을 열었다.
+					PRINTFORMW 「그…」
+					PRINTFORML 「…(이)나！？」
+					PRINTFORMW 계속되는 말을 차단하도록(듯이), 강하게 꼭 껴안는다.
+					PRINTFORMW 「아….%CALLNAME:MASTER%도, 그럴 기분이 들어 주었군요…」
+					PRINTFORMW 안도, 환희, 황홀…모든 것이 섞였기 때문에 한숨 돌려, 백련은 당신의 등에 팔을 돌렸다.
+					PRINTFORMW 「좋아요…. 나에게 많이, 응석부려 주세요…」
+				ELSEIF MARK:괘씸각인 == 3
+					PRINTFORML 「아……후후」
+					PRINTFORMW 당신이 억누를 수 있었던 백련은, 요염하게 미소지었다.
+					PRINTFORMW 「%CALLNAME:MASTER%도, 그럴 기분이 들어 주었군요…」
+					PRINTFORML 백련은 당신의 목에 팔을 얽히게 할 수 있으면(자), 속삭이도록(듯이) 계속한다.
+					PRINTFORMW 「좋아요…. 당신이 생각하도록(듯이), 나의 신체를 희롱해…」
+					PRINTFORMW 「내가 한 것 같이…자기 마음대로해, 좋아요…」
+				ELSE
+					PRINTFORML 「아……！？」
+					PRINTFORMW 당신이 밀어 넘어뜨려 돌려주면(자), 백련은 당혹해 한 것 같은 표정으로 굳어졌다.
+					PRINTFORML 「네와 그…발정 하셨으므로 있을까요…」
+					PRINTFORMW 방금전까지의 공격기분은 어디에든지, 마치 완전히 횡설수설하게 되어 있다.
+					PRINTFORML
+					PRINTFORML 이윽고 해, 체념이 붙은 것 같은 표정으로 백련은 한숨을 1쿡쿡 찔렀다.
+					PRINTFORMW 「……후~, 이것은 내가 전면적으로 나쁘네요」
+					PRINTFORMW 「알았습니다. 당신의 좋아하는 것 같게, 해 주세요…」
+				ENDIF
+			;今回はMASTERから押し倒した
+			ELSE
+				IF TALENT:연인
+					PRINTFORMW 「아……후후, 겨우 적극적으로 되어 주었어요」
+					PRINTFORML 「저기요,%CALLNAME:MASTER%…나, 훨씬 무서웠어요.
+					PRINTFORMW 　당신이 사실은, 나를 정말 생각하지 않지 않을까는」
+					PRINTFORMW 「내가 얼마나 강요해도…당신, 자신으로부터는 움직여 주지 않다 것」
+					PRINTFORMW 「…후후, 그런 일은, 이제(벌써) 어때라고 해 일이군요」
+					PRINTFORMW 「와 주세요,%CALLNAME:MASTER%. 나도, 당신을 갖고 싶다…」
+					PRINTFORML
+					PRINTFORMW 백련은, 당신의 등에 손을 써, 꽉 꼭 껴안았다……
+					PRINTFORML
+				ELSEIF TALENT:연모
+					PRINTFORML 「아……」
+					PRINTFORMW 당신이 억누를 수 있어 백련의 뺨이 주홍에 물들어 간다.
+					PRINTFORMW 「그,%CALLNAME:MASTER%…인내, 할 수 없게 되어 버렸습니다인가？」
+					PRINTFORML 대답하는 대신에, 그녀의 신체를 훨씬 껴안는다.
+					PRINTFORML 「응…」
+					PRINTFORMW 백련은 일순간몸을 굳어지게 했지만, 이윽고 해 당신에게 몸을 바쳤다.
+					PRINTFORMW 「…후후, 이전에는, 내가 많이 응석부리게 해 주었으니까」
+					PRINTFORMW 「좋아요. 이번은…당신이 나에게, 응석부려 주세요…」
+				ELSEIF MARK:괘씸각인 == 3
+					PRINTFORML 「아……후후」
+					PRINTFORMW 당신이 억누를 수 있었던 백련은, 요염하게 미소지었다.
+					PRINTFORMW 「…참을 수 없게 되었군요,%CALLNAME:MASTER%…」
+					PRINTFORML 백련은 당신의 목에 팔을 얽히게 할 수 있으면(자), 속삭이도록(듯이) 계속한다.
+					PRINTFORMW 「좋아요…. 당신이 생각하도록(듯이), 나의 신체를 희롱해…」
+					PRINTFORMW 그렇게 말해 끝내면(자), 당신의 귓전에 숨을 갑자기 내뿜었다.
+				ELSE
+					PRINTFORML 「아, 나……！」
+					PRINTFORMW  당신이 억누를 수 있었던 백련은, 뺨을 붉혀 눈동자를 슥이라고 딴 데로 돌렸다.
+					PRINTFORMW 「안됩니다,%CALLNAME:MASTER%, 이런 일…」
+					PRINTFORMW 「은, 이전 당신을 밀어 넘어뜨린 내가 말할 수 있던 의리가 아니겠네요…」
+					PRINTFORMW 「그,%CALLNAME:MASTER%…인내, 할 수 없게 되어 버렸습니다군요」
+					PRINTFORMW 「…좋아요. 이번은, 당신의 좋아하는 것 같게…」
+				ENDIF
+			ENDIF
+		;うふふ未経験
+		ELSE
+			IF TALENT:연인
+				PRINTFORML 「아…」
+				PRINTFORMW 당신이 억누를 수 있었던 백련의 뺨이 주홍에 물들어 간다.
+				PRINTFORMW 「그.%CALLNAME:MASTER%……」
+				PRINTFORMW 「……기뻐요」
+				PRINTFORML 「……좀 더 멋이 있는 말이 생각나면 좋지만,
+				PRINTFORML 　어쩐지 언제에도 없게 긴장하고 있는 것 같구나, 나」
+				PRINTFORMW 부끄러운 듯이  백련이 웃었다.
+				PRINTFORMW 「그런데,%CALLNAME:MASTER%.…상냥하고, 해？」
+				PRINTFORML
+				PRINTFORMW 백련은, 당신의 등에 손을 써, 꽉 꼭 껴안았다……
+				PRINTFORML
+
+			ELSEIF TALENT:연모
+				PRINTFORML 「아……」
+				PRINTFORMW 당신이 억누를 수 있어 백련의 뺨이 주홍에 물들어 간다.
+				PRINTFORMW 「그,%CALLNAME:MASTER%…인내, 할 수 없게 되어 버렸습니다인가？」
+				PRINTFORML 대답하는 대신에, 그녀의 신체를 훨씬 껴안는다.
+				PRINTFORML 「응…」
+				PRINTFORMW 백련은 일순간몸을 굳어지게 했지만, 이윽고 해 당신에게 몸을 바쳤다.
+				PRINTFORMW 「…알았습니다. 당신의 욕망을, 전부내가 받아 들여 줍니다」
+				PRINTFORMW 「자,%CALLNAME:MASTER%. 많이, 응석부려도 좋아요…」
+			ELSE
+				PRINTFORML 「아, 나……！」
+				PRINTFORMW  당신이 억누를 수 있었던 백련은, 뺨을 붉혀 눈동자를 슥이라고 딴 데로 돌렸다.
+				PRINTFORMW 「안됩니다,%CALLNAME:MASTER%, 이런 일…」
+				PRINTFORML 백련은 당신의 손목을 잡아 보이지만, 진심으로 뿌리치려는 생각은 없는 것 같다.
+				PRINTFORML 「안돼………」
+				PRINTFORMW 당신의 손이 머리카락을 살그머니 빗고 구와 백련은 눈동자를 물기를 띠게 해 당신을 응시했다… 
+			ENDIF
+			;MASTERが先に押し倒して初うふふを経験　フラグ
+			IF CFLAG:1200 == 0
+				CFLAG:1200 = 1
+				;同時に、初うふふを経験した日として記録
+				CFLAG:1206 = DAY:0
+			ENDIF
+		ENDIF
+		CFLAG:1350 = 1
+	;押し倒し返し。恋人の時は余裕、恋慕のときは甘えてほしい、不埒3のときはバッチコイ、そうでもなければ一転してしおらしく。
+	ELSEIF CFLAG:317 == 2
+		IF TALENT:연인
+			IF RAND:3 == 0 
+				PRINTFORMW 「꺄！？　…그럴 기분이 들어 주었군요？」
+				;白蓮が奉仕（手淫、口淫、素股、パイズリ）をしていた
+				IF GROUPMATCH(TCVAR:20,50,51,52,53)
+					PRINTFORMW 「후후, 기분 좋았는지 해들…자, 다음은 당신이, 나를 기분 좋게 해 정대…」
+				;白蓮が挑発（スカート捲り、股間まさぐり、スカートの中見せ、クンニ強制）していた
+				ELSEIF GROUPMATCH(TCVAR:20,13,34,35,70)
+					PRINTFORMW 「후후, 흥분해 주었는지 해들.…, 마음껏 서로 사랑합시다？」
+				ELSE
+					PRINTFORMW 「그런데, 그렇게, 많이 나를 사랑해…」
+				ENDIF
+			ELSEIF RAND:2 == 0 
+				PRINTFORMW 「！…후후, 인내의 한계일까？」
+				;白蓮が奉仕（手淫、口淫、素股、パイズリ）をしていた
+				IF GROUPMATCH(TCVAR:20,50,51,52,53)
+					PRINTFORMW 「기분 좋았다？…, 다음은 당신의 차례야」
+				;白蓮が挑発（スカート捲り、股間まさぐり、スカートの中見せ、クンニ強制）していた
+				ELSEIF GROUPMATCH(TCVAR:20,13,34,35,70)
+					PRINTFORML 「아 해 당신을 부추기는 것은, 조금 부끄럽지만, 흥분해…」
+					PRINTFORMW 「아는 , 당신도 흥분해 주었어요？」
+				ELSE
+					PRINTFORMW 「자, 당신 사랑을 줘…」
+				ENDIF
+			ELSE
+				PRINTFORM 「아…　후후…
+				;潤滑Lv.3以上
+				IF PALAM:윤활 >= PALAMLV:3
+					PRINTFORMW 내 쪽은, 준비만단이야？」
+				ELSE
+					PRINTFORMW 저기, 아직 그다지 젖지 않기 때문에, 우선은 상냥하게 해 정대…？」
+				ENDIF
+				PRINTFORMW 「언제나 같이, 많이 사랑을 주고 받읍시다…」
+			ENDIF
+		;恋慕
+		;/自分から攻めといて、いざ押し倒されたら固まる。
+		ELSEIF TALENT:연모
+			IF RAND:3 == 0 
+				PRINTFORMW 「아…%UNICODE(0x2665)%」
+				;白蓮が奉仕（手淫、口淫、素股、パイズリ）をしていた
+				IF GROUPMATCH(TCVAR:20,50,51,52,53)
+					PRINTFORM 열심히 봉사하고 있었다
+				;白蓮が挑発（スカート捲り、股間まさぐり、スカートの中見せ、クンニ強制）していた
+				ELSEIF GROUPMATCH(TCVAR:20,13,34,35,70)
+					PRINTFORM 뺨을 상기 시키면서 도발하고 있었다
+				ELSE
+					PRINTFORM 추잡한 행위에 빠지고 있었다
+				ENDIF
+				PRINTFORMW 백련을 꼭 껴안아, 그대로 상냥하고 옆 참았다…
+			ELSEIF RAND:2 == 0 
+				PRINTFORML 「아…」
+				;ランダム1/3かつ白蓮が奉仕（手淫、口淫、素股、パイズリ）をしていた
+				IF RAND:3 == 0 && GROUPMATCH(TCVAR:20,50,51,52,53)
+					PRINTFORM 열심히 봉사하고 있던 백련을 상냥하게 밀어 넘어뜨리면(자),
+				;ランダム1/2かつ白蓮が挑発（スカート捲り、股間まさぐり、スカートの中見せ、クンニ強制）していた
+				ELSEIF RAND:2 == 0 && GROUPMATCH(TCVAR:20,13,34,35,70)
+					PRINTFORM 뺨을 상기 시키면서 도발하고 있었다
+				ELSE
+					PRINTFORM 추잡한 행위에 빠지고 있던 백련을 상냥하게 밀어 넘어뜨리면(자),
+				ENDIF
+				PRINTFORMW 상냥하게 미소지어 이쪽을 올려봐 왔다…
+				PRINTFORMW 「후후, 이번은 당신이 나에게 응석부려 주세요…」
+			ELSE
+				PRINTFORML 「좋아요, 많이 나에게 응석부려 주세요…」
+				PRINTFORMW 밀어 넘어뜨리면(자), 백련은 자모와 같은 미소를 띄워 양손을 벌렸다…
+			ENDIF
+		;不埒３
+		ELSEIF MARK:괘씸각인 == 3
+			IF RAND:3 == 0 
+				PRINTFORMW 「원…라고…후후, 그럴 기분이 들었어？」
+				;白蓮が奉仕or挑発（手淫、口淫、素股、パイズリ）をしていた
+				IF GROUPMATCH(TCVAR:20,50,51,52,53,13,34,35,70)
+					PRINTFORMW 「이번은 당신의 차례야…기분 좋게 해 정대군요」
+				ELSE
+					PRINTFORMW 「자, 나의 신체를 마음대로 해 보세요？」
+				ENDIF
+			ELSEIF RAND:2 == 0 
+				PRINTFORMW 「！…후후, 참을 수 없게 되었다？」
+				PRINTFORMW 「자, 서로 즐깁시다…？」
+			ELSE
+				PRINTFORM 「아…　후후…
+				;潤滑Lv.4以上
+				IF PALAM:윤활 >= PALAMLV:4
+					PRINTFORMW 이봐요, 보인다…？준비는 이제 할 수 있고 있는 원」
+				ELSE
+					PRINTFORMW 초조해 하면 안되어요…？우선은 전희로부터, 군요…？」
+				ENDIF
+				PRINTFORMW 「언제나 같이, 나를 기분 좋게 시켜…」
+			ENDIF
+		;恋人、恋慕、不埒なし
+		;攻められると弱い初期サドッ気2
+		ELSE
+			IF RAND:3 == 0 
+				PRINTFORML 「,…」
+				PRINTFORMW 밀어 넘어뜨려지면(자), 바로 그때 기특해지는 백련이었다.
+			ELSEIF RAND:2 == 0 
+				PRINTFORMW 「아……」
+				PRINTFORML 음미인 표정으로 당신을 강요하고 있던 백련이지만,
+				PRINTFORMW 짜 깔린 바로 그때 얼굴을 새빨갛게 해 굳어졌다…
+			ELSE
+				PRINTFORMW 「원……아…」
+				PRINTFORMW 방금전까지의 공격으로부터 일전해 얌전해졌다…
+			ENDIF
+		ENDIF
+	;こちらから押し倒した
+	ELSE
+		;白蓮私室かつ1/3
+		IF CFLAG:현재위치 == CFLAG:초기위치 && RAND:3 == 0 
+			;昼（6時～19時）
+			IF TIME:2 == 1 || TIME:2 == 2
+				IF TALENT:연인
+					PRINTFORMW 「조금…지금, 이불을 깔기 때문에 기다려…, 성급한 사람…%UNICODE(0x2665)%」
+				ELSEIF TALENT:연모
+					PRINTFORMW 「…이런 밝은 동안 몸은.…이제(벌써), 어쩔 수 없는 사람이군요…%UNICODE(0x2665)%」
+				ELSEIF MARK:괘씸각인 == 3
+					PRINTFORML 「…응, 조금 기다려, 지금 이불 깔아버리니까」
+					PRINTFORMW 「 이제(벌써), 가 붙으면 안되어요. 응, 응…」
+				ELSE
+					PRINTFORMW 「 이제(벌써), 일부러 나의 방에 와서까지……」
+					PRINTFORMW 「…, 적어도 이불은 깔게 해 주세요…」
+				ENDIF
+			;夜
+			ELSE
+				IF TALENT:연인
+					PRINTFORML 「…후후, 야저 살려들. 좋아요, 와 정대…」
+					PRINTFORMW 백련은 이불 위에서 교태를 부려 보였다.
+				ELSEIF TALENT:연모
+					PRINTFORML 「…후후, 이런 시간에 무슨용무일까하고 생각하면(자), 그런 것이었구나 」
+					PRINTFORMW 「좋아요, 좋아하는 대로 해…」
+				ELSEIF MARK:괘씸각인 == 3
+					PRINTFORMW 「후후, 야저 있고이라니 대담하구나…」
+				ELSE
+					PRINTFORMW 「 이제(벌써). 정말로, 어쩔 수 없는 사람…」
+				ENDIF
+			ENDIF
+		;外
+		ELSEIF OUTROOF(CFLAG:현재위치)
+			;露出癖4以上
+			IF ABL:노출벽 >= 4
+				PRINTFORML 「아, 이런 곳, 누군가에게 볼 수 있으면(자), 나는…」
+				PRINTFORMW 부끄러워하는 백련이지만, 그 소리는 욕정으로 위않고는 있었다…
+			ELSE
+				PRINTFORML 「…좀, 이런 곳…누군가에게 볼 수 있으면(자), 어때…꺄…！」
+				PRINTFORMW 항의가 소리를 지르는 백련을 무시해 행위를 시작했다…
+			ENDIF
+		ELSE
+			IF TALENT:연인
+				IF RAND:3 == 0
+					PRINTFORML 「응, 이제(벌써)…참을 수 없게 되었어？」
+					PRINTFORMW 「후후, 좋아요. 많이 사랑해 정대…」
+				ELSEIF RAND:2 == 0 
+					PRINTFORML 「후후…기다리고 있었습니다,%CALLNAME:MASTER%」
+					PRINTFORMW 「자, 서로 사랑합시다…」
+				ELSE
+					PRINTFORML 「, 가 붙지 않는거야」
+					PRINTFORMW 「도망치거나 무엇을 하지 않기 때문에, 천천히 즐깁시다？」
+				ENDIF
+			ELSEIF TALENT:연모
+ 				IF RAND:3 == 0
+					PRINTFORML 「후후, 나에게 응석부리고 싶어졌어？」
+					PRINTFORMW 「좋아요. 자, 계(오)세요…」
+				ELSEIF RAND:2 == 0 
+					PRINTFORML 「%CALLNAME:MASTER%…」
+					PRINTFORMW 백련은 당신의 팔 중(안)에서 황홀로 하고 있다…
+				ELSE
+					PRINTFORML 「아…하고 싶네요…」
+					PRINTFORMW 「후후. 많이 응석부려, 많이 기분 좋아져도 좋아요…」
+				ENDIF
+			;不埒3
+			ELSEIF MARK:괘씸각인 == 3
+				IF RAND:3 == 0
+					PRINTFORMW 「…하고 싶은거야？후후, 좋아요…」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 「…응. 기분 좋게 해 주세요…」
+				ELSE
+					PRINTFORMW 「좋아요…함께 즐깁시다…」
+				ENDIF
+			;恋人、恋慕、不埒なし
+			ELSE
+				IF RAND:5 == 0
+					PRINTFORML 「안됩니다,%CALLNAME:MASTER%. 이런 일, 안됩니다…」
+					PRINTFORMW 백련은 항의의 말을 약하게 말했지만, 당신에게 짜 깔리면(자) 얌전해졌다…
+				ELSEIF RAND:4 == 0
+					PRINTFORMW 「아, 이런 일, 사실은 안 되는데…」
+				ELSEIF RAND:3 == 0
+					PRINTFORMW 「아…안돼, 안되어요…」
+				ELSEIF RAND:2 == 0
+					PRINTFORMW （아, 타목, 이대로는 흐르게 되어…）
+				ELSE
+					PRINTFORMW （약간, 약간이니까…）
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+	;リセット
+	CFLAG:1501 = 0
+	;絶頂カウントリセット
+	CFLAG:1502 = 0
+	CFLAG:1503 = 0
+	CFLAG:1504 = 0
+	CFLAG:1505 = 0
+ENDIF
+RETURN 1
+;==================================================
+;351,連れ出す
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_351
+;連れ出しにはTRAIN_MESSAGEが無い
+CALL M_KOJO_MESSAGE_COM_K55_351_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_351_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	;TARGET連れ出し
+	IF CFLAG:동행 == 60
+	;TARGET以外連れ出し(TARGET同行中のみ
+	ELSE
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;352,告白する
+;FLAG:생활능력무(1=失敗)
+;TFLAG:193 (1=成功 0=失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_352
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_352
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_352_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_352_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;353,イタズラする
+;FLAG:생활능력무(1=失敗)
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_353
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_353_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_353_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;354,添い寝する（相手は起きて布団に招く感じ）
+;CFLAG:쇠약(1以上=起きない
+;CFLAG:초대(0以外=起きない
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_354
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_354_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_354_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF RAND:3 == 0
+		PRINTFORML 「응…곁잠 하고 싶은, 입니까…」
+		PRINTFORMW 「뭐, 상관하지 않습니다. 자…」
+	ELSEIF RAND:2 == 0
+		PRINTFORML 「응……당신의 냄새가 납니다」
+		PRINTFORMW 이불에 기어들어 붐비면(자), 백련은 툭하고 중얼거렸다…
+	ELSE
+		PRINTFORML 「알았습니다, 그럼, 이쪽에…」
+		PRINTFORMW 백련은 조금 구석에 들러 장소를 열어 주었다…
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;355,時止め（地の文の改変程度に留めるべき
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_355
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_355_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_355_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;360,身を任せる
+;TCVAR:20(27=谷間を見せる 32=前から抱きつく 35=スカートの中を見せる 53=パイズリ 73=ぱふぱふ 77=乳を吸わせる 85=Ｖ挿入する 86=だいしゅきホールド 87=Ａ挿入する 88=腰振りＶ 89=腰振りＡ
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_360
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_360_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_360_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;カウンターキス
+	IF TCVAR:20 == 30
+		IF RAND:2 == 0
+			PRINTFORML 「……%CALLNAME:MASTER%……,…」
+			PRINTFORMW 되는 대로 하고 있으면(자), 백련은 곳 상관하지 않고 키스를 세례를 퍼부을 수 있어 왔다…
+		ELSE
+			PRINTFORML 「응, ,…저기, 당신도, 혀를 내밀어…」
+			PRINTFORMW 백련은 권하도록(듯이) 당신의 입술에 혀를 기게 하고 있다.
+		ENDIF
+	;カウンター胸を揉ませる
+	ELSEIF TCVAR:20 == 33
+		IF RAND:3 == 0 
+			PRINTFORML 「…아, 는…%UNICODE(0x2665)% %CALLNAME:MASTER%의 손, 굉장하다…」
+			PRINTFORMW 백련은 당신의 손을 자신의 유육에 먹혀들게 하고 있다…
+		ELSEIF RAND:2 == 0 
+			PRINTFORML 「…응, 후~……이렇게 유두를 때굴때굴, 은…%UNICODE(0x2665)%」
+			PRINTFORMW 백련은 당신의 손을 가져 스스로 유방을 더듬어, 자신을 위로하고 있다…
+		ELSE
+			PRINTFORML 「이봐요, 당신도 비비어도 좋아요…」
+			PRINTFORMW 백련은 당신의 손을 가슴 팍에 이끌면(자), 스스로의 손과 거듭해 유방을 자극했다…
+		ENDIF
+	;カウンター股間をまさぐる
+	ELSEIF TCVAR:20 == 34
+		;※TEQUIP:PLAYER:0 > 3が条件
+		IF RAND:2 == 0 
+			PRINTFORML 움직이지 않는 당신의 가랑이는 한층 더 격렬하게 켠다.
+			PRINTFORMW 「포월 하기라도, 당신의 열을 느껴지는 것이군요…」
+		ELSE
+			PRINTFORML 움직이지 않는 당신의 손에, 백련의 고간이 꽉 눌린다.
+			PRINTFORMW 「이봐요, 당신도 쉬지 말고, 나를 즐겁게 해 주세요…」
+		ENDIF
+	;カウンター素股
+	ELSEIF TCVAR:20 == 52
+		IF RAND:3 == 0 
+			PRINTFORMW 「아…%UNICODE(0x2665)%…이것, 당신의 물건으로 위로하고 있는 것 같다…하,%UNICODE(0x2665)%」
+		ELSEIF RAND:2 == 0 
+			PRINTFORMW 「응…이것, 안타까울 것입니다…？」
+			PRINTFORMW 「후후, 넣고 싶다…까？%UNICODE(0x2665)%그렇지만…(이)다-째%UNICODE(0x2665)%」
+		ELSE
+			PRINTFORML 「후후…, 기분이 좋습니까…？%CALLNAME:MASTER%」
+			PRINTFORMW 「그러면 아…좀 더 기분 좋게 해 주네요……응, 후~…%UNICODE(0x2665)%」
+		ENDIF
+	;カウンターパイズリ
+	ELSEIF TCVAR:20 == 53
+		IF RAND:3 == 0 
+			PRINTFORML 「후후, 그렇게…아무것도 하지 않아도 좋아요…」
+			PRINTFORMW 「…그대로,…%UNICODE(0x2665)%나의 젖가슴과 자지의 일만을 생각하고 있으면 좋습니다…」
+		ELSEIF RAND:2 == 0
+			PRINTFORML 「후~, 후~…%UNICODE(0x2665)%당신의 앞달리기로, 젖가슴이 진흙 진흙입니다…」
+			PRINTFORMW 「당신의 냄새가, 스며들고 붙고 할 것 같다…%UNICODE(0x2665)%」
+		ELSE
+			PRINTFORML 「저항하지 않아 좋습니까？…이봐요, 당신의 자지를 젖가슴에 먹을 수 있어 버려요？」
+			PRINTFORMW 「-…후후%UNICODE(0x2665)%불쾌한 일만 생각하고 있는 자지는, 내가 벌줍니다…%UNICODE(0x2665)%」
+		ENDIF
+	;カウンターディープキス
+	ELSEIF TCVAR:20 == 60
+		IF RAND:3 == 0 
+			PRINTFORML 「…！, ,…, ,…」
+			PRINTFORMW 백련은 당신의 입안에 혀를 나누어 넣으면(자), 이빨의 표리, 구개, 혀와 곳 상관하지 않고 유린했다…
+		ELSEIF RAND:2 == 0
+			PRINTFORML 「……,……, 는, , ,…」
+			PRINTFORMW 백련은 당신의 뺨을 억눌러 구강내를 저 좋은 대로 하고 있다.
+		ELSE
+			PRINTFORML 「응…………, , 우우…」
+			PRINTFORMW 「…그래, 타액을 좀 더 교환해…, , ,…%UNICODE(0x2665)%」
+		ENDIF
+	;カウンタークンニ強制
+	ELSEIF TCVAR:20 == 70
+		IF RAND:3 == 0 
+			PRINTFORML 「은 , 아%UNICODE(0x2665)%아, 당신이 후원을 받아…%UNICODE(0x2665)%」
+			PRINTFORMW 「얼굴…스쳐, 아%UNICODE(0x2665)%때굴때굴, 은…%UNICODE(0x2665)%」
+		ELSEIF RAND:2 == 0 
+			PRINTFORML 「은 , , 당신의 혀, 이이…」
+			PRINTFORMW 「 좀 더, 안쪽까지, 하%UNICODE(0x2665)%아…%CALLNAME:MASTER%…！」
+		ELSE
+			PRINTFORML 「, 아, , 그렇게, 나의 민감한 곳, 들이마셔…！」
+			PRINTFORMW 백련은 허리를 움직여 당신의 얼굴에 자신이 느끼는 장소를 문질러 바르고 있다…
+		ENDIF
+	;カウンターアナル奉仕
+	ELSEIF TCVAR:20 == 72
+		IF ABL:A감각 <= 1
+			PRINTFORMW 「…엉덩이는 싫었던 까」
+		ELSEIF ABL:A감각 <= 3
+			PRINTFORMW 「이봐요, 그렇게 만지작거려 주었겠지요…？」
+		ELSE
+			PRINTFORML 「…는, 엉덩이, 만지작거려져…」
+			PRINTFORMW 백련은 기쁜듯이 당신의 어널 봉사를 받고 있다…
+		ENDIF
+	;カウンター騎乗位
+	ELSEIF TCVAR:20 == 81
+		IF RAND:3 == 0
+			PRINTFORMW 「응응, 하…이봐요, 당신도 허리를 사용해…！」
+			PRINTFORMW 「내가 만족할 때까지, 계속 쭉 범해 주기 때문에…」
+		ELSEIF RAND:2 == 0
+			PRINTFORMW 「후후…이봐요, 보인다？응…！우리, 연결되어 버리고 있습니다…」
+			PRINTFORMW 백련은 이상하게 미소지으면서, 결합부를 과시해 왔다…
+		ELSE
+			PRINTFORML 「아 , 하, 응응, 좋다…몹시 , 좋다…%UNICODE(0x2665)%」
+			PRINTFORMW 당신이 아무것도 하지 않고와도, 백련은 열중해 허리를 계속 움직이고 있다…
+		ENDIF
+	ELSE
+		;MASTERの気力が0
+		IF  RAND:4 == 0 && BASE:MASTER:기력 <= 0
+			PRINTFORML 「…지쳐 버렸어？」
+			PRINTFORMW 「자, 그대로 얌전하게 나에게 범해져도 좋은 차이…%UNICODE(0x2665)%」
+		ELSEIF RAND:3 == 0
+			PRINTFORMW 「내가 전부 해 주기 때문에, 당신은 그대로 즐겨…」
+		ELSEIF RAND:2 == 0
+			PRINTFORML 「응…어떻게 했습니까？」
+			PRINTFORMW 「후후, 아무것도 하지 않으면, 좋아하게 시켜 주어요…」
+		ELSE
+			PRINTFORMW 「그렇습니다…그대로, 아무것도 하지 말아줘…」
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;361,抵抗する
+;TCVAR:20(27=谷間を見せる 32=前から抱きつく 35=スカートの中を見せる 53=パイズリ 73=ぱふぱふ 77=乳を吸わせる 85=Ｖ挿入する 86=だいしゅきホールド 87=Ａ挿入する 88=腰振りＶ 89=腰振りＡ
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_361
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_361_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_361_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;363,読み聞かせ（[幼稚]持ち専用）
+;TFLAG:193(1=大成功 0=成功 -1=失敗)(地の文分岐無し
+;CFLAG:동침중(1=布団orベッドの中で本を読む
+;MASTERがTARGETより大柄の場合、膝の上にTARGETを乗せる
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_363
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_363
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_363_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_363_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;364,豆まき(萃香、勇儀、スカーレット姉妹用
+;TFLAG:193(豆まきに参加してる人数
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_364
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_364_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_364_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;365,守矢神社へ移動(早苗、神奈子、諏訪子用
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_365
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_365_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_365_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;402,就寝
+;TFLAG:193(0=通常 1=子供と一緒に川の字で寝る)
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_402
+;就寝にTRAIN_MESSAGEは無い
+CALL M_KOJO_MESSAGE_COM_K55_402_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_402_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;403,休憩
+;CFLAG:TARGET:수면(1=TARGETが寝てる隣で休憩
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_403
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_403_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_403_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;浴場にいる
+	IF BATHROOM(CFLAG:현재위치)
+		IF TALENT:연인
+			PRINTFORMW 「좀 더 그 쪽으로 가도 괜찮습니까？후후…」
+		ELSEIF TALENT:연모
+			PRINTFORML …백련의 유방이 수면에 파도를 일으키고 있다.
+			PRINTFORML 「응, 여성의 맨살을 빤히 보는 것은 조금 실례야？」
+			PRINTFORMW 백련은 손바닥으로 포근한 가슴의 첨단을 숨겼다.
+			PRINTFORMW ……저씨, 그렇다면 손브라는 녀석이야. 오히려 추잡하다.
+		ELSE
+			PRINTFORML …백련의 유방이 수면에 파도를 일으키고 있다.
+			PRINTFORML 「응, 여성의 맨살을 빤히 보는 것은 조금 실례야？」
+			PRINTFORMW 백련은 양팔을 끼도록(듯이) 해 포근한 가슴의 첨단을 숨겼다.
+			PRINTFORMW ……사이즈가 강조되어, 오히려 여분 불쾌하다.
+		ENDIF
+	ELSE
+		;体力800以下
+		IF BASE:TARGET:체력 <= 800
+			IF TALENT:연인
+				PRINTFORML 「응…나도 피곤한 것 같습니다」
+				PRINTFORMW 「후후, 조금 의지해도 괜찮습니까？」
+			ELSE
+				PRINTFORML 「식…나도 피곤한 것 같습니다」
+				PRINTFORMW 「여기서 쉬게 해 주네요」
+			ENDIF
+		ELSE
+			PRINTFORMW 「무리는 금물이에요？쉬어 주세요」
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;405,出掛ける(同行時デート
+;条件が厄介なので、COMF405 出掛ける.ERBを参照のこと
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_405
+;出掛けるにTRAIN_MESSAGEは無い
+CALL M_KOJO_MESSAGE_COM_K55_405_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_405_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	;TARGETとデート
+	IF CFLAG:동행
+	;TARGET以外とデート
+	ELSEIF CFLAG:MASTER:동행
+	;お出かけお見送り
+	ELSE
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;410,掃除
+;FLAG:70(1=時間停止中
+;TFLAG:193(0=見てるだけ 1=一緒に掃除)
+;TFLAG:194(3=汚れ高 2=汚れ中 1=汚れ低 0=汚れ最小
+;OUTROOF(CFLAG:현재위치)(野外掃除（冬は雪かき
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_410
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_410_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_410_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;睡眠
+	IF CFLAG:TARGET:수면
+		PRINTFORMW 백련을 일으키지 않게 조용하게 청소를 끝마쳤다…
+	ELSE
+		SELECTCASE TFLAG:194
+		CASE 0
+			IF RAND:2 == 0
+				PRINTFORMW 「신은 세부에 머문다, 라고. 작년의 건축가의 말이었습니까」
+			ELSE
+				PRINTFORML 「방의 혼란은 마음의 혼란」
+				PRINTFORMW 「눈에 띄는 더러움이 없어도, 할 수 있는 한 깨끗이 해 두고 싶어요」
+			ENDIF
+		CASE 1
+			IF RAND:2 == 0
+				PRINTFORML 「자성 청정합니다. 절이라고 하는 공간도, 그리고 마음도, 원래 아름답고 맑고 깨끗한 것이며…」
+				PRINTFORMW 청소중에 약간의 설법이 시작되어 버렸다…
+			ELSE
+				PRINTFORMW 「모아 보면, 꽤양의 먼지군요」
+			ENDIF
+		CASE 2
+			PRINTFORML 「조금씩에서도, 확실히 정리해 갑시다」
+			PRINTFORMW 「…그런데, 서로 사람 단락 붙으면(자) 차라도 마시지 않습니까？」
+		CASE 3
+			IF RAND:2 == 0
+				PRINTFORML 「후후후…이러한은은, 날려 버려 버린 (분)편이……막상…」
+				PRINTFORMW 백련의 주위에 수상한 광구가 떠오르는 것을 봐, 당신은 당황해 말리러 들어갔다
+			ELSE
+				PRINTFORML 「자리-응하산 구토물감색 짊어지겠어―……」
+				PRINTFORMW 백련은 염불을 외우면서 쓰레기의 산과 격투하고 있다…
+			ENDIF
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;411,戦闘訓練
+;TFLAG:194(3=夏の昼間 2=ヤバい天気 1=悪天候 0=屋内or通常天気
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_411
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_411_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_411_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;MASTERの戦闘能力3以上
+	IF ABL:MASTER:전투능력 >= 3
+		IF RAND:2 == 0
+			PRINTFORML 「…꽤 하네요」
+			PRINTFORMW 「다음의 기회에는 「패왕의 비장의 기술」을 사용하지 않을 수 없을지도 모릅니다」
+			;命蓮寺中で派手にやったる
+		ELSE
+			PRINTFORML 「…, 훌륭한 것입니다」
+			PRINTFORMW 「이 정도로 한 번 끝맺을까요. 한천 젤리로 휴식 어떻습니까？」
+			;お寺においてあるお菓子って、どうしておばあちゃんちにありそうなヤツばっかりなんですかね？
+		ENDIF
+	ELSE
+		IF RAND:3 == 0 
+			PRINTFORML 「 나의 승리입니다만…응, 안고 빠짐입니까」
+			PRINTFORMW 「무리하게 숙달자의 흉내는 하지 않고, 위험한 상황을 판단할 수 있게 되는 것이 우선 중요하지 않을까요」
+		ELSEIF RAND:2 == 0
+			PRINTFORML 「적을 알아, 당신을 알면 백전 위험하지 않고, 입니다」
+			PRINTFORMW 「일견 피하지 못할 같게 보이는 탄막에도, 어느 정도의 법칙이 있을 것이에요」
+		ELSE
+			PRINTFORMW 「탄막 피하고의 궁극은,3개의 기분에 의해집니다」
+			PRINTFORMW 「기합！기합！！기합！！！그래서AllRight！！」
+			;気合い避けスキルが欲しい
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;412,勉強
+;ABL:교양(ABL:MASTER:교양より大=MASTERが教えてもらう ABL:MASTER:교양より小=TARGETが教えてもらう
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_412
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_412_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_412_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;連続
+	IF PREVCOM == SELECTCOM && RAND:2 == 0
+		PRINTFORML 「대단히 열심이네요」
+		PRINTFORMW 「차라도 가져올까요？」
+	ELSE
+		IF RAND:3 == 0
+			PRINTFORML 「…과연, 그렇게 말한 해석도 있는 것입니다」
+			PRINTFORMW 「후후, 이쪽이라고 해도 공부가 됩니다」
+		ELSEIF RAND:2 == 0
+			PRINTFORML 「…속삭임 ― 네 있고 짊어진다 ― 빌어 ― 자지 않는 화로！」
+			PRINTFORMW 「과 같은 정도입니까」
+			IF RAND:2 == 0
+				PRINTFORMW 「이것보다 상위의 법술로서 마파만 이라는 것도 있습니다만…」
+				;マハマンってこういう当て字すると仏教っぽい気がする
+			ENDIF
+		ELSE
+			PRINTFORMW 「질문입니까？무엇일까요…」
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;413,料理
+;TFLAG:194(100以上=禁断のメニュー 3=デザート 2=主食 1=軽食
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_413
+;TFLAG:194が100以上の場合のみ
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_413_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_413_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF RAND:3 == 0
+		PRINTFORML 「아, 요리입니까？그렇다면 나도 도와요」
+		PRINTFORMW 백련에 도움을 받으면서 요리를 했다.
+	ELSEIF RAND:2 == 0
+		IF ABL:MASTER:요리기능 >= 2
+			PRINTFORML 「어머나, 꽤 솜씨가 좋구나. 감탄했습니다」
+			PRINTFORMW 백련은 당신의 수중을 봐 응응수긍하고 있다.
+		ELSE
+			PRINTFORML 「그렇구나, 이것에는 요령이 있어…」
+			PRINTFORMW 백련은 당신에게 요리의 요령을 말하고 있다.
+		ENDIF
+	ELSE
+		PRINTFORML 「이것이라도 상당히, 요리는 자신있는 작정(생각)이에요？」
+		PRINTFORMW 백련은 척척조리를 해내고 있다.
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;414,食事を取る
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;TFLAG:194(1=ノーパンしゃぶしゃぶ 2=禁断のメニュー 31=ドーピングコンソメスープ 30=モッツァレラチーズとトマトのサラダ 34=ギンギー料理
+;TCVAR:MASTER:308(bit0=濃い味 bit1=薄味 bit3=激辛 bit4=激甘 bit5=わさび bit6=激酸っぱ
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_414
+;成否判定
+;TFLAG:192(-2=コマンド終了(非TARGET時強制失敗)、-1＝強制失敗、0=COM依存(非TARGET時強制成功)、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_414
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_414_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_414_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;415,食事をふるまう
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;TCVAR:MASTER:308(bit0=濃い味 bit1=薄味 bit3=激辛 bit4=激甘 bit5=わさび bit6=激酸っぱ
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_415
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_415
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_415_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_415_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;416,演奏する
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;TFLAG:사용악기(1=キーボード 2=ピアノ 3=ギター 4=トランペット 5=ヴァイオリン)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_416
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_416
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_416_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_416_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;417,昼寝をする
+;TFLAG:193(0=MASTERを抱き枕にして寝ている 1=MASTERの膝を枕にして寝ている 2=寝顔にキスされた 3=寝顔をのぞき込まれた 4=MASTERが膝枕されてる 5=秘処orペニス揉み
+;CFLAG:동침중(1=一緒に寝ている
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_417
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_417_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_417_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;421,願掛けする
+;条件が複雑なので、COMF421 願掛け.ERBおよび、EVENT_MESSAGE_COM400.ERBの願掛けするの項を参照のこと
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_421
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_421_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_421_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;422～430は、特殊コマンドなのでテンプレでは対応しません
+;==================================================
+
+;==================================================
+;431,お風呂でくつろぐ
+;TFLAG:209(4=人里の銭湯で番台ちゃんを怒らせている 1=銭湯に入った
+;TFLAG:211(4=地底の温泉で番台妖怪を怒らせている 1=温泉に入った
+;TFLAG:194(1=連続入浴不可(表示しない可能性あり？
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_431
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_431_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_431_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;432,お風呂でくつろぐ
+;表示タイミングは入浴後なので、お風呂上がりでの
+;TFLAG:209(4=人里の銭湯で番台ちゃんを怒らせている 1=銭湯に入った
+;TFLAG:211(4=地底の温泉で番台妖怪を怒らせている 1=温泉に入った
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_432
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_432_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_432_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;436,読書
+;TFLAG:193(選択肢文学(1=忍殺(文学？) 2=失敗 3=文学),選択肢実用書(4=失敗 5=実用書),選択肢エッチな本(6=薄い高い本 7=保健体育 8=カーマスートラ))
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_436
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_436_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_436_1
+;==================================================
+;440,待つ
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_440
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_440_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_440_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;441,授業を受ける(慧音専用
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_441
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_441_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_441_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;442,伐採する（未実装
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_442
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_442_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_442_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;442以降のコマンドは、実行しても口上はおそらく表示されないのでテンプレでもスルー
+;==================================================
+
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+;デート系コマンド
+;デート系口上は文字通り外出先で発生
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+[SKIPSTART]
+;現状未実装
+;==================================================
+;600,デート会話
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_600
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_600_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_600_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;601,デートスキンシップ
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_601
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_601_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_601_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;602,デートキス
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_602
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_602_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_602_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+[SKIPEND]
+;==================================================
+;603,手を繋ぐ
+;TFLAG:193(1=大成功 0=成功 -1=失敗)(失敗でもふりほどかれたりはしません
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_603
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_603
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_603_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_603_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;604,散策する
+;デート中の場合、CFLAG:현재위치に移動先の場所が既に入ってる
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_604
+;散策するにはTRAIN_MESSAGEが無い
+CALL M_KOJO_MESSAGE_COM_K55_604_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_604_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;605,寄り道する
+;TFLAG:193(1=大成功 0=成功 -1=失敗)(地の文無し
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_605
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_605
+;寄り道するにはTRAIN_MESSAGEが無い
+CALL M_KOJO_MESSAGE_COM_K55_605_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_605_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;610,食事に誘う
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_610
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_610
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_610_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_610_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;==================================================
+;613,お金稼ぎする（オミットされました
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_613
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_613
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_613_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_613_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;614,食材の買い出し
+;TFLAG:193(1=購入＆デート経験アップ 0=購入 -1=非購入)
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_614
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_614_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_614_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;615,お弁当を食べる
+;実行可能場所　お地蔵通り,枝垂れ柳の下,霧の湖,玄武の沢,大蝦蟇の池,絶景の丘,山の湖,天界
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;ABL:요리기능(2未満=微妙な出来 4未満=そこそこ美味しい 4以上=絶品)
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_615
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_615_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_615_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;617,甘味処に誘う
+;TFLAG:193(1=大成功 0=成功 -1=失敗)(地の文分岐は大成功のみ追加
+;==================================================
+@M_KOJO_SUCCESS_COM_K55_617
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_COM_K55_617
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_617_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_617_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;618,花屋（口上は表示されない模様？
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_618
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_618_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_618_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;620,鈴奈庵
+;TFLAG:193(1=貸し出しOK 0=貸し出し不可
+;ITEM:10X (X=1戦術指南書 X=2調理指南書 X=3字引 X=4御伽草子
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_620
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_620_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_620_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;621,釣りをする
+;TFLAG:193(0=釣れない 1～4=魚 11～15=うまい魚 610=木材 131=守矢の守札 21=ローター 609=氷の鱗 606=龍の爪)
+;TFLAG:194(1000以上ならTARGETが釣った)
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_621
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_621_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_621_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;660,読書
+;TFLAG:193(選択肢文学(1=忍殺(文学？) 2=失敗 3=文学),選択肢実用書(4=失敗 5=実用書),選択肢エッチな本(6=薄い高い本 7=保健体育 8=カーマスートラ))
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_660
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_660_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_660_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;698,部屋に入る
+;TARGETの部屋に入る場合のみ表示
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_698
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_698_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_698_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+;==================================================
+;699,外に出る
+;==================================================
+@M_KOJO_MESSAGE_COM_K55_699
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K55_699_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K55_699_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+;派生コマンド
+;※※※※※※※※※※※※※※※※※※※※※※※※※
+;==================================================
+;60,耳かき
+;前ターン膝枕後スキンシップコマンド
+;TFLAG:193(1=大成功 0=成功 -1=失敗)(失敗するのはTARGET
+;==================================================
+@M_KOJO_SUCCESS_SCOM_K55_60
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_SCOM_K55_60
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K55_60_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K55_60_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;-------------------------------------------------
+	;小分岐
+	;-------------------------------------------------
+	;初めて
+	;記入チェック
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && FIRSTTIME(TFLAG:50 + 500)
+		PRINTFORMW 「이대로 귀이개 해 주었으면 한다？예, 상관하지 않아요」
+		RETURN 1
+	ENDIF
+	;基本セット
+	;恋慕
+	;IF TALENT:연모
+	;	PRINTFORMW 
+	;	RETURN 1
+	;それ以外
+	;ELSE
+		;失敗
+		IF TFLAG:193 == -1
+			PRINTFORML 「…남편과 조금 위험했는지 해들 」
+			PRINTFORMW …어떻게 위험했던 것일까 (들)물어야 할 것일까.
+		;成功or普通
+		ELSE
+			IF RAND:2 == 0
+				PRINTFORMW 「어떻게든 해들？상당히 익숙해져 있을 생각이다 하지만…」
+			ELSE
+				PRINTFORMW 「기분이 좋다？후후. 좋았다」
+			ENDIF
+		ENDIF
+		RETURN 1
+	;ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;61,抱きまくら
+;(TARGET睡眠時間or衰弱)添い寝中、前ターン抱きつく後就寝コマンド
+;分岐無し
+;==================================================
+@M_KOJO_MESSAGE_SCOM_K55_61
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K55_61_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K55_61_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	;恋人
+	IF TALENT:연인
+		IF RAND:3 == 0
+			PRINTFORMW 「후후…이런 것도, 애인답고 좋네요」 
+		ELSEIF RAND:2 == 0 
+			PRINTFORMW 「…%CALLNAME:MASTER%…」
+		ELSE
+			PRINTFORML 「…후후, 안녕히 주무십시오.%CALLNAME:MASTER%」
+			PRINTFORMW 사랑하는 것 같은 백련의 손의 따스함을 느끼고 있으면(자), 어느새인가 자에 떨어지고 있었다…
+		ENDIF
+	ELSEIF TALENT:연모
+		IF RAND:2 == 0
+			PRINTFORML 「…%CALLNAME:MASTER%？…후~, 자 버렸군요」
+			PRINTFORML 「정말로 어쩔 수 없는 사람. 나를 이런 기분으로 만들어, 이런 생각하는 척하는 금년이라고…」
+			PRINTFORMW 「뭐, 사랑스러운 잠자는 얼굴은 볼 수 있었고, 오늘은 허락해 준다」
+		ELSE
+			PRINTFORML 「…웬지 무서운 것이라도 있을까？」
+			PRINTFORML 백련은 당신의 신체를 상냥하게 어루만졌다.
+			PRINTFORML 「괜찮아, 내가 붙어 있습니다. 무엇인가 곤란한 일이 있으면, 언제라도 말해 주어도 좋으니까…」
+			PRINTFORMW 사랑하는 것 같은 손의 따스함을 느끼고 있으면(자), 어느새인가 자에 떨어지고 있었다…
+		ENDIF
+	;それ以外
+	ELSE
+		IF RAND:2 == 0 
+			PRINTFORMW 「웬지 무서운 것이라도 있을까…？」
+		ELSE
+			PRINTFORML 「…후~, 어쩔 수 없는 사람」
+			PRINTFORMW 「뭐, 잠자는 얼굴은 사랑스럽고, 오늘은 허락해 줄까요」
+		ENDIF
+	RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;62,デコちゅー
+;前ターン頭撫で後キスする
+;TFLAG:193(1=大成功 0=成功 -1=失敗)(地の文分岐無し
+;ABL:욕망(5以上=物足りない
+;ABL:친밀(5以上=照れる
+;==================================================
+@M_KOJO_SUCCESS_SCOM_K55_62
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_SCOM_K55_62
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K55_62_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K55_62_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL
+	IF FIRSTTIME(SELECTCOM)
+			PRINTFORMW 「응…조금 낯간지럽네요」
+		RETURN 1
+	ENDIF
+	;恋人
+	IF TALENT:연인
+		IF ABL:욕망 >= 5
+			IF RAND:3 == 0
+				PRINTFORMW 「응, 이제(벌써)…초조하게 하지 말아 줘…？」
+			ELSEIF RAND:2 == 0
+				PRINTFORML 「후후…그러면 아, 다음은 여기군요…」
+				PRINTFORMW 백련은 당신을 향해 입술을 쑥 내밀었다…
+			ELSE
+				PRINTFORMW 「응…후후, 낯간지럽다」
+			ENDIF
+		ELSE
+			IF RAND:3 == 0
+				PRINTFORMW 「후후…조금 낯간지럽네요」
+			ELSEIF RAND:2 == 0
+				PRINTFORMW 「응…이마로 좋은거야？」
+			ELSE
+				PRINTFORMW 「응…♪」
+			ENDIF
+		ENDIF
+		RETURN 1
+	;恋慕
+	ELSEIF TALENT:연모
+		IF ABL:욕망 >= 5
+			IF RAND:3 == 0
+				PRINTFORMW 「응…후후, 낯간지럽다」
+			ELSEIF RAND:2 == 0
+				PRINTFORMW 「응……%CALLNAME:MASTER%, 거기서 좋은거야…？」
+				PRINTFORMW 백련은 당신으로 하고 눈사태 걸렸다…
+			ELSE
+				PRINTFORMW 
+			ENDIF
+		ELSE
+
+		ENDIF
+		RETURN 1
+	;それ以外
+	ELSE
+
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;63,もっとキスする
+;前ターンキスする後キスする
+;分岐条件はEVENT_MESSAGE_COM500.ERB参照
+;==================================================
+@M_KOJO_SUCCESS_SCOM_K55_63
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_SCOM_K55_63
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K55_63_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K55_63_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+	IF FLAG:70
+	ELSE
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;80,手を引く
+;デート出発後目的地に着くまでの間
+;TFLAG:193(1=大成功 0=成功 -1=失敗)
+;==================================================
+@M_KOJO_SUCCESS_SCOM_K55_80
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+TFLAG:192 =0
+
+@M_KOJO_MESSAGE_SCOM_K55_80
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_SCOM_K55_80_1
+RETURN RESULT
+@M_KOJO_MESSAGE_SCOM_K55_80_1
+;-------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL
+
+ENDIF
+RETURN 1

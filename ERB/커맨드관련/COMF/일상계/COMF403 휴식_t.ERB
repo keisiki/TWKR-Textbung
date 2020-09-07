@@ -1,0 +1,97 @@
+﻿;-------------------------------------------------
+;휴식
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM403
+#DIM 회복전체력
+#DIM 회복전기력
+#DIM 회복후체력
+#DIM 회복후기력
+#DIM 회복률_체력, 4
+#DIM 회복률_기력, 4
+#DIM 회복률_정력, 4
+#DIM Restore
+
+회복률_체력:0 = 75
+회복률_기력:0 = 100
+
+;회복률_체력:1 = 
+;회복률_기력:1 = 
+;
+;회복률_체력:2 = 
+;회복률_기력:2 = 
+;
+;회복률_체력:3 = 
+;회복률_기력:3 = 
+
+회복전체력= BASE:MASTER:체력
+회복전기력= BASE:MASTER:기력
+IF NEMUKE() >= 960 && !CFLAG:MASTER:수면
+	PRINTFORMW 잠시 쉬려던 %마스터는% 그대로 자 버렸다
+	TFLAG:193 = -1
+	CALL SET_SLEEP(1,MASTER,0)
+	CFLAG:MASTER:취침시간 = DAY * 1440 + TIME
+	BEGIN AFTERTRAIN
+ELSE
+	IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치 && ITEM:참나무쇼파
+		Restore = ITEM:참나무쇼파
+	ELSE
+		Restore = 0
+	ENDIF
+	;누군가 데리고 있는 때는 여기.
+	;"낮잠 하는"으로부터 코피페 하고 있으니 이 분기가 이상하면 미안해요
+	IF TARGET > 0 && CFLAG:TARGET:6 > 0
+		;흡혈귀 또는 월광욕 소유로 밤의 사이
+		;또는 일광욕소유로 낮의 사이
+		IF ((TALENT:흡혈귀 || TALENT:월광욕) && (TIME > 1140 || TIME < 360)) || (TALENT:일광욕 && (TIME > 360 && TIME < 1140))
+			CALL RECOVER_PERMIL(TARGET, 120,"체력", 1)
+			CALL RECOVER_PERMIL(TARGET, 160,"기력", 1)
+		ELSEIF TALENT:봉래인
+			CALL RECOVER_PERMIL(TARGET, 200,"체력", 1)
+			CALL RECOVER_PERMIL(TARGET, 300,"기력", 1)
+		ELSE
+			CALL RECOVER_PERMIL(TARGET,회복률_체력:Restore,"체력",1)
+			CALL RECOVER_PERMIL(TARGET,회복률_기력:Restore,"기력",1)
+		ENDIF
+	ENDIF
+	IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치 && ITEM:참나무쇼파
+		PRINTFORML 쇼파에 기대어 느긋하게 몸을 맡겼다…
+	ENDIF
+	CALL RECOVER_PERMIL(MASTER,회복률_체력:Restore,"체력", 1)
+	CALL RECOVER_PERMIL(MASTER,회복률_기력:Restore,"기력", 1)
+ENDIF
+TIME += 60
+회복후체력= BASE:MASTER:체력
+회복후기력= BASE:MASTER:기력
+DRAWLINE
+PRINTFORML 체력+{ABS(회복후체력- 회복전체력)}(%CALLNAME:MASTER%)
+PRINTFORML 기력+{ABS(회복후기력- 회복전기력)}(%CALLNAME:MASTER%)
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE403
+;이동 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(403)
+	RETURN RESULT
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;자기 방, 홍마관, 서당, 데리고 들어가 숙소, 초대방 이외는 불가
+SIF CFLAG:MASTER:현재위치 != CFLAG:MASTER:311 && !휴식가능(CFLAG:MASTER:현재위치)
+	RETURN 0
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+;장난중
+SIF CFLAG:MASTER:장난
+	RETURN 0
+SIF NEMUKE() >= 960
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+RETURN 1

@@ -1,0 +1,360 @@
+﻿;-------------------------------------------------
+;일을돕는다
+;일상계 커맨드 레벨 1
+;-------------------------------------------------
+@COM304
+#DIM JOBTYPE
+
+JOBTYPE = CFLAG:TARGET:350
+
+SIF FLAG:70 && JOBTYPE == 41
+	RETURN 0
+
+CALL JOB_EFFICIENCY(JOBTYPE)
+
+IF FLAG:70
+	IF BASE:일량 <= 0
+		PRINTFORML 이미 %CALLNAME:TARGET%의 일은 정리되었다
+		BASE:MASTER:TSP -= 10
+		RETURN 0
+	ELSE
+		BASE:MASTER:TSP -= 200
+	ENDIF
+ELSE
+	SELECTCASE JOBTYPE
+		;청소
+		CASE 40
+			DOWNBASE:MASTER:체력 += 50
+			DOWNBASE:MASTER:기력 += 100
+			SIF TALENT:MASTER:청소중독
+				DOWNBASE:MASTER:기력 -= 50
+		;회화
+		CASE 41
+			DOWNBASE:MASTER:체력 += 50
+			DOWNBASE:MASTER:기력 += 150
+		;전투
+		CASE 42
+			DOWNBASE:MASTER:체력 += 200
+			DOWNBASE:MASTER:기력 += 50
+		;교양
+		CASE 43
+			DOWNBASE:MASTER:체력 += 50
+			DOWNBASE:MASTER:기력 += 200
+		;요리
+		CASE 44
+			DOWNBASE:MASTER:체력 += 50
+			DOWNBASE:MASTER:기력 += 100
+		CASE 46
+			DOWNBASE:MASTER:체력 += 50
+			DOWNBASE:MASTER:기력 += 50
+		CASE 53
+			DOWNBASE:MASTER:체력 += 50
+			DOWNBASE:MASTER:기력 += 150
+	ENDSELECT
+	;소요시간
+	IF JOBTYPE == 48 || JOBTYPE == 50
+		TIME += 30
+	ELSE
+		SELECTCASE TARGET
+			CASE [[케이네]]
+				;케이네의 서당 수업 뒷정리 심부름 14시~14시 30분까지
+				;케이네의 서당 수업 뒷정리 심부름 14시 10분 ~14시 30분까지
+				;케이네의 서당 수업 뒷정리 심부름 14시 20분 ~14시 30분까지
+				;차례적으로 노동시간 단축 처리가 기능하고 있지 않았기 때문에 수정
+				IF INRANGE(TIME, CLOCK_TO_TIME(14, 20), CLOCK_TO_TIME(14, 30))
+					TIME += 10
+				ELSEIF INRANGE(TIME, CLOCK_TO_TIME(14, 10), CLOCK_TO_TIME(14, 30))
+					TIME += 20
+				ELSEIF INRANGE(TIME, CLOCK_TO_TIME(14, 00), CLOCK_TO_TIME(14, 30))
+					TIME += 30
+				ELSE
+					TIME += 60
+				ENDIF
+			;엘렌의 유객 행위 심부름
+			CASE [[엘렌]]
+				IF TCVAR:TARGET:354 < 25
+					TIME += 30
+				ELSE
+					TIME += 60
+				ENDIF
+			CASEELSE
+				TIME += 60
+		ENDSELECT
+	ENDIF
+	DOWNBASE:기력 += 10
+	;신뢰
+	TFLAG:98 += 5
+	TFLAG:무드상승억제 = 1
+	;고정으로 획득하는 소스
+	SOURCE:환락 = 300
+	SIF JOBTYPE == 49
+		SOURCE:환락 += 200
+	
+	;ABL:순종을 본다
+	IF ABL:순종 <= 1
+		SOURCE:환락 += (ABL:순종 * 50)
+	ELSEIF ABL:순종 <= 3
+		SOURCE:환락 += 100 + (ABL:순종 * 40)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:환락 += 200 + (ABL:순종 * 50)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:환락 += 400 + (ABL:순종 * 70)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:환락 += 500 + (ABL:순종 * 60)
+	ELSE
+		SOURCE:환락 += 800 + (ABL:순종 * 40)
+	ENDIF
+
+	;ABL:친밀 체크
+	IF ABL:친밀 <= 1
+		SOURCE:환락 += 70 + (ABL:친밀 * 50)
+	ELSEIF ABL:친밀 <= 3
+		SOURCE:환락 += 120 + (ABL:친밀 * 50)
+	ELSEIF ABL:친밀 <= 5
+		SOURCE:환락 += 200 + (ABL:친밀 * 50)
+	ELSEIF ABL:친밀 <= 8
+		SOURCE:환락 += 500 + (ABL:친밀 * 40)
+	ELSEIF ABL:친밀 <= 11
+		SOURCE:환락 += 800 + (ABL:친밀 * 40)
+	ELSE
+		SOURCE:환락 += 1200 + (ABL:친밀 * 30)
+	ENDIF
+
+	;호감 도를 본다
+	IF CFLAG:2 <= 500
+		SOURCE:환락 += CFLAG:2
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+	ELSE
+		SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+	ENDIF
+	SIF SOURCE:환락 < 0
+		SOURCE:환락 = 0
+
+	SOURCE:수동 = 230 + 80 * ABL:순종
+	SOURCE:정복 = 150 + 200 * ABL:새드끼
+ENDIF
+SIF BASE:TARGET:일량 <= 0
+	CALL CHARA_JOBEND(TARGET)
+RETURN 1
+
+
+@JOB_EFFICIENCY(ARG)
+#DIM ABILITY
+#DIM WorkP
+
+WorkP = 0
+IF INRANGE(ARG, 40, 45) || ARG == 53
+	ABILITY = ABL:MASTER:ARG
+	SIF ARG == 53
+		ABILITY = TALENT:MASTER:조제Lv
+	SELECTCASE TFLAG:192
+		;통상
+		CASE 0
+			LOCAL = RAND:100
+			LOCAL:1 = 75 + ABILITY * 5
+			IF LOCAL <= 10 + ABILITY * 2
+				;기능 나름으로 대성공
+				TFLAG:193 = 1
+				WorkP = (50 + (ABILITY) * 75) * 2
+				TFLAG:98 = 2
+			ELSEIF LOCAL >= LOCAL:1
+				;10～1％로 실패
+				TFLAG:193 = -1
+				WorkP = 0
+				TFLAG:98 = -1
+			ELSE
+				;나머지는 성공
+				TFLAG:193 = 0
+				WorkP = 50 + (ABILITY) * 75
+				TFLAG:98 = 0
+			ENDIF
+		;강제 성공 or대성공
+		CASE 1
+			IF RAND:100 <= 10 + ABILITY * 2
+				;기능 나름으로 대성공
+				TFLAG:193 = 1
+				WorkP = (50 + (ABILITY) * 75) * 2
+				TFLAG:98 = 2
+			ELSE
+				;나머지는 성공
+				TFLAG:193 = 0
+				WorkP = 50 + (ABILITY) * 75
+				TFLAG:98 = 0
+			ENDIF
+		;강제 실패
+		CASE -1
+			TFLAG:193 = -1
+			TFLAG:98 = -2
+		;커맨드 종료
+		CASE -2
+			TFLAG:193 = -1
+			RETURN 0
+	ENDSELECT
+ELSEIF ARG == 46
+	SELECTCASE TFLAG:192
+		;통상
+		CASE 0
+			LOCAL = RAND:100
+			LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+			SIF LOCAL:1 > 99
+				LOCAL:1 = 99
+			WorkP = 0
+			IF LOCAL <= 9
+				;10％로 대성공
+				TFLAG:193 = 1
+				TFLAG:98 = 2
+				EXP:MASTER:회화경험 ++
+			ELSEIF LOCAL >= LOCAL:1
+				;10～1％로 실패
+				TFLAG:193 = -1
+				TFLAG:98 = -1
+			ELSE
+				;나머지는 성공
+				TFLAG:193 = 0
+				TFLAG:98 = 0
+			ENDIF
+		;강제 성공 or대성공
+		CASE 1
+			IF RAND:100 <= 9
+				;10％로 대성공
+				TFLAG:193 = 1
+				TFLAG:98 = 2
+				EXP:MASTER:회화경험 ++
+			ELSE
+				;나머지는 성공
+				TFLAG:193 = 0
+				TFLAG:98 = 0
+			ENDIF
+		;강제 실패
+		CASE -1
+			TFLAG:193 = -1
+			TFLAG:98 = -2
+		;커맨드 종료
+		CASE -2
+			TFLAG:193 = -1
+			RETURN 0
+	ENDSELECT
+ENDIF
+
+SELECTCASE ARG
+	;청소
+	CASE 40
+		SIF TFLAG:193 == 1
+			EXP:MASTER:청소경험 ++
+		SIF !RAND:4
+			EXP:MASTER:청소경험 ++
+	;회화
+	CASE 41
+		SIF TFLAG:193 == 1
+			EXP:MASTER:회화경험 ++
+		SIF !RAND:4
+			EXP:MASTER:회화경험 ++
+	;전투
+	CASE 42
+		SIF TFLAG:193 == 1
+			EXP:MASTER:전투경험 ++
+		SIF !RAND:4
+			EXP:MASTER:전투경험 ++
+	;교양
+	CASE 43
+		SIF TFLAG:193 == 1
+			EXP:MASTER:학습경험 ++
+		SIF !RAND:4
+			EXP:MASTER:학습경험 ++
+	;요리
+	CASE 44
+		SIF TFLAG:193 == 1
+			EXP:MASTER:요리경험 ++
+		EXP:MASTER:요리경험 ++
+	;음악
+	;CASE 45
+	;연회 정리
+	CASE 50
+		SIF TFLAG:193 == 1
+			EXP:MASTER:청소경험 ++
+		SIF !RAND:4
+			EXP:MASTER:청소경험 ++
+	CASE 53
+		SIF TFLAG:193 == 1
+			EXP:MASTER:조제경험 ++
+		EXP:MASTER:조제경험 ++
+ENDSELECT
+
+;보수 배율
+LOCAL:4 = TCVAR:TARGET:급료
+
+;일한 만큼 일량 감소
+LOCAL:3 = (WorkP + RAND:80 + RAND:80 + 10)
+
+;당연히 시간정지중은 회화계의 심부름은 할 수 없다
+SIF FLAG:70 && GROUPMATCH(ARG, 41)
+	LOCAL:3 = 0
+SIF TCVAR:TARGET:도울수없다 == 2 && FLAG:70
+	LOCAL:3 /= 5
+;조합지식
+IF TARGET == [[우동게]] && YOUBI_MATCH(DAY, "목")
+	EXP:MASTER:조제경험 += 2
+	SIF ABL:MASTER:교양 > RAND:5
+		EXP:MASTER:조제경험 ++
+ENDIF
+
+;유객 행위는 일량 적은(엘렌)
+SIF TARGET == [[엘렌]] && CFLAG:직종 == 41
+	LOCAL:3 /= 2
+;-는 요리경험에 덤
+SIF TARGET == [[미스티아]]
+	EXP:MASTER:요리경험 ++
+;TCVAR:315가 2가 아니면 일량 줄어든다
+IF TCVAR:TARGET:도울수없다 != 2
+	BASE:일량 = BASE:일량 - LOCAL:3
+ENDIF
+IF BASE:일량 < 0 && CFLAG:TARGET:20 > 0
+	BASE:일량 = 1
+ELSEIF BASE:일량 < 0
+	BASE:일량 = 0
+ENDIF
+;일한 만큼 당신의 일량을 증가(보수에 영향)
+TCVAR:MASTER:도운양 += LOCAL:3 * LOCAL:4
+TCVAR:TARGET:도운양 += LOCAL:3
+IF ARG != 46
+	PRINTFORML 해낸 일량 {LOCAL:3}
+ENDIF
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE304
+;일을 돕는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(304)
+	RETURN RESULT
+;업무중이 아니다
+SIF CFLAG:행동 != 5
+	RETURN 0
+;연회참가자는 별취급
+SIF GROUPMATCH(CFLAG:직종, ENKAI_SANKA, 만취한다)
+	RETURN 0
+SIF TCVAR:315 == 1
+	RETURN 0
+SIF CFLAG:350 == 47
+	RETURN 0
+;일이 끝나 있다
+SIF BASE:일량 <= 0
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+;데이트중
+SIF CHK_DATENOW(CFLAG:데이트중)
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+RETURN 1
+

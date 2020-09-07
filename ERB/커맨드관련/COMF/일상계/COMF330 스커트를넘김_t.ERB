@@ -1,0 +1,163 @@
+﻿;-------------------------------------------------
+;치마를넘기는
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM330
+#DIM MEKURI
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 10
+ELSE
+	IF FLAG:생활능력무
+		DRAWLINE
+		PRINTFORMW %CALLNAME:MASTER%에게 그런 담력은 없다
+		RETURN -1
+	ENDIF
+	;고정으로 획득하는 소스
+	SOURCE:노출 = 300
+	SOURCE:반감 = 700
+	IF FLAG:이상기상 == 6
+		MEKURI = MAX(0,5000 - 500 * ABL:친밀)
+		SELECTCASE MARK:반발각인
+			CASE 0
+				MEKURI /= 2
+			CASE 2
+				MEKURI *= 2
+			CASE 3
+				MEKURI *= 4
+		ENDSELECT
+		[IF_DEBUG]
+		PRINTFORMW 치마넘김으로{MEKURI}
+		[ENDIF]
+		CUP:쾌V += MEKURI
+	ENDIF
+	;호감도를 본다
+	SELECTCASE CFLAG:2
+		CASE 1000 TO 3000
+			SOURCE:사랑 += CFLAG:2 / 100
+			SOURCE:반감 -= (ABL:친밀 * 10)
+		CASE 3001 TO 5000
+			SOURCE:사랑 += 100 + (CFLAG:2 - 500) / 5
+			SOURCE:환락 += 100 + (CFLAG:2 - 500) / 4
+			SOURCE:욕정 += (ABL:친밀 * 10)
+			SOURCE:노출 += (ABL:친밀 * 15)
+			SOURCE:반감 -= (ABL:친밀 * 15)
+		CASE IS > 5000
+			SOURCE:사랑 += 500 + (CFLAG:2 - 5000) / 7
+			SOURCE:환락 += 500 + (CFLAG:2 - 5000) / 4
+			IF !TALENT:연모
+				SOURCE:욕정 += (ABL:친밀 * 15)
+				SOURCE:노출 += (ABL:친밀 * 20)
+				SOURCE:반감 -= (ABL:친밀 * 25)
+			ELSE
+				SOURCE:욕정 += (ABL:친밀 * 20)
+				SOURCE:노출 += (ABL:친밀 * 30)
+				SOURCE:반감 -= (ABL:친밀 * 40)
+			ENDIF
+	ENDSELECT
+	SIF SOURCE:반감 < 0
+		SOURCE:반감 = 0
+	SIF SOURCE:사랑 < 0
+		SOURCE:사랑 = 0
+
+	LOCAL = 0
+	;호감도가 낮으면 호감도 저하
+	IF CFLAG:2 <= 100
+		TFLAG:193 = -5
+		DOWNBASE:MASTER:체력 -= ABL:전투능력 * 100
+		TFLAG:치마걷어올리기지나고 += RAND:30
+	ELSEIF CFLAG:2 <= 1000
+		TFLAG:193 = -3
+		DOWNBASE:MASTER:체력 -= ABL:전투능력 * 30
+		TFLAG:치마걷어올리기지나고 += RAND:20
+	ELSEIF CFLAG:2 <= 3000
+		TFLAG:193 = -1
+		TFLAG:치마걷어올리기지나고 += RAND:10
+	ELSEIF CFLAG:2 <= 5000
+		TFLAG:193 = 0
+		TFLAG:치마걷어올리기지나고 += RAND:10
+	ELSE
+		TFLAG:193 = 1
+		TFLAG:치마걷어올리기지나고 += RAND:5
+	ENDIF
+
+	SOURCE:수동 = 100 + 150 * ABL:순종
+	SOURCE:정복 = 100 + 150 * ABL:새드끼
+
+	;둘이서라면 효과 업, 그렇지 않으면 노출 이외 다운=============
+	FOR LOCAL, 1, CHARANUM
+		SIF CFLAG:LOCAL:동실
+			LOCAL:2 ++
+	NEXT
+	IF LOCAL:2 == 1
+		TIMES SOURCE:욕정 , 1.20
+		TIMES SOURCE:노출 , 0.80
+		LOCAL:3 = 1
+	ELSE
+		TIMES SOURCE:욕정 , 0.50
+		TIMES SOURCE:노출 , 2.00
+		TIMES SOURCE:반감 , 1.50
+	ENDIF
+	;무드의 영향=====================================================
+	IF BASE:무드 == MAXBASE:무드
+		TIMES SOURCE:욕정 , 1.20
+		TIMES SOURCE:노출 , 1.20
+		TIMES SOURCE:반감 , 0.50
+	ELSEIF BASE:무드 < 600 && BASE:무드
+		TIMES SOURCE:욕정 , 1.00
+		TIMES SOURCE:노출 , 1.00
+		TIMES SOURCE:반감 , 1.00
+	ELSEIF BASE:무드 <= 200
+		TIMES SOURCE:욕정 , 0.80
+		TIMES SOURCE:노출 , 0.80
+		TIMES SOURCE:반감 , 1.50
+	ENDIF
+
+	TIME += 5
+	IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+		;KR판 오리지날 붉은실
+		CALL 붉은실발동
+		EXP:MASTER:데이트경험 ++
+		EXP:TARGET:데이트경험 ++
+		CALL DATE_GOES_ON(1)
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE330
+;치마걷어 올리기 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(330)
+	RETURN RESULT
+;시간정지중은 스킵
+IF !FLAG:70
+	;수면중
+	SIF CFLAG:수면
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5
+		RETURN 0
+	;데이트중
+	SIF CHK_DATENOW(CFLAG:데이트중) && CFLAG:현재위치 != OMANEKIBEYA()
+		RETURN 0
+	;동침중
+	SIF CFLAG:동침중
+		RETURN 0
+ENDIF
+;복장 제한
+SIF !(EQUIP:치마|| EQUIP:원피스|| EQUIP:기모노|| EQUIP:바지) || EQUIP:0 == 0
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF !TARGET
+	RETURN 0
+;밀어넘어뜨려지고 안의 제어
+SIF GETBIT (TCVAR:26,7)
+	RETURN 0
+RETURN 1
+

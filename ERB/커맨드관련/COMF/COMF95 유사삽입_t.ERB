@@ -1,0 +1,166 @@
+﻿;-------------------------------------------------
+;유사 삽입
+;섹스계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM95
+;-------------------------------------------------
+;특수 파생 처리
+;-------------------------------------------------
+
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;봉사 쾌락 플래그
+TCVAR:PLAYER:108 = 1
+
+CSTR:PLAYER:10 += @"{TARGET}/"
+;TCVAR:2 사정 개소 플래그（-1=콘돔 1=질내 2=애널 3=자위 4=펠라티오 5=파이즈리 6=스마타 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V고문）
+TCVAR:PLAYER:2 = 8
+;강도
+TCVAR:PLAYER:4 = 500
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정 개소 플래그（-1=콘돔 1=질내 2=애널 3=자위 4=펠라티오 5=파이즈리 6=스마타 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V고문）
+TCVAR:TARGET:2 = 13
+;강도
+TCVAR:TARGET:4 = 300
+
+DOWNBASE:PLAYER:체력 += 10
+DOWNBASE:PLAYER:기력 += 20
+
+;침대가 없는 OR욕실에서 플레이 매트가 없으면 립 정도에
+SIF !BEDROOM(CFLAG:PLAYER:현재위치) && !(BATHROOM() && ITEM:20)
+	TFLAG:193 = 1
+
+;파과 억제
+TFLAG:2 = 1
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 100
+	SOURCE:PLAYER:쾌C = 120
+	SOURCE:쾌V = 100
+
+ELSE
+
+	DOWNBASE:체력 += 50
+	DOWNBASE:기력 += 60
+
+	SOURCE:PLAYER:쾌C = 120
+	SOURCE:쾌V = 100
+	SOURCE:사랑 = 150
+	SOURCE:고통 = 500
+	SOURCE:노출 = 50
+	SOURCE:일탈 = 20
+	SOURCE:반감 = 20
+	SIF TFLAG:193
+		SOURCE:노출 = 200
+	SOURCE:반감 = 100
+	
+	;처녀였던 경우는, 공포 소스를 추가한다
+	IF TALENT:처녀 == 1 || TALENT:처녀 == -1
+		SOURCE:공포 += 500
+		TFLAG:194 = 1
+		SIF PALAM:욕정 > PALAMLV:7
+			TFLAG:194 = 2
+	ENDIF
+
+	;상 쪽으로 계산한 더러운 데이터
+	SOURCE:불결 = Y*10 + 60
+	CALL 특수소스처리
+ENDIF
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;사정에 관계없이 행해지는 처리는 여기로부터
+CALL STAIN_질내P삽입
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:V경험 ++
+;동성애  레즈라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1 || CFLAG:장난
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+	ENDIF
+	IF CFLAG:PLAYER:장난 == 2
+		EXP:PLAYER:수면간경험 += 1
+		EXP:TARGET:수면간경험 += 1
+	ENDIF
+	SIF !CFLAG:장난
+	EXP:PLAYER:시간경험 += 1
+ELSE
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+	ENDIF
+
+ENDIF
+RETURN 1
+
+@CAN_COM95(ARG)
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+IF FLAG:70 == 1 || CFLAG:장난
+	SKIPDISP ARG
+
+ELSE
+
+ENDIF
+SKIPDISP 0
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE95
+;유사 삽입 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(95)
+	RETURN RESULT
+;조교자가 남자, 후타나리의 경우는 어느 정도 발기하고 있지 않으면 안 돼
+SIF (TALENT:PLAYER:2 & 2) && BASE:PLAYER:발기 < 1000
+	RETURN 0
+;바이브 삽입중은 안 돼
+SIF TEQUIP:13
+	RETURN 0
+;남자라면 안 돼
+SIF !(TALENT:2 & 1)
+	RETURN 0
+
+;벌써 삽입하고 있으면 안 돼
+SIF TCVAR:100 == PLAYER && TARGET == TFLAG:103
+	RETURN 0
+
+;조교자가 남자, 반인반요, 후타나리, 혹은 페니스밴드가 없으면 안 돼
+SIF !(TALENT:PLAYER:2 & 2) && ITEM:PBAND == 0
+	RETURN 0
+
+;시간 정지중은 스킵
+IF FLAG:70 != 1
+	;처녀 또한 윤활 부족은 안 돼
+	SIF PALAM:윤활 < PALAMLV:2 && TALENT:처녀 && TALENT:처녀 != -1
+		RETURN 0
+ENDIF
+
+;하반신 착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+;목욕탕 플레이중은 플레이 매트가 없으면 안 돼
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+;배면좌위로부터는 안 돼
+SIF TEQUIP:체위 == 5
+	RETURN 0
+RETURN 1

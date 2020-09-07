@@ -1,0 +1,310 @@
+﻿;FileName_MOVEMENT.ERB ----------------------------- Rev1. 00
+;시간경과 처리
+;CALL		USER
+;ARG		경과시간전
+;RETURN		시간경과량
+;COMMENT	
+;-----------------------------------------------------------
+@TIME_PROGRESS(ARG)
+#FUNCTION
+SIF TIME + DAY * 1440 < ARG
+	RETURNF 0
+RETURNF TIME + DAY * 1440 - ARG
+
+;FileName_MOVEMENT.ERB ----------------------------- Rev1. 01
+;캐릭터 귀가 처리
+;CALL		USER
+;ARG		0:캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@KITAKU(ARG)
+#DIMS 귀가이유
+IF TIME < 420 && TIME > 180
+	귀가이유 = 날도 밝아오니
+ELSEIF TIME < 1140 && TIME > 900
+	귀가이유 = 해도 졌으니
+ELSE
+	귀가이유 = 밤도 벌써 깊어졌으니
+ENDIF
+
+IF CFLAG:(ARG):현재위치 == CFLAG:MASTER:현재위치 && !CFLAG:MASTER:수면
+	CALL OneNightStay(ARG)
+	SIF CFLAG:ARG:신사거주
+		RETURN
+	IF 수면시간(ARG)
+		PRINTFORMW %ARG는% 잠자리에 들었다.
+	;데이트중
+	ELSEIF CHK_DATENOW(CFLAG:(ARG):데이트중)
+		PRINTFORMW %귀가이유% %ARG와%의 데이트는 여기까지다.
+		;자택에 있을 때, 초대방에 있을 때는 우후후 하고 있지 않을 때
+		IF (CFLAG:(ARG):현재위치 == CFLAG:(ARG):자택위치 || (CFLAG:(ARG):현재위치 == OMANEKIBEYA() && !CFLAG:(ARG):우후후))
+			CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,3,0)
+		;통상의 데이트중
+		ELSE
+			;お誘い
+			IF (TALENT:ARG:연모 || TALENT:ARG:섹프 == 2) && CFLAG:ARG:욕구불만도 >= (700 + TALENT:ARG:수치심 * 150) && !CFLAG:ARG:신사거주 && !TCVAR:ARG:연속숙박금지 && CFLAG:(ARG):현재위치 != OMANEKIBEYA() && CFLAG:ARG:자택위치
+				PRINTFORML %ARG로%부터 방에 오지 않겠냐고 권유받았다.
+				CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,4,0)
+				CALL ASK_YN("간다","그만둔다")
+				IF !RESULT
+					PRINTFORML %CALLNAME:ARG%에게 권유받은 대로, %마스터는% %CALLNAME:ARG%의 방으로 향했다……
+					CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,5,0)
+					PRINTFORMW +{TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)}분
+					TIME += TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)
+					CALL OMANEKI_ENTER(ARG)
+					CALL TARGETSET_CHACK
+				ELSE
+					PRINTFORMW %ARG는% 섭섭해 보인다……
+					CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,6,0)
+					SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+						CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
+				ENDIF
+			ELSE
+				CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,2,0)
+				SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+					CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
+			ENDIF
+		ENDIF
+	;신사내에 있을까 자택에서도 초대방도 아닌 장소
+	ELSEIF AT_HOME(ARG) || (CFLAG:(ARG):현재위치 != CFLAG:(ARG):자택위치 && CFLAG:(ARG):현재위치 != OMANEKIBEYA()) && CFLAG:ARG:행동 != 5
+		CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,1,0)
+			PRINTFORMW %귀가이유% %ARG는% 돌아갔습니다.
+		CALL SET_TOGETHER(0,ARG,1)
+		SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+			CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
+	ENDIF
+	IF CFLAG:(ARG):우후후 > 0 || CHK_DATENOW(CFLAG:(ARG):데이트중)
+		FOR LOCAL,1,CHARANUM
+			;초대중은 계속
+			SIF CFLAG:MASTER:초대 != LOCAL && CFLAG:LOCAL:우후후
+				CALL ENDUFUFU(LOCAL)
+			;데이트는 사라진다
+			CFLAG:LOCAL:데이트중 = MAIN_MAP
+			FLAG:데이트상대 = 0
+			TFLAG:데이트전호감도 = 0
+		NEXT
+		;불러 우후후 안은 계속
+		SIF !CFLAG:MASTER:초대
+			CFLAG:MASTER:우후후 = 0
+		CFLAG:MASTER:동행 = 0
+	ENDIF
+ENDIF
+CFLAG:ARG:동행 = 0
+
+IF !TCVAR:ARG:휴식안 && !CFLAG:ARG:초대
+	;활동시간외는 자택이 있으면 잘 때까지 자택에 있다
+	IF CFLAG:ARG:자택위치 && !IN_HOME(CFLAG:ARG:자택위치) && !수면시간(ARG)
+		CFLAG:ARG:현재위치 = CFLAG:ARG:자택위치
+	;자택이 없는가 자면(자) 사라진다
+	ELSE
+		CFLAG:ARG:현재위치 = SUKIMA()
+	ENDIF
+ENDIF
+
+
+@침실로부터내쫓아(ARG)
+SIF !ARG
+	RETURN
+SIF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치
+	RETURN
+SIF !수면시간(ARG)
+	RETURN
+SIF CFLAG:ARG:현재위치 != CFLAG:ARG:초기위치
+	RETURN
+SIF !SHIRAHU(ARG)
+	RETURN
+	;잠입중
+SIF CFLAG:ARG:은밀중
+	RETURN
+;그 이외
+
+SIF CFLAG:ARG:빡침
+	GOTO OIDASHI
+;연모나 시지중이라면 입실을 허락한다
+IF (TALENT:ARG:연모 || TEQUIP:ARG:밧줄 || CFLAG:우후후 == 1 || EXP:ARG:수면간경험 > 300 || CFLAG:ARG:장난)
+ELSEIF FLAG:일시체재 == ARG
+;소망 수면욕구 세트
+ELSEIF CFLAG:ARG:초기위치 == 15 && (TALENT:1:연모 || TALENT:57:연모 || TALENT:71:연모)
+;여기는 누군가 혼자라도 연모라면 k
+;침입 성공이라면 입실
+ELSEIF GETBIT(CFLAG:ARG:42,8)
+;그 이외라면 내쫓아
+ELSE
+	$OIDASHI
+	CLEARLINE 1
+	;SIF !CFLAG:ARG:빡침
+		PRINTFORMW 졸린 듯한 %CALLNAME:ARG%에게 쫓겨났다…
+	;잠입해 OFF
+	CALL SET_SNEAK(0,ARG,2)
+	;장난 OFF
+	CALL SET_PRANK(0,ARG,2)
+	FOR LOCAL:1,0,CHARANUM
+		CALL ENDUFUFU(LOCAL:1)
+	NEXT
+	;침입 성공 플래그 클리어
+	CLEARBIT CFLAG:ARG:42,8
+	TFLAG:MASTER의P삽입중 = 0
+	;이동 가능한 장소에 이동
+	CALL GETOUT(MASTER)
+	;원거리이동 플래그 OFF
+	TFLAG:원거리이동 = 0
+ENDIF
+
+
+@목욕탕으로부터내쫒아(ARG)
+SETCOLOR 150,150,250
+PRINTL 【목욕탕의 난입자】
+RESETCOLOR
+IF TALENT:ARG:수치심 < 0
+	IF ABL:ARG:친밀 < 5
+		PRINTFORML %ARG는% 태연하게, 막 들어왔으니 나가라고 말했다.
+		CFLAG:ARG:호감도 -= (20 - ABL:ARG:친밀 * 2)
+		CFLAG:ARG:신뢰도 -= (20 - ABL:ARG:친밀 * 2)
+		SOURCE:ARG:반감 += 300
+		CFLAG:MASTER:현재위치 = KICKOUT()
+	;ELSE
+	;	PRINTFORML %ARG는% 태연하게, 함께 들어가고 싶은 것인지라고 (들)물어 왔다
+	ENDIF
+ELSE
+	PRINTFORML %ARG는% 자신이 처한 상황을 깨닫자 비명과 함께 목욕탕에서 뛰쳐나갔다
+	CFLAG:ARG:호감도 -= (50 - ABL:ARG:친밀 * 2)
+	CFLAG:ARG:신뢰도 -= (50 - ABL:ARG:친밀 * 2)
+	SOURCE:ARG:반감 += 1000
+	BASE:ARG:분노 += (1500 - ABL:ARG:친밀 * 100)
+	CFLAG:ARG:현재위치 = KICKOUT()
+	;캐릭터를 움직였으므로 TARGET재설정
+ENDIF
+CFLAG:ARG:호감도 = MAX(CFLAG:ARG:호감도, 0)
+CFLAG:ARG:신뢰도 = MAX(CFLAG:ARG:신뢰도, 0)
+CALL TARGETSET_CHACK
+CFLAG:ARG:동실 = 0
+RETURN 1
+
+
+@초대방처리(ARG)
+SIF FLAG:시간정지 || !CFLAG:ARG:초대
+	RETURN
+
+;초대방에서 나오면(자) 일상에 돌아간다
+;묵기 전인가 후인가는 연속숙박금지 플래그를 참조하고 있습니다
+IF CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	CALL 초대방에서나온다(ARG)
+
+;다음날 일하러 가는 경우
+ELSEIF 업무중체크(ARG) && TCVAR:ARG:연속숙박금지 && CFLAG:ARG:우후후 != 1
+	CFLAG:MASTER:현재위치 = CFLAG:ARG:자택위치
+	IF CFLAG:ARG:우후후
+		PRINTFORMW %ARG는% 지금부터 일이 있는 것 같다…
+		CALL ENDUFUFU(LOCAL)
+		PRINTFORMW %ARG는% 아쉬운 듯하면서도 밖으로 나갔다.
+	ELSE
+		PRINTFORMW %ARG는% 일이 있는지 밖으로 나갔다
+	ENDIF
+	CALL 초대방에서나온다(ARG)
+
+;데이트중
+ELSEIF CHK_DATENOW(CFLAG:ARG:데이트중)
+	IF CFLAG:ARG:신사거주
+		;더부살이캐릭터는 수면시간에 되면(자) 데이트 종료
+		IF 수면시간(ARG)
+			CFLAG:ARG:데이트중 = MAIN_MAP
+			FLAG:데이트상대 = 0
+		ENDIF
+	ELSE
+		;데이트중에 돌아가는 시간이 오면(자) 메시지＆데이트만 지운다
+		IF !VISIT(ARG)
+			CALL KITAKU(ARG)
+		ENDIF
+	ENDIF
+ENDIF
+
+
+@초대방에서나온다(ARG)
+;만남 플래그를 자택위치로 설정(연동하고 있다고(면) 다른 캐릭터가 달려 들어 오는 것은 사양)
+CFLAG:ARG:만난위치 = CFLAG:ARG:자택위치
+;초기위치를 바탕으로 되돌린다(참배길저편이나 0도 있지만 99에서도 k)
+IF CFLAG:ARG:신사거주
+	CFLAG:ARG:초기위치 = CFLAG:ARG:신사거주
+ELSE
+	CFLAG:ARG:초기위치 = SUKIMA()
+ENDIF
+;활동시간이라면 그대로 데이트. 더부살이캐릭터는 일어나고 있으면 데이트
+;의 예정이었지만 밸런스 브레이커생각이 드는＆아침 돌아오는 길은 한사람이 분위기 나오므로 더부살이캐릭터만
+;활동전도 배치하게 되었으므로 기상시간이라면 밖으로 나오도록(듯이)
+IF CFLAG:ARG:신사거주
+	CFLAG:ARG:현재위치 = 97 + MAIN_MAP * 100
+	CFLAG:ARG:데이트중 = MAIN_MAP
+	FLAG:데이트상대 = 0
+	TFLAG:데이트전호감도 = 0
+ELSE
+	IF !수면시간(ARG) && !CFLAG:ARG:수면
+		;자택위치에 이동
+		CFLAG:ARG:현재위치 = CFLAG:ARG:만난위치
+		;묵기 전or더부살이캐릭터라면 데이트 계속, 워프 이동하고 있으면(자) 안 돼
+		IF !TCVAR:ARG:연속숙박금지 && CHK_DATENOW(CFLAG:ARG:데이트중) && !AT_HOME(MASTER)
+			CFLAG:ARG:데이트중 = (CFLAG:ARG:자택위치) / 100
+			CFLAG:ARG:동행 = 60
+		ENDIF
+	;자고 있는 경우는 안보이는 곳에 이동
+	;더부살이캐릭터는 식별하기 위해서 현재위치 97을 사용하고 있기 때문에 요주의(MOVEMENT2의 SLEEP에 계속된다)
+	ELSE
+		CFLAG:ARG:현재위치 = SUKIMA()
+		CFLAG:ARG:데이트중 = MAIN_MAP
+		FLAG:데이트상대 = 0
+		TFLAG:데이트전호감도 = 0
+	ENDIF
+ENDIF
+
+;초대 플래그를 지워 일상에 되돌린다
+CFLAG:ARG:초대 = 0
+CFLAG:MASTER:초대 = 0
+LOCK:(OMANEKIBEYA()) = 0
+
+
+@OneNightStay(ARG)
+#DIM YANUSHI
+#DIM REQUIRED_DESIRE
+YANUSHI = PRIVATEROOM:(CFLAG:MASTER:초기위치 % 100)
+SIF CFLAG:ARG:욕구불만도 < 800
+	RETURN
+SIF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치
+	RETURN
+SIF FLAG:일시체재
+	RETURN
+SIF CFLAG:ARG:신사거주
+	RETURN
+SIF !AT_HOME(MASTER)
+	RETURN
+REQUIRED_DESIRE = 10
+SIF TALENT:ARG:연모 || TALENT:ARG:섹프
+	REQUIRED_DESIRE -= 5
+SIF TALENT:ARG:사모
+	REQUIRED_DESIRE -= 2
+IF !CFLAG:ARG:기정사실 & 합의_우후후
+	REQUIRED_DESIRE += TALENT:ARG:일선을넘지않음 * 2
+	REQUIRED_DESIRE += TALENT:ARG:정조 * 2
+ENDIF
+SIF TALENT:ARG:걸레
+	REQUIRED_DESIRE = 0
+SIF ABL:ARG:욕망 < REQUIRED_DESIRE
+	RETURN
+
+PRINTFORML %ARG는% 오늘 밤은 돌아가기 싫다고 말을 꺼냈다…
+CALL ASK_YN("묵게 한다","묵게 하지 않는다")
+IF !RESULT
+	IF YANUSHI
+		PRINTFORMW 재워주고 싶은 마음은 굴뚝같지만 %조사처리(CALLNAME:YANUSHI,"가")% 무섭다…
+		GOTO REFUSAL
+	ENDIF
+	FLAG:일시체재 = ARG
+	CFLAG:ARG:본래의초기위치 = CFLAG:ARG:초기위치
+	CFLAG:ARG:초기위치 = CFLAG:MASTER:초기위치
+	CFLAG:ARG:신사거주 = CFLAG:ARG:초기위치
+	PRINTFORMW %ARG는% %NAME_FROM_PLACE(CFLAG:MASTER:초기위치)%에서 자고 가게 되었다.
+ELSE
+	$REFUSAL
+	PRINTFORMW %마스터는% 정중히 거절했다.
+ENDIF
+
+@SET_OneNightStay()

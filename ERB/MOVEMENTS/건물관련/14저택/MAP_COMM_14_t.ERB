@@ -1,0 +1,76 @@
+﻿;--------------------------------------------------
+;	맵내 이동 처리 확장 패치 부속
+;	명련사MAP용 함수
+;--------------------------------------------------
+
+@MAP_PLACENAME_14(ARG)
+#FUNCTIONS
+#DIM PLACEID
+
+IF GET_MAPID(ARG) == MAIN_MAP
+	SELECTCASE ARG
+		CASE 1401 TO (MAXROOM - 1)
+			RETURNF STR:(ARG + 8000)
+		CASE 1498
+			RETURNF OMANEKI_PLACE()
+		CASE 1499
+			RETURNF "스키마 공간"
+		CASE MAXROOM
+			RETURNF "저택 밖"
+		CASEELSE
+			RETURNF "불명"
+	ENDSELECT
+ELSE
+	RETURNF "불명"
+ENDIF
+
+@MAP_VIEWING_14(AA)
+#DIMS REF AA, 0
+IF !TFLAG:맵변환
+	SELECTCASE CFLAG:MASTER:현재위치
+		CASE 1424 TO 1433
+			TFLAG:맵변환 = 2
+		CASE 1434 TO 1444
+			TFLAG:맵변환 = 3
+		CASEELSE
+			TFLAG:맵변환 = 1
+	ENDSELECT
+ENDIF
+CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
+PRINTFORML 
+TRYCALLFORM MAP_OWN2_{TFLAG:맵변환}(AA)
+
+@MAP_CAN_MOVE_14(ARG, ARG:1)
+#FUNCTION
+#DIM 방주인
+
+방주인 = 저택방주인(ARG)
+
+IF ROOMDATA:(ARG % 100) & 장소_Private
+	IF ARG:1 == MASTER
+		IF FLAG:70
+			RETURNF 1
+		ELSEIF CFLAG:방주인:빡침 && 방주인 != MASTER
+			TFLAG:이동불능메시지 = 방주인
+			RETURNF 0
+		ENDIF
+	ENDIF
+ENDIF
+RETURNF 1
+
+
+@MAP_CANNOT_WORD_14(ARG)
+SELECTCASE TFLAG:이동불능메시지
+	;빡침으로 인한 개별 방 입실 불가
+	CASE IS <= 캐릭터수상한
+		PRINTFORMW %CALLNAME:(TFLAG:이동불능메시지)%의 화를 풀기 전까지는 방에 들어갈 수 없다.
+ENDSELECT
+
+
+@MAP소개_14
+PRINTFORML eraTWKR판에만 존재하는 특수 지역 중 하나인 저택이다. 아마 돈을 주고 사야 한다.
+PRINTFORML 이 소개 자체가 없던 시절부터 만들어진 데다가 어벤던웨어에 가까운 건축물이다.
+PRINTFORML 따라서 이 패치를 만든 제작자가 오지 않는 이상 버그가 발생해도 고치기 어렵다.
+PRINTFORML 혹시라도 이 맵이 뉴게임에서 나온다면 이사하지 않기를 권한다.
+PRINTFORML 지상 3층, 지하 1층에 방이 17개고, 각종 시설도 많다. 스파게티가 땡기네.
+

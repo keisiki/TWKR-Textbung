@@ -1,0 +1,1952 @@
+﻿[SKIPSTART]
+;여기에서 꼬박 폐지하고 싶다(875행째까지)
+@Show_CharaData
+#DIM 캐릭터등록번호
+#DIM 리스트번호
+#DIM 캐릭터리스트, 캐릭터수상한
+#DIM 최대리스트캐릭터번호
+
+;초기화
+리스트번호 = 0
+VARSET 소트항목 , 0
+
+;표시하는 캐릭터리스트를 작성
+VARSET 캐릭터리스트, -1
+FOR 캐릭터등록번호, 0, CHARANUM
+	;출금캐릭터는 리스트 들어가지 않는다(캐릭터의 실체는 존재한다)
+	IF CFLAG:캐릭터등록번호:출금 == 1 || TALENT:캐릭터등록번호:스침
+		CONTINUE
+	ELSE
+		캐릭터리스트:리스트번호 = 캐릭터등록번호
+		리스트번호++
+	ENDIF
+NEXT
+;어디까지 들어가고 있어를 명시한다
+최대리스트캐릭터번호 = 리스트번호 - 1
+DEBUGPRINTFORML {최대리스트캐릭터번호}
+CALL CheckCharaData(캐릭터리스트, 최대리스트캐릭터번호)
+RETURN
+
+
+;이 근처의 상자를 해소하는 것이 좋을까
+@CheckCharaData(캐릭터리스트, 최대리스트캐릭터번호)
+#DIM REF 캐릭터리스트
+#DIM 리스트페이지번호
+#DIM 최대리스트페이지번호
+#DIM 최대리스트캐릭터번호
+
+;초기화
+리스트페이지번호 = 0
+최대리스트페이지번호 = 최대리스트캐릭터번호 / 리스트 표시행수
+
+;WHILE 루프를 별함수 로 분리
+CALL CheckCharaDataProc(캐릭터리스트, 리스트페이지번호, 최대리스트페이지번호, 최대리스트캐릭터번호)
+RETURN
+
+
+@CheckCharaDataProc(캐릭터리스트, 리스트페이지번호, 최대리스트페이지번호, 최대리스트캐릭터번호)
+#DIM REF 캐릭터리스트
+#DIM REF 리스트페이지번호
+#DIM REF 최대리스트페이지번호
+#DIM REF 최대리스트캐릭터번호
+#DIM 입력치
+#DIM 리스트번호
+#DIM 전원표시플래그
+
+WHILE 1
+	;어느쪽이나 상세를 알고 싶은 캐릭터의 리스트번호를 돌려보낸다
+	;CSV로 정의된 번호나 캐릭터 생성때에 부여되는 번호는 아니다
+	IF 전원표시플래그
+		CALL DrawAllChara(캐릭터리스트, 최대리스트캐릭터번호)
+	ELSE
+		;일람을 표시
+		CALL DrawCharaList(캐릭터리스트, 리스트페이지번호, 최대리스트페이지번호, 최대리스트캐릭터번호)
+	ENDIF
+	;RESULT에 두고 있을 뿐으로 하고 싶지 않으면 어리광
+	입력치 = RESULT
+
+	;리스트번호 이외의 특수한 입력의 처리
+	IF 입력치 == 돌아간다
+		RETURN
+	;전원 표시의 변환
+	ELSEIF 입력치 == 9000
+		;비트 반전해, 재묘화
+		전원표시플래그 = !전원표시플래그
+		CONTINUE
+	ENDIF
+	리스트번호 = 입력치
+	;능력을 표시
+	CALL DrawCharaData(캐릭터리스트, 최대리스트캐릭터번호, 리스트번호)
+	
+	;상세 표시로부터 일람에 돌아왔을 때에 조금 전까지 능력을 보고 있었던 놈의 페이지에 맞춘다
+	리스트페이지번호 = 리스트번호 / 리스트 표시행수
+WEND
+
+
+@DrawCharaList(캐릭터리스트, 리스트페이지번호, 최대리스트페이지번호, 최대리스트캐릭터번호)
+#DIM REF 캐릭터리스트
+#DIM REF 리스트페이지번호
+#DIM REF 최대리스트페이지번호
+#DIM 페이지번호
+#DIM 최대페이지번호
+#DIM REF 최대리스트캐릭터번호
+#DIM 리스트번호
+#DIM 입력치
+#DIM CONST 바길이 = 10
+
+;페이지번호의 초기화는 하지 않는 것이 좋다고 말해졌으므로 삭제, 오작동은 모르는
+	;페이지번호 = 0
+
+;. ERH
+최대페이지번호 = 간이 능력표시 최대페이지번호
+
+WHILE 1
+	DRAWLINE
+	CALL ShowStatusHeader(페이지번호, 최대페이지번호, 최대리스트캐릭터번호)
+	DRAWLINE
+	CALL ShowStatusBody(캐릭터리스트, 리스트페이지번호, 페이지번호, 리스트번호)
+	DRAWLINE
+	CALL ShowListFooter(리스트페이지번호, 최대리스트페이지번호)
+	
+	PRINTL [9000] 전원 표시
+	
+
+	CALL InputListDataNum(페이지번호, 최대페이지번호, 리스트페이지번호, 최대리스트페이지번호)
+	입력치 = RESULT
+	SELECTCASE 입력치
+		CASE 0 TO 최대리스트캐릭터번호, 9000
+			RETURN 입력치
+		CASE 재묘화
+			CONTINUE
+		CASE 돌아간다
+			RETURN 돌아간다
+		CASE 2001 TO 2000 + (최대페이지번호 + 1) * 10
+			CALL SORT_능력(캐릭터리스트, 페이지번호, 입력치, 최대리스트캐릭터번호)
+			CONTINUE
+		CASEELSE
+			PRINTW 입력치가 이상합니다
+	ENDSELECT
+WEND
+
+THROW 루프에 미비가 있는 것 같습니다
+
+
+@DrawCharaData(캐릭터리스트, 최대리스트캐릭터번호, 리스트번호)
+#DIM REF 캐릭터리스트
+#DIM REF 최대리스트캐릭터번호
+#DIM REF 리스트번호
+#DIM 페이지번호
+#DIM 최대페이지번호
+#DIM 입력치
+#DIM 소질번호
+#DIM 항목수
+
+;초기화
+페이지번호 = 0
+;. ERH
+최대페이지번호 = 상세능력표시최대페이지번호
+
+WHILE 1
+	;능력표시
+	CALL PRINT_STATE(캐릭터리스트:리스트번호, 페이지번호)
+
+	DRAWLINE
+	CALL ShowListFooter(리스트번호, 최대리스트캐릭터번호)
+
+	CALL InputListDataNum(페이지번호, 최대페이지번호, 리스트번호, 최대리스트캐릭터번호)
+	입력치 = RESULT
+	
+	SELECTCASE 입력치
+		CASE 재묘화
+			CONTINUE
+		CASE 돌아간다
+			RETURN 돌아간다
+		CASE AA표시
+			FLAG:AA표시 = !FLAG:AA표시
+		CASE 160 TO 167
+			TFLAG:입력치 = !TFLAG:입력치
+		CASEELSE
+	ENDSELECT
+WEND
+
+THROW 루프에 미비가 있는 것 같습니다
+
+
+@InputListDataNum(페이지번호, 최대페이지번호, 리스트페이지번호, 최대리스트페이지번호)
+#DIM REF 페이지번호
+#DIM REF 최대페이지번호
+#DIM REF 리스트페이지번호
+#DIM REF 최대리스트페이지번호
+#DIMS 입력캐릭터라인
+#DIM 입력수치
+
+WHILE 1
+	INPUTS
+	입력캐릭터라인 = %RESULTS%
+	PRINTL
+	SELECTCASE 입력캐릭터라인
+		;처리의 공통 부분을 뽑아내고 싶다
+		CASE 이전페이지 , "1100"
+			페이지번호--
+			IF 페이지번호 < 0
+				페이지번호 = 최대페이지번호
+			ENDIF
+			RETURN 재묘화
+		CASE 다음페이지 , "1200"
+			페이지번호++
+			IF 페이지번호 > 최대페이지번호
+				페이지번호 = 0
+			ENDIF
+			RETURN 재묘화
+		CASE 이전캐릭터 , "1001"
+			리스트페이지번호--
+			IF 리스트페이지번호 < 0
+				리스트페이지번호 = 최대리스트페이지번호
+			ENDIF
+			RETURN 재묘화
+		CASE 다음캐릭터 , "1002"
+			리스트페이지번호++
+			IF 리스트페이지번호 > 최대리스트페이지번호
+				리스트페이지번호 = 0
+			ENDIF
+			RETURN 재묘화
+		CASE 그만둔다 , "1000"
+			;돌아가라
+			RETURN 돌아간다
+		CASEELSE
+			입력수치 = TOINT(입력캐릭터라인)
+			RETURN 입력수치
+	ENDSELECT
+WEND
+
+
+@ShowStatusHeader(페이지번호, 최대페이지번호, 최대리스트캐릭터번호)
+#DIM 페이지번호
+#DIM 최대페이지번호
+#DIM REF 최대리스트캐릭터번호
+
+PRINTFORM Page {페이지번호, 2}/{최대페이지번호, 2}    
+SELECTCASE 페이지번호
+	;체력 기력
+	CASE 0
+		PRINT                   
+		CALL SORT_능력_표시("체력")
+		PRINT                   
+		CALL SORT_능력_표시("기력")
+	;능력(간이)
+	CASE 1
+		PRINT 능력   
+		CALL SORT_능력_표시("C감")
+		PRINT |
+		CALL SORT_능력_표시("V감")
+		PRINT |
+		CALL SORT_능력_표시("A감")
+		PRINT |
+		CALL SORT_능력_표시("B감")
+		PRINT |
+		CALL SORT_능력_표시("Ｍ감")
+		PRINT |
+		CALL SORT_능력_표시("친밀")
+		PRINT |
+		CALL SORT_능력_표시("순종")
+		PRINT |
+		CALL SORT_능력_표시("욕망")
+		PRINT |
+		CALL SORT_능력_표시("기교")
+		PRINT |
+	;성 기술
+	CASE 2
+		PRINT 성 기술   
+		CALL SORT_능력_표시("손가락")
+		PRINT |
+		CALL SORT_능력_표시("혀")
+		PRINT |
+		CALL SORT_능력_표시("가슴")
+		PRINT |
+		CALL SORT_능력_표시("허리")
+		PRINT |
+		CALL SORT_능력_표시("질")
+		PRINT |
+		CALL SORT_능력_표시("A")
+		PRINT |
+	;각인
+	CASE 3
+		PRINT 각인   
+		CALL SORT_능력_표시("고통")
+		PRINT |
+		CALL SORT_능력_표시("쾌락")
+		PRINT |
+		CALL SORT_능력_표시("괘씸")
+		PRINT |
+		CALL SORT_능력_표시("반발")
+		PRINT |
+		CALL SORT_능력_표시("시간")
+		PRINT |
+	;호감도외
+	CASE 4
+		PRINT        
+		CALL SORT_능력_표시("호감")
+		PRINT |
+		CALL SORT_능력_표시("신뢰")
+		PRINT |
+	CASEELSE
+		PRINTFORM 변수가 이상치입니다"페이지번호 = {페이지번호}"
+ENDSELECT
+PRINTL
+
+
+@ShowStatusBody(캐릭터리스트, 리스트페이지번호, 페이지번호, 리스트번호)
+#DIM REF 캐릭터리스트
+#DIM REF 리스트페이지번호
+#DIM 페이지번호
+#DIM 리스트번호
+#DIM CONST 바길이 = 10
+#DIM 표시신분번호
+#DIM 캐릭터등록번호
+#DIMS 표시문
+
+FOR 리스트번호, 리스트페이지번호 * 리스트 표시행수, (리스트페이지번호 + 1) * 리스트 표시행수
+
+	;배열의 같은 요소를 몇 번이나 쓰는 것이 보기 흉했기 때문에 정리한다
+	캐릭터등록번호 = 캐릭터리스트:리스트번호
+
+	IF 캐릭터등록번호 == -1
+		PRINTL [   ]
+		CONTINUE
+	ENDIF
+	PRINTFORM [{리스트번호, 3}] %CALLNAME:캐릭터등록번호, 이름 표시 길이, LEFT% 
+	SELECTCASE 페이지번호
+		;체력 기력
+		;빈 공간에 두 개의 이름이라든지 넣으면(자) 즐겁지만 CSV 만지는 것 귀찮아의로 패스
+		CASE 0
+			CALL PRINT_COLORBAR, BASE:캐릭터등록번호:체력, MAXBASE:캐릭터등록번호:체력, 바길이, UNICODE(0x2585), UNICODE(0x2585), BARCOLORSET("초록"), RESULT:1
+			PRINTFORM  ({BASE:캐릭터등록번호:체력, 5}/{MAXBASE:캐릭터등록번호:체력, 5}) 
+			CALL PRINT_COLORBAR, BASE:캐릭터등록번호:기력, MAXBASE:캐릭터등록번호:기력, 바길이, UNICODE(0x2585), UNICODE(0x2585), BARCOLORSET("파랑"), RESULT:1
+			PRINTFORM  ({BASE:캐릭터등록번호:기력, 5}/{MAXBASE:캐릭터등록번호:기력, 5})
+		;능력(간이)
+		;각 감각과 친밀 순종 욕망 기교만
+		CASE 1
+			;매우 적당하게 다하고 수정의 여지 있어
+			FOR 표시신분번호, 0, 13
+				IF ABLNAME:표시신분번호 != ""
+					CALL PRINT_알파벳평가(캐릭터등록번호, 4, 표시신분번호)
+					PRINTFORM {ABL:캐릭터등록번호:표시신분번호, 4}|
+				ENDIF
+			NEXT
+		;성 기술
+		CASE 2
+			;매우 적당하게 다하고 수정의 여지 있어
+			FOR 표시신분번호, 50, 56
+				IF ABLNAME:표시신분번호 != ""
+					CALL PRINT_알파벳평가(캐릭터등록번호, 3, 표시신분번호)
+					PRINTFORM {ABL:캐릭터등록번호:표시신분번호, 3}|
+				ENDIF
+			NEXT
+		;각인
+		CASE 3
+			;매우 적당하게 다하고 수정의 여지 있어
+			FOR 표시신분번호, 0, 6
+				IF MARKNAME:표시신분번호 == ""
+					CONTINUE
+				ENDIF
+				;반발각인 이력은 표시하지 않게
+				SIF 표시신분번호 == 4
+					CONTINUE
+				IF 표시신분번호 == 3
+					SETCOLOR C_RED
+					PRINTFORM %"×" * (MARK:캐릭터등록번호:표시신분번호), 6%|
+				ELSE
+					SETCOLOR 255, 255, 0
+					PRINTFORM %"★" * (MARK:캐릭터등록번호:표시신분번호), 6%|
+				ENDIF
+				RESETCOLOR
+			NEXT
+		;호감도외
+		;스페이스의 잡는 방법은 초적당
+		CASE 4
+			;호감도
+			CALL PRINT_알파벳평가(캐릭터등록번호, 1, )
+			PRINTFORM {CFLAG:캐릭터등록번호:호감도, 6}|
+			
+			;신뢰도
+			CALL PRINT_알파벳평가(캐릭터등록번호, 2, )
+			PRINTFORM {CFLAG:캐릭터등록번호:신뢰도, 6}|
+			
+			;연모
+			IF TALENT:캐릭터등록번호:연인
+				SETCOLOR C_RED
+				표시문 = 연인
+			ELSEIF TALENT:캐릭터등록번호:연모 == 1
+				SETCOLOR 0xEE60EE
+				표시문 = 연모
+			ELSEIF TALENT:캐릭터등록번호:사모 == 1
+				표시문 = 사모
+			ELSE
+				표시문 = 
+			ENDIF
+			PRINTFORM %표시문, 4, LEFT%|
+			RESETCOLOR
+			
+			;기정사실
+			SELECTCASE CFLAG:(캐릭터등록번호):생해금
+				CASE 2
+					표시문 = 위험일 생H해금
+				CASE 1
+					표시문 = 생H해금
+				CASE 0
+					IF GETBIT(CFLAG:(캐릭터등록번호):기정사실, 1)
+						표시문 = 합의 취득
+					ELSE
+						표시문 = 
+					ENDIF
+			ENDSELECT
+			PRINTFORM %표시문, 14, LEFT%|
+			
+			;생리주기가시화
+			SIF FLAG:1007
+				CALL PRINT_CYCLE_다음날(캐릭터등록번호)
+
+			SIF CFLAG:(캐릭터등록번호):출산경과일 > 0
+				PRINTFORM 육아중 
+			RESETCOLOR
+			SIF GETBIT(CFLAG:(캐릭터등록번호):기정사실, 2)
+				PRINTFORM 연인 같은 종류 
+			;약점
+			IF CFLAG:(캐릭터등록번호):약점잡음 && CFLAG:(캐릭터등록번호):약점잡힘
+				PRINTFORM %마스터와% 서로의 약점을 서로 잡고 
+			ELSEIF CFLAG:(캐릭터등록번호):약점잡음
+				PRINTFORM %CALLNAME:MASTER%의 약점을 잡고 있다 
+			;SIF GETBIT(CFLAG:(캐릭터등록번호):약점, 0)
+			;	PRINTFORM 팬티를 몰수되었다 
+			;SIF GETBIT(CFLAG:(캐릭터등록번호):약점, 1)
+			;	PRINTFORM 정사를 볼 수 있었다 
+			ELSEIF CFLAG:(캐릭터등록번호):약점잡힘
+				PRINTFORM %CALLNAME:MASTER%에 자위 현장이 목격되었던 적이 있다
+			ENDIF
+	ENDSELECT
+	PRINTL
+NEXT
+
+
+@ShowListFooter(리스트페이지번호, 최대리스트페이지번호)
+#DIM 리스트페이지번호
+#DIM 최대리스트페이지번호
+
+IF FLAG:능력표기
+	PRINTBUTTONLC @"[1100] - 이전페이지", 이전페이지
+	PRINTBUTTONLC @"[1000] - 그만둔다", 그만둔다
+	PRINTBUTTONLC @"[1200] - 다음페이지", 다음페이지
+	PRINTL
+	PRINTBUTTONLC @"[1001] - 이전캐릭터", 이전캐릭터
+	PRINTFORMLC 리스트 {리스트페이지번호}/{최대리스트페이지번호}
+	PRINTBUTTONLC @"[1002] - 차의 캐릭터", 다음캐릭터
+
+ELSE
+	PRINTBUTTONLC @"[%이전페이지%] - 이전페이지", 이전페이지
+	PRINTBUTTONLC @"[%그만둔다%] - 그만둔다", 그만둔다
+	PRINTBUTTONLC @"[%다음페이지%] - 다음페이지", 다음페이지
+	PRINTL
+	PRINTBUTTONLC @"[%이전캐릭터%] - 이전캐릭터", 이전캐릭터
+	PRINTFORMLC 리스트 {리스트페이지번호}/{최대리스트페이지번호}
+	PRINTBUTTONLC @"[%다음캐릭터%] - 다음캐릭터", 다음캐릭터
+ENDIF
+
+
+@DrawAllChara(캐릭터리스트, 최대리스트캐릭터번호)
+#DIM REF 캐릭터리스트
+#DIM REF 최대리스트캐릭터번호
+#DIM 캐릭터리스트번호
+#DIM 입력치
+
+WHILE 1
+	;FOR문이 조건을 채운 시점에서 종료하므로+1
+	;제일 마지막 캐릭터가 표시되지 않는 것에의 대응
+	FOR 캐릭터리스트번호, 0, 최대리스트캐릭터번호 + 1
+		PRINTFORMLC [{캐릭터리스트번호}] %CALLNAME:(캐릭터리스트:캐릭터리스트번호), 15, LEFT%
+	NEXT
+	PRINTL
+	DRAWLINE
+	PRINTL [9000] 목록으로 돌아간다
+	PRINTL [1000] - 그만둔다
+
+	INPUT
+	입력치 = RESULT
+	SELECTCASE 입력치
+		CASE 1000
+			RETURN 돌아간다
+		CASE 0 TO 최대리스트캐릭터번호, 9000
+			RETURN 입력치
+	ENDSELECT
+WEND
+
+
+;실제로 능력의 소트를 실시한다
+@SORT_능력(캐릭터리스트, 페이지번호, 입력치, 최대리스트캐릭터번호)
+#DIM REF 캐릭터리스트
+#DIM REF 페이지번호
+#DIM REF 최대리스트캐릭터번호
+#DIM 입력치
+#DIM 참조하는능력
+#DIM 캐릭터등록번호
+#DIM 리스트번호
+
+
+입력치 -= 2000
+참조하는능력 = 입력치
+
+;내림차순으로 하는 경우
+IF 소트항목:입력치 == 0
+	SELECTCASE 참조하는능력
+		;체력 기력
+		CASE 1 TO 2
+			참조하는능력 --
+		;C감각으로부터 M감각까지
+		CASE 11 TO 15
+			참조하는능력 -= 11
+		;친밀 순종 욕망 기교
+		CASE 16 TO 19
+			참조하는능력 -= 7
+		;성 기술
+		CASE 21 TO 26
+			참조하는능력 += 29
+		;각인(시간각인 이외)
+		CASE 31 TO 34
+			참조하는능력 -= 31
+		;각인(시간각인)
+		CASE 35
+			참조하는능력 = 5
+		;호감도
+		CASE 41
+			참조하는능력 = 2
+		;신뢰도
+		CASE 42
+			참조하는능력 = 4
+		CASEELSE
+			PRINTW 변수치가 이상합니다(능력표시. ERB @SORT_능력)
+	ENDSELECT
+	
+	;보는 장소가 BASE였거나 ABL였거나 MARK이기도 하므로 페이지로 나누고 알기 쉽고
+	;0페이지눈의 경우(참조 부분 BASE)
+	IF 페이지번호 == 0
+		FOR LOCAL:0, 1, 최대리스트캐릭터번호
+			FOR LOCAL:1, LOCAL:0 +1, 최대리스트캐릭터번호+1
+				IF BASE:(캐릭터리스트:(LOCAL:0)):(참조하는능력) < BASE:(캐릭터리스트:(LOCAL:1)):(참조하는능력)
+					LOCAL:2 = 캐릭터리스트:(LOCAL:0)
+					캐릭터리스트:(LOCAL:0) = 캐릭터리스트:(LOCAL:1)
+					캐릭터리스트:(LOCAL:1) = LOCAL:2
+				ENDIF
+			NEXT
+		NEXT
+	;1페이지눈의 경우(참조 부분 ABL)
+	ELSEIF 페이지번호 == 1
+		FOR LOCAL:0, 1, 최대리스트캐릭터번호
+			FOR LOCAL:1, LOCAL:0 +1, 최대리스트캐릭터번호+1
+				IF ABL:(캐릭터리스트:(LOCAL:0)):(참조하는능력) < ABL:(캐릭터리스트:(LOCAL:1)):(참조하는능력)
+					LOCAL:2 = 캐릭터리스트:(LOCAL:0)
+					캐릭터리스트:(LOCAL:0) = 캐릭터리스트:(LOCAL:1)
+					캐릭터리스트:(LOCAL:1) = LOCAL:2
+				ENDIF
+			NEXT
+		NEXT
+	;2페이지눈의 경우(참조 부분 ABL)
+	ELSEIF 페이지번호 == 2
+		FOR LOCAL:0, 1, 최대리스트캐릭터번호
+			FOR LOCAL:1, LOCAL:0 +1, 최대리스트캐릭터번호+1
+				IF ABL:(캐릭터리스트:(LOCAL:0)):(참조하는능력) < ABL:(캐릭터리스트:(LOCAL:1)):(참조하는능력)
+					LOCAL:2 = 캐릭터리스트:(LOCAL:0)
+					캐릭터리스트:(LOCAL:0) = 캐릭터리스트:(LOCAL:1)
+					캐릭터리스트:(LOCAL:1) = LOCAL:2
+				ENDIF
+			NEXT
+		NEXT
+	;3페이지눈의 경우(참조 부분 MARK)
+	ELSEIF 페이지번호 == 3
+		FOR LOCAL:0, 1, 최대리스트캐릭터번호
+			FOR LOCAL:1, LOCAL:0 +1, 최대리스트캐릭터번호+1
+				IF MARK:(캐릭터리스트:(LOCAL:0)):(참조하는능력) < MARK:(캐릭터리스트:(LOCAL:1)):(참조하는능력)
+					LOCAL:2 = 캐릭터리스트:(LOCAL:0)
+					캐릭터리스트:(LOCAL:0) = 캐릭터리스트:(LOCAL:1)
+					캐릭터리스트:(LOCAL:1) = LOCAL:2
+				ENDIF
+			NEXT
+		NEXT
+	;4페이지눈의 경우(참조 부분 CFLAG)
+	ELSEIF 페이지번호 == 4
+		FOR LOCAL:0, 1, 최대리스트캐릭터번호
+			FOR LOCAL:1, LOCAL:0 +1, 최대리스트캐릭터번호+1
+				IF CFLAG:(캐릭터리스트:(LOCAL:0)):(참조하는능력) < CFLAG:(캐릭터리스트:(LOCAL:1)):(참조하는능력)
+					LOCAL:2 = 캐릭터리스트:(LOCAL:0)
+					캐릭터리스트:(LOCAL:0) = 캐릭터리스트:(LOCAL:1)
+					캐릭터리스트:(LOCAL:1) = LOCAL:2
+				ENDIF
+			NEXT
+		NEXT
+	ENDIF
+;내림차순으로부터 승순으로 전환하는 경우
+ELSEIF 소트항목:입력치 == 1
+	FOR LOCAL:0, 1, 최대리스트캐릭터번호 / 2 + 1
+		LOCAL:1 = 캐릭터리스트:(LOCAL:0)
+		캐릭터리스트:(LOCAL:0) = 캐릭터리스트:(최대리스트캐릭터번호 - LOCAL:0 + 1)
+		캐릭터리스트:(최대리스트캐릭터번호 - LOCAL:0 + 1) = LOCAL:1
+	NEXT
+ELSE
+	리스트번호 = 0
+	FOR 캐릭터등록번호, 0, CHARANUM
+	;출금캐릭터는 리스트 들어가지 않는다(캐릭터의 실체는 존재한다)
+	IF CFLAG:캐릭터등록번호:출금 == 1
+		CONTINUE
+	ELSE
+		캐릭터리스트:리스트번호 = 캐릭터등록번호
+		리스트번호++
+	ENDIF
+NEXT
+ENDIF
+
+A = 소트항목:입력치
+
+VARSET 소트항목 , 0
+
+소트항목:입력치 = A + 1
+SIF 소트항목:입력치 == 3
+	소트항목:입력치 = 0
+
+
+;ShowStatusHeader내에서 어떻게 표시시킬까
+@SORT_능력_표시(능력)
+
+#DIMS 능력
+#DIM 차례
+
+CALL SHOW_SORT_승강순서(능력)
+차례 = RESULT
+
+SELECTCASE 능력
+	CASE "체력"
+		IF 차례 == 1
+			PRINTBUTTON @"▼체력", 2001
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲체력", 2001
+		ELSE
+			PRINTBUTTON @"  체력", 2001
+		ENDIF
+	CASE "기력"
+		IF 차례 == 1
+			PRINTBUTTON @"▼기력", 2002
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲기력", 2002
+		ELSE
+			PRINTBUTTON @"  기력", 2002
+		ENDIF
+	CASE "C감"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼C감", 2011
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲C감", 2011
+		ELSE
+			PRINTBUTTON @"   C감", 2011
+		ENDIF
+	CASE "V감"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼V감", 2012
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲V감", 2012
+		ELSE
+			PRINTBUTTON @"   V감", 2012
+		ENDIF
+	CASE "A감"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼A감", 2013
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲A감", 2013
+		ELSE
+			PRINTBUTTON @"   A감", 2013
+		ENDIF
+	CASE "B감"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼B감", 2014
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲B감", 2014
+		ELSE
+			PRINTBUTTON @"   B감", 2014
+		ENDIF
+	CASE "Ｍ감"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼Ｍ감", 2015
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲Ｍ감", 2015
+		ELSE
+			PRINTBUTTON @"   Ｍ감", 2015
+		ENDIF
+	CASE "친밀"
+		IF 차례 == 1
+			PRINTBUTTON @"▼친밀", 2016
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲친밀", 2016
+		ELSE
+			PRINTBUTTON @"  친밀", 2016
+		ENDIF
+	CASE "순종"
+		IF 차례 == 1
+			PRINTBUTTON @"▼순종", 2017
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲순종", 2017
+		ELSE
+			PRINTBUTTON @"  순종", 2017
+		ENDIF
+	CASE "욕망"
+		IF 차례 == 1
+			PRINTBUTTON @"▼욕망", 2018
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲욕망", 2018
+		ELSE
+			PRINTBUTTON @"  욕망", 2018
+		ENDIF
+	CASE "기교"
+		IF 차례 == 1
+			PRINTBUTTON @"▼기교", 2019
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲기교", 2019
+		ELSE
+			PRINTBUTTON @"  기교", 2019
+		ENDIF
+	CASE "손가락"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼손가락", 2021
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲손가락", 2021
+		ELSE
+			PRINTBUTTON @"   손가락", 2021
+		ENDIF
+	CASE "혀"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼혀", 2022
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲혀", 2022
+		ELSE
+			PRINTBUTTON @"   혀", 2022
+		ENDIF
+	CASE "가슴"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼가슴", 2023
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲가슴", 2023
+		ELSE
+			PRINTBUTTON @"   가슴", 2023
+		ENDIF
+	CASE "허리"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼허리", 2024
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲허리", 2024
+		ELSE
+			PRINTBUTTON @"   허리", 2024
+		ENDIF
+	CASE "질"
+		IF 차례 == 1
+			PRINTBUTTON @" ▼질", 2025
+		ELSEIF 차례 == 2
+			PRINTBUTTON @" ▲질", 2025
+		ELSE
+			PRINTBUTTON @"   질", 2025
+		ENDIF
+	CASE "A"
+		IF 차례 == 1
+			PRINTBUTTON @"  ▼A", 2026
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"  ▲A", 2026
+		ELSE
+			PRINTBUTTON @"    A", 2026
+		ENDIF
+	CASE "고통"
+		IF 차례 == 1
+			PRINTBUTTON @"▼고통", 2031
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲고통", 2031
+		ELSE
+			PRINTBUTTON @"  고통", 2031
+		ENDIF
+	CASE "쾌락"
+		IF 차례 == 1
+			PRINTBUTTON @"▼쾌락", 2032
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲쾌락", 2032
+		ELSE
+			PRINTBUTTON @"  쾌락", 2032
+		ENDIF
+	CASE "괘씸"
+		IF 차례 == 1
+			PRINTBUTTON @"▼괘씸", 2033
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲괘씸", 2033
+		ELSE
+			PRINTBUTTON @"  괘씸", 2033
+		ENDIF
+	CASE "반발"
+		IF 차례 == 1
+			PRINTBUTTON @"▼반발", 2034
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲반발", 2034
+		ELSE
+			PRINTBUTTON @"  반발", 2034
+		ENDIF
+	CASE "시간"
+		IF 차례 == 1
+			PRINTBUTTON @"▼시간", 2035
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"▲시간", 2035
+		ELSE
+			PRINTBUTTON @"  시간", 2035
+		ENDIF
+	CASE "호감"
+		IF 차례 == 1
+			PRINTBUTTON @"  ▼호감", 2041
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"  ▲호감", 2041
+		ELSE
+			PRINTBUTTON @"    호감", 2041
+		ENDIF
+	CASE "신뢰"
+		IF 차례 == 1
+			PRINTBUTTON @"  ▼신뢰", 2042
+		ELSEIF 차례 == 2
+			PRINTBUTTON @"  ▲신뢰", 2042
+		ELSE
+			PRINTBUTTON @"    신뢰", 2042
+		ENDIF
+ENDSELECT
+
+@SHOW_SORT_승강순서(능력)
+#DIMS 능력
+#DIM 표시능력
+
+SELECTCASE 능력
+	CASE "체력"
+		표시능력 = 1
+	CASE "기력"
+		표시능력 = 2
+	CASE "C감"
+		표시능력 = 11
+	CASE "V감"
+		표시능력 = 12
+	CASE "A감"
+		표시능력 = 13
+	CASE "B감"
+		표시능력 = 14
+	CASE "Ｍ감"
+		표시능력 = 15
+	CASE "친밀"
+		표시능력 = 16
+	CASE "순종"
+		표시능력 = 17
+	CASE "욕망"
+		표시능력 = 18
+	CASE "기교"
+		표시능력 = 19
+	CASE "손가락"
+		표시능력 = 21
+	CASE "혀"
+		표시능력 = 22
+	CASE "가슴"
+		표시능력 = 23
+	CASE "허리"
+		표시능력 = 24
+	CASE "질"
+		표시능력 = 25
+	CASE "A"
+		표시능력 = 26
+	CASE "고통"
+		표시능력 = 31
+	CASE "쾌락"
+		표시능력 = 32
+	CASE "괘씸"
+		표시능력 = 33
+	CASE "반발"
+		표시능력 = 34
+	CASE "시간"
+		표시능력 = 35
+	CASE "호감"
+		표시능력 = 41
+	CASE "신뢰"
+		표시능력 = 42
+	CASEELSE
+		PRINTW 이상한 값을 참조하고 있습니다(능력표시. ERB @SHOW_SORT_승강순서)
+ENDSELECT
+RETURN 소트항목:표시능력
+[SKIPEND]
+
+
+[SKIPSTART]
+캐릭터리스트 표시 함수
+리스트상의 캐릭터를 일람으로 표시해 리스트의 전환도 가능
+
+OP는 STRCOUNT 사용으로 각종의 기능을 바꾼다
+·「정보 표시」
+　이 OP를 적용하는 경우, 번호 클릭으로 캐릭터 정보가 표시된다
+　적용하지 않는 경우, 반환값으로서 클릭 한 캐릭터의 등록 번호를 돌려준다
+·「정보 고정」
+　이 OP를 적용하는 경우, DISP_TYPE(일행 표시에서의 표시 내용)를 변경할 수 없다
+·「조건 변경」
+　이 OP를 적용하는 경우, 함수내에서 리스트의 종류를 바꿀 수가 있다
+·「최종 확인」
+　「정보 표시」를 적용하지 않으면 의미가 없다
+　정보 표시 화면에서 표시중의 캐릭터를 후보로서 돌려줄 수가 있게 된다
+　결정/캔슬이 가능
+
+CHARA_LIST는 Private(사적인)으로 보유 하고 있기 (위해)때문에
+이 함수로부터 CALL/JUMP 한 함수에 REF로 건네주는 것은 가능하지만
+이 함수의 호출해 원래 함수에 대해서 건네주는 것은 불가능하다
+
+일행 표시의 표시 항목 일람, 알기 쉽게 숫자를 병기 해 둔다
+	 0"체력",  1"기력", 
+	 2"C감",  3"V감",  4"A감",  5"B감",  6"Ｍ감", 
+	 7"친밀",  8"순종",  9"욕망", 10"기교", 
+	11"손가락기술", 12"혀 기술", 13"가슴기술", 14"허리기술", 15"질 기술", 16"A기술", 
+	17"고통", 18"쾌락", 19"괘씸", 20"반발", 21"시간", 
+	22"호감", 23"신뢰", 24"욕구"
+[SKIPEND]
+@SHOW_CHARA_LIST(LIST_TYPE = "존재하는 캐릭터리스트", DISP_TYPE = "체력 기력", OP)
+#DIMS LIST_TYPE                     ;리스트의 종별
+#DIMS DISP_TYPE                     ;일행 표시에서의 표시 내용
+#DIMS OP                            ;기능 옵션
+#DIM  GET_LIST = 1                  ;리스트 갱신 플래그
+#DIM  L_ID                          ;리스트상의 번호(루프 카운터), 등록 번호에 있지 않고
+#DIM  L_CLASS_ID                    ;리스트의 클래스내 ID
+#DIM  CHARA_LIST , 캐릭터수상한 ;리스트 본체, 등록 번호에서 기록
+#DIM  CHARA_CNT                     ;리스트에 해당한 캐릭터의 수
+#DIMS INPUT_STR                     ;입력 내용의 한때 보유
+#DIM  INPUT_INT                     ;입력 내용을 INT화한 물건
+#DIM  NOW_GROUP = 1                 ;표시중의 캐릭터 그룹
+#DIM  LAST_GROUP                    ;캐릭터 그룹 총수
+#DIM  DISP_PAGE                     ;페이지수(정보 표시의 항목의 전환)
+#DIMS SORT_TYPE                     ;캐릭터리스트의 소트 타입
+;표시 타입의 명칭
+{
+#DIMS CONST DISP_NAME , 5 = 
+	"체력 기력", "감도 등", "성 기술", "각인", "호감도"
+}
+;표시 항목의 명칭
+{
+#DIMS CONST DISP_MEMO , 25 = 
+	"체력", "기력", 
+	"C감", "V감", "A감", "B감", "Ｍ감", 
+	"친밀", "순종", "욕망", "기교", 
+	"손가락기술", "혀 기술", "가슴기술", "허리기술", "질 기술", "A기술", 
+	"고통", "쾌락", "괘씸", "반발", "시간", 
+	"호감", "신뢰", "욕구"
+}
+
+;정보 표시용
+DISP_PAGE = FINDELEMENT(DISP_NAME, DISP_TYPE)
+
+IF GET_LIST
+	CALL MAKE_CHARA_LIST(LIST_TYPE, L_CLASS_ID, CHARA_LIST, CHARA_CNT)
+	GET_LIST = 0
+	VARSET SORT_TYPE
+ENDIF
+DRAWLINE
+
+;항목 없음
+IF CHARA_CNT <= 0
+	PRINTFORML ＜해당 없음＞　%LIST_TYPE%
+	PRINTFORML 
+	DRAWLINE
+	FOR LOCAL, 0, 20
+		PRINTL
+	NEXT
+;항목 있어
+ELSE
+	;현재의 타입의 총그룹수를 갱신
+	LAST_GROUP = 1 + (CHARA_CNT - 1) / 20
+	PRINTFORML (해당{CHARA_CNT}명　{NOW_GROUP}/{LAST_GROUP})　%LIST_TYPE%　　색깔 있는 캐릭터는 대사 있음
+	PRINTFORM 
+	CALL CHARA_BUTTON(-1, , DISP_TYPE, SORT_TYPE)
+	DRAWLINE
+	FOR L_ID, (NOW_GROUP - 1) * 20, NOW_GROUP * 20
+		IF INRANGE(L_ID, 0, CHARA_CNT - 1)
+			CALL CHARA_BUTTON(L_ID, CHARA_LIST:L_ID, DISP_TYPE, SORT_TYPE)
+		ELSE
+			PRINTL
+		ENDIF
+	NEXT
+ENDIF
+DRAWLINE
+
+PRINTFORM 　　　　　　　　　　　
+SIF CHARA_CNT > 0 && NOW_GROUP > 1
+	PRINTBUTTON "[888] - 　이전캐릭터　", "888"
+PRINTFORML 
+
+IF STRCOUNT(OP, "「정보 고정」")
+	PRINTFORM 　　　　　　　　　　　
+ELSE
+	PRINTBUTTON @"[444] - 　　%DISP_NAME:((DISP_PAGE - 1 + 5) % 5), 8%　", "444"
+ENDIF
+IF STRCOUNT(OP, "「조건 변경」")
+	PRINTBUTTON "[555] - 　　조건 변경　", "555"
+ELSE
+	PRINTFORM 　　　　　　　　　　　
+ENDIF
+IF STRCOUNT(OP, "「정보 고정」")
+	PRINTFORM 　　　　　　　　　　　
+ELSE
+	PRINTBUTTON @"[666] - 　　%DISP_NAME:((DISP_PAGE + 1 + 5) % 5), 8%　", "666"
+ENDIF
+PRINTFORML 
+
+PRINTFORM 　　　　　　　　　　　
+SIF CHARA_CNT > 0 && NOW_GROUP < LAST_GROUP
+	PRINTBUTTON "[222] - 　다음캐릭터　", "222"
+PRINTFORML 
+PRINTFORML 
+PRINTBUTTON "[999] - 　　　돌아간다　", "999"
+PRINTFORML 
+
+
+VARSET INPUT_STR
+VARSET INPUT_INT
+DO
+	INPUTS
+	INPUT_STR '= RESULTS
+	SIF !STRLENS(INPUT_STR)
+		GOTO RETRY
+	IF ISNUMERIC(INPUT_STR)
+		INPUT_INT = TOINT(INPUT_STR)
+		SELECTCASE INPUT_INT
+		;먼저 시스템계를 처리, 222라면 여유 있는 실마리(K에서는 사용할 수 있는 함정)
+		CASE 888
+			SIF !(CHARA_CNT > 0 && NOW_GROUP > 1)
+				GOTO RETRY
+			NOW_GROUP --
+			RESTART
+		CASE 222
+			SIF !(CHARA_CNT > 0 && NOW_GROUP < LAST_GROUP)
+				GOTO RETRY
+			NOW_GROUP ++
+			RESTART
+		CASE 444
+			SIF STRCOUNT(OP, "「정보 고정」")
+				GOTO RETRY
+			DISP_TYPE '= DISP_NAME:((DISP_PAGE - 1 + 5) % 5)
+			RESTART
+		CASE 555
+			SIF !STRCOUNT(OP, "「조건 변경」")
+				GOTO RETRY
+			CALL CHANGE_LIST(LIST_TYPE, OP)
+			GET_LIST = 1
+			NOW_GROUP = 1
+			RESTART
+		CASE 666
+			SIF STRCOUNT(OP, "「정보 고정」")
+				GOTO RETRY
+			DISP_TYPE '= DISP_NAME:((DISP_PAGE + 1 + 5) % 5)
+			RESTART
+		CASE 999
+			;REF로 배열 만들면 다캐릭터 선택도 갈 수 있을 것 같다
+			;수수는 차치하고 표시 주위가 귀찮아인가
+			GET_LIST = 1
+			NOW_GROUP = 1
+			RETURN 999
+		CASEELSE
+		;캐릭터가 선택되었을 때
+			IF !INRANGE(INPUT_INT, MAX(0, (NOW_GROUP - 1) * 20), MIN(CHARA_CNT - 1, NOW_GROUP * 20))
+				PRINTFORMW {INPUT_INT} 범위외
+				GOTO RETRY
+			ELSEIF L_CLASS_ID == -1 && !CHECK_CHARA(CHARA_LIST:INPUT_INT, LIST_TYPE)
+				PRINTFORMW {INPUT_INT} 리스트가 아니다
+				GOTO RETRY
+			ELSEIF L_CLASS_ID > 0 && !GET_INT(CHARA_LIST:INPUT_INT, "캐릭터리스트", L_CLASS_ID, "판정")
+				PRINTFORMW {INPUT_INT} 리스트에 연주해진다
+				GOTO RETRY
+			ENDIF
+			;여기만 DO-LOOP 빠집니다
+			BREAK
+			
+			$RETRY
+			REUSELASTLINE 무효인 입력입니다
+			CONTINUE
+		ENDSELECT
+	ELSE
+	;STR로 받았을 때, SORT 처리이므로 처리가 가능한 경우는 모두 RESTART
+	;이상한 캐릭터 라인을 받았을 경우에는 CONTINUE
+	;DO-LOOP를 탈출할 수 있는 것은 INT 한편, 리스트상의 캐릭터를 선택했을 경우만
+		SELECTCASE DISP_TYPE
+		CASE "체력 기력"
+			FOR LOCAL:0, 0, 2
+				IF INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%승순" || INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%내림차순"
+					SORT_TYPE '= INPUT_STR
+					CALL SORT_LIST(INPUT_STR, CHARA_LIST, CHARA_CNT)
+					RESTART
+				ENDIF
+			NEXT
+			GOTO RETRY
+		CASE "감도 등"
+			FOR LOCAL:0, 2, 11
+				IF INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%승순" || INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%내림차순"
+					SORT_TYPE '= INPUT_STR
+					CALL SORT_LIST(INPUT_STR, CHARA_LIST, CHARA_CNT)
+					RESTART
+				ENDIF
+			NEXT
+			GOTO RETRY
+		CASE "성 기술"
+			FOR LOCAL:0, 11, 17
+				IF INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%승순" || INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%내림차순"
+					SORT_TYPE '= INPUT_STR
+					CALL SORT_LIST(INPUT_STR, CHARA_LIST, CHARA_CNT)
+					RESTART
+				ENDIF
+			NEXT
+			GOTO RETRY
+		CASE "각인"
+			FOR LOCAL:0, 17, 22
+				IF INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%승순" || INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%내림차순"
+					SORT_TYPE '= INPUT_STR
+					CALL SORT_LIST(INPUT_STR, CHARA_LIST, CHARA_CNT)
+					RESTART
+				ENDIF
+			NEXT
+			GOTO RETRY
+		CASE "호감도"
+			FOR LOCAL:0, 22, 25
+				IF INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%승순" || INPUT_STR == @"%DISP_MEMO:(LOCAL:0)%내림차순"
+					SORT_TYPE '= INPUT_STR
+					CALL SORT_LIST(INPUT_STR, CHARA_LIST, CHARA_CNT)
+					RESTART
+				ENDIF
+			NEXT
+			GOTO RETRY
+		CASEELSE
+			THROW 이상한 DISP_TYPE　%DISP_TYPE%
+		ENDSELECT
+	ENDIF
+LOOP 1
+
+IF STRCOUNT(OP, "「정보 표시」")
+	CALL LIST_CHARA_STATE(CHARA_LIST, INPUT_INT, CHARA_CNT, OP)
+	SIF !RESULT
+		RESTART
+	NOW_GROUP = 1
+	GET_LIST = 1
+	;일단 RESULT가 정말로 되는 것은 「최종 확인」만이지만 만약을 위해 판정
+	SIF STRCOUNT(OP, "「최종 확인」")
+		RETURN RESULT
+ELSE
+	NOW_GROUP = 1
+	GET_LIST = 1
+	RETURN CHARA_LIST:INPUT_INT
+ENDIF
+
+
+
+;사용 리스트의 전환 함수
+;나무
+;현재 상태로서는 불필요하지만 OP를 건네주어 있으므로"SHOP 표시"이외에의 전환도 용이합니다
+@CHANGE_LIST(LIST_TYPE, OP)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF LIST_TYPE;현재 사용중의 표시 내용
+#DIMS OP           ;실행 옵션
+PRINTFORML 리스트의 표시 조건의 변경(현재의 설정：%LIST_TYPE%)
+PRINTFORML 
+CALL CLASS_LIST("캐릭터리스트", "SHOP 표시")
+PRINTFORML 
+PRINTFORML [999] - 그만둔다
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 999
+		RETURN
+	CASEELSE
+		IF !STRLENS(GET_STR(0, "캐릭터리스트", RESULT, "이름")) 
+		ELSEIF GET_INT(0, "캐릭터리스트", RESULT, "SHOP 표시")
+			LIST_TYPE '= GET_STR(0, "캐릭터리스트", RESULT, "이름")
+			RETURN
+		ENDIF
+		REUSELASTLINE 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+LOOP 1
+
+
+
+;단캐릭터 정보 표시 함수
+;주인의 행동중의 MASTER의 정보 표시용
+@SINGLE_CHARA_STATE(C_ID, OP)
+#DIM  C_ID ;등록 번호
+#DIMS OP   ;실행 옵션
+#DIM  PAGE ;표시중의 페이지
+#DIMS CONST DISP_NAME , 4 = "의상 및 능력", "경험과 보주", "개인정보", "함락 조건"
+CALL CHARA_STATE(C_ID, PAGE, OP)
+
+PRINTBUTTON @"[4] -　　　%DISP_NAME:((PAGE - 1 + 상세능력표시최대페이지번호) % 상세능력표시최대페이지번호), 10%", 4
+PRINTFORM 　　　　　　　　　　　
+PRINTBUTTON @"[6] -　　　%DISP_NAME:((PAGE + 1 + 상세능력표시최대페이지번호) % 상세능력표시최대페이지번호), 10%", 6
+IF STRCOUNT(OP, "「최종 확인」")
+	PRINTFORML 
+	PRINTBUTTON "[1] - 이 캐릭터로 결정", 0
+	PRINTFORM 　　　　　　　　　
+	PRINTBUTTON "[0] - 　　　취소", 0
+	PRINTFORML 
+ELSE
+	PRINTFORML 
+	PRINTBUTTON "[0] - 　　　　　돌아간다", 0
+ENDIF
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 1
+		SIF STRCOUNT(OP, "「최종 확인」")
+			RETURN C_ID
+		GOTO RETRY
+	CASE 0
+		RETURN 0
+	;표시 항목의 변경
+	CASE 4
+		PAGE = (PAGE - 1 + 상세능력표시최대페이지번호) % 상세능력표시최대페이지번호
+	CASE 6
+		PAGE = (PAGE + 1 + 상세능력표시최대페이지번호) % 상세능력표시최대페이지번호
+	;표시·비표시의 전환
+	CASE 160 TO 168
+		TFLAG:RESULT = !TFLAG:RESULT
+	CASE AA표시
+		FLAG:AA표시 = !FLAG:AA표시
+	CASEELSE
+		$RETRY
+		REUSELASTLINE 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+	BREAK
+LOOP 1
+RESTART
+
+
+
+;조교중 타겟용의 리스트 표시 함수
+;보통에 TARGET를 건네주면(자) TARGET:0이 중복 해 버리므로 그대로는 사용할 수 없었다
+;리스트에 MASTER를 포함하도록(듯이) 개량
+@TARGET_LIST_STATE(ARG:0)
+#DIM TARGET_LIST, 캐릭터수상한
+#DIM TARGET_NUM
+#DIM VIEW
+VARSET TARGET_LIST
+TARGET_NUM = FINDELEMENT(TARGET, 0) - 1
+VIEW = ARG:0
+SIF TARGET_NUM <= 0
+	RETURN
+ARRAYCOPY "TARGET", "TARGET_LIST"
+TARGET_LIST:0 = MASTER
+VIEW = FINDELEMENT(TARGET_LIST, ARG:0)
+SIF VIEW == -1
+	VIEW = 0
+CALL LIST_CHARA_STATE(TARGET_LIST, VIEW, TARGET_NUM + 1, "「조교중」")
+
+
+
+;리스트가 있을 때 전용의 정보 표시 함수
+;CHARA_LIST에 TARGET를 건네주면 TARGET 차례로 표시해 준다
+@LIST_CHARA_STATE(CHARA_LIST, C_VIEW, CHARA_CNT, OP)
+#DIM REF CHARA_LIST ;리스트 본체, 등록 번호에서 기록
+#DIM     C_VIEW     ;표시중 캐릭터의 리스트상의 위치
+#DIM     CHARA_CNT  ;리스트에 해당한 캐릭터의 수
+#DIMS    OP         ;실행 옵션
+#DIM     C_ID       ;등록 번호
+#DIM     PAGE       ;표시중의 페이지
+#DIMS CONST DISP_NAME , 4 = "의상 및 능력", "경험과 보주", "개인정보", "함락 조건"
+CALL CHARA_STATE(CHARA_LIST:C_VIEW, PAGE, OP)
+DRAWLINE
+PRINTFORM 　　　　　　　　　　　
+PRINTBUTTON "[8] - 　　　이전캐릭터", 8
+PRINTFORML 
+
+PRINTBUTTON @"[4] -　　　%DISP_NAME:((PAGE - 1 + 상세능력표시최대페이지번호) % 상세능력표시최대페이지번호), 10%", 4
+PRINTFORM 　　　　　　　　　　　
+PRINTBUTTON @"[6] -　　　%DISP_NAME:((PAGE + 1 + 상세능력표시최대페이지번호) % 상세능력표시최대페이지번호), 10%", 6
+PRINTFORML 
+
+PRINTFORM 　　　　　　　　　　　
+PRINTBUTTON "[2] - 　　　다음캐릭터", 2
+PRINTFORML 
+
+IF STRCOUNT(OP, "「최종 확인」")
+	PRINTFORML 
+	PRINTBUTTON "[1] - 이 캐릭터로 결정", 1
+	PRINTFORM 　　　　　　　　　
+	PRINTBUTTON "[0] - 　　　취소", 0
+	PRINTFORML 
+ELSE
+	PRINTFORML 
+	PRINTBUTTON "[0] - 　　　　　돌아간다", 0
+ENDIF
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 1
+		SIF STRCOUNT(OP, "「최종 확인」")
+			RETURN CHARA_LIST:C_VIEW
+		GOTO RETRY
+	CASE 0
+		RETURN 0
+	;캐릭터 이동
+	CASE 8
+		C_VIEW = (C_VIEW - 1 + CHARA_CNT) % CHARA_CNT
+	CASE 2
+		C_VIEW = (C_VIEW + 1 + CHARA_CNT) % CHARA_CNT
+	;표시 항목의 변경
+	CASE 4
+		PAGE = (PAGE - 1 + 상세능력표시최대페이지번호) % 상세능력표시최대페이지번호
+	CASE 6
+		PAGE = (PAGE + 1 + 상세능력표시최대페이지번호) % 상세능력표시최대페이지번호
+	;표시·비표시의 전환
+	CASE 160 TO 168
+		TFLAG:RESULT = !TFLAG:RESULT
+	CASE AA표시
+		FLAG:AA표시 = !FLAG:AA표시
+	CASEELSE
+		$RETRY
+		REUSELASTLINE 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+	BREAK
+LOOP 1
+RESTART
+
+
+
+;기초 정보 표시 함수
+;@CHARA_STATE로부터 공통 요소를 뽑아냈을 뿐(장도 참 주위의 것으로)
+;BASE계와 열정을 기초 정보에 포함하게 한다
+@BASIC_STATE(C_ID, OP)
+#DIM C_ID
+#DIMS OP
+DRAWLINEFORM ━
+PRINTFORM ■%NAME:C_ID%(호감도:
+CALL PRINT_RANK(CFLAG:C_ID:호감도, "MAX_50000")
+PRINTFORM  {CFLAG:C_ID:호감도} 신뢰도:
+CALL PRINT_RANK(CFLAG:C_ID:신뢰도, "MAX_20000")
+PRINTFORM  {CFLAG:C_ID:신뢰도}) 
+;MASTER라면 소지금을 기재
+IF C_ID == MASTER
+	PRINTFORM (%"소지금:\\" + TOSTR(MONEY,"#,###")%)
+	PRINTFORM  (소지 카리스마:{MONEY:2}CM)
+	PRINTFORM  (소지수찰:{ITEM:131}매)
+ENDIF
+IF FLAG:생리주기가시화 && TALENT:C_ID:성별 != 2
+	IF STRCOUNT(OP, "「조교중」")
+		CALL CYCLE_PRINT(C_ID)
+;모브 물색중 판정
+	ELSEIF SELECTCOM == 444
+		CALL CYCLE_PRINT(C_ID)
+	ELSE
+		CALL CYCLE_PRINT다음날(C_ID)
+	ENDIF
+ENDIF
+SIF C_ID != MASTER && FLAG:생리주기가시화
+	SETCOLOR C_AQUA
+IF CFLAG:C_ID:생해금 == 2
+	PRINT 위험일 생H해금
+ELSEIF CFLAG:C_ID:생해금 == 1
+	PRINT 생H해금
+ELSEIF GETBIT(CFLAG:C_ID:기정사실, 1)
+	PRINT 합의 취득
+ENDIF
+RESETCOLOR
+;여기만 BASE 기본 표시로 독립시켜도 괜찮을지도라는 느낌에 쓰기 좋은 점 그렇게
+PRINTL 　
+CALL BASE_BAR(C_ID, "체력", 18, "초록")
+PRINTFORM 　　
+CALL BASE_BAR(C_ID, "기력", 18, "파랑", "「개행」")
+IF BASE:C_ID:술기운
+	CALL BASE_BAR(C_ID, "술기운", 18, "빨강")
+ELSE
+	PRINTFORM %"　" * 24%
+ENDIF
+PRINTFORM 　　
+SIF C_ID == MASTER
+	CALL BASE_BAR(C_ID, "TSP", 18, "물색")
+PRINTFORML 
+
+IF NOTICE_LUST(C_ID)
+	;기술을 정리할 수 있다고 하는 이유로써 미묘하게 반응을 일으키는 최소의 물리량 변경
+	SELECTCASE CFLAG:C_ID:욕구불만도
+	CASE IS >= 665
+		SETCOLOR C_RED
+	CASE IS >= 332
+		SETCOLOR C_YELLOW
+	ENDSELECT
+	PRINTFORMD 욕구 불만도：
+	PRINTFORM {CFLAG:C_ID:욕구불만도 / 10}
+	PRINTFORMD ％
+	RESETCOLOR
+ENDIF
+SIF CFLAG:(C_ID):탄막승부승리 == 1
+	PRINTFORM ★탄막승부에 승리했다
+PRINTFORML 
+	
+
+
+
+;캐릭터 정보 표시 함수
+;등록 번호와 페이지번호, 옵션을 지정해 정보를 표시한다
+@CHARA_STATE(C_ID, PAGE, OP)
+#DIM  C_ID
+#DIM  PAGE
+#DIMS OP
+CALL BASIC_STATE(C_ID, OP)
+SELECTCASE PAGE
+CASE 0
+	CALL SHOW_SIZE(C_ID)
+	IF !FLAG:그림표시
+		PRINTL [99] AA 표시
+	ELSE
+		PRINTL [99] 그림 표시
+	ENDIF
+	IF FLAG:AA표시 && !FLAG:그림표시
+		CALL PRINT_AA(C_ID)
+	ELSEIF FLAG:AA표시 && FLAG:그림표시
+		CALL PRINT_STATE_IMAGE(C_ID)
+		IF FLAG:스탠딩종류
+			IF キャラ画像表示サイズ比 <= 50
+				PRINTL 
+				PRINTL 
+			ELSEIF キャラ画像表示サイズ比 <= 60
+				PRINTL 
+			ELSEIF キャラ画像表示サイズ比 >= 120
+				CLEARLINE 1
+			ENDIF
+			SIF TALENT:C_ID:스침
+				PRINTL 
+		ELSE
+			SIF キャラ画像表示サイズ比 <= 60
+				PRINTL 
+		ENDIF
+	ENDIF
+	CALL PRINT_STATE_CLOTH(C_ID)
+	
+	;도구라고 할까 아이템이지만 외가 2 문자이고
+	IF C_ID == MASTER
+		PRINT □ 
+		CALL PRINTBUTTON_EX("도구", 167, TFLAG:167)
+		PRINTL  □---------------------------------------------------------------------------
+		SIF !TFLAG:도구표시
+			CALL LIST_ITEM("모두")
+	ENDIF
+	;CALL PRINT_STATE_ABL(C_ID)
+	CALL PRINT_STATE_TALENT(C_ID)
+	PRINTL
+	CALL SHOW_ABILITY(C_ID)
+	PRINTL
+	;IF C_ID != MASTER
+	;	PRINTL
+	;	PRINT □ 
+	;	CALL PRINTBUTTON_EX("각인", 166, TFLAG:166)
+	;	PRINTL  □---------------------------------------------------------------------------
+	;	CALL PRINT_각인(C_ID)
+	;ENDIF
+CASE 1
+	PRINTL
+	CALL PRINT_STATE_EXP(C_ID)
+	PRINTL
+	;현상 마스터는 임신하지 않을 것이지만 장래의 기능확장을 생각와 이것으로 좋은 것인지?
+	SIF !(C_ID == MASTER) && (TALENT:C_ID:임신 || CFLAG:C_ID:아이인원수 > 0)
+		CALL 임신관련(C_ID)
+	IF STRCOUNT(OP, "「조교중」")
+		CALL PRINT_STATE_EX(C_ID)
+	ELSEIF !(C_ID == MASTER)
+		CALL PRINT_STATE_JUEL(C_ID)
+	ENDIF
+	PRINTL
+	IF C_ID == MASTER
+		CALL 예정
+	ELSE
+		CALL 팬티수집상황(C_ID)
+	ENDIF
+CASE 2
+	CALL PRINT_STATE_PERSONAL(C_ID)
+	CALL 육체정보(C_ID)
+	CALL SHOW_RELATION(C_ID)
+CASE 3
+	CALL 함락조건표시(C_ID)
+	CALL 바람기파악상황(C_ID)
+CASEELSE
+	THROW 이상한PAGE {PAGE}
+ENDSELECT
+
+
+
+
+;각인과 능력을 일괄해 표시한다
+;세로폭을 압축하고 싶다
+@SHOW_ABILITY(C_ID)
+#DIM  C_ID
+{
+#DIMS CONST DISP_NAME , 63 = 
+	"고통",     "ㅤ친밀ㅤ",     "ㅤ교양ㅤ", "C감각", "손기술ㅤ", "마조끼", "자위중독",
+	"쾌락",     "ㅤ순종ㅤ", "화술기능", "V감각", "질기술ㅤ", "새드끼", "정액중독",
+	"괘씸",     "ㅤ욕망ㅤ", "전투능력", "A감각", "A기술ㅤ", "레즈끼", "레즈중독",
+	"반발",     "ㅤ기교ㅤ", "청소기능", "B감각", "가슴기술", "호모끼", "게이중독",
+	"이력", "봉사정신", "요리기능", "M감각", "혀기술ㅤ",         "", "질사중독",
+	"시간",   "노출벽", "음악기능",       "", "허리기술",         "", "항사중독",
+	"마크",   "", "채집기능",       "", "",         "", "",
+	"마크",   "", "낚시기능",       "", "",         "", "",
+	"마크",   "", "조제기능",       "", "",         "", "",
+}
+PRINT □ 
+CALL PRINTBUTTON_EX("능력", 162, TFLAG:162)
+PRINTL  □---------------------------------------------------------------------------
+SIF TFLAG:능력표시
+	RETURN
+
+FOR LOCAL, 0, 63
+	CALL PRINT_ABILITY(C_ID, DISP_NAME:LOCAL, LOCAL)
+	SIF LOCAL % 7 == 6
+		PRINTFORML 
+NEXT
+
+
+
+;↑전용의 표시 함수
+@PRINT_ABILITY(C_ID, DISP_NAME, VIEW)
+#DIM  C_ID
+#DIMS DISP_NAME
+#DIM  VIEW
+{
+#DIM CONST DISP_ID , 63 = 
+	0,  9, 43, 0, 50, 15, 30,
+	1, 10, 41, 1, 54, 16, 31,
+	2, 11, 42, 2, 55, 17, 32,
+	3, 12, 40, 3, 52, 18, 33,
+	4, 13, 44, 4, 51,  0, 34,
+	5, 14, 45, 0, 53,  0, 35,
+	6,  0, 46, 0,  0,  0,  0,
+	6,  0, 47, 0,  0,  0,  0,
+	6,  0, 48, 0,  0,  0,  0,
+}
+PRINTFORM 　
+SELECTCASE DISP_NAME
+CASE ""
+	$SHOW_BLANK
+	PRINTFORM 　　　　　　　　
+CASE "고통", "쾌락", "괘씸", "반발", "이력", "시간","마크"
+	IF C_ID == MASTER
+		PRINTFORM %"　" * 6%
+	ELSEIF GROUPMATCH(DISP_NAME, "반발", "이력")
+		PRINTFORM %DISP_NAME, 4%：
+		CALL COLOR_STAMP(MARK:C_ID:(DISP_ID:VIEW), 3, "×", C_RED)
+	ELSEIF GROUPMATCH(DISP_NAME, "마크")
+		PRINTFORM %"　" * 6%
+	ELSE
+		PRINTFORM %DISP_NAME, 4%：
+		CALL COLOR_STAMP(MARK:C_ID:(DISP_ID:VIEW), 3, "★", 0xFFFF00)
+	ENDIF
+{
+CASE 
+	"손기술ㅤ", "질기술ㅤ", "A기술ㅤ", "가슴기술", "혀기술ㅤ", "허리기술",
+	"청소기능", "화술기능", "전투능력",     "ㅤ교양ㅤ", "요리기능", "음악기능"
+}
+	PRINTFORM %DISP_NAME, 8%：
+	CALL PRINT_RANK(ABL:C_ID:(DISP_ID:VIEW), "MAX_6")
+	PRINTFORM  {ABL:C_ID:(DISP_ID:VIEW), 3}
+;이하 KR판 구잔재 또는 오리지날
+{
+CASE 
+	"채집기능"
+}
+	PRINTFORM %DISP_NAME, 8%：
+	CALL PRINT_RANK(TALENT:C_ID:채집Lv, "MAX_6")
+	PRINTFORM  {TALENT:C_ID:채집Lv, 3}
+{
+CASE 
+	"낚시기능"
+}
+	PRINTFORM %DISP_NAME, 8%：
+	CALL PRINT_RANK(TALENT:C_ID:낚시Lv, "MAX_6")
+	PRINTFORM  {TALENT:C_ID:낚시Lv, 3}
+{
+CASE 
+	"조제기능"
+}
+	PRINTFORM %DISP_NAME, 8%：
+	CALL PRINT_RANK(TALENT:C_ID:조제Lv, "MAX_6")
+	PRINTFORM  {TALENT:C_ID:조제Lv, 3}
+CASEELSE
+	SIF GROUPMATCH(DISP_NAME, "레즈끼", "레즈중독") && !GETBIT(TALENT:C_ID:2, 0)
+		GOTO SHOW_BLANK
+	SIF GROUPMATCH(DISP_NAME, "호모끼", "게이중독") && GETBIT(TALENT:C_ID:2, 0)
+		GOTO SHOW_BLANK
+	PRINTFORM %DISP_NAME, 8%：
+	CALL PRINT_RANK(ABL:C_ID:(DISP_ID:VIEW), "MAX_99")
+	PRINTFORM  {ABL:C_ID:(DISP_ID:VIEW), 3}
+ENDSELECT
+
+
+
+;소트용 버튼 작성 함수
+;간단하게 취급할 수 있지만
+;동일 리스트내의 B_NAME는 가로폭을 갖추어질 수 있는 편이 보고 네가 좋다
+@MAKE_SORT_BUTTON(SORT_TYPE, B_NAME)
+#DIMS SORT_TYPE ;현재의 소트 타입
+#DIMS B_NAME    ;기본의 버튼명
+IF SORT_TYPE == @"%B_NAME%내림차순"
+	PRINTBUTTON @"▼%B_NAME%", @"%B_NAME%승순"
+ELSEIF SORT_TYPE == @"%B_NAME%승순"
+	PRINTBUTTON @"▲%B_NAME%", @"%B_NAME%내림차순"
+ELSE
+	PRINTBUTTON @"　%B_NAME%", @"%B_NAME%내림차순"
+ENDIF
+
+
+;일행 정보 표시 함수
+;캐릭터의 정보를 일행으로 표시하면서 버튼으로서 취급한다
+;원래는@ShowStatusBody와@ShowStatusHeader 근처
+;라벨(버튼으로서의 번호)과 등록 번호를 따로따로로 지정할 필요가 있다
+@CHARA_BUTTON(LABEL, C_ID, DISP_TYPE = "체력 기력", SORT_TYPE)
+#DIM  LABEL
+#DIM  C_ID
+#DIMS DISP_TYPE
+#DIMS SORT_TYPE
+#DIMS 표시문
+#DIM  표시신분번호
+#DIM  CONST 바길이 = 10
+;LABEL가 음수는 있을 수 없기 때문에 표시 내용의 공지에 유용하고 있습니다
+IF LABEL >= 0
+	SIF CFLAG:C_ID:대사실장상황
+		SETCOLOR 103,228,126
+	PRINTFORM [{LABEL, 3}] %CALLNAME:C_ID, 14, LEFT%
+	RESETCOLOR
+ENDIF
+SELECTCASE DISP_TYPE
+CASE "체력 기력"
+	IF LABEL < 0
+		PRINTFORM %"　" * 10%
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "체력")
+		PRINTFORM %"　" * 10%
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "기력")
+	ELSE
+		CALL BASE_BAR(C_ID, "체력", 10, "초록", "「종류 표기 없음」")
+		CALL BASE_BAR(C_ID, "기력", 10, "파랑", "「종류 표기 없음」")
+	ENDIF
+	PRINTFORML 
+CASE "감도 등"
+	IF LABEL < 0
+		PRINTFORM %"　" * 4% 능력%" " * 7%
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "C감")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "V감")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "A감")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "B감")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "Ｍ감")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "친밀")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "순종")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "욕망")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "기교")
+	ELSE
+		FOR 표시신분번호, 0, 13
+			SIF ABLNAME:표시신분번호 == ""
+				CONTINUE
+			CALL PRINT_RANK(ABL:C_ID:표시신분번호, "MAX_99")
+			PRINTFORM {ABL:C_ID:표시신분번호, 4}|
+		NEXT
+	ENDIF
+	PRINTFORML 
+
+CASE "성 기술"
+	IF LABEL < 0
+		PRINTFORM %"　" * 3% 성기술%" " * 7%
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, " 손 기술")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, " 혀 기술")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "가슴기술")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "허리기술")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, " 질 기술")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, " A 기술")
+	ELSE
+		;매우 적당하게 다하고 수정의 여지 있어
+		FOR 표시신분번호, 50, 56
+			SIF ABLNAME:표시신분번호 == ""
+				CONTINUE
+			CALL PRINT_RANK(ABL:C_ID:표시신분번호, "MAX_6")
+			PRINTFORM {ABL:C_ID:표시신분번호, 8}|
+		NEXT
+	ENDIF
+	PRINTFORML 
+
+
+CASE "각인"
+	IF LABEL < 0
+		PRINTFORM %"　" * 4% 각인%" " * 7%
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "고통")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "쾌락")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "괘씸")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "반발")
+		PRINT |
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "시간")
+	ELSE
+		;매우 적당하게 다하고 수정의 여지 있어
+		FOR 표시신분번호, 0, 6
+			IF MARKNAME:표시신분번호 == ""
+				CONTINUE
+			ENDIF
+			;반발각인 이력은 표시하지 않게
+			SIF 표시신분번호 == 4
+				CONTINUE
+			IF 표시신분번호 == 3
+				CALL COLOR_STAMP(MARK:C_ID:표시신분번호, 3, "×", C_RED)
+			ELSE
+				CALL COLOR_STAMP(MARK:C_ID:표시신분번호, 3, "★", 0xFFFF00)
+			ENDIF
+			PRINTFORM |
+		NEXT
+	ENDIF
+	PRINTFORML 
+
+
+CASE "호감도"
+	IF LABEL < 0
+		PRINTFORM %"　" * 11%
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "호감")
+		PRINT |　
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "신뢰")
+		PRINT |
+		SIF TALENT:MASTER:정욕감지
+		CALL MAKE_SORT_BUTTON(SORT_TYPE, "욕구")
+	ELSE
+		;호감도
+		CALL PRINT_RANK(CFLAG:C_ID:호감도, "MAX_50000")
+		PRINTFORM {CFLAG:C_ID:호감도, 6}|
+		
+		;신뢰도
+		CALL PRINT_RANK(CFLAG:C_ID:신뢰도, "MAX_20000")
+		PRINTFORM {CFLAG:C_ID:신뢰도, 6}|
+		
+		;욕구
+		IF TALENT:MASTER:정욕감지
+			SELECTCASE CFLAG:C_ID:욕구불만도
+			CASE IS >= 665
+				SETCOLOR C_RED
+			CASE IS >= 332
+				SETCOLOR C_YELLOW
+			ENDSELECT
+			PRINTFORM {CFLAG:C_ID:욕구불만도 / 10, 4}
+			RESETCOLOR
+			PRINT %|
+		ENDIF
+		;함락
+		IF TALENT:C_ID:연인
+			SETCOLOR C_RED
+			표시문 = 연인
+		ELSEIF TALENT:C_ID:연모 == 1
+			SETCOLOR 0xEE60EE
+			표시문 = 연모
+		ELSEIF TALENT:C_ID:애욕 == 1
+			SETCOLOR 0x2E8B57
+			표시문 = 애욕
+		ELSEIF TALENT:C_ID:섹프 == 2
+			SETCOLOR 0xFF6347
+			표시문 = 정부
+		ELSEIF TALENT:C_ID:사모 == 1
+			SETCOLOR 0xFFFF00
+			표시문 = 사모
+		ELSEIF TALENT:C_ID:섹프 == 1
+			SETCOLOR 0x7CFC00
+			표시문 = 섹프
+		ELSE
+			표시문 = 
+		ENDIF
+		PRINTFORM %표시문, 6, LEFT%
+		RESETCOLOR
+		PRINT |
+		
+		;기정사실
+		SELECTCASE CFLAG:(C_ID):생해금
+			CASE 2
+				표시문 = 위험일 생H해금
+			CASE 1
+				표시문 = 생H해금
+			CASE 0
+				IF GETBIT(CFLAG:(C_ID):기정사실, 1)
+					표시문 = 합의 취득
+				ELSE
+					표시문 = 
+				ENDIF
+		ENDSELECT
+		PRINTFORM %표시문, 14, LEFT%|
+		IF CFLAG:(C_ID):탄막승부승리 == 1
+			PRINTFORM 승리완료
+		ELSE
+			PRINTFORM 　　
+		ENDIF
+		
+		;생리주기가시화
+		IF NOTICE_CYCLE(C_ID)
+			PRINT |
+			CALL PRINT_CYCLE_다음날(C_ID)
+		ENDIF
+		IF CFLAG:(C_ID):출산경과일 > 0
+			PRINT |
+			PRINTFORM 육아중 
+		ENDIF
+		
+		RESETCOLOR
+		;연인인가 어떤가는 바로 왼쪽으로 표시되므로 필요없을 것
+		;SIF GETBIT(CFLAG:(C_ID):기정사실, 2)
+		;	PRINTFORM 연인 같은 종류 
+		;약점
+		IF CFLAG:(C_ID):약점잡음 && CFLAG:(C_ID):약점잡힘
+			PRINTFORM %마스터와% 각자 약점을 서로 잡고 
+		ELSEIF CFLAG:(C_ID):약점잡음
+			PRINTFORM %CALLNAME:MASTER%의 약점을 잡고 있다 
+		;SIF GETBIT(CFLAG:(C_ID):약점, 0)
+		;	PRINTFORM 팬티를 몰수되었다 
+		;SIF GETBIT(CFLAG:(C_ID):약점, 1)
+		;	PRINTFORM 정사를 볼 수 있었다 
+		ELSEIF CFLAG:(C_ID):약점잡힘
+			PRINTFORM %CALLNAME:MASTER%에 자위 현장이 목격당한 적이 있다
+		ENDIF
+	ENDIF
+	PRINTFORML 
+CASEELSE
+	THROW 이상한 DISP_TYPE　%DISP_TYPE%
+ENDSELECT
+
+@함락조건표시(ARG)
+#DIM 자각절정
+자각절정 = EXP:ARG:절정경험 - EXP:ARG:무자각절정경험
+DRAWLINE
+CALL COLORMESSAGE(@"□연모 취득 조건", C_AQUA, 1)
+PRINTFORML 
+IF TALENT:ARG:연모
+	PRINT 　
+	CALL COLORMESSAGE(@"　취득 완료", C_YELLOW, 1)
+ELSE
+	PRINT 　
+	CALL COND_COLORMESSAGE(CFLAG:ARG:2 >= REQUIRED_FAVOR_연모,@"호감도 {REQUIRED_FAVOR_연모} 이상")
+	PRINT 　
+	CALL COND_COLORMESSAGE(CFLAG:ARG:4 >= REQUIRED_TRUST_연모,@"신뢰도 {REQUIRED_TRUST_연모} 이상")
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:친밀 >= REQUIRED_AFFECTION_연모,@"친밀 {REQUIRED_AFFECTION_연모} 이상")
+	PRINT 　
+	CALL COND_COLORMESSAGE(!MARK:ARG:반발각인,@"반발각인이 없다")
+ENDIF
+DRAWLINE
+CALL COLORMESSAGE(@"□사모 취득 조건", C_AQUA, 1)
+PRINTFORML 
+IF TALENT:ARG:연모 || TALENT:ARG:사모
+	PRINT 　
+	CALL COLORMESSAGE(@"　취득 완료", C_YELLOW, 1)
+ELSE
+	PRINT 　
+	CALL COND_COLORMESSAGE(CFLAG:ARG:2 >= REQUIRED_FAVOR_사모,@"호감도 {REQUIRED_FAVOR_사모} 이상")
+	PRINT 　
+	CALL COND_COLORMESSAGE(CFLAG:ARG:4 >= REQUIRED_TRUST_사모,@"신뢰도 {REQUIRED_TRUST_사모} 이상")
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:친밀 >= REQUIRED_AFFECTION_사모,@"친밀 {REQUIRED_AFFECTION_사모} 이상")
+ENDIF
+DRAWLINE
+CALL COLORMESSAGE(@"□애욕 취득 조건", C_AQUA, 1)
+PRINTFORML 
+IF TALENT:ARG:연모
+	PRINT 　
+	CALL COLORMESSAGE(@"취득 불가", C_RED, 1)
+ELSEIF TALENT:ARG:애욕
+	PRINT 　
+	CALL COLORMESSAGE(@"취득 완료", C_YELLOW, 1)
+ELSE
+	PRINT 　
+	CALL COND_COLORMESSAGE(CFLAG:ARG:2 >= REQUIRED_FAVOR_애욕,@"호감도 {REQUIRED_FAVOR_애욕} 이상")
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:욕망 >= REQUIRED_DESIRE_애욕,@"욕망 {REQUIRED_DESIRE_애욕} 이상")
+	PRINT 　
+	CALL COND_COLORMESSAGE(자각절정 >= REQUIRED_ECSTACY_애욕,@"의식이 있는 상태로 {REQUIRED_ECSTACY_애욕} 이상 절정")
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:욕망 > ABL:ARG:친밀,"욕망이 친밀보다 높다")
+ENDIF
+DRAWLINE
+CALL COLORMESSAGE(@"□섹프 취득 조건", C_AQUA, 1)
+PRINTFORML 
+IF TALENT:ARG:연모
+	PRINT 　
+	CALL COLORMESSAGE(@"취득 불가", C_RED, 1)
+ELSEIF TALENT:ARG:섹프
+	PRINT 　
+	CALL COLORMESSAGE(@"취득 완료", C_YELLOW, 1)
+ELSE
+	PRINT 　
+	CALL COND_COLORMESSAGE(CFLAG:ARG:2 >= REQUIRED_FAVOR_섹프,@"호감도 {REQUIRED_FAVOR_섹프} 이상")
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:욕망 >= REQUIRED_DESIRE_섹프,@"욕망 {REQUIRED_DESIRE_섹프} 이상")
+	PRINT 　
+	CALL COND_COLORMESSAGE(자각절정 >= REQUIRED_ECSTACY_섹프,@"의식이 있는 상태로 {REQUIRED_ECSTACY_섹프} 이상 절정")
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:욕망 >= ABL:ARG:친밀,"욕망이 친밀 이상")
+ENDIF
+DRAWLINE
+
+;이하 (키스마, 자위중독, 음유, 음호, 항문광) KR판 구잔재 또는 오리지날
+CALL COLORMESSAGE(@"□키스마 취득 조건", C_AQUA, 1)
+PRINTFORML 
+IF TALENT:ARG:키스마
+	PRINT 　
+	CALL COLORMESSAGE(@"취득 완료", C_YELLOW, 1)
+ELSE
+	PRINT 　
+	CALL COND_COLORMESSAGE(EXP:ARG:키스경험 >= 300,@"키스경험 300 초과")
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:M감각 >= REQUIRED_DESIRE_섹프,@"M감각 {5} 초과")
+ENDIF
+DRAWLINE
+CALL COLORMESSAGE(@"□자위중독 취득 조건", C_AQUA, 1)
+PRINTFORML 
+IF TALENT:ARG:자위중독
+	PRINT 　
+	CALL COLORMESSAGE(@"취득 완료", C_YELLOW, 1)
+ELSE
+	PRINT 　
+	CALL COND_COLORMESSAGE(EXP:ARG:조교자위경험 >= 200,@"조교자위경험 200 초과")
+	PRINT 　
+	CALL COND_COLORMESSAGE(EXP:ARG:자위경험 >= 500,@"자위경험 500 초과")
+ENDIF
+DRAWLINE
+CALL COLORMESSAGE(@"□음유 취득 조건", C_AQUA, 1)
+PRINTFORML 
+IF TALENT:ARG:음유
+	PRINT 　
+	CALL COLORMESSAGE(@"취득 완료", C_YELLOW, 1)
+ELSE
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:가슴 >= 5,@"가슴기술 5 이상")
+ENDIF
+DRAWLINE
+CALL COLORMESSAGE(@"□음호 취득 조건", C_AQUA, 1)
+PRINTFORML 
+IF TALENT:ARG:음호
+	PRINT 　
+	CALL COLORMESSAGE(@"취득 완료", C_YELLOW, 1)
+ELSE
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:질 >= 5,@"질기술 5 이상")
+ENDIF
+DRAWLINE
+CALL COLORMESSAGE(@"□항문광 취득 조건", C_AQUA, 1)
+PRINTFORML 
+IF TALENT:ARG:항문광
+	PRINT 　
+	CALL COLORMESSAGE(@"취득 완료", C_YELLOW, 1)
+ELSE
+	PRINT 　
+	CALL COND_COLORMESSAGE(ABL:ARG:애널 >= 5,@"A기술 5 이상")
+ENDIF
+PRINTFORML 

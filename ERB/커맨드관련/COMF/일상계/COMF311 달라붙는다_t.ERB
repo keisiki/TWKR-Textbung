@@ -1,0 +1,197 @@
+﻿;-------------------------------------------------
+;달라붙는다
+;일상계 커맨드 레벨 2
+;-------------------------------------------------
+@COM311
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 10
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 1
+	ENDIF
+ELSE
+	IF FLAG:생활능력무 && !CFLAG:우후후
+		DRAWLINE
+		PRINTFORMW %CALLNAME:MASTER%에게 그런 담력은 없다
+		RETURN -1
+	ENDIF
+	TFLAG:이성깎기 = 1
+	SELECTCASE TFLAG:192
+		;통상
+		CASE 0
+			LOCAL = RAND:110
+			LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+			SIF LOCAL:1 > 109
+				LOCAL:1 = 109
+			IF LOCAL <= 9
+				;10％で대성공
+				TFLAG:193 = 1
+				IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+					;KR판 오리지날 붉은실
+					CALL 붉은실발동
+					EXP:MASTER:데이트경험 ++
+					EXP:TARGET:데이트경험 ++
+				ENDIF
+			ELSEIF LOCAL >= LOCAL:1
+				;10～1％で실패
+				TFLAG:193 = -1
+			ELSE
+				;나머지 성공
+				TFLAG:193 = 0
+			ENDIF
+		;強制成功or대성공
+		CASE 1
+			IF RAND:110 <= 9
+				;10％で대성공
+				TFLAG:193 = 1
+				IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+					;KR판 오리지날 붉은실
+					CALL 붉은실발동
+					EXP:MASTER:데이트경험 ++
+					EXP:TARGET:데이트경험 ++
+				ENDIF
+			ELSE
+				;나머지 성공
+				TFLAG:193 = 0
+			ENDIF
+		;강제실패
+		CASE -1
+			TFLAG:193 = -1
+		;커맨드 종료
+		CASE -2
+			TFLAG:193 = -1
+			RETURN 0
+	ENDSELECT
+	;선제 발생시는 실패하지 않는다
+	SIF TFLAG:102 == 3 && TFLAG:192 != -1
+		TFLAG:193 = MAX(TFLAG:193,0)
+	IF CFLAG:TARGET:동침중
+		DOWNBASE:MASTER:기력 += 50
+	ELSE
+		DOWNBASE:기력 += 100
+		DOWNBASE:MASTER:기력 += 50
+	ENDIF
+
+	;고정으로 획득하는 소스
+	SOURCE:환락 = 120
+	SOURCE:사랑 = 160
+	SOURCE:노출 = 55
+	SOURCE:반감 = 250
+
+	;ABL:친밀을 본다
+	IF ABL:친밀 <= 1
+		SOURCE:사랑 += (ABL:친밀 * 30)
+	ELSEIF ABL:친밀 <= 3
+		SOURCE:사랑 += 200 + (ABL:친밀 * 30)
+	ELSEIF ABL:친밀 <= 5
+		SOURCE:사랑 += 400 + (ABL:친밀 * 30)
+	ELSEIF ABL:친밀 <= 8
+		SOURCE:사랑 += 600 + (ABL:친밀 * 40)
+		SOURCE:노출 += 200 + (ABL:욕망 * 15)
+	ELSEIF ABL:친밀 <= 11
+		SOURCE:사랑 += 800 + (ABL:친밀 * 40)
+		SOURCE:노출 += 300 + (ABL:욕망 * 15)
+	ELSE
+		SOURCE:사랑 += 1800 + (ABL:친밀 * 20)
+		SOURCE:노출 += 700 + (ABL:욕망 * 10)
+	ENDIF
+
+	;호감 도를 본다
+	IF CFLAG:2 <= 1000
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:복종 = CFLAG:2 / 5
+	ELSEIF CFLAG:2 <= 10000
+		SOURCE:복종 = 100 + CFLAG:2 / 20
+	ELSE
+		SOURCE:복종 = 350 + CFLAG:2 / 100
+	ENDIF
+	SIF SOURCE:복종 < 0
+		SOURCE:복종 = 0
+
+	LOCAL = 0
+	;호감도가 낮으면 호감도 저하
+	IF CFLAG:2 <= 50
+		LOCAL -= 3
+	ELSEIF CFLAG:2 <= 100
+		LOCAL -= 2
+	ELSEIF CFLAG:2 <= 250
+		LOCAL -= 1
+	ENDIF
+
+
+	SOURCE:수동 = 120 + 240 * ABL:순종
+	SOURCE:정복 = 120 + 240 * ABL:새드끼
+
+	;호감도 변화
+	TFLAG:97 += LOCAL
+
+	IF TFLAG:193 == -1
+		TIMES SOURCE:환락 , 0.10
+		TIMES SOURCE:사랑 , 0.50
+		TIMES SOURCE:정복 , 0.50
+		TIMES SOURCE:수동 , 0.50
+		TIMES SOURCE:노출 , 0.40
+	ELSEIF TFLAG:193 == 0
+		TIMES SOURCE:환락 , 1.00
+		TIMES SOURCE:사랑 , 1.00
+		TIMES SOURCE:정복 , 1.00
+		TIMES SOURCE:수동 , 1.00
+		TIMES SOURCE:노출 , 0.90
+	ELSE
+		TIMES SOURCE:환락 , 2.00
+		TIMES SOURCE:사랑 , 2.00
+		TIMES SOURCE:정복 , 2.00
+		TIMES SOURCE:수동 , 2.00
+		TIMES SOURCE:노출 , 1.80
+	ENDIF
+	TIME += 10
+
+	IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+		;KR판 오리지날 붉은실
+		CALL 붉은실발동
+		EXP:MASTER:데이트경험 ++
+		EXP:TARGET:데이트경험 ++
+		CALL DATE_GOES_ON(1)
+	ENDIF
+
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 1
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE311
+;달라붙는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(311)
+	RETURN RESULT
+;시간정지중은 스킵
+IF !FLAG:70
+	;친해져 강도 1
+	SIF TCVAR:MASTER:친해져 < 1 && !CFLAG:동침중
+		RETURN 0
+	;수면중
+	SIF CFLAG:수면 && !CFLAG:동침중
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5
+		RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;팔사용중
+SIF TFLAG:61
+	RETURN 0
+SIF GETBIT (TCVAR:26,1)
+	RETURN 0
+;식스나인 몸의자세
+SIF TEQUIP:식스나인
+	RETURN 0
+RETURN 1
+

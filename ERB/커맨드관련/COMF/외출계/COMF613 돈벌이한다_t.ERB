@@ -1,0 +1,93 @@
+﻿@COM613
+;돈 벌어 한다
+LOCAL = RAND:100
+LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+SIF LOCAL:1 > 99
+	LOCAL:1 = 99
+IF LOCAL <= 9
+	;10%로 대성공
+	TFLAG:193 = 1
+ELSEIF LOCAL >= LOCAL:1
+	;10~1%로 실패
+	TFLAG:193 = -1
+ELSE
+	;나머지는 성공
+	TFLAG:193 = 0
+ENDIF
+
+DOWNBASE:MASTER:체력 += 50
+DOWNBASE:MASTER:기력 += 100
+
+;보수 계산
+TFLAG:200 = 0
+IF DATE_PARTTIME(CFLAG:MASTER:현재위치) > 99
+	TFLAG:200 = (ABL:MASTER:기교 + 10) * (RAND:20 + 40) * 2
+ELSE
+	TFLAG:200 = (ABL:MASTER:기교 + 10) * (RAND:20 + 30) * DATE_PARTTIME(CFLAG:MASTER:현재위치)
+ENDIF
+SIF TFLAG:200 > 0
+	MONEY += TFLAG:200
+
+IF TARGET > 0 && !CFLAG:수면
+	;고정으로 획득하는 소스
+	SOURCE:환락 = 100
+	SOURCE:반감 = 50
+	
+	;ABL:순종을 본다
+	IF ABL:순종 <= 1
+
+	ELSEIF ABL:순종 <= 3
+		SOURCE:환락 += 100 + (ABL:순종 * 20)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:환락 += 300 + (ABL:순종 * 30)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:환락 += 600 + (ABL:순종 * 50)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:환락 += 1000 + (ABL:순종 * 70)
+	ELSE
+		SOURCE:환락 += 2000 + (ABL:순종 * 50)
+	ENDIF
+	
+	;호감 도를 본다
+	IF CFLAG:2 <= 500
+		SOURCE:환락 += CFLAG:2
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+	ELSE
+		SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+	ENDIF
+	SIF SOURCE:환락 < 0
+		SOURCE:환락 = 0
+	
+	SOURCE:정복 = 300 + 100 * ABL:새드끼
+	
+ENDIF
+TIME += 60
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;돈 벌어 한다
+@COM_ABLE613
+;일괄관리
+SIF GLOBAL_COMABLE(613)
+	RETURN RESULT
+;데이트중 이외
+SIF !CHK_DATENOW(CFLAG:MASTER:데이트중)
+	RETURN 0
+;데이트 도중
+SIF (CFLAG:MASTER:현재위치 % 100) % 10
+	RETURN 0
+;현재위치에 금책 원래가 없다
+SIF !DATE_PARTTIME(CFLAG:MASTER:현재위치)
+	RETURN 0
+;수면중
+SIF CFLAG:MASTER:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 0
+

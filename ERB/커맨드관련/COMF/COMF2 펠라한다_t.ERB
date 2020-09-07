@@ -1,0 +1,139 @@
+﻿;-------------------------------------------------
+;펠라한다
+;애무계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM2
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;봉사 쾌락
+TCVAR:PLAYER:108 = 1
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 4
+;강도
+TCVAR:TARGET:4 = 1000
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 50
+	SOURCE:PLAYER:쾌M += 50
+SOURCE:PLAYER:성행동 =7
+	SOURCE:쾌C = 110
+	;성기술보정
+	SOURCE:PLAYER:성행동 +=MIN(ABL:PLAYER:혀 * 25,100)/20
+	SOURCE:쾌C += MIN(ABL:PLAYER:혀 * 25,100)
+
+	;조교자의 TALENT:혀놀림을 본다
+	SIF TALENT:PLAYER:혀놀림
+		TIMES SOURCE:쾌C , 1.50
+
+	;조교자의 TALENT:고양이혀를 본다
+	SIF TALENT:PLAYER:고양이혀
+		TIMES SOURCE:쾌C , 0.75
+	;노예의 P⇔조교자의 입의 더러움이 이동
+	STAIN:2 |= STAIN:PLAYER:구
+	STAIN:PLAYER:구 |= STAIN:2
+	;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+	ENDIF
+	;조교자가 고양이혀 소유의 경우는, 조교자에게 가학쾌락경험을 추가
+	SIF TALENT:PLAYER:고양이혀
+		EXP:PLAYER:가학쾌락경험 += 1
+	EXP:PLAYER:펠라티오경험 ++
+ELSE
+
+	DOWNBASE:체력 += 5
+	DOWNBASE:기력 += 50
+	SOURCE:PLAYER:쾌M += 50
+
+	SOURCE:PLAYER:성행동 =5
+	SOURCE:쾌C = 110
+	SOURCE:노출 = 20
+	SOURCE:일탈 = 20
+	SOURCE:반감 = 20
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 20
+
+	;성기술보정
+	IF ABL:PLAYER:혀 >= 4
+		SOURCE:PLAYER:성행동 =5
+		SOURCE:쾌C += 100
+	ELSE
+	SOURCE:PLAYER:성행동 +=ABL:PLAYER:혀 
+		SOURCE:쾌C += ABL:PLAYER:혀 * 25
+	ENDIF
+
+	;조교자의 TALENT:혀놀림을 본다
+	SIF TALENT:PLAYER:혀놀림
+		TIMES SOURCE:쾌C , 1.50
+
+	;조교자의 TALENT:고양이혀를 본다
+	SIF TALENT:PLAYER:고양이혀
+		TIMES SOURCE:쾌C , 0.75
+	;-------------------------------------------------
+	;더러움의 처리
+	;-------------------------------------------------
+	;노예의 P⇔조교자의 입의 더러움이 이동
+	STAIN:2 |= STAIN:PLAYER:구
+	STAIN:PLAYER:구 |= STAIN:2
+
+	;-------------------------------------------------
+	;경험의 처리
+	;-------------------------------------------------
+	;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 3
+	ENDIF
+	;조교자가 고양이혀 소유의 경우는, 조교자에게 가학쾌락경험을 추가
+	SIF TALENT:PLAYER:고양이혀
+		EXP:PLAYER:가학쾌락경험 += 1
+	EXP:PLAYER:펠라티오경험 ++
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE2
+;펠라하는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(2)
+	RETURN RESULT
+;성기가 더러워져 있으면(자) PLAYER의 경우 펠라하고는 할 수 없다(조교자가 더러움 무시나 애액, P, 모유, 초콜렛의 얼룩이라면 OK)
+SIF STAIN:2 >= 4 && (STAIN:2 != 18 && STAIN:2 != 19 && STAIN:2 != 128 && STAIN:2 != 129 && STAIN:2 != 130 && STAIN:2 != 131 && STAIN:2 != 144 && STAIN:2 != 145 && STAIN:2 != 146 && STAIN:2 != 147) && ASSIPLAY == 0 && TALENT:PLAYER:악취내성 < 2
+	RETURN 0
+;성기가 더러워져 있어 악취 민감으로 순종 3 이하의 ASSI의 경우 펠라는 할 수 없다(조교자가 더러움 무시나 애액, P, 모유, 초콜렛의 얼룩이라면 OK)
+IF STAIN:2 >= 4 && (STAIN:2 != 18 && STAIN:2 != 19 && STAIN:2 != 128 && STAIN:2 != 129 && STAIN:2 != 130 && STAIN:2 != 131 && STAIN:2 != 144 && STAIN:2 != 145 && STAIN:2 != 146 && STAIN:2 != 147) && ASSIPLAY
+	SIF ABL:ASSI:순종 <= 3 && TALENT:ASSI:악취내성 < 0
+		RETURN 0
+ENDIF
+;고양이혀의 조교자의 경우는 기교 Lv2 이상 필요
+SIF TALENT:PLAYER:고양이혀 && ABL:PLAYER:기교 < 2
+	RETURN 0
+;남자인가 양성이 아니면 안 돼
+SIF !(HAS_PENIS(TARGET))
+	RETURN 0
+
+;하반신착의;바지는 불가가 되어 있지만, 바지라면 자지 낼 수 있어도 문제인이군요?
+;SIF TEQUIP:0 & 4
+	;RETURN 0
+;오나홀사용중은 안 돼
+SIF TEQUIP:12
+	RETURN 0
+RETURN 1

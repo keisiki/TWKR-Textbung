@@ -1,0 +1,211 @@
+﻿;-------------------------------------------------
+;머리를어루만진다
+;일상계 커맨드 레벨 2
+;-------------------------------------------------
+@COM309
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 10
+ELSE
+	SELECTCASE TFLAG:192
+		;통상
+		CASE 0
+			LOCAL = RAND:110
+			LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+			SIF LOCAL:1 > 109
+				LOCAL:1 = 109
+			IF LOCAL <= 9
+				;대성공
+				TFLAG:193 = 1
+				IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+					;KR판 오리지날 붉은실
+					CALL 붉은실발동
+					EXP:MASTER:데이트경험 ++
+					EXP:TARGET:데이트경험 ++
+				ENDIF
+				TFLAG:98 = 2
+			ELSEIF LOCAL >= LOCAL:1
+				;실패
+				TFLAG:193 = -1
+				TFLAG:98 = -2
+			ELSE
+				;나머지 성공
+				TFLAG:193 = 0
+				TFLAG:98 = 0
+			ENDIF
+		;강제성공 or 대성공
+		CASE 1
+			IF RAND:110 <= 9
+				IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+					;KR판 오리지날 붉은실
+					CALL 붉은실발동
+					EXP:MASTER:데이트경험 ++
+					EXP:TARGET:데이트경험 ++
+				ENDIF
+			TFLAG:98 = 2
+			ELSE
+				;나머지 성공
+				TFLAG:193 = 0
+				TFLAG:98 = 0
+			ENDIF
+		;강제실패
+		CASE -1
+			TFLAG:193 = -1
+			TFLAG:98 = -2
+		;커맨드종료
+		CASE -2
+			TFLAG:193 = -1
+			RETURN 0
+	ENDSELECT
+
+	;선제 발생시는 실패하지 않는다
+	SIF TFLAG:102 == 3 && TFLAG:192 != -1
+		TFLAG:193 = MAX(TFLAG:193,0)
+	IF CFLAG:동침중
+		DOWNBASE:MASTER:기력 += 50
+	ELSEIF CHK_DATENOW(CFLAG:TARGET:데이트중)
+		DOWNBASE:기력 += 30
+		DOWNBASE:MASTER:기력 += 30
+	ELSE
+		DOWNBASE:기력 += 50
+		DOWNBASE:MASTER:기력 += 50
+	ENDIF
+
+	TFLAG:98 += 1
+
+	;고정으로 획득하는 소스
+	SOURCE:환락 = 150
+	SOURCE:사랑 = 150
+	SOURCE:반감 = 100
+
+	;ABL:친밀을 본다
+	IF ABL:친밀 <= 3
+		SOURCE:환락 += 150 + (ABL:친밀 * 50)
+		SOURCE:사랑 += 180 + (ABL:친밀 * 40)
+	ELSEIF ABL:친밀 <= 5
+		SOURCE:환락 += 500 + (ABL:친밀 * 50)
+		SOURCE:사랑 += 450 + (ABL:친밀 * 30)
+	ELSEIF ABL:친밀 <= 8
+		SOURCE:환락 += 800 + (ABL:친밀 * 50)
+		SOURCE:사랑 += 700 + (ABL:친밀 * 50)
+	ELSEIF ABL:친밀 <= 11
+		SOURCE:환락 += 1000 + (ABL:친밀 * 90)
+		SOURCE:사랑 += 900 + (ABL:친밀 * 50)
+	ELSE
+		SOURCE:환락 += 1800 + (ABL:친밀 * 40)
+		SOURCE:사랑 += 2000 + (ABL:친밀 * 20)
+	ENDIF
+
+	;호감 도를 본다
+	IF CFLAG:2 <= 500
+		SOURCE:환락 += CFLAG:2
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+	ELSE
+		SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+	ENDIF
+	SIF SOURCE:환락 < 0
+		SOURCE:환락 = 0
+
+	;자고 있는 경우 효과 반액
+	IF CFLAG:수면 && SOURCE:환락 > 0
+		SOURCE:환락 = SOURCE:환락 / 2
+		SOURCE:사랑 = SOURCE:사랑 / 2
+	ENDIF
+
+	LOCAL = 0
+	;수면중은 호감도 변화 없음
+	IF !CFLAG:수면
+		;친밀이 낮으면 호감도 저하
+		IF ABL:친밀 == 0
+			LOCAL -= 3
+		ELSEIF ABL:친밀 == 1
+			LOCAL -= 2
+		ELSEIF ABL:친밀 == 2
+			LOCAL -= 1
+		ENDIF
+		;호감도가 낮으면 호감도 저하
+		IF CFLAG:2 <= 50
+			LOCAL -= 3
+		ELSEIF CFLAG:2 <= 100
+			LOCAL -= 2
+		ELSEIF CFLAG:2 <= 250
+			LOCAL -= 1
+		ENDIF
+	ENDIF
+
+	SOURCE:욕정 = 50 + 150 * ABL:욕망
+	SOURCE:수동 = 100 + 200 * ABL:순종
+
+	;호감도 변화
+	TFLAG:97 += LOCAL
+
+	IF TFLAG:193 == -1
+		TIMES SOURCE:환락 , 0.10
+		TIMES SOURCE:사랑 , 0.50
+		TIMES SOURCE:수동 , 0.50
+		TIMES SOURCE:욕정 , 0.50
+		TIMES SOURCE:반감 , 1.50
+	ELSEIF TFLAG:193 == 0
+		TIMES SOURCE:환락 , 1.00
+		TIMES SOURCE:사랑 , 1.00
+		TIMES SOURCE:수동 , 1.00
+		TIMES SOURCE:욕정 , 1.00
+	ELSE
+		TIMES SOURCE:환락 , 2.00
+		TIMES SOURCE:사랑 , 2.00
+		TIMES SOURCE:수동 , 2.00
+		TIMES SOURCE:욕정 , 2.00
+		TIMES SOURCE:반감 , 0.75
+	ENDIF
+
+	IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+		TIME += 10
+		;KR판 오리지날 붉은실
+		CALL 붉은실발동
+		EXP:MASTER:데이트경험 ++
+		EXP:TARGET:데이트경험 ++
+		;머리를어루만진다 플래그
+		TCVAR:304 = 1440 * DAY + TIME
+		CALL DATE_GOES_ON(1)
+	ELSE
+		TIME += 20
+		;머리를어루만진다 플래그
+		TCVAR:304 = 1440 * DAY + TIME
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE309
+;머리를 어루만지는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(309) && !CFLAG:장난 && !CFLAG:동침중
+	RETURN RESULT
+;시간정지중은 스킵
+IF !FLAG:70
+	;친해져 강도 1
+	SIF (TCVAR:MASTER:친해져 < 1) && !CFLAG:수면
+		RETURN 0
+	;수면중
+	SIF CFLAG:수면 && !CFLAG:장난 && !CFLAG:동침중
+		RETURN 0
+	;수면간중
+	SIF CFLAG:장난 > 1
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5
+		RETURN 0
+	;1시간 간격
+	SIF TIME_PROGRESS(TCVAR:304) < 60 && !CFLAG:장난 && !CFLAG:동침중
+		RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+
+RETURN 1
+

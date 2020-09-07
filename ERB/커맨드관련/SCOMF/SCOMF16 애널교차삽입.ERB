@@ -1,0 +1,409 @@
+﻿;-------------------------------------------------
+;アナル交互挿入
+;セックス、助手系派生コマンド
+;-------------------------------------------------
+@SCOM16
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+;行為者
+TCVAR:116 = PLAYER
+;TCVAR:0 射精対象フラグ（ビット0=TARGET 1=PLAYER 2=MASTER 3=ASSI）
+;TCVAR:1 予備射精対象フラグ（ビットを使いたくない人用、CFLAG:100に翻訳されます）	（1=TARGET 2=PLAYER 3=MASTER 4=ASSI 5=TARGET+ASSI 6=MASTER+ASSI）
+;TCVAR:2 射精箇所フラグ（-1=コンドーム 1=膣内 2=アナル 3=手淫 4=口淫 5=パイズリ 6=素股 7=足コキ 8=体表 9=アナル奉仕 10=道具 11=触手）
+;二人目
+LOCAL = MASTER_POSE(SET_A,SET_P,1)
+
+LOCALS = {TARGET}/{LOCAL}/
+CSTR:PLAYER:10 += LOCALS
+TCVAR:MASTER:2 = 2
+;強度
+TCVAR:MASTER:4 = 2500
+
+;奉仕快楽フラグ
+TCVAR:PLAYER:108 = 1
+
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 55
+	SOURCE:MASTER:쾌C = 690
+
+	SOURCE:쾌A = 460
+	SOURCE:고통 = 260
+
+	SOURCE:LOCAL:쾌A = 230
+	SOURCE:LOCAL:고통 = 260
+
+	FOR LOCAL:1,0,2
+		IF LOCAL:1 == 0
+			LOCAL:2 = TARGET
+		ELSE
+			LOCAL:2 = LOCAL
+		ENDIF
+		;Aへの苦痛は先に処理しておく
+		CALL PAIN_CHECK_A(LOCAL:2)
+	NEXT
+
+ELSE
+
+	DOWNBASE:체력 += 50
+	DOWNBASE:기력 += 110
+	SOURCE:MASTER:쾌C = 690
+
+	SOURCE:쾌A = 460
+	SOURCE:사랑 = 210
+	SOURCE:고통 = 510
+	SOURCE:노출 = 80
+	SOURCE:반감 = 350
+	SOURCE:성행동 = 300
+
+	SOURCE:LOCAL:쾌A = 230
+	SOURCE:LOCAL:사랑 = 100
+	SOURCE:LOCAL:고통 = 510
+	SOURCE:LOCAL:노출 = 40
+	SOURCE:LOCAL:반감 = 350
+	SOURCE:LOCAL:성행동 = 300
+	;上のほうで計算した汚れデータ
+	SOURCE:불결 = Y*10 + 60
+	SOURCE:LOCAL:불결 = Y*10 + 60
+
+
+	;-------------------------------------------------
+	;特殊ソース処理
+	;-------------------------------------------------
+	FOR LOCAL:1,0,2
+		IF LOCAL:1 == 0
+			LOCAL:2 = TARGET
+		ELSE
+			LOCAL:2 = LOCAL
+		ENDIF
+		;抑圧、抵抗持ちには、抑鬱ソース追加
+		SIF TALENT:(LOCAL:2):자기애 < 0 || TALENT:(LOCAL:2):저항
+			SOURCE:(LOCAL:2):울굴 += 310
+
+		;貞操観念持ちで恋慕、親愛持ち以外には常に反発のソースを追加する（セックス系のみ）
+		SIF TALENT:(LOCAL:2):정조 > 0 && !TALENT:(LOCAL:2):연모
+			SOURCE:(LOCAL:2):반감 += 1300
+
+		;Aへの苦痛は先に処理しておく
+		CALL PAIN_CHECK_A(LOCAL:2)
+	NEXT
+ENDIF
+;-------------------------------------------------
+;汚れの処理
+;-------------------------------------------------
+;射精に関係なく行われる処理はここから
+;奴隷のＶ⇔調教者のＰの汚れが移動
+STAIN:PLAYER:2 |= STAIN:4
+STAIN:PLAYER:2 |= STAIN:7
+STAIN:4 |= STAIN:PLAYER:2
+STAIN:7 |= STAIN:PLAYER:2
+;助手のＶ⇔調教者のＰの汚れが移動
+STAIN:PLAYER:2 |= STAIN:LOCAL:4
+STAIN:PLAYER:2 |= STAIN:LOCAL:7
+STAIN:LOCAL:4 |= STAIN:PLAYER:2
+STAIN:LOCAL:7 |= STAIN:PLAYER:2
+;奴隷のＶ⇔調教者のＰの汚れが移動
+STAIN:PLAYER:2 |= STAIN:4
+STAIN:PLAYER:2 |= STAIN:7
+STAIN:4 |= STAIN:PLAYER:2
+STAIN:7 |= STAIN:PLAYER:2
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:PLAYER:삽입경험 ++
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+	EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 3
+ENDIF
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,LOCAL)
+	EXP:LOCAL:(50 + HETEROSEX(TARGET,LOCAL)) += 3
+	EXP:TARGET:(50 + HETEROSEX(TARGET,LOCAL)) += 3
+ENDIF
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(LOCAL,PLAYER)
+	EXP:LOCAL:(50 + HETEROSEX(LOCAL,PLAYER)) += 3
+	EXP:PLAYER:(50 + HETEROSEX(LOCAL,PLAYER)) += 3
+ENDIF
+
+IF FLAG:70 == 1
+	EXP:MASTER:시간경험 += 1
+ELSE
+	EXP:A성교경험 ++
+	EXP:LOCAL:A성교경험 ++
+	IF !ASSIPLAY
+		EXP:애정경험 += TALENT:연모 * 2
+	ENDIF
+ENDIF
+RETURN 1
+
+@CAN_SCOM16(ARG)
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+IF FLAG:70 == 1
+	SKIPDISP ARG
+	PRINTL 애널교차삽입
+ELSE
+
+	;縄で縛られている場合は無視（縄が無い時のみ実行判定を行う）
+	IF TEQUIP:밧줄 == 0
+		SKIPDISP ARG
+		PRINTL 애널교차삽입
+		A = 0
+		S = 0
+		;すべての命令に共通の要素を考慮
+		;(従順が高いと命令に従いやすいなど)
+		CALL COM_ORDER
+
+		;ABL:욕망
+		IF ABL:욕망
+			SIF S
+				PRINT  + 
+			A += ABL:욕망 * 3
+			PRINT 욕망
+			PRINTV 'LV,ABL:욕망,'(,ABL:욕망 * 3,')
+			S = 1
+		ENDIF
+		;ABL:A감각
+		IF ABL:A감각
+			SIF S
+				PRINT  + 
+			A += ABL:A감각 * 2
+			PRINT Ａ감각
+			PRINTV 'LV,ABL:A감각,'(,ABL:A감각 * 2,')
+			S = 1
+		ENDIF
+		;快楽刻印
+		IF MARK:쾌락각인
+			SIF S
+				PRINT  + 
+			A += MARK:쾌락각인 * 3
+			PRINT 쾌락 각인
+			PRINTV 'LV,MARK:쾌락각인,'(,MARK:쾌락각인 * 3,')
+			S = 1
+		ENDIF
+		;PALAM:윤활（の不足）
+		IF PALAM:윤활 < PALAMLV:3
+			PRINT  - 
+			A -= 5
+			PRINT 윤활 부족
+			PRINTV '(,5,')
+			S = 1
+		ENDIF
+		;PALAM:욕정
+		IF GETPALAMLV(PALAM:욕정,5)
+			SIF S
+				PRINT  + 
+			A += GETPALAMLV(PALAM:욕정,5) * 3
+			PRINT 욕정
+			PRINTV 'LV,GETPALAMLV(PALAM:욕정,5),'(,GETPALAMLV(PALAM:욕정,5) * 3,')
+			S = 1
+		ENDIF
+		;恥じらい
+		IF TALENT:수치심 > 0
+			PRINT  - 
+			A -= 2
+			PRINT 수줍음
+			PRINTV '(,2,')
+			S = 1
+		ENDIF
+		;快感の否定
+		IF TALENT:쾌감응답 < 0 && !TALENT:연모
+			PRINT  - 
+			A -= 5
+			PRINT 쾌감의 부정
+			PRINTV '(,5,')
+			S = 1
+		ENDIF
+		;男嫌い（恋慕、親愛で無効）
+		IF OTOKOGIRAI(TARGET)
+			PRINT  - 
+			A -= 12
+			PRINT 남자 싫다
+			PRINTV '(,12,')
+			S = 1
+		ENDIF
+		;恋慕
+		IF TALENT:연모 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 12
+			PRINT 연모
+			PRINTV '(,12,')
+			S = 12
+		ENDIF
+		;親愛
+		IF TALENT:연모 > 1 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 2
+			PRINT 친애
+			PRINTV '(,2,')
+			S = 2
+		ENDIF
+		;淫乱
+		IF TALENT:음란 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 3
+			PRINT 음란
+			PRINTV '(,3,')
+			S = 3
+		ENDIF
+		;娼婦
+		IF TALENT:음란 > 1 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 3
+			PRINT 창녀
+			PRINTV '(,3,')
+			S = 1
+		ENDIF
+		;A経験
+		IF EXP:A경험 < EXPLV:2
+			PRINT  - 
+			A -= 15
+			PRINT Ａ경험
+			PRINT 부족
+			PRINTV '(,15,')
+			S = 1
+		ENDIF
+
+		;調教者がふたなり
+		IF (TALENT:PLAYER:2 & 3) == 3
+			SIF S
+				PRINT  + 
+			A += 4
+			PRINT 뚜껑이든지
+			PRINTV '(,4,')
+			S = 1
+		ENDIF
+
+		;媚薬
+		IF TCVAR:춘약
+			SIF S
+				PRINT  + 
+			A += 6
+			PRINT 미약
+			PRINTV '(,6,')
+			S = 1
+		ENDIF
+
+		Y = 0
+		;愛液の汚れ
+		SIF STAIN:PLAYER:2 & 1
+			Y += 1
+		;精液の汚れ
+		SIF STAIN:PLAYER:2 & 4
+			Y += 3
+		Y = Y * (2 - TALENT:악취내성) / 2
+
+		;汚れあり
+		IF Y
+			PRINT  - 
+			A -= Y
+			PRINT 서로 더러워져
+			;汚臭鈍感
+			IF TALENT:악취내성 > 0
+				PRINT , 악취 둔감
+			ELSEIF TALENT:악취내성 < 0
+				PRINT , 악취 민감
+			ENDIF
+			PRINTV '(,Y,')
+			S = 1
+		ENDIF
+
+		;合計を表示(25以上で実行)
+		PRINT  = 
+		PRINTV A
+
+		V = 25
+		SIF A < V
+			PRINT  < 
+		SIF A == V
+			PRINT  = 
+		SIF A > V
+			PRINT  > 
+		PRINT 실행치
+		PRINTV V
+
+		WAIT
+
+		SKIPDISP 0
+		;実行できない
+		SIF A < V
+			RETURN 0
+	ELSE
+		SKIPDISP ARG
+		PRINTL 애널교차삽입
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;選択可能判定
+;-------------------------------------------------
+@COM_ABLE516
+;アナル交互挿入
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(516)
+	RETURN RESULT
+LOCAL = MASTER_POSE(SET_V,SET_P,1)
+;アナルバイブ挿入中はダメ
+SIF TEQUIP:14
+	RETURN 0
+SIF TEQUIP:LOCAL:14
+	RETURN 0
+;オトコだとダメ
+;SIF !(TALENT:2 & 1)
+;	RETURN 0
+;SIF !(TALENT:LOCAL:2 & 1)
+;	RETURN 0
+;体格差がある場合は主人が禁断の知識持ちじゃないとダメ
+SIF ABS(TALENT:체형 - TALENT:PLAYER:체형) > 2 && !TALENT:PLAYER:금단의지식
+	RETURN 0
+SIF ABS(TALENT:LOCAL:체형 - TALENT:PLAYER:체형) > 2 && !TALENT:PLAYER:금단의지식
+	RETURN 0
+;調教者がオトコ、半人半妖、ふたなり、もしくはペニスバンドがないとダメ
+SIF !(TALENT:PLAYER:2 & 2) && ITEM:PBAND == 0
+	RETURN 0
+;処女で、従順4以下・レズっ気4以下のASSIの場合はできない（サドならＯＫ）
+;IF TALENT:처녀 && ASSIPLAY
+;	SIF (ABL:ASSI:순종 <= 4 || ABL:ASSI:레즈끼 <= 4) && TALENT:ASSI:새드 == 0
+;		RETURN 0
+;ENDIF
+;時間停止中は許可
+IF FLAG: 70 != 1
+	;潤滑不足はだめ
+	SIF PALAM:윤활 < PALAMLV:2
+		RETURN 0
+	SIF PALAM:LOCAL:윤활 < PALAMLV:2
+		RETURN 0
+ENDIF
+
+;下半身着衣
+SIF TEQUIP:0 & 4
+	RETURN 0
+SIF TEQUIP:LOCAL:0 & 4
+	RETURN 0
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+
+;助手が騎乗位からはダメ
+;SIF TEQUIP:LOCAL:체위2 == 3
+;	RETURN 0
+
+RETURN 1
+

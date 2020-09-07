@@ -1,0 +1,268 @@
+﻿;--------------------------------------------------------------------------------------------------
+;eraTW 코치야 사나에 말UPDATE
+;
+;※주의 본체버전 갱신 시에는
+;　　　　「@M_KOJO_UPDATE_K31」의 「#DIM CONST 사나에말ver」의 갱신을 잊지 않는 것!
+;--------------------------------------------------------------------------------------------------
+
+;------M_KOJO_K31_UPDATE.ERB-----------------------------------------------------------------------
+;2017/4/26　Ver 0.03. 00　「M_KOJO_K31_이벤트. ERB」보다 분리
+;--------------------------------------------------------------------------------------------------
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"UPDATE 판정"
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+@M_KOJO_UPDATE_K31
+;말 독자적인 UPDATE용
+;ENCOUNTER 전용에 독자 분기 플래그를 가르쳤을 경우등에 부디
+;UPDATE 판정으로 CFLAG를 사용하는 경우, 캐릭터 번호의 지정이 필요하게 됩니다
+
+;현재의ver는 ver0. 03입니다
+#DIM CONST 사나에말ver = 3
+
+
+#DIM 현재의ver정수
+#DIM 현재의ver소수
+#DIM 사나에말ver정수
+#DIM 사나에말ver소수
+
+
+;ver0. 02 이전에는 이 UPDATE CHECK는 없었기 때문에
+SIF !CFLAG:31:K31_CFLAG_SYSTEM_VERSION
+	CFLAG:31:K31_CFLAG_SYSTEM_VERSION = 2
+
+;PRINTFORM중에%를 등장시켜 이상한 느낌에 시키고 싶지 않기 때문에 여기서 변환
+현재의ver정수 = CFLAG:31:K31_CFLAG_SYSTEM_VERSION / 100
+현재의ver소수 = CFLAG:31:K31_CFLAG_SYSTEM_VERSION % 100
+사나에말ver정수 = 사나에말ver / 100
+사나에말ver소수 = 사나에말ver % 100
+
+CALL M_KOJO_COLOR_K31
+;업데이트시의 머리의 문장
+PRINTL 
+PRINTL --사나에 말UPDATE CHECK--
+RESETCOLOR
+
+;「소질의 변경」을 실시하고 있는 경우 사나에의 청소기능은 0이 되지만
+;본체의 UPDATE에 의해 CSV의 값이 읽혀 버리기 (위해)때문에 재수정을 실시한다
+;사실은 UPDATE 고쳐 써, 사나에만 무효로 하고 싶지만 버그의 온상이 될 것 같아서 그만둔다
+IF CFLAG:31:3121 == 1
+	;---청소기능　( D 1 → E 0)---
+	;---청소경험　( 20 → 4)---
+	;분명히, 요리까지 붙이면(자) 소질 너무 번창하고 상태이므로(기능에 E가 하나도 없다든가 말하는 상태) 청소기능에 하부수정
+	;이미 기능, 경험이 자라고 있는 경우는 변경하지 않는다
+	IF ABL:31:40 == 1 && EXP:31:70 < 21
+		PRINTL 
+		PRINTL 본체의 UPDATE에 의해, 사나에의 기능이 덧쓰기되었으므로 재수정합니다
+		PRINTL 
+		PRINT 	청소기능(
+		CALL PRINT_RANK(ABL:31:40,"MAX_6")
+		PRINTFORM  {ABL:31:40} →
+		CALL PRINT_RANK(0,"MAX_6")
+		RESETCOLOR
+		PRINTL  0)
+		
+		PRINTFORML 	청소경험( {EXP:31:70} → 4)
+		ABL:31:40 = 0
+		EXP:31:70 = 4
+	ENDIF
+ENDIF
+;--------------------------------------------------------------------------------------------
+;사나에 말의 버전 체크
+;--------------------------------------------------------------------------------------------
+;같은 버전의 경우
+IF 사나에말ver == CFLAG:31:K31_CFLAG_SYSTEM_VERSION
+	PRINTL 
+	PRINTFORML %"현재：Ver " + TOSTR(현재의ver정수) + ". " + TOSTR(현재의ver소수,"D2")%
+	PRINTFORML %"적용：Ver " + TOSTR(사나에말ver정수) + ". " + TOSTR(사나에말ver소수,"D2")%
+	PRINTL 
+	PRINTFORML 최신의 버전이 적용되고 있습니다 업데이트의 필요는 없습니다
+	RETURN 1
+ENDIF
+
+;다운 그레이드 하려고 하고 있다∼
+IF 사나에말ver < CFLAG:31:K31_CFLAG_SYSTEM_VERSION
+	PRINTL 
+	SETCOLOR C_RED
+	PRINTFORML 【주의!】현재 적용되고 있는 것보다 이전의 버전이 적용되려 하고 있습니다
+	RESETCOLOR
+	PRINTL 
+	PRINTFORML %"현재：Ver " + TOSTR(현재의ver정수) + ". " + TOSTR(현재의ver소수,"D2")%
+	SETCOLOR C_RED
+	PRINTFORML %"적용：Ver " + TOSTR(사나에말ver정수) + ". " + TOSTR(사나에말ver소수,"D2")%
+	RESETCOLOR
+	PRINTL 
+	PRINTL 업데이트를 속행합니까?
+	PRINTL -YES는 기본적으로 이 분기에 들어가는 원인을 알 수 있고 있는 경우만 사용해 주세요―
+	PRINTL *버그가 발생해도 모르는*
+	PRINTFORML [0]-YES(강제적으로 적용 버전에의 변경을 실시합니다)
+	PRINTFORML [1]-NO
+	INPUT
+	IF !RESULT
+		PRINTL 업데이트를 속행하는 버그의 발생에 조심해 주세요
+	ELSE
+		PRINTL 업데이트를 중단하는 최신 버전을 취득해 주세요
+		RETURN 1
+	ENDIF
+ENDIF
+
+IF 사나에말ver > CFLAG:31:K31_CFLAG_SYSTEM_VERSION
+	PRINTL 
+	SETCOLOR C_YELLOW
+	PRINTFORML 버전의 업데이트를 실시합니다
+	RESETCOLOR
+	PRINTL 
+	PRINTFORML %"현재：Ver " + TOSTR(현재의ver정수) + ". " + TOSTR(현재의ver소수,"D2")%
+	CALL M_KOJO_COLOR_K31
+	PRINTFORML %"적용：Ver " + TOSTR(사나에말ver정수) + ". " + TOSTR(사나에말ver소수,"D2")%
+	RESETCOLOR
+ENDIF
+
+;####################################################
+;여기에서 버전의 업데이트가 시작된다
+;####################################################
+;----------------------------------------------------
+;소질의 변경(Ver 0.03로부터
+;----------------------------------------------------
+
+IF CFLAG:31:3121 == 0 && (ABL:31:44 < 2 || EXP:31:79 < 200 || EXP:31:76 < 50 || EXP:31:70 < 50)
+	PRINTL 
+	PRINTL -----소질 기능의 변경-----
+	;요컨데, 이대로라면 말의 내용과 기능·소질이 서로 맞물리지 않는 경우가 있으므로 그것이 신경이 쓰이는 사람은 부디
+	PRINTL 말내용과의 정합성이기 때문에 사나에 씨의 소질 기능을 변경할 수가 있습니다
+	PRINTL 변경해도 하지 않아도, 시스템상에 영향을 미 것은 없습니다
+	;PRINTL 「이 아이 메시마즈의 주제에무슨 말하고 있다…」가 신경이 쓰이는 (분)편은 변경을 부디
+	PRINTL 
+	PRINTL ※변경되는 소질·능력
+	
+	;---[음악지식]부여(정확하게는, 악기지식)---
+	;음악기능이 B인 것에 동반해 추가
+	;분명히 -라든지 츠쿠모 자매와 같은 레벨로 아무것도 없다고 하는 것도
+	;어쩐지[연주하는]의 지문이 변화하는 것 같기 때문에 코멘트 아웃
+	;자력으로 잡히는 것 같기 때문에 힘내자 (연주경험1000+기교 4이상)
+	;IF !TALENT:31:음악지식
+	;	PRINTL [음악지식]추가
+	;	PRINTL 
+	;ENDIF
+
+	;---연주경험　( 0 → 200)---
+	;음악기능이 B인 것에 동반해 추가
+	SIF EXP:31:79 < 200
+		PRINTFORML 	연주경험( {EXP:31:79} → 200)
+
+	;---요리기능　( E 0 → C 2)---
+	;음악기능으로 잘못알 수 있었던 쿠소 불쌍한 아이
+	;분명히 불쌍해서 추가
+	IF ABL:31:44 < 2
+		PRINT 	요리기능(
+		CALL PRINT_RANK(ABL:31:44,"MAX_6")
+		PRINTFORM  {ABL:31:44} →
+		CALL PRINT_RANK(2,"MAX_6")
+		RESETCOLOR
+		PRINTL  2)
+	ENDIF
+
+	;---요리경험　( 0 → 50)---
+	;요리기능이 C인 것에 동반해 추가
+	;요리기능을 붙이려고 음악기능이 붙어있는 같은 사나에 씨에게 요리기능 및 요리경험을 붙인다
+	;3사람 모여 기능 0의 메시마즈 신사 구제 법안
+	SIF EXP:31:76 < 50
+		PRINTFORML 	요리경험( {EXP:31:76} → 50)
+	
+	;---청소기능　( D 1 → E 0)---
+	;---청소경험　( 20 → 4)---
+	;분명히, 요리까지 붙이면(자) 소질 너무 번창하고 상태이므로(기능에 E가 하나도 없다든가 말하는 상태) 청소기능에 하부수정
+	;이미 기능, 경험이 자라고 있는 경우는 변경하지 않는다
+	IF ABL:31:40 == 1 && EXP:31:70 < 21
+		PRINT 	청소기능(
+		CALL PRINT_RANK(ABL:31:40,"MAX_6")
+		PRINTFORM  {ABL:31:40} →
+		CALL PRINT_RANK(0,"MAX_6")
+		RESETCOLOR
+		PRINTL  0)
+		
+		PRINTFORML 	청소경험( {EXP:31:70} → 4)
+	ENDIF
+	
+	
+	PRINTL 
+	PRINTFORML [0]-보류한다		(이 장소에서는 변경하지 않습니다, 이 선택지는 버전 변경 때에 다시 등장합니다)
+	PRINTFORML [1]-변경한다		(이 선택지는 다시 등장하지 않습니다)
+	PRINTFORML [2]-변경시키지 않다	(이 선택지는 다시 등장하지 않습니다)
+	INPUT
+	SELECTCASE RESULT
+	;보류했습니다
+	CASE 0
+		CFLAG:31:3121 = 0
+		PRINTL 보류했습니다
+		PRINTW 
+	;변경했습니다
+	CASE 1
+		CFLAG:31:3121 = 1
+		PRINTL 변경했습니다
+		
+		;변경 내용은 여기에 기술
+		;SIF !TALENT:31:음악지식
+		;	TALENT:31:음악지식 = 1
+		SIF EXP:31:79 < 200
+			EXP:31:79 = 200
+		SIF ABL:31:44 < 2
+			ABL:31:44 = 2
+		SIF EXP:31:76 < 50
+			EXP:31:76 = 50
+		IF ABL:31:40 == 1 && EXP:31:70 < 21
+			ABL:31:40 = 0
+			EXP:31:70 = 4
+		ENDIF
+		PRINTW 
+	;변경시키지 않습니다
+	CASEELSE
+		CFLAG:31:3121 = -1
+		PRINTL 변경시키지 않습니다
+		PRINTW 
+	ENDSELECT
+	;============================================================
+	;[1],[2]를 선택했지만 아무래도 다시 한 번 선택지를 선택하고 싶을 때
+	;1. CFLAG:31:3121 = 0 으로 한다
+	;============================================================
+ENDIF
+;----------------------------------------------------
+;안면의 박탈(Ver 0.01로부터
+;----------------------------------------------------
+;말적으로는 「처음부터」같은 것 버전 업으로 사양이 바뀌었을 경우나, 다른 루트에 가고 싶을 때 라든지 부디
+;사실은 플래그등의 리셋는 초대면시에 가고 있다
+IF CFLAG:31:18 != 0
+	PRINTL 
+	PRINTL -----안면에 대해―----
+	PRINTL 당신은, 이미 사나에 씨와 안면이 있습니다
+	PRINTL 「말을 업데이트 했다」또는, 「처음으로 도입했을」경우 안면의 리셋를 강하게 추천 합니다
+	PRINTL 또, 말적으로는 「처음부터」와 같은 것으로, 말내에서의 진행 상태·플래그도 모두 초기화됩니다
+	PRINTL 버전 업시의 「readme.txt」에서 안면의 리셋가 강하고 추천 되고 있는 경우
+	PRINTL 최신 버전에 대해, 진행 상태·플래그에 개변을 실시한 가능성이 있습니다
+	PRINTL (따라서, 상기 조건으로 리셋 하지 않았던 경우의 버그는 사양입니다)
+	PRINTL 
+	PRINTFORML [0]-리셋 하군
+	PRINTFORML [1]-
+	INPUT
+	IF !RESULT
+		CFLAG:31:18 = 0
+		PRINTL -안면을 리셋 했습니다―　사나에 씨와는 초대면이 됩니다
+	ELSE
+		PRINTL -안면을 리셋 하지 않았습니다―
+	ENDIF
+ENDIF
+
+CFLAG:31:3120 = 사나에말ver
+
+;PRINTFORM중에%를 등장시켜 이상한 느낌에 시키고 싶지 않기 때문에 여기서 변환
+현재의ver정수 = CFLAG:31:K31_CFLAG_SYSTEM_VERSION / 100
+현재의ver소수 = CFLAG:31:K31_CFLAG_SYSTEM_VERSION % 100
+
+PRINTL 
+PRINTL 업데이트를 완료했습니다
+
+CALL M_KOJO_COLOR_K31
+PRINTFORML 적용 버전　%"Ver " + TOSTR(현재의ver정수) + ". " + TOSTR(현재의ver소수,"D2")%
+RESETCOLOR
+PRINTL 
+
+RETURN 1

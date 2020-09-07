@@ -1,0 +1,326 @@
+﻿;FileName_ATTITUDE.ERB --------------------------------- Rev1. 00
+;캐릭터의 태도
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@CHARA_ATTITUDE
+VARSET LOCAL
+FOR LOCAL, 1, CHARANUM
+	SELECTCASE CFLAG:LOCAL:호감도
+		CASE IS < 1000
+			LOCAL:1 = 0
+		CASE 1001 TO 3000
+			LOCAL:1 = 50
+		CASE 3001 TO 5000
+			LOCAL:1 = 75
+		CASE 5001 TO 10000
+			LOCAL:1 = 100
+		CASE 10001 TO 30000
+			LOCAL:1 = 150
+		CASE 30001 TO 50000
+			LOCAL:1 = 200
+		CASEELSE
+			LOCAL:1 = 300
+	ENDSELECT
+	SELECTCASE CFLAG:LOCAL:신뢰도
+		CASE IS < 100
+			LOCAL:1 -= 50
+		CASE 101 TO 300
+			LOCAL:1 -= 20
+		CASE 301 TO 500
+			LOCAL:1 += 0
+		CASE 501 TO 750
+			LOCAL:1 += 30
+		CASE 751 TO 1000
+			LOCAL:1 += 50
+		CASEELSE
+			LOCAL:1 += 100
+	ENDSELECT
+	;함락 소질에 의한 수정
+	LOCAL:1 += TALENT:LOCAL:연모 * 100 + TALENT:LOCAL:사모 * 30 + TALENT:LOCAL:애욕 * 80 + TALENT:LOCAL:섹프 * 30
+	;ABL에 의한 수정
+	LOCAL:1 += MIN(ABL:LOCAL:친밀, 20) * 10 + MIN(ABL:LOCAL:욕망, 20) * 5
+	;PALAM에 의한 수정(함께 최대 15 LV)
+	LOCAL:1 += GETPALAMLV(PALAM:LOCAL:욕정, 15) * 5 + GETPALAMLV(PALAM:LOCAL:호의, 15) * 5
+	;무드와 이성의 밤수정
+	LOCAL:1 += BASE:LOCAL:무드 / 25 + (1000 - BASE:LOCAL:이성) / 25
+	;각인에 의한 수정
+	LOCAL:1 += MARK:LOCAL:괘씸각인 * 20 + MARK:LOCAL:쾌락각인 * 20
+	LOCAL:1 -= MIN(MARK:LOCAL:반발각인 - MARK:LOCAL:시간각인 , 0) * 30
+	;약
+	IF TCVAR:LOCAL:발정
+		LOCAL:1 += 50
+	ELSEIF TCVAR:LOCAL:미약 || TCVAR:LOCAL:춘약
+		LOCAL:1 += 30
+	ENDIF
+	;남성기피
+	SIF OTOKOGIRAI(LOCAL)
+		LOCAL:1 -= 70
+	;동성으로 양도가 아닌 경우, 태도가 2이상이 되기 어렵다
+	;코멘트에 따른 조건에 개조, 덧붙여 양성은 동성 취급
+	IF TALENT:LOCAL:성별기호 != -1 && HETEROSEX(MASTER, LOCAL)
+			IF LOCAL:1 < 150
+				LOCAL:1 += 20
+			ELSEIF LOCAL:1 > 200
+				LOCAL:1 -= 30
+			ENDIF
+		;ENDIF
+	ENDIF
+	SIF TALENT:LOCAL:걸레
+		LOCAL:1 += 400
+	SIF CFLAG:LOCAL:억지로질내사정
+		LOCAL:1 -= 100
+	SIF LOCAL:1 >= 100 && FLAG:생활능력무
+		LOCAL:1 += 50
+	CFLAG:LOCAL:합의판정 = LOCAL:1
+	SELECTCASE CFLAG:LOCAL:합의판정
+		CASE IS >= 500
+			CFLAG:LOCAL:태도 = 3
+		CASE IS >= 300
+			CFLAG:LOCAL:태도 = 2
+		CASE IS >= 150
+			CFLAG:LOCAL:태도 = 1
+		CASEELSE
+			CFLAG:LOCAL:태도 = 0
+	ENDSELECT
+	SIF CFLAG:LOCAL:빡침 && !FLAG:70
+		CFLAG:LOCAL:태도 = 0
+	SIF CFLAG:LOCAL:수면
+		CFLAG:LOCAL:태도 = 0
+NEXT
+
+;FileName_ATTITUDE.ERB ------------------------------- Rev1. 00
+;키스 성공 여부 판정
+;CALL		USER
+;ARG		커맨드 NO
+;RETURN		1:커맨드 거부, 0:커맨드 성공
+;COMMENT	
+;-----------------------------------------------------------
+@REJECT_CHECK(ARG)
+#FUNCTION
+#DIM 필요치
+필요치 = 0
+VARSET LOCAL
+;파라미터에 의해 성공 기초치 판정
+
+SELECTCASE ARG
+	;키스
+	CASE 312, 602
+		필요치 = 200 + TALENT:일선을넘지않음 * 30 + ABS(TALENT:키스미경험) * 20
+		SIF GETBIT(CFLAG:기정사실, 0)
+			필요치 -= 20
+		SIF TALENT:사모 && !TALENT:연모
+			필요치 -= 30
+		;키스에 의해 합의가 붙는, 합의유의 경우 판정 없음
+		IF (CFLAG:합의판정 > 필요치) || GETBIT(CFLAG:기정사실 , 2)
+			RETURNF 0
+		ELSE
+			RETURNF 1
+		ENDIF
+ENDSELECT
+
+
+
+;TFLAG:194 (1=명째가 있다　2=야외는 싫어 입니다만　3=많은 사람 플레이는 용서　4=합의가 있어도 무드가 충분하지 않다
+;TCVAR:껴안고첫회　1=보통으로 합의Get　2=먼저 키스 정도 해라　3=미약or발정에는 이길 수 없었어요 …　4=분한…각인조차 없으면 히″쿠히″군　5=억지로 재촉당한다고 거절할수 없다
+;6=반드시 싫지만은 않다　7=안 돼　8=논외　9=삽입금지 10= 모리야복권데이트상대
+
+@껴안고(ARG)
+#DIM 호의판정치
+#DIM 이성판정치
+#DIM 합의붙지않는다
+
+합의붙지않는다 = 0
+호의판정치 = CFLAG:ARG:합의판정
+이성판정치 = 껴안고필요치(ARG)
+;발정 등은 미리 CFLAG:합의판정으로 계산에 들어가 있지만,
+;그것을 강조하는 연출을 위해서(때문에) 굳이 거기를 공제해 둔다
+IF TCVAR:ARG:발정
+	호의판정치  -= 50
+ELSEIF TCVAR:ARG:미약 || TCVAR:ARG:춘약
+	호의판정치  -= 30
+ENDIF
+;종래의 100단위로 하트를 내는 형식이라고 줄선 수가 적어 외롭기 때문에, 50단위로 한다
+CALL SHOW_LOVEPOWER(호의판정치, 50)
+CALL SHOW_REASONWALL(이성판정치, 50)
+
+;이 보정만은 합의를 저해하지 않는다
+IF CFLAG:ARG:대주고말았다
+	CALL COLORMESSAGE(@"기세라고 해도 이전 몸을 용서(허락)해 끝내고 있는 만큼, 저항이 얇은 것 같다", C_YELLOW, 2)
+	이성판정치 -= 20
+	CALL SHOW_REASONWALL(이성판정치, 50)
+ENDIF
+IF 호의판정치 >= 이성판정치
+	IF !GETBIT(CFLAG:ARG:기정사실 , 0) && !TALENT:ARG:무지
+		TCVAR:ARG:껴안고첫회 = 2
+	ELSE
+		TCVAR:ARG:껴안고첫회 = 1
+	ENDIF
+	;보정없이 밀어 넘어뜨리지 않는다고 합의가 붙지 않는다
+	SETBIT CFLAG:ARG:기정사실 , 1
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%의 합의를 얻은", C_YELLOW, 2)
+ELSE
+	IF TCVAR:ARG:발정
+		이성판정치  -= 50
+		CALL COLORMESSAGE(@"발정한 %CALLNAME:ARG%의 몸은, 뜻에 반해 %마스터를% 요구해 버리는……", C_YELLOW, 2)
+	ELSEIF TCVAR:ARG:미약 || TCVAR:ARG:춘약
+		이성판정치  -= 30
+		CALL COLORMESSAGE(@"약의 효과로 %CALLNAME:ARG%의\@ TCVAR:ARG:춘약?  가슴이 크게 고동친다# 몸이 쑤시는\@……", C_YELLOW, 2)
+	ENDIF
+	SIF TCVAR:ARG:미약 || TCVAR:ARG:춘약 || TCVAR:ARG:발정
+		CALL SHOW_REASONWALL(이성판정치, 50)
+	IF 호의판정치 >= 이성판정치
+		TCVAR:ARG:껴안고첫회 = 3
+	ELSEIF FLAG:모리야복권데이트상대 == ARG
+		TCVAR:ARG:껴안고첫회 = 10
+	ELSE
+		IF CFLAG:ARG:몸목적
+			CALL COLORMESSAGE(@"애욕을 독점하는 미라다의돌밀레니엄이 요염하게 빛난다…!", C_YELLOW, 2)
+			이성판정치 -= 100
+			CALL SHOW_REASONWALL(이성판정치, 50)
+		ENDIF
+		IF MARK:ARG:시간각인
+			CALL COLORMESSAGE(@"멈추었을 때 중(안)에서 개발된%CALLNAME:TARGET%의 몸은, 본인의 의지와 구 어쩔 수 없고 %마스터를% 요구해 버리는…", C_YELLOW, 2)
+			이성판정치 -= MARK:ARG:시간각인 * 30
+			CALL SHOW_REASONWALL(이성판정치, 50)
+		ENDIF
+		IF 호의판정치 >= 이성판정치
+			TCVAR:ARG:껴안고첫회 = 4
+		ELSEIF 호의판정치 >= 이성판정치 - 50
+			IF TALENT:ARG:담력 < 0
+				TCVAR:ARG:껴안고첫회 = 5
+			ELSE
+				TCVAR:ARG:껴안고첫회 = 6
+			ENDIF
+		ELSEIF 호의판정치 >= 이성판정치 - 150
+			TCVAR:ARG:껴안고첫회 = 7
+		ELSE
+			TCVAR:ARG:껴안고첫회 = 8
+		ENDIF
+	ENDIF
+ENDIF
+
+SELECTCASE TCVAR:ARG:껴안고첫회
+	CASE 1 TO 5
+		CFLAG:ARG:우후후 = 1
+		CFLAG:MASTER:우후후 = 1
+		SIF TCVAR:ARG:껴안고첫회 == 5
+			SOURCE:ARG:공포 += 1000
+			SIF !GETBIT(CFLAG:ARG:기정사실, 1)
+				CFLAG:ARG:대주고말았다 = 1
+	CASE 6
+		SOURCE:ARG:사랑 += 500
+		TFLAG:밀어넘어뜨릴수없다 ++
+	CASE 7
+		SOURCE:ARG:반감 += 1000
+		TFLAG:밀어넘어뜨릴수없다 ++
+		TFLAG:98 = -3
+	CASE 10
+		SOURCE:ARG:반감 += 1000
+		TFLAG:98 = -10
+
+	CASE 8
+		SOURCE:ARG:반감 += 3000
+		TFLAG:밀어넘어뜨릴수없다 ++
+		TFLAG:98 = -5
+		SIF TALENT:ARG:담력 < 0
+			SOURCE:ARG:공포 += 1000
+	[SKIPSTART]
+	CASE 9
+		PRINTFORML %타겟은% %마스터를% 거절했지만, 그 뺨은 희미하게 상기 해, 눈동자는 정욕에 물기를 띠고 있다…
+		$LOOP
+		PRINTL [0] 억지로 강요한다
+		PRINTFORML [1] \@ TALENT:MASTER:2 == 2 ?  신사 # 숙녀 \@이므로 그런 일은 하지 않는다
+		INPUT
+		IF RESULT == 1
+			PRINTFORML %마스터는% 솔직하게 물러났다
+			PRINTFORML %타겟은% 기분 탓인지 아쉬움 아까워하는 기색이다…
+			SOURCE:ARG:반감 += 700
+			TFLAG:밀어넘어뜨릴수없다 ++
+			TFLAG:98 = -1
+		ELSEIF RESULT == 0
+			PRINTFORML %마스터는% 조용히%타겟을% 껴안으면(자), 억지로 입술을 빼앗았다…
+				PRINTL
+				PRINTL
+				FONTSTYLE 3
+				ALIGNMENT CENTER
+				PRINTL 즈큐우우
+				PRINTL
+				PRINTW 
+				FONTREGULAR
+				ALIGNMENT LEFT
+				IF TALENT:TARGET:6
+					CALL SET_FIRSTKISS(TARGET)
+					PRINT 끔찍하게 첫키스를 빼앗겼음에도 불구하고,
+				ENDIF
+				PRINTFORMW 알지 않는 사이에 저속해지고 자르고 있던%CALLNAME:TARGET%의 몸은, %CALLNAME:MASTER%의 체온, 냄새나 반응해 %마스터를% 받아들이려고 끝낸다…
+				;실패
+				IF TALENT:TARGET:6
+					PRINTFORMW 그러나%타겟은% 기력을 쥐어짜%마스터를% 뿌리치면(자)
+					PRINTW 진한 개 도대체 뭐 생각하는거야!도둑 물로 입을 씻고 있겠어!
+					IF ABL:TARGET:전투 기능 > ABL:MASTER:전투 기능
+						FONTITALIC
+						PRINTW 「이 여자!일부러 도둑으로 씻어 자신의 의지를 나타낼까!그런것은 꽉 차지 않는 자존심다!」
+						FONTREGULAR
+						PRINTFORML 이성을 잃은 %마스터는% %CALLNAME:TARGET%에 덤벼 들었지만, 그녀 힘은 %마스터를% 능가하고 있었다.
+						PRINTFORML %CALLNAME:TARGET%의 눈이 결단적 살의에 번쩍과 빛난다!「이약!」
+						PRINTFORML 「그워!」%마스터는% 와이어 액션인 듯해 날아가 벽에 두드려 붙여졌다.
+						PRINTFORML %타겟은% 재빠르게 달려들어 마운트를 빼앗는다!
+						FONTITALIC
+						PRINTFORMW 「네가 울 때까지 때리는 것을 그만두지 않는!」
+						FONTREGULAR
+						PRINTFORMW 「이약!」 오른쪽 파운드!「그워!」
+						PRINTFORMW 「이약!」왼쪽 파운드!「그워!」
+						PRINTFORMW %마스터가% 되받아 친다!「이약!」
+						PRINTFORMW %타겟은% 가이드 해, 「이약!」 오른쪽 파운드!「그워!」
+						PRINTFORMW 「이약!」왼쪽 파운드!「그워!」
+						FONTITALIC
+						PRINTFORMW 「, 잘도……잘도 잘도!이 %CALLNAME:MASTER%로 향해… 이 추접스러운 바보가!」
+						FONTREGULAR
+						PRINTFORML 위독한 대미지를 진%마스터는% 울부짖어 도망갔다
+						PRINTFORML 브자마!
+						DOWNBASE:MASTER:체력 = ABL:TARGET:전투 기능 * 500
+						DOWNBASE:MASTER:기력 = ABL:TARGET:전투 기능 * 500
+					ELSE
+				;성공
+			IF TEQUIP:0 > 1
+				IF PALAM:윤활 > PALAMLV:4
+					PRINTFORM 질퍽질퍽하게 젖었다
+				ELSEIF PALAM:윤활 > PALAMLV:2
+					PRINTFORM 희미하게 습기찼다
+				ENDIF
+			ENDIF
+			PRINTFORML %SHOW_BOTTOM(TARGET)%에 손을 넣어 깐족깐족괴롭히고 …
+			PRINTFORML %CALLNAME:TARGET%
+			;실패
+	[SKIPEND]
+ENDSELECT
+
+@껴안고필요치(ARG)
+#FUNCTION
+LOCAL = 350
+LOCAL += TALENT:ARG:일선을넘지않음 * 50 + TALENT:ARG:자존심 * 30 + TALENT:ARG:태도 * 20 - TALENT:ARG:성적흥미 * 20 + TALENT:ARG:정조 * 50
+SIF !GETBIT(CFLAG:ARG:기정사실 , 0)
+	LOCAL += 20
+;양도가 아니고 동성
+IF TALENT:ARG:성별기호 != -1
+	SIF OTOKOGIRAI(ARG)
+		LOCAL += 50
+ENDIF
+;연모도 사모도 애욕도 없음
+SIF TALENT:ARG:사모 && !TALENT:ARG:연모 && !TALENT:ARG:애욕
+	LOCAL += 50
+;남성기피
+SIF OTOKOGIRAI(ARG)
+	LOCAL += 50
+;무지
+SIF TALENT:ARG:무지
+	LOCAL -= 50
+SIF CFLAG:ARG:약점잡힘
+	LOCAL -= 50
+;욕구 불만
+LOCAL -= CFLAG:ARG:욕구불만도 / 20
+LOCAL -= (EX:ARG:C절정직전 + EX:ARG:V절정직전 + EX:ARG:A절정직전 + EX:ARG:B절정직전 + EX:ARG:M절정직전) * 15
+RETURNF LOCAL

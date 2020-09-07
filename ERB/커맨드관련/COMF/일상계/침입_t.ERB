@@ -1,0 +1,152 @@
+﻿@방에숨어든다(ARG,ARG:1)
+;ARG=행선지　ARG:1 = 원거리이동
+FOR LOCAL, 1, CHARANUM
+	IF CFLAG:LOCAL:311 == ARG
+		IF CFLAG:LOCAL:빡침
+			IF FLAG:70 == 1
+				;시간정지중
+				PRINTFORML 방에 잠입하려고 문을 열자 %조사처리(CALLNAME:LOCAL,"이")% 분노의 형상으로 굳어 있다
+				PRINTFORMW 말할 수 없는 박력에 %마스터는% 잠입하는 것을 단념했다…
+			ELSE
+				PRINTFORML 자고 있는 %CALLNAME:LOCAL%의 방에 잠입하려고 문을 열었다
+				PRINTFORMW 방을 살짝 들여다보니 %조사처리(CALLNAME:LOCAL,"이")% 날카롭게 이쪽을 쏘아보았다
+				;방에 통해도 잠을 자지 않는 구조를 만들 수 있으면 해방
+				;IF TALENT:LOCAL:연모
+					;CALL KOJO_MESSAGE_SEND("EVENT", 12, LOCAL, 2,2)
+					;PRINTFORMW %조사처리(CALLNAME:LOCAL,"는")% 마지못해 %마스터를% 방에 통했다…
+					;이동 성립에서도 참아 포함은 서지 않는다
+					;CFLAG:MASTER:현재위치 = (TFLAG:195)
+				;ELSE
+					CALL KOJO_MESSAGE_SEND("EVENT",12,LOCAL,2,1)
+					PRINTFORMW %마스터는% 잠입하는 것을 단념했다…
+				;ENDIF
+			ENDIF
+			NEXTCOM = -1
+		ELSE
+			IF (!RAND:3 || !CFLAG:LOCAL:수면) && !FLAG:70 && !CFLAG:LOCAL:출금 && !TCVAR:LOCAL:수면제강도 && EXP:LOCAL:수면간경험 < 300
+				;PRINT 소리를 눈치챘다
+				PRINTFORML %조사처리(CALLNAME:LOCAL,"는")% 소리를 눈치챘다
+				
+				CALL CHARA_AWAKE(LOCAL,1)
+				IF !CFLAG:LOCAL:수면 && CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치 && !CFLAG:LOCAL:은밀중
+					IF TALENT:LOCAL:연모
+						IF CFLAG:LOCAL:쇠약
+							PRINTFORMW %조사처리(CALLNAME:LOCAL,"는")% 내방자가 %CALLNAME:MASTER%인 것을 확인하자 진이 빠져 자 버렸다…
+							CALL KOJO_MESSAGE_SEND("EVENT",12,LOCAL,1,3)
+							CALL SET_DERAY(99,LOCAL)
+							CALL CHARA_SLEEP(LOCAL,0)
+						ELSE
+							PRINTFORMW %조사처리(CALLNAME:LOCAL,"는")% 내방자가 %CALLNAME:MASTER%인 것을 확인하자 안도한 표정을 드러냈다…
+							CALL KOJO_MESSAGE_SEND("EVENT",12,LOCAL,1,2)
+						ENDIF
+						;이동 성립
+						CFLAG:MASTER:현재위치 = ARG
+					ELSE
+						IF CFLAG:LOCAL:쇠약
+							PRINTFORMW %조사처리(CALLNAME:LOCAL,"는")% %마스터를% 내쫒고는 다시 자러 방으로 돌아갔다…
+							CALL KOJO_MESSAGE_SEND("EVENT",12,LOCAL,1,5)
+							CALL SET_DERAY(99,LOCAL)
+							CALL CHARA_SLEEP(LOCAL,0)
+						ELSE
+							PRINTFORMW %CALLNAME:LOCAL%에게 내쫓겼다…
+							CALL KOJO_MESSAGE_SEND("EVENT",12,LOCAL,1,4)
+						ENDIF
+						;침입 성공 플래그 클리어
+						CLEARBIT CFLAG:LOCAL:42,8
+						LOCK:(CFLAG:LOCAL:현재위치) = 1
+					ENDIF
+				ENDIF
+				;원거리이동 플래그 소거
+				SIF ARG:1
+					NEXTCOM = -1
+			ELSE
+				PRINTFORML 자고 있는 %CALLNAME:LOCAL%의 방에 잠입했다
+				CALL KOJO_MESSAGE_SEND("EVENT",12,LOCAL,1,1)
+				;이동 성립
+				CFLAG:MASTER:현재위치 = ARG
+				;원거리이동 플래그 소거
+				SIF ARG:1
+					NEXTCOM = -1
+				;침입 성공 플래그 세트
+				SETBIT CFLAG:LOCAL:42,8
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+SIF CFLAG:MASTER:현재위치 != ARG && !ARG:1
+	RETURN -1
+
+@화장실침입(ARG,ARG:1)
+#DIM 들어갈수없음
+들어갈수없음 = 0
+IF FLAG:70 == 1
+	FOR LOCAL, 1, CHARANUM
+		IF CFLAG:LOCAL:현재위치 == ARG
+			PRINTFORMW %조사처리(CALLNAME:LOCAL,"가")% 들어가 있던 것 같다
+			BREAK
+		ENDIF
+	NEXT
+	CFLAG:MASTER:현재위치 = ARG
+	;원거리이동 플래그 소거
+	SIF ARG:1
+		NEXTCOM = -1
+ELSE
+	FOR LOCAL, 1, CHARANUM
+		IF CFLAG:LOCAL:현재위치 == (TFLAG:195)
+			PRINTFORMW 들어갑니다~
+			들어갈수없음 = 1
+		ENDIF
+	NEXT
+	IF 들어갈수없음 == 1
+		들어갈수없음 = 0
+		IF ARG:1
+			NEXTCOM = -1
+			DEBUGPRINTL 【COM400】RETURNPOINT E
+			RETURN 0
+		ELSE
+			RETURN -1
+		ENDIF
+	ENDIF
+	CFLAG:MASTER:현재위치 = ARG
+	;원거리이동 플래그 소거
+	SIF ARG:1
+		NEXTCOM = -1
+ENDIF
+
+@벌레통침입(ARG,ARG:1)
+#DIM 들어갈수없음
+#DIM 벌레통
+들어갈수없음 = 0
+FOR LOCAL, 1, CHARANUM
+	SIF CFLAG:LOCAL:동행 && TALENT:LOCAL:100 >= -4
+		들어갈수없음 = 1
+NEXT
+SIF TALENT:MASTER:100 >= -4
+	들어갈수없음 = 2
+IF 들어갈수없음 == 1
+	PRINTFORMW 데리고 갈 수는 없다…
+	RETURN -1
+ELSEIF 들어갈수없음
+	 PRINTDATAW
+	DATAFORM 그것은 벌레통이다
+	DATAFORM 들어갈 리가 없어!
+	DATAFORM 난쟁이가 되지 않으면 들어갈 수 없다
+	ENDDATA
+	IF ARG:1
+		NEXTCOM = -1
+		DEBUGPRINTL 【COM400】RETURNPOINT D
+		RETURN 0
+	ELSE
+		벌레통 += 1
+		IF 벌레통 >= 10 && !FLAG:70
+			PRINTFORMW %마스터가% 어떻게 해서든 들어가고 싶어하므로 난쟁이로 바꿔주었다
+			;반영속 한다
+			TALENT:MASTER:100 = -5
+			벌레통 = 0
+		ENDIF
+		RETURN -1
+	ENDIF
+ENDIF
+CFLAG:MASTER:현재위치 = ARG
+SIF ARG:1
+	NEXTCOM = -1

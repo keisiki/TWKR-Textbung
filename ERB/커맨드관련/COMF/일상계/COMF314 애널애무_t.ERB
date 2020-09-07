@@ -1,0 +1,173 @@
+﻿;-------------------------------------------------
+;애널애무
+;일상계 커맨드 레벨 3
+;-------------------------------------------------
+@COM314
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+TFLAG:이성깎기 = 1
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 40
+	SOURCE:쾌A = 80
+	IF ABL:PLAYER:손가락 >= 4
+		SOURCE:쾌A += 50
+	ELSE
+		SOURCE:쾌A += ABL:PLAYER:손가락 * 10
+	ENDIF
+	;손을 돌진할 수 없는 의상
+	IF TEQUIP:0 & 16
+		TIMES SOURCE:쾌A , 0.60
+		TIMES SOURCE:욕정 , 0.60
+		TIMES SOURCE:노출 , 0.60
+	;치마이외의무엇인가를 신고 있다
+	ELSEIF TEQUIP > 1
+		TIMES SOURCE:쾌A , 0.80
+		TIMES SOURCE:욕정 , 0.80
+		TIMES SOURCE:노출 , 0.80
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 4
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 4
+	ENDIF
+	SIF TFLAG:60 < 2
+		EXP:PLAYER:수음경험 ++
+	ENDIF
+ELSE
+	IF FLAG:생활능력무 && !CFLAG:우후후
+		DRAWLINE
+		PRINTFORMW %CALLNAME:MASTER%에게 그런 담력은 없다
+		RETURN -1
+	ENDIF
+	DOWNBASE:체력 += 40
+	DOWNBASE:기력 += 100
+
+	SOURCE:쾌A = 80
+	SOURCE:고통 = 50
+	SOURCE:굴종 = 100
+	SOURCE:노출 = 120
+	SOURCE:욕정 = 170
+	SOURCE:환락 = 50
+	SOURCE:일탈 = 80
+	SOURCE:반감 = 60
+	SOURCE:수동 = 150 + 300 * ABL:순종
+	IF ABL:PLAYER:손가락 >= 4
+		SOURCE:쾌A += 50
+	ELSE
+		SOURCE:쾌A += ABL:PLAYER:손가락 * 10
+	ENDIF
+	;손을 돌진할 수 없는 의상
+	IF TEQUIP:0 & 16
+		TIMES SOURCE:쾌A , 0.60
+		TIMES SOURCE:욕정 , 0.60
+		TIMES SOURCE:노출 , 0.60
+	;치마이외의무엇인가를 신고 있다
+	ELSEIF TEQUIP > 1
+		TIMES SOURCE:쾌A , 0.80
+		TIMES SOURCE:욕정 , 0.80
+		TIMES SOURCE:노출 , 0.80
+	ENDIF
+
+	;신뢰
+	TFLAG:98 = -7
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 100
+ENDIF
+;A에의 고통은 먼저 처리해 둔다
+SIF TCVAR:20 == 72 && !TEQUIP:식스나인
+	CALL PAIN_CHECK_A(TARGET)
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+IF TCVAR:20 == 72 && !TEQUIP:식스나인
+	;노예의 A⇔조교자의 손가락의 더러움이 이동
+	STAIN:PLAYER:0 |= STAIN:4
+	STAIN:4 |= STAIN:PLAYER:0
+ELSE
+	;노예의 A⇔조교자의 손가락의 더러움이 이동
+	STAIN:PLAYER:1 |= STAIN:4
+	STAIN:PLAYER:1 |= STAIN:7
+	STAIN:4 |= STAIN:PLAYER:1
+	STAIN:7 |= STAIN:PLAYER:1
+ENDIF
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 4
+	ENDIF
+	SIF TFLAG:60 < 2
+		EXP:PLAYER:수음경험 ++
+	SIF TEQUIP:식스나인 || TCVAR:20 == 72
+		EXP:PLAYER:펠라티오경험 ++
+ELSE
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 4
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 4
+	ENDIF
+	SIF TFLAG:60 < 2
+		EXP:PLAYER:수음경험 ++
+	SIF TEQUIP:식스나인 || TCVAR:20 == 72
+		EXP:PLAYER:펠라티오경험 ++
+	TIME += 10
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE314
+;애널애무 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(314)
+	RETURN RESULT
+;시간정지중은 스킵
+IF !FLAG:70
+	;친해져 강도 1
+	SIF TCVAR:MASTER:친해져 < 2
+		RETURN 0
+	;수면중
+	SIF CFLAG:수면
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5
+		RETURN 0
+	;동침중
+	SIF CFLAG:동침중
+		RETURN 0
+	;데이트중
+	SIF CHK_DATENOW(CFLAG:데이트중) && CFLAG:현재위치 != OMANEKIBEYA()
+		RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF TEQUIP:51 >= 0
+	RETURN 0
+;안면승마 애널(팔판정 회피)
+SIF TCVAR:20 == 72
+	RETURN 1
+;식스나인 몸의자세(팔판정 회피)
+SIF TEQUIP:식스나인
+	RETURN 1
+;팔사용중
+SIF TFLAG:61 && MASTER_POSE(SET_A,SET_YUBI) != TARGET
+	RETURN 0
+SIF GETBIT (TCVAR:26,4)
+	RETURN 0
+RETURN 1
+

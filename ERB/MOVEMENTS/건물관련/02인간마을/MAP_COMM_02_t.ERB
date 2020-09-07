@@ -1,0 +1,116 @@
+﻿;--------------------------------------------------
+;	맵내 이동 처리 확장 패치 부속
+;	명련사MAP용 함수
+;--------------------------------------------------
+
+@MAP_PLACENAME_2(ARG)
+#FUNCTIONS
+#DIM PLACEID
+
+IF GET_MAPID(ARG) == MAIN_MAP
+	SELECTCASE ARG
+		CASE 201 TO (MAXROOM - 1)
+			RETURNF STR:(ARG + 8000)
+		CASE 298
+			RETURNF OMANEKI_PLACE()
+		CASE 299
+			RETURNF "스키마 공간"
+		CASE MAXROOM
+			RETURNF "길의 저 편"
+		CASEELSE
+			RETURNF "불명"
+	ENDSELECT
+ELSE
+	RETURNF "불명"
+ENDIF
+
+@MAP_VIEWING_2(AA)
+#DIMS REF AA, 0
+IF !TFLAG:맵변환
+	SELECTCASE CFLAG:MASTER:현재위치
+		CASE 214, 230 TO 237
+			TFLAG:맵변환 = 2
+		CASE 213,226
+			TFLAG:맵변환 = 3
+		CASEELSE
+			TFLAG:맵변환 = 1
+	ENDSELECT
+ENDIF
+CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
+PRINTFORML 
+TRYCALLFORM MAP_SATO_{TFLAG:맵변환}(AA)
+
+
+@MAP_CAN_MOVE_2(ARG, ARG:1)
+#FUNCTION
+#DIM 재택
+SELECTCASE ARG
+	;코스즈의 방
+	CASE 226
+		IF ARG:1 == MASTER
+			IF FLAG:70
+				RETURNF 1
+			ELSEIF CFLAG:70:동행 || CFLAG:80:동행
+				RETURNF 1
+			ELSEIF TALENT:70:연모
+				RETURNF 1
+			ELSEIF TALENT:70:사모 && CFLAG:70:현재위치 == ARG
+				RETURNF 1
+			ELSE
+				TFLAG:이동불능메시지 = ARG
+				RETURNF 0
+			ENDIF
+		;본인은 들어갈 수 있는, 아큐도 넣는다
+		ELSEIF ARG:1 == 70 || ARG:1 == 80
+			RETURNF 1
+		ELSE
+			RETURNF 0
+		ENDIF
+	;노와 혼숙여관, 당신 이외는 들어가지 않는다
+	CASE 220, 225
+		SIF ARG:1 != MASTER
+			RETURNF 0
+	;대절욕탕, 당신 이외에는 들어가지 않는다, 대절하지 않으면 들어갈 수 없다
+	CASE 228
+		SIF ARG:1 != MASTER
+			RETURNF 0
+		IF !욕탕대절(DAY)
+			TFLAG:이동불능메시지 = ARG
+			RETURNF 0
+		ENDIF
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+RETURNF 1
+
+
+@MAP_CANNOT_WORD_2(ARG)
+SELECTCASE TFLAG:이동불능메시지
+	CASE 224,231 TO 235
+		PRINTFORMW 자물쇠가 걸려 있다
+	CASE 226
+		PRINTFORMW 마음대로 들어가는 것은 곤란해
+	CASE 228
+		PRINTFORMW 직접 들어가려면 대절하지 않으면 안 된다
+ENDSELECT
+
+;유사 TFLAG로 취급한다, 날짜가 바뀌면 종료
+;ARG = DAY
+@욕탕대절(ARG, 전세내다)
+#FUNCTION
+#DIM 대절일
+#DIM 전세내다
+IF 전세내다
+	대절일 = ARG
+	RETURNF 1
+ELSEIF 대절일 == ARG
+	RETURNF 1
+ENDIF
+RETURNF 0
+
+@MAP소개_2
+;とりあえず5行
+PRINTFORML 漫画などでお馴染み人間の里。
+PRINTFORML 他のエリアへのアクセスがよく、鈴奈庵など各種施設が充実しており、仕事で定期的に来訪するキャラも多いが
+PRINTFORML 弾幕勝負や家庭菜園ができない、採集スポットが存在しないといった欠点がある。
+PRINTFORML 妖怪の山山頂行きの索道がある。

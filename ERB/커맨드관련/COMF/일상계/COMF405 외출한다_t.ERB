@@ -1,0 +1,77 @@
+﻿;-------------------------------------------------
+;외출한다
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM405
+VARSET LOCAL
+FOR LOCAL, 1, CHARANUM
+	IF CFLAG:(LOCAL):동행
+		LOCAL:1 ++
+		SIF CFLAG:LOCAL:쇠약 || BASE:LOCAL:기력 == 0
+			LOCAL:2 ++
+		SIF !CHARA_HOLIDAY(LOCAL) && BASE:LOCAL:일량
+			LOCAL:3 ++
+	ENDIF
+NEXT
+
+IF NEMUKE() >= 720
+	DRAWLINE
+;	PRINTL 폐문 시간을 넘었기에 외출할 수는 없습니다
+	PRINTL 졸음기가 있으니 외출하지 않는 편이 낫겠지
+	RETURN -1
+ELSEIF LOCAL:1 > 1
+	DRAWLINE
+	PRINTL 두 명 이상 데리고 나갈 수는 없다
+	RETURN -1
+ELSEIF LOCAL:2 || BASE:MASTER:기력 == 0
+	DRAWLINE
+	PRINTFORML 몸 상태가 좋지 못해서 외출할 수는 없다 \@ BASE:MASTER:기력 == 0 ? (기력 제로) # (동행자가 몸 상태 안 좋음)\@
+	RETURN -1
+ELSEIF LOCAL:3 && FESTIVAL() == ""
+	DRAWLINE
+	PRINTL 동행자가 일하는 날이기에 외출할 수는 없다
+	RETURN -1
+ELSEIF TIME:5 == 9 || TIME:5 == 5
+	DRAWLINE
+	PRINTL 악천후이기에 외출할 수는 없다
+	RETURN -1
+ELSEIF TALENT:MASTER:100 < -4 
+	DRAWLINE
+	PRINTL 이 몸으로 외출하는 건 위험하다
+	RETURN -1
+ENDIF
+IF !CHK_ENTRANCE(CFLAG:MASTER:현재위치, MAIN_MAP)
+	PRINTFORML 일단은 %조사처리(NAME_FROM_PLACE(ENTRANCE),"로")% 이동합니다
+	CALL SKIP_MOVE(CFLAG:MASTER:현재위치, ENTRANCE)
+ENDIF
+LOCAL:3 = 0
+DRAWLINE
+CALL OTHERREGIONS
+LOCAL:2 = RESULT
+LOCAL = 0
+IF LOCAL:2 == MAIN_MAP || LOCAL:2 == 100
+	RETURN -1
+ENDIF
+RETURN 1
+
+@COM_ABLE405
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(405)
+	RETURN RESULT
+;포장판매중은 불가
+SIF TFLAG:운반
+	RETURN 0
+SIF CFLAG:MASTER:동침중
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+SIF CFLAG:MASTER:장난
+	RETURN 0
+;참배길 설정
+;SIF !CHK_ENTRANCE(CFLAG:MASTER:현재위치, MAIN_MAP)
+;	RETURN 0
+SIF !AT_HOME(MASTER)
+	RETURN 0
+RETURN 1

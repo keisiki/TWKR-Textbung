@@ -1,0 +1,103 @@
+﻿;-------------------------------------------------
+;弾幕勝負
+;日常系コマンド、レベル1
+;-------------------------------------------------
+@COM480
+
+#DIM OPPONENT_REMAIN
+
+HANDICAP_FIXED = 0
+HANDICAP_RAND = 0
+
+IF TCVAR:TARGET:탄막승부불능
+	PRINTFORML %CALLNAME:TARGET%는 이미 많이 지친 것 같다. 내일 다시 신청하자.
+	RETURN -1
+ENDIF
+
+$INPUT_LOOP
+CALL DANMAKU_OPPONENT_STATUS(TARGET)
+
+PRINTFORM %CALLNAME:TARGET%에게 탄막 승부를 신청합니까?
+SIF CFLAG:TARGET:탄막승부승리 == 1
+	PRINTFORM 　★승리함
+PRINTL 
+CALL ASK_M("역시 그만둔다", 1, "도전한다", 1, "룰 설명", 1)
+SELECTCASE RESULT
+	CASE 0
+		RETURN -1
+	CASE 1
+		
+	CASE 2
+		CALL SHOW_DANMAKU_RULE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+;台詞・選択肢は幽香口上内に記述、口上がない場合は賭けや勝利報酬は無し
+;ここでHANDICAP_FIXED, HANDICAP_RANDに数値を入れると、あなたのダイス判定にマイナス補正がかかるよ
+;判定値 -= (HANDICAP_FIXED + RAND:(HANDICAP_RAND))
+VARSET RESULT
+TRYCALLFORM M_KOJO_MESSAGE_COM_K{TARGET}_DANMAKU("戦闘前", 0)
+IF RESULT == -1
+	RETURN -1
+ENDIF
+
+
+PRINTFORMW 전투 개시!!
+CALL DANMAKU_BATTLE(TARGET)
+OPPONENT_REMAIN = RESULT
+
+TRYCALLFORM M_KOJO_MESSAGE_COM_K{TARGET}_DANMAKU("戦闘後", OPPONENT_REMAIN)
+PRINTL 
+
+;source操作他
+TCVAR:TARGET:탄막승부불능 = 1
+SIF CFLAG:TARGET:탄막승부승리 == 0 && LOCAL == 0
+	CFLAG:TARGET:탄막승부승리 = 1
+
+DOWNBASE:기력 += 500
+DOWNBASE:MASTER:기력 += 1000
+DOWNBASE:체력 += 500
+DOWNBASE:MASTER:체력 += 1000
+
+SOURCE:환락 += (3000 + ABL:친밀 * 100) / (LOCAL + 1)
+;TFLAG:호감도보너스 = 1600 / (LOCAL + 1)
+TFLAG:신뢰도관리 = 3 - LOCAL
+
+EXP:MASTER:전투경험 += 3
+
+TIME += 60
+
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE480
+;停止中は不可
+SIF FLAG:70 == 1
+	RETURN 0
+;実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(480)
+	RETURN RESULT
+SIF TARGET <= 0
+	RETURN 0
+SIF !SHIRAHU(TARGET)
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+;戦闘能力0以外
+SIF ABL:TARGET:전투능력 == 0
+	RETURN 0
+SIF !전투훈련가능(CFLAG:MASTER:현재위치)
+	RETURN 0
+;体力・気力不足
+SIF BASE:MASTER:기력 < 500 || BASE:MASTER:체력 < 500
+	RETURN 0
+;体力・気力不足
+SIF BASE:TARGET:기력 < 500 || BASE:TARGET:체력 < 500
+	RETURN 0
+RETURN 1

@@ -1,0 +1,103 @@
+﻿;-------------------------------------------------
+;방에들어간다
+;외출 커맨드
+;-------------------------------------------------
+@COM698
+#DIM 방의더러움
+#DIM 바람기
+#DIM 질투
+
+;다른 아이와 데이트중
+IF FLAG:데이트상대 != TARGET && FLAG:데이트상대 != 0
+	PRINTFORM %OMANEKI_PLACE()%에 들어가려 했으나, %CALLNAME:(FLAG:데이트상대)%에게 마음껏 노려보였다
+	RETURN -1
+ENDIF
+
+;볼 수 있지 않은가 체크
+바람기 = 0
+질투 = 0
+FOR LOCAL, 1, CHARANUM
+	IF LOCAL != TARGET && CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+		SIF LOCAL == 60
+			질투 = 60
+		SIF TALENT:LOCAL:연모 && CFLAG:LOCAL:신뢰도 < 1000
+			바람기 = LOCAL
+	ENDIF
+NEXT
+;파르시가 출현해 4명이나 살고 있는 지령전은 꽤 난이도가 높다
+;연동 캐릭터도 달려 들어 오므로 양다리 하고 있다고(면) 큰 일
+IF 질투 || 바람기
+	PRINTFORM %OMANEKI_PLACE(집주인)%에 들어가려 했으나, 
+	IF 질투
+		PRINTFORMW 오니같은 형상의 %CALLNAME:질투%에게 방해받았다
+	ELSE
+		PRINTFORMW 의아한 얼굴을 한 %CALLNAME:바람기%에게 불러세워졌다
+	ENDIF
+	RETURN -1
+ENDIF
+
+CALL OMANEKI_ENTER(TARGET)
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;방에들어간다
+@COM_ABLE698
+
+;일괄관리
+SIF GLOBAL_COMABLE(698)
+	RETURN RESULT
+;업무중
+SIF CFLAG:행동 == 5
+	RETURN 0
+;자택에 없다
+SIF CFLAG:MASTER:현재위치 != CFLAG:자택위치
+	RETURN 0
+;우선 연모만 조건
+SIF !TALENT:연모
+	RETURN 0
+;외출하고 있지 않다
+SIF !CHK_DATENOW(CFLAG:MASTER:데이트중)
+	RETURN 0
+;다른 아이와 데이트중, 재미있기 때문에 커맨드는 실행할 수 있도록(듯이)
+;SIF FLAG:데이트상대 != TARGET && FLAG:데이트상대 != 0
+;	RETURN 0
+;화내고 있으면(자) 안 돼(버그 회피 용무라도 있다)
+SIF BASE:분노 > 50
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;외박 처리
+;-------------------------------------------------
+@OMANEKI_ENTER(ARG)
+#DIM 방의더러움
+
+;초대 플래그에 ARG를 대입
+CFLAG:ARG:초대 = ARG
+CFLAG:MASTER:초대 = ARG
+
+;초기위치를 OMANEKIBEYA()=98로 한다
+CFLAG:ARG:초기위치 = OMANEKIBEYA()
+;이동시킨다
+CFLAG:ARG:현재위치 = OMANEKIBEYA()
+CFLAG:MASTER:현재위치 = OMANEKIBEYA()
+
+;방이 더러워지는 상태
+;한 번 들어가 있으면(자) 참조한다
+IF TCVAR:ARG:초대방의더러움 > 0
+	YOGORE:(OMANEKIBEYA()) = TCVAR:ARG:초대방의더러움
+ELSE
+	;최초로 들어갈 때는 악취내성 의존(민감 이하=최고, 보통=중, 둔감=저, 무시=쓰레기산)
+	방의더러움 = MAX(1999 + (TALENT:ARG:61 * 2000), 0) 
+	YOGORE:(OMANEKIBEYA()) = 방의더러움
+	TCVAR:ARG:초대방의더러움 = 방의더러움
+ENDIF

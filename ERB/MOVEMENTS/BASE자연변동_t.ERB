@@ -1,0 +1,334 @@
+﻿@BASE자연변동(ARG)
+#DIM 체력회복량
+#DIM 기력회복량
+#DIM 욕구불만
+#DIM 우산대미지
+#DIM Lapse
+Lapse = TIME_PROGRESS(TIME:1)
+
+;MASTER와 같은 장소에 없을 때
+IF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치
+	BASE:ARG:무드 = BASE:ARG:무드 - Lapse * 4 * (BASE:ARG:무드 + 500) / 500
+	BASE:ARG:무드 = MAX(0, BASE:ARG:무드)
+	BASE:ARG:이성 = BASE:ARG:이성 + Lapse * (MAXBASE:ARG:이성 + 500) / (BASE:ARG:이성 + 500)
+ELSE
+	;선향옥토による補正　무드↑이성↓분노↓
+	IF IsInsenceValid(ARG)
+		BASE:ARG:무드 += Lapse * (SQRT(TFLAG:선향옥토) / 2)
+		BASE:ARG:무드 = MIN(BASE:ARG:무드 , MAXBASE:ARG:무드)
+		BASE:ARG:이성 -= Lapse * (SQRT(TFLAG:선향옥토) / 2)
+		BASE:ARG:분노 -= Lapse * SQRT(TFLAG:선향옥토) / (CFLAG:ARG:빡침 + 1)
+		ENDIF
+	;ポイズンボディの媚毒付与による補正　이성↓ 발정付与・無差別だがそれなり注ぐ必要あり
+	;計算式が複雑すぎる
+	IF TCVAR:ARG:포이즌게이지
+		BASE:ARG:이성 -= Lapse * (MAX(SQRT(TCVAR:ARG:포이즌게이지) / 2, 1))
+		IF BASE:ARG:이성 <= 0 && PALAM:ARG:욕정 >= PALAMLV:7 && TCVAR:ARG:발정 == 0 && !TALENT:ARG:임신
+			;1000ほどゲージを稼ぐと3割程度で발정付与　欲求不満度が上がるほど確率向上
+			IF RAND:(TCVAR:ARG:포이즌게이지 + SQRT(TCVAR:ARG:포이즌게이지 * CFLAG:ARG:욕구불만도 / 2)) > SQRT(TCVAR:ARG:포이즌게이지) * 20
+				TCVAR:ARG:발정 = 1
+				IF Lapse && !CFLAG:ARG:수면
+					SETCOLOR C_PINK
+					PRINTFORML 신체에 \@ TCVAR:ARG:포이즌게이지 > 1000 ? 충분히 #  \@ 스며든 미독이 %CALLNAME:ARG%의 이성을 녹여 간다…
+					PRINTFORMW %ARG는% 발정해버렸다
+					RESETCOLOR
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+;ガシングガーデン　이성↓욕구불만도↑ 발정付与 약독내성・비생물には効かない
+IF IsGardenValid(ARG)
+	BASE:ARG:이성 -= Lapse * MAX(RAND:(ABL:ARG:욕망 + 1), 4)
+	욕구불만 = 욕구불만소질보정(ARG, (2 * Lapse))
+	;自宅マップでないと上昇量が半減
+	SIF !IN_HOME(TFLAG:GG설치위치)
+		욕구불만 /= 2
+	CFLAG:ARG:욕구불만도 = LIMIT(CFLAG:ARG:욕구불만도 + 욕구불만, 0, 1000)
+	SIF BASE:ARG:이성 <= 0 && CFLAG:ARG:욕구불만도 >= 1000 && PALAM:ARG:욕정 >= PALAMLV:5 && !TALENT:ARG:임신
+		TCVAR:ARG:발정 = 1
+ENDIF
+BASE:ARG:이성 = LIMIT(BASE:ARG:이성, 0, MAXBASE:ARG:이성)
+
+;업무중의 경우, 일량이 감소한다
+IF CFLAG:ARG:행동 == 5
+	BASE:ARG:일량 = MAX(BASE:ARG:일량 - Lapse * 10, 0)
+	;연회에서 감추고 있는 경우 술기운이 상승
+	SIF CFLAG:ARG:직종 == 49 && !(TALENT:ARG:술내성 == -2 || CFLAG:ARG:임신자각상태 == 1)
+		BASE:ARG:술기운 += Lapse * (RAND:3 * (4 - TALENT:ARG:술내성))
+ENDIF
+;분노는 항상 감소한다
+BASE:ARG:분노 = BASE:ARG:분노 - Lapse * 5 / (CFLAG:ARG:빡침 + 1)
+;연회의 자리라면 한층 더 감소한다
+SIF CFLAG:ARG:직종 == 49 && CFLAG:ARG:빡침 > 0
+	BASE:ARG:분노 -= Lapse * 5 / (CFLAG:ARG:빡침 + 1)
+SIF BASE:ARG:분노 <= 0
+	CFLAG:ARG:빡침 = 0
+BASE:ARG:분노 = MAX(0, BASE:ARG:분노)
+;술기운은 항상 감소한다
+BASE:ARG:술기운 = BASE:ARG:술기운 - Lapse
+;만취시는 감소량이 증가한다
+SIF TCVAR:ARG:만취
+	BASE:ARG:술기운 -= Lapse * (RAND:4) 
+BASE:ARG:술기운 = MAX(0, BASE:ARG:술기운)
+;수면심도의 변동
+IF CFLAG:ARG:수면
+	;자고 있는 경우
+	TCVAR:ARG:수면심도 += Lapse * 10 * MAX(TCVAR:ARG:수면제강도, 1)
+	TCVAR:ARG:수면심도 += (BASE:ARG:술기운 / 5 + TCVAR:ARG:피로도 / 3)
+	TCVAR:ARG:피로도    = TCVAR:ARG:피로도 * 2 / 3
+	SIF TCVAR:ARG:피로도 < 100
+		TCVAR:ARG:피로도 = 0
+ELSE
+	;자지 않았다
+	IF TCVAR:ARG:수면심도 > 0
+		TCVAR:ARG:수면심도 -= Lapse * 10
+	ELSE
+		TCVAR:ARG:수면심도 = 0
+	ENDIF
+ENDIF
+
+
+;언짢음
+SIF CFLAG:ARG:언짢음
+	BASE:ARG:분노 = MAXBASE:ARG:분노
+
+;발기도의 자연 증감
+IF CFLAG:ARG:우후후
+	IF BASE:ARG:발기 <= 900 && (BASE:ARG:정력 >= 500 || TCVAR:ARG:국사무쌍약)
+		BASE:ARG:발기 += Lapse * 2
+		SIF BASE:ARG:정력 >= 1000 || TCVAR:ARG:국사무쌍약
+			BASE:ARG:발기 += Lapse * 5
+	ENDIF
+ELSE
+	SIF CFLAG:ARG:발기도2 <= CFLAG:ARG:발기도 && !TCVAR:ARG:이기초
+		BASE:ARG:발기 = MAX(0,BASE:ARG:발기 - Lapse * 20)
+ENDIF
+IF ARG == MASTER
+	IF BASE:ARG:발기 <= 900 && BASE:ARG:정력 >= 500
+		FOR LOCAL, 1, GET_TARGETNUM() + 1
+			SIF !CFLAG:(TARGET:LOCAL):우후후
+				CONTINUE
+			;리얼리티는 차치하고 우선
+			BASE:MASTER:발기 += GET_TARGETNUM() * 5
+			BREAK
+		NEXT
+		SIF TARGET
+			BASE:MASTER:발기 += MIN(10, 1 + ABL:TARGET:욕망 / 5) * Lapse
+	ENDIF
+	;사양이 올바른 것인지 모르지만 수면간보너스
+	SIF CFLAG:MASTER:장난 == 2 || FLAG:70
+		BASE:MASTER:발기 += 5
+ENDIF
+BASE:ARG:발기 = MIN(BASE:ARG:발기, MAXBASE:ARG:발기)
+
+;미약플래그
+TCVAR:ARG:미약 = MAX(TCVAR:ARG:미약 - Lapse,0)
+;이뇨제
+TCVAR:ARG:이뇨제 = MAX(TCVAR:ARG:이뇨제 - Lapse,0)
+;춘약 플래그
+	TCVAR:ARG:춘약 = MAX(TCVAR:ARG:춘약 - Lapse,0)
+;선향옥토
+IF ARG == MASTER
+	TFLAG:선향옥토 = MAX(TFLAG:선향옥토 - Lapse,0)
+ENDIF
+
+욕구불만 = 0
+IF (TCVAR:ARG:춘약 || TCVAR:ARG:발정 || IsInsenceValid(ARG)) && ARG != MASTER
+	욕구불만 = 욕구불만소질보정(ARG,Lapse)
+	CFLAG:ARG:욕구불만도 = LIMIT(CFLAG:ARG:욕구불만도 + 욕구불만, 0, 1000)
+ENDIF
+;데일리 감산 처리
+CFLAG:ARG:데일리 = MAX(CFLAG:ARG:데일리 - Lapse,0)
+;더러움을 붙인다
+TCVAR:ARG:더럽히는양 = 0
+IF AT_HOME(ARG) || CFLAG:ARG:현재위치 == OMANEKIBEYA()
+	TCVAR:ARG:더럽히는양 = CFLAG:ARG:수면 ? 0 # 3 - ABL:ARG:청소기능 / (1 + TALENT:ARG:게으름)
+	SIF TALENT:ARG:유치
+		TCVAR:ARG:더럽히는양 += 2
+	SIF CFLAG:ARG:초기위치 == CFLAG:ARG:현재위치 && TALENT:ARG:게으름
+		TCVAR:ARG:더럽히는양 += 3
+	SIF CFLAG:ARG:대청소 > 0
+		TCVAR:ARG:더럽히는양 = CFLAG:ARG:수면 ? 0 # 1 + TALENT:ARG:유치 - 3 * (ABL:ARG:청소기능 + 1)
+	;청소를 하고 있는 경우, 더러움이 감소
+	IF CFLAG:ARG:직종 == 40 && CFLAG:ARG:행동 == 5
+		TCVAR:ARG:더럽히는양 = -2 * (ABL:ARG:청소기능 * 20 + 100)
+	;청소부는 12~18시의 사이 청소하는, 당신의 기능이 높으면 청소시켜 주지 않다
+	ELSEIF TALENT:ARG:청소부 && CFLAG:ARG:신사거주 && BETWEENTIME(720,1080)
+		TCVAR:ARG:더럽히는양 = -1 * MAX(ABL:ARG:청소기능 + 2 - ABL:MASTER:청소기능, 1)
+	ENDIF
+	YOGORE:(CFLAG:ARG:현재위치) += TCVAR:ARG:더럽히는양 * Lapse / 5
+	YOGORE:(CFLAG:ARG:현재위치) = LIMIT(YOGORE:(CFLAG:ARG:현재위치), 0, 6000)
+ENDIF
+IF !CFLAG:ARG:우후후 && CFLAG:ARG:행동 != 5 && Lapse >= 10 && ARG
+	체력회복량 = (10 + TALENT:ARG:회복속도) * Lapse / 20
+	기력회복량 = (10 + TALENT:ARG:회복속도) * Lapse / 20
+	CALL RECOVER(ARG, 체력회복량,"체력", "시간경과에 의한 자연 회복")
+	CALL RECOVER(ARG, 기력회복량,"기력", "시간경과에 의한 자연 회복")
+ENDIF
+;쇠약의 처리
+IF CFLAG:ARG:쇠약
+	체력회복량 = (3 + TALENT:ARG:회복속도) * MAXBASE:ARG:체력/2000
+	기력회복량 = (3 + TALENT:ARG:회복속도) * MAXBASE:ARG:기력/2000
+	;동침 상태라면 상대의 회복량이 상승
+	IF CFLAG:ARG:동침중
+		체력회복량 *= 2
+		기력회복량 *= 2
+	ENDIF
+	CALL RECOVER(ARG,Lapse * 체력회복량,"체력")
+	CALL RECOVER(ARG,Lapse * 기력회복량,"기력")
+	CFLAG:ARG:쇠약 = MAX(CFLAG:ARG:쇠약 - Lapse, 0)
+	IF BASE:ARG:체력 > MAXBASE:ARG:체력 / 2
+		CFLAG:ARG:쇠약 = 0
+		TCVAR:ARG:휴식안 = 0
+	ENDIF
+ENDIF
+;비, 눈이 내리고 있는 경우, 지붕이 없으면 체력이 조금씩 줄어든다
+;신사 밖으로 있는 캐릭터는 줄어들지 않지만 당신과 데이트중의 상대는 줄어든다
+;비로 쇠약 상태는 되지 않는다
+IF OUTROOF(CFLAG:ARG:현재위치) && (AT_HOME(ARG) || ARG == MASTER || FLAG:데이트상대 == ARG)
+	;당신이 접 이식 우산을 가지고 있지 않은 경우
+	IF ARG == MASTER && !ITEM:접는우산
+		SELECTCASE TIME:5
+			;비·안개비
+			CASE 4, 6
+				;불필요한 타이밍에 메시지가 나오지 않게
+				SIF Lapse && !TFLAG:195 && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면
+					PRINTW 비에 젖어서 쌀쌀하다
+			;큰 비
+			CASE 5
+				SIF Lapse && !TFLAG:195 && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면
+					PRINTW 차가운 빗줄기가 피부를 찌르고 있다
+			;눈·가루눈·안개눈·진눈깨비
+			CASE 8, 10, 12, 13
+				SIF Lapse && !TFLAG:195 && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면
+					PRINTW 눈을 뒤집어써서 쌀쌀하다
+			;눈보라
+			CASE 9
+				SIF Lapse && !TFLAG:195 && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면
+					PRINTW 눈보라에 몸이 얼어붙을 것 같다
+		ENDSELECT
+	;당신이 접 이식 우산 을 가지고 있는과 체력 대신에 우산내구도가 줄어든다
+	ELSEIF ARG == MASTER
+		SELECTCASE TIME:5
+			;안개비, 안개눈
+			CASE 6, 12
+				우산대미지 = 1
+			;진눈깨비
+			CASE 13
+				우산대미지 = 5
+			;우·설·가루눈
+			CASE 4, 6, 8, 10, 12
+				우산대미지 = 2
+			;큰 비·눈보라
+			CASE 5, 9
+				우산대미지 = 50
+			CASEELSE
+				우산대미지 = 0
+		ENDSELECT
+			FLAG:우산내구도 += 우산대미지 * Lapse
+			IF FLAG:우산내구도 > 10000
+				ITEM:접는우산 = 0
+				ITEMSALES:36 ++
+				FLAG:우산내구도 = 0
+				ITEM:망가진우산 = 1
+				SIF EQUIP:TARGET:액세서리!= 6
+					TEQUIP:TARGET:한우산을씀 = 0
+				PRINTW 우산이 망가졌다!
+			ELSEIF FLAG:우산내구도 > 8000 && 우산대미지
+				SIF Lapse && !TFLAG:195 && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면
+					PRINTW 우산이 망가질 것 같다…
+			ENDIF
+	ENDIF	
+	SIF (CFLAG:ARG:우후후 == 2 && BASE:ARG:기력 > 500) || CFLAG:ARG:우후후 != 2
+		BASE:ARG:체력 = MAX(BASE:ARG:체력 + 날씨에의한영향(ARG, CFLAG:ARG:현재위치) * Lapse, 500)
+ENDIF
+
+;------------------------------------------
+;캐릭터(ARG)가 지점(ARG:1)에 있을 때에 받는 체력에의 증감치
+;이동 경향에서도 사용하므로 함수 로 분리
+;------------------------------------------
+@날씨에의한영향(ARG, ARG:1)
+#FUNCTION
+VARSET LOCAL
+;옥외, 우산 장비 이루어, 한우산을씀 하지 않는다
+IF OUTROOF(ARG:1) && EQUIP:ARG:액세서리!= 6 && !TEQUIP:ARG:한우산을씀
+	;당신은 우산을 가지고 있으면 제외
+	SIF ARG == MASTER && ITEM:접는우산
+		RETURNF 0
+	SELECTCASE TIME:5
+		;여름의 맑음
+		CASE 0
+			SIF DAY:2 == 2 && (TALENT:ARG:습기선호 || TALENT:ARG:한기선호 == 2)
+				LOCAL = -2
+		;여름의 맑은 하늘
+		CASE 1
+			SIF DAY:2 == 2 && (TALENT:ARG:습기선호 || TALENT:ARG:한기선호 == 2)
+				LOCAL = -3
+		;비·안개비
+		CASE 4, 6
+			IF TALENT:ARG:습기선호
+				LOCAL = 3
+			ELSE
+				LOCAL = -2
+			ENDIF
+		;눈·가루눈·안개눈·진눈깨비
+		CASE 8, 10, 12, 13
+			IF TALENT:ARG:한기선호
+				LOCAL = 3
+			ELSE
+				LOCAL = -2
+			ENDIF
+		;큰 비
+		CASE 5
+			IF TALENT:ARG:습기선호
+				LOCAL = 3
+			ELSE
+				LOCAL = -3
+			ENDIF
+		;눈보라
+		CASE 9
+			IF TALENT:ARG:한기선호
+				LOCAL = 3
+			ELSE
+				LOCAL = -3
+			ENDIF
+	ENDSELECT
+ENDIF
+;흡혈귀와 한기선호는 대미지 2배, 당신도 방위할 수 있으므로 영향을 크고
+SIF LOCAL < 0 && (TALENT:ARG:흡혈귀 || TALENT:ARG:한기선호 || ARG == MASTER)
+	TIMES LOCAL, 2.0
+RETURNF LOCAL
+
+@IsGardenValid(ARG)
+#FUNCTION
+SIF CFLAG:ARG:현재위치 != TFLAG:GG설치위치
+	RETURNF 0
+SIF ARG == MASTER
+	RETURNF 0
+SIF TALENT:ARG:비생물
+	RETURNF 0
+SIF TALENT:ARG:약독내성
+	RETURNF 0
+
+RETURNF 1
+
+@IsInsenceValid(ARG)
+#FUNCTION
+SIF !TFLAG:선향옥토
+	RETURNF 0
+SIF ARG == MASTER
+	RETURNF 0
+SIF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치
+	RETURNF 0
+SIF TALENT:ARG:비생물
+	RETURNF 0
+SIF TALENT:ARG:약독내성
+	RETURNF 0
+RETURNF TFLAG:선향옥토
+
+@IsHeat(ARG)
+#FUNCTION
+SIF TCVAR:ARG:미약 || TCVAR:ARG:발정 || IsGardenValid(ARG)
+	RETURNF 1
+RETURNF 0

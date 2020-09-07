@@ -1,0 +1,2301 @@
+﻿;함수 두는 곳
+;-------------------------------------------------
+;아이템 판매 상황 @ITEMSTOCK
+;반환값 1 아이템이 존재하지 않음
+;반환값 2 품절
+;반환값 3 돈이 부족함
+;반환값 4 조건을 충족하지 않았음
+;반환값 5 이미 99개 소지하고 있음
+;-------------------------------------------------
+@ITEMSTOCK(ARG)
+#FUNCTION
+SIF !STRLENS(ITEMNAME:ARG)
+	RETURNF 1
+SIF ITEMSALES:ARG == -2
+	RETURNF 4
+SIF ITEMSALES:ARG == -1
+	RETURNF 2
+SIF (MONEY < ITEMPRICE:ARG && !TFLAG:194) || (TFLAG:194 == 1 && MONEY < ITEMPRICE:ARG / 3)
+	RETURNF 3
+SIF (MONEY < ITEMPRICE:ARG*3 && !TFLAG:194) &&ARG==98&&ITEM:주택>=1
+	RETURNF 3
+SIF ITEM:ARG >= 99
+	RETURNF 5
+RETURNF 0
+
+;-------------------------------------------------
+;함수명 :CHOICE
+;개요:2~4택함수
+;인수 :ARGS:0…질문 내용
+;      :ARGS:1~4…선택지의 캐릭터라인(3,4는 생략가능)
+;반환값:유저 입력 결과(0~3)
+;선택 조건이 없는, 심플한 선택지 작성 함수
+;말등으로도 사용할 수 있을지도 모른다
+;우선 4택까지. 늘려도 괜찮은데
+;-------------------------------------------------
+@CHOICE(ARGS:0, ARGS:1, ARGS:2, ARGS:3, ARGS:4)
+PRINTSL ARGS:0
+FOR LOCAL, 0, 4
+	PRINTFORML [{LOCAL}] - %ARGS:(1 + LOCAL)%
+	SIF LOCAL && !STRLENS(ARGS:(2 + LOCAL))
+		BREAK
+NEXT
+$INPUT_LOOP
+INPUT
+SELECTCASE RESULT
+	CASE 0 TO LOCAL - 1
+	CASEELSE
+		CALL SIMATTYAUOJISAN
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+ENDSELECT
+RETURN RESULT
+;-------------------------------------------------
+;선택지를 표시해 입력 결과를 돌려주는 함수 조건을 채우지 않는 선택지를 회색 표시로 해 무효로 하는 것이 가능
+;인수에 대사와 조건(0으로 무효, 비0으로 유효)을 지정. 최대 6개까지
+;반환값은 선택한 선택지의 번호
+;-------------------------------------------------
+@ASK_M(ARGS:0, ARG:0, ARGS:1, ARG:1, ARGS:2, ARG:2, ARGS:3, ARG:3, ARGS:4, ARG:4, ARGS:5, ARG:5, ARGS:6, ARG:6)
+#DIM CONST 선택지상한 = 6
+CURRENTREDRAW
+LOCAL:0 = RESULT
+REDRAW 0
+FOR LOCAL:0, 0, (선택지상한 + 1)
+	IF ARGS:(LOCAL:0) != ""
+		IF ARG:(LOCAL:0)
+			PRINTBUTTON @"{LOCAL:0, 2, RIGHT}[%ARGS:(LOCAL:0)%]", LOCAL:0
+		ELSE
+			SETCOLOR 0x606060
+			PRINTPLAINFORM {LOCAL:0, 2, RIGHT}[%ARGS:(LOCAL:0)%]
+			RESETCOLOR
+		ENDIF
+		PRINTL 
+	ENDIF
+NEXT
+$INPUT_LOOP
+INPUT
+IF RESULT < 0 || RESULT > 선택지상한 || ARGS:RESULT == "" || !ARG:RESULT
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+REDRAW LOCAL:0
+RETURN RESULT
+;-------------------------------------------------
+;현금과 카리스마 어디라도 지불할 수 있는 선택지를 위한 함수
+;-------------------------------------------------
+@PAY_YEN_OR_CM(ARG, ARG:1)
+PRINTFORML [0] 그만둔다
+PRINTFORML [1] \\{ARG} 지불한다　　(현재 소지금：\\{MONEY})
+PRINTFORML [2] CM{ARG:1} 지불한다　(현재 소지 카리스마：CM{MONEY:2})
+$INPUT_LOOP
+INPUT
+SELECTCASE RESULT
+	CASE 0
+	CASE 1
+		IF MONEY < ARG
+			PRINTFORMW 돈이 부족합니다
+			GOTO INPUT_LOOP
+		ENDIF
+		MONEY -= ARG
+	CASE 2
+		IF MONEY < ARG:2
+			PRINTFORMW 카리스마가 부족합니다
+			GOTO INPUT_LOOP
+		ENDIF
+		MONEY -= ARG:2
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
+RETURN RESULT
+;-------------------------------------------------
+;함수명 :GET_REVISION
+;개요:범용 보정치 취득 함수
+;인수 :ARG:0…참조하는 수치
+;반환값:보정 후의 값
+;비고:식중함수
+;어느 수치를, 상한치에 점근 해 나가는 수치로 변환하고 싶을 때에
+;상승률이 작으면 곧바로 상한에 이르는, 크면 반대로 좀처럼 상한까지 가까워지지 않는다
+;-------------------------------------------------
+@GET_REVISION(ARG:0, 상한, 상승률)
+#FUNCTION
+#DIM 상한
+#DIM 상승률
+RETURNF 상한 - 상승률 * 상한 / (상승률 + ARG:0)
+
+;eg 10000,2000,20000이라면2000-2000*20000/30000
+
+@GET_REVISION2(ARG:0, 상한, 상승률)
+#FUNCTION
+#DIM 상한
+#DIM 상승률
+RETURNF 상한 * (ARG:0 + 1) / (상승률 + ARG:0 + 1)
+
+;eg 5000*1001/1201
+
+;-------------------------------------------------
+;함수명 :PRINT_BASE
+;개요:범용 보정치 취득 함수
+;인수 :ARGS 바의 이름
+;		ARG:0…참조하는 캐릭터 번호
+;       ARG:1…베이스의 번호
+;       ARG:2…바의 길이
+;BAR를 표시시키고 싶을 때에
+;-------------------------------------------------
+@PRINT_BASE(ARGS, ARG:0, ARG:1, ARG:2)
+PRINTFORM %ARGS,%
+BAR BASE:ARG:(ARG:1), MAXBASE:ARG:(ARG:1), ARG:2
+PRINTFORML ({BASE:ARG:(ARG:1)}/{MAXBASE:ARG:(ARG:1)})
+
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;문자들이 라인 표시 함수
+;CALL		USER
+;ARG		ARGS:표시줄명, ARG:0 line_to_"-", ARG:1 라인장
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@DRAW_INFORMATIONLINE(ARGS, ARG, ARG:1)
+#DIMS EQUAL
+#DIMS MINUS
+EQUAL = =
+MINUS = -
+LOCAL = ARG:1
+
+IF ARGS =="Info"
+	SIF TFLAG:Info표시중
+		RETURN
+	TFLAG:Info표시중 = 1
+ENDIF
+SIF !ARG:1
+	LOCAL = 150
+IF ARG == 1
+	PRINTSINGLEFORMS "-- %ARGS% " + "%(MINUS * MAX((LOCAL - STRLENS(ARGS)), 0))%"
+ELSE
+	PRINTSINGLEFORMS "== %ARGS% " + "%(EQUAL * 150)%"
+ENDIF
+;-------------------------------------------------
+;절정시 따위, A와 B와 D와…같은 느낌으로 「과」로 이어 열거하기 위한 함수
+;인수에 표시하는 캐릭터라인과 조건(0으로 무효, 비0으로 유효)을 지정. 최대 5개까지
+;-------------------------------------------------
+@PRINT_EMUNERATE(표시:1, 조건:1, 표시:2, 조건:2, 표시:3, 조건:3, 표시:4, 조건:4, 표시:5, 조건:5)
+#DIMS 표시, 6
+#DIM 조건, 6
+
+SIF 조건:1
+	PRINTFORM %표시:1%
+SIF 조건:1 && (조건:2 || 조건:3 || 조건:4 || 조건:5)
+	PRINT 와
+SIF 조건:2
+	PRINTFORM %표시:2%
+SIF 조건:2 && (조건:3 || 조건:4 || 조건:5)
+	PRINT 와
+SIF 조건:3
+	PRINTFORM %표시:3%
+SIF 조건:3 && (조건:4 || 조건:5)
+	PRINT 와
+SIF 조건:4
+	PRINTFORM %표시:4%
+SIF 조건:4 && 조건:5
+	PRINT 와
+SIF 조건:5
+	PRINTFORM %표시:5%
+;-------------------------------------------------
+;악마로 메이드로부터 유용했습니다. 다사.
+;단어1/단어2/…/단어 n 의 서식에서 쓰여진 ARGS:0~의 단어의 어떤 것인지를 등 확률로 돌려준다
+;(ARGS가 다수 있는 것은 함수등이 돌진해지는 것을 상정하고 있기 (위해)때문에)
+;＿(은)는 아무것도 출력하지 않는 선택으로 한다
+;선택지의 수를 100까지 확장, RESULT 퇴피 처리 추가
+;추첨 처리가 등 확률이라면 FOR-NEXT 사용하지 않아 좋다고 생각했으므로 RAND로 끝마친다
+;-------------------------------------------------
+@TEXTR(ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6)
+#FUNCTIONS
+#DIM  L_RESULT               ;RESULT 퇴피용
+#DIMS DYNAMIC CHOICES        ;결과
+#DIMS DYNAMIC STR_ARRAY, 100 ;선택지 격납용의 일시 변수
+L_RESULT = RESULT
+;우선 1개(살)로 정리한다
+ARGS = %ARGS%\/%ARGS:1%\/%ARGS:2%\/%ARGS:3%\/%ARGS:4%\/%ARGS:5%\/%ARGS:6%
+;불필요한"/"을 깎는 작업
+;오쿠의 ARGS가 있으면(자)//가 많이 되어있고 판정의 방해가 되므로
+;1. //(은)는 치환으로 깎는다
+;2. 최말미가/라면 깎는다(SPLIT와 RAND를 그대로 사용하는 형편상)
+ARGS '= REPLACE(ARGS, "\/+", "/")
+SIF CHARATU(ARGS, STRLENSU(ARGS) - 1) == "/"
+	ARGS '= SUBSTRINGU(ARGS, 0, STRLENSU(ARGS) - 1)
+SPLIT ARGS, "/", STR_ARRAY
+CHOICES '= STR_ARRAY:(RAND:RESULT)
+SIF CHOICES == "＿"
+	CHOICES = 
+RESULT = L_RESULT
+RETURNF CHOICES
+;-------------------------------------------------
+;미독판정 함수 @ONCE
+;식중에서 사용하는 함수입니다
+;ARGS는 이벤트 번호, ARG는 진이라면 첫회 판정을 갱신하지 않는, ARG:1은 캐릭터등록번호(생략 하면(자) TARGET,-1라면 MASTER)
+;{이벤트 번호}/　그렇다고 하는 캐릭터라인을 CSTR:1에 처넣어 갑니다
+;-------------------------------------------------
+@ONCE(ARGS, ARG, ARG:1)
+#FUNCTION
+;ARG:2의 변환
+ARG:1 = ARG:1 ?  ARG:1 # TARGET
+ARG:1 = ARG:1 == -1 ?  MASTER # ARG:1
+
+SIF CSTR:(ARG:1):1 == ""
+	CSTR:(ARG:1):1 = /
+
+LOCALS = /%ARGS%/
+IF STRCOUNT(CSTR:(ARG:1):1, LOCALS)
+	RETURNF 0
+ELSEIF ARG
+	RETURNF 1
+ENDIF
+;첫회 판정 갱신
+CSTR:(ARG:1):1 = %CSTR:(ARG:1) :1%%ARGS%/
+RETURNF 1
+
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;플래그 리셋 처리
+;CALL		SYSTEM
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@EVENTTRAIN
+FOR LOCAL, 0, CHARANUM
+	CSTR:LOCAL:1 = 
+NEXT
+
+;-------------------------------------------------
+;미독판정 함수 @FIRSTTIME
+;식중에서 사용하는 함수입니다.
+;ARGS는 이벤트 번호, ARG는 진이라면 첫회 판정을 갱신하지 않는, ARG:1은 캐릭터등록번호(생략 하면(자) TARGET,-1라면 MASTER)
+;{이벤트 번호}/　그렇다고 하는 캐릭터라인을 CSTR:0에 처넣어 갑니다
+;-------------------------------------------------
+@FIRSTTIME(ARGS,ARG, ARG:1)
+#FUNCTION
+;ARG:1의 변환
+ARG:1 = ARG:1 ? ARG:1 # TARGET
+ARG:1 = ARG:1 == -1 ? MASTER # ARG:1
+SIF CSTR:(ARG:1):0 == ""
+	CSTR:(ARG:1):0 = /
+
+LOCALS = /%ARGS%/
+IF STRCOUNT(CSTR:(ARG:1):0,LOCALS)
+	RETURNF 0
+ELSEIF ARG
+	RETURNF 1
+ENDIF
+;첫회 판정 갱신
+CSTR:(ARG:1):0 = %CSTR:(ARG:1):0%%ARGS%/
+RETURNF 1
+
+;-------------------------------------------------
+;함수명 :EXP_UP
+;개요:경험치 변동 체크
+;인수 :ARG:0…참조하는 EXP
+;       ARG:1…참조하는 캐릭터 번호
+;-------------------------------------------------
+@EXP_UP(ARG,ARG:1)
+#FUNCTION
+RETURNF EXP:(ARG:1):ARG - TCVAR:(ARG:1):(400 + ARG)
+
+;-------------------------------------------------
+;함수명 :INVAGINA
+;개요:V에 무엇이 들어가 있는 건가를 돌려준다
+;인수 :ARG:0…참조하는 캐릭터 번호
+;반환값:0없음
+;반환값:1 페니스
+;반환값:2 바이브
+;-------------------------------------------------
+@INVAGINA(ARG)
+#FUNCTION
+IF TEQUIP:ARG:50
+	IF TALENT:PLAYER:2 & 2
+		RETURNF 1
+	ELSE
+		RETURNF 3
+	ENDIF
+ELSEIF TEQUIP:ARG:바이브
+	RETURNF 2
+ENDIF
+;-------------------------------------------------
+;함수명 :INANAL
+;개요:A에 무엇이 들어가 있는 건가를 돌려준다
+;인수 :ARG:0…참조하는 캐릭터 번호
+;반환값:0없음
+;반환값:1 페니스
+;반환값:2 애널바이브
+;반환값:3 애널비즈
+;-------------------------------------------------
+@INANAL(ARG)
+#FUNCTION
+IF TEQUIP:ARG:51
+	RETURNF 1
+ELSEIF TEQUIP:ARG:애널바이브
+	RETURNF 2
+ELSEIF TEQUIP:ARG:애널비즈
+	RETURNF 3
+ENDIF
+;-------------------------------------------------
+;함수명 :HETEROSEX
+;ARG와 ARG:1의 성별이 같은가 어떤가를 돌려주는사실은 HOMOSEX이지만 어감이 나쁘기 때문에
+;여성기를 가지는 것은 여자, 가지지 않는 것을 남자로 한다
+;반환값0=이성
+;반환값1=동성(레즈비언)
+;반환값2=동성(동성애자)
+;-------------------------------------------------
+@HETEROSEX(ARG, ARG:1)
+#FUNCTION
+IF GETBIT(TALENT:ARG:2, 0) == GETBIT(TALENT:(ARG:1):2, 0)
+	IF GETBIT(TALENT:ARG:2, 0)
+		RETURNF 1
+	ELSE
+		RETURNF 2
+	ENDIF
+ELSE
+	RETURNF 0
+ENDIF
+
+;-------------------------------------------------
+;함수명 :GET_TARGETNUM
+;동실중의 TARGET의 수를 돌려준다
+;인수 폐지해 FOR-NEXT를 배제해 고속화
+;-------------------------------------------------
+@GET_TARGETNUM()
+#FUNCTION
+RETURNF MAX(0, FINDELEMENT(TARGET, 0) - 1)
+;-------------------------------------------------
+;함수명 :IN_ROOM_MEMBER
+;방 중(안)에서 특정 요소에서의 최저·최고를 가지는 캐릭터를 취득
+;ARGS MAX인가 MIN인지를 선택
+;ARG 방의 번호
+;ARGS:1 대상이 되는 변수의 이름
+;ARG:1 변수의 번호
+;-------------------------------------------------
+@IN_ROOM_MEMBER, ARGS, ARG, ARGS:1, ARG:1
+#FUNCTION
+VARSET LOCAL, 0
+SELECTCASE ARGS:1
+	CASE "CFLAG"
+		FOR LOCAL, 1, CHARANUM
+			SIF CFLAG:LOCAL:현재위치 != ARG
+				CONTINUE
+			IF LOCAL:3++ == 0
+				LOCAL:1 = CFLAG:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF ARGS == "MAX" && LOCAL:1 < CFLAG:LOCAL:(ARG:1)
+				LOCAL:1 = CFLAG:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF ARGS == "MIN" && LOCAL:1 > CFLAG:LOCAL:(ARG:1)
+				LOCAL:1 = CFLAG:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF LOCAL:1 == CFLAG:LOCAL:(ARG:1) && RAND:2
+				LOCAL:1 = CFLAG:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ENDIF
+		NEXT
+		RETURNF LOCAL:2
+	CASE "TCVAR"
+		FOR LOCAL, 1, CHARANUM
+			SIF CFLAG:LOCAL:현재위치 != ARG
+				CONTINUE
+			IF LOCAL:3++ == 0
+				LOCAL:1 = TCVAR:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF ARGS == "MAX" && LOCAL:1 < TCVAR:LOCAL:(ARG:1)
+				LOCAL:1 = TCVAR:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF ARGS == "MIN" && LOCAL:1 > TCVAR:LOCAL:(ARG:1)
+				LOCAL:1 = TCVAR:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF LOCAL:1 == TCVAR:LOCAL:(ARG:1) && RAND:2
+				LOCAL:1 = TCVAR:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ENDIF
+		NEXT
+		RETURNF LOCAL:2
+	CASE "ABL"
+		FOR LOCAL, 1, CHARANUM
+			SIF CFLAG:LOCAL:현재위치 != ARG
+				CONTINUE
+			IF LOCAL:3++ == 0
+				LOCAL:1 = ABL:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF ARGS == "MAX" && LOCAL:1 < ABL:LOCAL:(ARG:1)
+				LOCAL:1 = ABL:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF ARGS == "MIN" && LOCAL:1 > ABL:LOCAL:(ARG:1)
+				LOCAL:1 = ABL:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF LOCAL:1 == ABL:LOCAL:(ARG:1) && RAND:2
+				LOCAL:1 = ABL:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ENDIF
+		NEXT
+		RETURNF LOCAL:2
+	CASE "TALENT"
+		FOR LOCAL, 1, CHARANUM
+			SIF CFLAG:LOCAL:현재위치 != ARG
+				CONTINUE
+			IF LOCAL:3++ == 0
+				LOCAL:1 = TALENT:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF ARGS == "MAX" && LOCAL:1 < TALENT:LOCAL:(ARG:1)
+				LOCAL:1 = TALENT:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF ARGS == "MIN" && LOCAL:1 > TALENT:LOCAL:(ARG:1)
+				LOCAL:1 = TALENT:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ELSEIF LOCAL:1 == TALENT:LOCAL:(ARG:1) && RAND:2
+				LOCAL:1 = TALENT:LOCAL:(ARG:1)
+				LOCAL:2 = LOCAL
+			ENDIF
+		NEXT
+		RETURNF LOCAL:2
+ENDSELECT
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;TARGET재설정 함수
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+;
+;리스트 함수와 소트 함수가 생겼으므로 꽤 간이화 할 수 있었는지
+@TARGETSET_CHACK(OP)
+#DIMS OP         ;SHOW_STATUS는 동실 갱신 들어갈 수 있으면(자) 좋지 않아의로 스킵 하는 용
+#DIM  TARGET_CNT ;타겟의 수
+#DIM  L_ID       ;REF 대책, 건네줄 뿐
+#DIM  SWAP_ID    ;현재의TARGET 지정 처리용의 일시 변수
+;우후후 안은 TARGET를 놓친다(정사 발각등으로 어긋나버린다 것으로)
+SIF !TFLAG:현재의TARGET && (CFLAG:TARGET:우후후 || CFLAG:MASTER:초대)
+	TFLAG:현재의TARGET = TARGET
+
+CALL MAKE_CHARA_LIST("TARGET 리스트", L_ID, TARGET, TARGET_CNT)
+SIF !TARGET_CNT
+	RETURN
+CALL SORT_LIST("호감 내림차순", TARGET, TARGET_CNT)
+
+LOCAL:1 = TARGET
+IF TFLAG:현재의TARGET > 0
+	LOCAL:1 = FINDELEMENT(TARGET, TFLAG:현재의TARGET)
+	IF LOCAL:1 == -1
+		LOCAL:1 = 0
+		TFLAG:현재의TARGET = 0
+	ENDIF
+	LOCAL:1 = TARGET:(LOCAL:1)
+ENDIF
+ARRAYSHIFT TARGET, 1, LOCAL:1
+[SKIPSTART]
+SIF STRCOUNT(OP, "「동실 갱신 없음」")
+	RETURN
+
+;동실 확인은 리스트측에서 하고 있으므로 여기에서는 필요없다
+FOR LOCAL, 1, 1 + TARGET_CNT
+	CFLAG:(TARGET:LOCAL):동실 = 1
+NEXT
+[SKIPEND]
+
+
+
+
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;데이트 도중 진행
+;デート道中進行
+;CALL		USER
+;ARG		진행할 시간(10분 단위)
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@DATE_GOES_ON(ARG)
+IF (CFLAG:MASTER:현재위치 % 100) % 10 && !AT_HOME(MASTER) && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	IF (CFLAG:MASTER:현재위치 % 100 % 10) - ARG < 0
+		LOCAL:1 = CFLAG:MASTER:현재위치 - (CFLAG:MASTER:현재위치 % 100 % 10)
+	ELSE
+		LOCAL:1 = CFLAG:현재위치 - ARG
+	ENDIF
+	FOR LOCAL, 0, CHARANUM
+		SIF CHK_DATENOW(CFLAG:LOCAL:데이트중)
+			CFLAG:LOCAL:현재위치 = LOCAL:1
+	NEXT
+ENDIF
+;====================================================
+@성기술보정(ARG)
+#FUNCTION
+RETURNF 1 + (ABL:PLAYER:ARG - 2) / 10
+;====================================================
+
+;-------------------------------------------------
+;함수명 :RECOVER
+;개요:BASE 회복 처리
+;인수 :ARGS
+;		ARG:0…참조하는 캐릭터 번호
+;       ARGS…베이스
+;		ARGS:1	표시 첨부
+;-------------------------------------------------
+@RECOVER(ARG, 회복량, ARGS, ARGS:1)
+#DIM  BASE_ID
+#DIM 회복량
+;정력의 경우장대 없음이라면 스킵
+SIF !HAS_PENIS(ARG) && ARGS == "정력"
+	RETURN
+;아나타 이외 TSP 스킵
+SIF ARG != MASTER && ARGS == "TSP"
+	RETURN
+BASE_ID = FINDELEMENT(BASENAME, ARGS)
+BASE:ARG:(ARGS) = LIMIT(BASE:ARG:(ARGS) + 회복량, 0, MAXBASE:ARG:(ARGS))
+SIF 회복량 > 0 && 회복량 < 100
+	RETURN
+IF ARGS != "" && CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+	IF 회복량 > 0
+		CALL COLORMESSAGE(@"%BASENAME:BASE_ID%＋{회복량} (%CALLNAME:ARG%)(%ARGS:1%)", C_GREEN, 1)
+	ELSEIF 회복량 < 0
+		CALL COLORMESSAGE(@"%BASENAME:BASE_ID%－{회복량 * -1} (%CALLNAME:ARG%) (%ARGS:1%)", C_RED, 1)
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;함수명 :RECOVER_PERMIL
+;개요:BASE 비율 회복 처리
+;인수 :ARGS
+;		ARG:0…참조하는 캐릭터 번호
+;       ARGS…베이스
+;회복량은 0.1%단위
+;-------------------------------------------------
+@RECOVER_PERMIL(ARG, 회복량, ARGS, 회복속도의영향)
+#DIM 회복량
+#DIM 회복속도의영향
+SIF !HAS_PENIS(ARG) && ARGS == "정력"
+	회복량 = 0
+LOCAL = MAXBASE:ARG:(ARGS) * 회복량 / 1000
+SIF 회복속도의영향
+	LOCAL = LOCAL * (TALENT:ARG:회복속도 + 4) / 4
+BASE:ARG:(ARGS) = LIMIT(BASE:ARG:(ARGS) + LOCAL, 0, MAXBASE:ARG:(ARGS))
+
+;-------------------------------------------------
+;함수명 :BUFF_BASE
+;개요:특정 BASE를 일시적으로 강화
+;-------------------------------------------------
+@BUFF_BASE(ARG, 강화능력, 변동치, 메시지)
+#DIM 변동치
+#DIM 강화능력
+#DIM 메시지
+SIF !HAS_PENIS(ARG) && 강화능력 == 6
+	변동치 = 0
+SIF 변동치 < 0 && ABS(변동치) > MAXBASE:ARG:강화능력
+	변동치 = (MAXBASE:ARG:강화능력 - 1) * -1
+
+MAXBASE:ARG:강화능력 += 변동치
+BASE:ARG:강화능력 += 변동치
+BUFF:ARG:강화능력 += 변동치
+SIF 메시지
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%의%BASENAME:강화능력%가 일시적으로\@ 변동치 > 0?  오른# 내린\@", C_YELLOW, 1)
+;-------------------------------------------------
+;함수명 :BUFF_RESET
+;개요:버프를 완전하게 리셋
+;-------------------------------------------------
+@BUFF_RESET
+FOR LOCAL, 0, CHARANUM
+	FOR LOCAL:1, 0, 16
+		MAXBASE:LOCAL:(LOCAL:1) -= BUFF:LOCAL:(LOCAL:1)
+		BASE:LOCAL:(LOCAL:1) -= BUFF:LOCAL:(LOCAL:1)
+		BUFF:LOCAL:(LOCAL:1) = 0
+	NEXT
+NEXT
+
+;-------------------------------------------------
+;함수명 :CHANGE_CFLAG
+;개요:메시지 첨부 CFLAG 변동
+;마이나스는 되지 않게 되고 있기 때문에 주의
+;-------------------------------------------------
+@CHANGE_CFLAG(변동플래그, 대상, 변동수)
+#DIM 변동플래그
+#DIM 대상
+#DIM 변동수
+변동수=변동수*(1+FLAG:의뢰호감신뢰상승률)
+CFLAG:대상:변동플래그 = MAX(CFLAG:대상:변동플래그 + 변동수, 0)
+IF 변동수 > 0
+	CALL COLORMESSAGE(@"%CFLAGNAME:변동플래그%＋{변동수}(%CALLNAME:대상%)", C_YELLOW, 2,1)
+ELSE
+	CALL COLORMESSAGE(@"%CFLAGNAME:변동플래그%－{-변동수}(%CALLNAME:대상%)", C_RED, 2,1)
+ENDIF
+
+;-------------------------------------------------
+;함수명: AddEXP
+;개요: 메세지 첨부 EXP 가산
+;マイナスにはならないようになってるので注意
+;-------------------------------------------------
+@AddEXP(VAR_NAME,C_ID,변수)
+#DIMS VAR_NAME
+#DIM VAR_ID
+#DIM C_ID
+#DIM 변수
+
+SIF 변수 == 0
+	RETURN
+
+VAR_ID = FINDELEMENT(EXPNAME, VAR_NAME)
+EXP:C_ID:VAR_ID += 변수
+CALL COLORMESSAGE(@"%VAR_NAME%＋{변수}（%CALLNAME:C_ID%）",C_YELLOW,2,1)
+
+;-------------------------------------------------
+;함수명 :SHIRAHU
+;개요:보통으로 의식이 있는 상태인가　2라면 우후후중
+;-------------------------------------------------
+@SHIRAHU(ARG)
+#FUNCTION
+IF FLAG:70
+	RETURNF 0
+ELSEIF !CFLAG:ARG:수면 && !CFLAG:ARG:동침중 && !TCVAR:ARG:만취 && !CFLAG:ARG:쇠약
+	IF TFLAG:102 == 2
+		RETURNF 2
+	ELSE
+		RETURNF 1
+	ENDIF
+ELSE
+	RETURNF 0
+ENDIF
+
+;-------------------------------------------------
+;함수명 :BETWEENTIME
+;개요:TIME가 ARG로부터 ARG:1까지의 사이인가 돌려주는 함수
+;-------------------------------------------------
+@BETWEENTIME(ARG, ARG:1)
+#FUNCTION
+IF ARG < ARG:1
+	IF TIME >= ARG && TIME < ARG:1
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ELSE
+	IF TIME >= ARG || TIME < ARG:1
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;함수명 :VISIT
+;개요:그 캐릭터의 활동시간대인가 어떤가를 돌려주는 함수
+;-------------------------------------------------
+@VISIT(ARG)
+#FUNCTION
+RETURNF BETWEENTIME(CFLAG:ARG:내방시간, CFLAG:ARG:귀가시간)
+;-------------------------------------------------
+;함수명:수면시간
+;개요:더부살이캐릭터가 자고 있어 어떤가를 돌려주는 함수였던 것을 전원 사용할 수 있도록(듯이)
+;자고 있다고(면) 1을 돌려준다
+;-------------------------------------------------
+@수면시간(ARG)
+#FUNCTION
+SIF ARG == MASTER
+	RETURNF CFLAG:MASTER:수면
+IF CFLAG:ARG:쇠약
+	RETURNF 1
+ELSEIF !BETWEENTIME(CFLAG:ARG:기상시간, CFLAG:ARG:취침시간 + CFLAG:ARG:385)	;졸음쫒기 강도분 연장한다
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+;-------------------------------------------------
+;함수명:아이의수면시간
+;개요:캐릭터 ARG의 아이가 자고 있어 어떤가를 돌려주는 함수
+;자고 있다고(면) 1을 돌려준다
+;-------------------------------------------------
+@아이의수면시간(ARG)
+#FUNCTION
+#DIM 아이의기상시간
+#DIM 아이의취침시간
+SIF !TALENT:ARG:육아중
+	RETURNF 0
+아이의기상시간 = CFLAG:ARG:기상시간
+아이의취침시간 = CFLAG:ARG:취침시간 - 120 + (CFLAG:ARG:취침시간 - 120 < 0 ?  1440 # 0 )
+IF !BETWEENTIME(아이의기상시간, 아이의취침시간)
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+;-------------------------------------------------
+;함수명 :WORKING
+;개요:그 캐릭터의 일시간대인가 어떤가를 돌려주는 함수
+;-------------------------------------------------
+@WORKING(ARG)
+#FUNCTION
+IF !SHIRAHU(ARG)
+	RETURNF 0
+ELSEIF !BETWEENTIME(TCVAR:ARG:일개시, TCVAR:ARG:일종료)
+	RETURNF 0
+ELSEIF BASE:ARG:일량 <= 0
+	RETURNF 0
+ELSEIF CHARA_HOLIDAY(ARG)
+	RETURNF 0
+ELSE
+	RETURNF 1
+ENDIF
+;-------------------------------------------------
+;함수명:연속실행
+;개요:동일 커맨드 연속실행했을 때 패널티가 발생할까
+;반환값:0이라면 페나가 발생하지 않는다
+;-------------------------------------------------
+@연속실행()
+#FUNCTION
+SIF TARGET != TFLAG:103
+	RETURNF 0
+SELECTCASE PREVCOM
+	CASE 1,60,61,65,67,68,300,304,410,442,445,446,604,621
+		RETURNF 0
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+
+;-------------------------------------------------
+;함수명:카운터우타즈커맨드
+;반환값:0이 아니면 카운터 우타즈
+;-------------------------------------------------
+@카운터우타즈커맨드(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE 697 TO 699
+		RETURNF 1
+	CASEELSE
+		RETURNF 0
+ENDSELECT
+;-------------------------------------------------
+;함수명 :ENDUFUFU
+;개요:우후후 종료시 리셋 처리
+;-------------------------------------------------
+@ENDUFUFU(ARG)
+[IF DEBUG]
+	PRINTFORML 우후후 종료 처리
+[ENDIF]
+UFUFU_START_TIME = 0
+UFUFU_START_DAY = 0
+;시간정지중은 복장 세트 하지 않는다
+;수면 절반으로 자르는 것기 등은 모두 리셋 처리 곁에 있습니다
+SIF !FLAG:70
+	CALL CHANGE_CLOTHES(ARG, "의상 리셋")
+;복장을 TEQUIP에
+CALL CLOTHES_SETTING_TRAIN(ARG)
+
+;우후후시 계 장비 리셋
+;TEQUIP:ARG:10-TEQUIP:ARG:149를 초기화한다
+VARSET TEQUIP:ARG:0, 0, 10, 150
+
+;사정 관계 리셋
+IF TFLAG:102 < 2
+	BASE:ARG:사정 = 0
+	TCVAR:ARG:이기초 = 0
+ENDIF
+CFLAG:ARG:우후후 = 0
+TEQUIP:ARG:50 = -1
+TEQUIP:ARG:51 = -1
+TEQUIP:ARG:상반신탈의상태 = 0
+TEQUIP:ARG:하반신비켜놓기상태 = 0
+TEQUIP:ARG:윗도리탈의가끝난상태 = 0
+TCVAR:ARG:억지로 = 0
+TCVAR:ARG:마음대로해 = 0
+
+;일단 MASTER도 초기화(해 두지 않으면 종료후도00장착중이 표시될 가능성이 있으므로
+IF CFLAG:MASTER:우후후
+	CFLAG:MASTER:우후후 = 0
+	CALL CHANGE_CLOTHES(MASTER, "의상 리셋")
+	CALL CLOTHES_SETTING_TRAIN(MASTER)
+	VARSET TEQUIP:MASTER:0, 0, 10, 150
+	TEQUIP:MASTER:50 = -1
+	TEQUIP:MASTER:51 = -1
+	TEQUIP:MASTER:상반신탈의상태 = 0
+	TEQUIP:MASTER:하반신비켜놓기상태 = 0
+ENDIF
+
+IF CFLAG:수면
+	IF CFLAG:ARG:구내정액
+		PRINTFORML %마스터는% %CALLNAME:ARG%의 입 안에 남아있던 정액을 처리했다
+		CFLAG:ARG:구내정액 = 0
+	ENDIF
+	IF CFLAG:ARG:안면정액 || CFLAG:ARG:손에정액
+		PRINTFORM %마스터는% %CALLNAME:ARG%의 
+		IF CFLAG:ARG:안면정액 && !CFLAG:ARG:손에정액
+			PRINTFORM 얼굴에 묻은 
+		ELSEIF !CFLAG:ARG:안면정액 && CFLAG:ARG:손에정액
+			PRINTFORM 손에 묻은 
+		ELSE
+			PRINTFORM 얼굴과 손을 더럽힌 
+		ENDIF
+		PRINTFORML 정액을 닦았다
+		CFLAG:ARG:안면정액 = 0
+		CFLAG:ARG:손에정액 = 0
+	ENDIF
+ENDIF
+IF !FLAG:70
+	TFLAG:운반 = 0
+	IF CFLAG:ARG:구내정액
+		PRINTFORML %CALLNAME:ARG%는 입 안에 남아있던 정액을 \@ ABL:ARG:정액중독 > 2 ?  전부 삼켰다 # 뱉었다 \@
+		CFLAG:ARG:구내정액 = 0
+	ENDIF
+	IF CFLAG:ARG:안면정액 || CFLAG:ARG:손에정액
+		PRINTFORM %CALLNAME:ARG%는 
+		IF CFLAG:ARG:안면정액 && !CFLAG:ARG:손에정액
+			PRINTFORM 얼굴에 묻은 
+		ELSEIF !CFLAG:ARG:안면정액 && CFLAG:ARG:손에정액
+			PRINTFORM 손에 묻은 
+		ELSE
+			PRINTFORM 얼굴과 손을 더럽힌 
+		ENDIF
+		PRINTFORML 정액을 \@ ABL:ARG:정액중독 > 2 ?  입에 넣었다 # 닦았다 \@
+		CFLAG:ARG:안면정액 = 0
+		CFLAG:ARG:손에정액 = 0
+	ENDIF
+ENDIF
+;-------------------------------------------------------------
+;ARG와 당신이 동성이었던 경우, 양자에게 레즈비언(동성애자) 경험을 추가하는 함수
+;-------------------------------------------------------------
+@ADD_EXP_LESNIAN(UP_EXP, ARG, ARGS)
+#DIM UP_EXP
+#DIM SAMESEX
+
+;제2 인수를 생략 하면(자) TARGET 취급
+SIF !ARG
+	ARG = TARGET
+IF HETEROSEX(ARG, MASTER)
+	SAMESEX = 50 + HETEROSEX(ARG, MASTER)
+	EXP:SAMESEX += UP_EXP
+	EXP:PLAYER:SAMESEX += UP_EXP
+	IF ARGS != ""
+		CALL COLORMESSAGE(@"%EXPNAME:SAMESEX%＋{UP_EXP}(%CALLNAME:ARG%)", C_YELLOW, 2,1)
+		CALL COLORMESSAGE(@"%EXPNAME:SAMESEX%＋{UP_EXP}(%CALLNAME:MASTER%)", C_YELLOW, 2,1)
+	ENDIF
+ENDIF
+
+;----------------------------------------------------
+;성별 판정용
+;----------------------------------------------------
+@HAS_PENIS(ARG)
+#FUNCTION
+SIF GETBIT(TALENT:ARG:성별, 1)
+	RETURNF 1
+RETURNF 0
+
+;-------------------------------------------------
+;이벤트등으로 이성을 잃었을 경우의 처리
+;-------------------------------------------------
+@GET_ANGRY(ARG, 각인부여)
+#DIM 각인부여
+
+CFLAG:ARG:언짢음 = 1
+CFLAG:ARG:빡침 = 1
+BASE:ARG:분노 = MAXBASE:ARG:분노
+TALENT:ARG:기분 = -1
+MARK:ARG:반발각인 = MIN(MARK:ARG:반발각인 + 각인부여, 3)
+MARK:ARG:반발취득이력 = MAX(MARK:ARG:반발취득이력, MARK:ARG:반발각인)
+
+;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;술에 취함 상태 취득
+;CALL		USER
+;ARG		캐릭터 No
+;RETURN		술에 취함 상태 _toSTR
+;COMMENT	
+;-----------------------------------------------------------
+@ALCOHOL_FACE(ARG)
+#FUNCTIONS
+SIF BASE:ARG:술기운 <= 2
+	RETURNF "　맨정신　"
+SELECTCASE BASE:ARG:술기운
+	CASE IS > (MAXBASE:ARG:술기운 / 10) * 8
+		RETURNF "곤드레만드레"
+;	CASE IS > (MAXBASE:ARG:술기운 / 10) * 7
+;		RETURNF "고주망태"
+	CASE IS > (MAXBASE:ARG:술기운 / 10) * 5
+		RETURNF "주정꾼"
+	CASE IS <= (MAXBASE:ARG:술기운 / 10) * 5
+		RETURNF "취기"
+ENDSELECT
+;-------------------------------------------------
+;네/아니오의 선택지를 표시해 입력 결과를 돌려주는 함수
+;인수 0=긍정 선택지의 캐릭터라인,1=부정 선택지의 캐릭터라인
+;반환값 0=네,1=아니오
+;-------------------------------------------------
+@ASK_YN(ARGS:0 = "　네　", ARGS:1 = "아니오")
+CURRENTREDRAW
+LOCAL:0 = RESULT
+REDRAW 0
+PRINTBUTTON @" [%ARGS:0%]", 0
+PRINTL
+PRINTBUTTON @" [%ARGS:1%]", 1
+PRINTL 
+$INPUT_LOOP
+INPUT
+IF RESULT != 0 && RESULT != 1
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+REDRAW LOCAL:0
+RETURN RESULT
+;-------------------------------------------------
+;특수한 기능을 가지는 버튼을 작성하는 함수
+;ARG는 입력되는 숫자, ARG:1에 1을 설정하면(자) 회색에,
+;ARG:2에 1을 설정하면(자) 버튼이 황색, ARG:3에 1을 설정하면(자) 버튼이 무효(회색)
+;-------------------------------------------------
+@PRINTBUTTON_EX(ARGS:0, ARG, ARG:1, ARG:2, ARG:3)
+IF ARG:3
+	SETCOLOR C_L_GRAY
+	PRINTFORM %ARGS:0%
+ELSE
+	SIF ARG:2
+		SETCOLOR C_YELLOW
+	SIF ARG:1
+		SETCOLOR C_L_GRAY
+	PRINTBUTTON @"%ARGS:0%", ARG
+ENDIF
+RESETCOLOR
+;-------------------------------------------------
+;특수한 기능을 가지는 버튼을 작성하는 함수
+;ARG는 입력되는 숫자, ARG:1에 1을 설정하면(자) 회색에,
+;ARG:2에 1을 설정하면(자) 버튼이 황색, ARG:3에 1을 설정하면(자) 버튼이 무효(회색)
+;-------------------------------------------------
+@PRINTBUTTON_EXC(ARGS:0, ARG, ARG:1, ARG:2, ARG:3)
+IF ARG:3
+	SETCOLOR C_L_GRAY
+	PRINTFORMC %ARGS:0%
+ELSE
+	SIF ARG:2
+		SETCOLOR C_YELLOW
+	SIF ARG:1
+		SETCOLOR C_L_GRAY
+	PRINTBUTTONC @"%ARGS:0%", ARG
+ENDIF
+RESETCOLOR
+;-------------------------------------------------
+;Fisher-Yates 알고리즘에 의한 셔플 배열의 작성
+;전용 배열 SHAFFLE_ARRAY를 사용
+;인수 0:배열의 길이(0~ARG:0-1까지의 셔플) 
+;-------------------------------------------------
+@FISHER_YATES_SHAFFLE(ARG:0)
+;셔플 배열의 초기화
+SIF !INRANGE(ARG:0 , 1 , 499)
+	THROW 인수({ARG:0})가 이상합니다. 1~499의 범위에서 지정해 주세요.
+VARSET SHAFFLE_ARRAY , 0
+;SHAFFLE_ARRAY의 초기화
+FOR LOCAL:0 , 0 , ARG:0
+	SHAFFLE_ARRAY:(LOCAL:0) = LOCAL:0
+NEXT
+
+FOR LOCAL:0 , 0 , ARG:0 - 1
+	LOCAL:1 = RAND(LOCAL:0 , ARG:0)
+	SWAP SHAFFLE_ARRAY:(LOCAL:0), SHAFFLE_ARRAY:(LOCAL:1)
+NEXT
+;종단용으로―1을 세트
+SHAFFLE_ARRAY:(ARG:0) = -1
+RETURN 0
+
+@NEMUKE()
+#FUNCTION
+LOCAL =  TIME + 1440 * DAY - TFLAG:당신기상 - TFLAG:198 - CFLAG:MASTER:385
+RETURNF LOCAL
+
+;-------------------------------------------------
+;시각표시(ARG)
+;주어진 TIME를 H시 MM분 표시에 변환
+;-------------------------------------------------
+@시각표시(ARG)
+#FUNCTIONS
+#DIM HOUR
+#DIM MINUTE
+#DIMS 시각
+HOUR   = ARG / 60
+MINUTE = ARG % 60
+시각 = %TOSTR(HOUR)%시 %TOSTR(MINUTE,"00")%분
+RETURNF 시각
+
+;-------------------------------------------------
+;시각 변환(HOUR, MINUTE)
+;주어진 HOUR시 MINUTE분을 TIME용으로 변환
+;만약을 위해 HOUR가 25였거나 MINUTE가 61이기도 했을 경우에도 대응했다
+;예) CLOCK_TO_TIME(10, 0)를 하면(자) 돌아가는 수치는 600
+;eraTW의 하루는00:01~24:00의 범위, 자세하게는@INFO_GO_NEXTDAY를 봐라
+;-------------------------------------------------
+@CLOCK_TO_TIME(HOUR, MINUTE)
+#FUNCTION
+#DIM HOUR
+#DIM MINUTE
+SIF HOUR == 24 && MINUTE == 0
+	RETURNF 24 * 60
+HOUR   = (HOUR + MINUTE / 60) % 24
+MINUTE = MINUTE % 60
+RETURNF HOUR * 60 + MINUTE
+
+
+
+;-------------------------------------------------
+;TIMESTOP(ARG)
+;그 캐릭터의 시간정지 상태를 돌려준다
+;0=시간정지 없음(의식 있어)　1=시간정지 세계 진입(의식 있어)　2=완전하게 제지당하고 있다(의식이 없는 상태)
+;-------------------------------------------------
+@TIMESTOP(ARG)
+#FUNCTION
+;인수를 생략하면(자) TARGET
+SIF !ARG
+	ARG = TARGET
+IF !FLAG:70
+	LOCAL = 0
+ELSEIF CFLAG:ARG:344 == 1
+	LOCAL = 1
+ELSE
+	LOCAL = 2
+ENDIF
+RETURNF LOCAL
+
+@KIGEN_CHANGE(ARG, 확률, 경향)
+#DIM 확률
+#DIM 경향
+;경향을 1으로 하면(자)+마셔,-1로 하면(자)-마셔
+SIF TALENT:ARG:감정결여
+	확률 /= 2
+IF RAND:100 < 확률
+	IF !경향
+		IF !RAND:2
+			TALENT:ARG:기분 ++
+		ELSE
+			TALENT:ARG:기분 --
+		ENDIF
+	ELSE
+		TALENT:ARG:기분 += 경향
+	ENDIF
+ENDIF
+TALENT:ARG:기분 = LIMIT(TALENT:ARG:기분,-1, 1)
+
+;-------------------------------------------------
+;ARG가 남성기피로 당신이 남자라면 1
+;ARG가 여성기피로 당신이 여자라면 2를 돌려준다
+;연모 애욕 양도로 무효
+;-------------------------------------------------
+@OTOKOGIRAI(ARG)
+#FUNCTION
+;양도
+SIF TALENT:ARG:성별기호 == -1
+	RETURNF 0
+;연모
+SIF TALENT:ARG:연모
+	RETURNF 0
+SIF TALENT:ARG:애욕
+	RETURNF 0
+;남성기피
+IF TALENT:ARG:성별기호 & 1 && !(TALENT:PLAYER:2 & 1)
+	RETURNF 1
+;여성기피
+ELSEIF TALENT:ARG:성별기호 & 2 && !(TALENT:PLAYER:2 & 2)
+	RETURNF 2
+ENDIF
+RETURNF 0
+
+
+
+;-------------------------------------------------
+;정욕감지의 개별 판정 F함수
+;-------------------------------------------------
+;실적 해제하지 않아도 짐작 할 수 있도록(듯이)
+;커맨드로서의 정욕감지는 사용 불가능
+@NOTICE_LUST(C_ID)
+#FUNCTION
+#DIM C_ID
+SIF C_ID == MASTER
+	RETURNF 0
+SIF TALENT:MASTER:정욕감지
+	RETURNF 1
+SIF EXP:C_ID:데이트경험 + EXP:C_ID:애정경험 >= 100
+	RETURNF 1
+RETURNF 0
+
+
+
+;-------------------------------------------------
+;생리주기가시화의 개별 판정 F함수
+;-------------------------------------------------
+;실적 해제하지 않아도 가시화할 수 있도록(듯이)
+@NOTICE_CYCLE(C_ID)
+#FUNCTION
+#DIM C_ID
+SIF !GETBIT(TALENT:C_ID:성별, 0)
+	RETURNF 0
+;자신의 것은 파악해와
+SIF C_ID == MASTER
+	RETURNF 1
+SIF FLAG:생리주기가시화
+	RETURNF 1
+SIF EXP:C_ID:데이트경험 + EXP:C_ID:애정경험 >= 200
+	RETURNF 1
+RETURNF 0
+
+
+
+;-------------------------------------------------
+;캐릭터 체크 F함수
+;-------------------------------------------------
+;캐릭터가 특정 조건에 합치하고 있는지 어떤지를 돌려준다
+;조건은 TYPE 마다 지정
+;복합한 조건에 이름을 붙일 때는 캐릭터리스트클래스 함수를 증설하기로 했다
+;-------------------------------------------------
+@CHECK_CHARA(C_ID, TYPE = "존재")
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS DYNAMIC TYPE ;판정 타입, DYNAMIC 했으므로 다중 호출 가능
+#DIM C_ID          ;등록 번호
+SELECTCASE TYPE
+;기본 조건
+CASE "존재", "存在"
+	RETURNF !CFLAG:C_ID:출금
+CASE "함락", "陥落"
+	RETURNF (TALENT:C_ID:사모 || TALENT:C_ID:연모 || TALENT:C_ID:애욕 || TALENT:C_ID:연인 || TALENT:C_ID:섹프)
+CASE "무녀", "巫女"
+	RETURNF (TALENT:C_ID:인간 == 3)
+CASE "요정", "妖精"
+	RETURNF TALENT:C_ID:요정
+CASE "신령", "神霊"
+	RETURNF TALENT:C_ID:신령
+CASE "츠쿠모가미", "付喪神"
+	RETURNF TALENT:C_ID:츠쿠모가미
+CASE "오니", "鬼"
+	RETURNF (TALENT:C_ID:오니 || TALENT:C_ID:흡혈귀)
+CASE "텐구", "天狗"
+	RETURNF TALENT:C_ID:텐구
+CASE "봉래인", "蓬莱人"
+	RETURNF TALENT:C_ID:봉래인
+CASE "괴물", "妖怪"
+	RETURNF !( C_ID == 0|| TALENT:C_ID:인간 || TALENT:C_ID:요정 || TALENT:C_ID:신령 || TALENT:C_ID:츠쿠모가미 || TALENT:C_ID:오니 || TALENT:C_ID:흡혈귀 || TALENT:C_ID:텐구 || TALENT:C_ID:봉래인 )
+CASE "마법사", "魔法使い"
+	RETURNF (TALENT:C_ID:인간 == 2)
+CASE "약점잡음", "弱み握り"
+;C_ID가 MASTER의 약점을 잡고 있다
+	RETURNF CFLAG:C_ID:약점잡음
+CASE "약점잡힘", "弱み握られ"
+;C_ID가 MASTER에 약점을 잡히고 있다
+	RETURNF CFLAG:C_ID:약점잡힘
+CASE "반발각인", "反発刻印"
+	RETURNF (MARK:C_ID:반발각인 >= 1)
+CASE "시간각인", "時姦刻印"
+	RETURNF (MARK:C_ID:시간각인 >= 1)
+CASE "시간경험", "時姦経験"
+	RETURNF (EXP:C_ID:시간경험 >= 1)
+CASE "깨끗한교제", "清い交際"
+	RETURNF (CFLAG:C_ID:깨끗한교제 >= 1)
+CASE "대사실장상황", "口上実装状況"
+	RETURNF (CFLAG:C_ID:대사실장상황 >= 1)
+CASE "아이 딸린 사람", "子持ち"
+	RETURNF (CFLAG:C_ID:아이인원수 >= 1)
+CASE "동실", "同室"
+	RETURNF (CFLAG:C_ID:현재위치 == CFLAG:MASTER:현재위치)
+CASE "전라"
+	{
+	SIF EQUIP:C_ID:액세서리|| EQUIP:C_ID:모자
+		 || EQUIP:C_ID:하반신속옷1 || EQUIP:C_ID:하반신속옷2
+		 || EQUIP:C_ID:상반신속옷1 || EQUIP:C_ID:상반신속옷2
+		 || EQUIP:C_ID:레오타드|| EQUIP:C_ID:보디슈트|| EQUIP:C_ID:원피스|| EQUIP:C_ID:기모노
+		 || EQUIP:C_ID:바지|| EQUIP:C_ID:하반신윗도리 || EQUIP:C_ID:치마
+		 || EQUIP:C_ID:상반신윗도리1 || EQUIP:C_ID:상반신윗도리2 || EQUIP:C_ID:외투
+		 || EQUIP:C_ID:그외1 || EQUIP:C_ID:그외2 || EQUIP:C_ID:그외3 || EQUIP:C_ID:완부의복
+	}
+		RETURNF 0
+	RETURNF 1
+CASE "여자"
+	RETURNF TALENT:C_ID:성별 == 1
+CASE "임신"
+	RETURNF TALENT:C_ID:임신
+CASE "육아중"
+	RETURNF TALENT:C_ID:육아중
+CASE "후타나리"
+	RETURNF TALENT:C_ID:성별 == 3
+CASE "케모미미"
+	RETURNF TALENT:C_ID:동물귀 != 0
+CASE "인간귀"
+	RETURNF TALENT:C_ID:동물귀 == 0
+CASE "비처녀"
+	SIF TALENT:C_ID:성별 == 2
+		RETURNF 0
+	RETURNF GROUPMATCH(TALENT:C_ID:처녀, 0, -1)
+CASEELSE
+	THROW 올바르지 않은 식별자입니다! TYPE - %TYPE%
+ENDSELECT
+
+
+
+;-------------------------------------------------
+;캐릭터 비교 함수
+;-------------------------------------------------
+;전인수 필수
+;스마트하다고는 먼 코피페고리 밀기이다
+;-------------------------------------------------
+@CHARA_COMPARE(VAR_NAME, VAR_ID, CHARA_A, TYPE, CHARA_B)
+#FUNCTION
+#DIMS VAR_NAME ;비교 대상 캐릭터 변수
+#DIM  VAR_ID   ;비교 대상 캐릭터 변수의 ID
+#DIM  CHARA_A  ;비교 대상 캐릭터 A의 등록 번호
+#DIMS TYPE     ;비교 내용
+#DIM  CHARA_B  ;비교 대상 캐릭터 B의 등록 번호
+SELECTCASE VAR_NAME
+CASE "ABL"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF ABL:CHARA_A:VAR_ID == ABL:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF ABL:CHARA_A:VAR_ID > ABL:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF ABL:CHARA_A:VAR_ID >= ABL:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF ABL:CHARA_A:VAR_ID < ABL:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF ABL:CHARA_A:VAR_ID <= ABL:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+	
+CASE "BASE"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF BASE:CHARA_A:VAR_ID == BASE:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF BASE:CHARA_A:VAR_ID > BASE:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF BASE:CHARA_A:VAR_ID >= BASE:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF BASE:CHARA_A:VAR_ID < BASE:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF BASE:CHARA_A:VAR_ID <= BASE:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+	
+CASE "MAXBASE"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF MAXBASE:CHARA_A:VAR_ID == MAXBASE:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF MAXBASE:CHARA_A:VAR_ID > MAXBASE:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF MAXBASE:CHARA_A:VAR_ID >= MAXBASE:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF MAXBASE:CHARA_A:VAR_ID < MAXBASE:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF MAXBASE:CHARA_A:VAR_ID <= MAXBASE:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+	
+CASE "EXP"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF EXP:CHARA_A:VAR_ID == EXP:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF EXP:CHARA_A:VAR_ID > EXP:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF EXP:CHARA_A:VAR_ID >= EXP:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF EXP:CHARA_A:VAR_ID < EXP:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF EXP:CHARA_A:VAR_ID <= EXP:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+	
+CASE "CFLAG"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF CFLAG:CHARA_A:VAR_ID == CFLAG:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF CFLAG:CHARA_A:VAR_ID > CFLAG:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF CFLAG:CHARA_A:VAR_ID >= CFLAG:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF CFLAG:CHARA_A:VAR_ID < CFLAG:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF CFLAG:CHARA_A:VAR_ID <= CFLAG:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+	
+CASE "PALAM"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF PALAM:CHARA_A:VAR_ID == PALAM:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF PALAM:CHARA_A:VAR_ID > PALAM:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF PALAM:CHARA_A:VAR_ID >= PALAM:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF PALAM:CHARA_A:VAR_ID < PALAM:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF PALAM:CHARA_A:VAR_ID <= PALAM:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+	
+CASE "TALENT"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF TALENT:CHARA_A:VAR_ID == TALENT:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF TALENT:CHARA_A:VAR_ID > TALENT:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF TALENT:CHARA_A:VAR_ID >= TALENT:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF TALENT:CHARA_A:VAR_ID < TALENT:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF TALENT:CHARA_A:VAR_ID <= TALENT:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+	
+CASE "TCVAR"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF TCVAR:CHARA_A:VAR_ID == TCVAR:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF TCVAR:CHARA_A:VAR_ID > TCVAR:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF TCVAR:CHARA_A:VAR_ID >= TCVAR:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF TCVAR:CHARA_A:VAR_ID < TCVAR:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF TCVAR:CHARA_A:VAR_ID <= TCVAR:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+	
+CASE "MARK"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF MARK:CHARA_A:VAR_ID == MARK:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF MARK:CHARA_A:VAR_ID > MARK:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF MARK:CHARA_A:VAR_ID >= MARK:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF MARK:CHARA_A:VAR_ID < MARK:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF MARK:CHARA_A:VAR_ID <= MARK:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+	
+CASEELSE
+	THROW 불명한 VAR_NAME　%VAR_NAME%
+ENDSELECT
+
+[SKIPSTART]
+이것을 코피페 해 치환하면 항목을 늘릴 수 있다
+CASE "CVAR"
+	SELECTCASE TYPE
+	CASE "=="
+		RETURNF CVAR:CHARA_A:VAR_ID == CVAR:CHARA_B:VAR_ID
+	CASE ">"
+		RETURNF CVAR:CHARA_A:VAR_ID > CVAR:CHARA_B:VAR_ID
+	CASE ">="
+		RETURNF CVAR:CHARA_A:VAR_ID >= CVAR:CHARA_B:VAR_ID
+	CASE "<"
+		RETURNF CVAR:CHARA_A:VAR_ID < CVAR:CHARA_B:VAR_ID
+	CASE "<="
+		RETURNF CVAR:CHARA_A:VAR_ID <= CVAR:CHARA_B:VAR_ID
+	CASEELSE
+		THROW 불명한 TYPE　%TYPE%
+	ENDSELECT
+[SKIPEND]
+
+
+
+;-------------------------------------------------
+;신분 평가 표시 함수
+;-------------------------------------------------
+;원래는@PRINT_알파벳평가
+;인수를 평가 대상 수치로 하는 것으로 범용화해
+;RANK_SCALE의 명칭을 알기 쉽게 했다
+;-------------------------------------------------
+@PRINT_RANK(VAR_VALUE, RANK_SCALE)
+#DIM  VAR_VALUE  ;평가 대상 수치
+#DIMS RANK_SCALE ;평가에 사용하는 척도의 종류
+#DIM  RANK       ;평가 랭크, 수가 작을 정도 우수
+#DIM  RANK_NUM   ;평가 척도에 포함되는 평가의 종수
+CALL CALC_RANK(VAR_VALUE, RANK_SCALE, RANK, RANK_NUM)
+CALL PRINT_ALPHABET(RANK, RANK_NUM)
+
+
+
+;-------------------------------------------------
+;신분 평가 산출 함수
+;-------------------------------------------------
+;RANK_SCALE에 의거해 VAR_VALUE의 평가를 실시한다
+;REF에 의해 RANK/RANK_NUM로서 건네받은 인수의 수치를 직접 고쳐 쓴다
+;KR판 최대랭크 각 1단계씩 더 있음
+;-------------------------------------------------
+@CALC_RANK(VAR_VALUE, RANK_SCALE, RANK, RANK_NUM)
+#DIM      VAR_VALUE  ;평가 대상 수치
+#DIMS     RANK_SCALE ;평가에 사용하는 척도의 종류
+#DIM  REF RANK       ;평가 랭크, 수가 작을 정도 우수
+#DIM  REF RANK_NUM   ;평가 척도에 포함되는 평가의 종수
+SELECTCASE RANK_SCALE
+CASE "MAX_50000"
+;호감도용
+	RANK_NUM = 11
+	SELECTCASE VAR_VALUE
+	CASE IS >= 100000
+		RANK = 0
+	CASE IS >= 50000
+		RANK = 1
+	CASE IS >= 30000
+		RANK = 2
+	CASE IS >= 10000
+		RANK = 3
+	CASE IS >=  5000
+		RANK = 4
+	CASE IS >=  3000
+		RANK = 5
+	CASE IS >=  1500
+		RANK = 6
+	CASE IS >=  1000
+		RANK = 7
+	CASE IS >=   500
+		RANK = 8
+	CASE IS >=   100
+		RANK = 9
+	CASEELSE
+		RANK = 10
+	ENDSELECT
+CASE "MAX_20000"
+;신뢰도용
+	RANK_NUM = 11
+	SELECTCASE VAR_VALUE
+	CASE IS >= 40000
+		RANK = 0
+	CASE IS >= 20000
+		RANK = 1
+	CASE IS >= 10000
+		RANK = 2
+	CASE IS >=  3000
+		RANK = 3
+	CASE IS >=  1000
+		RANK = 4
+	CASE IS >=   500
+		RANK = 5
+	CASE IS >=   150
+		RANK = 6
+	CASE IS >=   100
+		RANK = 7
+	CASE IS >=    50
+		RANK = 8
+	CASE IS >=    10
+		RANK = 9
+	CASEELSE
+		RANK = 10
+	ENDSELECT
+CASE "MAX_99"
+;기술계 이외의ABL
+	;숫자가 세로에 줄서면(자) 매우 보기 나뻐서 의도적으로 인덴트않고들 하고 있습니다
+	RANK_NUM = 11
+	SELECTCASE VAR_VALUE
+	CASE IS >= 99
+			RANK = 0
+	CASE IS >= 80
+			RANK = 1
+	CASE IS >= 60
+			RANK = 2
+	CASE IS >= 40
+			RANK = 3
+	CASE IS >= 20
+			RANK = 4
+	CASE IS >= 10
+			RANK = 5
+	CASE IS >=  5
+			RANK = 6
+	CASE IS >=  3
+			RANK = 7
+	CASE IS >=  2
+			RANK = 8
+	CASE IS >=  1
+			RANK = 9
+	CASEELSE
+			RANK = 10
+	ENDSELECT
+CASE "MAX_6"
+;기능계 ABL
+	RANK_NUM = 8
+	SELECTCASE VAR_VALUE
+	CASE IS >= 7
+			RANK = 0
+	CASE IS >= 6
+			RANK = 1
+	CASE IS >= 5
+			RANK = 2
+	CASE IS >= 4
+			RANK = 3
+	CASE IS >= 3
+			RANK = 4
+	CASE IS >= 2
+			RANK = 5
+	CASE IS >= 1
+			RANK = 6
+	CASEELSE
+			RANK = 7
+	ENDSELECT
+CASEELSE
+	THROW 불명한 RANK_SCALE %RANK_SCALE%
+ENDSELECT
+
+
+
+;-------------------------------------------------
+;랭크 평가 표시 함수
+;-------------------------------------------------
+;랭크 평가(숫자가 작을 정도 우수)의 내용을 알파벳 표기해 컬러 표시한다
+;형식마저 있으면 별로 PRINT_RANK가 아니어도 사용할 수 있어
+;-------------------------------------------------
+@PRINT_ALPHABET(RANK, RANK_NUM)
+#DIM RANK
+#DIM RANK_NUM
+#DIMS CONST STR_RANK11, 11 = "Ph","Ex", "SS", " S", " A", " B", " C", " D", " E", " F", " G"
+#DIMS CONST STR_RANK8,   8 = "Ph","Ex", " S", " A", " B", " C", " D", " E"
+{
+#DIMS  CONST C_RANK11, 11 = 
+	"C_P_PURPLE", "C_BLUE","C_WHITE", "C_WHITE", "C_PINK", "C_RED", 
+	"C_ORANGE", "C_YELLOW", "C_GREEN", "C_AQUA", "C_GRAY"
+}
+#DIMS  CONST C_RANK8,   8 = "C_P_PURPLE", "C_BLUE","C_WHITE", "C_PINK", "C_RED", "C_ORANGE", "C_YELLOW", "C_GRAY"
+SELECTCASE RANK_NUM
+CASE 11
+	CALL COLOR_PRINT(STR_RANK11:RANK, C_RANK11:RANK, 2)
+CASE  8
+	CALL COLOR_PRINT(STR_RANK8:RANK, C_RANK8:RANK, 2)
+CASEELSE
+	THROW 부정한 RANK_NUM {RANK_NUM}
+ENDSELECT
+RESETCOLOR
+
+
+
+;-------------------------------------------------
+;물이 들어 PRINT 함수
+;-------------------------------------------------
+;건네준 문자를 건네준 색으로 PRINT 해 RESETCOLOR
+;광역 변수로 DIM는 있는 색의 이름만 가능(추가는 용이)
+;-------------------------------------------------
+@COLOR_PRINT(ARGS, C_NAME, STR_NUM = 2)
+#DIMS C_NAME
+#DIM  STR_NUM
+SIF !STRLENS(ARGS)
+	RETURN
+SELECTCASE C_NAME
+CASE "C_P_PURPLE"
+	SETCOLOR C_P_PURPLE
+CASE "C_BLUE"
+	SETCOLOR C_BLUE
+CASE "C_WHITE"
+	SETCOLOR C_WHITE
+CASE "C_PINK"
+	SETCOLOR C_PINK
+CASE "C_RED"
+	SETCOLOR C_RED
+CASE "C_ORANGE"
+	SETCOLOR C_ORANGE
+CASE "C_YELLOW"
+	SETCOLOR C_YELLOW
+CASE "C_GREEN"
+	SETCOLOR C_GREEN
+CASE "C_AQUA"
+	SETCOLOR C_AQUA
+CASE "C_GRAY"
+	SETCOLOR C_GRAY
+CASEELSE
+	THROW 부정한 C_NAME %C_NAME%
+ENDSELECT
+PRINTFORM %ARGS, STR_NUM%
+RESETCOLOR
+
+
+
+;-------------------------------------------------
+;BASE 컬러 바 함수
+;-------------------------------------------------
+;체력등의 컬러 바
+;-------------------------------------------------
+@BASE_BAR(C_ID, BASE_NAME, BAR_LENGTH, COLOR_NAME, OP)
+#DIM  C_ID
+#DIMS BASE_NAME
+#DIM  BAR_LENGTH
+#DIMS COLOR_NAME
+#DIMS OP
+#DIM  BASE_ID
+BASE_ID = FINDELEMENT(BASENAME, BASE_NAME)
+SIF BASE_ID < 0
+	THROW 존재하지 않는 BASE_NAME %BASE_NAME%
+SIF !STRCOUNT(OP, "「종류 표기 없음」")
+	PRINTFORM %BASE_NAME, 4% 
+CALL PRINT_COLORBAR(BASE:C_ID:BASE_ID, MAXBASE:C_ID:BASE_ID, BAR_LENGTH, UNICODE(0x2585), UNICODE(0x2585), BARCOLORSET(COLOR_NAME), RESULT:1)
+IF !STRCOUNT(OP, "「숫자 표기 없음」")
+	IF BUFF:C_ID:BASE_ID > 0
+		SETCOLOR C_AQUA
+	ELSEIF BUFF:C_ID:BASE_ID < 0
+		SETCOLOR C_YELLOW
+	ENDIF
+	PRINTFORM  ({BASE:C_ID:BASE_ID, 5}/{MAXBASE:C_ID:BASE_ID, 5}) 
+	RESETCOLOR
+ENDIF
+SIF STRCOUNT(OP, "「개행」")
+	PRINTFORML 
+
+;-------------------------------------------------
+;INFO用の改良型BASEカラーバー関数
+;-------------------------------------------------
+@BASE_BAR_2(C_ID, BASE_NAME, BASE_NAME_SHORT, BAR_LENGTH, COLOR_NAME)
+#DIM  C_ID
+#DIMS BASE_NAME
+#DIMS BASE_NAME_SHORT
+#DIM  BAR_LENGTH
+#DIMS COLOR_NAME
+#DIM  BASE_ID
+BASE_ID = FINDELEMENT(BASENAME, BASE_NAME)
+SIF BASE_ID < 0
+	THROW 존재하지 않는BASE_NAME %BASE_NAME%
+IF BASE_NAME == "정력" && TALENT:C_ID:농후정액
+	FONTBOLD
+	SETCOLOR C_CREAM
+	PRINTFORM %BASE_NAME_SHORT% 
+	FONTREGULAR
+	RESETCOLOR
+ELSE
+	PRINTFORM %BASE_NAME_SHORT% 
+ENDIF
+CALL PRINT_COLORBAR(BASE:C_ID:BASE_ID, MAXBASE:C_ID:BASE_ID, BAR_LENGTH, UNICODE(0x2585), UNICODE(0x2585), BARCOLORSET(COLOR_NAME), RESULT:1)
+IF BUFF:C_ID:BASE_ID > 0
+	SETCOLOR C_AQUA
+ELSEIF BUFF:C_ID:BASE_ID < 0
+	SETCOLOR C_YELLOW
+ENDIF
+PRINTFORM ({BASE:C_ID:BASE_ID, 5}) 
+RESETCOLOR
+
+;-------------------------------------------------
+;컬러 스탬프 함수
+;-------------------------------------------------
+;특정의 기호를 특정의 색으로 나란해질 수 있다
+;MARK의 표시용이지만무슨 그 외에도 사용할 수 있겠지요
+;-------------------------------------------------
+@COLOR_STAMP(STAMP_NUM, MAX_NUM, STAMP_STR, STAMP_COLOR)
+#DIM  STAMP_NUM   ;늘어놓는 스탬프의 수
+#DIM  MAX_NUM     ;스탬프의 최대수
+#DIMS STAMP_STR   ;스탬프에 사용하는 캐릭터라인
+#DIM  STAMP_COLOR ;스탬프의 색
+#DIM  STAMP_LENGTH;스탬프 캐릭터라인의 길이
+STAMP_LENGTH = STRLENS(STAMP_STR)
+SIF !STAMP_LENGTH
+	THROW STAMP_STR가 지정되고 있지 않습니다
+SIF STAMP_COLOR
+	SETCOLOR STAMP_COLOR
+PRINTFORM %" " * (MAX_NUM - STAMP_NUM) * STAMP_LENGTH%
+PRINTFORM %STAMP_STR * STAMP_NUM%
+RESETCOLOR
+
+;-------------------------------------------------
+;캐릭터 추첨 함수
+;-------------------------------------------------
+;캐릭터리스트로부터 랜덤으로 1명을 선출한다
+;반환값은 등록 번호, 실패하면(자)―1
+;-------------------------------------------------
+@RAND_CHARASELECT(L_TYPE = "주인공 이외의캐릭터리스트")
+#DIMS L_TYPE                       ;추첨 대상 타입
+#DIM  L_ID                         ;리스트의 클래스 ID
+#DIM  CHARA_LIST, 캐릭터수상한 ;작성하는 리스트
+#DIM  CHARA_CNT                    ;캐릭터 카운터
+CALL MAKE_CHARA_LIST("주인공 이외의캐릭터리스트", L_ID, CHARA_LIST, CHARA_CNT)
+SIF !CHARA_CNT
+	RETURN -1
+RETURN CHARA_LIST:(RAND:CHARA_CNT)
+
+
+
+;----------------------------------------------------------------------------------------------------
+;캐릭터의 등장 판정
+;우선 당신은 튕기듯이 했다
+;----------------------------------------------------------------------------------------------------
+@CAN_MEET(CHARA)
+#FUNCTION
+#DIM CHARA
+SIF !CHARA
+	RETURNF 0
+SIF !EXISTCSV(CHARA)
+	RETURNF 0
+SIF CFLAG:CHARA:출금
+	RETURNF 0
+SIF CHARA == FLAG:역극
+	RETURNF 0
+RETURNF 1
+
+;----------------------------------------------------------------------------------------------------
+;현재지점으로부터 이동 가능한 장소에 이동
+;방으로부터 내쫓아질 때 등
+;----------------------------------------------------------------------------------------------------
+@GETOUT(ARG)
+TCVAR:ARG:쫒겨난시각 = TIME
+TCVAR:ARG:쫒겨난장소 = CFLAG:ARG:현재위치
+FOR LOCAL, MINROOM(), MAXROOM
+	;세련되지 않지만、번호 관계상幽香私室에서는 발코니로 쫓겨나기에 개별처리
+	IF CFLAG:ARG:현재위치 == 463
+		CFLAG:ARG:현재위치 = 465
+		BREAK
+	ENDIF
+	IF CAN_MOVE(CFLAG:ARG:현재위치, LOCAL) & 1
+		CFLAG:ARG:현재위치 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+
+
+;----------------------------------------------------------------------------------------------------
+;캐릭터의 랜덤 선발 함수
+;부실 처리로 가능한 한 간소한 추첨 함수를 이라고 생각했다(RAND_CHARASELECT는 너무 좀 열중하고)
+;건네준 캐릭터는 선택되지 않는다
+;출금캐릭터가 너무 많으면(자) 무한루프의 우려가 있는 것이 난점
+;난점이라고는 말하지만 전캐릭터 대상의 추첨에서는
+;극단적인 프레잉을 하지 않으면 문제는 되지 않는, 은 두
+;----------------------------------------------------------------------------------------------------
+@RAND_PERSON(CHARA)
+#FUNCTION
+#DIM CHARA
+#DIM HIT_CHARA
+DO
+	HIT_CHARA = RAND(1, 캐릭터수상한)
+	SIF !CAN_MEET(HIT_CHARA) || HIT_CHARA == CHARA
+		CONTINUE
+	BREAK
+LOOP 1
+RETURNF HIT_CHARA
+
+
+
+;----------------------------------------------------------------------------------------------------
+;자택위치 취득 함수
+;----------------------------------------------------------------------------------------------------
+@GET_CHARAHOME(CHARA)
+#FUNCTION
+#DIM CHARA
+;MASTER는 초기위치 정해져 있다
+SIF CHARA == MASTER
+	RETURNF CFLAG:CHARA:초기위치
+;거주하는 플래그 서고 있다면 정해져 있다
+SIF CHARA == FLAG:더부살이캐릭터
+	RETURNF CFLAG:CHARA:초기위치
+;주소 부정의 캐릭터는 먼저
+SIF GROUPMATCH(CSVCFLAG(CHARA, GETNUM(CFLAG, "초기위치")), 0, 99)
+	RETURNF -100
+RETURNF CSVCFLAG(CHARA, GETNUM(CFLAG, "초기위치"))
+
+
+;----------------------------------------------------------------------------------------------------
+;장소 나토리 이득 함수
+;MAIN_MAP 나름으로 거동이 바뀌어 버려 개인적으로 기분 나쁘다
+;문제점：GET_MAP_REPLACEMENT를 사용이 끝난 PLACE_ID를 받으면(자) 오동작≒산책 맵의 장소 ID는 받아들이지 않습니다
+;----------------------------------------------------------------------------------------------------
+@GET_PLACENAME(PLACE_ID)
+#FUNCTIONS
+#DIM PLACE_ID
+SIF PLACE_ID == SUKIMA()
+	RETURNF "스키마 공간"
+SIF PLACE_ID == OMANEKIBEYA()
+	RETURNF OMANEKI_PLACE()
+IF GET_MAPID(PLACE_ID) == MAIN_MAP
+	RETURNF NAME_FROM_PLACE(PLACE_ID)
+ELSE
+	RETURNF STR:(6000 + GET_MAP_REPLACEMENT(PLACE_ID) / 10)
+ENDIF
+
+;----------------------------------------------------------------------------------------------------
+;초기위치의 지역 나토리 이득 함수
+;미설정이라면 우선"불명"으로
+;----------------------------------------------------------------------------------------------------
+@AREANAME_CHARA_HOME(C_ID)
+#FUNCTIONS
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM C_ID
+#DIM HOME_ID
+HOME_ID = GET_CHARAHOME(C_ID)
+SIF HOME_ID <= 0
+	RETURNF "불명"
+RETURNF MAP_AREANAME(HOME_ID)
+
+;----------------------------------------------------------------------------------------------------
+;현재위치의 지역 나토리 이득 함수
+;----------------------------------------------------------------------------------------------------
+@AREANAME_CHARA_NOW(C_ID)
+#FUNCTIONS
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM C_ID
+RETURNF MAP_AREANAME(CFLAG:C_ID:현재위치)
+
+;----------------------------------------------------------------------------------------------------
+;배열 추첨 F함수
+;----------------------------------------------------------------------------------------------------
+@ARRAY_HIT(HIT_LIST, LIST_SIZE)
+#FUNCTION
+#DIM REF HIT_LIST ;확률 분포 리스트
+#DIM     LIST_SIZE;확률 분포 리스트의 사이즈
+#DIM     CHK_ID   ;판정 대상이 되는 요소
+#DIM     HIT_RAND ;추첨 난수 처리
+LOCAL = MAX(SUMARRAY(HIT_LIST, 0, LIST_SIZE), 1)
+HIT_RAND = RAND(0, LOCAL)
+;DEBUGPRINTFORML LIST_SIZE={LIST_SIZE}　HIT_RAND{HIT_RAND}
+FOR CHK_ID, 0, LIST_SIZE
+	SIF HIT_RAND < SUMARRAY(HIT_LIST, 0, CHK_ID + 1)
+		RETURNF CHK_ID
+NEXT
+;THROW 추첨 실패
+;카운터 추첨 실패에 의한 THROW 빠짐이 발생하고 있기 때문에-1을 돌려주기로 한다
+RETURNF -1
+
+;----------------------------------------------------------------------------------------------------
+;배열 RAND화 함수
+;중복 제한 없음이므로 적당 FISHER_YATES_SHAFFLE와 구분하여 사용해 주세요
+;----------------------------------------------------------------------------------------------------
+@ARRAY_RAND(RAND_ARRAY, ARRAY_SIZE, RAND_MIN, RAND_MAX)
+#DIM REF RAND_ARRAY; 대상 배열
+#DIM     ARRAY_SIZE; 배열 사이즈(1이상)
+#DIM     RAND_MIN  ; RAND의 하한(0이상)
+#DIM     RAND_MAX  ; RAND의 상한-1, 이 수자체는 추첨으로 선택되지 않는다(RAND_MIN+1이상)
+#DIM     ID_ARRAY  ; 루프용
+FOR ID_ARRAY, 0, ARRAY_SIZE
+	RAND_ARRAY:ID_ARRAY = RAND(RAND_MIN, RAND_MAX)
+NEXT
+
+
+;----------------------------------------------------------------------------------------------------
+;FISHER_YATES_SHAFFLE(F함수판)
+;소스는 wikipedia
+;CALLF FUNC_FISHER_YATES_SHAFFLE(LOCAL, 10)
+;이것으로 LOCAL:0~9에 0~9가 중복없이 대입된다
+;----------------------------------------------------------------------------------------------------
+@FUNC_FISHER_YATES_SHAFFLE(ARRAY, ARRAY_SIZE)
+#FUNCTION
+#DIM REF ARRAY   ;대상 배열
+#DIM ARRAY_SIZE  ;배열의 길이(2이상의 수치로 해 주세요)
+#DIM ELE_SHAFFLE ;셔플 대상 요소
+VARSET ARRAY, -1
+ARRAY:0 = 0
+;요소 0에 대한↓의 처리는 반드시 0이 되기 때문에  1이후에 k
+FOR LOCAL:0, 1, ARRAY_SIZE
+	ELE_SHAFFLE = RAND(0, LOCAL:0 + 1)
+	;거동 변함없을 것 같다면 if 마련하는 것보다 소안내가 처리 얼마 안되게 되거나 전과?
+	;SIF ELE_SHAFFLE != LOCAL:0
+	ARRAY:(LOCAL:0) = ARRAY:ELE_SHAFFLE
+	ARRAY:ELE_SHAFFLE = LOCAL:0
+NEXT
+
+
+;----------------------------------------------------------------------------------------------------
+;복수행 자동 표시 함수
+;일종의 초간이 애니메이션
+;1초에 1행 덧붙여 씀 해 나가 함수야
+;건네받은 배열의 요소를 차례로 표시한다
+;본격적으로 움직여 도미인 에 째-실마리응 사용해라
+;사용 개소는 나즈린의 다우징코만드
+;----------------------------------------------------------------------------------------------------
+@PRINT_GROUP(COMMENT, NUM_COMMENT, TIME_REDRAW = 1000)
+#DIMS REF COMMENT         ;표시하는 캐릭터라인의 배열
+#DIM  NUM_COMMENT         ;배열의 요소수
+#DIM  PREV_REDRAW         ;일시 퇴피용
+#DIM  TIME_REDRAW         ;행 추가의 간격, 표준으로 1초
+#DIM  DYNAMIC NOW_COMMENT ;표시 은폐 제어용
+PREV_REDRAW = CURRENTREDRAW()
+REDRAW 0
+FOR LOCAL:0, 0, NUM_COMMENT
+	FOR LOCAL:1, 0, NUM_COMMENT
+		IF LOCAL:1 <= NOW_COMMENT
+			PRINTFORML %COMMENT:(LOCAL:1)%
+		ELSE
+			PRINTFORML 
+		ENDIF
+	NEXT
+	TWAIT TIME_REDRAW, 0
+	NOW_COMMENT ++ 
+	SIF LOCAL:0 < NUM_COMMENT -1
+		CLEARLINE NUM_COMMENT
+NEXT
+REDRAW PREV_REDRAW
+WAIT
+
+
+;----------------------------------------------------------------------------------------------------
+;ARG(DAY)를 연월일로 변환하는 함수
+;----------------------------------------------------------------------------------------------------
+@DAY_TO_DATE(ARG)
+#FUNCTION
+VARSET LOCAL
+;겨울의 월 31일은 예외
+SIF ARG % 124 == 0
+	LOCAL:5 = 1
+;연눈
+LOCAL:1 = ARG / 124
+SIF !LOCAL:5
+	LOCAL:1 += 1
+;월
+IF LOCAL:5
+	LOCAL:2 = 4
+ELSEIF ARG % 124 % 31 == 0
+	LOCAL:2 = ARG % 124 / 31
+ELSE
+	LOCAL:2 = ARG % 124 / 31 + 1
+ENDIF
+;일
+IF LOCAL:5 || ARG % 124 % 31 == 0
+	LOCAL:3 = 31
+ELSE
+	LOCAL:3 = ARG % 124 % 31
+ENDIF
+LOCAL = LOCAL:1 * 1000 + LOCAL:2 * 100 + LOCAL:3
+RETURNF LOCAL
+
+;----------------------------------------------------------------------------------------------------
+;ARG(연월일)를 DAY로 변환하는 함수
+;----------------------------------------------------------------------------------------------------
+@DATE_TO_DAY(ARG)
+#FUNCTION
+VARSET LOCAL
+LOCAL += (ARG / 1000 - 1) * 124
+LOCAL += (ARG % 1000 / 100 - 1) * 31
+LOCAL += ARG % 1000 % 100
+RETURNF LOCAL
+
+;----------------------------------------------------------------------------------------------------
+;ARG(DAY)를 연월일(요일)에 표시하는 함수
+;ARG가 연월일이다면 ARG:1을 실로 하는 것
+;----------------------------------------------------------------------------------------------------
+@PRINT_DATE(ARG, ARG:1)
+;ARG를 DAY와 판정
+IF !ARG:1
+	LOCAL:1 = DAY_TO_DATE(ARG)
+	LOCAL:2 = ARG
+;ARG를 연월일과 판정
+ELSE
+	LOCAL:1 = ARG
+	LOCAL:2 = DATE_TO_DAY(ARG)
+ENDIF
+LOCAL:3 = LOCAL:1 % 1000 / 100
+PRINTFORM {LOCAL:1 / 1000}년째 %GET_MONTH(LOCAL:3)% {LOCAL:1 % 1000 % 100}일(%GET_DAY(LOCAL:2)%)
+
+@PRINT_DATE_F(ARG)
+#FUNCTIONS
+LOCAL = DAY_TO_DATE(ARG)
+LOCAL:1 = LOCAL / 1000
+LOCAL:2 = LOCAL % 1000 / 100
+LOCAL:3 = LOCAL % 1000 % 100
+LOCALS = {LOCAL:1}년째 %GET_MONTH(LOCAL:2)%의 {LOCAL:3}일
+RETURNF LOCALS
+
+;----------------------------------------------------------------------------------------------------
+;복수 캐릭터라인 카운트 F함수
+;----------------------------------------------------------------------------------------------------
+;TARGET_STR에 포함되는 복수의 캐릭터라인의 수를 검색한다
+;TARGET_STR, KEY_STR 모두"/"를 칸막이로서 복수의 단어를 카운트 한다
+;TARGET_STR, KEY_STR로 한 번에 건네주는 단어의 종류는 각각 100 종류 미만, 어군은 1000개 미만으로 하는 것
+;
+;동작예)
+;TARGET_STR："토끼/토끼/토끼/여우/고양이/고양이/"
+;예 1)
+;　KEY_STR："토끼/고양이/"
+;　"토끼"가 3,"고양이"가 2로 합계치의 5를 돌려준다
+;예 2)
+;　KEY_STR："여우/고양이/"
+;　"여우"가 1,"고양이"가 2로 합계치의 3을 돌려준다
+;예 3)
+;　KEY_STR："토끼/토끼/"
+;　"토끼"가 3, 의 처리를 2회분 해 6을 돌려준다
+;----------------------------------------------------------------------------------------------------
+@STR_MULTI_COUNT(TARGET_STR, KEY_STR)
+#FUNCTION
+#DIMS TARGET_STR             ;검색 대상캐릭터라인
+#DIMS KEY_STR                ;검색하고 싶은 어군, 어군의 종류의 상한은 100 종류
+#DIMS DYNAMIC KEY_LIST, 100  ;분할 후의 단어 리스트
+#DIM  DYNAMIC KEY_CNT,  100  ;각 단어의 출현 회수
+#DIM  DYNAMIC KEY_NUM        ;단어의 총수
+#DIM          KEY_ID         ;루프 처리용
+#DIM  DYNAMIC STR_CNT        ;카운트 개수
+#DIMS DYNAMIC TEMP_STR, 1000 ;SPLIT용 일차 배열
+#DIM  DYNAMIC TEMP_NUM       ;일차 배열로 사용한 요소수
+#DIM          TEMP_RESULT    ;RESULT 퇴피
+;만약을 위해
+TARGET_STR '= REPLACE(TARGET_STR, "\/+", "/")
+CALLF CNT_SPLIT(KEY_STR, KEY_LIST, KEY_CNT, KEY_NUM)
+
+TEMP_RESULT = RESULT
+SPLIT TARGET_STR, "/", TEMP_STR
+TEMP_NUM = RESULT
+FOR KEY_ID, 0, KEY_NUM
+	STR_CNT += MATCH(TEMP_STR, KEY_LIST:KEY_ID, 0, TEMP_NUM) * KEY_CNT:KEY_ID
+NEXT
+RESULT = TEMP_RESULT
+RETURNF STR_CNT
+
+
+;----------------------------------------------------------------------------------------------------
+;카운트 기능 붙어 있는 SPLIT 함수
+;----------------------------------------------------------------------------------------------------
+;·RESULT를 오염하지 않고, F함수 그 중에서 사용 가능
+;·CALLF로 사용, REF를 사용해 변수를 직접 고쳐 쓴다
+;·인수 필수, 단어 리스트/출현 개수 리스트의 배열 상한으로 주의!
+;·단락 문자는"/"으로 고정
+;·STR용의 배열 변수와 별로, 각 단어의 출현 회수 리스트를 추가
+;·반환값 1) STR_LIST,"/"그리고 분할되고 출력되는 단어 리스트
+;·반환값 2) CNT_LIST, 각 단어의 출현 회수 리스트
+;·반환값 3) STR_NUM, 단어의 종류의 총수
+;·TARGET_STR로 한 번에 건네주는 단어의 종류는 100 종류 미만, 어군은 1000개 미만으로 하는 것
+;동작예)
+;TARGET_STR："레이무/레이무/레이무/레이무/마리사/마리사/사나에/"
+;　STR_LIST:0 == "레이무"
+;　STR_LIST:1 == "마리사"
+;　STR_LIST:2 == "사나에"
+;　CNT_LIST:0 == 4   ;"레이무"의 출현 회수는 4회
+;　CNT_LIST:1 == 2   ;"마리사"의 출현 회수는 2회
+;　CNT_LIST:2 == 1   ;"사나에"의 출현 회수는 1회
+;　STR_NUM    == 3   ;"레이무","마리사","사나에"로 합계 3 종류
+;----------------------------------------------------------------------------------------------------
+@CNT_SPLIT(TARGET_STR, STR_LIST, CNT_LIST, STR_NUM)
+#FUNCTION
+#DIMS         TARGET_STR     ;분할 대상 STR
+#DIMS         NEW_STR        ;갱신용 일시 STR
+#DIMS REF     STR_LIST       ;단어 리스트
+#DIM  REF     CNT_LIST       ;각 단어의 출현 개수 리스트
+#DIM  REF     STR_NUM        ;단어의 종류의 총수
+#DIMS DYNAMIC TEMP_STR, 1000 ;SPLIT용 일차 배열
+#DIM  DYNAMIC TEMP_NUM       ;일차 배열로 사용한 요소수
+#DIM          TEMP_RESULT    ;RESULT 퇴피
+#DIM          TEMP_ID        ;루프용
+VARSET STR_LIST
+VARSET CNT_LIST
+STR_NUM = 0
+
+TEMP_RESULT = RESULT
+SPLIT TARGET_STR, "/", TEMP_STR
+TEMP_NUM = RESULT
+FOR TEMP_ID, 0, TEMP_NUM
+	;문자장 판정
+	SIF !STRLENS(TEMP_STR:TEMP_ID)
+		CONTINUE
+	;중복 판정
+	SIF FINDELEMENT(STR_LIST, TEMP_STR:TEMP_ID, 0, STR_NUM, 1) != -1
+		CONTINUE
+	STR_LIST:STR_NUM '= TEMP_STR:TEMP_ID
+	CNT_LIST:STR_NUM  = MATCH(TEMP_STR, TEMP_STR:TEMP_ID)
+	STR_NUM ++
+NEXT
+RESULT = TEMP_RESULT
+
+;----------------------------------------------------------------------------------------------------
+;동행중의 인원수를 돌려주는 함수
+;----------------------------------------------------------------------------------------------------
+@동행인원수()
+#FUNCTION
+RETURNF (CHARANUM - 1) - CMATCH(CFLAG:동행 , 0, 1, CHARANUM)
+;MASTER가 수에 들어가지 않기 때문에 CHARANUM - 1입니다
+
+;----------------------------------------------------------------------------------------------------
+;DAIRY_EV0로부터 잘라
+;주인의 MAP의 YOGORE 관련 판정
+;염려 사항：무명 지점의 YOGORE의 취급은 어떻게는 이겠지?
+;----------------------------------------------------------------------------------------------------
+;거점 맵의 더러움의 합계치를 돌려준다
+@SUM_ALL_YOGORE()
+#FUNCTION
+RETURNF SUMARRAY(YOGORE, MINROOM(), MAXROOM)
+
+;거점 맵의 더러움의 평균치를 돌려준다
+@AVERAGE_YOGORE()
+#FUNCTION
+RETURNF SUM_ALL_YOGORE() / ROOM_NUM()
+
+;거점 맵에 존재하는 지점의 수를 돌려준다
+;무명 지점을 고려하고 있지 않는 점에 주의
+@ROOM_NUM()
+#FUNCTION
+RETURNF MAXROOM % 100
+
+
+;----------------------------------------------------------------------------------------------------
+;메시지 첨부로 아이템/엔/카리스마를 입수하거나 지불하거나 하는 함수
+;우선 정의 수만큼
+;----------------------------------------------------------------------------------------------------
+@GET_ITEM(ITEM_NAME, ITEM_NUM, PRINT_TYPE)
+#DIMS ITEM_NAME
+#DIM ITEM_ID
+#DIM ITEM_NUM
+#DIM PRINT_TYPE;표시형식　0=통상　1=L　2=W
+
+ITEM_ID = GETNUM(ITEM, ITEM_NAME)
+DEBUGPRINTFORML %ITEM_NAME%를 취득、ID는 {ITEM_ID}
+IF ITEM:ITEM_ID + ITEM_NUM >= 100
+	CALL COLORMESSAGE(@"%조사처리(ITEMNAME:ITEM_ID,"를")% 더이상 가질 수 없다", C_YELLOW, PRINT_TYPE)
+	ITEM:ITEM_ID = MAX(ITEM:ITEM_ID, 99)
+ELSE
+	CALL COLORMESSAGE(@"%조사처리(ITEMNAME:ITEM_ID,"를")% {ITEM_NUM}개 손에 넣었다", C_YELLOW, PRINT_TYPE)
+	ITEM:ITEM_ID += ITEM_NUM
+ENDIF
+
+@LOST_ITEM(ITEM_NAME, ITEM_NUM, PRINT_TYPE)
+#DIMS ITEM_NAME
+#DIM ITEM_ID
+#DIM ITEM_NUM
+#DIM PRINT_TYPE;표시형식　0=통상　1=L　2=W
+
+ITEM_ID = GETNUM(ITEM, ITEM_NAME)
+
+SIF ITEM:ITEM_ID <= 0
+	RETURN
+CALL COLORMESSAGE(@"%조사처리(ITEMNAME:ITEM_ID,"를")% {ITEM_NUM}개 잃었다", C_YELLOW, PRINT_TYPE)
+ITEM:ITEM_ID = MAX(ITEM:ITEM_ID - ITEM_NUM, 0)
+
+@GET_MONEY_YEN(VALUE, PRINT_TYPE)
+#DIM VALUE
+#DIM PRINT_TYPE;표시형식　0=통상　1=L　2=W
+SIF VALUE <= 0
+	RETURN
+CALL COLORMESSAGE(@"\\{VALUE}을 손에 넣었다", C_YELLOW, PRINT_TYPE)
+MONEY += VALUE
+
+@GET_SPELL_CARD_BONUS_YEN(VALUE, PRINT_TYPE)
+#DIM VALUE
+#DIM PRINT_TYPE;表示形式　0=通常　1=L　2=W
+SIF VALUE <= 0
+	RETURN
+CALL COLORMESSAGE(@"GET ", 0xFFFFFF, 0)
+CALL COLORMESSAGE(@"SpEll ", 0xC8FFFF, 0)
+CALL COLORMESSAGE(@"CARd ", 0x64FFDC, 0)
+CALL COLORMESSAGE(@"BONUS!!", 0x00FFB4, 1)
+CALL COLORMESSAGE(@"        \\{VALUE}", C_YELLOW, PRINT_TYPE)
+MONEY += VALUE
+
+@GET_MONEY_CM(VALUE, PRINT_TYPE)
+#DIM VALUE
+#DIM PRINT_TYPE;표시형식　0=통상　1=L　2=W
+SIF VALUE <= 0
+	RETURN
+CALL COLORMESSAGE(@"{VALUE}카리스마를 손에 넣었다", C_YELLOW, PRINT_TYPE)
+MONEY:2 += VALUE
+
+@LOST_MONEY_YEN(VALUE, PRINT_TYPE)
+#DIM VALUE
+#DIM PRINT_TYPE;표시형식　0=통상　1=L　2=W
+SIF VALUE <= 0
+	RETURN
+CALL COLORMESSAGE(@"\\{VALUE}을 잃었다", C_YELLOW, PRINT_TYPE)
+MONEY = MAX(0, MONEY - VALUE)
+
+@LOST_MONEY_CM(VALUE, PRINT_TYPE)
+#DIM VALUE
+#DIM PRINT_TYPE;표시형식　0=통상　1=L　2=W
+SIF VALUE <= 0
+	RETURN
+CALL COLORMESSAGE(@"{VALUE}카리스마를 잃었다", C_YELLOW, PRINT_TYPE)
+MONEY:2 = MAX(0, MONEY:2 - VALUE)
+
+@PAY_MONEY_YEN(VALUE, PRINT_TYPE)
+#DIM VALUE
+#DIM PRINT_TYPE;표시형식　0=통상　1=L　2=W
+SIF VALUE <= 0
+	RETURN
+CALL COLORMESSAGE(@"\\{VALUE}를 지불했다", C_YELLOW, PRINT_TYPE)
+MONEY = MAX(0, MONEY - VALUE)
+
+@PAY_MONEY_CM(VALUE, PRINT_TYPE)
+#DIM VALUE
+#DIM PRINT_TYPE;표시형식　0=통상　1=L　2=W
+SIF VALUE <= 0
+	RETURN
+CALL COLORMESSAGE(@"{VALUE}카리스마를 지불했다", C_YELLOW, PRINT_TYPE)
+MONEY:2 = MAX(0, MONEY:2 - VALUE)
+
+;캐릭터번호 C_ID의 ABL를 Avalue 변화시킨다
+@ChangeABL(C_ID, Aname, Avalue)
+#DIM C_ID
+#DIM A_ID
+#DIMS Aname
+#DIM Avalue
+
+A_ID = FINDELEMENT(ABLNAME, Aname)
+ABL:C_ID:A_ID += Avalue
+CALL COLORMESSAGE(@"%CALLNAME:C_ID%의 %조사처리(Aname,"가")% {ABL:C_ID:A_ID}로 \@ Avalue > 0 ? 올랐다 # 내렸다 \@",C_YELLOW,2)
+;----------------------------------------------------------------------------------------------
+; Author: えにゅあら
+; Licensed by: CC0
+; L_SEEDの値が同じなら同じ結果を返す疑似乱数（ノイズ関数）
+; 0～L_SCALEの数値を返す（L_SCALEは含まない）
+; L_SCALEの最大値は多分8589934592　計算の都合上これ以上を指定しても切り捨てられるはず
+;----------------------------------------------------------------------------------------------
+@NOISE(L_SEED, L_SCALE)
+#FUNCTION
+#DIM L_SEED
+#DIM L_VAL
+#DIM L_SCALE
+; 適当にgoogleでランダム生成した数値をシードの初期位置にした。これやらないと0付近に全然ランダム感が出ない気がする
+L_SEED = L_SEED ^ 0x145579EC
+L_VAL = (L_SEED >> 13) ^ L_SEED
+L_VAL = (L_VAL * (L_VAL * L_VAL * 60493 + 19990303) + 1376312589) & 0x7fffffff
+RETURNF L_VAL * L_SCALE / 0x80000000
+
+
+; ノイズを二つ加算したものを返す。平均値付近の値が出やすい。出現分布はきれいな三角形。
+@NOISE2(L_SEED, L_SCALE)
+#FUNCTION
+#DIM L_SCALE
+#DIM L_SCALE2
+#DIM L_SEED
+L_SCALE2 = L_SCALE / 2
+L_SCALE = L_SCALE - L_SCALE2
+RETURNF NOISE(L_SEED, L_SCALE) + NOISE(L_SEED ^ 0x1D47E2A3, L_SCALE2)
+
+
+; ノイズを三つ加算したものを返す。平均値付近の値がとても出やすい。出現分布は山なりの曲線(正規分布)。
+@NOISE3(L_SEED, L_SCALE)
+#FUNCTION
+#DIM L_SCALE
+#DIM L_SCALE2
+#DIM L_SEED
+L_SCALE2 = L_SCALE / 3
+L_SCALE = L_SCALE - L_SCALE2*2
+RETURNF NOISE(L_SEED, L_SCALE) + NOISE(L_SEED ^ 0xFA7B7E26, L_SCALE2) + NOISE(L_SEED ^ 0x1D47E2A3, L_SCALE2)
+
+;４つ以上加算しても３つ版と分布の形状は変わらず、単に平均値を中心に縮小されたものになるので、省く
+
+
+
+; 使えそうか試しに表示してみる
+@TEST_PRINTNOISE()
+#FUNCTION
+PRINTL NOISE1
+FOR LOCAL, 0, 100
+	PRINTFORML {NOISE(LOCAL, 100)}
+NEXT
+PRINTL NOISE2
+FOR LOCAL, 0, 100
+	PRINTFORML {NOISE2(LOCAL, 100)}
+NEXT
+PRINTL NOISE3
+FOR LOCAL, 0, 100
+	PRINTFORML {NOISE3(LOCAL, 100)}
+NEXT
+
+;-------------------------------------------
+;함락상태의 지정;KR판 구잔재 또는 오리지날
+;ARG를 입력하지 않으면, TARGET 입력
+;-------------------------------------------
+@함락상태(ARG)
+#FUNCTION
+SIF !ARG
+	ARG = TARGET
+IF TALENT:ARG:연인
+	IF CFLAG:깨끗한교제 && ((GETBIT (CFLAG:ARG:1490, 6) && ARG == 49) || ARG != 49)
+		RETURNF 5
+	ELSE
+		RETURNF 4
+	ENDIF
+ELSEIF TALENT:ARG:연모 || TALENT:ARG:184 || TALENT:ARG:185
+	RETURNF 3
+ELSEIF (ARG == 49 && GETBIT (CFLAG:ARG:1490, 0)) || ((GETBIT (CFLAG:ARG:1 , 0) && ARG == 61))
+	RETURNF 2
+ELSEIF ((GETBIT (CFLAG:ARG:1 , 0) && ARG != 61) || TALENT:ARG:사모) && ((!GETBIT (CFLAG:ARG:1490, 1) && ARG == 49) || ARG != 49)
+	RETURNF 1
+ENDIF

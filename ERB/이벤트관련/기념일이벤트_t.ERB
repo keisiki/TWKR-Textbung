@@ -1,0 +1,222 @@
+﻿;-------------------------------------------------
+;함수명 :FESTIVAL
+;개요:행사를 나타내는 캐릭터라인을 취득하는 함수
+;인수:없음
+;-------------------------------------------------
+@FESTIVAL
+#FUNCTIONS
+IF DAY:2 == 1
+	SELECTCASE DAY:3
+		CASE 1
+			RETURNF "설날"
+		CASE 3
+			RETURNF "히나마츠리"
+		CASE 11
+			RETURNF "어버이날"
+		CASE 14
+			RETURNF "화이트 데이"
+		CASE 25
+			RETURNF "예대제"
+	ENDSELECT
+ELSEIF DAY:2 == 2
+	SELECTCASE DAY:3
+		CASE 7
+			RETURNF "칠석"
+		CASE 14
+			RETURNF "추석"
+	ENDSELECT
+ELSEIF DAY:2 == 3
+	SELECTCASE DAY:3
+		CASE 1
+			RETURNF "풍신 「입춘으로부터 210일째 되는 날」"
+		CASE 15
+			RETURNF "보름"
+		CASE 27
+			RETURNF "수확제"
+		CASE 30
+			RETURNF "할로윈"
+	ENDSELECT
+ELSEIF DAY:2 == 4
+	SELECTCASE DAY:3
+		CASE 3
+			RETURNF "절분"
+		CASE 14
+			RETURNF "발렌타인 데이"
+		CASE 24
+			RETURNF "크리스마스 이브"
+		CASE 25
+			RETURNF "크리스마스"
+		CASE 31
+			RETURNF "그믐날"
+	ENDSELECT
+ENDIF
+
+;특정의 축제의 기상시 메시지
+@SEASONAL_MORNING
+#DIM 생활시간보정, 5
+SELECTCASE FESTIVAL()
+	CASE "설날"
+		FOR LOCAL,1,CHARANUM
+			CFLAG:LOCAL:기상시간 = CSVCFLAG (LOCAL, GETNUM(CFLAG, "기상시간"))
+			CFLAG:LOCAL:내방시간 = CSVCFLAG (LOCAL, GETNUM(CFLAG, "내방시간"))
+			CFLAG:LOCAL:귀가시간 = CSVCFLAG (LOCAL, GETNUM(CFLAG, "귀가시간"))
+			CFLAG:LOCAL:취침시간 = CSVCFLAG (LOCAL, GETNUM(CFLAG, "취침시간"))
+		NEXT
+		SIF DAY != 1
+			CALL NEWYEAR
+	CASE "발렌타인 데이"
+		PRINTL 초콜릿을 받을 수 있을까…
+	CASE "화이트 데이"
+		FOR LOCAL, 1, CHARANUM
+			SELECTCASE CFLAG:LOCAL:발렌타인
+				CASE 1
+					PRINTFORML %조사처리(CALLNAME:LOCAL,"는")% 블랙썬더를 주었군……
+					PRINTFORMW 답례는 적당히 해도 될까
+				CASE 2
+					PRINTFORML %조사처리(CALLNAME:LOCAL,"는")% 보통 초콜릿을 주었군……
+					PRINTFORMW 그만한 답례를 하자
+				CASE 3
+					PRINTFORML %조사처리(CALLNAME:LOCAL,"는")% 비싸 보이는 초콜릿을 주었군……
+					PRINTFORMW 제대로 된 답례를 하자
+				CASE 4
+					PRINTFORML %조사처리(CALLNAME:LOCAL,"는")% 손수 만든 초콜릿을 주었군……
+					PRINTFORMW 정성어린 답례를 하자
+			ENDSELECT
+		NEXT
+	CASE "그믐날"
+		PRINTL 오늘은 모든 캐릭터가 밤샘합니다
+		FOR LOCAL,1,CHARANUM
+			IF INRANGE(CFLAG:LOCAL:귀가시간, 900 , 1440) || INRANGE(CFLAG:LOCAL:귀가시간, 0 , 59) || INRANGE(CFLAG:LOCAL:취침시간, 900 , 1440) || INRANGE(CFLAG:LOCAL:취침시간, 0 , 119)
+				생활시간보정:1 = 1500 - CFLAG:LOCAL:귀가시간
+				생활시간보정:2 = 1560 - CFLAG:LOCAL:취침시간
+				CFLAG:LOCAL:귀가시간 = TIMECIRCLE(CFLAG:LOCAL:귀가시간 + 생활시간보정:1)
+				CFLAG:LOCAL:취침시간 = TIMECIRCLE(CFLAG:LOCAL:취침시간 + 생활시간보정:2)
+			ENDIF
+		NEXT
+ENDSELECT
+
+@TIMECIRCLE(ARG)
+#FUNCTION
+WHILE ARG > 1440
+	ARG -= 1440
+WEND
+RETURNF ARG
+
+@SEASONAL(ARG)
+VARSET LOCAL
+;만났을 때
+SELECTCASE FESTIVAL()
+	CASE "설날"
+		PRINTL
+		PRINTFORML ●%마스터는% %CALLNAME:ARG%에게 새해 인사를 했다
+		IF TALENT:ARG:유치 && DAY > 1
+			PRINTFORMW %CALLNAME:ARG%에게 세배돈을 졸라졌다
+			SELECTCASE MONEY
+				CASE IS > 500000
+					LOCAL = 10000
+				CASE IS > 100000
+					LOCAL = 5000
+				CASE IS > 30000
+					LOCAL = 3000
+				CASE IS > 3000
+					LOCAL = 1000
+				CASEELSE
+					LOCAL = 0
+			ENDSELECT
+			IF !LOCAL
+				PRINTFORML %마스터가% 지갑의 내용물을 보여주자, %조사처리(CALLNAME:ARG,"는")% 연민이 담긴 눈빛을 향했다
+			ELSE
+				PRINTFORML %CALLNAME:ARG%에게 \\{LOCAL}뺏겼다…
+				PRINTFORML %조사처리(CALLNAME:ARG,"는")% 기분이 좋다
+				MONEY -= LOCAL
+				TALENT:ARG:기분 = 1
+				CFLAG:ARG:호감도 += LOCAL/200
+				CFLAG:ARG:신뢰도 += LOCAL/200
+			ENDIF
+		ENDIF
+	CASE "발렌타인 데이"
+		SELECTCASE CFLAG:ARG:호감도
+			CASE 1000 TO 3000
+				PRINTFORMW %조사처리(CALLNAME:ARG,"로")%부터 초콜릿을 받았다
+				PRINTW ……블랙썬더다
+				ITEM:120 ++
+				CFLAG:ARG:발렌타인 = 1
+			CASE 3001 TO 5000
+				PRINTFORMW %조사처리(CALLNAME:ARG,"로")%부터 초콜릿을 받았다
+				ITEM:121 ++
+				CFLAG:ARG:발렌타인 = 2
+			CASE IS > 5000
+				IF EXP:ARG:애정경험 < 100
+					PRINTFORMW %조사처리(CALLNAME:ARG,"로")%부터 비싸보이는 초콜릿을 받았다
+					ITEM:122 ++
+					CFLAG:ARG:발렌타인 = 3
+				ELSE
+					PRINTFORML %조사처리(CALLNAME:ARG,"로")%부터 초콜릿을 받았다
+					PRINTW 손수 만든 것이다! 기쁘다!
+					ITEM:123 ++
+					CFLAG:ARG:발렌타인 = 4
+				ENDIF
+		ENDSELECT
+ENDSELECT
+
+@FESTIVAL_MENU()
+#FUNCTIONS
+SELECTCASE DAY:2
+	;춘
+	CASE 1
+		SELECTCASE DAY:3
+			CASE 1,2
+				RETURNF "오세치요리"
+		ENDSELECT
+	;하
+	CASE 2
+	;추
+	CASE 3
+	;동
+	CASE 4
+		SELECTCASE DAY:3
+			CASE 3
+				RETURNF "에호마키"
+			CASE 31
+				RETURNF "토시코시 소바"
+		ENDSELECT
+ENDSELECT
+
+@NEWYEAR
+PRINTL 신년 새해복 많이 받으세요!
+PRINTFORML %CALLNAME:MASTER%의 올해의 포부는…
+PRINTL
+PRINTLC [1] 자위 장려
+PRINTLC [2] 동성애 추진
+PRINTLC [3] 암컷 구멍 개척
+PRINTL
+PRINTL
+PRINTLC [4] 항문 개발
+PRINTLC [5] 유협진흥
+PRINTLC [6] 자손 번영
+$LOOP
+INPUT
+SELECTCASE RESULT
+	CASE 1
+		LOCALS = 자위
+	CASE 2
+		LOCALS = 동성애
+	CASE 3
+		LOCALS = 섹스
+	CASE 4
+		LOCALS = 애널 섹스
+	CASE 5
+		LOCALS = 파이즈리
+	CASE 6
+		LOCALS = 아이 만들기
+	CASEELSE
+		GOTO LOOP
+ENDSELECT
+
+PRINTFORML %마스터는% 올해 %LOCALS%에 전념하기로 굳게 마음먹었다
+FLAG:포부 = RESULT
+
+;연중 플래그를 리셋
+FOR LOCAL, 0, CHARANUM
+	CFLAG:LOCAL:연중 = 0
+NEXT

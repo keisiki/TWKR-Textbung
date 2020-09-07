@@ -1,0 +1,194 @@
+﻿;홍마카지노 작자(morph)에 의한 개조
+;기본적으로는 열매 처리는 변경하지 않고 기술법을 바꾸었을 뿐
+;
+;비고：셔플의 타이밍에 대해
+;BJ로 채용하고 있는 것 같은 방식으로 하면 플레이어에 이기게 할 수도 있는데
+;·최고 배율이 x300
+;·후반이 되는 만큼 플레이어 유리하게 된다(지금까지의 버리기지폐로부터 예상할 수 있다)
+;·플레이어는 자유롭게 BET를 변화 당한다
+;이 조건으로 셔플을 매회 하지 않는 형식으로 하면(자) 플레이어가 너무 이기는 예감이 든다
+;최초의 5회는 1 BET, 나머지는 최고 BET로 승부라든지 맹위를 발휘하는 것은 아닌지?
+;(이)라고 해도 현상의 POKER는 BET에 의한 술책도 없고
+;게임성(플레이어로부터의 개입 요소)이 부족한 것 같은 생각도 나는걸―
+@CASINO_POKER
+#DIM PL = 0   ;플레이어에 할당하는 번호 우선 1명 플레이이므로 0으로 좋아
+#DIM P_BET    ;BET 금액
+#DIM ORI_BET  ;특별히 사용하지 않은 같다
+#DIM HOLD     ;BIT 이용, 명함 0~4의 HOLD 상황
+#DIM PK_RATE  ;역에 의한 배율
+#DIM TOTAL, 3 ;결과, TOTAL:1=손실, TOTAL:2=이익
+VARSET TOTAL
+;참가 플레이어는 혼자
+NUM_CARD_PL = 1
+
+IF !MONEY:2
+	PRINTFORML 메이드 요정
+	PRINTFORML 　손님, 당카지노 점내에서는 전용 통화 “카리스마”만을 사용해 놀아 주시고 있습니다
+	PRINTFORMW 　수고스럽겠지만 카리스마의 구입을 부탁 드리겠습니다
+	RETURN
+ENDIF
+CALL CASINO_INPUTLOOP("카드 내기금")
+IF !RESULT
+	P_BET = 0
+ELSE
+	P_BET = RESULT
+	ORI_BET = RESULT
+	TOTAL:1 += P_BET
+	CALL CASINO_MONEY("카리스마", -P_BET)
+ENDIF
+
+WHILE P_BET
+	VARSET HOLD
+	CALL PLAY_CARDS("SHUFFLE")
+	PRINTFORML 
+	PRINTFORMW 메이드 요정은 플레이어를 셔플했다
+	;명함을 리셋 해 5매 뺀다
+	CALL PLAY_CARDS("RESET_HAND")
+	CALL PLAY_CARDS("POKER_FIRST_HAND", PL)
+	
+	
+	DO
+		CALL CARD_DISP("HAND_BUTTON", PL)
+		PRINTFORML 
+		FOR LOCAL, 0, 5
+			IF GETBIT(HOLD, LOCAL)
+				PRINTBUTTON "[　HOLD　]", LOCAL
+			ELSE
+				PRINTBUTTON "[CHANGE]", LOCAL
+			ENDIF
+		NEXT
+		PRINTFORML 
+		DRAWLINE
+		PRINTFORML [9] - 　DRAW　
+		INPUT
+		SELECTCASE RESULT
+		CASE 9
+			BREAK
+		CASE 0 TO 4
+			INVERTBIT HOLD, RESULT
+		ENDSELECT
+	LOOP 1
+	IF HOLD == 0b11111
+	ELSE
+		PRINTFORMW 카드의 교환을 실시합니다
+		FOR LOCAL, 0, 5
+			SIF GETBIT(HOLD, LOCAL)
+				CONTINUE
+			CALL PLAY_CARDS("REHIT", PL, LOCAL)
+		NEXT
+	ENDIF
+	PRINTFORML 
+	CALL CARD_DISP("HAND", PL)
+	WAIT
+	
+	;결과의 판정
+	PK_RATE = CARD_PLAYER("GET_POKER_RATE", PL)
+	P_BET = P_BET * PK_RATE / 100
+	FONTSTYLE 3
+	SETCOLOR C_YELLOW
+	SELECTCASE PK_RATE
+	;RATE는%치
+	CASE 30000
+		LOCALS = ROYAL FLUSH!
+	CASE 5000
+		LOCALS = STRAIGHT FLUSH!
+	CASE 3000
+	;이만큼 스칼렛 컬러로 해 본다
+		SETCOLOR C_RED
+		LOCALS = 4 OF A KIND!
+	CASE 2000
+		LOCALS = FULL HOUSE!
+	CASE 1000
+		LOCALS = FLUSH!
+	CASE 500
+		LOCALS = STRAIGHT!
+	CASE 300
+		LOCALS = 3 OF A KIND!
+	CASE 100
+		LOCALS = TWO　PAIR
+	CASE 50
+		LOCALS = ONE　PAIR
+	CASE 0
+		LOCALS = NO　PAIR
+	ENDSELECT
+	PRINTFORML 
+	PRINTFORML %LOCALS%
+	PRINTFORML 
+	RESETCOLOR
+	FONTREGULAR
+	PRINTFORMW REWARD：{P_BET}
+	CALL CASINO_MONEY("카리스마", P_BET)
+	TOTAL:2 += P_BET
+	TIME += 5
+	
+	;게임의 속행 판정
+	SIF NEMUKE() >= 700
+		BREAK
+	SIF MONEY:2 <= 0
+		BREAK
+	
+	PRINTFORML 　그런데, 승부를 계속합니까?
+	PRINTFORML 
+	CALL CASINO_INPUTLOOP("카드 속행")
+	SELECTCASE RESULT
+	CASE 0
+		P_BET = 0
+	CASE 1
+		IF MONEY:2 < P_BET
+			PRINTFORML 메이드 요정
+			PRINTFORML 　손에 가지고 있는 카리스마가 부족한 것 같네요
+			PRINTFORML 　내기금을 재설정 해주세요
+			PRINTFORML 
+			CALL CASINO_INPUTLOOP("카드 내기금")
+			P_BET = RESULT
+			ORI_BET = RESULT
+			SIF RESULT
+				PRINTFORML 
+		ELSE
+			P_BET = ORI_BET
+		ENDIF
+	CASE 2
+		PRINTFORML 메이드 요정
+		PRINTFORML 　그러면 내기금을 입력해 주세요
+		PRINTFORML 
+		CALL CASINO_INPUTLOOP("카드 내기금")
+		P_BET = RESULT
+		ORI_BET = RESULT
+		SIF RESULT
+			PRINTFORML 
+	ENDSELECT
+	
+	IF P_BET
+		TOTAL:1 += P_BET
+		CALL CASINO_MONEY("카리스마", -P_BET)
+		PRINTFORML 메이드 요정
+		PRINTFORML 　네, 내기금{P_BET}카리스마 확실히 받았습니다
+		PRINTFORMW 　그러면 계속 잘 부탁 드리겠습니다
+	ENDIF
+WEND
+
+IF NEMUKE() >= 700
+	PRINTFORML 
+	PRINTFORML 메이드 요정
+	PRINTFORML 　저기, 손님?
+	PRINTFORML 　상당히 수고했어의 모습이에요
+	PRINTFORML 　오늘은 이제 게임을 끝내는 편이 좋은 것이 아닐까
+	PRINTFORMW 　다음 행차를 기다리고 있어요
+ELSEIF MONEY:2 <= 0
+	PRINTFORML 
+	PRINTFORML 메이드 요정
+	PRINTFORML 　손에 가지고 있는 카리스마가 다해 버린 것 같네요
+	PRINTFORMW 　다음 행차를 기다리고 있어요
+ELSE
+	PRINTFORML 메이드 요정
+	PRINTFORML 　잘 알았습니다
+	PRINTFORMW 　다음 행차를 기다리고 있어요
+ENDIF
+
+;것은 정리해 정산, 것 시스템을 잘 이해하고 있지 않았기 때문에 맛이 없으면 미안합니다……
+;내기금을 사용하고 있는들 결과 표시
+IF TOTAL:1
+	CALL CASINO_MONEY("것", TOTAL:1)
+	CALL CASINO_DISP("RESULT", TOTAL:1, TOTAL:2)
+ENDIF
+VARSET TOTAL

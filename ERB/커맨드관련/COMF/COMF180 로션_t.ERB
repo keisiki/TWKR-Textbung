@@ -1,0 +1,120 @@
+﻿;-------------------------------------------------
+;로션
+;특수 커맨드
+;-------------------------------------------------
+@COM180
+#DIM 초콜렛
+초콜렛 = 0
+ITEM:40 -= 1
+;자동 보충
+IF !ITEM:40 && MONEY >= 200 && FLAG:1001
+	MONEY -= 200
+	ITEM:40 ++
+ENDIF
+
+IF (ITEM:121 || ITEM:122 || ITEM:123) && !초콜릿사용
+	PRINTL 초콜릿 플레이를 해?
+	PRINTL [0]네 [1]아니오
+	INPUT
+	IF !RESULT
+		PRINTL 어느 초콜렛을 사용해?
+		PRINTFORM [0]역시 그만둔다　
+		SIF ITEM:121
+			PRINTFORM [1]%ITEMNAME:(121)%　
+		SIF ITEM:122
+			PRINTFORM [2]%ITEMNAME:(122)%　
+		SIF ITEM:123
+			PRINTFORM [3]%ITEMNAME:(123)%　
+		INPUT
+		IF RESULT == 1 && ITEM:121
+			초콜렛 = 1
+			ITEM:121 -= 1
+		ELSEIF RESULT == 2 && ITEM:122
+			초콜렛 = 2
+			ITEM:122 -= 1
+		ELSEIF RESULT == 3 && ITEM:123
+			초콜렛 = 3
+			ITEM:123 -= 1
+		ELSE
+		ENDIF
+	ELSE
+	ENDIF
+ENDIF
+초콜렛=초콜릿사용
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+DOWNBASE:체력 += 0
+DOWNBASE:기력 += 0
+
+SOURCE:액체 = 5000
+SIF TALENT:TARGET:체형 == -5
+	SOURCE:액체 += 20000
+IF 초콜렛
+	STAIN:1 += 128
+	STAIN:5 += 128
+	STAIN:PLAYER:1 +=128
+ENDIF
+
+IF FLAG:70 == 1
+
+ELSE
+
+	SOURCE:노출 = 100
+
+	SELECTCASE 초콜렛
+	CASE 1
+		SOURCE:불결 = 100
+		SOURCE:일탈 = 100
+	CASE 2
+		SOURCE:불결 = 80
+		SOURCE:일탈 = 80
+	CASE 3
+		SOURCE:사랑 = 30
+		SOURCE:불결 = 60
+		SOURCE:일탈 = 60
+		EXP:애정경험 ++
+	ENDSELECT
+
+ENDIF
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ELSE
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE180
+;로션 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(180)
+	RETURN RESULT
+;아이템 을 가지고 있는인가, 아이템 없음 설정이 아니면 안 돼
+SIF ITEM:40 == 0 && NOITEM == 0
+	RETURN 0
+
+;샤워중은 안 돼
+SIF TEQUIP:32
+	RETURN 0
+RETURN 1
+

@@ -1,0 +1,144 @@
+﻿@내방플래그
+#DIM 내방자수
+
+#DIM 내방확률
+#DIM 기본내방확률
+#DIM 내방인원수상한
+
+;LOCAL = 각 캐릭터의 NO 
+내방자수 = 0
+내방확률 = 0
+기본내방확률 = 0
+;출금인원수에 응해 기본 내방율의 조정. 실수가 아니고 비율 계산으로 변경하고 있습니다
+SELECTCASE FLAG:출금인원수 * 100 / CHARANUM
+CASE IS >= 60
+	기본내방확률 = 15
+CASE IS >= 40
+	기본내방확률 = 16
+CASE IS >= 20
+	기본내방확률 = 17
+CASEELSE
+	기본내방확률 = 18
+ENDSELECT
+
+내방인원수상한 = 10
+SIF TALENT:MASTER:천객만래
+	내방인원수상한 = 12
+;우선 확정으로 오는 캐릭터를 카운트
+FOR LOCAL, 1, CHARANUM
+	IF CFLAG:LOCAL:연회참가
+		IF IN_HOME(FLAG:32)
+			CFLAG:LOCAL:거점내방 = 1
+			내방자수 ++
+		;다만 신사외라면 확실히 오지 않는(술>>(넘을 수 없는 벽)>>연인의 당신)
+		ELSE
+			CFLAG:LOCAL:거점내방 = 0
+		ENDIF
+	;발원함 대상/의뢰실행중 및 달성 사람은 내방한다
+	; // 자택 멤버는 발원함 플래그가 ON에서도 내방하지 않게 from 발원함 패치. ERB//
+	ELSEIF (CFLAG:LOCAL:다음날내방 && !CFLAG:LOCAL:신사거주) || CFLAG:LOCAL:의뢰상황 == 3
+		CFLAG:LOCAL:거점내방 = 1
+		내방자수 ++
+	ELSE
+		CFLAG:LOCAL:거점내방 = 0
+	ENDIF
+	;와카사기히메의 내방플래그는 풀장이 없으면 접힌다
+	IF LOCAL == 93 && CFLAG:LOCAL:거점내방 && FLAG:풀장 < 8
+		CFLAG:LOCAL:거점내방 = 0
+		내방자수 --
+	;교류 모드로 플래그 때
+	ELSEIF FLAG:교류내방모드 == 1 && CFLAG:LOCAL:호감도 <= 0
+		CFLAG:LOCAL:거점내방 = 0
+		내방자수 --
+	ELSEIF FLAG:교류내방모드 == 2
+		CFLAG:LOCAL:거점내방 = 0
+		내방자수 --
+	ENDIF
+NEXT
+
+CALL FISHER_YATES_SHAFFLE(CHARANUM - 1)
+FOR LOCAL:10 , 0 , CHARANUM - 1
+	LOCAL = SHAFFLE_ARRAY:(LOCAL:10) + 1
+	;자택 거주 캐릭터라면 조우하지 않는다
+	IF CFLAG:LOCAL:신사거주 > 0
+		CFLAG:LOCAL:거점내방 = 0
+		CONTINUE
+	ENDIF
+	;출금의 사람은 제외
+	IF CFLAG:LOCAL:출금 || TALENT:LOCAL:스침
+		CFLAG:LOCAL:거점내방 = 0
+		CONTINUE
+	ENDIF
+	SIF CFLAG:LOCAL:거점내방
+		CONTINUE
+	;출금인원수＋각 소질에 의한 수정으로부터 내방율을 산출해, 판정
+	;일부 캐릭터에게는 추가로 조건이나 확률 변동이 존재
+	;내방자수가 내방인원수상한을 넘으면(자) 스킵
+	SIF 내방자수 > 내방인원수상한
+		CONTINUE
+	내방확률 = 기본내방확률 - TALENT:LOCAL:연모 * 2 - TALENT:LOCAL:사모 - CFLAG:LOCAL:(420 + MAIN_MAP)
+	SIF CFLAG:LOCAL:딸딸이들킴
+		내방확률 += 5
+	SELECTCASE LOCAL
+		;플랑, 님
+		CASE 50, 66
+			IF !RAND:(2 + 내방확률)
+				CFLAG:LOCAL:거점내방 = 1
+				내방자수 ++
+			ELSE
+				CFLAG:LOCAL:거점내방 = 0
+			ENDIF
+		;쳇
+		CASE 54
+			IF !RAND:(10 + 내방확률)
+				CFLAG:LOCAL:거점내방 = 1
+				내방자수 ++
+			ELSE
+				CFLAG:LOCAL:거점내방 = 0
+			ENDIF
+		;도 고담&나
+		CASE 61, 62
+			IF !RAND:(내방확률) && CFLAG:LOCAL:호감도 > 500
+				CFLAG:LOCAL:거점내방 = 1
+				내방자수 ++
+			ELSE
+				CFLAG:LOCAL:거점내방 = 0
+			ENDIF
+		;면월, 사구메는 예지상에는 가고 싶어하지 않는다
+		CASE 98,99,110
+			IF !TALENT:LOCAL:연모 && !TALENT:LOCAL:사모
+				CFLAG:LOCAL:거점내방 = 0
+			ELSEIF !RAND:(5 + 내방확률)
+				CFLAG:LOCAL:거점내방 = 1
+				내방자수 ++
+			ELSE
+				CFLAG:LOCAL:거점내방 = 0
+			ENDIF
+		CASEELSE
+			IF !RAND:내방확률
+				CFLAG:LOCAL:거점내방 = 1
+				내방자수 ++
+			ELSE
+				CFLAG:LOCAL:거점내방 = 0
+			ENDIF
+	ENDSELECT
+
+	;와카사기히메의 내방플래그는 풀장이 없으면 접힌다
+	IF LOCAL == 93 && CFLAG:LOCAL:거점내방 && FLAG:풀장 < 8
+		CFLAG:LOCAL:거점내방 = 0
+		내방자수 --
+	;교류 모드로 플래그 때
+	ELSEIF FLAG:교류내방모드 == 1 && CFLAG:LOCAL:호감도 <= 0
+		CFLAG:LOCAL:거점내방 = 0
+		내방자수 --
+	ELSEIF FLAG:교류내방모드 == 2
+		CFLAG:LOCAL:거점내방 = 0
+		내방자수 --
+	ENDIF
+NEXT
+
+;외박중은 비표시
+IF 내방자수 > 0 && AT_HOME(MASTER)
+	PRINTFORMW %GET_MAPNAME(MAIN_MAP)%에 내방자가 있던 것 같다.
+	PRINTL
+ENDIF

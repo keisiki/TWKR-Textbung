@@ -1,0 +1,218 @@
+﻿;-------------------------------------------------
+;밀어넘어뜨린다
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM350
+#DIM NUM_TARGET
+#DIM C_ID
+;밀어넘어뜨린다
+NUM_TARGET = GET_TARGETNUM()
+IF FLAG:생활능력무
+	DRAWLINE
+	PRINTFORMW %CALLNAME:MASTER%에게 그런 담력은 없다
+	RETURN -1
+ENDIF
+IF TFLAG:펄기한
+	IF TARGET == TFLAG:펄넣은사람
+		PRINTFORML %타겟은% 시간이 올 때까지 보류, 라고 말하며 %마스터를% 거절했다
+	ELSE
+		PRINTFORML 이런 상태로는 정사를 할 처지가 못 된다
+	ENDIF
+	RETURN -1
+ENDIF
+IF FLAG:70
+	;시간정지는 무조건 돌파
+	FOR LOCAL,1, NUM_TARGET + 1
+		CFLAG:(TARGET:LOCAL):우후후 = 1
+	NEXT
+ELSE
+	;시선에 의한 중단 판정
+	IF EYEWITNESS() == 1
+		TFLAG:194 = 1
+		TFLAG:밀어넘어뜨릴수없다 ++
+	ENDIF
+	;MASTER적으로 많은 사람은 무리였다
+	IF NUM_TARGET > 1 && TCVAR:MASTER:친해져 < 2
+		TFLAG:194 = 3
+		TFLAG:밀어넘어뜨릴수없다 ++
+	ENDIF
+	
+	FOR LOCAL,1, NUM_TARGET + 1
+		C_ID = TARGET:LOCAL
+		;만취
+		IF TCVAR:C_ID:만취 == 1
+			CFLAG:C_ID:우후후 = 1
+			SIF CFLAG:C_ID:만취간 < 2
+				CFLAG:C_ID:만취간 = 1
+			IF INROOM(CFLAG:MASTER:현재위치) == 2
+				CALL DATUI_SHOES(LOCAL,0)
+				CALL DATUI_SHOES(MASTER,0)
+			ENDIF
+		;합의미취득
+		ELSEIF !GETBIT(CFLAG:C_ID:기정사실 , 1)
+			;미취득이라면 많은 사람은 안 돼
+			IF NUM_TARGET > 1
+				TFLAG:194 = 3
+				TFLAG:밀어넘어뜨릴수없다 ++
+				BREAK
+			ELSEIF CFLAG:C_ID:대사내껴안기판정_첫회
+				TRYCALLFORM M_KOJO_EVENT_K{C_ID}_PERMISSION_1
+				SELECTCASE RESULT
+					CASE -1
+						TCVAR:C_ID:껴안고첫회 = 98
+						TFLAG:밀어넘어뜨릴수없다 ++
+						BREAK
+					CASE 0
+						CALL 껴안고(C_ID)
+					CASE 1
+						TCVAR:C_ID:껴안고첫회 = 99
+						SETBIT CFLAG:C_ID:기정사실 , 1
+						CALL COLORMESSAGE(@"%CALLNAME:C_ID%의 합의를 얻은", C_YELLOW,2)
+				ENDSELECT
+			ELSE
+				CALL 껴안고(C_ID)
+			ENDIF
+		;합의 취득이 끝난 상태
+		ELSE
+			IF FLAG:모리야복권데이트상대 == C_ID || TALENT:C_ID:걸레 || CFLAG:C_ID:우후후
+				GOTO OK
+			ELSEIF (BASE:C_ID:무드 < 300 || TCVAR:MASTER:친해져 < 2)
+				TFLAG:194 = 4
+				TFLAG:밀어넘어뜨릴수없다 ++
+			ELSEIF CFLAG:C_ID:대사내껴안기판정_통상
+				TRYCALLFORM M_KOJO_EVENT_K{C_ID}_PERMISSION_2
+				IF RESULT == -1
+					TFLAG:194 = 100
+					TFLAG:밀어넘어뜨릴수없다 ++
+				ELSE
+					GOTO OK
+				ENDIF
+			ELSE
+				$OK
+				SIF BASE:C_ID:무드 < 300
+					BASE:C_ID:무드 = 300
+				CFLAG:C_ID:우후후 = 1
+				IF INROOM(CFLAG:MASTER:현재위치) == 2
+					CALL DATUI_SHOES(LOCAL,0)
+					CALL DATUI_SHOES(MASTER,0)
+				ENDIF
+			ENDIF
+		ENDIF
+	NEXT
+ENDIF
+
+IF TFLAG:밀어넘어뜨릴수없다
+	FOR LOCAL,1, NUM_TARGET + 1
+		CALL ENDUFUFU(TARGET:LOCAL)
+	NEXT
+	DOWNBASE:MASTER:기력 = 50
+	BASE:TARGET:무드 /= 2
+ELSE
+;공수 교대
+;ELSEIF CFLAG:MASTER:우후후 == 1 && !FLAG:70
+;	FOR LOCAL, 0, CHARANUM
+;		CFLAG:(TARGET:LOCAL):우후후 == 2 
+;	NEXT
+;	TIME += 1
+;	RETURN 1
+	IF !FLAG:70
+		FOR LOCAL,1, NUM_TARGET + 1
+			CALL UWAKI_RECORD(TARGET:LOCAL, 1)
+		NEXT
+	ENDIF
+	CFLAG:MASTER:우후후 = 1
+	SIF !FLAG:70
+		TIME += 1
+ENDIF
+;経過時間表示用に개시시간を取っておく
+IF !UFUFU_START_TIME
+	UFUFU_START_TIME = TIME
+	UFUFU_START_DAY = DAY
+ENDIF
+RETURN 1
+
+
+;혼숙여관 러브호텔 이외가 나가고 앞으로 우후후하기 위한 특수 조건
+@특수우후후조건(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE 67
+		SIF TCVAR:ARG:특수이벤트 >= 4 && CFLAG:ARG:행동 != 5 && GETBIT(CFLAG:ARG:기정사실 , 1) && TCVAR:ARG:친해져 >= 2 && CFLAG:ARG:현재위치 == 서당 && GET_TARGETNUM() < 2
+			RETURNF 1
+ENDSELECT
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE350
+#DIM NUM_TARGET
+;망상이므로 전노선 개통해
+SIF TFLAG:망상중 == 1 && CFLAG:우후후 != 1
+	RETURN 1
+;밀어 넘어뜨리는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(350)
+	RETURN RESULT
+;시간정지중은 스킵
+IF !FLAG:70
+	;많은 사람
+	NUM_TARGET = GET_TARGETNUM()
+	SELECTCASE NUM_TARGET
+	CASE 0
+		RETURN 0
+	CASE 1
+	CASEELSE
+		FOR LOCAL, 1, NUM_TARGET + 1
+			;전캐릭터에게 합의가 없으면 안 돼
+			SIF !GETBIT(CFLAG:(TARGET:LOCAL):기정사실 , 1)
+				RETURN 0
+			;자고 있는 캐릭터가 있으면(자) 안 돼
+			SIF CFLAG:(TARGET:LOCAL):수면
+				RETURN 0
+			;취하고 있는 캐릭터가 있으면(자) 안 돼
+			SIF TCVAR:(TARGET:LOCAL):만취
+				RETURN 0
+		NEXT
+	ENDSELECT
+	SIF TFLAG:키스마크 != TARGET && TFLAG:키스마크
+		RETURN 0
+	;수면중
+	SIF CFLAG:수면
+		RETURN 0
+	;동침중
+	SIF CFLAG:동침중
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5 && !TCVAR:TARGET:만취
+		RETURN 0
+	SIF TCVAR:마음대로해
+		RETURN 0
+	;데이트중
+	SIF (CHK_DATENOW(CFLAG:MASTER:데이트중) && CFLAG:현재위치 != 혼숙여관 && CFLAG:현재위치 != 러브호텔 && CFLAG:현재위치 != OMANEKIBEYA()) && !특수우후후조건(TARGET)
+		RETURN 0
+	;SIF MONEY < 3000 && (CFLAG:현재위치 == 혼숙여관 || CFLAG:현재위치 == 러브호텔)
+		;RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+RETURN 1
+
+;명째가 있을지 어떨지 돌려주는 식중함수
+;보고 있는 캐릭터가 있으면(자) 1, 모브라면 2
+@EYEWITNESS()
+#FUNCTION
+FOR LOCAL, 1, CHARANUM
+	SIF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+		CONTINUE
+	SIF CAN_MOVE(CFLAG:LOCAL:현재위치, CFLAG:MASTER:현재위치) & 2
+		RETURNF 1
+NEXT
+SIF WITH_MOB()
+	RETURNF 2
+SIF DATE_HITOGOMI()
+	RETURNF 2
+
+RETURNF 0

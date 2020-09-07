@@ -1,0 +1,83 @@
+﻿;만취가 되는 처리와 만취로부터 부활하는 처리
+@CHARA_ACTION_DRUNK(ARG)
+IF !TCVAR:ARG:만취 && BASE:ARG:술기운 > (MAXBASE:ARG:술기운 / 10) * 8
+	TCVAR:ARG:만취 = 1
+
+	;일내용이 연회참가의 경우
+	IF CFLAG:ARG:직종 == 49
+		;일내용을 만취하는으로 변경
+		CFLAG:ARG:직종 = 51
+		CFLAG:ARG:직장 = TFLAG:연회장
+		CFLAG:ARG:행동 = 5
+	ELSE
+		IF TALENT:ARG:술내성 == -2
+			CFLAG:ARG:술을못함 -= 3
+		ENDIF
+	ENDIF
+
+	IF CFLAG:MASTER:현재위치 == CFLAG:ARG:현재위치
+		IF CFLAG:ARG:직종 == 51
+			PRINT 　
+		ENDIF
+		PRINTFORML %CALLNAME:ARG%는 만취했습니다
+	ENDIF
+ENDIF
+
+;만취간중은 다른 복귀 처리를 사용
+IF TCVAR:ARG:만취 && BASE:ARG:술기운 < (MAXBASE:ARG:술기운 / 10) * 4 && !CFLAG:ARG:우후후 && ARG == TARGET
+	IF CFLAG:MASTER:현재위치 == CFLAG:ARG:현재위치
+		IF CFLAG:ARG:직종 == 51 && CFLAG:ARG:현재위치 == TFLAG:연회장
+			PRINT 　
+		ENDIF
+		PRINTFORML 만취하고 있던%CALLNAME:ARG%의 취기가 깬 것 같다
+	ENDIF
+	CALL 만취부활공통(ARG)
+ENDIF
+
+;수간중에 만취로부터 부활할 때의 사전 처리 주인의 소스의 추가
+@DRUNK_RECOVER_BEFORE(ARG)
+IF TCVAR:ARG:만취 && BASE:ARG:술기운 < (MAXBASE:ARG:술기운 / 10) * 4 && CFLAG:ARG:우후후 && ARG == TARGET
+	IF TALENT:ARG:연모
+		SOURCE:ARG:반감 += 3000
+	ELSE
+		SOURCE:ARG:반감 += 20000
+	ENDIF
+	TFLAG:호감도관리 -= MIN(30 - ABL:ARG:친밀, 0) * 3
+	TFLAG:신뢰도관리 -= MIN(30 - ABL:ARG:친밀, 0) * 3
+	TCVAR:ARG:만취간들킴 = 1
+ENDIF
+
+;수간중에 만취로부터 부활하는 처리
+@DRUNK_RECOVER(ARG)
+IF TCVAR:ARG:만취간들킴
+	PRINTL 
+	PRINTFORMW 만취하고 있던%CALLNAME:ARG%가 눈을 뜬 것 같다!
+	CALL 만취부활공통(ARG)
+
+	CFLAG:ARG:만취간 = 2
+	CALL ENDUFUFU(ARG)
+	CALL SET_PRANK(0, ARG, 1)
+
+	IF TALENT:ARG:연모
+		;MARK:ARG:반발각인 = 1
+		;TFLAG:반발각인취득 = 1
+		PRINTFORML %CALLNAME:ARG%는 흐트러진 의복을 확인하면(자) 날카로운 눈으로 %마스터를% 흘겨 보는
+		PRINTFORMW 복장을 정돈하면서 %CALLNAME:ARG%는 차가운 시선을 %CALLNAME:MASTER%에 보냈다…
+	ELSE
+		;MARK:ARG:반발각인 = 3
+		;TFLAG:반발각인취득 = 3
+		PRINTFORML %CALLNAME:ARG%는 흐트러진 의복을 확인한다고 믿을 수 없다는 표정으로 %마스터를% 응시했다
+		PRINTFORMW %CALLNAME:ARG%는 분노를 배이게 한 표정을 하고 있다……
+	ENDIF
+ENDIF
+
+@만취부활공통(ARG)
+;연회에서 만취하고 있었을 경우
+IF CFLAG:ARG:직종 == 51
+	CFLAG:ARG:직종 = 0
+	TALENT:ARG:기분 = 0
+	CFLAG:ARG:연회참가 = 3
+ENDIF
+
+TCVAR:ARG:만취 = 0
+CFLAG:ARG:행동 = 0

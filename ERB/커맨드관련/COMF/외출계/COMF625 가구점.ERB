@@ -1,0 +1,407 @@
+﻿;가구점
+@COM625
+#DIM 판매가
+#DIM 루프수
+#DIM 결과
+#DIM 자재보관
+#DIM 삭제행수
+#DIM MaterialQTY
+#DIMS DiscountedPrice
+
+루프수 = 0
+
+;開店時間・閉店時間
+IF INRANGE(TIME:0, 480, 1020) == 0
+	PRINTFORMW 영업시간 외 같다
+	RETURN -1
+ENDIF
+
+;初回イベント
+IF FLAG:마지막가구점방문일 == 0
+	PRINTL 
+	PRINTFORMW 가구점、と書かれた看板が目に留まり、軒をくぐってはみたものの…
+	PRINTFORMW 「……んだよ、そのツラは。あぁん？」
+	PRINTFORMW 「あ？　そうだよ、ここは가구점だよ。なに？　売り物はないのかって？」
+	PRINTFORMW 「アホぬかせ。タンスにしろ何にしろ、注文受けてからこさえるもんだ。で、今は暇してるだけの話だよ」
+	PRINTFORMW 「……それで？　何が欲しいんだ、アンタ」
+	PRINTFORMW 「……あぁ？　実物を見てから決めようと思ってた？」
+	PRINTFORMW 「冷やかしなら帰んな……と言いたいとこだが、しゃあねえ。えぇと、前の仕事の帳面はっと――」
+	PRINTFORMW 　男が、ずい、と突き出してきた書面には、存外に几帳面そうな字で費用が書かれていたが
+	PRINTFORMW 　……うわ、高ッ！？
+	PRINTFORMW 「そりゃあ腕によりをかけた逸品揃いなんだ、そんな安請け合いするわけねェだろ」
+	PRINTFORMW 　そこを何とかなりませんかねー、と尋ねてみると…
+	PRINTFORMW 「金に胡坐を掻いて、一から十までこっちにブン投げるんなら、思いっきり吹っ掛けてやるトコだが」
+	PRINTFORMW 「……そうだな。材料になる『製材』を用意してくれりゃ、その分値引いて受けてやってもいいぜ」
+	PRINTFORMW 　これこれこれくらい、と、額面を示される……まあ、何とか払えそうな額面に落ち着いていた
+	PRINTFORMW 「ふん。まぁ、用意ができたら発注してくんな。最高の逸品を仕上げてやるよ」
+	PRINTL 
+	루프수 = 1
+ENDIF
+
+$LOOP_SELECT
+
+IF 루프수
+	PRINTL 
+	IF FLAG:가구작성잔여
+		PRINTFORMW 「どいたどいたぁ、俺ぁ忙しいんだ！」
+	ELSE
+		PRINTFORMW 「なんだ、まだなんか用かよ」
+	ENDIF
+ELSE
+	;平常来店
+	PRINTL 
+	;가구発注中
+	IF FLAG:가구작성잔여 >= 14
+		PRINTFORMW 「なんだ、アンタか。気が早ェよ、まだ図面引いたばっかだっての」
+	ELSEIF FLAG:가구작성잔여 >= 9
+		PRINTFORMW 「なんだ、アンタか。注文の가구ならまだまだかかるぜ」
+	ELSEIF FLAG:가구작성잔여 >= 5
+		PRINTFORMW 「なんだ、アンタか。注文の가구なら進んでるよ、心配すんな」
+	ELSEIF FLAG:가구작성잔여 >= 2
+		PRINTFORMW 「おう、もうちょいで注文の가구、仕上がるぜ！」
+	ELSEIF FLAG:작성중가구 && FLAG:가구작성잔여 == 0
+		;完成日
+		IF FLAG:작성중가구 == 902
+			PRINTFORMW 「よお、よく来たな。　え？　風呂の完成は近くで見届けたし、なんでわざわざ店まで来なきゃなんないのか、だと？」
+			PRINTFORMW 「納品書の取り交わしとか色々あんだよ。その辺、きっちりやらないと後腐れが残るのも嫌なんだ」
+		ELSE
+			PRINTFORMW 「よお。待たせたな。これが、注文の品だ」
+		ENDIF
+		IF FLAG:작성중가구 == 907
+			PRINTFORMW 「いや……まぁ、流石にホウキは専門じゃないからな、ちょっと手間がかかったぜ」
+		ELSEIF ITEM:(FLAG:작성중가구) == 2
+			PRINTFORMW 「いやぁ……久々に納得の仕事だった。実に、職人冥利に尽きるってもんだ」
+		ELSEIF ITEM:(FLAG:작성중가구) == 1 
+			PRINTFORMW 「ふん、気になったところは手を入れたが……まあ、こんなもんだろ」
+			PRINTFORMW 「作る側の満足と、使う側の満足は違う微妙にズレた所にあるが、それを両立するのが職人ってもんだからな」
+		ELSE
+			PRINTFORMW 「欲しい가구がありゃ、また声をかけろよ。あぁ、今の가구に不満を感じたら、それも教えてくれ」
+		ENDIF
+		PRINTL 
+		SETCOLOR 0x00FF00
+		PRINTFORM %ITEMNAME:(FLAG:작성중가구)%
+		IF ITEM:(FLAG:작성중가구) == 0
+			PRINTFORMW を手に入れた！
+		ELSE
+			PRINTFORMW が改修され、使い心地が良くなった！
+		ENDIF
+		RESETCOLOR
+		PRINTL 
+		ITEM:(FLAG:작성중가구) ++
+		FLAG:작성중가구 = 0
+	ELSE
+		IF DAY:0 - FLAG:마지막가구점방문일 > 28
+			PRINTFORMW 「なんだ、アンタか。いよいよ注文か？」
+		ELSEIF FLAG:마지막가구점방문일 == DAY:0
+			PRINTFORMW 「なんだよ。アンタに構ってられるほど………ああ、暇だよ、悪ぃか」
+		ELSE
+			PRINTFORMW 「なんだ、アンタか。가구が欲しいのか？」
+		ENDIF
+	ENDIF
+ENDIF
+
+루프수 ++
+FLAG:마지막가구점방문일 = DAY:0
+
+PRINTFORM 　　소지금: %TOSTR(MONEY,"#,###")%
+IF FLAG:작성중가구
+	PRINTFORML 　　%ITEMNAME:(FLAG:작성중가구)%を作成中　納期：あと{FLAG:가구작성잔여}日
+ELSE
+	PRINTL 
+ENDIF
+DRAWLINE
+
+CALL ASK_M("가구を作ってほしい", !FLAG:작성중가구, "取引内容を確認する", 1, "店を出る", 2)
+
+SELECTCASE RESULT
+	;가구を作ってほしい
+	CASE 0
+		PRINTFORMW 「アンタが必要そうな가구となると……まぁ、こんなところか？」
+
+		$INPUT_LOOP01
+		;リストの呼び出し
+		삭제행수 = 0
+		FOR LOCAL, 902, 908
+			삭제행수 ++
+			IF ITEM:LOCAL == 3
+				PRINTPLAINFORM 　[{LOCAL}]
+				LOCALS = %ITEMNAME:LOCAL%Lv{ITEM:LOCAL}
+				PRINTPLAINFORM %LOCALS, 21, LEFT%
+			ELSE
+				PRINTFORM 　
+				PRINTFORM [{LOCAL}]
+				IF ITEM:LOCAL == 0
+					;未所持
+					PRINTFORM %ITEMNAME:LOCAL, 21, LEFT%
+				ELSE
+					;所持
+					LOCALS = %ITEMNAME:LOCAL%Lv{ITEM:LOCAL}
+					PRINTFORM %LOCALS, 21, LEFT%
+				ENDIF
+			ENDIF
+			CALL FURNITURE_EXPLANATION(LOCAL)
+		NEXT
+		PRINTFORML 　[999] 역시 그만둔다
+		삭제행수 ++
+		
+		INPUT
+		
+		결과 = RESULT
+		MaterialQTY = FURNITURE(결과, "軽減上限", ITEM:결과)
+		SELECTCASE 결과
+			CASE 902 TO 907
+				;Lv3の時は選択できない
+				IF ITEM:결과 == 3
+					CLEARLINE 삭제행수 + 1
+					GOTO INPUT_LOOP01
+				ENDIF
+
+				;注文가구の請求を作成
+				DRAWLINE
+				PRINTFORML %ITEMNAME:결과%の\@ ITEM:결과 == 0? 発注# 改修\@
+				;所持製材量での値引きの表記
+				;Lv1→2の時は半額
+				IF ITEM:결과 == 1
+					PRINTFORM 　費用　　　　：\\%TOSTR((ITEMPRICE:결과 / 2),"#,###")% → 
+				ELSE
+					PRINTFORM 　費用　　　　：\\%TOSTR(ITEMPRICE:결과,"#,###")%  → 
+				ENDIF
+				DiscountedPrice = %TOSTR(FURNITURE(결과, 0, ITEM:결과),"#,###")%
+				
+				IF FURNITURE(결과, 0, ITEM:결과) == FURNITURE(결과, "最低額", ITEM:결과)
+					SETCOLOR C_RED
+				ELSEIF ITEM:결과 == 1 && FURNITURE(결과, 0, ITEM:결과) < ITEMPRICE:결과 / 2
+					SETCOLOR C_YELLOW
+				ELSEIF FURNITURE(결과, 0, ITEM:결과) < ITEMPRICE:결과
+					SETCOLOR C_YELLOW
+				ENDIF
+				PRINTFORML \\%DiscountedPrice% \@ FURNITURE(결과, 0, ITEM:결과) == FURNITURE(결과, "最低額", ITEM:결과)? 最安値！# \@
+				RESETCOLOR
+
+				;価格軽減に必要な資材量と現在所持量の比較
+				PRINTFORM 　価格軽減条件：%WOOD_NAME(FURNITURE(결과, "자재번호"))%の製材PRINTFORM を{MaterialQTY}用意する　
+				SIF LOG_SALES:FURNITURE(결과, "자재번호") >= MaterialQTY
+					SETCOLOR C_RED
+				PRINTFORML （{LOG_SALES:FURNITURE(결과, "자재번호")}／{MaterialQTY}）
+				RESETCOLOR
+			CASE 999
+				PRINTL 
+				GOTO LOOP_SELECT
+			CASEELSE
+				CLEARLINE 1
+				GOTO INPUT_LOOP01
+		ENDSELECT
+		PRINTL 
+		IF ITEM:결과 == 0
+			CALL ASK_M("この가구を作ってもらう", MONEY >= FURNITURE(결과, 0), "그만둔다", 1)
+		ELSE
+			CALL ASK_M("この가구を改修してもらう", MONEY >= FURNITURE(결과, 0, ITEM:결과) && ITEM:결과 <= 2, "그만둔다", 1)
+		ENDIF
+		
+		IF RESULT
+			CLEARLINE 9 + 삭제행수
+			GOTO INPUT_LOOP01
+		ELSE
+			;費用の支払い
+			PRINTFORMW 　소지금: \\%TOSTR(MONEY,"#,###")% → \\%TOSTR(MONEY - FURNITURE(결과, 0, ITEM:결과),"#,###")%
+			PRINTFORM 　
+			CALL PAY_MONEY_YEN(FURNITURE(결과, 0, ITEM:결과))
+
+			;製材等の消費  軽減上限量以上に持っていれば上限量分減らし、上限に達していなければ全部消費
+			;現在の製材の量を退避してから計算
+			자재보관 = LOG_SALES:FURNITURE(결과, "자재번호")
+			LOG_SALES:FURNITURE(결과, "자재번호") = MAX(0, LOG_SALES:FURNITURE(결과, "자재번호") - MaterialQTY)
+			;文章部分
+			PRINTFORMW 　%WOOD_NAME(FURNITURE(결과, "자재번호"))%の製材：{자재보관} → {LOG_SALES:FURNITURE(결과, "자재번호")}
+			PRINTL 
+			IF ITEM:결과
+				PRINTFORMW 「なんだ、前の가구に不満があんのか？　上等じゃねぇか。{FURNITURE(결과, "期間", ITEM:결과)}日後に店に来いよ、ビックリ仰天させてやらぁ」
+			ELSE
+				PRINTFORMW 「うし、契約成立だ。納期は{FURNITURE(결과, "期間", ITEM:결과)}日後だ。また店に顔出してくんな」
+			ENDIF
+			FLAG:가구작성잔여 = FURNITURE(결과, "期間", ITEM:결과)
+			FLAG:작성중가구 = 결과
+		ENDIF
+	;取引内容を確認する
+	CASE 1
+		PRINTFORMW 「あぁ？　もっかい確認したいだとぉ？」
+		PRINTFORMW 「こちとら가구점なんだから、가구を作るに決まってんだろ」
+		PRINTFORMW 「材料の製材を用意してくれりゃあ、値引きして作ってやるよ」
+		PRINTFORMW 「当たり前だが、発注された가구を作るにはそれなりに時間がかかるぞ」
+		PRINTFORMW 「ついでに、その期間は注文された가구の作成に専念するから、他の注文は受けないからな」
+		PRINTFORMW 「あぁ、もし作った가구に不満があるなら、すぐに言えよ。金は取るが、より上を目指してやんよ」
+		PRINTL 
+	CASE 2
+		PRINTFORMW 「さっさと帰んな」
+		PRINTL 
+		TIME += 루프수 * 5
+		RETURN -1
+
+ENDSELECT
+GOTO LOOP_SELECT
+
+;-------------------------------------------------
+;実行可能判定
+;-------------------------------------------------
+;가구점
+@COM_ABLE625
+;一括管理
+SIF GLOBAL_COMABLE(625)
+	RETURN RESULT
+
+IF !AT_HOME(MASTER)
+	SIF CFLAG:MASTER:현재위치 != 주택가
+		RETURN 0
+ELSE
+	;長屋前
+	SIF CFLAG:MASTER:현재위치 != 214
+		RETURN 0
+ENDIF
+;睡眠中
+SIF CFLAG:수면
+	RETURN 0
+;時間停止中
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;注文できる가구リストに付随する説明文
+;ARG 가구のアイテム番号
+;-------------------------------------------------
+@FURNITURE_EXPLANATION(ARG)
+
+IF ITEM:ARG
+	PRINTFORM 設置場所：
+	SELECTCASE ARG
+		CASE 902
+			LOCALS = %NAME_FROM_PLACE(NEAR_BATH(1))%
+		CASE 904, 907
+			LOCALS = %CALLNAME:MASTER%が持ち歩いている
+		CASEELSE
+			LOCALS = %CALLNAME:MASTER%の私室
+	ENDSELECT
+	PRINTFORMD %LOCALS, 26, LEFT%
+ELSE
+	PRINTFORM 　　　　　　　　　　　　　　　　　　
+ENDIF
+
+SIF ITEM:ARG == 0
+	SETCOLOR C_GRAY
+
+SELECTCASE ARG
+	CASE 902
+		PRINTFORM …設置した場所での入浴の体力・気力回復を増加
+	CASE 903
+		PRINTFORM …睡眠による体力・気力・精力回復を増加
+	CASE 904
+		PRINTFORM …料理の出来栄えを良くする
+	CASE 905
+		PRINTFORM …私室での勉強や調合の効率を上げる
+	CASE 906
+		PRINTFORM …私室での休憩の体力・気力・精力回復を増加
+	CASE 907
+		PRINTFORM …掃除の効率を上げる
+	CASEELSE
+		PRINT 
+ENDSELECT
+IF ITEM:ARG == 3
+	SETCOLOR C_ORANGE
+	PRINTFORML ▲▲
+ELSEIF ITEM:ARG == 2
+	SETCOLOR C_YELLOW
+	PRINTFORML ▲
+ELSE
+	PRINTL 
+ENDIF
+RESETCOLOR
+
+;-------------------------------------------------
+;가구注文で使用する各種数値をまとめた関数
+;現状は902～907
+;F_ID …가구のアイテム番号
+;ARGS 0= 補正価格(省略時)  1= 資材による軽減上限数
+;      2= 가구に対応する자재번호  3= 軽減最低額  
+;      4= 発注後の作成期間   を返す
+;EnhanceTime 0= 初発注(省略時)  1= 強化１  2= 強化２
+;        主にITEM:가구番号を入れて利用
+;-------------------------------------------------
+@FURNITURE(F_ID, ARGS, EnhanceTime = 0)
+#FUNCTION
+#DIM F_ID
+#DIM EnhanceTime
+#DIM DiscountRate
+#DIM MaxDiscount
+#DIM 자재번호
+#DIM 軽減上限
+#DIM 最低額
+#DIM 補正価格
+#DIM 期間
+
+;手持ち製材との調整価格を表記
+SELECTCASE F_ID
+	;ヒノキ風呂
+	CASE 902
+		자재번호 = 2;ヒノキ
+		軽減上限 = 50
+		最低額 = 250000
+		期間 = 15
+	;キリのベッド
+	CASE 903
+		자재번호 = 8;キリ
+		軽減上限 = 30
+		最低額 = 200000
+		期間 = 10
+	;イチョウのまな板
+	CASE 904
+		자재번호 = 6;イチョウ
+		軽減上限 = 10
+		最低額 = 50000
+		期間 = 5
+	;ケヤキの机椅子
+	CASE 905
+		자재번호 = 7;ケヤキ
+		軽減上限 = 30
+		最低額 = 200000
+		期間 = 10
+	;ナラのソファー
+	CASE 906
+		자재번호 = 9;ナラ
+		軽減上限 = 30
+		最低額 = 200000
+		期間 = 10
+	;カスタム竹箒
+	CASE 907
+		자재번호 = 12;竹
+		軽減上限 = 30
+		最低額 = 30000
+		期間 = 10
+ENDSELECT
+
+;Lv1→Lv2時は半分  Lv2→Lv3時は最初と同じで
+MaxDiscount = ITEMPRICE:F_ID - 最低額
+IF EnhanceTime == 1
+	軽減上限 /= 2
+	最低額 /= 2
+	期間 /= 2
+	MaxDiscount /= 2
+ENDIF
+
+SIF ARGS == "자재번호"
+	RETURNF 자재번호
+SIF ARGS == "軽減上限"
+	RETURNF 軽減上限
+SIF ARGS == "最低額"
+	RETURNF 最低額
+SIF ARGS == "期間"
+	RETURNF 期間
+	
+DiscountRate = 100 * MIN(LOG_SALES:자재번호, 軽減上限) / 軽減上限
+
+IF EnhanceTime == 1
+	補正価格 = (ITEMPRICE:F_ID / 2) - MaxDiscount * DiscountRate / 100
+ELSE
+	補正価格 = ITEMPRICE:F_ID - MaxDiscount * DiscountRate / 100
+ENDIF
+RETURNF 補正価格

@@ -1,0 +1,533 @@
+﻿;FileName_ANOTHER_TALK.ERB ------------------------- Rev1. 01
+;TARGET 이외 멤버 회화
+;CALL		USER
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@ANOTHERTARGET_TALK
+#DIM TALKER,2
+#DIM HATAKE
+VARSET LOCAL
+VARSET HATAKE
+;DEBUGPRINTL 【ANOTHERTARGET_TALK】CALL ANOTHERTARGET_TALK
+
+;CHARA_ARRAY fault 대책
+SIF CHARANUM > 캐릭터수상한
+	RETURN 0
+
+;말하는 사람의 결정 처리
+CALL ANOTHER_TALK_SET_TALKER(TALKER)
+HATAKE = INT_NOUMIN(FLAG:지주, "장소 ID")
+
+DEBUGPRINTFORML 【ANOTHERTARGET_TALK】회화자 1 = {TALKER:0} 회화자 2 = {TALKER:1}
+IF (TCVAR:TARGET:일개시 - TIME:0 <= 30 && TCVAR:TARGET:일개시 - TIME:0 > 0) && !FLAG:70
+	CALL MESSAGE_TALK(12)
+ELSEIF CFLAG:TARGET:수면
+	CALL MESSAGE_TALK(3)
+ELSEIF ((CFLAG:TARGET:취침시간 - TIME:0 <= 30 && CFLAG:TARGET:취침시간 - TIME:0 > 0) || (TCVAR:수면제강도 >= 2 && !RAND:3)) && !FLAG:70
+	CALL MESSAGE_TALK(13)
+ELSEIF TALKER:0 && TALKER:1 && (!FLAG:70 || CFLAG:TARGET:344 == 1)
+	CALL MESSAGE_TALK(2, TALKER:0, TALKER:1)
+ELSEIF FLAG:연회개최플래그 >= 98 && CFLAG:MASTER:현재위치 == TFLAG:연회장
+	CALL MESSAGE_TALK(1)
+ELSEIF TALENT:TARGET:육아중 && FLAG:자식묘사 && TCVAR:TARGET:아이공복도 != -1 && !CHK_DATENOW(CFLAG:TARGET:데이트중) && !CFLAG:MASTER:우후후 && !BATHROOM(CFLAG:MASTER:현재위치)
+	CALL MESSAGE_TALK(14)
+ELSEIF TALENT:MASTER:형상 == 4 && TIME > 1140 && CFLAG:MASTER:데이트중 && (CFLAG:MASTER:현재위치 % 100) % 10 && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	CALL MESSAGE_TALK(5,0,0)
+ELSEIF CFLAG:MASTER:현재위치 == GET_MAP_REPLACEMENT(HATAKE)
+	CALL MESSAGE_TALK(8)
+;畑拡張実装までは暫定的に畑0で決め打ち
+ELSEIF 텃밭가능(CFLAG:MASTER:현재위치) && HATAKE_NAME:0 != "" && PLANT_TYPE > 0
+	;가정 채소밭 정경묘사
+	CALL MESSAGE_TALK(10)
+ELSEIF 빨래너는곳가능(CFLAG:MASTER:현재위치) && TIME:5 < 2
+	CALL MESSAGE_TALK(11)
+ELSE
+	RESULT = 0
+	TRYCALLFORM MAP_UNIQUEMESSAGE_{MAIN_MAP}
+	;어느 것에도 걸리지 않으면 날씨
+	SIF OUTROOF(CFLAG:MASTER:현재위치) && !RESULT
+		CALL MESSAGE_TALK(4)
+	;SIF+코멘트 행은 불안정을 일으키므로 조정
+	;SIF OUTROOF(CFLAG:MASTER:현재위치) && !RESULT
+	;어느 것에도 걸리지 않으면 날씨
+	;	CALL MESSAGE_TALK(4)
+ENDIF
+RETURN 0
+
+
+
+;말하는 사람의 결정 처리
+;건네받은 TALKER를 직접 고쳐 쓴다
+@ANOTHER_TALK_SET_TALKER(TALKER)
+#DIM REF     TALKER
+#DIM DYNAMIC CHARA, 캐릭터수상한
+#DIM DYNAMIC CNT_CHARA
+VARSET TALKER
+;대상 캐릭터 선정
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	;MASTER의 상대를 하고 있으면(자) 스킵
+	SIF TARGET:LOCAL == TARGET:0
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):현재위치 != CFLAG:MASTER:현재위치
+		CONTINUE
+	;대상 캐릭터 ID취득
+	CHARA:(CNT_CHARA) = TARGET:LOCAL
+	CNT_CHARA ++
+NEXT
+SIF CNT_CHARA < 2
+	RETURN
+
+LOCAL = RAND:(CNT_CHARA)
+TALKER:0 = CHARA:LOCAL
+ARRAYREMOVE CHARA, LOCAL, 1
+CNT_CHARA --
+
+;대상 캐릭터 사이의 궁합 체크
+FOR LOCAL, 0, CNT_CHARA
+	;궁합이 좋은 캐릭터가 동실인가
+	SIF !RELATION:(TALKER:0):(CHARA:LOCAL)
+		CONTINUE
+	;궁합을 봐 회화자 2이상이라면 회화자를 갱신
+	SIF TALKER:1 && RELATION:(TALKER:0):(TALKER:1) >= RELATION:(TALKER:0):(CHARA:LOCAL)
+		CONTINUE
+	TALKER:1 = CHARA:LOCAL
+NEXT
+
+
+
+;FileName_ANOTHER_TALK.ERB ------------------------- Rev1. 03
+;Info범위내 메시지 표시 처리
+;CALL		USER
+;ARG		0:메시지 NO, 1:회화자 1, 2:회화자 2(멤버 회화시만)
+;RETURN		VOID
+;COMMENT	CASE의 번호가 젊을 정도 출력 우선도가 높다
+;-----------------------------------------------------------
+@MESSAGE_TALK(ARG, ARG:1, ARG:2)
+#DIMS 회장
+#DIMS 아이의이름
+;기능 체크
+;SIF !GETBIT(FLAG:3, 2)
+	;RETURN 0
+PRINTFORM ◆
+SELECTCASE ARG
+	CASE 1
+		IF CHK_DATENOW(CFLAG:MASTER:데이트중) && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+			회장 = %DATENAME_PLACE()%
+		ELSE
+			회장 = %NAME_FROM_PLACE(TFLAG:연회장)%
+		ENDIF
+		;참가자가 없으면 표시되지 않는다
+		IF FLAG:35 > 0
+			;연회의 규모에 응해 분기
+			IF FLAG:31 <= 1500 || FLAG:35 <= 3
+				PRINTFORML %회장%에선 {FLAG:35}명 정도의 조촐한 연회가 열리고 있다……
+			ELSE
+				PRINTFORML %회장%에선 {FLAG:35}명 정도의 연회가 열리고 있다……
+			ENDIF
+			;날을 넘었을 경우
+			IF DAY > FLAG:34
+				;경과시간에 응해 분기
+				IF TIME >= (FLAG:33 + 240) - 1440 * (DAY - FLAG:34)
+					IF FLAG:35 <= 3
+						PRINTFORML 이제 남은 사람들은 일부의 강자들뿐인 모양이다……
+					ELSE
+						PRINTFORML 탈락자가 뜨문뜨문 생긴 모양이다……
+					ENDIF
+				ELSEIF TIME >= (FLAG:33 + 180) - 1440 * (DAY - FLAG:34)
+					PRINTFORML 꽤 취한 모양이다……
+				ELSEIF TIME >= (FLAG:33 + 60) - 1440 * (DAY - FLAG:34)
+					PRINTFORML 웃음소리와 소란이 끊이지 않으며 달아오르고 있다……
+				;아직 시작되었던 바로 직후
+				ELSE
+					PRINTFORML 상당히 활기찬 모양이다……
+				ENDIF
+			ELSE
+				;경과시간에 응해 분기
+				IF TIME >= (FLAG:33 + 240)
+					IF FLAG:35 <= 3
+						PRINTFORML 이제 남은 사람들은 일부의 강자들뿐인 모양이다……
+					ELSE
+						PRINTFORML 탈락자가 뜨문뜨문 생긴 모양이다……
+					ENDIF
+				ELSEIF TIME >= (FLAG:33 + 180)
+					PRINTFORML 꽤 취한 모양이다……
+				ELSEIF TIME >= (FLAG:33 + 60)
+					PRINTFORML 웃음소리와 소란이 끊이지 않으며 달아오르고 있다……
+				;아직 시작되었던 바로 직후
+				ELSE
+					PRINTFORML 상당히 활기찬 모양이다……
+				ENDIF
+			ENDIF
+		ELSE
+			PRINTFORML 강자들도 덧없이 스러지고
+			PRINTFORML %NAME_FROM_PLACE(TFLAG:연회장)%는 연회 때문에 꽤 난장판이 되었다……
+		ENDIF
+	CASE 2
+		;대화 표시
+		;어느 쪽도 궁합 높은
+		IF RELATION:(ARG:1):(ARG:2) > 100 && RELATION:(ARG:2):(ARG:1) > 100
+			IF TALENT:(ARG:1):연모 && TALENT:(ARG:2):연모
+				PRINTFORML %CALLNAME:(ARG:1)%와 %CALLNAME:(ARG:2)%는 넋 나간 표정으로 이쪽을 바라보고 있다
+			ELSEIF TALENT:(ARG:1):연모 || TALENT:(ARG:2):연모
+				PRINTFORML \@ TALENT:(ARG:1):연모 ?  %CALLNAME:(ARG:1)%는 %CALLNAME:(ARG:2)% # %CALLNAME:(ARG:2)%는 %CALLNAME:(ARG:1)% \@와 담소하면서 뜨거운 눈길을 보내고 있다
+			ELSE
+				IF RAND:2
+					PRINTFORML \@ CFLAG:(ARG:1):310 > CFLAG:(ARG:2):310 ?  %CALLNAME:(ARG:1)%는 %CALLNAME:(ARG:2)% # %CALLNAME:(ARG:2)%는 %CALLNAME:(ARG:1)% \@의 머리를 상냥하게 어루만지고 있다
+				ELSE
+					PRINTFORML %CALLNAME:(ARG:1)%와 %CALLNAME:(ARG:2)%는 즐겁게 담소하고 있다
+				ENDIF
+			ENDIF
+		;어느 쪽인지가 궁합 높은
+		ELSEIF (RELATION:(ARG:1):(ARG:2) > 100 && RELATION:(ARG:2):(ARG:1) < 100) || (RELATION:(ARG:1):(ARG:2) < 100 && RELATION:(ARG:2):(ARG:1) > 100)
+			IF TALENT:(ARG:1):연모 && TALENT:(ARG:2):연모
+				PRINTFORML %CALLNAME:(ARG:1)%와 %CALLNAME:(ARG:2)%는 대화를 나누면서도 뜨거운 눈길을 이쪽에 보내고 있다
+			ELSEIF TALENT:(ARG:1):연모 || TALENT:(ARG:2):연모
+				PRINTFORML \@ TALENT:(ARG:1):연모 ?  %CALLNAME:(ARG:1)%는 %CALLNAME:(ARG:2)% # %CALLNAME:(ARG:2)%는 %CALLNAME:(ARG:1)% \@와 대화하면서 이쪽을 훔쳐보고 있다
+			ELSE
+				PRINTFORM \@ RELATION:(ARG:1):(ARG:2) > 100 ?  %CALLNAME:(ARG:1)%의 말에 %CALLNAME:(ARG:2)% # %CALLNAME:(ARG:2)%의 말에 %CALLNAME:(ARG:1)% \@는 
+				PRINTDATA
+					DATAFORM 불쾌한 표정을 짓고 있다…
+					DATAFORM 딴청을 피우고 있다…
+					DATAFORM 대충 맞장구 치고 있다…
+				ENDDATA
+			ENDIF
+		;어느쪽이나 궁합 낮은
+		ELSEIF RELATION:(ARG:1):(ARG:2) < 100 && RELATION:(ARG:2):(ARG:1) < 100
+			IF TALENT:(ARG:1):연모 && TALENT:(ARG:2):연모
+				PRINTFORML %CALLNAME:(ARG:1)%와 %CALLNAME:(ARG:2)%는 말다툼하면서 이쪽에 미소를 보내고 있다
+			ELSEIF TALENT:(ARG:1):연모 || TALENT:(ARG:2):연모
+				PRINTFORML \@ TALENT:(ARG:1):연모 ?  %CALLNAME:(ARG:1)%는 %CALLNAME:(ARG:2)% # %CALLNAME:(ARG:2)%는 %CALLNAME:(ARG:1)% \@의 이야기를 들은 체 만 체 하며 손을 흔들었다
+			ELSE
+				PRINTFORM %CALLNAME:(ARG:1)%와 %CALLNAME:(ARG:2)%는 
+				PRINTDATA
+					DATAFORM 뭣 때문인지 말다툼하고 있다…
+					DATAFORM 입술을 구기고 있다…
+					DATAFORM 싸움을 시작했다…
+				ENDDATA
+			ENDIF
+		ENDIF
+		PRINTL
+	CASE 3
+		PRINTFORML %타겟은% 깊이 잠들어 있다…
+	CASE 4
+		PRINTS "   "
+		IF TIME:7
+			SELECTCASE TIME:7
+				;무지개
+				CASE 1
+					IF FLAG:70
+						PRINTL 하늘에 흑백의 무지개가 걸려있다…
+					ELSE
+						PRINTL 하늘에 무지개가 걸려있다…
+					ENDIF
+				;다이아몬드 더스트
+				CASE 2
+					PRINTL 눈의 결정이 태양빛에 반짝반짝 빛나고 있다…… 숨결이 하얗다…
+				;유성
+				CASE 3
+					IF FLAG:70
+						PRINTL 밤하늘에 유성이 머물러 있다…
+					ELSE
+						PRINTL 밤하늘에 때때로 유성이 떨어지고 있다…
+					ENDIF
+				;유성군
+				CASE 4
+					IF FLAG:70
+						PRINTL 밤하늘에 유성우가 머물러 있다…
+					ELSE
+						PRINTL 밤하늘을 모두 메울 만큼 유성이 하염없이 떨어지고 있다…
+					ENDIF
+			ENDSELECT
+		ELSE
+			SELECTCASE TIME:5
+				;태양
+				CASE 1
+					IF TIME:2 >= 2 && TIME:2 <= 4
+						IF DAY:2 == 2
+							PRINTL 구름 한 점 없는 푸른 하늘에서 태양이 가차없이 내리쬐고 있다…
+						ELSE
+							PRINTL 하늘은 맑고 화창하게 개여 있다
+						ENDIF
+					ENDIF
+				;우
+				CASE 4
+					IF FLAG:70
+						PRINTL 빗방울이 정지해 있다…
+					ELSE
+						PRINTL 부슬부슬 비가 내리고 있다…
+					ENDIF
+				;큰 비
+				CASE 5
+					IF FLAG:70
+						PRINTL 빗방울이 정지해 있다…
+					ELSE
+						PRINTL 비는 거세게 쏟아지고 있다…
+					ENDIF
+				;설
+				CASE 8
+					IF FLAG:70
+						PRINTL 눈송이가 정지해 있다…
+					ELSE
+						PRINTL 눈이 천천히 춤추듯 내리고 있다… 숨결이 하얗다…
+					ENDIF
+				;눈보라
+				CASE 9
+					IF FLAG:70
+						PRINTL 눈송이가 정지해 있다…
+					ELSE
+						PRINTL 얼어붙을 듯한 눈보라가 휘몰아치고 있다… 뜨거운 숨결마저도 모조리 하얘질 것만 같다…
+					ENDIF
+				;진눈깨비
+				CASE 12
+					IF FLAG:70
+						PRINTL 진눈깨비가 정지해 있다…
+					ELSE
+						PRINTL 차가운 진눈깨비가 내리고 있다… 숨결이 하얗다…
+					ENDIF
+				;우박
+				CASE 13
+					IF FLAG:70
+						PRINTL 우박 알갱이마저 정지해 있다…
+					ELSE
+						PRINTL 굵은 우박이 쏟아지고 있다… 숨결이 하얗다…
+					ENDIF
+			ENDSELECT
+		ENDIF
+		PRINTL
+	CASE 5
+		PRINTFORML 밤길이 어두워도 %CALLNAME:MASTER%의 빛나는 페니스만 있으면 든든하다
+	CASE 6
+		IF !CHARA_HOLIDAY(67)
+			;수업중
+			IF TIME >= 480 && TIME <= 720 || TIME >= 780
+				IF !FLAG:70
+					PRINTFORML 서당 아이들은 %CALLNAME:TARGET%의\@ 충전율(TARGET, 3) >= 10 ?  %SHOW_BOTTOM(TARGET, 1)% 안이 어떻게 된지도 모른 채# \@ 수업을 받고 있다…
+				ELSEIF !CFLAG:MASTER:우후후
+					PRINTFORML 서당 아이들은 정지해 있다…
+				ELSE
+					PRINTFORML %타겟은% 서당 아이들 앞에서 덮쳐지고 있다…
+				ENDIF
+			ELSEIF TIME >= 720 && TIME <= 780 && !FLAG:70
+				PRINTFORML 서당 아이들은 %타겟과% 식사하고 있다…
+			ENDIF
+		ENDIF
+	CASE 7
+		IF CFLAG:MASTER:현재위치 == 210
+			PRINTFORML %CALLNAME:(ARG:1)% 주변이 인산인해를 이루고 있다
+			IF 충전율(ARG:1, 3) >= 10
+				IF !RAND:10
+					PRINTFORML %마스터는% 그녀의 표정이 살짝 굳은 것을 확인했다. 새어나온 것일까?
+				ELSE
+					PRINTFORML 구경꾼들이 알 노릇은 없지만 그녀의 배에는 지금도 %CALLNAME:MASTER%의 정액이 \@ 충전율(ARG:1, 3) >= 30 ? 듬뿍# \@ 고여있는 것이다.
+				ENDIF
+			ENDIF
+		ELSE
+			IF FLAG:70
+			ELSE
+				PRINTL 광장 쪽이 소란스럽다
+			ENDIF
+		ENDIF
+	CASE 8
+		PRINTFORML %CALLNAME:(FLAG:지주)%의 %STR_NOUMIN(FLAG:지주, "밭의 종류")%가 있다
+		SELECTCASE FLAG:밭일성과
+			CASE IS < 20
+				PRINTFORML %STR_NOUMIN(FLAG:지주, "작물")%는 깜깜무소식이라고 해도 될 만큼 자라지 않았다
+			CASE 20 TO 60
+				PRINTFORML %STR_NOUMIN(FLAG:지주, "작물")%는 별로 자라지 않았다
+			CASE 61 TO 100
+				PRINTFORML %STR_NOUMIN(FLAG:지주, "작물")%는 그럭저럭 잘 자라고 있다
+			CASEELSE
+				PRINTFORML %STR_NOUMIN(FLAG:지주, "작물")%가 풍성하게 여물었다
+		ENDSELECT
+	CASE 9
+		;말표시
+		PRINTS "   "
+		CALL KOJO_MESSAGE_SEND("INFO")
+	CASE 10
+		;가정 채소밭 정경묘사
+		PRINTFORM %HATAKE_NAME:0%
+		IF PLANT_DRY > 3 || PLANT_GROW > 10
+			PRINT 는 시들고 있다
+		ELSE
+			SELECTCASE PLANT_GROW
+				CASE 10
+					IF HATAKE_NAME:0 == "로터"
+						PRINTFORM 는 가지가 휘어져라 여물어 진동음을 내고 있다
+					ELSE
+						PRINT 는 무르익어 수확할 순간을 기다리고 있다
+					ENDIF
+				CASE 8,9
+					PRINT 가 여물기 시작하고 다
+				CASE 6,7
+					PRINT 의 꽃이 피어 있다
+				CASE 4,5
+					PRINT 의 잎이 우거져 있다
+				CASEELSE
+					PRINT 의 묘목은 순조롭게 자라고 있다
+			ENDSELECT
+			IF PLANT_DRY == 2
+				PRINT 　흙이 마르기 시작하고 있다
+			ELSEIF PLANT_DRY == 0
+				SETCOLOR C_AQUA
+				PRINT 　밭은 충분히 수분을 흡수한 상태다
+				RESETCOLOR
+			ENDIF
+			IF PLANT_FOOD
+				SETCOLOR C_CREAM
+				IF ITEM:세방울의천수
+					PRINT 　밭에 곤신의 축복이 느껴진다
+				ELSE
+					PRINT 　밭은 거름이 뿌려져 있다
+				ENDIF
+				RESETCOLOR
+			ENDIF
+			PRINTL
+		ENDIF
+	CASE 11
+		PRINTFORML 빨래를 말리고 있다
+		;PRINTFORML 그 옆에는 탄자쿠가 달린 조릿대가 있다
+	CASE 12
+		PRINTFORML 슬슬 %타겟이% 일할 시간이다
+	CASE 13
+		PRINT 졸음이 오는지 
+		IF CFLAG:TARGET:우후후
+			PRINTFORML %타겟은% 쾌감에 완전히 몰두하지 못한 모습이다
+		ELSE
+			PRINTFORML %타겟은% 하품을 꾹 참고 있다
+		ENDIF
+	CASE 14
+		아이의이름 = %CHILDNAME:TARGET:(TALENT:TARGET:육아중)%
+		IF LOCAL:1 != TIME
+			IF CFLAG:TARGET:출산경과일 < CHILD_어휘
+				LOCAL = RAND:16
+			ELSEIF CFLAG:TARGET:출산경과일 < CHILD_자립전
+				LOCAL = RAND:24
+			ELSE
+				LOCAL = RAND:30
+			ENDIF
+			LOCAL:1 = TIME
+		ENDIF
+		IF GO_SCHOOL(TARGET) && INRANGE(TIME, 420, 540)
+			PRINTFORML %아이의이름%는 서당에 갈 준비를 하고 있다
+		ELSEIF CFLAG:TARGET:출산경과일 < CHILD_어휘
+			SELECTCASE LOCAL
+			CASE 1, 2, 3, 4
+				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%에 안겨 있다
+			CASE 5, 6
+				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%의 품속에서 졸린 눈치다
+			CASE 7, 8
+				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%의 품속에서 얌전히 있다
+			CASE 9, 10, 11, 12
+				PRINTFORML %CALLNAME:TARGET%에 안긴 %아이의이름%가 이쪽을 보고 있다
+			CASE 13
+				PRINTFORML %CALLNAME:TARGET%에 안긴 %아이의이름%는 뭔가를 호소하고 있다
+			CASE 14
+				PRINTFORML %아이의이름%는 뭔가를 눈으로 좇고 있다
+			CASEELSE
+				PRINTFORML %타겟은% %아이의이름%를 어르고 있다
+			ENDSELECT
+		ELSEIF CFLAG:TARGET:출산경과일 < CHILD_자립전
+			SELECTCASE LOCAL
+			CASE 1, 2
+				PRINTFORML %타겟과% %아이의이름%는 즐겁게 이야기를 나누고 있다
+			CASE 3, 4
+				PRINTFORML %타겟은% %아이의이름%에게 뭔가를 가르치고 있다
+			CASE 5, 6
+				PRINTFORML %타겟은% %아이의이름%에게 이야기를 하고 있다
+			CASE 7, 8
+				PRINTFORML %타겟은% %아이의이름%의 행실을 바로잡고 있다
+			CASE 9
+				PRINTFORML %아이의이름%는 %타겟과% 놀고 있다
+			CASE 10
+				PRINTFORML %아이의이름%는 %타겟과% 열심히 이야기를 나누고 있다
+			CASE 11
+				PRINTFORML %아이의이름%는 혼자서 놀고 있다
+			CASE 12
+				PRINTFORML %아이의이름%는 얌전히 있다
+			CASE 13
+				PRINTFORML %아이의이름%는 골똘히 생각하고 있다
+			CASE 14
+				PRINTFORML %아이의이름%는 졸린 눈치다
+			CASE 15
+				PRINTFORML %아이의이름%는 까불거리고 있다
+			CASE 16
+				PRINTFORML %아이의이름%가 쫄랑쫄랑 돌아다니고 있다
+			CASE 17
+				PRINTFORML %아이의이름%는 좀이 쑤신 눈치다
+			CASE 18
+				PRINTFORML %아이의이름%는 이쪽을 빤히 쳐다보고 있다
+			CASE 19, 20
+				PRINTFORML %아이의이름%는 %마스터와% 놀려 하고 있다
+			CASE 21, 22
+				PRINTFORML %아이의이름%가 더듬더듬 만져댄다
+			CASEELSE
+				PRINTFORML %아이의이름%는 %CALLNAME:MASTER%에 놀아주길 바라는 모양이다
+			ENDSELECT
+		ELSE
+			SELECTCASE LOCAL
+			CASE 1, 2
+				PRINTFORML %타겟과% %아이의이름%는 즐겁게 이야기를 나누고 있다
+			CASE 3, 4
+				PRINTFORML %타겟은% %아이의이름%에게 뭔가를 가르치고 있다
+			CASE 5, 6
+				PRINTFORML %타겟은% %아이의이름%에게 이야기를 하고 있다
+			CASE 7
+				PRINTFORML %타겟은% %아이의이름%의 행실을 바로잡고 있다
+			CASE 8
+				PRINTFORML %타겟은% 이쪽을 보면서 %아이의이름%와 소곤소곤 이야기를 나누고 있다
+			CASE 9
+				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%에게 불평을 주워섬기고 있다
+			CASE 10
+				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%에게 주장하고 있다
+			CASE 11
+				PRINTFORML %아이의이름%는 %타겟과% 함께 웃고 있다
+			CASE 12, 13
+				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%에게 가르침을 청하고 있다
+			CASE 14, 15
+				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%의 손을 거들고 있다
+			CASE 16
+				PRINTFORML %아이의이름%는 혼자서 놀고 있다
+			CASE 17, 18, 19, 20
+				PRINTFORML %아이의이름%는 공부하고 있다
+			CASE 21
+				PRINTFORML %아이의이름%는 골똘히 생각하고 있다
+			CASE 22
+				PRINTFORML %아이의이름%는 졸린 눈치다
+			CASE 23, 24
+				PRINTFORML %아이의이름%는 책을 읽고 있다
+			CASE 25
+				PRINTFORML %아이의이름%는 몸을 단련하고 있다
+			CASE 26, 27
+				PRINTFORML %아이의이름%는 %마스터와% 대화하고 싶은 모양이다
+			CASE 28
+				PRINTFORML %아이의이름%는 %마스터를% 신경 쓰고 있다
+			CASE 29
+				PRINTFORML %아이의이름%는 %마스터를% 거리끼고 있다
+			CASEELSE
+				PRINTFORML %아이의이름%가 날카로운 눈매로 이쪽을 보고 있다
+			ENDSELECT
+		ENDIF
+ENDSELECT
+;-----------------------------------------------------------------------------------------------------------------
+@정경묘사
+VARSET LOCAL
+;부근에서 연회를 하고 있다면 떠들썩한 모습이 보인다
+IF FLAG:연회개최플래그 >= 98 && CAN_MOVE(CFLAG:MASTER:현재위치, TFLAG:연회장) >= 2
+	CALL MESSAGE_TALK(1)
+;-군요 선생님의 서당 정경 문장
+ELSEIF CFLAG:MASTER:현재위치 == 240 && CFLAG:67:행동 == 5
+		CALL MESSAGE_TALK(6)
+	;ELSEIF CFLAG:MASTER:우후후 && GET_TARGETNUM() > 1
+	;	CALL EASY_TARGET_CHANGER
+ELSEIF GROUPMATCH(CFLAG:MASTER:현재위치, 210,220,230,250,270) 
+	FOR LOCAL, 1, CHARANUM
+		IF CFLAG:LOCAL:행동 == 5 && CFLAG:LOCAL:현재위치 == 광장
+			LOCAL:1 ++
+			LOCAL:2 = LOCAL
+		ENDIF
+	NEXT
+	SIF LOCAL:1
+		CALL MESSAGE_TALK(7, LOCAL:2)
+ENDIF

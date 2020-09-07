@@ -1,0 +1,281 @@
+﻿@CHK_HININ_LOVE(ARG)
+#FUNCTION
+LOCAL = 0
+SIF TALENT:ARG:연인
+	LOCAL += 300
+;애정경험
+
+LOCAL += EXP:ARG:애정경험 / 2
+
+;호감도
+SELECTCASE CFLAG:ARG:호감도
+CASE 0 TO 499
+	LOCAL -= 100
+CASE 500 TO 999
+	LOCAL += 30
+CASE 1000 TO 2999
+	LOCAL += 50
+CASEELSE
+	LOCAL += CFLAG:ARG:호감도 / 30
+ENDSELECT
+
+LOCAL += ABL:ARG:친밀 * 20
+LOCAL += ABL:ARG:순종 * 7
+LOCAL += ABL:ARG:봉사정신 * 7
+
+RETURNF LOCAL
+
+@CHK_HININ_REASON(ARG, ARGS)
+#FUNCTION
+#DIM 이성판정치
+VARSET LOCAL
+
+LOCAL:3 += GETPALAMLV(PALAM:욕정, 15) * (10 + TALENT:ARG:쾌감응답 * 3)
+LOCAL:3 += GETPALAMLV(PALAM:복종, 15) * (10 - TALENT:ARG:태도 * 3)
+LOCAL:3 += GETPALAMLV(PALAM:호의, 15) * 10
+
+LOCAL:5 += ABL:ARG:질내사정중독 * 15
+LOCAL:5 += ABL:ARG:욕망 * (10 + TALENT:ARG:쾌감응답 * 2)
+LOCAL:5 += MARK:ARG:쾌락각인 * 10
+LOCAL:5 += MARK:ARG:괘씸각인 * 10
+LOCAL:5 += MARK:ARG:고통각인 * 10
+LOCAL:5 -= MARK:ARG:반발각인 * 100
+
+
+이성판정치 = 800 - LOCAL:3 * LOCAL:5 / 300
+
+SIF ESTRUS_CYCLE(ARG) == 150
+	이성판정치 += 1000
+
+IF TCVAR:ARG:발정
+	이성판정치 -= 200
+ELSEIF TCVAR:ARG:미약 || TCVAR:ARG:춘약
+	이성판정치 -= 50
+ENDIF
+
+IF TALENT:ARG:츤데레
+	IF TALENT:ARG:연모
+		이성판정치 = 이성판정치 * 2 / 3
+	ELSE
+		이성판정치 = 이성판정치 * 3 / 2
+	ENDIF
+ENDIF
+
+;신뢰도
+IF CFLAG:ARG:신뢰도 < 100
+	이성판정치 *= 5
+ELSEIF CFLAG:ARG:신뢰도 < 300
+	이성판정치 *= 5 / 2
+ELSEIF CFLAG:ARG:신뢰도 < 500
+	이성판정치 *= 5 / 3
+ELSEIF CFLAG:ARG:신뢰도 < 1000
+	이성판정치 *= 5 / 4
+ENDIF
+
+;카운터라면 여기서 소질 처리해 둔다
+IF ARGS == "COUNTER"
+	SIF TALENT:ARG:저항
+		이성판정치 += 300
+	IF TALENT:ARG:자존심 == -1
+		이성판정치  = 이성판정치 * 9 / 10
+	ELSEIF TALENT:ARG:자존심 == 1
+		이성판정치 = 이성판정치 * 6 / 5
+	ENDIF
+	SIF OTOKOGIRAI(ARG)
+		이성판정치 = 이성판정치 * 3 / 2
+	SIF TALENT:ARG:정조 == 1
+		이성판정치 = 이성판정치 * 6 / 5
+	SIF TALENT:MASTER:수수께끼의매력
+		이성판정치 = 이성판정치 * 9 / 10
+	SIF TALENT:ARG:도착적
+		이성판정치 = 이성판정치 * 9 / 10
+	IF TALENT:ARG:일선을넘지않음
+		SELECTCASE EXP:ARG:애정경험
+			CASE IS >= 500
+				이성판정치 = 이성판정치 / 2
+			CASE IS >= 300
+				이성판정치 = 이성판정치 * 4 / 3
+			CASE IS >= 100
+				이성판정치 = 이성판정치 * 3 / 2
+			CASEELSE
+				이성판정치 *= 2
+		ENDSELECT
+	ENDIF
+	IF TALENT:ARG:츤데레
+		IF TALENT:ARG:연모
+			이성판정치 = 이성판정치 * 2 / 3
+		ELSE
+			이성판정치 = 이성판정치 * 3 / 2
+		ENDIF
+	ENDIF
+ENDIF
+
+
+이성판정치 = MAX(이성판정치, 0)
+RETURNF 이성판정치
+
+@OGAMITAOSHI(ARG)
+#DIM 이성판정치
+#DIM 호의판정치
+#DIM 호의표시
+VARSET LOCAL
+
+
+PRINTFORMW %CALLNAME:ARG%의 가슴 속
+
+호의판정치 = CHK_HININ_LOVE(ARG) 
+CALL SHOW_LOVEPOWER(호의판정치)
+
+WAIT
+이성판정치 = CHK_HININ_REASON(ARG)
+
+CALL SHOW_REASONWALL(이성판정치)
+IF TALENT:MASTER:수수께끼의매력
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%는, %CALLNAME:MASTER%의 수수께끼의매력에 이성이 흔들리는 것을 느낀……", C_PINK, 1,1)
+	이성판정치 = 이성판정치 * 9 / 10
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+IF TALENT:ARG:자존심 == -1
+	이성판정치  = 이성판정치 * 9 / 10
+ELSEIF TALENT:ARG:자존심 == 1
+	이성판정치 = 이성판정치 * 6 / 5
+	CALL COLORMESSAGE(@"자존심의 높은 %CALLNAME:ARG%는, 자신을 염가판매 하는 것 같은 흉내는 생활이라고 생각하고 있는", C_PINK, 1,1)
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+IF TALENT:ARG:정조 == 1
+	이성판정치 = 이성판정치 * 6 / 5
+	CALL COLORMESSAGE(@"정조 관념의 강한 %CALLNAME:ARG%는, 거기까지 용서(허락)해 좋은 것다시 라고 생각한 ……", C_PINK, 1,1)
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+IF OTOKOGIRAI(ARG)
+	이성판정치 = 이성판정치 * 3 / 2
+	IF TALENT:ARG:성별기호 == 3
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%는 다른 사람 일반적으로 대해 기피 감정 을 가지고 있는……", C_PINK, 1,1)
+	ELSEIF TALENT:ARG:성별기호 == 1
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%는 남성 일반적으로 대해 기피 감정 을 가지고 있는……", C_PINK, 1,1)
+	ENDIF
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+IF TALENT:ARG:도착적
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%는, 생에서의 성교에 도착적인 매력을 느끼고 있는……", C_PINK, 1,1)
+	이성판정치 = 이성판정치 * 9 / 10
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+IF TALENT:ARG:일선을넘지않음
+	SELECTCASE EXP:ARG:애정경험
+		CASE IS >= 500
+			CALL COLORMESSAGE(@"%CALLNAME:ARG%는, %CALLNAME:MASTER%에는 이제(벌써) 어떤 것이라도 용서(허락)해 끝내고 싶다……!", C_PINK, 1,1)
+			이성판정치 = 이성판정치 / 2
+		CASE IS >= 300
+			CALL COLORMESSAGE(@"%CALLNAME:ARG%는, %CALLNAME:MASTER%상대라고 해도 아직 조금 저항이 있는 것 같다……", C_PINK, 1,1)
+			이성판정치 = 이성판정치 * 6 / 5
+		CASE IS >= 100
+			CALL COLORMESSAGE(@"%CALLNAME:ARG%는, 친한 상대해도 어느 정도의 거리는 취해 두고 싶은……", C_PINK, 1,1)
+			이성판정치 = 이성판정치 * 3 / 2
+		CASEELSE
+			CALL COLORMESSAGE(@"%CALLNAME:ARG%는, 다른 사람을 거기까지 받아들이고 싶다고는 바라지 않은……", C_PINK, 1,1)
+			이성판정치 *= 2
+	ENDSELECT
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+IF TALENT:ARG:츤데레
+	IF TALENT:ARG:연모
+		이성판정치 = 이성판정치 * 2 / 3
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%는 데레!", C_PINK, 1,1)
+	ELSE
+		이성판정치 = 이성판정치 * 3 / 2
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%는 반감을 안은……", C_PINK, 1,1)
+	ENDIF
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+WAIT
+IF CHK_HININ_LOVE(ARG) > 이성판정치
+	IF ESTRUS_CYCLE(ARG) != 150
+		PRINTFORMW %CALLNAME:MASTER%의 주위의 시선에도 아랑곳 없는 간절히원함에, %CALLNAME:ARG%아래 치자 접혀 주었다
+		CFLAG:ARG:생해금 = 1
+		CALL KOJO_MESSAGE_SEND("EVENT", 18, TARGET, 4,0)
+		PRINTW 위험일 이외에서는 피임없이 섹스 해 좋은일이 되었다!
+	ELSE
+		PRINTFORMW %CALLNAME:ARG%의 아이를 갖고 싶다, 라고 전하면(자), %CALLNAME:ARG%는 얼굴을 붉혀 수긍했다
+		CFLAG:ARG:생해금 = 2
+		CALL KOJO_MESSAGE_SEND("EVENT", 18, TARGET, 5,0)
+		PRINTFORMW %CALLNAME:ARG%로부터 아이 만들기의 합의를 얻었다!
+	ENDIF
+ELSE
+	PRINTFORML 	%CALLNAME:ARG%는 넌지시 끊었다
+	CALL KOJO_MESSAGE_SEND("EVENT", 18, TARGET, 2,0)
+	PRINTL [0]상대의 의지를 존중한다
+	PRINTL [1]밀어붙인다
+	$INPUT2_LOOP
+	
+	INPUT
+	IF RESULT == 0
+		TFLAG:16 =2
+		TFLAG:17 = TARGET
+	ELSEIF RESULT == 1
+	;입의 능숙함과 상대 나름에서는 달라붙으면 어떻게든 된다
+		LOCAL = (4 - TALENT:ARG:응답 - TALENT:ARG:담력 - TALENT:ARG:태도) * (ABL:MASTER:화술기능 + 3 * CFLAG:ARG:퇴짜)
+		LOCAL:2 = 이성판정치 * (100 - LOCAL) / 100
+		CALL SHOW_REASONWALL(LOCAL:2)
+		IF CHK_HININ_LOVE(ARG) > LOCAL:2
+			PRINTFORMW %마스터는% 세 치 혓바닥으로 어떻게든%CALLNAME:ARG%를 둥근 붐비었다
+			IF ESTRUS_CYCLE(ARG) != 150
+				CFLAG:ARG:생해금 = 1
+				CALL KOJO_MESSAGE_SEND("EVENT", 18, TARGET, 4,0)
+				PRINTW 위험일 이외에서는 피임없이 섹스 해 좋은일이 되었다!
+			ELSE
+				CFLAG:ARG:생해금 = 2
+				CALL KOJO_MESSAGE_SEND("EVENT", 18, TARGET, 5,0)
+				PRINTFORMW %CALLNAME:ARG%로부터 아이 만들기의 합의를 얻었다!
+			ENDIF
+		ELSE
+			CALL KOJO_MESSAGE_SEND("EVENT", 18, TARGET, 3,0)
+			PRINTFORMW %CALLNAME:ARG%에 마음껏 화가 났다…
+			CFLAG:ARG:퇴짜 += 1
+			CALL ENDUFUFU(ARG)
+			CALL GET_ANGRY(ARG)
+			MARK:ARG:반발각인 = MIN(MARK:ARG:반발각인 + 1, 3)
+			TFLAG:106 = 0
+			TFLAG:16 = 2
+		ENDIF
+	ELSE
+		GOTO INPUT2_LOOP
+	ENDIF
+ENDIF
+
+@SHOW_REASONWALL(이성판정치, UNIT = 100)
+#DIM 이성판정치
+#DIM UNIT
+
+PRINTFORM 이성의 벽　　　:
+SETCOLOR 255,255,0
+LOCAL = MAX(이성판정치 / UNIT, 1)
+PRINTFORM %"★" * LOCAL%
+RESETCOLOR
+SIF 이성판정치 % UNIT > (UNIT / 2)
+	PRINTL ★
+PRINTW
+
+@SHOW_LOVEPOWER(호의판정치, UNIT = 100)
+#DIM 호의판정치
+#DIM 호의표시
+#DIM UNIT
+
+PRINTFORM %CALLNAME:MASTER%에의 호의:
+호의표시 = MAX(호의판정치 / UNIT, 0)
+LOCALS:1 = %GETFONT()%
+SETFONT "Times New Roman"
+LOCAL = GETCOLOR()
+PRINTFORM %UNICODE(0x2764) * MAX((호의표시 / 10000 -1), 0)%
+RESETCOLOR
+SETCOLOR 255,51,153
+SIF 호의표시 >=10000
+	PRINTFORM %UNICODE(0x2764) * (9999) %%UNICODE(0x2764)%
+
+PRINTFORM %UNICODE(0x2764) * (호의표시 % 10000)%
+SETCOLOR LOCAL
+
+SIF 호의판정치 % UNIT > (UNIT / 2)
+	PRINTFORML %UNICODE(0x2764)%
+SETFONT LOCALS:1
+PRINTW

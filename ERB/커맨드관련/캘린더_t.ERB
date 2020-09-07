@@ -1,0 +1,284 @@
+﻿;-----------------------------------------------------------
+;LOCAL					FOR~NEXT용
+;LOCAL:1~LOCAL:7		예정일(DAY:3)
+;LOCAL:8				리셋용 데이터
+;LOCAL:11~LOCAL:17		예정 일째(DAY)
+;LOCAL:101~LOCAL:107	달을 또 있고로 있을까(0=또 있고가 아닌,1=뿌렸다로 있다)
+;-----------------------------------------------------------
+@캘린더
+#DIM 예정종별 = 0
+;[SKIPSTART]
+VARSET LOCAL
+FOR COUNT, 1, 9
+	LOCAL:COUNT = DAY:3 + COUNT - 1
+	LOCAL:(COUNT + 10) = DAY + COUNT - 1
+	IF LOCAL:COUNT > 31
+		LOCAL:COUNT -= 31
+		LOCAL:(COUNT + 100) = 1
+	ENDIF
+NEXT
+PRINTL ┌──┬──────────────────────────────────────
+PRINT │ Day│이벤트/연회 정보/
+IF 예정종별 == 0
+	SETCOLOR 0 , 255, 0
+	PRINT 일
+	RESETCOLOR
+	IF FLAG:1007
+		PRINT /
+		PRINTBUTTON "위험일", 901
+	ENDIF
+ELSE
+	PRINTBUTTON "일", 900
+	IF FLAG:1007
+		PRINT /
+		SETCOLOR 0 , 255, 0
+		PRINT 위험일
+		RESETCOLOR
+	ENDIF
+ENDIF
+PRINTL 
+PRINTL ├──┼──────────────────────────────────────
+PRINT │
+SETCOLOR 0 , 255, 0
+;{LOCAL:1(~9)}+100의 수치가 CHARANUM 이하라면 버그가 되므로
+;미실장동안은 버튼 기능 자체 죽여 둔다
+;기능 실장시에 적절한 값을 설정 다시 하는 것
+;PRINTBUTTON (LOCAL:1 > 9 ?  TOSTR(LOCAL:1) # TOFULL(TOSTR(LOCAL:1))), (LOCAL:1 + 100)
+PRINTFORM %(LOCAL:1 > 9 ?  TOSTR(LOCAL:1) # TOFULL(TOSTR(LOCAL:1)))%
+PRINT 일
+RESETCOLOR
+PRINT │
+;예정표내에서 1행째에 이벤트·연회 정보, 2행째에 이름 리스트 표시
+;요일도 예정표내에서 표시한다
+;예정표를 부르면(자) 시간이 진행되므로 세심의 주위를 기울인다
+CALL 예정표(LOCAL:1, LOCAL:11, LOCAL:101, 1, 예정종별)
+PRINTL 
+PRINTL ├──┼──────────────────────────────────────
+PRINT │
+;PRINTBUTTON (LOCAL:2 > 9 ?  TOSTR(LOCAL:2) # TOFULL(TOSTR(LOCAL:2))), (LOCAL:2 + 100)
+PRINTFORM %(LOCAL:2 > 9 ?  TOSTR(LOCAL:2) # TOFULL(TOSTR(LOCAL:2)))%
+PRINT 일│
+CALL 예정표(LOCAL:2, LOCAL:12, LOCAL:102, 2, 예정종별)
+PRINTL 
+PRINTL ├──┼──────────────────────────────────────
+PRINT │
+;PRINTBUTTON (LOCAL:3 > 9 ?  TOSTR(LOCAL:3) # TOFULL(TOSTR(LOCAL:3))), (LOCAL:3 + 100)
+PRINTFORM %(LOCAL:3 > 9 ?  TOSTR(LOCAL:3) # TOFULL(TOSTR(LOCAL:3)))%
+PRINT 일│
+CALL 예정표(LOCAL:3, LOCAL:13, LOCAL:103, 3, 예정종별)
+PRINTL 
+
+PRINTL ├──┼──────────────────────────────────────
+PRINT │
+;PRINTBUTTON (LOCAL:4 > 9 ?  TOSTR(LOCAL:4) # TOFULL(TOSTR(LOCAL:4))), (LOCAL:4 + 100)
+PRINTFORM %(LOCAL:4 > 9 ?  TOSTR(LOCAL:4) # TOFULL(TOSTR(LOCAL:4)))%
+PRINT 일│
+CALL 예정표(LOCAL:4, LOCAL:14, LOCAL:104, 4, 예정종별)
+PRINTL 
+
+PRINTL ├──┼──────────────────────────────────────
+PRINT │
+;PRINTBUTTON (LOCAL:5 > 9 ?  TOSTR(LOCAL:5) # TOFULL(TOSTR(LOCAL:5))), (LOCAL:5 + 100)
+PRINTFORM %(LOCAL:5 > 9 ?  TOSTR(LOCAL:5) # TOFULL(TOSTR(LOCAL:5)))%
+PRINT 일│
+CALL 예정표(LOCAL:5, LOCAL:15, LOCAL:105, 5, 예정종별)
+PRINTL 
+
+PRINTL ├──┼──────────────────────────────────────
+PRINT │
+;PRINTBUTTON (LOCAL:6 > 9 ?  TOSTR(LOCAL:6) # TOFULL(TOSTR(LOCAL:6))), (LOCAL:6 + 100)
+PRINTFORM %(LOCAL:6 > 9 ?  TOSTR(LOCAL:6) # TOFULL(TOSTR(LOCAL:6)))%
+PRINT 일│
+CALL 예정표(LOCAL:6, LOCAL:16, LOCAL:106, 6, 예정종별)
+PRINTL 
+
+PRINTL ├──┼──────────────────────────────────────
+PRINT │
+;PRINTBUTTON (LOCAL:7 > 9 ?  TOSTR(LOCAL:7) # TOFULL(TOSTR(LOCAL:7))), (LOCAL:7 + 100)
+PRINTFORM %(LOCAL:7 > 9 ?  TOSTR(LOCAL:7) # TOFULL(TOSTR(LOCAL:7)))%
+PRINT 일│
+CALL 예정표(LOCAL:7, LOCAL:17, LOCAL:107, 7, 예정종별)
+PRINTL 
+
+PRINTL └──┴──────────────────────────────────────
+PRINTL [0] - 돌아온다
+
+;시간을 되돌리기 위해서(때문에) 리셋용의 예정표를 부른다
+CALL 예정표(LOCAL:8, LOCAL:18, LOCAL:108, 8)
+INPUT
+IF RESULT >= 1 && RESULT <= CHARANUM
+	PRINTFORML %CALLNAME:RESULT%
+	IF CFLAG:RESULT:자택위치
+		PRINT 자택위치：
+		IF CFLAG:RESULT:신사거주
+			PRINTFORML %NAME_FROM_PLACE(CFLAG:RESULT:신사거주)%
+		ELSE
+			PRINTFORML %NAME_FROM_PLACE((CFLAG:RESULT:자택위치) / 10 + 6000)%
+		ENDIF
+	ENDIF
+	PRINT 일정보：
+	SIF CSTR:RESULT:3 == ""
+		PRINT ?
+	PRINTFORML %CSVCSTR(RESULT, 3, )%
+	PRINT 　직장　：
+	SIF CSTR:RESULT:2 == ""
+		PRINT ?
+;	// GET_JOBPLACE("일", ARG)로 직장의 개서 처리가 있으므로 변경
+;	재변경했습니다, 1 외출 먼저 대응하고 있지 않는, 2 직장이 다수 있는 캐릭터에게 대응할 수 없는, 싶은
+	PRINTFORML %CSVCSTR(RESULT, 2)%
+;	PRINTFORML %NAME_FROM_PLACE(CFLAG:RESULT:직장)%
+	RESTART
+;기능 실장시에 조건을 설정 다시 한다
+;ELSEIF RESULT >= 101 && RESULT <= 131
+;	PRINTFORMW {RESULT - 100}일의 예정　※미실장
+;	RESTART
+ELSEIF RESULT >= 900 && RESULT <= 901
+;900:일예정(예정=0)
+;901:위험일 예정(예정=1)
+	예정종별 = RESULT - 900
+	RESTART
+ENDIF
+;[SKIPEND]
+RETURN
+
+;-----------------------------------------------------------
+;ARG	0=날,1=총날짜,2=달을 또 있고로 있는지,3=호출 회수,4=예정종별(0:일 1:위험일)
+;		현재=원래의 DAY, 오늘=원래의 DAY:2, 이번달=원래의 DAY:3, 다음달=이번달부터 본 다음달
+;-----------------------------------------------------------
+@예정표(ARG, ARG:1, ARG:2, ARG:3, ARG:4=0)
+#DIM 현재
+#DIM 오늘
+#DIM 이번달
+#DIM 다음달
+
+#DIM 전일량
+#DIM 전일개시
+#DIM 전일종료
+#DIM 전직장
+#DIM 전직종
+#DIM 원급료
+#DIM 원답례
+
+#DIM 표시카운트
+
+;TIME를 만지므로 역산
+IF ARG:2 && DAY:2 != 이번달
+	IF DAY:2 == 1
+		이번달 = 4
+	ELSE
+		이번달 = DAY:2 - 1
+	ENDIF
+ELSE
+	이번달 = DAY:2
+ENDIF
+IF DAY:2 == 4
+	다음달 = 1
+ELSE
+	다음달 = DAY:2 + 1
+ENDIF
+;TIME를 만진다
+SIF ARG:2 && DAY:2 == 이번달
+	DAY:2 = 다음달
+DAY = ARG:1
+DAY:3 = ARG
+;역산
+현재 = DAY - ARG:3 + 1
+IF 이번달 != DAY:2
+	오늘 = DAY:3 - ARG:3 + 32
+ELSE
+	오늘 = DAY:3 - ARG:3 + 1
+ENDIF
+;마지막 호출로 리셋
+IF ARG:3 == 8
+	DAY = 현재
+	DAY:2 = 이번달
+	DAY:3 = 오늘
+	RETURN
+ENDIF
+
+;확인용(다음달은 1일 라그가 있지만 문제 없다)
+;PRINTFORM 오늘{오늘}　이번달{이번달}　다음달{다음달} 현재{현재} DAY:3-{DAY:3} DAY:2-{DAY:2} DAY - {DAY} 
+;여기에서는 일시적으로 시간이 진행된 상태로 산출하는(GET_DAY()나 연회 예정도 진행된 상태)
+
+;예정표 1행째
+IF FESTIVAL() != ""
+	SETCOLOR C_RED
+	PRINTFORM %FESTIVAL()%　
+	RESETCOLOR
+ENDIF
+
+;연회도 일자가 바뀐 상태로 체크
+;연회 정보의 표시를 1행째로 변경
+CALL 연회예정판정
+
+;예정표 2행째 이후
+;요일도 바뀌어 있는(첫날은 그대로)
+PRINTL
+PRINTFORM │(%GET_DAY()%)│
+표시카운트 = 0
+FOR LOCAL, 1, CHARANUM
+	IF !ARG:4
+		전일량 = MAXBASE:LOCAL:일량
+		전일개시 = TCVAR:LOCAL:일개시
+		전일종료 = TCVAR:LOCAL:일종료
+		전직장 = CFLAG:LOCAL:직장
+		전직종 = CFLAG:LOCAL:직종
+		원급료 = TCVAR:LOCAL:급료
+		원답례 = TCVAR:LOCAL:답례
+
+	;더부살이캐릭터에서도 일하러 나가므로 우선 코멘트 아웃
+	;	SIF CFLAG:LOCAL:신사거주
+	;		CONTINUE
+	;	;일이 랜덤의 경우는 있는 것 전제
+		;…(으)로 하면(자) 오늘의 일에 영향이 나오므로 예정도 랜덤(다음에 일하는지 아닌지)에
+	;	SIF DAY:3 != 오늘
+	;		TCVAR:LOCAL:일의유무 = 2
+		CALL 일내용설정(LOCAL, 1)
+		IF !CHARA_HOLIDAY(LOCAL, 1) && CFLAG:LOCAL:신뢰도 >= 10
+			표시카운트++
+			IF 표시카운트 > 9
+				PRINTL 
+				PRINT │　　│
+				표시카운트 = 0
+			ENDIF
+	;		너무 편리할 생각이 들므로 자중
+	;		SIF CFLAG:LOCAL:행동 == 5
+	;			SETCOLOR 255, 100, 0
+			PRINTBUTTON CALLNAME:LOCAL, LOCAL
+			RESETCOLOR
+			PRINT 　
+		ENDIF
+
+		MAXBASE:LOCAL:일량 = 전일량
+		TCVAR:LOCAL:일개시 = 전일개시
+		TCVAR:LOCAL:일종료 = 전일종료
+		CFLAG:LOCAL:직장 = 전직장
+		CFLAG:LOCAL:직종 = 전직종
+		TCVAR:LOCAL:급료 = 원급료
+		TCVAR:LOCAL:답례 = 원답례
+	ELSE
+		IF ESTRUS_CATEGORY(LOCAL, ARG:3-1) == "위험일" && FLAG:1007
+			표시카운트++
+			IF 표시카운트 > 9
+				PRINTL 
+				PRINT │　　│
+				표시카운트 = 0
+			ENDIF
+	;		착상제라면 이름을 핑크로 한다
+			SIF CFLAG:LOCAL:임신경과일수
+				SETCOLOR C_PINK
+			PRINTBUTTON CALLNAME:LOCAL, LOCAL
+			SETCOLOR C_PINK
+			CALL HEART
+			RESETCOLOR
+			PRINT 　
+		ENDIF
+	ENDIF
+NEXT
+
+@연회예정판정
+IF FLAG:개시일 - DAY == 0 && FLAG:연회개최플래그
+	SETCOLOR C_GREEN
+	CALL 연회예정표시
+	RESETCOLOR
+ENDIF

@@ -1,0 +1,146 @@
+﻿;-------------------------------------------------
+;삽입 G스포 고문
+;섹스계 파생 커맨드
+;-------------------------------------------------
+@SCOM6
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수)
+
+LOCALS = {TARGET}/
+CSTR:PLAYER:10 += LOCALS
+TCVAR:PLAYER:2 = 1
+;강도
+TCVAR:PLAYER:4 = 1800
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 13
+;강도
+TCVAR:TARGET:4 = 2000
+
+;봉사 쾌락 플래그
+TCVAR:PLAYER:108 = 1
+
+DOWNBASE:MASTER:체력 += 50
+DOWNBASE:MASTER:기력 += 100
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 60
+	SOURCE:MASTER:쾌C = 500
+	SOURCE:PLAYER:성행동 =25
+
+	SOURCE:쾌V = 500
+	SOURCE:고통 = 250
+
+ELSE
+
+	DOWNBASE:체력 += 40
+	DOWNBASE:기력 += 50
+	SOURCE:MASTER:쾌C = 500
+	SOURCE:PLAYER:성행동 =25
+
+	SOURCE:쾌V = 500
+	SOURCE:사랑 = 200
+	SOURCE:고통 = 500
+	SOURCE:노출 = 100
+	SOURCE:반감 = 500
+
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 500
+
+	;정조 관념 소유로 연모, 친애 가져 이외에는 항상 반발의 소스를 추가한다(섹스계만)
+	SIF TALENT:정조 > 0 && !TALENT:연모
+		SOURCE:반감 += 1000
+ENDIF
+;V에의 고통은 먼저 처리해 둔다
+CALL PAIN_CHECK_V(TARGET)
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;사정에 관계없이 행해지는 처리는 여기에서
+;질내에 파과의 피의 더러움을 부가
+SIF TALENT:처녀 && TALENT:처녀 != -1
+	STAIN:6 |= 64
+;노예의 질내⇔조교자의 P의 더러움이 이동
+STAIN:6 |= STAIN:PLAYER:2
+STAIN:PLAYER:2 |= STAIN:6
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:PLAYER:삽입경험 ++
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+ENDIF
+IF FLAG:70 == 1
+	EXP:MASTER:시간경험 += 1
+ELSEIF CFLAG:MASTER:장난 == 2
+	EXP:MASTER:수면간경험 += 1
+	EXP:TARGET:수면간경험 += 1
+ELSE
+	EXP:V성교경험 ++
+	;애정경험
+	SIF ASSIPLAY == 0
+		EXP:애정경험 += TALENT:연모
+ENDIF
+RETURN 1
+
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE72
+;삽입G스폿고문
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(72)
+	RETURN RESULT
+SIF !MASTER_POSE(SET_V, SET_P, 1)
+	RETURN 0
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+SIF TEQUIP:TARGET:50 != MASTER
+	RETURN 0
+;체격 차이가 있는 경우는 주인이 금단의지식 소유가 아니면 안 돼
+SIF 삽입불가(TARGET) == 1 && !TALENT:PLAYER:금단의지식 && EXP:V경험 < 50
+	RETURN 0
+;한층 더 체격 차이가 있으면(자) 경험이 필요
+SIF 삽입불가(TARGET) == 2 && (!TALENT:PLAYER:금단의지식 || EXP:V경험 < 50)
+	RETURN 0
+SIF 삽입불가(TARGET) == 3
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;선택 가능 판정
+;-------------------------------------------------
+@COM_ABLE506
+;삽입G스폿고문
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(506)
+	RETURN RESULT
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+RETURN 1
+

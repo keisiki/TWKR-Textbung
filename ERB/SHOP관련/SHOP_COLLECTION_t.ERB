@@ -1,0 +1,327 @@
+﻿@SHOW_COLLECTION
+DRAWLINE
+CALL DISPLAY_ALL_COLLECTION
+LOCAL = RESULT:0
+FLAG:획득팬티총수 = RESULT:1
+PRINTL 　 
+IF FLAG:팬티수집상황타입B == 0
+	PRINTFORML 총수：{LOCAL}매종별：{FLAG:획득팬티총수}종 중복：{LOCAL - FLAG:획득팬티총수}매
+ELSE
+	PRINTFORML 총수：{LOCAL}매종별：{FLAG:획득팬티총수}/{RESULT:2}종 중복：{LOCAL - FLAG:획득팬티총수}매
+ENDIF
+PRINT [0] - 돌아간다 
+SIF LOCAL - FLAG:획득팬티총수
+	PRINT [1] - 1장만 남기고 전부 매각한다
+INPUT
+IF RESULT == 1 && (LOCAL - FLAG:획득팬티총수) != 0
+	CALL SPEND_COLLECTION
+	PRINTFORMW 총 {RESULT:0}장 \\{100 * RESULT:0}로 팔렸습니다
+	MONEY += 100 * RESULT:0
+ELSE
+	RETURN 0
+ENDIF
+RESTART
+
+;전 콜렉션 표시
+;인수	ARG:0	표시 대상	0=콜렉션	,1=소지
+;		ARG:1	표시 종류	0=통상 표시		,1=선택
+;반환값	RESULT:0	총수
+;		RESULT:1	소유종류수
+@DISPLAY_ALL_COLLECTION(ARG:0=0, ARG:1=0)
+#DIM 대상
+#DIM 총수
+#DIM 소유종류수
+#DIM 착용가능수
+
+VARSET RESULT
+총수 = 0
+소유종류수 = 0
+착용가능수 = 0
+
+FOR 대상, 1, CHARANUM
+	CALL CHECK_COLLECTION(대상, ARG:0)
+	;한 장도 팬티 가지지 않은 캐릭터라도 착용가능수를 카운트 하기 위한(해)
+	IF FLAG:팬티수집상황타입B && ARG:0 == 0
+		PRINTL
+		PRINTFORML 【%CALLNAME:대상%】
+		CALL DISPLAY_COLLECTION_B(대상, ARG:0, ARG:1)
+		총수 += RESULT:0
+		소유종류수 += RESULT:1
+		착용가능수 += RESULT:2
+	ELSEIF RESULT:0 > 0
+		PRINTL
+		PRINTFORML 【%CALLNAME:대상%】
+		CALL DISPLAY_COLLECTION(대상, ARG:0, ARG:1)
+		총수 += RESULT:0
+		소유종류수 += RESULT:1
+	ENDIF
+NEXT
+RETURN 총수, 소유종류수, 착용가능수
+
+;콜렉션 표시
+;인수 대상 표시 대상ID
+;		ARG:0	표시 대상	0=콜렉션	,1=소지
+;		ARG:1	표시 종류	0=통상 표시		,1=선택
+;반환값	RESULT:0	총수
+;		RESULT:1	소유종류수
+@DISPLAY_COLLECTION(대상, ARG:0=0, ARG:1=0)
+#DIM 대상
+#DIM 종류
+#DIM 소유수
+#DIM 개행용
+#DIM 총수
+#DIM 소유종류수
+#DIM 하반신속옷확인보존
+#DIM 파자마하반신속옷확인보존
+
+VARSET RESULT
+총수 = 0
+소유종류수 = 0
+개행용 = 0
+하반신속옷확인보존 = CFLAG:대상:하반신속옷확인
+파자마하반신속옷확인보존 = CFLAG:대상:파자마하반신속옷확인
+
+FOR 종류, 0, MAXPANTS
+	IF ARG:0 == 0
+		소유수 = CFLAG:대상:(종류 + 팬티관리)
+	ELSE
+		;소유수 = STRCOUNT(CSTR:MASTER:12, CALLNAME:대상 + TOSTR(종류) + "/")
+		소유수 = PANTS_TEMP:대상:종류
+	ENDIF
+	IF 소유수
+		총수 += 소유수
+		소유종류수 ++
+		개행용 ++
+		SIF LINEISEMPTY()
+			PRINTFORM 　
+		IF ARG:1 == 0
+			PRINTFORM %PANTSNAME(종류, 대상), 22, LEFT%{소유수, 3}장　
+		ELSE
+			LOCALS = [%PANTSNAME(종류, 대상)%]
+			LOCALS = %LOCALS, 24, LEFT%{소유수, 3}장
+			PRINTBUTTON LOCALS, (대상 * 100 + 종류)
+			PRINTS "  "
+		ENDIF
+		IF 개행용 % 4 == 0 && 개행용
+			PRINTL
+			개행용 = 0
+		ENDIF
+	ENDIF
+NEXT
+SIF 개행용
+	PRINTL
+
+CFLAG:대상:하반신속옷확인 = 하반신속옷확인보존
+CFLAG:대상:파자마하반신속옷확인 = 파자마하반신속옷확인보존
+
+RETURN 총수, 소유종류수
+
+;콜렉션 소비
+;인수	ARG:0	소비 대상 종류	-1=1장 남기고 소비
+;반환값	RESULT:0	소비수
+@SPEND_COLLECTION(ARG=-1)
+#DIM 대상
+#DIM 종류
+#DIM 소유수
+
+VARSET RESULT
+
+IF ARG == -1
+	FOR 대상, 1, CHARANUM
+		FOR 종류, 0, MAXPANTS
+			소유수 = CFLAG:대상:(종류 + 팬티관리)
+			IF 소유수 > 1
+				RESULT:0 += (소유수 - 1)
+				CFLAG:대상:(종류 + 팬티관리) = 1
+			ENDIF
+		NEXT
+	NEXT
+ELSE
+	대상 = ARG / 100
+	종류 = ARG % 100
+	IF CFLAG:대상:(종류 + 팬티관리) >= 1
+		RESULT:0 = 1
+		CFLAG:대상:(종류 + 팬티관리) -= 1
+	ENDIF
+ENDIF
+	
+RETURN (RESULT:0)
+
+;콜렉션 매수 확인
+;인수	ARG:0		대상
+;인수	ARG:1		표시 대상	0=콜렉션	,1=소지
+;반환값	RESULT:0	총수
+;		RESULT:1	종류수
+@CHECK_COLLECTION(대상, ARG:1=0)
+#DIM 대상
+#DIM 종류
+#DIM 소지수
+
+VARSET RESULT
+
+FOR 종류, 0, MAXPANTS
+	IF ARG:1 == 0
+		소지수 = CFLAG:대상:(종류 + 팬티관리)
+	ELSE
+		소지수 = PANTS_TEMP:대상:종류
+	ENDIF
+	IF 소지수
+		RESULT:0 += 소지수
+		RESULT:1 ++
+	ENDIF
+NEXT
+
+RETURN RESULT:0, RESULT:1
+
+;수중에 있는 콜렉션 1장 소비(DISPLAY_COLLECTION(1,1)와 병용)
+;인수	ARG:0	소비 대상 종류
+;반환값	RESULT:0	소비 판정
+@SPEND_HAVE_COLLECTION(ARG)
+#DIM 대상
+#DIM 종류
+#DIM 소유수
+#DIM 소비플래그
+
+VARSET LOCALS
+VARSET RESULT
+소유수 = 0
+FOR 대상, 1, CHARANUM
+	FOR 종류, 0, MAXPANTS
+		;LOCALS:0 = %CALLNAME:대상%{종류}/
+		;소유수 = STRCOUNT(CSTR:MASTER:12, LOCALS:0)
+		;IF 소유수
+		IF PANTS_TEMP:대상:종류
+			소비플래그 = 0
+			IF ARG != 0 && ARG == (대상 * 100 + 종류)
+				소비플래그 = 1
+				RESULT:0 = 1
+				;팬티 플래그
+				CFLAG:대상:293 = 0
+				PANTS_TEMP:대상:종류 -= 1
+			ENDIF
+			;LOCALS:1 = %LOCALS:1 + LOCALS:0 * (소유수 - 소비플래그)%
+		ENDIF
+		SIF PANTS_TEMP:대상:종류
+			소유수 += PANTS_TEMP:대상:종류
+	NEXT
+NEXT
+SIF !소유수
+	FLAG:팬티수송 = 0
+;CSTR:MASTER:12 = %LOCALS:1%
+
+RETURN (RESULT:0)
+
+;콜렉션 표시 TypeB
+;취득 가능한 팬티를 모두 표시
+;인수 대상 표시 대상ID
+;반환값	RESULT:0	총수
+;	RESULT:1	소유종류수
+;	RESULT:2	착용가능수
+@DISPLAY_COLLECTION_B(대상, ARG:0=0, ARG:1=0)
+#DIM 대상
+#DIM 종류
+#DIM 소유수
+#DIM 개행용
+#DIM 총수
+#DIM 하반신속옷확인보존
+#DIM 파자마하반신속옷확인보존
+#DIM 소유종류수
+#DIM 착용가능수
+#DIM 조건있어
+#DIMS 조건
+
+VARSET RESULT
+총수 = 0
+하반신속옷확인보존 = CFLAG:대상:하반신속옷확인
+파자마하반신속옷확인보존 = CFLAG:대상:파자마하반신속옷확인
+소유종류수 = 0
+개행용 = 0
+착용가능수 = 0
+
+;남성 용례외 처리
+;일단 들어갈 수 있었지만 이것 실제로 작동하는 것 맞나?
+IF TALENT:대상:성별  == 2
+	FOR 종류, 0, MAXPANTS
+		SIF !GET_INT(대상, "하반신속옷_비켜놓기가능", 종류, "남성 속옷")
+			CONTINUE
+		IF 소유수 > 0
+			총수 += 소유수
+			소유종류수 ++
+		ELSE
+			SETCOLOR C_GRAY
+		ENDIF
+		착용가능수 ++
+		PRINTL
+		SIF LINEISEMPTY()
+			PRINTFORM 　
+		PRINTFORM %COLLECTION_B_PANTS_STR(대상, 종류, 소유수)%
+		RESETCOLOR
+		IF 개행용 % 4 == 0 && 개행용
+			PRINTL
+			개행용 = 0
+		ENDIF
+	NEXT
+	SIF 개행용
+		PRINTL
+	RETURN 총수, 소유종류수, 착용가능수
+ENDIF
+
+;이후, 여성과 뚜껑
+FOR 종류, 0, MAXPANTS
+	소유수 = CFLAG:대상:(종류 + 팬티관리)
+	IF 소유수
+		총수 += 소유수
+		소유종류수 ++
+		착용가능수 ++
+		개행용 ++
+		SIF 종류 == 18
+			SETCOLOR C_H_PINK
+	ELSE
+		SIF !GET_INT(대상, "하반신속옷_비켜놓기가능", 종류, "콜렉션 표시 가능")
+			CONTINUE
+		착용가능수 ++
+		개행용 ++
+		SETCOLOR C_GRAY
+	ENDIF
+	SIF LINEISEMPTY()
+		PRINTFORM 　
+	PRINTFORM %COLLECTION_B_PANTS_STR(대상, 종류, 소유수)%
+	RESETCOLOR
+	IF 개행용 % 4 == 0 && 개행용
+		PRINTL
+		개행용 = 0
+	ENDIF
+NEXT
+SIF 개행용
+	PRINTL
+
+CFLAG:대상:하반신속옷확인 = 하반신속옷확인보존
+CFLAG:대상:파자마하반신속옷확인 = 파자마하반신속옷확인보존
+
+RETURN 총수, 소유종류수, 착용가능수
+
+
+
+;콜렉션 표시 캐릭터라인
+@COLLECTION_B_PANTS_STR(대상, 종류, 소유수)
+#FUNCTIONS
+#DIM  대상
+#DIM  종류
+#DIM  소유수
+#DIMS 조건
+#DIMS 팬티캐릭터라인
+IF 소유수
+		팬티캐릭터라인 '= @"%PANTSNAME(종류, 대상), 22, LEFT%{LIMIT(소유수, 0, 999), 3}매" + "　"
+ELSE
+	조건 '= GET_STR(대상, "하반신속옷_비켜놓기가능", 종류, "콜렉션 해금 조건")
+	IF 종류 == 18
+		조건 '= "? "
+		;부여 캐릭터라인은 「XXX장　」(으)로 전각3+반각 1
+		팬티캐릭터라인 '= @"%조건, 22, LEFT%" + " " + "　" * 3
+	ELSEIF STRLENS(조건)
+		팬티캐릭터라인 '= @"%조건, 22, LEFT%" + " " + "　" * 3
+	ELSE
+		팬티캐릭터라인 '= @"%PANTSNAME(종류, 대상), 22, LEFT%" + " " + "　" * 3
+	ENDIF
+ENDIF
+RETURNF 팬티캐릭터라인

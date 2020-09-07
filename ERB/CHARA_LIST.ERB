@@ -1,0 +1,167 @@
+﻿;범용·캐캐릭터리스트작성 함수
+;조건에 대해서는 CHECK_CHARA 함수를 참조
+;조건에 합치하는 캐릭터의 리스트를 작성한다
+@MAKE_CHARA_LIST(LIST_TYPE, L_ID, CHARA_LIST, CHARA_CNT)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS LIST_TYPE
+#DIM C_ID
+#DIM REF L_ID       ;리스트의 클래스 ID
+#DIM REF CHARA_LIST ;캐릭터 일람
+#DIM REF CHARA_CNT  ;캐릭터 카운터
+VARSET CHARA_LIST
+VARSET CHARA_CNT
+L_ID = OBJNAME_TO_ID(0, "GET", "캐릭터리스트", LIST_TYPE)
+IF L_ID == -1
+	FOR C_ID, 0, CHARANUM
+		SIF !CHECK_CHARA(C_ID, LIST_TYPE)
+			CONTINUE
+		CHARA_LIST:CHARA_CNT = C_ID
+		CHARA_CNT ++
+	NEXT
+ELSE
+	FOR C_ID, 0, CHARANUM
+		SIF !GET_INT(C_ID, "캐릭터리스트", L_ID, "판정")
+			CONTINUE
+		CHARA_LIST:CHARA_CNT = C_ID
+		CHARA_CNT ++
+	NEXT
+ENDIF
+; PRINTFORMW CHARA_CNT{CHARA_CNT}
+
+
+
+;@SHOW_CHARA_LIST가 기능 너무 번창해 사용하기 어려워졌으므로 심플한 녀석도
+;배열에 거둘 수 있고 있는 수치의 캐릭터를 두등와 간단하게 버튼으로서 표시할 뿐
+;먼저 캐릭터리스트 만들지 않으면 시중들지 않습니다
+;리스트에 없는 수치는 튕겨, 999는 캔슬 취급입니다
+@SIMPLE_CHARA_LIST(CHARA_LIST, CHARA_CNT, OP)
+#DIM  REF CHARA_LIST ;리스트 본체, 등록 번호에서 기록
+#DIM  REF CHARA_CNT  ;리스트에 해당한 캐릭터의 수
+#DIMS OP
+FOR LOCAL, 0, CHARA_CNT
+	PRINTFORML [{LOCAL, 3}] - %CALLNAME:(CHARA_LIST:LOCAL)%
+NEXT
+PRINTFORML 
+PRINTFORML [999] - 돌아간다
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 999
+		RETURN 999
+	CASEELSE
+		SIF INRANGE(RESULT, 0, CHARA_CNT - 1)
+			RETURN RESULT
+		REUSELASTLINE 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+LOOP 1
+
+
+
+;리스트 소트 함수
+;대상 배열 변수를 등록 번호의 나열로 간주해 INPUT_STR의 내용에 응해 SORT 다시 한다
+;인수는 모두 필수
+;소트 자체는 어쨌든 그 외의 제어 부분이 약간 복잡화 했는지
+;소트 알고리즘은 wikipedia로부터 코피페는 본 놈소트
+;1만건이라든지의 데이터 사용하는 것으로 이루어 심플해서 좋지?
+;INPUT_STR에 사용할 수 있는 캐릭터라인은 「DISP_MEMO:X＋(내림차순 or승순)」
+;DISP_MEMO로 이름 충돌을 일으키면(자) 버그의 것으로 추가때는 주의
+;구체적으로는"시간"은 각인으로 하고 있으므로 경험용으로 추가해도 사용할 수 없다
+;DISP_MEMO를 변경한다면 @CHARA_BUTTON, @SHOW_CHARA_LIST도 변경의 필요가 있으므로 주의
+@SORT_LIST(INPUT_STR, CHARA_LIST, CHARA_CNT)
+#DIMS     INPUT_STR  ;소트 내용의 지시
+#DIM      MEMO_TYPE  ;이번 소트 항목, CSV에서의 요소수
+#DIMS     CHECK_VAR  ;체크 대상이 되는 변수명
+#DIMS     CHECK_TYPE ;비교 연산자의 종류
+#DIM      NUM_LOOP   ;루프 회수
+#DIM  REF CHARA_LIST ;캐릭터리스트의 내용 배열
+#DIM      CHARA_CNT  ;리스트에 포함되는 캐릭터수
+;소트 항목의 종별
+{
+#DIMS CONST DISP_MEMO , 25 = 
+	"체력", "기력", 
+	"C감", "V감", "A감", "B감", "Ｍ감", 
+	"친밀", "순종", "욕망", "기교", 
+	"손가락기술", "혀 기술", "가슴기술", "허리기술", "질 기술", "A기술", 
+	"고통", "쾌락", "괘씸", "반발", "시간", 
+	"호감", "신뢰", "욕구"
+}
+;소트 항목의 각 캐릭터 변수에 있어서의 위치
+{
+#DIM CONST MEMO_ID , 25 = 
+	 0,  1, 
+	 0,  1,  2,  3,  4, 
+	 9, 10, 11, 12, 
+	50, 51, 52, 53, 54, 55, 
+	 0,  1,  2,  3,  5, 
+	 2,  4,340
+}
+;소트 항목의 검색
+MEMO_TYPE = 0
+NUM_LOOP = VARSIZE("DISP_MEMO")
+FOR LOCAL, 0, NUM_LOOP
+	IF STRCOUNT(INPUT_STR, DISP_MEMO:LOCAL)
+		MEMO_TYPE = LOCAL
+		BREAK
+	ENDIF
+	SIF LOCAL == NUM_LOOP - 1
+		THROW 부정한 INPUT_STR　%INPUT_STR%
+NEXT
+
+SELECTCASE DISP_MEMO:MEMO_TYPE
+CASE "체력", "기력"
+	CHECK_VAR '= "BASE"
+CASE "C감", "V감", "A감", "B감", "Ｍ감", "친밀", "순종", "욕망", "기교"
+	CHECK_VAR '= "ABL"
+CASE "손가락기술", "혀 기술", "가슴기술", "허리기술", "질 기술", "A기술", 
+	CHECK_VAR '= "ABL"
+CASE "고통", "쾌락", "괘씸", "반발", "시간", 
+	CHECK_VAR '= "MARK"
+CASE "호감", "신뢰", "욕구"
+	CHECK_VAR '= "CFLAG"
+CASEELSE
+	THROW 부정한 DISP_MEMO:MEMO_TYPE %DISP_MEMO:MEMO_TYPE%, MEMO_TYPE {MEMO_TYPE}
+ENDSELECT
+
+IF STRCOUNT(INPUT_STR, "내림차순")
+	CHECK_TYPE '= ">="
+ELSEIF STRCOUNT(INPUT_STR, "승순")
+	CHECK_TYPE '= "<="
+ELSE
+	THROW 부정한 INPUT_STR %INPUT_STR%
+ENDIF
+
+;소트열매 처리
+LOCAL:0 = 1
+WHILE LOCAL:0 < CHARA_CNT
+	SIF !(LOCAL:0)
+		LOCAL:0 ++
+	IF CHARA_COMPARE(CHECK_VAR, MEMO_ID:MEMO_TYPE, CHARA_LIST:(LOCAL:0 - 1), CHECK_TYPE, CHARA_LIST:(LOCAL:0))
+		LOCAL:0 ++
+	ELSE
+		SWAP CHARA_LIST:(LOCAL:0 - 1), CHARA_LIST:(LOCAL:0)
+		LOCAL:0 --
+	ENDIF
+WEND
+
+
+;각 클래스를 리스트화 표시
+;매우 간단하게 CLASS내에 존재하는 것을 제시하는, 그런 것
+@CLASS_LIST(CLASS_NAME, CHECK_NAME)
+#DIMS CLASS_NAME  ;표시 대상이 되는 클래스의 명칭
+#DIMS CHECK_NAME  ;판정 대상 항목(INT 한정), 미설정이라면 존재하는 것을 모두 표시
+IF STRLENS(CHECK_NAME)
+	FOR LOCAL, OBJ_ID_FIRST, OBJ_ID_LAST + 1
+		SIF !GET_INT(0, CLASS_NAME, LOCAL, CHECK_NAME)
+			CONTINUE
+		PRINTFORML [{LOCAL, 3}] - %GET_STR(0, CLASS_NAME, LOCAL, "이름")%
+	NEXT
+ELSE
+	FOR LOCAL, OBJ_ID_FIRST, OBJ_ID_LAST + 1
+		SIF !STRLENS(GET_STR(0, CLASS_NAME, LOCAL, "이름"))
+			CONTINUE
+		PRINTFORML [{LOCAL, 3}] - %GET_STR(0, CLASS_NAME, LOCAL, "이름")%
+	NEXT
+ENDIF
+

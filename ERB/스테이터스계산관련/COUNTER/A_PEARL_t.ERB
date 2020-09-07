@@ -1,0 +1,121 @@
+﻿@PEARL_CHK_MASTER
+#DIM INSERTER
+#DIM CONST INTERVAL = 30
+#DIM KAKUNIN
+#DIM LAPSE
+
+SIF !TFLAG:펄기한
+	RETURN
+
+INSERTER = TFLAG:펄넣은사람
+
+;과연 타인이 있으면 체크하지 않는다
+KAKUNIN = 1
+SIF CFLAG:INSERTER:현재위치 != CFLAG:MASTER:현재위치
+	KAKUNIN = 0
+SIF GET_TARGETNUM() > 1
+	KAKUNIN = 0
+SIF !SHIRAHU(INSERTER)
+	KAKUNIN = 0
+
+IF TFLAG:펄삽입개수
+	SOURCE:MASTER:쾌A += TIME_PROGRESS(TIME:1) * TFLAG:펄삽입개수
+	SOURCE:MASTER:고통 += TIME_PROGRESS(TIME:1) * TFLAG:펄삽입개수 * 2
+	DOWNBASE:MASTER:체력 += TIME_PROGRESS(TIME:1)
+ENDIF
+
+IF TFLAG:펄기한 < TIME && TFLAG:펄기한 > 0 && TFLAG:펄삽입개수
+	PRINTFORML %마스터는% 약속의 시간까지 참아냈다
+	PRINTFORML %CALLNAME:INSERTER%에 뽑아 받자
+	TFLAG:펄기한 = -1
+ENDIF
+IF KAKUNIN
+	IF TFLAG:펄기한 == -1
+		PRINTFORMW %CALLNAME:INSERTER%는 기한까지 참을 수 있었던 %CALLNAME:MASTER%의 머리를 어루만지면서, 애널 펄을 한 개씩 천천히 뽑아 냈다
+		CALL PEARL_EJECT("뽑아냄")
+		RETURN
+	ELSEIF TFLAG:펄기한 == -2
+		PRINTFORML 애널 펄이 다 없어지고 있던 일을 눈치챈 %CALLNAME:INSERTER%는, 다시 해, 라고 말해 또 1구슬씩 %CALLNAME:MASTER%의 직장에 밀어넣었다!
+		CALL PEARL_INSERT(INSERTER,5)
+	ENDIF
+ENDIF
+
+LAPSE = (TIME - TFLAG:펄배출체크) / INTERVAL
+
+IF LAPSE && TFLAG:펄기한 > 0
+	TFLAG:펄배출체크 = TIME
+	IF KAKUNIN
+		PRINTFORML %CALLNAME:INSERTER%는 %CALLNAME:MASTER%의 엉덩이에 손을 움직여, 애널 펄 상태를 확인했다…
+		PRINTFORML %CALLNAME:MASTER%의 엉덩이 구멍으로부터 펄이 매달려 있는 것을 확인하면, %CALLNAME:INSERTER%는 미소지어 링을 가볍게 당겨, %CALLNAME:MASTER%에 좀 더 참도록 말했다…
+		SOURCE:MASTER:쾌A += 50
+	ENDIF
+	FOR LOCAL, 0, LAPSE
+		CALL PEARL_PATIENCE
+	NEXT
+ENDIF
+
+@PEARL_EJECT(ARGS)
+#DIM INSERTER
+#DIM OTOSIDAMA
+INSERTER = TFLAG:펄넣은사람
+
+IF ARGS == "자연 배출"
+	SOURCE:MASTER:쾌A += 100
+	EXP:MASTER:A경험 += 1
+	TFLAG:펄삽입개수 -= 1
+	PRINTFORMW 애널 펄이 1구슬 나와 버렸다（나머지 {TFLAG:펄삽입개수}구슬）
+	IF !TFLAG:펄삽입개수
+		PRINTFORMW 펄이 다 없어져 버렸다…
+		TFLAG:펄기한 = -2
+	ENDIF
+ELSEIF ARGS == "뽑아냄"
+	SOURCE:MASTER:쾌A += TFLAG:펄삽입개수 * 200
+	EXP:MASTER:A경험 += TFLAG:펄삽입개수
+	EXP:MASTER:고통쾌락경험 += TFLAG:펄삽입개수 * 3
+	EXP:INSERTER:가학쾌락경험 += TFLAG:펄삽입개수 * 3
+	SOURCE:INSERTER:가학 += TFLAG:펄삽입개수 * 100
+	TFLAG:펄삽입개수 = 0
+	TFLAG:펄기한 = 0
+	TFLAG:펄넣은사람 = 0
+	TFLAG:펄배출체크 = 0
+	IF FESTIVAL() == "설날"
+		SELECTCASE RAND:3
+			CASE 0
+				OTOSIDAMA = 10000
+			CASE 1
+				OTOSIDAMA = 30000
+			CASE 2
+				OTOSIDAMA = 50000
+		ENDSELECT
+		PRINTFORMW …?
+		PRINTFORMW 펄의 말단에, 넣어진 기억이 없는 황금의 구슬이 도착해 있다
+		CALL COLORMESSAGE(@"세배돈 보너스! ￥{OTOSIDAMA} 손에 넣었다!",C_YELLOW,2)
+		MONEY += OTOSIDAMA
+	ENDIF
+ENDIF
+
+@PEARL_INSERT(ARG,ARG:1)
+TFLAG:펄삽입개수 = ARG:1
+TFLAG:펄기한 = TIME + TFLAG:펄삽입개수 * 30 + RAND:30 + RAND:30
+TFLAG:펄넣은사람 = ARG
+SOURCE:MASTER:쾌A += TFLAG:펄삽입개수 * 10
+TFLAG:펄배출체크 = TIME
+
+@PEARL_PATIENCE
+PRINTFORML 애널 펄이 항문으로부터 흘러넘칠 것 같다…
+CALL ASK_M("견딘다(기력 50)",BASE:MASTER:기력 >= 50, "전력으로 견딘다(기력 200)",BASE:MASTER:기력 >= 100, "힘을 뺀다",1)
+SELECTCASE RESULT
+	CASE 0
+		DOWNBASE:MASTER:기력 += 50
+		IF !RAND:2
+			PRINTFORMW %마스터는% 배설감을 견뎠다
+		ELSE
+			PRINTFORMW %마스터는% 배설감을 견디지 못했다
+			CALL PEARL_EJECT("자연 배출")
+		ENDIF
+	CASE 1
+		PRINTFORMW %마스터는% 필사적으로 배설감을 견뎠다
+		DOWNBASE:MASTER:기력 += 200
+	CASE 2
+		CALL PEARL_EJECT("자연 배출")
+ENDSELECT

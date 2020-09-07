@@ -1,0 +1,84 @@
+﻿;--------------------------------------------------
+;	맵내 이동 처리 확장 패치 부속
+;	홍마관MAP용 함수
+;--------------------------------------------------
+
+@MAP_PLACENAME_3(ARG)
+#FUNCTIONS
+#DIM PLACEID
+#DIMS KOUMANAME, 33 = "정문","뜰","수위 오두막","빈오두막","헛간","뒷마당","동쪽테라스","서쪽테라스","객실","도서관","파츄리방","소악마방","주방","식당","응접실","1층 화장실","대계단","지하 계단","2층복도","사쿠야방","빈 방","2층 화장실","메이드 요정 대기소","큰발코니","3층 계단","레밀리아방","작은발코니","지하 복도","창고","고용인 방","지하실","탈의실","대목욕탕",
+#DIMS HAIYOUNAME, 9 = "폐양관·입구","폐양관·객실","폐양관·계단","폐양관·부엌","폐양관·목욕탕","폐양관·2층복도","루나사방","메를랑방","리리카방",
+#DIMS KOHANNAME, 6 = "호숫가","레티의 얼음집","치르노의 얼음집","대요정댁","안개의호수","안개의호수·호저"
+IF GET_MAPID(ARG) == MAIN_MAP
+	PLACEID = ARG % 100
+	SELECTCASE PLACEID
+		CASE 1 TO 33
+			RETURNF KOUMANAME:(PLACEID - 1)
+		CASE 34 TO 42
+			RETURNF HAIYOUNAME:(PLACEID - 34)
+		CASE 43 TO 48
+			RETURNF KOHANNAME:(PLACEID - 43)
+		CASE 49
+			RETURNF "안개의 저 편"
+		CASE 98
+			RETURNF OMANEKI_PLACE()
+		CASE 99
+			RETURNF "스키마 공간"
+		CASEELSE
+			RETURNF "안개의 저 편"
+	ENDSELECT
+ELSE
+	RETURNF "불명"
+ENDIF
+
+;@MAP_VIEWING_3
+;IF CHK_ENTRANCE(CFLAG:MASTER:현재위치)
+;ENDIF
+;SIF CHK_FOCUS(301, CFLAG:MASTER:현재위치, 333)
+;	CALL MAP_KOUMAKAN
+;
+;SIF CHK_FOCUS(334, CFLAG:MASTER:현재위치, 347)
+;	CALL MAP_HAIYOUKAN
+;CALL MAP_KOHAN
+;RETURN 1
+
+
+@MAP_VIEWING_3(AA)
+#DIMS REF AA, 0
+IF !TFLAG:맵변환
+	IF CHK_FOCUS(301, CFLAG:MASTER:현재위치, 333)
+		TFLAG:맵변환 = 1
+	ELSEIF CHK_FOCUS(334, CFLAG:MASTER:현재위치, 342)
+		TFLAG:맵변환 = 2
+	ELSE
+		TFLAG:맵변환 = 3
+	ENDIF
+ENDIF
+CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
+PRINTFORML 
+TRYCALLFORM MAP_NEW_KOUMAKAN_{TFLAG:맵변환}(AA)
+
+@MAP_CAN_MOVE_3(ARG, ARG:1)
+#FUNCTION
+;호저, 습기선호 이외
+IF ARG == 348 && TALENT:(ARG:1):습기선호
+	TFLAG:이동불능메시지 = 348
+	RETURNF 0
+ENDIF
+RETURNF 1
+
+@MAP_CANNOT_WORD_3(ARG)
+IF TFLAG:이동불능메시지 == 348
+	PRINTW 무리입니다
+	CLEARLINE 2
+	REUSELASTLINE 
+	RETURN
+ENDIF
+
+@MAP소개_3
+;とりあえず5行
+PRINTFORML 紅魔館・霧の湖を中心に、プリズムリバー三姉妹の住む廃洋館までを含んだエリア。
+PRINTFORML 最大の特徴はここにしか存在しないカジノ。
+PRINTFORML 湖の水は酒造に役立つほか釣りもでき、なかなか利便性の高い拠点。
+PRINTFORML 吸血鬼の館らしく一部の住人は夜になってから活動を始めるため、必要に応じ起床時間をずらすことも必要だろう。
+PRINTFORML 拠点内での仕事の手伝い先にも事欠かないが、こまめに清掃が行われるためか紅魔館の中は案外汚れない。

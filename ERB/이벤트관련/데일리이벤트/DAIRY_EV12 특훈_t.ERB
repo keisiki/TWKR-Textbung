@@ -1,0 +1,143 @@
+﻿@DAIRY_CONDITION_EV12
+VARSET LOCAL
+IF RAND:15 > 0
+	RETURN -1
+ELSE
+	CALL FISHER_YATES_SHAFFLE(CHARANUM - 1)
+	FOR LOCAL:10, 0, CHARANUM - 1
+		LOCAL = SHAFFLE_ARRAY:(LOCAL:10) + 1
+		IF CFLAG:LOCAL:신뢰도 >= 100 && CFLAG:LOCAL:신사거주
+			LOCAL:1 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	IF !LOCAL:1
+		RETURN -1
+	ELSE
+		CALL DAIRY_EV12(LOCAL:1)
+		RETURN 1
+	ENDIF
+ENDIF
+
+@DAIRY_EV12(ARG)
+#DIM 정답
+#DIM 경험치
+#DIM 제한시간
+#DIM 배율
+#DIM FEINT
+#DIM 가짜
+VARSET LOCAL
+가짜 = 0
+제한시간 = 2000 - (ABL:ARG:전투능력 - ABL:MASTER:전투능력) * 100
+PRINTFORML %조사처리(CALLNAME:ARG,"로")%부터 신기술 훈련에 교제해달라는 말을 들었다
+SIF ABL:ARG:전투능력 >= 4
+		PRINTFORML 상대가 상대이므로 자칫 잘못하면 크게 다칠지도 모른다……
+CALL ASK_YN("교제한다","싫다")
+IF RESULT
+	PRINTFORML %조사처리(CALLNAME:ARG,"는")% 아쉬운 것 같다
+ELSE
+	정답 = RAND:4
+	경험치 = MAX(ABL:ARG:전투능력 * 5, 5)
+	SELECTCASE RAND:20
+		CASE IS <= 11
+		;보통으로
+			LOCALS:0 = 위
+			LOCALS:1 = 오른쪽
+			LOCALS:2 = 왼쪽
+			LOCALS:3 = 아래
+			배율 = 100
+		CASE 12 TO 15
+		;로마자
+			LOCALS:0 = WI
+			LOCALS:1 = OREUNJJOK
+			LOCALS:2 = OENJJOK
+			LOCALS:3 = ARAE
+			배율 = 160
+		;영어
+		CASE 16,17,18
+			LOCALS:0 = UP
+			LOCALS:1 = RIGHT
+			LOCALS:2 = LEFT
+			LOCALS:3 = DOWN
+			배율 = 120
+		;스페인어
+		CASE 19
+			LOCALS:0 = encima de
+			LOCALS:1 = a la derecha
+			LOCALS:2 = a la izquierda
+			LOCALS:3 = abajo de
+			배율 = 300
+	ENDSELECT
+	;전투능력이 높으면 페인트 걸쳐 온다
+	IF ABL:ARG:전투능력 > 3 && !RAND:3
+		FEINT = 1
+		제한시간 += 400
+		배율 += 80
+	ELSE
+		FEINT = 0
+	ENDIF
+	CALL FISHER_YATES_SHAFFLE(4)
+	PRINTFORMW %CALLNAME:ARG%의 공격을 피하자 (클릭으로 개시)
+	PRINTFORM %CALLNAME:ARG%의 
+	SETCOLOR C_YELLOW
+	IF FEINT
+		PRINTFORM %조사처리(LOCALS:(RAND:4),"로")% 
+		RESETCOLOR
+		PRINTFORM 속이고 %조사처리(LOCALS:(3 - 정답),"로")%
+	ELSE
+		PRINTFORM %조사처리(LOCALS:(3 - 정답),"로")%
+		RESETCOLOR
+	ENDIF
+	PRINTFORML 부터의 공격!
+	$LOOP_IKASAMA
+	FOR LOCAL:10, 0,4
+		LOCAL = SHAFFLE_ARRAY:(LOCAL:10)
+		PRINTFORML [{LOCAL}] - %조사처리(LOCALS:LOCAL,"로")% 피한다
+	NEXT
+	SIF !가짜 && BASE:MASTER:TSP > 500
+		PRINTFORML [{4}] - 시간정지
+	TINPUT 제한시간, -1, 1
+	IF RESULT == 정답
+		PRINTFORML %마스터는% 공격을 회피했다!
+		IF !가짜
+			PRINTFORMW 서로에게 좋은 경험이 되었다
+		ELSE
+			PRINTFORMW 미끄러졌기 떄문에 그다지 연습이 되지 않았다……
+		ENDIF
+		경험치 = 경험치 * 배율 / 100
+		MAXBASE:MASTER:체력+= 경험치
+		EXP:MASTER:전투경험 += 경험치
+		EXP:ARG:전투경험 += 경험치 * 2
+		CFLAG:ARG:호감도 += 경험치/2
+		CFLAG:ARG:신뢰도 += 경험치/3
+		PRINTFORML 전투경험 ＋{경험치}(%CALLNAME:MASTER%)
+		PRINTFORML 전투경험 ＋{경험치 * 2}(%CALLNAME:ARG%)
+		PRINTFORML 호감도 ＋{경험치 / 2}(%CALLNAME:ARG%)
+		PRINTFORML 신뢰도 ＋{경험치 / 3}(%CALLNAME:ARG%)
+	ELSEIF RESULT == 4 && !가짜 && BASE:MASTER:TSP > 500
+		가짜 = 1
+		배율 /= 5
+		PRINTFORMW %마스터는% 시점 정지 능력으로 공격을 판별했다!
+		GOTO LOOP_IKASAMA
+	ELSE
+		PRINTFORML 피하지 못했다!
+		PRINTFORM %마스터는% 
+		SELECTCASE ABL:ARG:전투능력
+			CASE IS <= 1
+				PRINTFORM 조금 
+			CASE 2,3
+				PRINTFORM 상당히 
+			CASEELSE
+				PRINTFORM 엉망진창 
+		ENDSELECT
+		PRINTFORMW 아프다는 생각이 들었다
+		BASE:MASTER:체력 -= 400 * (1 + ABL:ARG:전투능력)
+		PRINTFORML 전투경험 ＋{경험치}(%CALLNAME:ARG%)
+		EXP:ARG:전투경험 += 경험치
+		CFLAG:ARG:호감도 += 경험치 / 4
+		CFLAG:ARG:신뢰도 += 경험치 / 5
+		PRINTFORML 호감도 ＋{경험치/4}(%CALLNAME:ARG%)
+		PRINTFORML 신뢰도 ＋{경험치/5}(%CALLNAME:ARG%)
+	ENDIF
+ENDIF
+PRINTW 

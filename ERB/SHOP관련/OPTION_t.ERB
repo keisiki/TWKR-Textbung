@@ -1,0 +1,1221 @@
+﻿;옵션 설정 처리
+@OPTION
+LOCAL:1 = 0
+DRAWLINEFORM =
+FOR LOCAL, 0, 100
+	SIF OPTION_SETNAME(LOCAL) == ""
+		CONTINUE
+	PRINTFORML [{LOCAL, 2}] - %OPTION_SETNAME(LOCAL), 30, RIGHT%：%RESULTS:1%
+	LOCAL:1 ++
+NEXT
+DRAWLINEFORM －
+PRINTFORML [94] - 오토신음일괄설정
+PRINTFORML [95] - 간이 필터의 일괄 설정
+PRINTFORML [96] - 요리의 옵션 설정
+PRINTFORML [97] - 그림 상세 설정
+PRINTFORML [98] - 등장캐릭터변환
+PRINTFORML [99] - 커맨드필터
+DRAWLINE
+IF DAY > 120; 일판용 강하게 재시작. 한판에선 주석화되어 있었음
+	PRINTFORML [200] - 바이쳐 더스트
+	LOCAL:1 ++
+ENDIF
+PRINTFORML [100] - 설정 완료
+INPUT
+IF OPTION_SETNAME(RESULT) != ""
+	CALL OPTION_SETTING(RESULT)
+	CLEARLINE 11 + LOCAL:1
+ELSEIF RESULT == 94
+	CALL OPTION_오토신음일괄설정
+ELSEIF RESULT == 95
+	CALL 간이필터일괄설정
+ELSEIF RESULT == 96
+	CALL SET_OPTION_COOKING
+ELSEIF RESULT == 97
+	CALL OPTION_그림표시상세설정
+ELSEIF RESULT == 98
+	CALL 등장캐릭터변환
+ELSEIF RESULT == 99
+	CALL OPTION_COMMAND_FILTER
+ELSEIF RESULT == 200; && DAY > 120
+	PRINTFORML 시간을 날려버려서 1일째로 되돌아가겠습니까?
+    PRINTL 
+    PRINTL [0] 「스위치」를 누르게 하지맛――
+    PRINTL [1] 아냐! 한계다 누를래! 지금이닷!
+    INPUT
+    IF RESULT == 1
+        CALL 강하게뉴게임
+    ELSE
+;		PRINTW 「스위치」를 누르는 건 멈추지 못했지만, 운 좋게도 옵션 선택까지밖에 돌아가지 않았다.
+	ENDIF
+ELSE
+	RETURN
+ENDIF
+RESTART
+
+@OPTION_SETNAME(ARG)
+#FUNCTIONS
+VARSET RESULTS
+SELECTCASE ARG
+CASE 0
+	RESULTS:0 = 임신 유무※기본 OFF.
+	IF FLAG:임신스위치
+		RESULTS:1 = 임신한다 ※뭔가 발생했을 때 자기 책임으로　　
+	ELSE
+		RESULTS:1 = 임신하지 않는다
+	ENDIF
+CASE 1
+	RESULTS:0 = 자식의성별
+	SELECTCASE FLAG:자식의성별
+	CASE 0
+		RESULTS:1 = 랜덤
+	CASE 1
+		RESULTS:1 = 여자아이
+	CASE 2
+		RESULTS:1 = 남자아이
+	ENDSELECT
+CASE 2
+	RESULTS:0 = 자식묘사
+	IF FLAG:자식묘사
+		RESULTS:1 = 있음
+	ELSE
+		RESULTS:1 = 없음
+	ENDIF
+CASE 3
+	RESULTS:0 = 더부살이이벤트
+	IF FLAG:더부살이이벤트
+		RESULTS:1 = 없음
+	ELSE
+		RESULTS:1 = 있음
+	ENDIF
+CASE 4
+	RESULTS:0 = 연회 발생
+	IF FLAG:연회의유무
+		RESULTS:1 = 있음
+	ELSE
+		RESULTS:1 = 없음
+	ENDIF
+CASE 5
+	RESULTS:0 = 상대 쪽의 고백
+	IF FLAG:고백금지
+		RESULTS:1 = 고백하지 않는다
+	ELSE
+		RESULTS:1 = 고백한다
+	ENDIF
+CASE 6
+	RESULTS:0 = 섹프계 함락에서 연모계 함락으로 변화
+	IF FLAG:함락노선변화
+		RESULTS:1 = 변화한다
+	ELSE
+		RESULTS:1 = 변화하지 않는다
+	ENDIF
+CASE 7
+	RESULTS:0 = 이벤트로 [무지] 상실 발생
+	IF FLAG:무지자동상실금지
+		RESULTS:1 = 상실하지 않는다
+	ELSE
+		RESULTS:1 = 상실한다
+	ENDIF
+CASE 8
+	RESULTS:0 = 텍스트 설정
+	IF FLAG:정경텍스트설정 == 1 && FLAG:구상텍스트설정 == 2
+		RESULTS:1 = 대사 텍스트＋정경 텍스트
+	ELSEIF FLAG:정경텍스트설정 == 1 && FLAG:구상텍스트설정 == -1
+		RESULTS:1 = 정경 텍스트만
+	ELSEIF FLAG:정경텍스트설정 == 0 && FLAG:구상텍스트설정 == -1
+		RESULTS:1 = 텍스트를 표시하지 않는다
+	ENDIF
+CASE 9
+	RESULTS:0 = 대사색깔
+	IF FLAG:대사색깔
+		RESULTS:1 = 있음
+	ELSE
+		RESULTS:1 = 없음
+	ENDIF
+CASE 10
+	RESULTS:0 = 불결도 표시
+	IF FLAG:쓰레기표시OFF
+		RESULTS:1 = 하지 않는다
+	ELSE
+		RESULTS:1 = 한다
+	ENDIF
+CASE 11
+	RESULTS:0 = 카운터로 소질 변화
+	IF FLAG:카운터지문제어
+		RESULTS:1 = 소질이 변화한다
+	ELSE
+		RESULTS:1 = 변화하지 않는다
+	ENDIF
+CASE 12
+	RESULTS:0 = 가슴 관련 텍스트 설정
+	IF FLAG:Look표시용유방 == 1 && FLAG:Look표시용유두 == 1
+		RESULTS:1 = 가슴 관련 전부 고정 묘사
+	ELSEIF FLAG:Look표시용유방 == 1 && FLAG:Look표시용유두 == 0
+		RESULTS:1 = 유방만 고정 묘사
+	ELSEIF FLAG:Look표시용유방 == 0 && FLAG:Look표시용유두 == 1
+		RESULTS:1 = 유두만 고정 묘사
+	ELSEIF FLAG:Look표시용유방 == 0 && FLAG:Look표시용유두 == 0
+		RESULTS:1 = 가슴 관련 랜덤 묘사
+	ENDIF
+CASE 13
+	RESULTS:0 = 호의/이성의 벽 단축표시
+	IF FLAG:호의이성단축
+		RESULTS:1 = 단축한다
+	ELSE
+		RESULTS:1 = 단축하지 않는다
+	ENDIF
+CASE 14
+	RESULTS:0 = 능력 표시 버튼 표기
+	IF FLAG:능력표기
+		RESULTS:1 = 숫자 표기
+	ELSE
+		RESULTS:1 = 기호 표기
+	ENDIF
+CASE 15
+	RESULTS:0 = 턴마다 나오는 ABLUP 생략
+	IF FLAG:ABLUP생략
+		RESULTS:1 = 생략한다
+	ELSE
+		RESULTS:1 = 생략하지 않는다
+	ENDIF
+CASE 16
+	RESULTS:0 = 첫키스 기록 상황 설정
+	SELECTCASE FLAG:FK판정
+	CASE 0
+		RESULTS:1 = 키스만·자각했을 때만
+	CASE 1
+		RESULTS:1 = 키스만·미자각 포함
+	CASE 2
+		RESULTS:1 = 펠라 포함·자각했을 때만
+	CASE 3
+		RESULTS:1 = 펠라 포함·미자각 포함
+	ENDSELECT
+CASE 17
+	RESULTS:0 = 이동시 멈춰 서기
+	SELECTCASE FLAG:멈춰서기
+	CASE 0
+		RESULTS:1 = 무조건 멈춰 선다
+	CASE 1
+		RESULTS:1 = 대사가 존재할 경우에만
+	CASE 2
+		RESULTS:1 = 멈춰 서지 않는다
+	ENDSELECT
+CASE 18
+	RESULTS:0 = 캐릭터 만남시 의뢰 표시
+	IF FLAG:의뢰패스
+		RESULTS:1 = 표시하지 않는다
+	ELSE
+		RESULTS:1 = 표시한다
+	ENDIF
+CASE 19
+	RESULTS:0 = 소모품의 자동 구입
+	IF FLAG:소모품자동구입
+		RESULTS:1 = 한다
+	ELSE
+		RESULTS:1 = 하지 않는다
+	ENDIF
+CASE 20
+	RESULTS:0 = 자동 시간정지 이동
+	SELECTCASE FLAG:순간이동
+	CASE 0
+		RESULTS:1 = ＯＦＦ
+	CASE 1
+		RESULTS:1 = 외출지 산책시에만
+	CASE 2
+		RESULTS:1 = 거점내 이동시에만
+	CASE 3
+		RESULTS:1 = 외출지/거점내 양쪽 다
+	ENDSELECT
+CASE 21
+	RESULTS:0 = 능력을 비교해서 덮쳐지지 않게 되는 판정
+	IF FLAG:덮치기
+		RESULTS:1 = 있음
+	ELSE
+		RESULTS:1 = 없음
+	ENDIF
+;CASE 22
+;	RESULTS:0 = 경고장사용
+;	IF FLAG:경고장사용
+;		RESULTS:1 = 있음
+;	ELSE
+;		RESULTS:1 = 없음
+;	ENDIF
+CASE 23
+	RESULTS:0 = 내방모드
+	SELECTCASE FLAG:교류내방모드
+	CASE 0
+		RESULTS:1 = 통상
+	CASE 1 ;일판은 내방플래그.ERB 변경되어 50
+		RESULTS:1 = 호감도 0은 내방하지 않는다
+	CASE 2
+		RESULTS:1 = 내방하지 않는다
+	ENDSELECT
+CASE 24
+	RESULTS:0 = 탈의시 명령 선택
+	SELECTCASE FLAG:탈의선택
+	CASE 0
+		RESULTS:1 = 매번 선택
+	CASE 1
+		RESULTS:1 = 전라
+	CASE 2
+		RESULTS:1 = 반라
+	ENDSELECT
+CASE 25
+	RESULTS:0 = 시간정지 탈의시 팬티 처리
+	SELECTCASE FLAG:팬티도둑
+	CASE 0
+		RESULTS:1 = 매번 선택
+	CASE 1
+		RESULTS:1 = 항상 훔친다
+	CASE 2
+		RESULTS:1 = 항상 벗기기만 할 뿐
+	ENDSELECT
+CASE 26
+	RESULTS:0 = 일부 캐릭터의 니삭스 착용
+	IF FLAG:니삭스착용
+		RESULTS:1 = 있음
+	ELSE
+		RESULTS:1 = 없음
+	ENDIF
+CASE 27
+	RESULTS:0 = 야한 속옷을 추가한다
+	IF FLAG:섹시팬티추가
+		RESULTS:1 = 추가한다
+	ELSE
+		RESULTS:1 = 추가하지 않는다
+	ENDIF
+CASE 28
+	RESULTS:0 = 팬티 수집 상황 표시
+	IF FLAG:팬티수집상황타입B
+		RESULTS:1 = 미입수여도 표시한다
+	ELSE
+		RESULTS:1 = 미입수를 표시하지 않는다
+	ENDIF
+CASE 36
+	RESULTS:0 = 일상 호감 신뢰 상승 배율 설정
+	IF FLAG:호감신뢰상승률
+		RESULTS:1 = (현재 {1+FLAG:호감신뢰상승률}배)
+	ELSE
+		RESULTS:1 = 디폴트
+	ENDIF
+CASE 37
+	RESULTS:0 = 의뢰 호감 신뢰 상승 배율 설정
+	IF FLAG:의뢰호감신뢰상승률
+		RESULTS:1 = (현재 {1+FLAG:의뢰호감신뢰상승률}배)
+	ELSE
+		RESULTS:1 = 디폴트
+	ENDIF
+ENDSELECT
+RETURNF RESULTS:0
+
+@OPTION_SETTING(ARG)
+SELECTCASE OPTION_SETNAME(ARG)
+CASE "임신 유무※기본 OFF."
+	FLAG:임신스위치 = !FLAG:임신스위치
+CASE "텍스트 설정"
+	IF FLAG:정경텍스트설정 == 1 && FLAG:구상텍스트설정 == 2
+		FLAG:정경텍스트설정 = 1
+		FLAG:구상텍스트설정 = -1
+	ELSEIF FLAG:정경텍스트설정 == 1 && FLAG:구상텍스트설정 == -1
+		FLAG:정경텍스트설정 = 0
+		FLAG:구상텍스트설정 = -1
+	ELSEIF FLAG:정경텍스트설정 == 0 && FLAG:구상텍스트설정 == -1
+		FLAG:정경텍스트설정 = 1
+		FLAG:구상텍스트설정 = 2
+	ENDIF
+CASE "소모품의 자동 구입"
+	FLAG:소모품자동구입 = !FLAG:소모품자동구입
+CASE "불결도 표시"
+	FLAG:쓰레기표시OFF = !FLAG:쓰레기표시OFF
+CASE "이동시 멈춰 서기"
+	CALL 옵션바꿔치기("멈춰서기", 2)
+CASE "능력을 비교해서 덮쳐지지 않게 되는 판정"
+	FLAG:덮치기 = !FLAG:덮치기
+CASE "자동 시간정지 이동"
+	CALL 옵션바꿔치기("순간이동", 3)
+CASE "더부살이이벤트"
+	FLAG:더부살이이벤트 = !FLAG:더부살이이벤트
+CASE "경고장사용"
+	FLAG:경고장사용 = !FLAG:경고장사용
+CASE "일부 캐릭터의 니삭스 착용"
+	FLAG:니삭스착용 = !FLAG:니삭스착용
+CASE "연회 발생"
+	FLAG:연회의유무 = !FLAG:연회의유무
+CASE "내방모드"
+	CALL 옵션바꿔치기("교류내방모드", 2)
+CASE "탈의시 명령 선택"
+	CALL 옵션바꿔치기("탈의선택", 2)
+CASE "시간정지 탈의시 팬티 처리"
+	CALL 옵션바꿔치기("팬티도둑", 2)
+CASE "대사색깔"
+	FLAG:대사색깔 = !FLAG:대사색깔
+CASE "가슴 관련 텍스트 설정"
+	IF FLAG:Look표시용유방 == 1 && FLAG:Look표시용유두 == 1
+		FLAG:Look표시용유방 = 1
+		FLAG:Look표시용유두 = 0
+	ELSEIF FLAG:Look표시용유방 == 1 && FLAG:Look표시용유두 == 0
+		FLAG:Look표시용유방 = 0
+		FLAG:Look표시용유두 = 1
+	ELSEIF FLAG:Look표시용유방 == 0 && FLAG:Look표시용유두 == 1
+		FLAG:Look표시용유방 = 0
+		FLAG:Look표시용유두 = 0
+	ELSEIF FLAG:Look표시용유방 == 0 && FLAG:Look표시용유두 == 0
+		FLAG:Look표시용유방 = 1
+		FLAG:Look표시용유두 = 1
+	ENDIF
+CASE "능력 표시 버튼 표기"
+	FLAG:능력표기 = !FLAG:능력표기
+CASE "카운터로 소질 변화"
+	FLAG:카운터지문제어 = !FLAG:카운터지문제어
+CASE "야한 속옷을 추가한다"
+	FLAG:섹시팬티추가 = !FLAG:섹시팬티추가
+	IF !FLAG:섹시팬티추가
+		PRINTFORMW 환상향에 찾아든 야한 속옷 붐이 종식되었습니다
+		PRINTL 
+		PRINTFORML 보유하고 있는 야한 속옷을 삭제하겠습니까?
+		PRINTFORML 삭제 대상：스캔티, 훈도시, G스트링, 시스루 쇼츠, 오픈 쇼츠, 반창고, 드로워즈(가랑이 뚫림)
+		PRINTL 
+		PRINTL [0] 이젠 필요 없어
+		PRINTL [1] 소중히 보관한다
+		INPUT
+		IF RESULT == 0
+			CALL DELETE_SEXYPANTS
+			CLEARLINE 10
+		ELSE
+			CLEARLINE 8
+		ENDIF
+	ENDIF
+CASE "섹프계 함락에서 연모계 함락으로 변화"
+	FLAG:함락노선변화 = !FLAG:함락노선변화
+CASE "상대 쪽의 고백"
+	FLAG:고백금지 = !FLAG:고백금지
+CASE "턴마다 나오는 ABLUP 생략"
+	FLAG:ABLUP생략 = !FLAG:ABLUP생략
+CASE "이벤트로 [무지] 상실 발생"
+	FLAG:무지자동상실금지 = !FLAG:무지자동상실금지
+CASE "호의/이성의 벽 단축표시"
+	FLAG:호의이성단축 = !FLAG:호의이성단축
+CASE "자식묘사"
+	FLAG:자식묘사 = !FLAG:자식묘사
+CASE "자식의성별"
+	CALL 옵션바꿔치기("자식의성별", 2)
+CASE "팬티 수집 상황 표시"
+	FLAG:팬티수집상황타입B = !FLAG:팬티수집상황타입B
+CASE "첫키스 기록 상황 설정"
+	CALL 옵션바꿔치기("FK판정", 3)
+CASE "캐릭터 만남시 의뢰 표시"
+	FLAG:의뢰패스 = !FLAG:의뢰패스
+CASE "일상 호감 신뢰 상승 배율 설정"
+	PRINTFORML 변경할 일반 호감도/신뢰 추가 획득 배율 입력 『현재 : {1 + FLAG:호감신뢰상승률}x, 최대 20』
+	INPUT
+	FLAG:호감신뢰상승률 = LIMIT(RESULT, 0, 20)
+CASE "의뢰 호감 신뢰 상승 배율 설정"
+	PRINTFORML 변경할 의뢰 호감도/신뢰 추가 획득 배율 입력 『현재 : {1 + FLAG:의뢰호감신뢰상승률}x, 최대 10』
+	INPUT
+	FLAG:의뢰호감신뢰상승률 = LIMIT(RESULT, 0, 10)
+ENDSELECT
+
+@옵션바꿔치기(ARGS, ARG)
+FLAG:ARGS ++
+SIF FLAG:ARGS > ARG
+	FLAG:ARGS = 0
+
+@OPTION_오토신음일괄설정
+CALL ASK_M("전원없음",1,"전원있음（천박함 없음）",1,"전원있음（천박함 있음）",1, "취소한다",1)
+IF INRANGE(RESULT, 0, 2)
+	FOR LOCAL,1,CHARANUM
+		CFLAG:LOCAL:오토신음 = RESULT
+	NEXT
+	PRINTFORMW 일괄설정했습니다.
+ENDIF
+
+@등장캐릭터변환
+PRINTL 　지정한 캐릭터가 등장하지 않도록 합니다. ("*"는 대사가 있는 캐릭터)
+DRAWLINE
+FOR LOCAL,1,CHARANUM
+	SIF TALENT:LOCAL:스침
+		CONTINUE
+	SIF CFLAG:LOCAL:출금
+		SETCOLOR C_D_RED
+	RESULT = 0
+	TRYCALLFORM M_KOJO_K{NO:LOCAL}
+	PRINTFORMLC [{LOCAL, 3}] \@ RESULT ? * # \@%CALLNAME:LOCAL%
+	RESETCOLOR
+NEXT
+PRINTL 　
+DRAWLINE
+PRINTFORML [999] 설정 종료　출연금지 캐릭터：{FLAG:출금인원수}명　[998]리셋
+$LOOP
+INPUT
+IF RESULT >= 1 && RESULT <= CHARANUM
+	IF CFLAG:RESULT:출금 && FLAG:역극 != RESULT
+		CFLAG:RESULT:출금 = 0
+		SIF CFLAG:RESULT:현재위치 == CFLAG:RESULT:초기위치 && CFLAG:RESULT:수면
+			LOCK:(CFLAG:RESULT:초기위치) = 1
+		FLAG:출금인원수 --
+	ELSEIF TALENT:RESULT:스침
+		PRINTFORMW 이 캐릭터는 출연금지를 해제할 수 없습니다
+		GOTO LOOP
+	ELSEIF FLAG:역극 == RESULT
+		IF CFLAG:(FLAG:역극):출금 == 1
+			PRINTFORML 현재 그 캐릭터의 역극 중이기에, %CALLNAME:RESULT%가 두 명 있게 됩니다만…
+			PRINTL 그래도 등장시키겠습니까?
+			PRINTL [0]네 [1]아니오
+			INPUT
+			IF RESULT == 0
+				CFLAG:(FLAG:역극):출금 = 0
+				SIF CFLAG:(FLAG:역극):현재위치 == CFLAG:(FLAG:역극):초기위치 && CFLAG:(FLAG:역극):수면
+					LOCK:(CFLAG:(FLAG:역극):초기위치) = 1
+				FLAG:출금인원수 --
+				PRINTFORMW %CALLNAME:(FLAG:역극)%를 등장시킵니다
+			ELSE
+				GOTO LOOP
+			ENDIF
+		ELSE
+			CFLAG:(FLAG:역극):출금 = 1
+			SIF LOCK:(CFLAG:(FLAG:역극):초기위치) && CFLAG:(FLAG:역극):초기위치 < 100
+				LOCK:(CFLAG:(FLAG:역극):초기위치) = 0
+			FLAG:출금인원수 ++
+		ENDIF
+	ELSE
+		CFLAG:RESULT:출금 = 1
+		SIF LOCK:(CFLAG:RESULT:초기위치) && CFLAG:RESULT:초기위치 < 100
+			LOCK:(CFLAG:RESULT:초기위치) = 0
+		FLAG:출금인원수 ++
+	ENDIF
+	RESTART
+ELSEIF RESULT == 999
+	PRINTW 설정 종료했습니다.
+ELSEIF RESULT == 998
+	FOR LOCAL,1,CHARANUM
+		SIF FLAG:역극 == LOCAL
+			CONTINUE
+		SIF TALENT:LOCAL:스침
+			CONTINUE
+		CFLAG:LOCAL:출금 = 0
+	NEXT
+	FLAG:출금인원수 = 0
+	RESTART
+ELSE
+	GOTO LOOP
+ENDIF
+
+;간이 필터 제어 함수
+;사양상의 문제로서 설정 항목이 너무 증가하면 설계를 다시 할 필요가 있다
+@간이필터일괄설정
+#DIM OP_CFLAG_V언필터
+#DIM OP_CFLAG_A언필터
+#DIM OP_CFLAG_SM언필터
+#DIM OP_CFLAG_봉사언필터
+#DIM OP_CFLAG_성희롱언필터
+#DIM OP_SETTING
+IF !LOCAL
+	OP_CFLAG_V언필터       = GETNUM(CFLAG, "V언필터")
+	OP_CFLAG_A언필터       = GETNUM(CFLAG, "A언필터")
+	OP_CFLAG_SM언필터     = GETNUM(CFLAG, "SM언필터")
+	OP_CFLAG_봉사언필터     = GETNUM(CFLAG, "봉사언필터")
+	OP_CFLAG_성희롱언필터 = GETNUM(CFLAG, "성희롱언필터")
+	LOCAL ++
+ENDIF
+PRINTFORML ～간이 필터 설정～
+PRINTFORML ※개별적인 커맨드필터는 이것과는 별도로 설정되어 있습니다
+PRINTFORML 
+PRINTFORML [29] 전 캐릭터의 모든 간이 필터 오프
+PRINTFORML [28] 전 캐릭터별 [V]를 개방
+PRINTFORML [27] 전 캐릭터별 [A]를 개방
+PRINTFORML [26] 전 캐릭터별 [SM]를 개방
+PRINTFORML [25] 전 캐릭터별 [봉사]를 개방
+PRINTFORML [24] 전 캐릭터별 [성희롱]을 개방
+PRINTFORML [23] [가사]를 개방
+PRINTFORML 
+PRINTFORML [19] 전 캐릭터의 모든 간이 필터 온
+PRINTFORML [18] 전 캐릭터별 [V]를 제한
+PRINTFORML [17] 전 캐릭터별 [A]를 제한
+PRINTFORML [16] 전 캐릭터별 [SM]를 제한
+PRINTFORML [15] 전 캐릭터별 [봉사]를 제한
+PRINTFORML [14] 전 캐릭터별 [성희롱]을 제한
+PRINTFORML [13] [가사]를 제한
+PRINTFORML 
+PRINTFORML [99] 설정 종료
+DO
+	INPUT
+	OP_SETTING = (RESULT / 10) - 1
+	;20그리고 1, 10으로 0
+	SELECTCASE RESULT
+	CASE 29, 19
+		CVARSET CFLAG, OP_CFLAG_V언필터, OP_SETTING
+		CVARSET CFLAG, OP_CFLAG_A언필터, OP_SETTING
+		CVARSET CFLAG, OP_CFLAG_SM언필터, OP_SETTING
+		CVARSET CFLAG, OP_CFLAG_봉사언필터, OP_SETTING
+		CVARSET CFLAG, OP_CFLAG_성희롱언필터, OP_SETTING
+		FLAG:가사언필터 = OP_SETTING
+		IF OP_SETTING
+			PRINTFORMW 전 캐릭터의 모든 간이 필터를 ＜OFF＞했습니다
+		ELSE
+			PRINTFORMW 전 캐릭터의 모든 간이 필터를 ＜ON＞했습니다
+		ENDIF
+	CASE 28, 18
+		CVARSET CFLAG, OP_CFLAG_V언필터, OP_SETTING
+		IF OP_SETTING
+			PRINTFORMW 전 캐릭터별 [V] 커맨드를 ＜개방＞합니다
+		ELSE
+			PRINTFORMW 전 캐릭터별 [V] 커맨드를 ＜제한＞합니다
+		ENDIF
+	CASE 27, 17
+		CVARSET CFLAG, OP_CFLAG_A언필터, OP_SETTING
+		IF OP_SETTING
+			PRINTFORMW 전 캐릭터별 [A] 커맨드를 ＜개방＞합니다
+		ELSE
+			PRINTFORMW 전 캐릭터별 [A] 커맨드를 ＜제한＞합니다
+		ENDIF
+	CASE 26, 16
+		CVARSET CFLAG, OP_CFLAG_SM언필터, OP_SETTING
+		IF OP_SETTING
+			PRINTFORMW 전 캐릭터별 [SM] 커맨드를 ＜개방＞합니다
+		ELSE
+			PRINTFORMW 전 캐릭터별 [SM] 커맨드를 ＜제한＞합니다
+		ENDIF
+	CASE 25, 15
+		CVARSET CFLAG, OP_CFLAG_봉사언필터, OP_SETTING
+		IF OP_SETTING
+			PRINTFORMW 전 캐릭터별 [봉사] 커맨드를 ＜개방＞합니다
+		ELSE
+			PRINTFORMW 전 캐릭터별 [봉사] 커맨드를 ＜제한＞합니다
+		ENDIF
+	CASE 24, 14
+		CVARSET CFLAG, OP_CFLAG_성희롱언필터, OP_SETTING
+		IF OP_SETTING
+			PRINTFORMW 전 캐릭터별 [성희롱] 커맨드를 ＜개방＞합니다
+		ELSE
+			PRINTFORMW 전 캐릭터별 [성희롱] 커맨드를 ＜제한＞합니다
+		ENDIF
+	CASE 23, 13
+		FLAG:가사언필터 = OP_SETTING
+		IF OP_SETTING
+			PRINTFORMW 가사 커맨드를 ＜개방＞합니다
+		ELSE
+			PRINTFORMW 가사 커맨드를 ＜제한＞합니다
+		ENDIF
+	CASE 99
+		PRINTFORMW 간이 필터의 설정을 종료합니다
+		RETURN
+	CASEELSE
+		PRINTFORML 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+	BREAK
+LOOP 1
+RESTART
+
+;---------------------------------------------------------------
+;	그림 상세 설정
+;	설정이 증가했으므로 신설
+;---------------------------------------------------------------
+@OPTION_그림표시상세설정
+TARGET = [[레이무]]
+FOR LOCAL, 1, 11
+	TARGET:LOCAL = LOCAL
+NEXT
+PRINTL ▼샘플▼
+CALL PRINT_TARGET_IMAGE(TARGET)
+PRINTL
+PRINTFORML [ 0] - 그림표시를 \@ FLAG:그림표시 ? 한다 # 안한다 \@
+IF FLAG:그림표시
+	PRINTFORML [ *]┬ 현재의 \@ FLAG:스탠딩종류 ? 얼굴 그림 # 스탠딩 \@의 표시 인원수 {FLAG:그림표시}인 화상사이즈{100 + isModifier}％
+	PRINTFORML [ 1]├ 늘린다
+	PRINTFORML [ 2]└ 줄인다
+	PRINTFORML [ 3] - 캐릭터 그림의 타입 \@ FLAG:스탠딩종류 ? [얼굴] # [스탠딩] \@
+	PRINTFORML [ 4]\@ FLAG:그림표시 ? ┬ # %" "%- \@ 삽화를 표시한다 \@ FLAG:삽화표시 ? ON # OFF \@
+	IF FLAG:그림표시
+		PRINT [ 5]└ 사정 그림의 종류
+		SELECTCASE FLAG:사정화상종류
+			CASE 0
+				PRINTL  [단면＋효과음]
+			CASE 1
+				PRINTL  [단면만]
+			CASE 2
+				PRINTL  [효과음만]
+		ENDSELECT
+	ELSE
+		PRINTL
+	ENDIF
+	PRINTFORML [ 6]\@ FLAG:애니메이션 ? ┬ # %" "%- \@애니메이션 설정 \@ FLAG:애니메이션 ? 반복 회수 {FLAG:애니메이션}회 # OFF \@
+	IF FLAG:애니메이션
+		PRINTFORML [ 7]└삽입중에는 매턴 애니메이션 표시：\@FLAG:삽입애니메이션필터 & 아니메필터_삽입 ? [×]# [O]\@
+	ELSE
+		PRINTL 
+	ENDIF
+	PRINTFORML [ 8] - \@ FLAG:스탠딩종류 ? 얼굴 그림 # 스탠딩 \@의 표시 위치 [\@ FLAG:그림표시위치 ? 왼쪽 맞춤# 중앙 맞춤 \@]
+	PRINTFORML [ 9] - 그림 표시에 테두리를 친다 \@ FLAG:화상범위표시 ? ON # OFF \@
+	PRINTFORML [10] - 화상 확대
+	PRINTFORML [11] - 화상 축소
+	PRINTFORML [12] - \@ FLAG:거유차이표시? 거유 이상의 별도 화상이 있는 캐릭터라면 표시한다# 거유차이를 표시하지 않는다\@
+	PRINTFORML [13] - \@ FLAG:追加エフェクト? 추가 이펙트를 표시한다# 추가 이펙트를 표시하지 않는다\@
+ELSE
+	FOR LOCAL, 1, 13
+		PRINTL 
+	NEXT
+ENDIF
+PRINTFORML [999] - 돌아간다
+INPUT
+IF RESULT == 999
+	VARSET TARGET
+	RETURN 0
+ELSEIF RESULT == 0
+	FLAG:그림표시 = !FLAG:그림표시
+ELSEIF RESULT == 1
+	FLAG:그림표시++
+	SIF FLAG:그림표시 > 10
+		FLAG:그림표시 = 10
+ELSEIF RESULT == 2
+	FLAG:그림표시--
+	SIF FLAG:그림표시 < 1
+		FLAG:그림표시 = 1
+ELSEIF RESULT == 3
+	FLAG:스탠딩종류 = !FLAG:스탠딩종류
+ELSEIF RESULT == 4
+	FLAG:삽화표시 = !FLAG:삽화표시
+ELSEIF RESULT == 5 && FLAG:삽화표시
+	FLAG:사정화상종류++
+	SIF FLAG:사정화상종류 >= 3
+		FLAG:사정화상종류 = 0
+ELSEIF RESULT == 6
+	FLAG:애니메이션++
+	SIF FLAG:애니메이션 >= 6
+		FLAG:애니메이션 = 0
+ELSEIF RESULT == 7
+	INVERTBIT FLAG:삽입애니메이션필터, 0
+	;CALL ASK_M("삽입 표시 전환", 1,"절정 표시 전환", 1,"사정 표시 전환", 1,"사정 표시 전환", 1,"돌아간다", 1)
+	;SIF RESULT == 4
+	;	RESTART
+	;INVERTBIT FLAG:가사언필터, RESULT
+	RESTART
+ELSEIF RESULT == 8
+	FLAG:그림표시위치 = !FLAG:그림표시위치
+ELSEIF RESULT == 9
+	FLAG:화상범위표시 = !FLAG:화상범위표시
+ELSEIF RESULT == 10
+	isModifier = MIN(isModifier + 10, 50)
+ELSEIF RESULT == 11
+	isModifier = MAX(isModifier - 10, -50)
+ELSEIF RESULT == 12
+	FLAG:거유차이표시 = !FLAG:거유차이표시
+ELSEIF RESULT == 13
+	FLAG:追加エフェクト = !FLAG:追加エフェクト
+ENDIF
+RESTART
+
+;요리 옵션 설정 함수
+;0:수동 결정,1:이물 불가,2:약물 불가
+@SET_OPTION_COOKING
+#DIM CONST OP_BIT_수동결정 = 0
+#DIM CONST OP_BIT_이물불가 = 1
+#DIM CONST OP_BIT_약물불가 = 2
+#DIM CONST OP_BIT_채점온 = 3
+PRINTFORML 요리 관련의 옵션을 설정합니다
+PRINTFORML 현재의 설정
+IF GET_OPTION_COOKING("요리 내용 수동 결정")
+	PRINTFORML 　요리 내용：수동으로 결정
+ELSE
+	PRINTFORML 　요리 내용：자동으로 결정
+ENDIF
+IF GET_OPTION_COOKING("이물 혼입 불가")
+	PRINTFORML 　이물 혼입：하지 않는다
+ELSE
+	PRINTFORML 　이물 혼입：한다
+ENDIF
+IF GET_OPTION_COOKING("약물 혼입 불가")
+	PRINTFORML 　약물 혼입：하지 않는다
+ELSE
+	PRINTFORML 　약물 혼입：한다
+ENDIF
+SELECTCASE GET_OPTION_COOKING("자동 맛내기 설정")
+CASE 0
+	PRINTFORML 　자동 맛내기：하지 않는다
+CASE 10
+	PRINTFORML 　자동 맛내기：자동으로 보통 맛
+CASE 11
+	PRINTFORML 　자동 맛내기：자동으로 진한 맛
+CASE 12
+	PRINTFORML 　자동 맛내기：자동으로 담백한 맛
+ENDSELECT
+IF GET_OPTION_COOKING("채점 기능 오프")
+	PRINTFORML 　채점 기능：오프
+ELSE
+	PRINTFORML 　채점 기능：온
+ENDIF
+DO
+	PRINTFORML [9] 요리 내용의 설정 변경
+	PRINTFORML [8] 이물 혼입의 설정 변경
+	PRINTFORML [7] 약물 혼입의 설정 변경
+	PRINTFORML [6] 자동 맛내기의 설정 변경
+	PRINTFORML [5] 채점 기능의 설정 변경
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML [0] 결정
+	INPUT
+	SELECTCASE RESULT
+	CASE 9
+		INVERTBIT FLAG:요리옵션, OP_BIT_수동결정
+	CASE 8
+		INVERTBIT FLAG:요리옵션, OP_BIT_이물불가
+	CASE 7
+		INVERTBIT FLAG:요리옵션, OP_BIT_약물불가
+	CASE 6
+		PRINTFORML 자동 맛내기 기능의 설정
+		PRINTFORML [12] 자동 맛내기 ＜담백한 맛＞
+		PRINTFORML [11] 자동 맛내기 ＜진한 맛＞
+		PRINTFORML [10] 자동 맛내기 ＜보통 맛＞
+		PRINTFORML [ 0] 자동 맛내기를 사용하지 않는다
+		DO
+			INPUT
+			SELECTCASE RESULT
+			CASE 10, 11, 12
+				CLEARBIT FLAG:요리옵션, 10, 11, 12
+				SETBIT   FLAG:요리옵션, RESULT
+			CASE 0
+				CLEARBIT FLAG:요리옵션, 10, 11, 12
+			CASEELSE
+			PRINTFORML 무효인 입력입니다
+			CONTINUE
+			ENDSELECT
+			BREAK
+		LOOP 1
+	CASE 5
+		INVERTBIT FLAG:요리옵션, OP_BIT_채점온
+	CASE 0
+		RETURN 
+	CASEELSE
+		PRINTFORML 무효인 입력입니다
+		CONTINUE
+	ENDSELECT
+	BREAK
+LOOP 1
+RESTART
+
+
+;요리옵션의 내용 취득 함수
+@GET_OPTION_COOKING(TYPE)
+#FUNCTION
+#DIMS DYNAMIC TYPE
+#DIM CONST OP_BIT_수동결정 = 0
+#DIM CONST OP_BIT_이물혼입불가 = 1
+#DIM CONST OP_BIT_약물혼입불가 = 2
+#DIM CONST OP_BIT_채점기능온 = 3
+#DIM CONST OP_BIT_자동맛내기_보통 = 10
+#DIM CONST OP_BIT_자동맛내기_진한 = 11
+#DIM CONST OP_BIT_자동맛내기_얇은 = 12
+SELECTCASE TYPE
+CASE "요리 내용 수동 결정"
+	SIF GETBIT(FLAG:요리옵션, OP_BIT_수동결정)
+		RETURNF 1
+CASE "요리 내용 자동 결정"
+	RETURNF !GET_OPTION_COOKING("요리 내용 수동 결정")
+
+CASE "이물 혼입 불가"
+	SIF GETBIT(FLAG:요리옵션, OP_BIT_이물혼입불가)
+		RETURNF 1
+CASE "이물 혼입 가능"
+	RETURNF !GET_OPTION_COOKING("이물 혼입 불가")
+
+CASE "약물 혼입 불가"
+	SIF GETBIT(FLAG:요리옵션, OP_BIT_약물혼입불가)
+		RETURNF 1
+CASE "약물 혼입 가능"
+	RETURNF !GET_OPTION_COOKING("약물 혼입 불가")
+CASE "자동 맛내기 설정"
+	SIF GETBIT(FLAG:요리옵션, OP_BIT_자동맛내기_보통)
+		RETURNF OP_BIT_자동맛내기_보통
+	SIF GETBIT(FLAG:요리옵션, OP_BIT_자동맛내기_진한)
+		RETURNF OP_BIT_자동맛내기_진한
+	SIF GETBIT(FLAG:요리옵션, OP_BIT_자동맛내기_얇은)
+		RETURNF OP_BIT_자동맛내기_얇은
+CASE "채점 기능 온"
+	SIF GETBIT(FLAG:요리옵션, OP_BIT_채점기능온)
+		RETURNF 1
+CASE "채점 기능 오프"
+	RETURNF !GET_OPTION_COOKING("채점 기능 온")
+CASEELSE
+	THROW 불명한 TYPE%TYPE%
+ENDSELECT
+RETURNF 0
+
+
+@SIMATTYAUOJISAN
+;TW414_이동 패치에서 오른쪽 클릭이나 매크로에 의한 스킵도 끝내버리도록 수정
+;PRINT에서의 웨이트를 없애는 대신에 FORCEWAIT로 스킵 해제하도록
+;
+FORCEWAIT
+PRINT 「화면상에 표시되지 않는 숫자를 입력한 아이가 여기 있어?」
+FORCEWAIT
+PRINT 치워버리자 아저씨가 나타났다!
+FORCEWAIT
+PRINT 「자, 화면상에 표시되지 않는 숫자를 입력한 아이의 돈은, 자꾸자꾸 치워버릴 거란다」
+FORCEWAIT
+PRINTFORM 치워버리자 아저씨는 %CALLNAME:MASTER%의 있는 돈을 모조리 치워버렸다
+MONEY = 0
+FORCEWAIT
+PRINT 「화면상에 표시되지 않는 숫자를 입력하는 아이의 아이템도, 자꾸자꾸 치워버릴 거란다」
+FORCEWAIT
+PRINTFORM %CALLNAME:MASTER%의 아이템은 치워져버렸다
+FOR LOCAL, 0,500
+	ITEM:LOCAL = 0
+NEXT
+FORCEWAIT
+PRINT 「화면상에 표시되지 않는 숫자를 입력하는 아이의 기교도, 자꾸자꾸 치워버릴 거란다」
+FORCEWAIT
+PRINTFORM %CALLNAME:MASTER%의 기교는 치워져버렸다
+FORCEWAIT
+FOR LOCAL, 0,100
+	ABL:0:LOCAL = 0
+NEXT
+PRINT 「화면상에 표시되지 않는 숫자를 입력하는 아이의 경험도, 자꾸자꾸 치워버릴 거란다」
+FORCEWAIT
+PRINTFORM %CALLNAME:MASTER%의 경험은 치워져버렸다
+FORCEWAIT
+FOR LOCAL, 0,100
+	EXP:0:LOCAL = 0
+NEXT
+;하는 김에 콜렉션도 치워버리자(eraTW4.15 팬티 대책 패치에서 추가)
+;
+PRINT 「화면상에 표시되지 않는 숫자를 입력하는 아이의 팬티 콜렉션도, 자꾸자꾸 치워버릴 거란다」
+FORCEWAIT
+PRINTFORM %마스터가% 정성들여 수집한, 주옥같은 팬티 콜렉션은 치워져버렸다
+FORCEWAIT
+FLAG:700 = 0
+FOR LOCAL, 1, CHARANUM
+	FOR LOCAL:1, 0, MAXPANTS
+		CFLAG:LOCAL:(LOCAL:1 + 팬티관리) = 0
+	NEXT
+NEXT
+PRINT 「화면상에 표시되지 않는 숫자를 입력하는 아이의 신뢰도, 자꾸자꾸 치워버릴 거란다」
+FORCEWAIT
+PRINTFORM %CALLNAME:MASTER%에게 소녀들이 보내는 신뢰는 치워져버렸다
+FOR LOCAL, 1, CHARANUM
+	CFLAG:LOCAL:신뢰도 = 0
+NEXT
+FORCEWAIT
+;
+;
+;PRINT 「화면상에 표시되지 않는 숫자를 입력하는 아이의 기초 능력도, 자꾸자꾸 치워버릴 거란다」
+;FORCEWAIT
+;PRINTFORM %CALLNAME:MASTER%의 기초 능력은 치워져버렸다
+;FOR LOCAL, 0,9
+;	MAXBASE:0:LOCAL = 99
+;	BASE:0:LOCAL = min(MAXBASE:0:LOCAL, BASE:0:LOCAL)
+;NEXT
+;과연 너무 하고 는 좋지 않다고 생각했으므로 클릭 연타로 용서(허락)해 보았다
+;작자님에게 마음대로 맞힌 패치이므로 불쾌하다면 이 부분만큼 패치 앞에 되돌려 주셔 상관하지 않습니다.
+;
+;
+FORCEWAIT
+PRINTW 다 망했어∼~~~
+
+
+;섹시 팬티 삭제
+@DELETE_SEXYPANTS
+#DIM 대상
+#DIM 종류
+#DIM 소유수
+
+VARSET RESULT
+
+FOR 대상, 1, CHARANUM
+	FOR 종류, 20,26
+		소유수 = CFLAG:대상:(종류 + 100)
+		IF 소유수 >= 1
+			RESULT:0 += (소유수)
+			CFLAG:대상:(종류 + 100) = 0
+		ENDIF
+	NEXT
+NEXT
+
+;바이브 팬티 삭제
+@DELETE_VIBEPANTS
+#DIM 대상
+#DIM 종류
+#DIM 소유수
+
+VARSET RESULT
+
+FOR 대상, 1, CHARANUM
+	FOR 종류, 27,30
+		소유수 = CFLAG:대상:(종류 + 100)
+		IF 소유수 >= 1
+			RESULT:0 += (소유수)
+			CFLAG:대상:(종류 + 100) = 0
+		ENDIF
+	NEXT
+NEXT
+
+;이하 TWKR 고유 또는 구버전. 디버그약점잡힘삭제와 NAME_CHANGEF 모두 선택 불가했음
+;디버그용약점잡힘삭제
+@디버그약점잡힘삭제
+#DIM  O_ID   
+FOR O_ID, 1, CHARANUM
+	PRINTFORML %CALLNAME:O_ID%의 현재 약점잡음 : {CFLAG:O_ID:약점잡음}
+	CFLAG:O_ID:약점잡음=0
+NEXT
+
+;이름을 한글로 바꾼다
+@NAME_CHANGEF
+#DIM  O_ID   
+#DIMS V_NAME
+;FOR O_ID, 1, CHARANUM
+;	PRINTFORML NAME:{O_ID}=%NAME:O_ID%
+;	PRINTFORML CALLNAME:{O_ID}=%CALLNAME:O_ID%
+;NEXT
+
+NAME:1=하쿠레이 레이무
+CALLNAME:1=레이무
+NAME:2=루코토
+CALLNAME:2=루코토
+NAME:3=카나 아나베랄
+CALLNAME:3=카나
+NAME:4=미마
+CALLNAME:4=미마
+NAME:5=서니 밀크
+CALLNAME:5=서니
+NAME:6=루나 차일드
+CALLNAME:6=루나
+NAME:7=스타 사파이어
+CALLNAME:7=스타
+NAME:8=키타시라카와 치유리
+CALLNAME:8=치유리
+NAME:9=오카자키 유메미
+CALLNAME:9=유메미
+NAME:10=이부키 스이카
+CALLNAME:10=스이카
+NAME:11=키리사메 마리사
+CALLNAME:11=마리사
+NAME:12=루미아
+CALLNAME:12=루미아
+NAME:13=대요정
+CALLNAME:13=대요정
+NAME:14=치르노
+CALLNAME:14=치르노
+NAME:15=이자요이 사쿠야
+CALLNAME:15=사쿠야
+NAME:16=레밀리아 스칼렛
+CALLNAME:16=레밀리아
+NAME:17=앨리스 마가트로이드
+CALLNAME:17=앨리스
+NAME:18=릴리 화이트
+CALLNAME:18=릴리W
+NAME:19=릴리 블랙
+CALLNAME:19=릴리B
+NAME:20=리리카 프리즘리버
+CALLNAME:20=리리카
+NAME:21=메를랑 프리즘리버
+CALLNAME:21=메를랑
+NAME:22=루나사 프리즘리버
+CALLNAME:22=루나사
+NAME:23=콘파쿠 요우무
+CALLNAME:23=요우무
+NAME:24=첸
+CALLNAME:24=첸
+NAME:25=야쿠모 란
+CALLNAME:25=란
+NAME:26=야쿠모 유카리
+CALLNAME:26=유카리
+NAME:27=리글 나이트버그
+CALLNAME:27=리글
+NAME:28=미스티아 로렐라이
+CALLNAME:28=미스티아
+NAME:29=샤메이마루 아야
+CALLNAME:29=아야
+NAME:30=시키 에이키
+CALLNAME:30=에이키
+NAME:31=코치야 사나에
+CALLNAME:31=사나에
+NAME:32=야사카 카나코
+CALLNAME:32=카나코
+NAME:33=모리야 스와코
+CALLNAME:33=스와코
+NAME:34=히나나위 텐시
+CALLNAME:34=텐시
+NAME:35=나가에 이쿠
+CALLNAME:35=이쿠
+NAME:36=카엔뵤 린
+CALLNAME:36=린
+NAME:37=레이우지 우츠호
+CALLNAME:37=우츠호
+NAME:38=코메이지 코이시
+CALLNAME:38=코이시
+NAME:39=나즈린
+CALLNAME:39=나즈린
+NAME:40=타타라 코가사
+CALLNAME:40=코가사
+NAME:41=호쥬 누에
+CALLNAME:41=누에
+NAME:42=히메카이도 하타테
+CALLNAME:42=하타테
+NAME:43=이바라키 카센
+CALLNAME:43=카센
+NAME:44=폭신폭신 엘렌
+CALLNAME:44=엘렌
+NAME:45=아사쿠라 리카코
+CALLNAME:45=리카코
+NAME:46=메이라
+CALLNAME:46=메이라
+NAME:47=리카
+CALLNAME:47=리카
+NAME:48=루이즈
+CALLNAME:48=루이즈
+NAME:49=코메이지 사토리
+CALLNAME:49=사토리
+NAME:50=플랑드르 스칼렛
+CALLNAME:50=플랑
+NAME:51=카와시로 니토리
+CALLNAME:51=니토리
+NAME:52=레이센 우동게인 이나바
+CALLNAME:52=레이센
+NAME:53=이나바 테위
+CALLNAME:53=테위
+NAME:54=파츄리 널릿지
+CALLNAME:54=파츄리
+NAME:55=히지리 뱌쿠렌
+CALLNAME:55=뱌쿠렌
+NAME:56=토요사토미미노 미코
+CALLNAME:56=미코
+NAME:57=하타노 코코로
+CALLNAME:57=코코로
+NAME:58=홍 메이링
+CALLNAME:58=메이링
+NAME:59=소악마
+CALLNAME:59=소악마
+NAME:60=미즈하시 파르시
+CALLNAME:60=파르시
+NAME:61=후지와라노 모코우
+CALLNAME:61=모코우
+NAME:62=호라이산 카구야
+CALLNAME:62=카구야
+NAME:63=이마이즈미 카게로
+CALLNAME:63=카게로
+NAME:64=호시구마 유기
+CALLNAME:64=유기
+NAME:65=이누바시리 모미지
+CALLNAME:65=모미지
+NAME:66=사이교우지 유유코
+CALLNAME:66=유유코
+NAME:67=카미시라사와 케이네
+CALLNAME:67=케이네
+NAME:68=카자미 유카
+CALLNAME:68=유카
+NAME:69=후타츠이와 마미조
+CALLNAME:69=마미조
+NAME:70=모토오리 코스즈
+CALLNAME:70=코스즈
+NAME:71=스쿠나 신묘마루
+CALLNAME:71=신묘마루
+NAME:72=야고코로 에이린
+CALLNAME:72=에이린
+NAME:73=세키반키
+CALLNAME:73=반키
+NAME:74=레티 화이트락
+CALLNAME:74=레티
+NAME:75=메디슨 멜랑콜리
+CALLNAME:75=메디슨
+NAME:76=오노즈카 코마치
+CALLNAME:76=코마치
+NAME:77=아키 시즈하
+CALLNAME:77=시즈하
+NAME:78=아키 미노리코
+CALLNAME:78=미노리코
+NAME:79=카기야마 히나
+CALLNAME:79=히나
+NAME:80=히에다노 아큐
+CALLNAME:80=아큐
+NAME:81=우사미 렌코
+CALLNAME:81=렌코
+NAME:82=마에리베리 한
+CALLNAME:82=메리
+NAME:83=키스메
+CALLNAME:83=키스메
+NAME:84=쿠로다니 야마메
+CALLNAME:84=야마메
+NAME:85=쿠모이 이치린
+CALLNAME:85=이치린
+NAME:86=무라사 미나미츠
+CALLNAME:86=무라사
+NAME:87=토라마루 쇼
+CALLNAME:87=쇼
+NAME:88=카소다니 쿄코
+CALLNAME:88=쿄코
+NAME:89=미야코 요시카
+CALLNAME:89=요시카
+NAME:90=곽청아
+CALLNAME:90=청아
+NAME:91=소가노 토지코
+CALLNAME:91=토지코
+NAME:92=모노노베노 후토
+CALLNAME:92=후토
+NAME:93=와카사기히메
+CALLNAME:93=와카사기히메
+NAME:94=츠쿠모 벤벤
+CALLNAME:94=벤벤
+NAME:95=츠쿠모 야츠하시
+CALLNAME:95=야츠하시
+NAME:96=호리카와 라이코
+CALLNAME:96=라이코
+NAME:97=키진 세이자
+CALLNAME:97=세이자
+NAME:98=와타츠키노 요리히메
+CALLNAME:98=요리히메
+NAME:99=와타츠키노 토요히메
+CALLNAME:99=토요히메
+NAME:100=레이센
+CALLNAME:100=레이센
+NAME:101=토키코
+CALLNAME:101=토키코
+NAME:102=신키
+CALLNAME:102=신키
+NAME:103=유메코
+CALLNAME:103=유메코
+NAME:104=유키
+CALLNAME:104=유키
+NAME:105=마이
+CALLNAME:105=마이
+NAME:106=우사미 스미레코
+CALLNAME:106=스미레코
+NAME:107=세이란
+CALLNAME:107=세이란
+NAME:108=링고
+CALLNAME:108=링고
+NAME:109=도레미 스위트
+CALLNAME:109=도레미
+NAME:110=키신 사구메
+CALLNAME:110=사구메
+NAME:111=클라운피스
+CALLNAME:111=클라운피스
+NAME:112=순호
+CALLNAME:112=순호
+NAME:113=헤카티아 라피스라줄리
+CALLNAME:113=헤카티아
+NAME:114=쿠루미
+CALLNAME:114=쿠루미
+NAME:115=엘리
+CALLNAME:115=엘리
+NAME:116=무게츠
+CALLNAME:116=무게츠
+NAME:117=겐게츠
+CALLNAME:117=겐게츠
+NAME:118=이터니티 라바
+CALLNAME:118=라바
+NAME:119=사카타 네무노
+CALLNAME:119=네무노
+NAME:120=코마노 아운
+CALLNAME:120=아운
+NAME:121=야타데라 나루미
+CALLNAME:121=나루미
+NAME:122=테이레이다 마이
+CALLNAME:122=마이
+NAME:123=니시다 사토노
+CALLNAME:123=사토노
+NAME:124=마타라 오키나
+CALLNAME:124=오키나
+NAME:125=요리가미 조온
+CALLNAME:125=조온
+NAME:126=요리가미 시온
+CALLNAME:126=시온
+

@@ -1,0 +1,240 @@
+﻿;-------------------------------------------------
+;진찰을 받는다
+;외출 커맨드
+;-------------------------------------------------
+@COM616
+PRINTL 「오늘은 무슨 일일까?」
+$LOOP
+DRAWLINE
+PRINTL [0] 피로가 풀리지 않아서…
+PRINTL [1] 왠지 모르게 피곤해지고…
+;SIF MAXBASE:MASTER:정력 - BASE:MASTER:정력 > 500
+;	PRINTL [2] 그녀가 격렬해서…
+PRINTL [3] 요즘 그녀와 매너리즘에 빠져서…
+SIF TALENT:MASTER:청소중독
+	PRINTL [4] 청소가 너무 즐거워서 그만둘 수가 없습니다
+;PRINTL [5] 선생님의 일을 생각하면(자) 자지가 쑥갓응입니다
+;PRINTL [5] 선생님의 일을 생각하면(자) 가랑이가 근질근질 합니다
+;SIF GETBIT(TALENT:MASTER:성별 & 1)
+;PRINTL [10] 자지의 고민
+DRAWLINE
+PRINTL [100] 그만둔다
+INPUT
+IF RESULT == 0
+	CALL REMEDY(RAND:3)
+	PRINTL 치료비로 \3000 청구되었습니다
+	IF MONEY < 3000
+		DOWNBASE:MASTER:체력 -= 100
+		DOWNBASE:MASTER:기력 -= 200
+		TIME += 180
+		TFLAG:193 = 1
+	ELSE
+		MONEY -= 3000
+	ENDIF
+ELSEIF RESULT == 1
+	;에이린의 사모 연모로 양화
+	CALL REMEDY(RAND:2 + 3 + TALENT:(NO:72):3 * 2 + TALENT:(NO:72):8)
+	PRINTL 치료비로 \3000 청구되었습니다
+	IF MONEY < 3000
+		DOWNBASE:MASTER:체력 -= 100
+		DOWNBASE:MASTER:기력 -= 200
+		TIME += 180
+		TFLAG:193 = 1
+	ELSE
+		MONEY -= 3000
+	ENDIF
+ELSEIF RESULT == 3
+	PRINTL 「이런 건 어떨까」
+	DRAWLINE
+	$SELL
+	FOR LOCAL, 12,17
+		SIF ITEMNAME:LOCAL == ""
+			CONTINUE
+		PRINTFORM [{LOCAL}] %ITEMNAME:LOCAL% ￥{(ITEMPRICE:LOCAL) / 5}
+		IF ITEM:LOCAL
+			PRINTL 　(매진)
+		ELSE
+			PRINTL
+		ENDIF
+	NEXT
+	PRINTL
+	PRINTL [100] 돌아온다
+	$LOOP2
+	INPUT
+	IF RESULT >= 12 && RESULT <= 17
+		CALL BUY_ABLE(RESULT, 0,1,80)
+		GOTO SELL
+	ELSEIF RESULT == 100
+		RETURN 0
+	ELSE
+		GOTO LOOP2
+	ENDIF
+ELSEIF RESULT == 4 && TALENT:MASTER:청소중독
+	IF FLAG:850 == 0
+		PRINTL 「집안일을 좋아해? 좋은 일 아냐」
+		PRINTL 「그런 게 아니라고?」
+		PRINTW 「다른 일이 손에 잡히지 않아? 그건 곤란하군」
+		PRINTW …
+		PRINTW 「으―음, 역시 좀 이상하네」
+		PRINTW ……
+		PRINTW 「성적으로 흥분!?」
+		PRINTW …………
+		PRINTL 「도대체 뭘 하면 이렇게 되는 거야」
+		PRINTL 「희귀한 증례를 보여 주었으니까 이번은 공짜로 해도 좋아」
+		PRINTL 「앞으로는 이상한 청소는 하지 말도록」
+		PRINTFORMW %CALLNAME:MASTER%의 [청소중독]이 나았다
+		TALENT:MASTER:청소중독 = 0
+		FLAG:850 ++
+	ELSE
+		PRINTL 「또 그걸 재발시켰다고?」
+		PRINTFORML 「정말이지… 이번에는 ￥{FLAG:850 * 10000} 받을게」
+		IF MONEY < FLAG:850 * 10000
+			PRINTL 「치료비가 부족한가 보네」
+			PRINTL 「돈이 모이면 다시 와」
+		ELSE
+			PRINTW …
+			PRINTW ……
+			PRINTW …………
+			PRINTL 「네, 끝」
+			PRINTL 「또 재발시키는 일이 있으면 더 많이 지불하도록 할거니깐」
+			PRINTFORMW %CALLNAME:MASTER%의 [청소중독]이 나았다
+			TALENT:MASTER:청소중독 = 0
+			MONEY -= FLAG:850 * 10000
+			FLAG:850 ++
+		ENDIF
+	ENDIF
+ELSEIF RESULT == 6
+	IF GETBIT(CFLAG:72:기정사실, 1) && EXP:72:펠라티오경험 > 10 && !TALENT:72:키스미경험
+		IF TALENT:72:기분 == -1
+			PRINTFORMDW %조사처리(CALLNAME:72,"는")% 한숨을 쉬자 %마스터를% 안쪽으로 안내했다
+			PRINTFORMDW %조사처리(CALLNAME:72,"는")% 기분나쁜 듯 옆머리를 쓸어올리면서 %CALLNAME:MASTER%의 음경을 물어 넣었다
+			PRINTFORMDW %조사처리(CALLNAME:72,"는")% 정액을 입안에 받아낸 후 양치질을 하고 손을 씻어 진찰하러 돌아갔다
+			MAXBASE:MASTER:정력 +=1*3;;정력증가
+			EXP:MASTER:사정경험 ++
+			BASE:MASTER:정력 = MAX(BASE:MASTER:정력 - 200, 0)
+			EXP:72:펠라티오경험 ++
+			EXP:72:정음경험 ++
+			IF TALENT:MASTER:농후정액
+				PRINTFORMW %CALLNAME:MASTER%의 [농후정액]이 나았다
+				TALENT:MASTER:농후정액 = 0
+			ENDIF
+			PRINTL 치료비로 \10000 청구되었습니다
+			MONEY -= 10000
+		ELSE
+			PRINTFORMDW 에이린에게 바쁘니까 다음에라며 가볍게 다루어져 버렸다…
+			TALENT:72:기분 --
+		ENDIF
+	ELSE
+		PRINTFORMDW %조사처리(CALLNAME:72,"는")% 감사의 말을 하며 %마스터를% 안쪽으로 안내했다
+		PRINTW …
+		PRINTW ……
+		PRINTW ………
+		PRINTFORMDW %마스터는% 헌혈에 협력하게 되었다…
+		BASE:MASTER:체력 = MIN(MAXBASE:MASTER:체력, BASE:MASTER:체력 - 400)
+		TALENT:72:기분 = 1
+	ENDIF
+;ELSEIF RESULT == 10
+;	CALL PENIS_CHANGE
+ELSEIF RESULT == 100
+	RETURN -1
+ELSE
+	GOTO LOOP
+ENDIF
+SETBIT TFLAG:일일일회, 3
+TIME += 30
+RETURN 1
+
+@REMEDY(ARG)
+SELECTCASE ARG
+CASE 0
+	LOCALS = 맛있는 밥
+	BASE:MASTER:체력 = MIN(MAXBASE:MASTER:체력, BASE:MASTER:체력 + 500)
+CASE 1
+	LOCALS = 영양의 주사
+	BASE:MASTER:체력 = MIN(MAXBASE:MASTER:체력, BASE:MASTER:체력 + 750)
+CASE 2
+	LOCALS = 불끈불끈Z
+	BASE:MASTER:체력 = MAXBASE:MASTER:체력
+CASE 3
+	LOCALS = 계절원―
+	BASE:MASTER:기력 = MIN(MAXBASE:MASTER:기력, BASE:MASTER:기력 + 500)
+CASE 4
+	LOCALS = 진정의 주사
+	BASE:MASTER:기력 = MIN(MAXBASE:MASTER:기력, BASE:MASTER:기력 + 750)
+CASE 5
+	LOCALS = 이마로 체온
+	BASE:MASTER:기력 = MIN(MAXBASE:MASTER:기력, BASE:MASTER:기력 + 900)
+CASE 6
+	LOCALS = 껴안는다
+	BASE:MASTER:기력 = MIN(MAXBASE:MASTER:기력, BASE:MASTER:기력 + 1000)
+ENDSELECT
+
+PRINTFORMW 에이린은 %LOCALS%에 의한 치료를 실시했다
+SIF ARG == 2
+	PRINTL 후아 싫어해 개, 만 타 응!
+SIF ARG >= 0 && ARG <= 2
+	PRINTW 체력이 회복했다
+SIF ARG >= 3 && ARG <= 6
+	PRINTW 기력이 회복했다
+[SKIPSTART]
+@PENIS_CHANGE
+$TINKO_LOOP
+PRINTL [1] 동심에 돌아가고 싶기 때문에 아이 같은 자지로 해 주세요
+PRINTL [2] 방탕에 빠지지 않게 데츄 해 주세요
+PRINTL [3] 보통 자지로 해 주세요
+PRINTL [4] 밤길을 걸을 때 무서워서 빛나는 듯하게 해 주세요
+PRINTL [5] 여자아이를 히-히-말하게 하고 싶어서 진주 넣어 주세요
+PRINTL [6] 자신을 가질 수 있도록(듯이) 크게 해 주세요
+;PRINTL [7] 오크를 동경하고 있기 때문에 드릴같이 해 주세요 그리고 엘프를 찾으러 갑니다
+;PRINTL [8] 피임이라든지 귀찮아 응으로 정관 수술 부탁합니다
+INPUT
+SIF TALENT:MASTER:형상 == RESULT
+	GOTO TINKO_LOOP
+	LOCAL = RESULT
+SELECTCASE RESULT
+	CASE 1
+		IF GETBIT(CFLAG:72:기정사실, 1) && CFLAG:72:2 > 5000
+			PRINTFORMW 에이린은 그러한 것도 개미일까와 생각한 것 같은…
+		ELSE
+			PRINTFORMW 에이린은 경직된 얼굴로 진심인지 (들)물어 왔다…
+	CASE 2
+		IF GETBIT(CFLAG:72:기정사실, 1) && CFLAG:72:2 > 5000
+			PRINTFORMW 에이린은 다시 생각하도록(듯이) 갔다왔다…
+		ELSE
+	CASE 3
+		PRINTFORMW 에이린은 보통이 제일이라면 기분 좋게 맡아 주었다
+	CASE 4
+		PRINTFORMW 에이린은 이성인과 컨택 하는 듯한 상태로, 아무것도 그런 곳을 번뜩거릴 수 없어도 괜찮지 않을까라고 (들)물어 왔다…
+	CASE 5
+		PRINTFORMW 에이린은 그런 것은
+[SKIPEND]
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;진찰
+@COM_ABLE616
+;일괄관리
+SIF GLOBAL_COMABLE(616)
+	RETURN RESULT
+;에이린이 없으면 안 돼
+SIF CFLAG:MASTER:현재위치 != CFLAG:72:현재위치
+	RETURN 0
+;데이트중
+SIF CHK_DATENOW(CFLAG:TARGET:데이트중) && TARGET > 0
+	RETURN 0
+;데이트 도중
+SIF (CFLAG:현재위치 % 100) % 10
+	RETURN 0
+SIF CFLAG:MASTER:현재위치 != 영원정
+	RETURN 0
+SIF GETBIT(TFLAG:일일일회, 3)
+	RETURN 0
+;수면중
+SIF CFLAG:MASTER:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+

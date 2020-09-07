@@ -1,0 +1,164 @@
+﻿;*******************************************************************************************************
+;모브코 그림표시용
+;*******************************************************************************************************
+;削除しました＠v.4.730.INFO改良パッチ
+
+;*******************************************************************************************************
+;모브코 화상 생성용 함수
+;*******************************************************************************************************
+@모브코생성(캐릭터번호, 스탠딩종류)
+#DIM 캐릭터번호
+#DIM 스탠딩종류
+#DIM GID
+#DIMS 생성문자열
+#DIMS 합성문자열배열, 50
+#DIMS 색합성
+#DIM 합성수
+#DIM ResourcesCount
+
+;리소스 작성
+;=====================================
+FOR ResourcesCount, 0, 모브코소재Resource수
+	;초기화
+	GID = 0
+	VARSET LOCAL
+	VARSET 합성문자열배열,
+	합성수 = 0
+	;그림합성下地用のダミーを配置する
+	CALL 그림합성(GID,"ダミー")
+	;使うリソースの名称を配列に取得する
+	;DEBUGPRINTFORML {캐릭터번호} - 모브코ResourceSearch(%합성문자열배열%, {합성수}, %CSTR:캐릭터번호:(모브코소재CSTR개시위치 + ResourcesCount)%), 스탠딩종류
+	CALL 모브코ResourceSearch(합성문자열배열, 합성수, CSTR:캐릭터번호:(모브코소재CSTR개시위치 + ResourcesCount), 스탠딩종류)
+	;モブ子画像は高い番号のリソースから先に合成していく必要があるので降順にソートする
+	ARRAYSORT 합성문자열배열, BACK, 0, 합성수
+	;モブ子用画像を順番に合成していく
+	FOR LOCAL, 0, 합성수
+		색합성 '= ""
+		IF 합성문자열배열:LOCAL != ""
+			;색합성確認
+			FOR LOCAL:1, 0 ,모브코소재색종류수
+				IF STRFIND(합성문자열배열:LOCAL, @"_%모브코소재색종류:(LOCAL:1)%_") != -1 && DIC_CONTAINSKEY(CSTR:캐릭터번호:(모브코소재CSTR개시위치 + ResourcesCount), @"%모브코소재색종류:(LOCAL:1)%色")
+					색합성 = %DIC_GET(CSTR:캐릭터번호:(모브코소재CSTR개시위치 + ResourcesCount), @"%모브코소재색종류:(LOCAL:1)%色")%
+					LOCAL:1 = 모브코소재색종류수
+				ENDIF
+			NEXT
+			CALL 그림합성(GID, 합성문자열배열:LOCAL, 0, 0, 0, 0, 색합성)
+		ENDIF
+	NEXT
+	;合成した画像をリソースに登録する
+	CFLAG:캐릭터번호:(モブ子素材CFLAG開始位置 + ResourcesCount) = GID
+	;汎用テンプレートで使用できるように名前を統一する
+	IF !스탠딩종류
+		SELECTCASE ResourcesCount
+			CASE 0
+				CALL リソース登録(@"立ち絵_服_通常_{캐릭터번호}", GID)
+			CASE 1
+				CALL リソース登録(@"立ち絵_服_笑顔_{캐릭터번호}", GID)
+			CASE 2
+				CALL リソース登録(@"立ち絵_服_怒り_{캐릭터번호}", GID)
+			CASE 3
+				CALL リソース登録(@"立ち絵_裸_通常_{캐릭터번호}", GID)
+			CASE 4
+				CALL リソース登録(@"立ち絵_裸_笑顔_{캐릭터번호}", GID)
+			CASE 5
+				CALL リソース登録(@"立ち絵_裸_怒り_{캐릭터번호}", GID)
+		ENDSELECT
+	ELSE
+		SELECTCASE ResourcesCount
+			CASE 0
+				CALL リソース登録(@"顔絵_服_通常_{캐릭터번호}", GID)
+			CASE 1
+				CALL リソース登録(@"顔絵_服_笑顔_{캐릭터번호}", GID)
+			CASE 2
+				CALL リソース登録(@"顔絵_服_怒り_{캐릭터번호}", GID)
+			CASE 3
+				CALL リソース登録(@"顔絵_裸_通常_{캐릭터번호}", GID)
+			CASE 4
+				CALL リソース登録(@"顔絵_裸_笑顔_{캐릭터번호}", GID)
+			CASE 5
+				CALL リソース登録(@"顔絵_裸_怒り_{캐릭터번호}", GID)
+		ENDSELECT
+	ENDIF
+NEXT
+
+;TEQUIP:캐릭터번호:상반신착의상황 = 1
+
+RETURN 1
+
+;*******************************************************************************************************
+;モブ子画像リソース探索用関数
+;モブ子画像のリソースを探索して配列にリソース名を格納する
+;*******************************************************************************************************
+@모브코ResourceSearch(합성문자열배열, 합성수, 생성문자열, 스탠딩종류)
+#DIMS REF 합성문자열배열,0
+#DIM REF 합성수
+#DIMS 생성문자열
+#DIM 스탠딩종류
+#DIMS Key
+#DIM CN_ENDNO = 18
+#DIMS CN_NO_STR
+VARSET LOCAL
+Key =
+CN_NO_STR =
+;ゴミ取り
+생성문자열 = %REPLACE(생성문자열, "^\"\"", "")%
+;DEBUGPRINTFORML %생성문자열%
+
+FOR LOCAL, 0, 모브코소재종류수
+	IF DIC_CONTAINSKEY(생성문자열, 모브코소재종류:LOCAL)
+		FOR LOCAL:1, CN_ENDNO, -1, -1
+			;IF STRFIND(모브코소재종류:LOCAL, "装飾") != -1
+				;装飾の場合は複数設定できるのでリソース名検索時は数値部分を削る
+			;	Key = "装飾"
+			;ELSE
+				Key = %모브코소재종류:LOCAL%
+			;ENDIF
+			FOR LOCAL:2, 0, 모브코소재카테고리수
+				IF LOCAL:1 < 10
+					;0埋め
+					CN_NO_STR = CN0{LOCAL:1}
+				ELSE
+					CN_NO_STR = CN{LOCAL:1}
+				ENDIF
+				IF SPRITECREATED(@"%CN_NO_STR%_%모브코소재카테고리:(LOCAL:2)%_%DIC_GET(생성문자열, Key)%")
+					IF (!스탠딩종류)
+						합성문자열배열:(합성수++) = %CN_NO_STR%_%모브코소재카테고리:(LOCAL:2)%_%DIC_GET(생성문자열, Key)%
+						DEBUGPRINTFORML %CN_NO_STR%_%모브코소재카테고리:(LOCAL:2)%_%DIC_GET(생성문자열, Key)%
+					ELSE
+						합성문자열배열:(합성수++) = %CN_NO_STR%_%모브코소재카테고리:(LOCAL:2)%_%DIC_GET(생성문자열, Key)%_顔
+						DEBUGPRINTFORML %CN_NO_STR%_%모브코소재카테고리:(LOCAL:2)%_%DIC_GET(생성문자열, Key)%_顔
+					ENDIF
+				ENDIF
+			NEXT
+		NEXT
+	ENDIF
+NEXT
+
+RETURN 1
+
+;*******************************************************************************************************
+;モブ子画像解放用関数
+;指定した캐릭터번호のモブ子のグラフィックを全て破棄する
+;*******************************************************************************************************
+@모브코화상리셋(캐릭터번호)
+#DIM 캐릭터번호
+#DIM ResourcesCount
+IF CFLAG:캐릭터번호:モブ子素材CFLAG開始位置 != 0 && GCREATED(CFLAG:캐릭터번호:モブ子素材CFLAG開始位置)
+	SPRITEDISPOSE @"立ち絵_服_通常_{캐릭터번호}"
+	SPRITEDISPOSE @"立ち絵_服_笑顔_{캐릭터번호}"
+	SPRITEDISPOSE @"立ち絵_服_怒り_{캐릭터번호}"
+	SPRITEDISPOSE @"立ち絵_裸_通常_{캐릭터번호}"
+	SPRITEDISPOSE @"立ち絵_裸_笑顔_{캐릭터번호}"
+	SPRITEDISPOSE @"立ち絵_裸_怒り_{캐릭터번호}"
+	SPRITEDISPOSE @"顔絵_服_通常_{캐릭터번호}"
+	SPRITEDISPOSE @"顔絵_服_笑顔_{캐릭터번호}"
+	SPRITEDISPOSE @"顔絵_服_怒り_{캐릭터번호}"
+	SPRITEDISPOSE @"顔絵_裸_通常_{캐릭터번호}"
+	SPRITEDISPOSE @"顔絵_裸_笑顔_{캐릭터번호}"
+	SPRITEDISPOSE @"顔絵_裸_怒り_{캐릭터번호}"
+	FOR ResourcesCount, 0, 모브코소재Resource수
+		GDISPOSE CFLAG:캐릭터번호:(モブ子素材CFLAG開始位置 + ResourcesCount)
+		CFLAG:캐릭터번호:(モブ子素材CFLAG開始位置 + ResourcesCount) = 0
+	NEXT
+ENDIF
+RETURN 1

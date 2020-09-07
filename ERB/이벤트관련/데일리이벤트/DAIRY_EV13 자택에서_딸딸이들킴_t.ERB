@@ -1,0 +1,81 @@
+﻿@DAIRY_CONDITION_EV13
+#DIM 대상
+
+SIF RAND:(10 - TALENT:MASTER:정욕감지)> 0
+	RETURN -1
+대상 = 0
+CALL FISHER_YATES_SHAFFLE(CHARANUM - 1)
+FOR LOCAL:10, 0, CHARANUM - 1
+	LOCAL = SHAFFLE_ARRAY:(LOCAL:10) + 1
+	SIF !CFLAG:LOCAL:신사거주
+		CONTINUE
+	IF CFLAG:LOCAL:욕구불만도 >  700
+		대상 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+SIF !대상
+	RETURN -1
+
+CALL DAIRY_EV13(대상)
+RETURN 1
+
+
+@DAIRY_EV13(ARG)
+PRINTFORMW 한밤중 잠에서 깨버리고 말았다
+PRINTFORMW 더 자려고 생각했지만 아무래도 잠들 수 있을 것 같지 않다……
+CALL ASK_YN("돌아다닌다","방에 있는다")
+IF RESULT
+	PRINTFORM %마스터는% 졸려질 때까지 
+	PRINTDATA
+		DATAFORM 콜렉션을 정리·감상하며 보냈다
+		DATAFORM 미와 선, 팬티에 대해 생각을 깊이 했다
+		DATAFORM 벽의 얼룩과 담소했다
+	ENDDATA
+	PRINTFORML ……
+	CALL COLORMESSAGE("마음이 풍부해지면서 일시적으로 기력과 TSP가 좀 늘었다", C_YELLOW, 2,1)
+	CALL BUFF_BASE(MASTER, BASE_기력, 100)
+	CALL BUFF_BASE(MASTER, BASE_TSP, 100)
+ELSEIF !RAND:4 || (!RAND:4 && ABL:ARG:친밀 >= 7)
+	PRINTFORMW 적당히 돌아다니다가, \@ CFLAG:MASTER:311 == CFLAG:ARG:311 ? 자기 방으로 돌아왔더니 뭔가 소리가 들렸다# 이제 슬슬 돌아갈까 하다가 %CALLNAME:ARG%의 방에서 뭔가 들려서 들러봤다\@
+	CALL ONABARE(ARG)
+	CFLAG:MASTER:철야 = 1
+ELSEIF ITEM:토부「개운대문」
+		PRINTL 이런, 개운대문의 모습이…?
+		CALL ASK_YN("꺼낸다","방치한다")
+		IF !RESULT
+			ITEM:토부「개운대문」 --
+			SETCOLOR COLOR ("YELLOW")
+			PRINTFORMW 토부「개운대문」이 발동!
+			RESETCOLOR
+			PRINTFORMW 적당히 돌아다니다가, \@ CFLAG:MASTER:311 == CFLAG:ARG:311 ? 자기 방으로 돌아왔더니 뭔가 소리가 들렸다# 이제 슬슬 돌아갈까 하다가 %CALLNAME:ARG%의 방에서 뭔가 들려서 들러봤다\@
+			CALL ONABARE(ARG)
+			CFLAG:MASTER:철야 = 1
+		ELSEIF !RAND:2
+			GOTO OYATU
+		ELSE
+			GOTO NANIMONAI
+		ENDIF
+ELSEIF !RAND:2
+	$OYATU
+	PRINTFORML 배가 조금 고프다 게다가 뭔가 먹으면 졸려질지도 모른다
+	PRINTFORMW %마스터는% 부엌에 가서 찬장을 뒤지자, 맛있는 간식을 발견했다
+	PRINTFORMW %마스터가% 산 것은 아니다. 그러나 누군가가 %마스터를% 위해 준비해줬을 가능성도 버리지 못한다
+	PRINTFORML 
+	CALL COLORMESSAGE("어떠케, 이제 곧 유통기하니 지나! 누가 빨리 머거주면 안 될까!", C_YELLOW, 2,2)
+	;ﾄﾞｳｼﾖｳ､ﾓｳｽｸﾞｼｮｳﾐｷｹﾞﾝｶﾞｷﾁｬｳﾜ!ﾀﾞﾚｶﾊﾔｸﾀﾍﾞﾃｸﾚﾅｲｶｼﾗ!
+	;どうしょう､もうすぐしょうみきげんがきちゃうわ!だれかはやくたべてくれないかしら!
+	;어떻게, 이제 곧 유통기한이 지나! 누가 빨리 먹어주면 안될까!
+	PRINTFORML 
+	PRINTFORML 간식도 이렇게 말한다. 고맙게 받기로 하자
+	CALL BUFF_BASE(MASTER, BASE_기력, 300)
+	CALL COLORMESSAGE("맛있는 간식을 먹어 일시적으로 기력이 증가한다", C_YELLOW, 2,1)
+	PRINTFORMW %마스터는% 이를 다시 닦고 기분 좋게 잠자리에 들었다
+	CALL COLORMESSAGE(@"왠지 %CALLNAME:ARG%의 기분이 나빠진다……", C_RED, 2,1)
+	TALENT:ARG:기분 = -1
+ELSE
+	$NANIMONAI
+	PRINTFORMW 돌아다녀보긴 했지만 딱히 재미있는 일도 없고 얌전하게 다시 자기로 했다
+	CFLAG:MASTER:취침시간 += 60
+	CALL COLORMESSAGE("수면시간이 1시간 줄어들었다", C_YELLOW, 2,1)
+ENDIF

@@ -1,0 +1,174 @@
+﻿;-------------------------------------------------
+;애무
+;애무계 커맨드 레벨 2
+;-------------------------------------------------
+@COM0
+
+#DIM 키스한다
+
+
+IF (FIRSTTIME(312,1) && FIRSTTIME(20,1)) || (MASTER_POSE(SET_M, SET_M) != TARGET && MASTER_POSE(0,4)) || (STAIN:구 >= 2 && (STAIN:구 != 16 && STAIN:구 != 17) && ASSIPLAY == 0 && TALENT:PLAYER:악취내성 < 2) || TEQUIP:20
+;노예의 입의 더러움이 있을 때 키스는 없다(애액과 모유 얼룩은 OK, 더러움 무시나 조수 조교시는 문제 없음)
+;볼개그 사용중도 없음
+	키스한다 = 0
+ELSEIF !CFLAG:기정사실 & 합의_키스
+	키스한다 = 0
+ELSE
+	키스한다 = 1
+ENDIF
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;봉사 쾌락
+TCVAR:PLAYER:108 = 1
+
+;TARGET가 후타나리의 경우에는 사정 가능하게
+CSTR:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:2 = 3
+;강도
+TCVAR:4 = 1500
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 20
+	SOURCE:PLAYER:성행동 = 4
+	SOURCE:쾌C = 40
+	SOURCE:쾌B = 40
+	;성기술보정
+	
+	SOURCE:PLAYER:성행동 += (ABL:PLAYER:손가락 * 4)/10
+	SOURCE:쾌C += ABL:PLAYER:손가락 * 4
+	SOURCE:쾌B += ABL:PLAYER:손가락 * 4
+	;손가락을 사용하는 조교에서는, 조교자의 손가락 사용에 의해, 쾌감의 소스 증가
+	IF TALENT:PLAYER:능숙한손가락
+		TIMES SOURCE:쾌C , 1.50
+		TIMES SOURCE:쾌B , 1.50
+	ENDIF
+	IF 키스한다
+		SOURCE:PLAYER:성행동 = 1+(ABL:PLAYER:혀 * 3)/20
+		SOURCE:쾌M = 20
+		SOURCE:쾌M += ABL:PLAYER:혀 * 3
+		 SIF TALENT:PLAYER:혀놀림
+			TIMES SOURCE:쾌M , 1.50
+		;키스경험
+		EXP:PLAYER:키스경험 ++
+		;노예의 입⇔조교자의 입의 더러움이 이동
+		STAIN:구 |= STAIN:PLAYER:구
+		STAIN:PLAYER:구 |= STAIN:구
+	ENDIF
+	;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 5
+	ENDIF
+
+	;조교자가 고양이혀 소유의 경우는, 조교자에게 가학쾌락경험을 추가
+	SIF TALENT:PLAYER:고양이혀
+		EXP:PLAYER:가학쾌락경험 += 1
+	;경험
+	EXP:PLAYER:수음경험 ++
+ELSE
+
+	DOWNBASE:체력 += 10
+	DOWNBASE:기력 += 50
+	
+	SOURCE:PLAYER:성행동 = 4
+
+	SOURCE:쾌C = 40
+	SOURCE:쾌B = 40
+	IF 키스한다
+		SOURCE:PLAYER:성행동 += (20 + ABL:PLAYER:혀 * 3)/20
+		SOURCE:쾌M = 20 + ABL:PLAYER:혀 * 3
+		SOURCE:PLAYER:쾌M = 20 + ABL:TARGET:혀 * 3
+	ENDIF
+	
+	SOURCE:사랑 = 50
+	SOURCE:성행동 = 60
+	SOURCE:노출 = 20
+	SOURCE:불결 = 30
+	SOURCE:일탈 = 20
+	SOURCE:반감 = 20
+
+	;성기술보정
+	SOURCE:PLAYER:성행동 += (ABL:PLAYER:손가락 * 4)/10
+	SOURCE:쾌C += ABL:PLAYER:손가락 * 4
+	SOURCE:쾌B += ABL:PLAYER:손가락 * 4
+
+	IF TALENT:PLAYER:능숙한손가락
+		TIMES SOURCE:쾌C , 1.50
+		TIMES SOURCE:쾌B , 1.50
+	ENDIF
+	SIF 키스한다 && TALENT:PLAYER:혀놀림
+		TIMES SOURCE:쾌M , 1.50
+
+	SIF TALENT:PLAYER:혀놀림
+		TIMES SOURCE:사랑 , 1.50
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 20
+	;-------------------------------------------------
+	;더러움의 처리
+	;-------------------------------------------------
+	IF !키스한다
+		SOURCE:불결 = 0
+		SOURCE:사랑 /= 4
+		SOURCE:액체 /= 2
+	ELSE
+		;키스경험
+		EXP:키스경험 ++
+		EXP:PLAYER:키스경험 ++
+		;악취 둔감
+		SIF TALENT:악취내성 > 0
+			SOURCE:불결 /= 4
+		;악취 민감
+		SIF TALENT:악취내성 < 0
+			SOURCE:불결 *= 3
+		;자존심 높음
+		SIF TALENT:자존심 > 0
+			SOURCE:불결 *= 2
+		IF STAIN:PLAYER:구
+		;주인의 입의 더러움이 있으면(자) 불결150%
+			SOURCE:불결 *= 3
+			SOURCE:불결 /= 2
+		ENDIF
+		;노예의 입⇔조교자의 입의 더러움이 이동
+		STAIN:구 |= STAIN:PLAYER:구
+		STAIN:PLAYER:구 |= STAIN:구
+	ENDIF
+
+
+	;-------------------------------------------------
+	;경험의 처리
+	;-------------------------------------------------
+	;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+	CALL ADD_EXP_LESNIAN(5)
+
+	;조교자가 고양이혀 소유의 경우는, 조교자에게 가학쾌락경험을 추가
+	SIF TALENT:PLAYER:고양이혀
+		EXP:PLAYER:가학쾌락경험 += 1
+	;경험
+	EXP:PLAYER:수음경험 ++
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;애무 실행 판정
+;-------------------------------------------------
+@COM_ABLE0
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(0)
+	RETURN RESULT
+SIF !TARGET
+	RETURN 0
+RETURN 1
+

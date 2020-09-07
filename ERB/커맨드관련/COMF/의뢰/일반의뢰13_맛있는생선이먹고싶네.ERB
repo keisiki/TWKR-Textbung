@@ -1,0 +1,90 @@
+﻿;존부 함수
+;F関数はTRYCALL系が使えないので通常関数で存否配列を作っちゃう
+@EXIST_일반의뢰13
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;오브젝트 본체
+;여기서 ARG로 건네받는 것은 CLIENT_ID입니다
+@일반의뢰13(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "의뢰명"
+	CALLF MAKE_STR(V_NAME, "맛있는물고기가 먹고 싶네")
+CASE "의뢰내용 표시"
+	CALLF MAKE_STR(V_NAME, @"맛있는물고기를 전달한다")
+CASE "의뢰 보수 표시"
+	CALLF MAKE_STR(V_NAME, @"백미 3개")
+CASE "의뢰실행 커맨드 이름"
+	CALLF MAKE_STR(V_NAME, "맛있는물고기를 전달한다")
+CASE "의뢰내용"
+	CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(GETNUM(ITEM, "맛있는물고기"), "조달"))
+CASE "의뢰 서브"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰기한"
+;発生時ではなく受託時に確定します
+	CALLF MAKE_INT(V_NAME, 5)
+CASE "의뢰 발생율"
+;これは他の일반의뢰との相対確率なんで10％ではありません
+	CALLF MAKE_INT(V_NAME, 3)
+CASE "의뢰 발생 조건"
+;와카사기히메以外
+	SIF ARG != [[와카사기히메]]
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰 수탁 가능 조건"
+;낚싯대を持ってる
+	SIF ITEM:낚싯대
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰실행 가능 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+;成功/失敗処理はCARRYOUTで直接書く
+;SOURCEやITEM入手、消費が煩雑になるので
+CASE "의뢰 소멸 조건"
+	SIF RAND:100 < 30
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰인 데리고 나가 가능"
+ENDSELECT
+
+
+
+@IRAI_일반13(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE SCENE
+CASE "의뢰 조건 표시"
+;何か専用の表示情報を設けたい時用
+;受託済みの依頼表示で使用されます
+;
+;PRINT系だけでSOURCEとかは入れちゃダメ、WAITも無しで
+;ここ以外の表示項目は
+;PRINTFORML 　　　　　：
+;となっているのでスペースを揃えたほうが見栄えが良いです
+
+CASE "의뢰실행시"
+;このCASEに限り、RESULTが意味を持ちます
+;의뢰실행시のRESULTにはIRAI_CONST_RESULT()を使用してください
+;可能な引数は"キャンセル", "실행해 성공", "実行して失敗", "실행해 미해결"です
+;独自処理を仕込みたい時は"실행해 미해결"で先延ばしするなりしてください
+	SOURCE:TARGET:환락 += 1000
+	PRINTFORML %마스터는% %CALLNAME:TARGET%에게 맛있는물고기를 건네주었다
+	PRINTFORML 왠지 살아갈 희망이 생겼어
+	CALL LOST_ITEM("맛있는물고기", 1, 2)
+	RETURN IRAI_CONST_RESULT("실행해 성공")
+CASE "의뢰 성공시"
+;성공 보고시の報酬など
+	CALL CHANGE_CFLAG(2, TARGET, 30)
+	CALL CHANGE_CFLAG(4, TARGET, 20)
+	TALENT:기분 = LIMIT(TALENT:기분 + 1, -1, 1)
+	CALL GET_ITEM("백미", 3, 2)
+CASE "의뢰 실패시"
+;실패 보고시の処理
+	CALL CHANGE_CFLAG(2, TARGET, -5)
+	CALL CHANGE_CFLAG(4, TARGET, -5)
+ENDSELECT

@@ -1,0 +1,340 @@
+﻿
+;FileName_SHOP.ERB -------------------------------- Rev1. 00
+;RESULT_104(설정) 처리
+;CALL		SYSTEM
+;ARG		VOID
+;RETURN		VOID
+;COMMENT	
+;----------------------------------------------------------
+@SCHEDULE
+PRINTFORML [0] - 기상시간 설정(현재：%시각표시(TIME:3)%)
+PRINTFORML [1] - 개인 방 설정(현재：%NAME_FROM_PLACE(CFLAG:MASTER:초기위치)%)
+;SIF FLAG:더부살이캐릭터 == 0
+;	PRINTL [2] - 더부살이
+PRINTFORML [4] - 부업(현재：\@ FLAG:부업 ?  온 # 오프 \@)
+PRINTFORML [5] - 개명
+PRINTFORML [6] - 술벌레 병을 이동(현재：\@ !MAIN_MAP ?  %STR:거점_술벌레% # %STR:(거점_술벌레 + 8000)% \@)
+SIF ITEM:제단
+	PRINTFORML [7] - 자동결연(현재의 대상：\@ FLAG:자동결연 ?  %CALLNAME:(FLAG:자동결연)%# 없음\@)
+;#;PRINTFORML [-99] - 디버그용, 함수 호출 버튼
+PRINTL [100] - 돌아간다
+INPUT
+IF RESULT == 100
+	RETURN 0
+ELSEIF RESULT == 0
+	CALL 기상시간설정()
+ELSEIF RESULT == 1
+	CALL 연모RULE
+	PRINTFORML %NAME_FROM_PLACE(CFLAG:MASTER:초기위치)%로 설정했습니다
+	PRINTFORMW 변경은 다음날부터 반영됩니다
+ELSEIF RESULT == 4
+	FLAG:부업 = !FLAG:부업
+	IF FLAG:부업
+		PRINTFORMW 취침시에 남은 TSP를 사용해 부업 합니다
+	ELSE
+		PRINTFORMW 부업을 오프로 했습니다
+	ENDIF
+ELSEIF RESULT == 5
+	CALL NAME_CUSTOM(MASTER)
+ELSEIF RESULT == 6
+	CALL 술벌레이사
+ELSEIF RESULT == 7 && ITEM:제단
+	CALL AUTO_ENMUSUBI
+ELSEIF RESULT == -99
+	;이 항목은 아니고
+	;@TEST_동작테스트용의 내용을 만져 주세요
+	;#; CALL TEST_동작테스트용
+ENDIF
+RETURN 1
+
+[SKIPSTART]
+함수의 동작 테스트용
+PRINTFORM를 코피페 하면 말표시시의 웨이트의 빈도 조정 정도의 용도에는 사용할 수 있다
+주의점
+·사용할 수 있는 타이밍이 한정된다(의로, 판정 내용에 따라서는 거동이 바뀐다)
+·CFLAG의 조작 등을 실시했을 경우에는 세이브하지 않고 그대로 Emuera를 종료하는 편이 무난
+·다 사용했으면 백지로 돌아가 둡시다
+[SKIPEND]
+@TEST_동작테스트용
+;좋아하게 써라
+
+[SKIPSTART]
+;구문, 몽정 이벤트의 동작 테스트
+DO
+	PRINTFORMW 와 대기중
+	CALL DAIRY_EV2
+LOOP 1
+[SKIPEND]
+
+
+@술벌레이사
+#DIMS 이사처명칭
+#DIM 이사처지점
+PRINTFORML 어디에 이동시킬까?
+FOR LOCAL,1,100
+	IF ROOMDATA:LOCAL & 장소_주방
+		IF MAIN_MAP == 0
+			LOCALS = %STR:LOCAL%
+		ELSE
+			LOCALS = %STR:(LOCAL + 8000 + MAIN_MAP * 100)%
+		ENDIF
+		IF LOCAL == 거점_술벌레 % 100
+			SETCOLOR C_AQUA
+		ELSEIF PRIVATEROOM:LOCAL && !TALENT:(PRIVATEROOM:LOCAL):연모
+			SETCOLOR 100, 100, 100
+		ENDIF
+		PRINTFORML [{LOCAL}] %LOCALS%
+		RESETCOLOR
+	ENDIF
+NEXT
+DRAWLINE
+PRINTFORML [100] 역시 그만둔다
+INPUT
+IF INRANGE(RESULT,1,99) && ROOMDATA:RESULT & 장소_주방
+	IF PRIVATEROOM:RESULT && !TALENT:(PRIVATEROOM:RESULT):연모
+		PRINTFORMW 역시 거기에 두는 것은 맛이 없을 것이다
+		RESTART
+	ENDIF
+	이사처지점 = RESULT
+	IF MAIN_MAP == 0
+		이사처명칭 = %STR:이사처지점%
+	ELSE
+		이사처명칭 = %STR:(이사처지점 + 8000 + MAIN_MAP * 100)%
+		이사처지점 += MAIN_MAP * 100
+	ENDIF
+	
+	PRINTFORML %이사처명칭%에 병을 가지고 가기로 했다
+	PRINTFORML 내용이 들어간 물병을 옮기는 것은 꽤 중노동이다……
+	CALL COLORMESSAGE(@"술벌레를 %이사처명칭%에 이동시켰습니다", C_YELLOW, 2)
+	거점_술벌레 = 이사처지점
+ENDIF
+
+;시간(ARG)에 기상하는 경우 얼마나 수면 하는지를 산출
+@수면시간예측(ARG)
+#FUNCTION
+LOCAL = CFLAG:MASTER:취침시간 - DAY * 1440
+IF ARG >= LOCAL
+	RETURNF ARG - LOCAL
+ELSE
+	RETURNF 1440 + ARG - LOCAL
+ENDIF
+
+@AUTO_ENMUSUBI
+PRINTFORML 그 날 발원하지 않았을 경우, 자기 전에 자동으로 대상 캐릭터와의 연결을 원하도록 합니다.
+PRINTFORML 대상을 선택해 주세요
+FOR LOCAL,1,CHARANUM
+	SIF TALENT:LOCAL:스침
+		CONTINUE
+	SIF CFLAG:LOCAL:출금
+		CONTINUE
+	SIF FLAG:자동결연 == LOCAL
+		SETCOLOR C_YELLOW
+	PRINTFORMLC [{LOCAL}] %CALLNAME:LOCAL%
+	RESETCOLOR
+NEXT
+PRINTFORML 
+DRAWLINE
+PRINTFORML [999] 그만둔다
+INPUT
+IF RESULT == 999
+	FLAG:자동결연 = 0
+ELSEIF INRANGE(RESULT,1,CHARANUM)
+	FLAG:자동결연 = RESULT
+ENDIF
+
+@최저수면시간설정
+TIME:3 = (CFLAG:MASTER:취침시간 - DAY * 1440) + 240
+SIF TIME:3 >= 1440
+	TIME:3 -= 1440
+SIF TIME:3 < 0
+	TIME:3 = 0
+
+@기상시간설정
+#DIM 동거사람
+#DIM 전날취침시간
+전날취침시간 = CFLAG:MASTER:취침시간 - DAY * 1440
+동거사람 = 0
+FOR LOCAL,1,CHARANUM
+	IF CFLAG:LOCAL:초기위치 == CFLAG:MASTER:초기위치
+		동거사람 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+DO
+	PRINTFORML 몇 시에 기상합니까? (전날취침시간：%시각표시(전날취침시간)%)(수면시간：{수면시간예측(TIME:3) / 60}시간{수면시간예측(TIME:3) % 60}분 )
+	PRINTBUTTON "┏━ △ ", 60
+	PRINTBUTTON "━△", 10
+	PRINTBUTTON "△━┓", 1
+	PRINTL 
+	PRINT ┃　
+	SIF TIME:3 < 600
+		PRINT ０
+	PRINTFORM %TOFULL(TOSTR(TIME:3 / 60))%：
+	SIF TIME:3 % 60 < 10
+		PRINT ０
+	PRINTFORM %TOFULL(TOSTR(TIME:3 % 60))%　
+	PRINTBUTTON "□", 5555
+	PRINTL 
+	PRINTBUTTON "┗━ ▽ ", -60
+	PRINTBUTTON "━▽", -10
+	PRINTBUTTON "▽━┛", -1
+	PRINTL 
+	SIF 동거사람 < CHARANUM && 동거사람
+		PRINTFORM [2222] - 동거중인 %CALLNAME:동거사람%의 기상시간에 맞춘다
+	PRINTL 
+	PRINT [3333] - 캘린더 -
+	PRINT
+	PRINTL [4444] - 직접 입력
+	IF 수면시간예측(TIME:3) < 240
+		PRINTFORM [5555] -
+		CALL COLORMESSAGE("최악이어도 4시간 이상 잘 필요가 있습니다", C_ORANGE, 1)
+	ELSE
+		PRINTFORML [{0,4}] - 완료
+	ENDIF
+	INPUT
+	IF RESULT == 0 && 수면시간예측(TIME:3) >= 240
+		PRINTFORM 자명종을 
+		CALL COLORMESSAGE(@"%시각표시(TIME:3)%", C_YELLOW)
+		PRINTFORMW 로 설정했습니다.
+		RETURN 1
+	ELSEIF RESULT == 2222 && 동거사람 < CHARANUM && 동거사람
+		TIME:3 = CFLAG:동거사람:기상시간
+	ELSEIF RESULT == 3333
+		CALL 캘린더()
+	ELSEIF RESULT == 4444
+		CALL 기상시간입력()
+	ELSEIF RESULT == 5555
+		CALL 최저수면시간설정()
+	ELSEIF INRANGE(RESULT, -1360, 1360)
+		TIME:3 += RESULT
+		IF TIME:3 >= 1440
+			TIME:3 -= 1440
+		ELSEIF TIME:3 < 0
+			TIME:3 += 1440
+		ENDIF
+	CLEARLINE 8
+	ENDIF
+LOOP 1
+[SKIPSTART]
+	;전의 것이 괜찮다고 되면(자) 여기를 되돌려
+	VARSET LOCAL
+	FOR LOCAL, 0, 24
+		IF 수면시간예측(LOCAL * 60) < 240
+			SETCOLOR 50, 50, 50
+			PRINTPLAINFORM [{LOCAL, 2}]
+		ELSE
+			SIF TIME:3 == LOCAL * 60
+				SETCOLOR C_AQUA
+			PRINTFORM [{LOCAL, 2}]
+		ENDIF
+		RESETCOLOR
+		SIF LOCAL % 12 == 11
+			PRINTL 
+	NEXT
+	IF 동거사람 < CHARANUM && 동거사람
+		LOCAL:1 = CFLAG:동거사람:기상시간 / 60
+		DRAWLINE
+		PRINTFORML [{LOCAL:1, 2}] - 동거(同居) 안의 %CALLNAME:동거사람%의 기상시간
+	ENDIF
+	$INPUT_LOOP
+	INPUT
+	SIF RESULT < 0 || RESULT > 23 || 수면시간예측(RESULT * 60) < 240
+		GOTO INPUT_LOOP
+	TIME:3 = RESULT * 60
+	PRINTFORM 자명종을 
+	CALL COLORMESSAGE(@"%시각표시(TIME:3)%", C_YELLOW)
+	PRINTFORMW 로 설정했습니다. ({수면시간예측(TIME:3) / 60}시간{수면시간예측(TIME:3) % 60}분 잡니다)
+[SKIPEND]
+;;------------------------------------------------------------
+;;안 2 수면시간을 직접 지정하는 방법, 기상시간을 자동으로 설정해 준다
+;	$INPUT_LOOP_0
+;	PRINTL 최저 4시간은 잘 필요가 있으며, 12시간 이상이면 자연스럽게 깨어납니다
+;	PRINTFORML 몇 시간 자겠습니까? (4~12를 입력해주세요) (8시간이 평균적인 수면시간입니다)
+;	$INPUT_LOOP_1
+;	INPUT
+;	SIF RESULT < 4 || RESULT > 12
+;		GOTO INPUT_LOOP_1
+;	TIME:3 = ((LOCAL:1 / 60) + RESULT) * 60
+;	SIF (LOCAL:1 % 60)
+;		TIME:3 += 60
+;	SIF TIME:3 >= 1440
+;		TIME:3 -= 1440
+;	PRINTFORML 기상시간은 (%시각표시(TIME:3)%)가 됩니다
+;	PRINTL 괜찮겠습니까?
+;	PRINTL  [0] 네
+;	PRINTL  [1] 아니오
+;	$INPUT_LOOP_2
+;	INPUT
+;	IF RESULT == 0
+;		PRINTFORMW 기상시간을 (%시각표시(TIME:3)%)로 설정했습니다
+;	ELSEIF RESULT == 1
+;		GOTO INPUT_LOOP_0
+;	ELSE
+;		GOTO INPUT_LOOP_2
+;	ENDIF
+
+@기상시간입력
+#DIM 시간
+#DIM 분수
+PRINTL 기상시각을 hhmm 형식으로 입력해 주세요.(입력범위 hh=0~23, mm=0~59, 대상외의 값 입력시 취소)
+PRINTL [2400] - 캔슬
+INPUT
+시간 = RESULT / 100
+분수 = RESULT % 100
+IF 0 <= 시간 && 시간 < 24 && 0 <= 분수 && 분수 < 60
+	TIME:3 = 시간 * 60 + 분수
+	CALL COLORMESSAGE(@"%시각표시(TIME:3)%", C_YELLOW)
+	PRINTFORMW 로 설정했습니다.
+ENDIF
+
+@연모RULE(ARG)
+;ARGはROOMSETTINGから来たかどうか
+	PRINTL 연모인 캐릭터와 같은 방이 될 수가 있습니다
+	SIF CFLAG:MASTER:초기위치 == Default초기위치
+		SETCOLOR C_AQUA
+SIF !ARG 
+	PRINTFORML [0] - %NAME_FROM_PLACE(Default초기위치)%
+RESETCOLOR
+FOR LOCAL,1,CHARANUM
+	SIF CFLAG:MASTER:초기위치 == CFLAG:LOCAL:초기위치
+		SETCOLOR C_AQUA
+	IF TALENT:LOCAL:연모
+		IF CFLAG:LOCAL:신사거주
+			PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%의 방
+		ELSEIF FLAG:더부살이캐릭터 == LOCAL && !MAIN_MAP
+			PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%의 방
+		ELSEIF FLAG:16 == LOCAL && !MAIN_MAP
+			PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%의 방
+		ELSEIF LOCAL == 71 && !MAIN_MAP
+			PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%의 벌레통
+		ENDIF
+	ENDIF
+	RESETCOLOR
+NEXT
+PRINTFORML [998] - 캔슬
+$INPUT_LOOP2
+INPUT
+IF RESULT == 998
+	RETURN 998
+ELSEIF RESULT < 0 || RESULT >= CHARANUM
+	CLEARLINE 1
+	GOTO INPUT_LOOP2
+ELSEIF RESULT == 0
+;초기 당신 방
+	CFLAG:MASTER:초기위치 = Default초기위치
+	SIF Default초기위치 == 53
+		STR:53 = %CALLNAME:MASTER%의 창고
+;	ELSEIF RESULT == 999
+;		CFLAG:MASTER:초기위치 = 53
+;		STR:53 = %CALLNAME:MASTER%의 창고
+ELSEIF RESULT == 71 && TALENT:MASTER:100 >= -4 && TALENT:RESULT:연모
+	PRINTW 난쟁이가 아니므로 같이 잘 수는 없다
+	CLEARLINE 2
+	GOTO INPUT_LOOP2
+ELSEIF TALENT:RESULT:연모 && CFLAG:RESULT:신사거주
+	CFLAG:MASTER:초기위치 = CFLAG:RESULT:초기위치
+	STR:53 = 창고
+ELSE
+	CLEARLINE 1
+	GOTO INPUT_LOOP2
+ENDIF

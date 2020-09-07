@@ -1,0 +1,541 @@
+﻿;-------------------------------------------------
+;이동
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM400
+#DIM 입욕거부
+#DIM 벌레통
+#DIM 잠입해
+#DIM 멈춰서대상
+#DIM BUTTON돌아간다
+#DIM BUTTON전환왼쪽 
+#DIM BUTTON전환중 
+#DIM BUTTON전환오른쪽
+#DIM 들어가지않음
+BUTTON돌아간다 = MAXROOM + 1
+BUTTON전환왼쪽 = MAXROOM + 2
+BUTTON전환중 = MAXROOM + 4
+BUTTON전환오른쪽 = MAXROOM + 4
+들어가지않음 = 0
+
+IF IN_HOME(TFLAG:195) != 1 && NEXTCOM != -1
+	NEXTCOM = -1
+	RETURN 0
+ENDIF
+;인원수 카운트를 리셋
+VARSET COUNTCHARA
+;방의 인원수 카운트를 설정
+FOR LOCAL,1,CHARANUM
+	COUNTCHARA:(CFLAG:LOCAL:현재위치) ++
+NEXT
+입욕거부 = 0
+CALL TURN_RESET
+
+DRAWLINE
+;
+;	// 자택 맵의 표시를 신묘화 방식으로
+;
+
+CALL DRAW_MAP
+
+
+PRINTL 
+PRINTFORM 현재{(CFLAG:MASTER:현재위치)}:
+PRINTFORMS NAME_FROM_PLACE(CFLAG:MASTER:현재위치)
+PRINTL 에 있습니다
+
+IF FLAG:짐작모드 == 1
+	PRINTL
+	PRINT 색의 설명：
+	CALL COLORMESSAGE("체류중　", 0xFF64C8, 0)
+	CALL COLORMESSAGE("업무중　", 0xFF6400, 0)
+	CALL COLORMESSAGE("수면중　", 0x0078b4, 0)
+	CALL COLORMESSAGE("모브　　", C_D_PINK, 0)
+	CALL COLORMESSAGE("자동행동", C_YELLOW, 1)
+ELSEIF FLAG:짐작모드 == 2
+	PRINT 청결도：
+	CALL COLORMESSAGE("　 중 　", 0xFFFF00, 0)
+	CALL COLORMESSAGE("　 저 　", 0xFF00FF, 0)
+	CALL COLORMESSAGE("쓰레기산", 0xFF0000, 1)
+ENDIF
+
+PRINTL [0] - 방으로 돌아간다
+FOR LOCAL, MINROOM(), MAXROOM
+	SIF !CAN_MOVE(CFLAG:MASTER:현재위치, LOCAL) & 1
+		CONTINUE
+	SIF NAME_FROM_PLACE(LOCAL) == ""
+		CONTINUE
+	SELECTCASE FLAG:이동처표시
+		CASE 2
+			PRINTFORM [{LOCAL}] - 
+			PRINTFORMSL NAME_FROM_PLACE(LOCAL)
+		CASE 1
+			PRINTFORM [{LOCAL}]-%NAME_FROM_PLACE(LOCAL),5,LEFT% 
+		CASE 0
+	ENDSELECT
+NEXT
+
+IF !CAN_MOVE(CFLAG:MASTER:현재위치, ENTRANCE) & 1 && CFLAG:MASTER:현재위치 != ENTRANCE
+	PRINTFORM [{ENTRANCE}] - 
+	PRINTFORMSL NAME_FROM_PLACE(ENTRANCE)
+ENDIF
+PRINTFORM [{BUTTON돌아간다}] - 돌아간다　　
+PRINTBUTTON "＜]", BUTTON전환왼쪽
+PRINTBUTTON "맵 전환", BUTTON전환중
+PRINTFORM ({TFLAG:맵변환})
+PRINTBUTTON "[＞", BUTTON전환오른쪽
+SIF TALENT:MASTER:위치짐작 || TALENT:MASTER:오방짐작
+	PRINTFORM 　　[200] - 짐작모드
+IF FLAG:짐작모드 == 1
+	PRINT (거주)
+ELSEIF FLAG:짐작모드 == 2
+	PRINT (오염)
+ENDIF
+IF TALENT:MASTER:위치짐작 && FLAG:짐작모드 == 1
+	PRINTBUTTON "[Z] - 있는 위치 짐작　　 ", "Z"
+ENDIF
+IF TALENT:MASTER:오방짐작 && FLAG:짐작모드 == 2
+	PRINTBUTTON "[X] - 더러운 방 짐작　　 ", "X"
+ENDIF
+PRINTBUTTON "[C] - 이동처 표시 전환　　", "C"
+IF TALENT:MASTER:100 < -4 && !CFLAG:MASTER:동행
+	PRINTL
+	PRINT (걷는 것도 꽤 고생이다…)
+ELSEIF TALENT:MASTER:100 < -4 && CFLAG:MASTER:동행
+	PRINTL
+	PRINT (태워주니 편하다)
+ENDIF
+
+DO
+	INPUTS
+	;시스템계를 먼저 처리
+	SELECTCASE RESULTS
+	CASE "Z", "z"
+		SIF !TALENT:MASTER:위치짐작 || !AT_HOME(MASTER) || CFLAG:우후후
+			GOTO STR_RETRY
+		TFLAG:206 = CFLAG:MASTER:현재위치
+		CALL HITOSAGASI()
+		INPUT
+		SIF GROUPMATCH(RESULT, 0, CFLAG:MASTER:현재위치)
+			RESTART
+		IF MAP_CAN_MOVE(RESULT) == 0
+			IF TFLAG:이동불능메시지 == 999
+				PRINTFORMW 열쇠가 걸려 있다
+				CLEARLINE 2
+				REUSELASTLINE 
+			ELSE
+				TRYCALLFORM MAP_CANNOT_WORD_{MAIN_MAP}(RESULT)
+			ENDIF
+			TFLAG:이동불능메시지 = 0
+			NEXTCOM = -1
+			RETURN 0
+		ELSEIF IN_HOME(RESULT) == 1
+			CALL SKIP_MOVE(CFLAG:MASTER:현재위치, RESULT)
+			RETURN
+		ENDIF
+		RESTART
+	CASE "X", "x"
+		SIF !TALENT:MASTER:오방짐작 || !AT_HOME(MASTER) || CFLAG:우후후
+			GOTO STR_RETRY
+		TFLAG:206 = CFLAG:MASTER:현재위치
+		CALL OHEYA_CHECK
+		INPUT
+		SIF GROUPMATCH(RESULT, 0, CFLAG:MASTER:현재위치)
+			RESTART
+		IF MAP_CAN_MOVE(RESULT) == 0
+			IF TFLAG:이동불능메시지 == 999
+				PRINTFORMW 열쇠가 걸려 있다
+				CLEARLINE 2
+				REUSELASTLINE 
+			ELSE
+				TRYCALLFORM MAP_CANNOT_WORD_{MAIN_MAP}(RESULT)
+			ENDIF
+			TFLAG:이동불능메시지 = 0
+			NEXTCOM = -1
+			RETURN 0
+		ELSEIF IN_HOME(RESULT) == 1
+			CALL SKIP_MOVE(CFLAG:MASTER:현재위치, RESULT)
+			RETURN
+		ENDIF
+		RESTART
+	CASE "C", "c"
+		FLAG:이동처표시 += 1
+		SIF FLAG:이동처표시 > 2
+			FLAG:이동처표시 = 0
+		RESTART
+	CASE ""
+		CONTINUE
+	ENDSELECT
+	
+	;반각 숫자의 경우만 판정을 속행
+	IF ISNUMERIC(RESULTS)
+		RESULT = TOINT(RESULTS)
+	ELSE
+		$STR_RETRY
+		PRINTW 부정확한 입력입니다
+		CLEARLINE 2
+		REUSELASTLINE 
+		CONTINUE
+	ENDIF
+	
+	;시스템계를 먼저 처리
+	SELECTCASE RESULT
+	CASE BUTTON돌아간다, CFLAG:MASTER:현재위치
+		$MOVE_CANCEL
+		NEXTCOM = -1
+		RETURN -1
+	CASE BUTTON전환왼쪽
+		TFLAG:맵변환 -= 1
+		SIF TFLAG:맵변환 <= 0
+			TFLAG:맵변환 = MAP_PAGES
+		RESTART
+	CASE BUTTON전환오른쪽
+		TFLAG:맵변환 += 1
+		SIF TFLAG:맵변환 > MAP_PAGES
+			TFLAG:맵변환 = 1
+		RESTART
+	CASE 0
+		IF IN_HOME(CFLAG:MASTER:초기위치) != 1
+			PRINTW 초기 위치가 부정확합니다. 방으로 변경합니다.
+			CFLAG:MASTER:초기위치 = Default초기위치
+		ENDIF
+		CALL SKIP_MOVE(CFLAG:MASTER:현재위치, CFLAG:MASTER:초기위치)
+		RETURN
+	CASE 200
+		IF TALENT:MASTER:위치짐작 && TALENT:MASTER:오방짐작
+			FLAG:짐작모드 += 1
+			SIF FLAG:짐작모드 >= 3
+				FLAG:짐작모드 = 0
+		ELSEIF TALENT:MASTER:위치짐작
+			FLAG:짐작모드 = !FLAG:짐작모드
+		ELSEIF TALENT:MASTER:오방짐작
+			FLAG:짐작모드 = (!FLAG:짐작모드) * 2
+		ENDIF
+		RESTART
+	ENDSELECT
+	
+	;남은 것은 통상의 장소의 선택 혹은 오입력
+	
+	;TW의 방침으로서 비추천이지만 박수 입력으로 이것이 있으면(자) 입력 문자수 줄어들어 편리하다
+	SIF INRANGE(RESULT, 1, 99)
+		RESULT += MAIN_MAP * 100
+	
+	SIF RESULT == CFLAG:MASTER:현재위치
+		GOTO MOVE_CANCEL
+	
+	;이동 불가능하면 연주해
+	;이동 범위외
+	IF IN_HOME(RESULT) != 1
+		TFLAG:맵변환 = 0
+		PRINTW 이동범위 밖
+		CLEARLINE 2
+		REUSELASTLINE 
+		CONTINUE
+	;이동 불능인
+	ELSEIF MAP_CAN_MOVE(RESULT) == 0
+		TFLAG:맵변환 = 0
+		IF TFLAG:이동불능메시지 == 999
+			PRINTFORMW 열쇠가 걸려 있다
+			CLEARLINE 2
+			REUSELASTLINE 
+		ELSE
+			TRYCALLFORM MAP_CANNOT_WORD_{MAIN_MAP}(RESULT)
+		ENDIF
+		TFLAG:이동불능메시지 = 0
+		CONTINUE
+	ENDIF
+	
+	;ELSEIF CAN_SKIPMOVE(MAIN_MAP) 벌써 전부 스킵무브로 한다
+	CALL SKIP_MOVE(CFLAG:MASTER:현재위치, RESULT)
+	RETURN
+	
+	
+	;eraTW4. 570 proto 시점에서는 이하 꼬박 죽어 분기
+	;반드시 RETURN나 RESTART로 날 뿐만 아니라, 시간경과 처리 등은 SKIP_MOVE측에서 하고 있다
+	IF FLAG:70 == 1
+		SIF TALENT:MASTER:100 < -4
+		BASE:MASTER:TSP -= 15
+		BASE:MASTER:TSP -= 5
+		IF TFLAG:운반
+			BASE:MASTER:TSP -= 3
+			CFLAG:(TFLAG:운반):현재위치 = CFLAG:MASTER:현재위치
+		ENDIF
+	ELSE
+		;난쟁이끼리동행해도 언제나 대로의 속도가 되는 것은 난쟁이의 지혜의 덕분이다
+		SIF TALENT:MASTER:100 < -4 && !CFLAG:MASTER:동행
+		TIME += 7
+		TIME += 3
+		IF CFLAG:93:동행 && !GETBIT (FLAG:풀장, 0)
+			TIME += 2
+			BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 5,500)
+		ENDIF
+	ENDIF
+	
+	;eraTW4.570 proto 시점에서는 은밀중 플래그를 사용하지 않은 같아?
+	;자세한 사양이 조금 잘 모른다
+	
+		;은밀 해제 처리
+	;	요점 검증
+	;IF CFLAG:MASTER:은밀중
+	;	FOR LOCAL, 1, CHARANUM
+	;		;MASTER의 전턴 위치가 개인 방이었을 경우
+	;		IF (CFLAG:LOCAL:311 == CFLAG:MASTER:전턴위치) || (CFLAG:LOCAL:현재위치 == CFLAG:MASTER:311 && CFLAG:MASTER:전턴위치 == CFLAG:MASTER:311)
+	;			CFLAG:LOCAL:은밀중 = 0
+	;			CFLAG:LOCAL:장난 = 0
+	;		ENDIF
+	;		;MASTER의 현재 위치가 개인 방이었을 경우
+	;		SIF ((CFLAG:MASTER:현재위치 == CFLAG:LOCAL:311) && CFLAG:LOCAL:수면) || ((CFLAG:LOCAL:현재위치 == CFLAG:MASTER:311 && CFLAG:MASTER:현재위치 == CFLAG:MASTER:311) && CFLAG:LOCAL:수면)
+	;			CFLAG:LOCAL:은밀중 = 1
+	;	NEXT
+	;	;개인 방 이외는 은밀할 수 없을… 터
+	;	IF CFLAG:MASTER:현재위치 < 13
+	;		CFLAG:MASTER:은밀중 = 0
+	;		CFLAG:MASTER:장난 = 0
+	;	ENDIF
+	;ENDIF
+	PREVCOM = 400
+	STR:0 = 이동
+	;NEXTCOM에 무엇인가의 값이 들어가 있는 경우는 그것을 고쳐 쓰지 않는다
+	;그렇지 않은 경우―1으로 리셋
+	SIF NEXTCOM == 0
+		NEXTCOM = -1
+	RETURN 0
+	;죽어 분기 여기까지
+LOOP 1
+
+;이동
+@COM_ABLE400
+;이동 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(400)
+	RETURN RESULT
+SIF CFLAG:우후후 == 2
+	RETURN 0
+SIF CFLAG:MASTER:장난
+	RETURN 0
+SIF CFLAG:MASTER:동침중
+	RETURN 0
+SIF CHK_DATENOW(CFLAG:MASTER:데이트중)
+	RETURN 0
+;자택이 아니다
+SIF AT_HOME(MASTER) == 0
+	RETURN 0
+RETURN 1
+
+@SKIP_MOVE(ARG, 최종목적지)
+#DIM 잠정목적지, 10
+#DIM 잠정목적지결정회수
+#DIM 최종목적지
+#DIM 직전위치
+#DIM 출발지점
+#DIM 경과시간
+#DIM 중계지점, 20
+#DIM 중계회수
+#DIM RELAY_COUNT
+#DIM 직전의목적지
+#DIM TSP소비배율
+
+;ARG:0	출발 위치
+;ARG:1	최종목적지
+VARSET LOCAL
+VARSET 중계지점
+잠정목적지 = 최종목적지
+경과시간 = 0
+중계회수 = 0
+TFLAG:맵변환 = 0
+IF (CAN_MOVE(CFLAG:MASTER:현재위치, 잠정목적지) & 1)
+	직전위치 = ARG
+	경과시간 = 1
+	CFLAG:MASTER:현재위치 = 최종목적지
+	RESULT = 최종목적지
+	GOTO STOP
+ELSE
+	TRYCALLFORM SKIP_MOVE_{MAIN_MAP}(최종목적지)
+	직전위치 = RESULT
+ENDIF
+
+출발지점 = CFLAG:MASTER:현재위치
+직전의목적지 = -1
+
+FOR 중계회수, 0,20
+	WHILE !(CAN_MOVE(출발지점, 잠정목적지) & 1)
+		TRYCALLFORM SKIP_MOVE_{MAIN_MAP}(잠정목적지, 출발지점)
+		[IF_DEBUG]
+		PRINTFORML {잠정목적지}에 직접 갈 수 없으니 {RESULT}를 목표로 할게 
+		[ENDIF]
+		SIF 직전의목적지 == RESULT
+			THROW 무한 루프가 발생하고 있습니다.
+		직전의목적지 = 잠정목적지
+		잠정목적지 = RESULT
+	WEND
+	[IF_DEBUG]
+	SETCOLOR C_YELLOW
+	PRINTFORML {중계회수+1}개째의 잠정목적지를 %NAME_FROM_PLACE(잠정목적지)%로 결정
+	RESETCOLOR
+	[ENDIF]
+	직전의목적지 = -1
+	경과시간 += 1
+	중계지점:중계회수 = 잠정목적지
+	SIF CAN_MOVE(잠정목적지, 최종목적지) & 1
+		BREAK
+	출발지점 = 잠정목적지
+	잠정목적지 = 최종목적지
+NEXT
+
+FOR RELAY_COUNT, 1, 중계회수 + 1
+	LOCAL:3 = 0
+	FOR LOCAL,1,CHARANUM
+		IF CFLAG:LOCAL:현재위치 == 중계지점:(RELAY_COUNT-1)
+			LOCAL:3 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	PRINTFORM {RELAY_COUNT}번째 중계지인 %NAME_FROM_PLACE(중계지점:(RELAY_COUNT-1))%
+	IF LOCAL:3
+		RESULT = 0
+		TRYCALLFORM M_KOJO_K{(LOCAL:3)}
+		PRINTFORML 에서 %조사처리(CALLNAME:(LOCAL:3),"를")% 발견했다
+		IF FLAG:멈춰서기 == 2
+			;멈춰 서지 않는다
+		ELSEIF FLAG:멈춰서기 == 1 && !RESULT
+			;말이 있는 경우만
+		ELSE
+			CALL ASK_M("인사하고 이동한다",!FLAG:70,"무시하고 이동한다", 1,"멈춰선다", 1)
+			IF RESULT == 2
+				CALL KOJO_MESSAGE_SEND("EVENT",4,LOCAL:3,1,0)
+				경과시간 = RELAY_COUNT
+				CFLAG:MASTER:현재위치 = 중계지점:(RELAY_COUNT - 1)
+				RESULT = 중계지점:RELAY_COUNT
+				GOTO STOP
+			ELSEIF RESULT == 1
+				CALL KOJO_MESSAGE_SEND("EVENT",4,LOCAL:3,3,0)
+			ELSE
+				CALL KOJO_MESSAGE_SEND("EVENT",4,LOCAL:3,2,0)
+			ENDIF
+		ENDIF
+	ELSE
+		PRINTFORML 에는 아무도 없었다
+	ENDIF
+NEXT
+
+경과시간 = 중계회수 + 1
+CFLAG:MASTER:현재위치 = 최종목적지
+RESULT = 최종목적지
+
+$STOP
+IF IN_TOILET(RESULT)
+	CALL 화장실침입(RESULT)
+	SIF RESULT == -1
+		CFLAG:MASTER:현재위치 = 직전위치
+ELSEIF BATHCHECK(RESULT)
+	LOCAL:1 = IN_ROOM_MEMBER("MIN", RESULT, "CFLAG", 6)
+	IF !LOCAL:1 && !CFLAG:MASTER:동행
+		PRINTFORMW 욕실에 도착한 %마스터는% 욕탕에 잠겼다
+	ELSEIF LOCAL:1 && 목욕탕추방조건(LOCAL:1) && !CFLAG:MASTER:동행
+		PRINTFORMW 욕실에 있던 %CALLNAME:(LOCAL:1)%에게 내쫓기고 말았다…
+		CALL KOJO_MESSAGE_SEND("EVENT",11,LOCAL:1,1,0)
+		CFLAG:MASTER:현재위치 = 직전위치
+	ELSEIF LOCAL:1 && !CFLAG:MASTER:동행
+		IF FLAG:70 == 1
+			PRINTFORMW %조사처리(CALLNAME:(LOCAL:1),"가")% 입욕 중이었던 모양이다…
+		ELSE
+			PRINTFORMW 욕실에 있던 %조사처리(CALLNAME:(LOCAL:1),"와")% 눈이 마주쳤다…
+			CALL KOJO_MESSAGE_SEND("EVENT",11,LOCAL:1,2,0)
+		ENDIF
+		CFLAG:MASTER:현재위치 = 최종목적지
+	ELSE
+		FOR LOCAL, 1, CHARANUM
+			IF 목욕탕추방조건(LOCAL) && CFLAG:LOCAL:동행
+				PRINTFORMW %조사처리(CALLNAME:LOCAL,"와")% 같이 목욕하려 했지만 거절당했다
+				CALL KOJO_MESSAGE_SEND("EVENT",23,LOCAL,1,0)
+				CFLAG:MASTER:현재위치 = 직전위치
+				GOTO END
+			ELSEIF LOCAL:1 && 목욕탕추방조건(LOCAL:1)
+				PRINTFORMW 욕실에 있던 %CALLNAME:(LOCAL:1)%에게 내쫓기고 말았다…
+				CALL KOJO_MESSAGE_SEND("EVENT",11,LOCAL:1,1,0)
+				CFLAG:MASTER:현재위치 = 직전위치
+				GOTO END
+			ENDIF
+		NEXT
+		FOR LOCAL, 1, CHARANUM
+			IF CFLAG:LOCAL:동행
+				PRINTFORMW %조사처리(CALLNAME:LOCAL,"는")% 같이 목욕을 해줄 모양이다.
+				CALL KOJO_MESSAGE_SEND("EVENT",23,LOCAL,2,0)
+				BREAK
+			ENDIF
+		NEXT
+		CFLAG:MASTER:현재위치 = 최종목적지
+	ENDIF
+ELSEIF RESULT == 54
+	CALL 벌레통침입(RESULT)
+	SIF RESULT == -1
+		CFLAG:MASTER:현재위치 = 직전위치
+ELSEIF LOCK:(RESULT)
+	LOCAL:4 = RESULT
+	IF FLAG:70 == 1
+		FOR LOCAL, 1, CHARANUM
+			IF CFLAG:LOCAL:311 == RESULT && CFLAG:LOCAL:수면 && !CFLAG:LOCAL:출금
+				PRINTFORMW 아무래도 %조사처리(CALLNAME:LOCAL,"는")% 자고 있는 모양이다.
+			ENDIF
+		NEXT
+		;이동 성립
+		CFLAG:MASTER:현재위치 = 최종목적지
+	ELSEIF FLAG:70 == 0
+		FOR LOCAL, 1, CHARANUM
+			IF CFLAG:LOCAL:311 == RESULT && CFLAG:LOCAL:수면 && !CFLAG:LOCAL:출금
+				PRINTFORMW 아무래도 %조사처리(CALLNAME:LOCAL,"는")% 자고 있는 모양이다
+			ELSEIF CFLAG:LOCAL:311 == RESULT && !CFLAG:LOCAL:수면 && !CFLAG:LOCAL:출금
+				PRINTFORML 아무래도 %조사처리(CALLNAME:LOCAL,"는")% 자고 있는 모양이다
+				PRINTFORMW 조금 소리도 들린다…
+			ENDIF
+			IF CFLAG:LOCAL:동행
+				LOCAL:2 = 1
+			ELSE
+				LOCAL:2 = 0
+			ENDIF
+		NEXT
+		IF LOCAL:2
+			CFLAG:MASTER:현재위치 = 직전위치
+		ELSEIF LOCAL:4 != CFLAG:MASTER:초기위치
+			CALL ASK_YN("방에 숨어든다","그만둔다")
+			IF RESULT == 0
+				CALL 방에숨어든다(LOCAL:4)
+				GOTO END
+			ELSEIF RESULT == 1
+				CFLAG:MASTER:현재위치 = 직전위치
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+$END
+[IF_DEBUG]
+PRINTFORML {경과시간}번 이동했어
+[ENDIF]
+
+TSP소비배율 = 5
+SIF TALENT:MASTER:100 < -4
+	TSP소비배율 += 15
+SIF TFLAG:운반
+	TSP소비배율 += 3
+IF FLAG:70 == 1 || (GETBIT(FLAG:순간이동, 1) && !CFLAG:MASTER:동행 && BASE:MASTER:TSP > TSP소비배율 * 경과시간)
+	BASE:MASTER:TSP -= TSP소비배율 * 경과시간
+	SIF TFLAG:운반
+		CFLAG:(TFLAG:운반):현재위치 = CFLAG:MASTER:현재위치
+ELSE
+	SIF TALENT:MASTER:100 < -4 && !CFLAG:MASTER:동행
+		TIME += 7 * 경과시간
+	TIME += 3 * 경과시간
+	IF CFLAG:93:동행 && !GETBIT (FLAG:풀장, 0)
+		TIME += 2 * 경과시간
+		BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - (5 * 경과시간), 500)
+	ENDIF
+ENDIF
+
+PREVCOM = 400
+STR:0 = 이동
+;NEXTCOM에 무엇인가의 값이 들어가 있는 경우는 그것을 고쳐 쓰지 않는다
+;그렇지 않은 경우―1으로 리셋
+SIF NEXTCOM == 0
+	NEXTCOM = -1

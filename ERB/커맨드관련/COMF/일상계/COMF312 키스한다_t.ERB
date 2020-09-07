@@ -1,0 +1,307 @@
+﻿;-------------------------------------------------
+;키스한다
+;일상계 커맨드 레벨 2
+;-------------------------------------------------
+@COM312
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 10
+	SOURCE:쾌M = ABL:PLAYER:혀 * 2 + 10
+	EXP:MASTER:키스경험 += 1
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 2
+	ENDIF
+ELSE
+	TFLAG:이성깎기 = 1
+	IF FLAG:생활능력무 && !GETBIT(CFLAG:기정사실 ,0)
+		DRAWLINE
+		PRINTFORMW %CALLNAME:MASTER%에게 그런 담력은 없다
+		RETURN -1
+	ENDIF
+	;거절 판정
+	IF REJECT_CHECK(SELECTCOM) && !CFLAG:수면
+		TFLAG:193 = 99
+		LOCAL = 0
+		;고정 획득 소스
+		SOURCE:반감 = 500
+		SOURCE:공포 = 300
+		;호감도가 낮으면 호감도 저하
+		IF CFLAG:2 <= 500
+			LOCAL -= 50
+		ELSEIF CFLAG:2 <= 1000
+			LOCAL -= 30
+		ELSEIF CFLAG:2 <= 1500
+			LOCAL -= 10
+		ENDIF
+		;호감도 변화
+		TFLAG:97 += LOCAL
+		TIME += 10
+		RETURN 1
+	ENDIF
+
+	SELECTCASE TFLAG:192
+		;통상
+		CASE 0
+			LOCAL = RAND:110
+			LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+			SIF LOCAL:1 > 109
+				LOCAL:1 = 109
+			IF LOCAL <= 9
+				;10%로 대성공
+				TFLAG:193 = 1
+				IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+					;KR판 오리지날 붉은실
+					IF TALENT:MASTER:붉은실&&(RAND:50==0)
+						SETCOLOR C_RED
+						PRINTFORML %CALLNAME:MASTER%의 운명의 붉은 실이 빛나고 있습니다.
+						SETCOLOR C_PINK
+						PRINTFORML %타겟은% %CALLNAME:MASTER%에게서 운명을 느낀듯 하다.
+						RESETCOLOR
+						RELATION:MASTER:TARGET+=10
+					ENDIF
+					EXP:MASTER:데이트경험 ++
+					EXP:TARGET:데이트경험 ++
+				ENDIF
+			ELSEIF LOCAL >= LOCAL:1
+				;10~1%로 실패
+				TFLAG:193 = -1
+			ELSE
+				;나머지는 성공
+				TFLAG:193 = 0
+			ENDIF
+		;강제 성공 or대성공
+		CASE 1
+			IF RAND:110 <= 9
+				TFLAG:193 = 1
+				IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+					;KR판 오리지날 붉은실
+					CALL 붉은실발동
+					EXP:MASTER:데이트경험 ++
+					EXP:TARGET:데이트경험 ++
+				ENDIF
+			ELSE
+				TFLAG:193 = 0
+			ENDIF
+		;강제 실패
+		CASE -1
+			TFLAG:193 = -1
+		;커맨드 종료
+		CASE -2
+			TFLAG:193 = -1
+			RETURN 0
+	ENDSELECT
+
+	;선제 발생시는 실패하지 않는다
+	SIF TFLAG:102 == 3 && TFLAG:192 != -1
+		TFLAG:193 = MAX(TFLAG:193,0)
+
+
+	IF CFLAG:TARGET:동침중
+		DOWNBASE:MASTER:기력 += 50
+	ELSEIF CHK_DATENOW(CFLAG:TARGET:데이트중)
+		DOWNBASE:기력 += 30
+		DOWNBASE:MASTER:기력 += 50
+	ELSE
+		DOWNBASE:기력 += 70
+		DOWNBASE:MASTER:기력 += 100
+	ENDIF
+
+	;고정으로 획득하는 소스
+	SOURCE:PLAYER:성행동= (ABL:PLAYER:혀 * 2 + 10)/20
+	SOURCE:쾌M = ABL:PLAYER:혀 * 2 + 10
+	SOURCE:PLAYER:쾌M = ABL:혀 * 2 + 10
+	SOURCE:환락 = 150
+	SOURCE:사랑 = 150
+	SOURCE:노출 = 80
+	SOURCE:반감 = 300
+	SIF CFLAG:수면
+		SOURCE:반감 = 200
+
+	;ABL:친밀을 본다
+	IF ABL:친밀 <= 1
+		SOURCE:사랑 += (ABL:친밀 * 30)
+	ELSEIF ABL:친밀 <= 3
+		SOURCE:환락 += 150 + (ABL:친밀 * 30)
+		SOURCE:사랑 += 150 + (ABL:친밀 * 30)
+		SOURCE:욕정 += 65 + (ABL:친밀 * 20)
+	ELSEIF ABL:친밀 <= 5
+		SOURCE:환락 += 300 + (ABL:친밀 * 40)
+		SOURCE:사랑 += 280 + (ABL:친밀 * 30)
+		SOURCE:욕정 += 130 + (ABL:친밀 * 26)
+		SOURCE:노출 += 80 + (ABL:친밀 * 15)
+	ELSEIF ABL:친밀 <= 8
+		SOURCE:환락 += 450 + (ABL:친밀 * 70)
+		SOURCE:사랑 += 380 + (ABL:친밀 * 40)
+		SOURCE:욕정 += 170 + (ABL:친밀 * 30)
+		SOURCE:노출 += 110 + (ABL:친밀 * 18)
+	ELSEIF ABL:친밀 <= 11
+		SOURCE:환락 += 500 + (ABL:친밀 * 85)
+		SOURCE:사랑 += 480 + (ABL:친밀 * 50)
+		SOURCE:욕정 += 230 + (ABL:친밀 * 35)
+		SOURCE:노출 += 160 + (ABL:친밀 * 20)
+	ELSE
+		SOURCE:환락 += 800 + (ABL:친밀 * 80)
+		SOURCE:사랑 += 760 + (ABL:친밀 * 45)
+		SOURCE:욕정 += 350 + (ABL:친밀 * 30)
+		SOURCE:노출 += 260 + (ABL:친밀 * 17)
+	ENDIF
+
+	;호감 도를 본다
+	IF CFLAG:2 <= 500
+		SOURCE:사랑 += CFLAG:2
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:사랑 += 400 + (CFLAG:2 - 500) / 5
+		SOURCE:환락 += 400 + (CFLAG:2 - 500) / 4
+	ELSE
+		SOURCE:사랑 += 1200 + (CFLAG:2 - 5000) / 7
+		SOURCE:환락 += 1200 + (CFLAG:2 - 5000) / 4
+	ENDIF
+	SIF SOURCE:사랑 < 0
+		SOURCE:사랑 = 0
+
+	LOCAL = 0
+	;호감도가 낮으면 호감도 저하
+	IF CFLAG:2 <= 100
+		LOCAL -= 3
+	ELSEIF CFLAG:2 <= 300
+		LOCAL -= 2
+	ELSEIF CFLAG:2 <= 500
+		LOCAL -= 1
+	ENDIF
+
+SIF CFLAG:몸목적
+	SOURCE:사랑 *= 3
+
+	SOURCE:수동 = 150 + 300 * ABL:순종
+	SOURCE:정복 = 150 + 300 * ABL:새드끼
+
+	;호감도 변화
+	SIF !CFLAG:수면
+		TFLAG:97 += LOCAL
+
+	;둘이서라면 효과 업, 그렇지 않으면 노출 이외 다운=============
+	FOR LOCAL,1,CHARANUM
+		SIF CFLAG:LOCAL:동실
+			LOCAL:2 ++
+	NEXT
+	IF LOCAL:2 == 1
+		TIMES SOURCE:환락 , 1.20
+		TIMES SOURCE:사랑 , 1.20
+		TIMES SOURCE:정복 , 1.20
+		TIMES SOURCE:수동 , 1.20
+	ELSE
+		TIMES SOURCE:환락 , 0.70
+		TIMES SOURCE:사랑 , 0.80
+		TIMES SOURCE:정복 , 0.80
+		TIMES SOURCE:수동 , 0.90
+		TIMES SOURCE:노출 , 1.10
+	ENDIF
+	;무드의 영향=====================================================
+	IF BASE:무드 == MAXBASE:무드
+		TIMES SOURCE:환락 , 1.30
+		TIMES SOURCE:사랑 , 1.30
+		TIMES SOURCE:정복 , 1.20
+		TIMES SOURCE:수동 , 1.20
+		TIMES SOURCE:노출 , 1.30
+	ELSEIF BASE:무드 < 600 && BASE:무드 > 200 && !TALENT:키스마
+		TIMES SOURCE:환락 , 0.70
+		TIMES SOURCE:사랑 , 0.75
+		TIMES SOURCE:정복 , 0.70
+		TIMES SOURCE:수동 , 0.60
+		TIMES SOURCE:노출 , 0.50
+	ELSEIF BASE:무드 <= 200 && !TALENT:키스마
+		TIMES SOURCE:환락 , 0.40
+		TIMES SOURCE:사랑 , 0.40
+		TIMES SOURCE:정복 , 0.40
+		TIMES SOURCE:수동 , 0.40
+		TIMES SOURCE:노출 , 0.35
+	ENDIF
+	;키스마===============================================================
+	IF TALENT:키스마
+		TIMES SOURCE:환락 , 1.40
+		TIMES SOURCE:사랑 , 1.40
+	ENDIF
+	;=====================================================================
+	IF TFLAG:193 == -1
+		TIMES SOURCE:환락 , 0.10
+		TIMES SOURCE:사랑 , 0.50
+		TIMES SOURCE:정복 , 0.50
+		TIMES SOURCE:수동 , 0.50
+		TIMES SOURCE:노출 , 0.40
+	ELSEIF TFLAG:193 == 0
+		TIMES SOURCE:환락 , 1.00
+		TIMES SOURCE:사랑 , 1.00
+		TIMES SOURCE:정복 , 1.00
+		TIMES SOURCE:수동 , 1.00
+		TIMES SOURCE:노출 , 0.90
+	ELSE
+		TIMES SOURCE:환락 , 2.00
+		TIMES SOURCE:사랑 , 2.00
+		TIMES SOURCE:정복 , 2.00
+		TIMES SOURCE:수동 , 2.00
+		TIMES SOURCE:노출 , 1.80
+	ENDIF
+	TIME += 10
+	SIF !CFLAG:수면
+		EXP:키스경험 += 1
+	;SOURCE 설정하고 있으면, SOURCE 처리로 CVABM 경험은 플러스 되므로 코멘트 아웃
+	;EXP:M경험 += 1
+	;전술
+	;EXP:MASTER:M경험 += 1
+	EXP:MASTER:키스경험 += 1
+	IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+		;KR판 오리지날 붉은실
+		CALL 붉은실발동
+		EXP:MASTER:데이트경험 ++
+		EXP:TARGET:데이트경험 ++
+		CALL DATE_GOES_ON(1)
+	ENDIF
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 2
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 2
+	ENDIF
+	;키스 한 플래그
+	SIF !TALENT:연모 && !TALENT:연인 && !TALENT:애욕 && !TALENT:섹프
+		TCVAR:314 = 1440 * DAY + TIME
+ENDIF
+TCVAR:FK상실 = 1
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE312
+;키스 하는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(312)
+	RETURN RESULT
+;시간정지중은 스킵
+IF !FLAG:70
+	;친해져 강도 1
+	SIF (TCVAR:MASTER:친해져 < 1) && !CFLAG:수면
+		RETURN 0
+	;수면중
+	SIF CFLAG:수면 && !CFLAG:장난 && !CFLAG:동침중
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5
+		RETURN 0
+	;1시간 간격
+	SIF TIME_PROGRESS(TCVAR:314) < 60 && CFLAG:우후후 != 2
+		RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;입사용중
+SIF TFLAG:60 && MASTER_POSE(SET_M, SET_M) != TARGET
+	RETURN 0
+SIF GETBIT (TCVAR:26,2)
+	RETURN 0
+;식스나인 몸의자세
+SIF TEQUIP:식스나인
+	RETURN 0
+RETURN 1
+

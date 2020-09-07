@@ -1,0 +1,211 @@
+﻿;-------------------------------------------------
+;식사(데이트)
+;외출 커맨드
+;-------------------------------------------------
+@COM610
+#DIM 회복전체력1
+#DIM 회복전기력1
+#DIM 회복후체력1
+#DIM 회복후기력1
+#DIM 회복전체력2
+#DIM 회복전기력2
+#DIM 회복후체력2
+#DIM 회복후기력2
+
+회복전체력1 = BASE:MASTER:체력
+회복전기력1 = BASE:MASTER:기력
+회복전체력2 = BASE:TARGET:체력
+회복전기력2 = BASE:TARGET:기력
+LOCAL = RAND:100
+LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+SIF LOCAL:1 > 99
+	LOCAL:1 = 99
+IF LOCAL <= 9
+	;10% 확률대성공
+		EXP:MASTER:회화경험 ++
+		;붉은실 KR판 고유
+		CALL 붉은실발동
+		EXP:MASTER:데이트경험 ++
+		EXP:TARGET:데이트경험 ++
+		TFLAG:193 = 1
+ELSEIF LOCAL >= LOCAL:1
+	;10～1％で실패
+	TFLAG:193 = -1
+ELSE
+	;残りは성공
+	TFLAG:193 = 0
+ENDIF
+TFLAG:98 += 2
+
+DOWNBASE:기력 += 10
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 800
+SOURCE:사랑 = 300
+
+;ABL:욕망을 본다
+IF ABL:욕망 <= 1
+	SOURCE:환락 += (ABL:욕망 * 60)
+ELSEIF ABL:욕망 <= 3
+	SOURCE:환락 += 300 + (ABL:욕망 * 60)
+ELSEIF ABL:욕망 <= 5
+	SOURCE:환락 += 600 + (ABL:욕망 * 60)
+ELSEIF ABL:욕망 <= 8
+	SOURCE:환락 += 900 + (ABL:욕망 * 75)
+ELSEIF ABL:욕망 <= 11
+	SOURCE:환락 += 1500 + (ABL:욕망 * 75)
+ELSE
+	SOURCE:환락 += 2500 + (ABL:욕망 * 30)
+ENDIF
+
+;ABL:봉사정신을 본다
+IF ABL:봉사정신 <= 1
+	SOURCE:사랑 += (ABL:봉사정신 * 30)
+ELSEIF ABL:봉사정신 <= 3
+	SOURCE:사랑 += 200 + (ABL:봉사정신 * 30)
+ELSEIF ABL:봉사정신 <= 5
+	SOURCE:사랑 += 500 + (ABL:봉사정신 * 30)
+ELSEIF ABL:봉사정신 <= 8
+	SOURCE:사랑 += 700 + (ABL:봉사정신 * 45)
+ELSEIF ABL:봉사정신 <= 11
+	SOURCE:사랑 += 1200 + (ABL:봉사정신 * 45)
+ELSE
+	SOURCE:사랑 += 1800 + (ABL:봉사정신 * 20)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 750 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 4
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+
+SOURCE:수동 = 200 + 100 * ABL:순종
+SOURCE:정복 = 200 + 100 * ABL:새드끼
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:사랑 , 0.10
+	TIMES SOURCE:정복 , 0.50
+	TIMES SOURCE:수동 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:사랑 , 1.00
+	TIMES SOURCE:정복 , 1.00
+	TIMES SOURCE:수동 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:사랑 , 1.50
+	TIMES SOURCE:정복 , 2.00
+	TIMES SOURCE:수동 , 2.00
+ENDIF
+SIF TALENT:대식가
+	TIMES SOURCE:환락 , 1.50
+
+
+
+CALL RECOVER_PERMIL(MASTER, 75,"체력")
+CALL RECOVER_PERMIL(MASTER, 150,"기력")
+CALL RECOVER_PERMIL(TARGET, 75,"체력")
+CALL RECOVER_PERMIL(TARGET, 150,"기력")
+
+TIME += 60
+;붉은실 KR판 고유
+CALL 붉은실발동
+EXP:MASTER:데이트경험 ++
+EXP:TARGET:데이트경험 ++
+CALL 만복도상승(TARGET,"주식")
+CALL 만복도상승(MASTER,"주식")
+MONEY -= 3000
+회복후체력1 = BASE:MASTER:체력
+회복후기력1 = BASE:MASTER:기력
+회복후체력2 = BASE:TARGET:체력
+회복후기력2 = BASE:TARGET:기력
+DRAWLINE
+PRINTFORML 체력+{ABS(회복후체력1 - 회복전체력1)}(%CALLNAME:MASTER%)
+PRINTFORML 기력+{ABS(회복후기력1 - 회복전기력1)}(%CALLNAME:MASTER%)
+PRINTFORML 체력+{ABS(회복후체력2 - 회복전체력2)}(%CALLNAME:TARGET%)
+PRINTFORML 기력+{ABS(회복후기력2 - 회복전기력2)}(%CALLNAME:TARGET%)
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;식사제의를한다
+@COM_ABLE610
+;일괄관리
+SIF GLOBAL_COMABLE(610)
+	RETURN RESULT
+;상대가 없다
+SIF !TARGET
+	RETURN 0
+;데이트중 이외
+SIF !CHK_DATENOW(CFLAG:12)
+	RETURN 0
+SIF !DATE_PARTY(CFLAG:MASTER:현재위치)
+	RETURN 0
+SIF CFLAG:행동 == 5
+	RETURN 0
+;먹었던 바로 직후
+SIF !TIME_PROGRESS(TCVAR:312)
+	RETURN 0
+SIF MONEY < 3000
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
+;데이트처 식사 가부
+;CALL		USER
+;ARG		현재위치
+;RETURN		식사 장소 종류
+;COMMENT	
+;-----------------------------------------------------------
+@DATE_PARTY(ARG)
+#FUNCTION
+IF !IN_HOME(ARG)
+	SELECTCASE ARG
+		;특수 식사처
+	;	CASE 230,340,350
+	;		RETURNF ARG
+		;%데이트 지점%의 연회에∼…
+	;	CASE 450,650,740,830
+	;		RETURNF 2
+		;%데이트 지점%로 식사를∼…
+		;CASE 상가거리, 죽림입구, 영원정, 백옥루, 옛지옥큰길
+		;백옥루 or영원정 데, 데이트 안에 식사는 이상하지 않아?　(이)란 것으로, 가게가 있는 곳(중)에 마음대로 변경
+		CASE 상가거리, 죽림입구, 중유의길, 옛지옥큰길
+			IF (ARG == 죽림입구 && BASE:28:일량 > 3000 && CFLAG:28:행동 == 5)
+				RETURNF 0
+			ELSE
+				RETURNF 1
+			ENDIF
+	ENDSELECT
+ELSE
+	;現在のところは死に分岐
+	SELECTCASE ARG
+		;지저 술집=옛지옥큰길
+		CASE 933
+			RETURNF 1
+		;-포장마차=죽림입구
+		;CASE 444
+		;	SIF BASE:28:일량 <= 3000 && CFLAG:28:행동 == 5
+		;		RETURNF 1
+		;아직 없음=중유의길
+
+		;마을 일품 요리점=상가거리
+		CASE 218
+			RETURNF 1
+	ENDSELECT
+ENDIF
+RETURNF 0

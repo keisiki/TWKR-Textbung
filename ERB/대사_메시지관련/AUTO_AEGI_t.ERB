@@ -1,0 +1,219 @@
+﻿;테위 구상을 참고에 만든 구상이 없는 캐릭터로 우후후중 호출하는 자동 신음 함수
+;구상 소유에서도 임의로 대사에 끼울 수 있도록(듯이) ARGS 나름으로 괄호생략 할 수 있도록(듯이)해 보았다
+
+@AUTO_AEGI(ARG,ARGS)
+#DIM 신음강도
+#DIM 신음회수
+
+;제정신이 아니면 안 돼
+SIF !SHIRAHU(ARG)
+	RETURN 0
+SIF !CFLAG:ARG:우후후
+	RETURN 0
+SIF GROUPMATCH(SELECTCOM, 19, 20, 81, 88, 89)
+	RETURN 0
+
+신음강도 = AEGI_LEVEL(ARG)
+
+SIF !신음강도
+	RETURN 0
+
+SIF ARGS != "전괄호생략" && ARGS != "괄호생략"
+	PRINT 「
+
+SELECTCASE 신음강도
+	CASE 1
+		신음회수 = 2 + RAND:2
+	CASE 2
+		신음회수 = 2 + RAND:2 + RAND:3
+	CASE 3
+		신음회수 = 3 + RAND:2 + RAND:3 + RAND:3
+	CASEELSE
+		신음회수 = 3 + RAND:신음강도 + RAND:신음강도 + RAND:신음강도
+ENDSELECT
+
+FOR LOCAL,0,신음회수
+	LOCALS:LOCAL = %AEGI_PATTERN(신음강도, ARG)%
+	;전의 것과 함께라면 한 번만 재추첨
+	SIF LOCAL > 0 && LOCALS:LOCAL == LOCALS:(LOCAL - 1)
+		LOCALS:LOCAL = %AEGI_PATTERN(신음강도, ARG)%
+	PRINTFORM %LOCALS:LOCAL%
+	SIF !RAND:2 && 신음강도 <= 3
+		PRINT …
+	SIF 신음강도 >= 4 || (신음강도 == 3 && !RAND:4)
+		CALL HEARTMARK(1)
+	SIF LOCAL != 신음회수 - 1
+		PRINTPLAIN  
+NEXT
+
+SIF ARGS != "후괄호생략" && ARGS != "괄호생략"
+	PRINTL 」
+
+
+@AEGI_LEVEL(ARG)
+#FUNCTION
+LOCAL = CUP:ARG:쾌C + CUP:ARG:쾌V + CUP:ARG:쾌A + CUP:ARG:쾌B + CUP:ARG:쾌M
+
+SELECTCASE LOCAL
+	CASE 0
+		RETURNF 0
+	CASE IS < 2500
+		RETURNF 1
+	CASE IS < 5000
+		RETURNF 2
+	CASE IS < 10000
+		RETURNF 3
+	CASE IS < 30000
+		RETURNF 4
+	CASE IS < 50000
+		RETURNF 5
+	CASEELSE
+		RETURNF 6
+ENDSELECT
+
+
+;바리에이션 및 신음 강도와 대사의 대응 상황은 개선의 여지가 있을 것이다
+;
+;>우선은 추잡하게 만져지고 있는 장소를 중얼거리도록 하자
+;>대상의 CUP를 보기 위해서(때문에) 인수를 확장
+@AEGI_PATTERN(신음강도, ARG)
+#FUNCTIONS
+#DIM 신음강도
+
+;부위 중얼거려, 우선 20%로（부위 그 자체를 중얼거린다고는 말하지 않았다）
+;부위마다의 CUP를 합계해 난수를 취해, C로부터 순서에 난수가 합계치 이내인가로 부위를 판정, 히트 하면 그 부위를 중얼거린다（신음 강도와 함락계 소질과 부위 감도를 맞추어 계산해 괜찮지만, 그것은 앞의 이야기）
+;부위 함락은 감도 5가 조건인 것을 생각하면 좀 더 나누면서 「감각*30(최대 180)+1 d100」의 결과로 분기 시키는 것으로 바리에이션이 나오면 좋겠다
+IF TCVAR:ARG:억지로 && 신음강도 < 3
+
+ELSEIF RAND:100 < 20 && (CUP:ARG:쾌C + CUP:ARG:쾌V + CUP:ARG:쾌A + CUP:ARG:쾌B + CUP:ARG:쾌M)
+	SELECTCASE RAND:(CUP:ARG:쾌C + CUP:ARG:쾌V + CUP:ARG:쾌A + CUP:ARG:쾌B + CUP:ARG:쾌M)
+	;CUP를 합계해 난수를 취한다. 이것으로 CUP의 값에 응해 줍는 확률에 차이가 생긴다
+	CASE IS < CUP:ARG:쾌C
+		;클리, 육봉 어떻게 하지…（이후에 성별 판정 넣으면 분기는 가능한 것이긴 하다）
+		LOCAL = MIN(ABL:ARG:C감각 * 20, 180) + RAND:100
+		SIF CFLAG:ARG:오토신음 != 2
+			LOCAL = MIN(LOCAL, 150)
+		SELECTCASE LOCAL
+		;감각＋난수에 의한 분기, 아래에 가는 만큼 저것입니다
+		CASE 0 TO 80
+			LOCALS = %TEXTR("앗…/싫엇/햐앙/응/")%
+		CASE 81 TO 150
+			LOCALS = %TEXTR("클리…/후아아/후앗/콩알/거기잇/")%
+		CASE 151 TO 200
+			LOCALS = %TEXTR("클리토리스/클리잇/콩알/클리는/콩/클리/")%
+		CASEELSE
+			LOCALS = %TEXTR("클리이/클리잇/콩/콩알에～/클리토리스/클리…/")%
+		ENDSELECT
+
+	CASE IS < CUP:ARG:쾌C + CUP:ARG:쾌V
+		LOCAL = MIN(ABL:ARG:V감각 * 20, 180) + RAND:100
+		SIF CFLAG:ARG:오토신음 != 2
+			LOCAL = MIN(LOCAL, 150)
+		;질, 고기 오나홀까지 말하게 하는 것은 조금 다르다고 생각했으므로 삼가했습니다
+		SELECTCASE LOCAL
+		;감각＋난수에 의한 분기, 아래에 가는 만큼 저것입니다
+		CASE 0 TO 80
+			LOCALS = %TEXTR("큿…/긋…/안됏/햐앙/거기잇/")%
+		CASE 81 TO 150
+			LOCALS = %TEXTR("안에…/딱딱해/흐아앙/아앙/그거어/온다/안에/")%
+		CASE 151 TO 200
+			LOCALS = %TEXTR("보지/보지/빨리/안에에/온닷/후…후아앗")%
+		CASEELSE
+			LOCALS = %TEXTR("보지이/히이익/딱딱한게/찌걱찌걱/흐아앙～/아네에/")%
+		ENDSELECT
+
+	CASE IS < CUP:ARG:쾌C + CUP:ARG:쾌V + CUP:ARG:쾌A
+		;구멍, 아마 제일 까불며 떠들 수 있는 장소라고 생각한다（의 것으로 뒤는 맡겼다）
+		LOCAL = MIN(ABL:ARG:A감각 * 20, 180) + RAND:100
+		SIF CFLAG:ARG:오토신음 != 2
+			LOCAL = MIN(LOCAL, 150)
+		SELECTCASE LOCAL
+		;감각＋난수에 의한 분기, 아래에 가는 만큼 저것입니다
+		CASE 0 TO 80
+			LOCALS = %TEXTR("응큿…/아긋…/싫엇/햐웃/온닷/거기/")%
+		CASE 81 TO 150
+			LOCALS = %TEXTR("엉덩이/히잇/거긴/엉덩이/다른/")%
+		CASE 151 TO 200
+			LOCALS = %TEXTR("엉덩이 구멍/엉덩이/엉덩이/갑자기/아긋/애널/구포구포/")%
+		CASEELSE
+			LOCALS = %TEXTR("엉덩이 구멍/애널～/엉덩잇/더러운 구멍/엉덩이 구멍/엉덩이잇/아네에/")%
+		ENDSELECT
+
+	CASE IS < CUP:ARG:쾌C + CUP:ARG:쾌V + CUP:ARG:쾌A + CUP:ARG:쾌B
+		;가슴, 여러 가지 걸친다고 생각하면 않는 사람을 잊고 있었다(피츄)
+		LOCAL = MIN(ABL:ARG:B감각 * 20, 180) + RAND:100
+		SIF CFLAG:ARG:오토신음 != 2
+			LOCAL = MIN(LOCAL, 150)
+		SELECTCASE LOCAL
+		;감각＋난수에 의한 분기, 아래에 가는 만큼 저것입니다
+		CASE 0 TO 80
+			LOCALS = %TEXTR("하앗…/잇…/싫엇/햐앙/냐앗/")%
+		CASE 81 TO 150
+			LOCALS = %TEXTR("가슴/젖꼭지/주물주물/꾸물꾸물/하아앙/")%
+		CASE 151 TO 200
+			LOCALS = %TEXTR("가슴/젖가슴/젖꼭지/만지작만지작/조물조물/오돌오돌/")%
+		CASEELSE
+			LOCALS = %TEXTR("가슴/젖가슴/젖꼭지/조물조물/오돌오돌/파삭파삭/주물주물/")%
+		ENDSELECT
+
+	CASEELSE
+		LOCAL = MIN(ABL:ARG:M감각 * 20, 180) + RAND:100
+		SIF CFLAG:ARG:오토신음 != 2
+			LOCAL = MIN(LOCAL, 150)
+		;썩어 실은 죽어 분기의 가능성이 높다고 한다. 커맨드주세요
+		SELECTCASE LOCAL
+		;감각＋난수에 의한 분기, 아래에 가는 만큼 저것입니다
+		CASE 0 TO 80
+			LOCALS = %TEXTR("응…/응후…/응흣/햣/응냣/")%
+		CASE 81 TO 150
+			LOCALS = %TEXTR("입/입/혀/쥬붓/하웃/츄릅/")%
+		CASE 151 TO 200
+			LOCALS = %TEXTR("입보지/혀/날름/안/츄/할짝/")%
+		CASEELSE
+			LOCALS = %TEXTR("입보지/입보지잇/날름날름/입보지/츄릅츄릅/할짝할짝/")%
+		ENDSELECT
+
+	ENDSELECT
+	RETURNF LOCALS
+ENDIF
+IF TCVAR:ARG:억지로 && (신음강도 < 3 || (신음강도 == 3 && RAND:4))
+	IF TALENT:ARG:담력 > 0 || TALENT:ARG:응답 > 0 || TALENT:ARG:자존심 > 0
+		LOCALS = %TEXTR("그만둬어…/엄청못해/이제 됐잖아…/기분나빠…/손대지맛…/죽엇/젠자앙/구읏…")%
+		SIF !RAND:10 && !TALENT:ARG:인간
+			LOCALS = 인간 따위에게에
+	ELSE
+		LOCALS = %TEXTR("우읏…/구훗…/시러어…/그만해에…/싫어…/용서해줘어…/싫어어/히구읏")%
+	ENDIF
+ELSE
+;통상 신음
+SELECTCASE 신음강도
+	CASE 1
+		LOCALS = %TEXTR("앗…/읏…/응…/후웃…/하앗…/")%
+	CASE 2
+		LOCALS = %TEXTR("야앗/핫/후아아/후앗/후읏/쿠흣/쿠-읏/앗/아-앗/아앗/아앙/하앗/하-읏/히앗/히읏/히응/히얏/으읏/하웃/응핫/응큿")%
+	CASEELSE
+		IF RAND:신음강도 >= 3 && CFLAG:ARG:오토신음 == 2
+			LOCALS = %TEXTR("아″앗/아″아아~~/우″아″앗/우″아″아″앗/으″앗/으″읏/으″으~~읏/으″흣/흐아″앗/흐아″~~앗/으″읏/으″웃/아히이/흐아″/흐에에/가앗/흐가앗/히~~잇/흐″흐읏/")%
+		ELSEIF RAND:신음강도 >= 2
+			LOCALS = %TEXTR("읏/으읏/히잇/히이잇/아히잇/하힛/굉장햇/갱장해/흐에에/~~읏/히아앗″앙/으응″읏/흐아아앙/")%
+		ELSEIF !RAND:3
+			LOCALS = %TEXTR("하읏/하흣/쿠응/아앗/햐앗/하앗/앗/")%
+		ELSEIF !RAND:2
+			LOCALS = %TEXTR("좋앗/좀 더어/히응/히-잇/응하앗/아앙/아아앙/기분 좋앗")%
+		ELSE
+			LOCALS = %TEXTR("야앗/후아아/후앗/후-읏/앗/아-읏/아앗/아앙/하앗/하-읏/히잇/히얏/응읏/하읏/응큿")%
+		ENDIF
+ENDSELECT
+ENDIF
+;랜덤으로 「읏」를 카타카나로 하는 것으로 바리에이션이 증가한 것처럼 착각시키는 고식적인 처리
+IF !RAND:4 && 신음강도 >= 3
+	LOCALS = %REPLACE(@"%LOCALS%","앗","아앗")%
+	LOCALS = %REPLACE(@"%LOCALS%","앙","아앙")%
+	LOCALS = %REPLACE(@"%LOCALS%","어","어엇")%
+	LOCALS = %REPLACE(@"%LOCALS%","에","에엣")%
+	LOCALS = %REPLACE(@"%LOCALS%","잇","이잇")%
+	LOCALS = %REPLACE(@"%LOCALS%","읏","으읏")%
+	LOCALS = %REPLACE(@"%LOCALS%","응","으응")%
+	LOCALS = %REPLACE(@"%LOCALS%","큿","크읏")%
+ENDIF
+RETURNF LOCALS

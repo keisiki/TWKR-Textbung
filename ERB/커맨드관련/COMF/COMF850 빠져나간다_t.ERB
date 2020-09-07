@@ -1,0 +1,118 @@
+﻿;빠져 나간다
+@COM850
+#DIM 달래고판정
+#DIM 빠져나갈수없다
+달래고판정 = 0
+빠져나갈수없다 = 0
+IF TCVAR:마음대로해
+	PRINTFORMW %마스터는% 바동바동 발버둥 쳤다
+	IF RAND:100 < RAND:(50 + ABL:새드끼 * 20 + ABL:전투능력 * 20) 
+		PRINTFORMW 그러나 헛수고에 끝났다
+		CALL KOJO_MESSAGE_SEND("EVENT", 10, TARGET, 3,1)
+		DOWNBASE:MASTER:기력 += 50
+		DOWNBASE:MASTER:체력 += 50
+		SOURCE:가학 += 100
+		TCVAR:기학플래그 = 1
+		TIME += 5
+		RETURN 1
+	ENDIF
+ELSEIF TFLAG:껴안기모드
+	PRINTFORML %마스터는% %타겟을% 뿌리쳤다
+	;그 외
+	IF CFLAG:TARGET:성격경향 == 5 || !FLAG:카운터지문제어
+		PRINTFORML %타겟은% 불만스럽게 하고 있다…
+	;심약계
+	ELSEIF CFLAG:TARGET:성격경향 == 1
+		PRINTFORML %타겟은% 조금 슬픈 듯이 하고 있다…
+	;강경세계
+	ELSEIF CFLAG:TARGET:성격경향 == 2
+		PRINTFORML %타겟은% 무정하네요라고 말해 웃었다…
+	;솔직함계
+	ELSEIF CFLAG:TARGET:성격경향 == 3
+		PRINTFORML %타겟은% %CALLNAME:MASTER%의 반응을 즐기고 있는 것 같다…
+	;진면목계
+	ELSEIF CFLAG:TARGET:성격경향 == 4
+		PRINTFORML %타겟은% %CALLNAME:MASTER%에, 본궤도에 올라 미안하다고 사과했다…
+	ENDIF
+ELSE
+	FOR LOCAL, 1, CHARANUM
+		IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치 && CFLAG:LOCAL:욕구불만도 >= 500
+			달래고판정 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	IF !달래고판정
+		PRINTFORML %마스터는% %CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ?  들 # \@을 달래 빠져 나갔다
+	ELSE
+		IF (TALENT:MASTER:성별 & 1) && (TALENT:성별 & 1) && TIME_PROGRESS(TFLAG:덮치기개시시간) >= 360
+			PRINTFORMW %CALLNAME:달래고판정%는 조금 물건 충분하고 없을 것 같게 하면서도 %마스터를% 해방했다
+			TFLAG:껴안기모드 = 0
+			TCVAR:안아다하고금지시간 = 70 + MAX(10 - ABL:욕망, 0) * 3 - MAX((CFLAG:적극성 + CFLAG:수줍음) * 5, 30)
+		ELSEIF !TALENT:MASTER:비동정 && TALENT:MASTER:2 & 2
+			PRINTFORMW %CALLNAME:달래고판정%에 사정사정해졌다
+			PRINTFORMW %CALLNAME:달래고판정%는 아무래도 %CALLNAME:MASTER%의 처음을 갖고 싶은 것 같다
+			CFLAG:달래고판정:욕구불만도 += 50
+			BASE:달래고판정:기력 -= 200
+			TIME += 5
+			RETURN 1
+		ELSEIF TALENT:MASTER:처녀 || TALENT:달래고판정:처녀
+			PRINTFORMW %CALLNAME:달래고판정%는 어색한 듯이 %마스터를% 해방했다
+			BASE:달래고판정:기력 -= 100
+			BASE:달래고판정:무드 = 0
+		ELSE
+			PRINTFORMW %CALLNAME:달래고판정%는 아직%마스터를% 해방할 생각은 없는 것 같다
+			CALL KOJO_MESSAGE_SEND("EVENT", 10, 달래고판정, 3,2)
+			DOWNBASE:MASTER:기력 += 100
+			DOWNBASE:MASTER:체력 += 50
+			TIME += 5
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+
+CALL 덮쳐지기종료
+
+@덮쳐지기종료(ARGS)
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:LOCAL:우후후 == 2 || LOCAL == TARGET
+		IF ARGS == "만족"
+			CALL KOJO_MESSAGE_SEND("EVENT", 30, LOCAL, 2)
+		ELSEIF ARGS == "지쳤다"
+			CALL KOJO_MESSAGE_SEND("EVENT", 30, LOCAL, 1)
+		;밀어넘어뜨려지고 모드 종료
+		ELSEIF CFLAG:LOCAL:우후후 == 2 && LOCAL != 0 && !TFLAG:껴안기모드 && CFLAG:MASTER:현재위치 == CFLAG:LOCAL:현재위치
+			CALL KOJO_MESSAGE_SEND("EVENT", 10, LOCAL, 2,0)
+		;껴안기모드 만족 종료
+		ELSEIF TFLAG:껴안기모드 && TARGET == LOCAL
+			CALL KOJO_MESSAGE_SEND("EVENT", 10, LOCAL, 2,1)
+		;껴안기모드 강제 종료
+		ELSEIF TFLAG:102 == 1 && TARGET == LOCAL
+			CALL KOJO_MESSAGE_SEND("EVENT", 10, LOCAL, 2,2)
+		ENDIF
+		SIF CFLAG:LOCAL:우후후 == 2
+			CALL SET_DERAY(5, LOCAL)
+		BASE:LOCAL:무드 = BASE:LOCAL:무드 / 2
+		BASE:LOCAL:이성 = MIN(BASE:LOCAL:이성 + 300, MAXBASE:LOCAL:이성)
+		CFLAG:LOCAL:우후후 = 0
+		;우후후시 계 장비 리셋
+		CALL ENDUFUFU(LOCAL)
+	ENDIF
+NEXT
+TFLAG:102 = 1
+TFLAG:106 = 0
+;MASTER와의 접촉 위치를 리셋
+CALL TOUCH_SET(0,0,0,1)
+[SKIPSTART]
+;(은)탈의 플래그를 오프
+TEQUIP:2 = 0
+TEQUIP:상반신탈의상태 = 0
+;캐릭터 전원의 복재세팅
+FOR LOCAL, 0, CHARANUM
+	CALL CLOTHES_SETTING_TRAIN(LOCAL)
+	;윗도리탈의가끝난상태 플래그를 오프
+	TEQUIP:LOCAL:5 = 0
+NEXT
+[SKIPEND]
+
+TIME += 5
+RETURN 1

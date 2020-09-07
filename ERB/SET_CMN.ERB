@@ -1,0 +1,305 @@
+﻿;----------------------------------
+;은밀중 플래그 세트 CFLAG:330SET
+;호출시의 정합성을 판정해 인수로서 건네받은 값을 플래그에 세트 한다
+;ARG=SET치 ARG:1=세트 대상 ARG:2=MASTER 연동
+;----------------------------------
+@SET_SNEAK(ARG,ARG:1,ARG:2)
+SELECTCASE ARG
+	;FLAG_OFF
+	CASE 0
+		;정합성 체크
+		CFLAG:(ARG:1):은밀중 = 0
+		IF ARG:2 == 1
+			CFLAG:MASTER:은밀중 = 0
+		ELSEIF ARG:2 == 2
+			SIF CFLAG:(ARG:1):현재위치 == CFLAG:MASTER:현재위치
+				CFLAG:MASTER:은밀중 = 0
+		ENDIF
+	;FLAG_ON
+	CASE 1
+		;정합성 체크
+		;TARGET와 MASTER가 동실 또한 수면중이 아니면 세트는 할 수 없다
+		IF CFLAG:(ARG:1):현재위치 == CFLAG:MASTER:현재위치 && CFLAG:(ARG:1):수면
+			CFLAG:(ARG:1):은밀중 = 1
+			SIF ARG:2 == 1
+				CFLAG:MASTER:은밀중 = 1
+		ELSE
+		ENDIF
+ENDSELECT
+
+;----------------------------------
+;장난 플래그 세트 CFLAG:331SET
+;호출시의 정합성을 판정해 인수로서 건네받은 값을 플래그에 세트 한다
+;ARG=SET치 ARG:1=세트 대상 ARG:2=MASTER 연동 ON
+;----------------------------------
+@SET_PRANK(ARG,ARG:1,ARG:2)
+SELECTCASE ARG
+	;FLAG_OFF
+	CASE 0
+		;정합성 체크
+		CFLAG:(ARG:1):장난 = 0
+		IF ARG:2 == 1
+			CFLAG:MASTER:장난 = 0
+		ELSEIF ARG:2 == 2
+			SIF CFLAG:(ARG:1):현재위치 == CFLAG:MASTER:현재위치
+				CFLAG:MASTER:장난 = 0
+		ENDIF
+	;FLAG_ON
+	CASE 1
+		;정합성 체크
+		;TARGET와 MASTER가 동실·은밀중·수면중이 아니면 세트는 할 수 없다
+		IF CFLAG:(ARG:1):현재위치 == CFLAG:MASTER:현재위치 && CFLAG:(ARG:1):은밀중 == CFLAG:MASTER:은밀중 && CFLAG:(ARG:1):수면
+			CFLAG:(ARG:1):장난 = 1
+			SIF ARG:2 == 1
+				CFLAG:MASTER:장난 = 1
+		ELSE
+
+		ENDIF
+	;과격한 장난 FLAG_ON
+	CASE 2
+		;정합성 체크
+		;TARGET와 MASTER가 동실·은밀중·수면중·이미 장난 FLAG_ON가 아니면 세트는 할 수 없다
+		IF CFLAG:(ARG:1):현재위치 == CFLAG:MASTER:현재위치 && CFLAG:(ARG:1):은밀중 == CFLAG:MASTER:은밀중 && CFLAG:(ARG:1):장난 > 0 && CFLAG:(ARG:1):수면
+			CFLAG:(ARG:1):장난 = 2
+			SIF ARG:2 == 1
+				CFLAG:MASTER:장난 = 2
+		ELSE
+
+		ENDIF
+ENDSELECT
+
+;----------------------------------
+;동침 플래그 세트 CFLAG:334SET
+;호출시의 정합성을 판정해 인수로서 건네받은 값을 플래그에 세트 한다
+;ARG=SET치 ARG:1=세트 대상 ARG:2=MASTER 연동 ON (1=무조건 일어나는 2=동실이라면 일어난다)
+;----------------------------------
+@SET_TOGETHER(ARG,ARG:1,ARG:2)
+SELECTCASE ARG
+	;FLAG_OFF
+	CASE 0
+		;정합성 체크
+		CFLAG:(ARG:1):동침중 = 0
+		IF ARG:2 == 1
+			CFLAG:MASTER:동침중 = 0
+		ELSEIF ARG:2 == 2
+			SIF CFLAG:(ARG:1):현재위치 == CFLAG:MASTER:현재위치
+				CFLAG:MASTER:동침중 = 0
+		ENDIF
+	;FLAG_ON
+	CASE 1
+		;정합성 체크
+		;TARGET와 MASTER가 동실·수면중이 아니면 세트는 할 수 없다
+		IF CFLAG:(ARG:1):현재위치 == CFLAG:MASTER:현재위치 && CFLAG:(ARG:1):수면
+			CFLAG:(ARG:1):동침중 = 1
+			SIF ARG:2 == 1
+				CFLAG:MASTER:동침중 = 1
+		ELSE
+		ENDIF
+ENDSELECT
+
+;----------------------------------
+;수면중 플래그 세트 CFLAG:313SET
+;호출시의 정합성을 판정해 인수로서 건네받은 값을 플래그에 세트 한다
+;ARG=SET치 ARG:1=세트 대상 ARG:2=MASTER 연동 ON
+;----------------------------------
+@SET_SLEEP(ARG,ARG:1,ARG:2)
+SELECTCASE ARG
+	;FLAG_OFF
+	CASE 0
+		;정합성 체크
+		CFLAG:(ARG:1):수면 = 0
+		;수면 플래그로 MASTER 연동은 사용하지 않겠지 지만… 이라든가 말하고 있으면(자) 동침으로 사용하는 것에…
+		IF ARG:2 == 1
+			CFLAG:MASTER:수면 = 0
+		ELSEIF ARG:2 == 2
+			SIF CFLAG:(ARG:1):현재위치 == CFLAG:MASTER:현재위치
+				CFLAG:MASTER:수면 = 0
+		ENDIF
+		SETBIT CFLAG:(ARG:1):갈아입음실행, 0
+		CLEARBIT CFLAG:(ARG:1):갈아입음실행, 1
+		;피로와 수면심도를 리셋
+		TCVAR:ARG:피로도   = 0
+		TCVAR:ARG:수면심도 = 0
+	;FLAG_ON
+	CASE 1
+		;정합성 체크
+		;데일리중은 세트 할 수 없다
+		IF !CFLAG:(ARG:1):데일리 || ARG:1 == MASTER
+			CFLAG:(ARG:1):수면 = 1
+			CFLAG:(ARG:1):데이트중 = MAIN_MAP
+			;MASTER 연동은 사용하는거야 n(ry
+			SIF ARG:2 == 1
+				CFLAG:MASTER:수면 = 1
+		;쇠약시는 데일리중도 잔다
+		ELSEIF CFLAG:(ARG:1):쇠약
+			CFLAG:(ARG:1):수면 = 1
+			CFLAG:(ARG:1):데이트중 = MAIN_MAP
+			;MASTER 연동은 사용하는거야 n(ry
+			SIF ARG:2 == 1
+				CFLAG:MASTER:수면 = 1
+		ENDIF
+		IF CFLAG:(ARG:1):수면 == 1 && GETBIT(CFLAG:(ARG:1):갈아입음실행, 0)
+			TCVAR:(ARG:1):수면심도 = 1200 * (TCVAR:(ARG:1):수면제강도 + 1)
+			TCVAR:(ARG:1):수면심도 += TCVAR:(ARG:1):피로도 / 3
+		ENDIF
+		SETBIT CFLAG:(ARG:1):갈아입음실행, 1
+		CLEARBIT CFLAG:(ARG:1):갈아입음실행, 0
+		IF CFLAG:(ARG:1):데일리 || !수면시간(ARG:1) || (CFLAG:(ARG:1):쇠약 && CFLAG:(ARG:1):현재위치 != CFLAG:(ARG:1):초기위치)
+			SETBIT CFLAG:(ARG:1):갈아입음실행, 0
+			CLEARBIT CFLAG:(ARG:1):갈아입음실행, 1
+		ENDIF
+		SIF ARG:1 == MASTER
+			CALL BUFF_RESET
+ENDSELECT
+
+;수면 관련 처리로서 여기에 추가
+;----------------------------------
+;피로도 산출 함수
+;DOWNBASE로부터 피로 도를 산출한다
+;√0피하고를 위해서(때문에) 작성
+;ARG:RETURNF
+;_10:_1
+;_25:_2
+;_50:10
+;100:30
+;125:36
+;150:45
+;200:89
+;DOWNBASE에는 체력이라면 x12, 기력이라면 x8의 계수가 다해 실제의 피로도 가산치는
+;체력 100 소비로 1314, 체력 200 소비로 3718
+;기력 100 소비로 715, 기력 200 소비로 2023
+;(계산기로 계산했으므로 오차가 나옵니다)
+;악천후로 훈련하면(자) 「죽는 만큼 지친다」
+;----------------------------------
+@CULC_TIRED(ARG)
+#FUNCTION
+SIF ARG < 10
+	RETURNF 0
+LOCAL = ARG / 10
+RETURNF LOCAL * SQRT(LOCAL)
+
+;----------------------------------
+;피로도 가산 함수 TCVAR:151ADD
+;주인의 MASTER 피하고와 수면 판정을 위해서(때문에) 작성
+;----------------------------------
+@ADD_TIRED(CHARA, VALUE)
+#DIM CHARA
+#DIM VALUE
+SIF CHARA == MASTER || CFLAG:CHARA:수면
+	RETURN
+TCVAR:CHARA:피로도 += VALUE
+
+
+;----------------------------------
+;데이트 플래그 세트 CFLAG:12SET
+;호출시의 정합성을 판정해 건네받은 장소에의 데이트 플래그를 세트 한다
+;ARG=데이트처 ARG:1=세트 대상
+;데이트에서의 행선지 정의는 조금 특수
+;XXYZ	XX=데이트처 NO Y=데이트처 파생 장소 Z=이동 소요시간(X*10min)
+;----------------------------------
+@SET_DATE(ARG, C_ID)
+#DIM C_ID
+;FLAG_OFF
+IF ARG == 99 || ARG == 9999
+;데이트 종료
+;신사는 파생 장소가 6까지이므로 괜찮을 것. 이것으로 안 돼라면 ARG == 10000으로 한다
+	;정합성 체크
+	IF CHK_DATENOW(CFLAG:C_ID:데이트중)
+		CFLAG:C_ID:데이트중 = MAIN_MAP
+		CFLAG:MASTER:데이트중 = MAIN_MAP
+		FLAG:데이트상대 = 0
+		TFLAG:데이트전호감도 = 0
+		SIF !AT_HOME(C_ID)
+			CFLAG:(ARG:1):현재위치 = GET_ENTRANCE(MAIN_MAP)
+		SIF !AT_HOME(MASTER)
+			CFLAG:MASTER:현재위치 = GET_ENTRANCE(MAIN_MAP)
+		IF ARG == 9999
+			CFLAG:MASTER:현재위치 = 부엌
+			CFLAG:C_ID:현재위치 = 부엌
+		ENDIF
+	ENDIF
+;FLAG_ON
+ELSE
+	;정합성 체크
+	;쇠약중, 이미 데이트중이라면 처리를 실시하지 않는다
+	;SIF CHK_DATENOW(CFLAG:C_ID:데이트중) || CFLAG:C_ID:쇠약
+	SIF CFLAG:C_ID:쇠약
+		RETURN
+	;기력이 없으면 데이트는 갈 수 없다
+	SIF BASE:MASTER:기력 <= 0 || BASE:C_ID:기력 <= 0
+		RETURN
+
+	CFLAG:C_ID:데이트중 = ARG
+	CFLAG:MASTER:데이트중 = ARG
+	FLAG:데이트상대 = C_ID
+	TFLAG:데이트전호감도 = CFLAG:C_ID:호감도
+	IF C_ID == 0
+		CFLAG:MASTER:현재위치 = GET_ENTRANCE(ARG)
+	ELSE
+		IF ARG == 2
+			CALL EX_COSTUME(C_ID, "마을 데이트")
+			SIF RESULT
+				PRINTFORMW %CALLNAME:C_ID%는 마을에 맞는 옷으로 갈아입었습니다
+		ENDIF
+		CFLAG:C_ID:현재위치 = (ARG * 100) + (TIME_REQUIRED(CFLAG:MASTER:현재위치 / 100, ARG) / 10)
+		CFLAG:MASTER:현재위치 = (ARG * 100) + (TIME_REQUIRED(CFLAG:MASTER:현재위치 / 100, ARG) / 10)
+		;신사지도가 0번이므로 고육책의 예외처리
+		IF !ARG
+			CFLAG:C_ID:현재위치 += 1100
+			CFLAG:MASTER:현재위치 += 1100
+		ENDIF
+	ENDIF
+	CALL HappenToChild
+ENDIF
+
+;----------------------------------
+;행동 억제 시간 세트 CFLAG:313SET
+;현재의 장소에에 세트 한다
+;ARG=호출 종류 ARG:1=세트 대상
+;----------------------------------
+@SET_DERAY(ARG,ARG:1)
+IF !CFLAG:(ARG:1):데일리
+	;호출 형식에 의해 처리 변경 1=장소에 의한 데일리 2이후=이벤트에 의한 데일리
+	SELECTCASE ARG
+		;특정의 장소에 들어가면(자) 데일리
+		CASE 1
+			SELECTCASE CFLAG:(ARG:1):현재위치
+				;부엌은 요리하므로 데일리 발생
+				CASE 11
+					IF ABL:(ARG:1):요리기능 >= 3
+						CFLAG:(ARG:1):데일리 = 30
+					ELSEIF ABL:(ARG:1):요리기능 > 1 && ABL:(ARG:1):요리기능 < 3
+						CFLAG:(ARG:1):데일리 = 60
+					ELSE
+						CFLAG:(ARG:1):데일리 = 120
+					ENDIF
+				;목욕을 하면(자) 데일리 발생
+				CASE 12
+					CFLAG:(ARG:1):데일리 = 60
+			ENDSELECT
+		;아침에 일어 나면(자) 데일리(아침은 기분이 결정되지 않고 네)
+		CASE 2
+			CFLAG:(ARG:1):데일리 = 60
+		;일종료후는 데일리
+		CASE 3
+			CFLAG:(ARG:1):데일리 = 20
+		;동침 하면(자) 노력해 일어나 준다(쇠약시 이외)
+		CASE 4
+			SIF !CFLAG:(ARG:1):쇠약
+				CFLAG:(ARG:1):데일리 = 60
+		;밀어넘어뜨려지고 달래면(자) 데일리
+		CASE 5
+			CFLAG:(ARG:1):데일리 = 40
+		;무릎베개시는 데일리
+		CASE 6
+			CFLAG:(ARG:1):데일리 = 10
+		CASE 99
+			;Deray Clear to Do nothing
+	ENDSELECT
+ELSE
+	SELECTCASE ARG
+		;데일리를 클리어
+		CASE 99
+			CFLAG:(ARG:1):데일리 = 0
+	ENDSELECT
+ENDIF

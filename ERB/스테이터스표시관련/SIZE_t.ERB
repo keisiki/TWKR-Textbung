@@ -1,0 +1,272 @@
+﻿;-------------------------------------------------
+;신장·체중·3 사이즈의 표시 처리
+;-------------------------------------------------
+;BASE:20…신장
+;BASE:21…체중
+;BASE:22…가슴
+;BASE:23…웨스트
+;BASE:24…히프
+;MAXBASE:20…신장 계수
+;MAXBASE:21…체중 계수
+;MAXBASE:22…가슴 계수
+;MAXBASE:23…웨스트 계수
+;MAXBASE:24…히프 계수
+
+@MAKE_SIZE, ARG
+;신체 측정 플래그가 서 있는 경우는 계수를 생성
+;신체 측정필 또한 미설정의 경우도 생성
+;CSV에 기입되어 있지 않은 경우의 표준치는 1000
+VARSET LOCAL
+IF CFLAG:ARG:신체측정 == 2 || (CFLAG:ARG:신체측정 == 1 && (MAXBASE:ARG:신장 == 0 || MAXBASE:ARG:체중 == 0 || MAXBASE:ARG:가슴 == 0 || MAXBASE:ARG:웨스트 == 0 || MAXBASE:ARG:히프 == 0))
+	FOR LOCAL, 20, 25
+		MAXBASE:ARG:LOCAL = CSVBASE(ARG,LOCAL)
+		SIF MAXBASE:ARG:LOCAL == 0
+			MAXBASE:ARG:LOCAL = 1000
+		MAXBASE:ARG:LOCAL = MAXBASE:ARG:LOCAL * RAND(950, 1050) / 1000
+	NEXT
+ENDIF
+
+;===신장의 산출===
+;기본치
+BASE:ARG:신장 = (TALENT:ARG:성별 == 2) ? 1700 # 1500
+BASE:ARG:신장 = BASE:ARG:신장 * MAXBASE:ARG:신장 / 1000
+
+;체형 보정
+IF TALENT:ARG:체형 == -2
+	TIMES BASE:ARG:신장, 0.80
+ELSEIF TALENT:ARG:체형 == -1
+	TIMES BASE:ARG:신장, 0.90
+ELSEIF TALENT:ARG:체형 == 1
+	TIMES BASE:ARG:신장, 1.10
+ELSEIF TALENT:ARG:체형 == 2
+	TIMES BASE:ARG:신장, 1.20
+ELSEIF TALENT:ARG:체형 == 3
+	TIMES BASE:ARG:신장, 1.50
+ENDIF
+
+;===웨스트의 산출===
+;기본치
+BASE:ARG:웨스트 = BASE:ARG:신장 * 40 / 100
+BASE:ARG:웨스트 = BASE:ARG:웨스트 * MAXBASE:ARG:웨스트 / 1000
+
+;체형 보정
+IF TALENT:ARG:체형 == -2
+	TIMES BASE:ARG:웨스트, 1.16
+ELSEIF TALENT:ARG:체형 == -1
+	TIMES BASE:ARG:웨스트, 1.08
+ENDIF
+
+;그 외 보정
+SIF TALENT:ARG:매력
+	TIMES BASE:ARG:웨스트, 0.95
+
+;===가슴의 산출===
+;기본치
+BASE:ARG:가슴 = BASE:ARG:신장 * 51 / 100
+BASE:ARG:가슴 = BASE:ARG:가슴 * MAXBASE:ARG:가슴 / 1000
+
+;가슴 사이즈 보정
+IF TALENT:ARG:가슴사이즈 == -2
+	TIMES BASE:ARG:가슴, 0.84
+ELSEIF TALENT:ARG:가슴사이즈 == -1
+	TIMES BASE:ARG:가슴, 0.92
+ELSEIF TALENT:ARG:가슴사이즈 == 1
+	TIMES BASE:ARG:가슴, 1.08
+ELSEIF TALENT:ARG:가슴사이즈 == 2
+	TIMES BASE:ARG:가슴, 1.16
+ENDIF
+
+;B감각에 의한 보정
+BASE:ARG:가슴 = BASE:ARG:가슴 * (1000 + MIN(ABL:ARG:B감각, 100)) / 1000
+
+;그 외 보정
+SIF TALENT:ARG:매력
+	TIMES BASE:ARG:가슴, 1.05
+
+;언더 가슴 이하라면 보정
+BASE:ARG:가슴 = MAX(BASE:ARG:신장 * 43 / 100, BASE:ARG:가슴)
+
+;===히프의 산출===
+;기본치
+BASE:ARG:히프 = BASE:ARG:신장 * 53 / 100
+BASE:ARG:히프 = BASE:ARG:히프 * MAXBASE:ARG:히프 / 1000
+
+;그 외 보정
+SIF TALENT:ARG:매력
+	TIMES BASE:ARG:히프, 1.05
+
+;===체중의 산출===
+;기본치
+BASE:ARG:체중 = BASE:ARG:신장 * BASE:ARG:신장 / 5000
+BASE:ARG:체중 = BASE:ARG:체중 * MAXBASE:ARG:체중 / 1000
+
+;체형 보정
+IF TALENT:ARG:체형 == -2
+	TIMES BASE:ARG:체중, 0.80
+ELSEIF TALENT:ARG:체형 == -1
+	TIMES BASE:ARG:체중, 0.90
+ELSEIF TALENT:ARG:체형 == 1
+	TIMES BASE:ARG:체중, 1.10
+ELSEIF TALENT:ARG:체형 == 2
+	TIMES BASE:ARG:체중, 1.20
+ELSEIF TALENT:ARG:체형 == 3
+	TIMES BASE:ARG:체중, 1.50
+ELSEIF TALENT:ARG:체형 == 5
+	TIMES BASE:ARG:체중, 10.00
+ENDIF
+
+;그 외 보정
+SIF TALENT:ARG:매력
+	TIMES BASE:ARG:체중, 0.95
+
+@SHOW_SIZE, ARG
+#DIM L_PENIS,20 ; P사이즈 계산용
+;LOCAL:21…임신시의 체중의 계산치
+;LOCAL:23…임신시의 웨스트의 계산치
+VARSET LOCAL
+CALL MAKE_SIZE, ARG
+IF CFLAG:ARG:신체측정 == 0
+	PRINTL
+	PRINTFORML □ 사이즈 □-------------------------------------------------------------------------
+	PRINTL  미측정
+ELSE
+	PRINTL
+	PRINT □ 
+	CALL PRINTBUTTON_EX("[사이즈]",160,TFLAG:160)
+	PRINTL □------------------------------------------------------------------------
+	IF !TFLAG:사이즈표시
+		;플레이어의 신장·체중은 불명
+		IF ARG == NO:0 && TALENT:ARG:성별 == 2
+			PRINTFORM  신장:???cm  체중:??kg
+		ELSE
+			;신장
+			CALL ShowScaleInCM(ARG, BASE:ARG:신장, "신장:")
+			;체중
+			IF TALENT:ARG:임신
+				;신장 150 cm로 10 kg정도 증가
+				LOCAL:21 = BASE:ARG:체중 + (BASE:ARG:신장 * BASE:ARG:신장 * CFLAG:ARG:임신경과일수 / 2250000)
+					PRINTFORM    체중:{LOCAL:21 / 10}. {LOCAL:21 % 10}\@ TALENT:ARG:체형 == -5? g# kg\@
+					PRINTFORML  임신전({BASE:ARG:체중 / 10}. {BASE:ARG:체중 % 10}\@ TALENT:ARG:체형 == -5? g# kg\@)
+			ELSE
+				;소인의 체중은 1/10^3
+				PRINTFORML    체중:{BASE:ARG:체중 / 10}. {BASE:ARG:체중 % 10}\@ TALENT:ARG:체형 == -5? g# kg\@
+			ENDIF
+		ENDIF
+		;[남자]가 아닌 플레이어는 비표시는 아니고 불명
+		IF TALENT:ARG:성별 != 2
+			;가슴
+			CALL ShowScaleInCM(ARG, BASE:ARG:가슴, "   Ｂ:")
+				PRINTFORM %LOCALS:0%
+			CALL PRINT_CUPSIZE , ARG
+			;웨스트
+			IF TALENT:ARG:임신
+				;신장 150 cm로 30 cm정도 증가
+				LOCAL:23 = BASE:ARG:체중 + (BASE:ARG:신장 * CFLAG:ARG:임신경과일수 / 500)
+				CALL ShowScaleInCM(ARG, LOCAL:23, "/ Ｗ:")
+				CALL ShowScaleInCM(ARG, BASE:ARG:웨스트, " 임신전(")
+				PRINTPLAIN )/
+			ELSE
+				CALL ShowScaleInCM(ARG, BASE:ARG:웨스트, "/ Ｗ:")
+				PRINTFORM /
+			ENDIF
+			;히프
+			CALL ShowScaleInCM(ARG, BASE:ARG:히프, "/ H:")
+				PRINTFORML 
+			ENDIF
+		IF HAS_PENIS(ARG)
+			;Ｐ
+			CALL GET_PENIS_SIZE, L_PENIS, ARG
+			CALL ShowScaleInCM(ARG, L_PENIS:1, " Ｐ:")
+			CALL ShowScaleInCM(ARG, L_PENIS:5, " 직경：")
+			CALL ShowScaleInCM(ARG, L_PENIS:8, "  （평상시:")
+			CALL ShowScaleInCM(ARG, L_PENIS:7, " 직경：")
+			PRINTPLAIN )
+			CALL ShowScaleInCM(ARG, L_PENIS:11, " 편옥직경：")
+			PRINTFORML 
+		ENDIF
+	ENDIF
+ENDIF
+PRINTL
+
+
+
+@PRINT_CUPSIZE, ARG
+;가슴의 컵 사이즈 생성
+SPLIT "(-) ,(AAA) ,(AA) ,(A) ,(B) ,(C) ,(D) ,(E) ,(F) ,(G) ,(H) ,(I) ,(J) ,(K) ,(L) ,(M) ,(N) ,(O) ,(P) ,(Q) ,(R) ,(S) ,(T) ,(U) ,(V) ,(W) ,(X) ,(Y) ,(Z) ,(Z+) ,(규격외) ",",",LOCALS
+;기본치
+LOCAL = (BASE:ARG:가슴 - (BASE:ARG:신장 * 43 / 100)) / 25
+
+;소인은 1/10
+SIF TALENT:ARG:체형 == -5
+	TIMES LOCAL, 0.10
+
+;캐릭터라인 변수가 약간 부자유스러운 것으로 억지로 작성
+LOCAL = LIMIT(LOCAL, 0, 30)
+LOCALS:0 = %LOCALS:(LOCAL)%
+PRINTFORM %LOCALS:0%
+
+
+
+; ペニス各種サイズ取得 内容は各代入部分を参照
+@GET_PENIS_SIZE(L_PENIS, ARG) ;TODO COMMON.ERB 이식 필요
+#DIM REF L_PENIS,0
+#DIM L_PSCALE
+
+; 長さ用シード値
+L_PENIS:0 = BASE:ARG:신장*100 + BASE:ARG:웨스트*10 + BASE:ARG:히프
+
+; NOISE2()は平均付近の値が出やすいので、極端な値はレアな存在になる。そんな感じで数値を考える
+
+; 형상の具体的なサイズのスケール感がいまいちわかってないので適当に書きました
+; でもこうすると幼児체형＋형상=1のときちょっと不自然な感じになる。このTALENT:형상は絶対的な評価なのか見た目の割にはという意味なのかコレガワカラナイ
+; とりあえずいろいろできる方（相対評価）でやっといた
+IF TALENT:ARG:형상 == 1 ; 未成熟
+	L_PSCALE = (NOISE2(L_PENIS:0, 25) + 45)
+ELSEIF TALENT:ARG:형상 == 2 ; 租賃
+	L_PSCALE = (NOISE2(L_PENIS:0, 30) + 70)
+ELSEIF TALENT:ARG:형상 == 6 ; ごんぶと
+	L_PSCALE = (NOISE2(L_PENIS:0, 100) + 175)
+ELSEIF TALENT:ARG:형상 == 10 ; 馬並み
+	L_PSCALE = (NOISE2(L_PENIS:0, 125) + 275)
+ELSE ; 通常
+	; 150cmの신장に対して10.0cm～17.5cmを限界としてみる
+	L_PSCALE = (NOISE2(L_PENIS:0, 75) + 100)
+ENDIF
+; 長さ。신장に応じてリサイズ。150cmを境に拡大縮小
+L_PENIS:1 = BASE:ARG:신장 * L_PSCALE / 1500
+
+; 萎縮率 とりあえず25%～75%
+L_PENIS:2 = NOISE2(L_PENIS:0 * 10 + 100, 50) + 25
+; 萎縮後サイズ
+L_PENIS:8 = L_PENIS:1 * L_PENIS:2 / 100
+
+; 太さ用シード値
+L_PENIS:9 = BASE:ARG:신장*1 + BASE:ARG:웨스트*100 + BASE:ARG:히프*10
+; 太さ係数
+L_PENIS:3 = (NOISE2(L_PENIS:9, 30) + 85)
+; 太さ(周)
+L_PENIS:4 = L_PENIS:1 * 80 * L_PENIS:3 / 10000
+; 太さ(直径)
+L_PENIS:5 = L_PENIS:4 * 1000000 / 3141592
+; 平常時太さ(周)
+L_PENIS:6 = L_PENIS:1 * 60 * L_PENIS:3 / 10000
+; 平常時太さ(直径)
+L_PENIS:7 = L_PENIS:6 * 1000000 / 3141592
+
+;玉用シード値
+L_PENIS:10 = BASE:ARG:신장*10 + BASE:ARG:웨스트*1 + BASE:ARG:히프*100
+; 片玉直径 とりあえずちんちんの大きさに比例
+L_PENIS:11 = L_PENIS:1 * 18 * (NOISE2(L_PENIS:10, 40) + 80) / 10000
+; 袋横幅
+L_PENIS:12 = L_PENIS:11 * 210 / 100
+
+@ShowScaleInCM(C_ID, SIZE, ARGS)
+#DIM C_ID
+#DIM SIZE
+
+PRINTFORM %ARGS%
+IF TALENT:C_ID:체형 == -5
+	PRINTFORM {SIZE / 100}.{SIZE % 100 / 10}{SIZE % 10}cm
+ELSE
+	PRINTFORM {SIZE / 10}.{SIZE % 10}cm
+ENDIF

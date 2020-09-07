@@ -1,0 +1,575 @@
+﻿;-------------------------------------------------
+;독서
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM436
+
+PRINTL 무엇을 읽자?  
+CALL ASK_M("문학", 1, "실용서", 1, "야한 책", 1, "캔슬", 1)
+IF RESULT == 0
+	SELECTCASE RAND:10
+		;인살
+		CASE 0
+			TFLAG:193 = 1
+		;실패
+		CASE 1 TO 3
+			TFLAG:193 = 2
+		;문학
+		CASEELSE
+			TFLAG:193 = 3
+	ENDSELECT
+ELSEIF RESULT == 1
+	SELECTCASE RAND:10
+		;실패
+		CASE 0 TO 2
+			TFLAG:193 = 4
+		;실용
+		CASEELSE
+			TFLAG:193 = 5
+	ENDSELECT
+ELSEIF RESULT == 2
+	SELECTCASE RAND:9
+		;우스이타카이혼
+		CASE 0 TO 2
+			TFLAG:193 = 6
+		;보건 체육
+		CASE 3 TO 5
+			TFLAG:193 = 7
+		;카마수트라
+		CASE 6 TO 8
+			TFLAG:193 = 8
+		;위험한 책
+;		CASEELSE
+;		IF !TALENT:MASTER:금단의지식
+;			TFLAG:193 = 9
+;		ELSE
+;			GOTO LOOP
+;		ENDIF
+	ENDSELECT
+ELSEIF RESULT == 3
+	RETURN -1
+ENDIF
+
+IF TARGET == 54 && CFLAG:325 == 5
+	IF TALENT:연모
+		PRINTFORM 파츄리와 함께 독서를 즐기기로 했다
+	ELSE
+		PRINTFORM 파츄리의 독서가 끝날 때까지 이쪽도 독서로 시간을 보내기로 했다
+	ENDIF
+ENDIF
+PRINTFORM %마스터는% 책장에 있었다
+SELECTCASE TFLAG:193
+	CASE 1
+		PRINT 「닌자 슬레이어-」
+	CASE 2 TO 3
+		PRINT 문예서
+	CASE 4 TO 5
+		PRINT 실용서
+	CASE 6
+		PRINT 싱겁고 높은 책
+	CASE 7
+		PRINT 보건 체육의 책
+	CASE 8
+		PRINT 「카마·수트라」
+;	CASE 9
+;		PRINT 타이틀이 없는 가죽 장정의 습기를 띤 책
+ENDSELECT
+PRINTFORML (을)를 읽어 보았다
+
+;3분의 1으로 추가 이벤트
+SIF !RAND:3 && TARGET == 54
+	TFLAG:194 = 1
+;TARGET가 무지하고 H인 독서 또한 MASTER가 TARGET보다 교양이 높게 TARGET의 교양이 2이상 또한 5분의 1
+SIF !RAND:5 && TALENT:TARGET:무지 && TFLAG:193 >= 6 && TFLAG:193 <= 8 && ABL:MASTER:교양 > ABL:교양 && ABL:교양 >= 2
+	TFLAG:194 = 2
+
+
+SELECTCASE TFLAG:193
+	CASE 1
+		EXP:MASTER:전투경험 += 5
+	CASE 3
+	;문학
+		EXP:MASTER:학습경험 ++
+	CASE 5
+	;실용
+		SELECTCASE RAND:7
+			CASE 0
+				EXP:MASTER:회화경험 ++
+			CASE 1
+				EXP:MASTER:촬영경험 ++
+			CASE 2
+				EXP:MASTER:요리경험 ++
+			CASE 3
+				EXP:MASTER:낚시경험 ++
+			CASE 4
+				EXP:MASTER:채집경험 ++
+			CASE 5
+				EXP:MASTER:조제경험 ++
+			CASEELSE
+				EXP:MASTER:벌채경험 ++
+		ENDSELECT
+	CASE 6
+		CALL RECOVER(MASTER, 100,"정력")
+		CALL RECOVER(MASTER, 100,"발기")
+ENDSELECT
+
+IF TARGET > 0 && CFLAG:행동 != 5
+	;고정으로 획득하는 소스
+	SOURCE:환락 = 200
+	;신뢰
+	TFLAG:98 = 3
+
+	;ABL:순종을 본다
+	IF ABL:순종 <= 1
+		SOURCE:환락 += (ABL:순종 * 80)
+	ELSEIF ABL:순종 <= 3
+		SOURCE:환락 += 300 + (ABL:순종 * 80)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:환락 += 700 + (ABL:순종 * 80)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:환락 += 950 + (ABL:순종 * 100)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:환락 += 1200 + (ABL:순종 * 90)
+	ELSE
+		SOURCE:환락 += 2000 + (ABL:순종 * 50)
+	ENDIF
+
+	;호감 도를 본다
+	IF CFLAG:2 <= 500
+		SOURCE:환락 += CFLAG:2 * 2
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:환락 += 1000 + (CFLAG:2 - 500) / 2
+	ELSE
+		SOURCE:환락 += 5000 + (CFLAG:2 - 5000) / 3
+	ENDIF
+	SIF SOURCE:환락 < 0
+		SOURCE:환락 = 0
+ENDIF
+
+DOWNBASE:MASTER:체력 = 50
+DOWNBASE:MASTER:기력 = 200
+TIME += 60
+RETURN 1
+
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;독서
+@COM_ABLE436
+;실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(436)
+	RETURN RESULT
+;데이트 도중
+SIF (CFLAG:현재위치 % 100) % 10 && CFLAG:MASTER:현재위치 != OMANEKIBEYA() && !AT_HOME(MASTER)
+	RETURN 0
+;동침중
+SIF CFLAG:MASTER:동침중
+	RETURN 0
+;우후후 안도 안 돼
+SIF CFLAG:MASTER:우후후
+	RETURN 0
+;기력 0에서는 불가
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;도서관
+SIF !IS_LIBRARY(CFLAG:MASTER:현재위치)
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+;장서 열람 판정・개 @하견패치
+;되돌림값은 PLACE_ID로 할것
+;MASTER의 현재위치와 상관 없이 판정 가능하게
+;PERMISSION이 참이면 허가 프리
+@IS_LIBRARY(PLACE_ID, PERMISSION)
+#FUNCTION
+#DIM PLACE_ID
+#DIM PERMISSION
+;밖에 있을 경우 거점용 PLACE_ID로 전환
+IF !IN_HOME(PLACE_ID)
+	SELECTCASE PLACE_ID
+		CASE 60
+			PLACE_ID = 49
+		CASE 명련사경내
+			PLACE_ID = 105
+		CASE 성덕도장
+			PLACE_ID = 126
+		CASE 상가거리
+			PLACE_ID = 213
+		CASE 서당
+			PLACE_ID = 222
+		CASE 주택가
+			PLACE_ID = 221
+		CASE 대도서관
+			PLACE_ID = 310
+		CASE 영원정안채
+			PLACE_ID = 414
+		CASE 키리사메마법점
+			PLACE_ID = 513
+		CASE 인형양관
+			PLACE_ID = 524
+		CASE 마요히가
+			PLACE_ID = 633
+		CASE 백옥루
+			PLACE_ID = 623
+		CASE 선인의저택
+			PLACE_ID = 724
+		CASE 천계
+			PLACE_ID = 842
+		CASE 지령전
+			PLACE_ID = 920
+;		CASE 와타츠키정
+;			PLACE_ID = 
+	ENDSELECT
+ENDIF
+;PLACE_IDを返す
+SELECTCASE PLACE_ID
+	;夢幻遺跡・第一資料室, 夢幻遺跡・研究室, 夢幻遺跡・第二資料室
+	CASE 48, 49, 50
+		RETURNF PLACE_ID
+	;経堂, 道場
+	CASE 105, 126
+		RETURNF PLACE_ID
+	;鈴奈庵, 서당
+	CASE 213, 222
+		RETURNF PLACE_ID
+	;아큐の屋敷
+	CASE 221
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/사모/연모で開放
+		SIF FLAG:역극 == [[아큐]]
+			RETURNF PLACE_ID
+		SIF TALENT:[[아큐]]:연모 || TALENT:[[아큐]]:사모
+			RETURNF PLACE_ID
+	;케이네宅
+	CASE 224
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/신뢰도30以上동실で許可
+		SIF FLAG:역극 == [[케이네]]
+			RETURNF PLACE_ID
+		SIF CFLAG:[[케이네]]:동실 && CFLAG:[[케이네]]:신뢰도 >= 30
+			RETURNF PLACE_ID
+	;図書館
+	CASE 310
+		RETURNF PLACE_ID
+	;카구야私室
+	CASE 414
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/사모以上동실で許可
+		SIF GROUPMATCH(FLAG:역극, [[우동게]], [[테위]], [[카구야]], [[에이린]])
+			RETURNF PLACE_ID
+		SIF CFLAG:[[카구야]]:동실 && (TALENT:[[카구야]]:연모 || TALENT:[[카구야]]:사모)
+			RETURNF PLACE_ID
+	;物置, 倉庫
+	CASE 424, 427
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/동실で許可
+		SIF GROUPMATCH(FLAG:역극, [[우동게]], [[테위]], [[카구야]], [[에이린]])
+			RETURNF PLACE_ID
+		SIF CFLAG:[[우동게]]:동실 || CFLAG:[[테위]]:동실 || CFLAG:[[카구야]]:동실 || CFLAG:[[에이린]]:동실
+			RETURNF PLACE_ID
+	;魔理沙宅・研究部屋
+	CASE 513
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/신뢰도30以上동실で許可
+		SIF FLAG:역극 == [[마리사]]
+			RETURNF PLACE_ID
+		SIF CFLAG:[[마리사]]:동실 && CFLAG:[[마리사]]:신뢰도 >= 30
+			RETURNF PLACE_ID
+	;人形の館・研究室
+	CASE 524
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/住んでる/사모以上동실で許可
+		SIF GROUPMATCH(FLAG:역극, [[앨리스]], [[신키]])
+			RETURNF PLACE_ID
+		SIF INRANGE(CFLAG:MASTER:초기위치, 521, 531)
+			RETURNF PLACE_ID
+		SIF (CFLAG:[[앨리스]]:동실 || CFLAG:[[신키]]:동실) && (TALENT:[[앨리스]]:연모 || TALENT:[[앨리스]]:사모 || TALENT:[[신키]]:연모 || TALENT:[[신키]]:사모)
+			RETURNF PLACE_ID
+	;유유코私室
+	CASE 623
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/사모以上동실で許可
+		SIF GROUPMATCH(FLAG:역극, [[요우무]], [[유유코]])
+			RETURNF PLACE_ID
+		SIF CFLAG:[[유유코]]:동실 && (TALENT:[[유유코]]:연모 || TALENT:[[유유코]]:사모)
+			RETURNF PLACE_ID
+	;유카리私室
+	CASE 633
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/사모以上동실で許可
+		SIF GROUPMATCH(FLAG:역극, [[첸]], [[란]], [[유카리]])
+			RETURNF PLACE_ID
+		SIF CFLAG:[[유카리]]:동실 && (TALENT:[[유카리]]:연모 || TALENT:[[유카리]]:사모)
+			RETURNF PLACE_ID
+	;仙人の屋敷・書斎
+	CASE 724
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/住んでる/사모以上동실で許可
+		SIF FLAG:역극 == [[카센]]
+			RETURNF PLACE_ID
+		SIF INRANGE(CFLAG:MASTER:초기위치, 720, 730)
+			RETURNF PLACE_ID
+		SIF CFLAG:[[카센]]:동실 && (TALENT:[[카센]]:연모 || TALENT:[[카센]]:사모)
+			RETURNF PLACE_ID
+	;比那名居邸物置
+	CASE 842
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/住んでる/동실で許可
+		SIF GROUPMATCH(FLAG:역극, [[텐시]], [[이쿠]])
+			RETURNF PLACE_ID
+		SIF INRANGE(CFLAG:MASTER:초기위치, 834, 842)
+			RETURNF PLACE_ID
+		SIF CFLAG:[[텐시]]:동실 || CFLAG:[[이쿠]]:동실
+			RETURNF PLACE_ID
+	;書斎
+	CASE 920
+		SIF PERMISSION
+			RETURNF PLACE_ID
+		;역극/住んでる/사모以上동실で許可,ただし신뢰도50未満はダメ
+		SIF FLAG:역극 == [[사토리]]
+			RETURNF PLACE_ID
+		SIF CFLAG:[[사토리]]:신뢰도 < 50
+			RETURNF 0
+		SIF INRANGE(CFLAG:MASTER:초기위치, 902, 926)
+			RETURNF PLACE_ID
+		SIF CFLAG:[[사토리]]:동실 && (TALENT:[[사토리]]:연모 || TALENT:[[사토리]]:사모)
+			RETURNF PLACE_ID
+	;저택 이층 서재, KR판 오리지널
+	CASE 1422
+		RETURNF PLACE_ID
+ENDSELECT
+RETURNF 0
+
+;옛 함수도 일단 남겨둠
+[SKIPSTART]
+
+;장서 열람 판정
+;
+;거점/산책 MAP 양쪽 모두 사용할 수 있습니다
+;MASTER의 현재위치를 던져 붐비면(자) 자료를 보여 줄지 어떨지를 판정
+;반환값은 0혹은 「거점 MAP의 장소 ID」입니다
+;산책 맵으로 어디어디(에)에서 자료 본 따라 주는 용
+;PLACE_ID와 MASTER의 현재위치가 다른 경우는 상정하고 있습니다
+;즉, 하쿠레이 신사에 있을 때에 아큐의 저택의 판정하면 안 돼
+@IS_LIBRARY(PLACE_ID)
+#FUNCTION
+#DIM PLACE_ID              ;반드시 MASTER의 현재위치를 건네주는 것
+#DIM DYNAMIC PLACE_LIBRARY
+IF GET_MAPID(PLACE_ID) == MAIN_MAP
+	SELECTCASE GET_MAPNAME(GET_MAPID(PLACE_ID))
+	CASE "하쿠레이 신사"
+	;MAP_하쿠레이 신사 연구 조수를 매일 하고 있었던 탓으로 누구라도 자료 열람할 수 있을 것 같은 이미지
+		SIF GROUPMATCH(NAME_FROM_PLACE(PLACE_ID), "몽환유적·제1자료실", "몽환유적·연구실", "몽환유적·제2자료실")
+			PLACE_LIBRARY = PLACE_ID
+	CASE "명련사"
+	;MAP_명련사, 절/도장 모두 부탁하면 자료를 보여 줘그렇게
+		SIF GROUPMATCH(NAME_FROM_PLACE(PLACE_ID), "강당", "도장")
+			PLACE_LIBRARY = PLACE_ID
+	CASE "마을"
+	;MAP_마을, 대본소와 개인택
+		SIF GROUPMATCH(NAME_FROM_PLACE(PLACE_ID), "스즈나안", "서당", "케이네댁", "아큐의 저택")
+			PLACE_LIBRARY = PLACE_ID
+	CASE "홍마관"
+	;MAP_홍마관 우선 사용 조건이라든지 없기 때문에 소안내
+		SIF NAME_FROM_PLACE(PLACE_ID) == "도서관"
+			PLACE_LIBRARY = PLACE_ID
+	CASE "미혹의 죽림"
+	;MAP_미혹의 죽림, 이 맵 특히 도서실적인 것이 없다
+		;영원정은 많이 장서가 있을 듯 하는 이미지
+		SIF GROUPMATCH(NAME_FROM_PLACE(PLACE_ID), "카구야방", "창고", "창고")
+			PLACE_LIBRARY = PLACE_ID
+	CASE "마법의숲"
+	;MAP_마법의숲, 마법사들은 자료지비치겠지요
+		SIF GROUPMATCH(NAME_FROM_PLACE(PLACE_ID), "마리사댁·연구부가게", "인형의 관·연구실")
+			PLACE_LIBRARY = PLACE_ID
+	CASE "요괴의 산·산록"
+	;MAP_마법의숲, 카센저택만
+		SIF NAME_FROM_PLACE(PLACE_ID) == "선인의저택·서재"
+			PLACE_LIBRARY = PLACE_ID
+	CASE "지저"
+	;MAP_지저, 사토리의 서재만
+		SIF NAME_FROM_PLACE(PLACE_ID) == "서재"
+			PLACE_LIBRARY = PLACE_ID
+	CASE "저택"
+		;PRINTFORML {PLACE_ID} : %NAME_FROM_PLACE(PLACE_ID)%
+		SIF GROUPMATCH(NAME_FROM_PLACE(PLACE_ID), "이층·서재")
+			PLACE_LIBRARY = PLACE_ID
+	ENDSELECT
+ELSE
+	SELECTCASE GET_MAPNAME(GET_MAPID(PLACE_ID))
+	CASE "하쿠레이 신사"
+		SIF STR:(6000 + PLACE_ID / 10) == "몽환유적"
+			PLACE_LIBRARY = 49
+	CASE "명련사"
+		SIF STR:(6000 + PLACE_ID / 10) == "명련사경내"
+			PLACE_LIBRARY = 105
+		SIF STR:(6000 + PLACE_ID / 10) == "성덕도장"
+			PLACE_LIBRARY = 126
+	CASE "인간 마을"
+		SIF STR:(6000 + PLACE_ID / 10) == "상가거리"
+			PLACE_LIBRARY = 213
+		SIF STR:(6000 + PLACE_ID / 10) == "서당"
+			PLACE_LIBRARY = 222
+		SIF STR:(6000 + PLACE_ID / 10) == "주택가"
+			PLACE_LIBRARY = 221
+	CASE "안개의호수~홍마관"
+		SIF STR:(6000 + PLACE_ID / 10) == "대도서관"
+			PLACE_LIBRARY = 310
+	CASE "미혹의 죽림"
+		SIF STR:(6000 + PLACE_ID / 10) == "영원정안채"
+			PLACE_LIBRARY = 427
+	CASE "마법의숲"
+		SIF STR:(6000 + PLACE_ID / 10) == "키리사메마법점"
+			PLACE_LIBRARY = 513
+		SIF STR:(6000 + PLACE_ID / 10) == "인형양관"
+			PLACE_LIBRARY = 524
+	CASE "삼도천~명계"
+;		[SKIPSTART]
+;		IF STR:(6000 + PLACE_ID / 10) == "마요히가"
+;			PLACE_LIBRARY = 630
+;		ENDIF
+;		IF STR:(6000 + PLACE_ID / 10) == "백옥루"
+;			PLACE_LIBRARY = 690
+;		ENDIF
+;		[SKIPEND]
+	CASE "요괴의 산 (산록)"
+		IF STR:(6000 + PLACE_ID / 10) == "선인의저택"
+			PLACE_LIBRARY = 724
+		ENDIF
+	CASE "요괴의 산 (산정)"
+;		[SKIPSTART]
+;		IF STR:(6000 + PLACE_ID / 10) == "천계"
+;			PLACE_LIBRARY = 890
+;		ENDIF
+;		[SKIPEND]
+	CASE "지저"
+		IF STR:(6000 + PLACE_ID / 10) == "지령전"
+			PLACE_LIBRARY = 920
+		ENDIF
+	CASE "꿈의 세계~달"
+;		[SKIPSTART]
+;		IF STR:(6000 + PLACE_ID / 10) == "와타츠키정"
+;			PLACE_LIBRARY = 1060
+;		ENDIF
+;		[SKIPEND]
+	ENDSELECT
+ENDIF
+RETURNF CAN_READ_BOOK_COLLECTION(PLACE_LIBRARY)
+
+
+
+
+;장서 열람 허락 판정
+;·반드시 거점 맵의 장소 ID(상세한 지점의 (분)편)를 건네주는 것
+;·MASTER가 그 장소에 있는 것이 전제로 처리를 짜고 있습니다
+@CAN_READ_BOOK_COLLECTION(PLACE_ID)
+#FUNCTION
+#DIM PLACE_ID
+SELECTCASE PLACE_ID
+;몽환유적은 소안내
+CASE 48, 49, 50
+	RETURNF PLACE_ID
+;절과 성덕도장은 소안내
+CASE 105, 126
+	RETURNF PLACE_ID
+;스즈나안와 서당은 소안내
+CASE 213, 222
+	RETURNF PLACE_ID
+;아큐의 저택
+;사모/연모로 해방
+CASE 221
+	SIF !TALENT:80:연모 && !TALENT:80:사모
+		RETURNF 0
+	RETURNF PLACE_ID
+;케이네택
+CASE 224
+	SIF FLAG:역극 == 67
+		RETURNF PLACE_ID
+	SIF CFLAG:67:신뢰도 < 30
+		RETURNF 0
+	SIF CFLAG:67:현재위치 == CFLAG:MASTER:현재위치
+		RETURNF PLACE_ID
+;도서관은 소안내
+CASE 310
+	RETURNF PLACE_ID
+;카구야 방
+CASE 414
+	SIF GROUPMATCH(FLAG:역극, 52, 53, 62, 72)
+		RETURNF PLACE_ID
+	SIF !TALENT:62:연모 && !TALENT:62:사모
+		RETURNF 0
+	SIF CFLAG:62:현재위치 == CFLAG:MASTER:현재위치
+		RETURNF PLACE_ID
+;창고/창고의 수색은 느슨하고
+;누군가 한사람 동석 하고 있으면 좋아
+CASE 424, 427
+	SIF GROUPMATCH(FLAG:역극, 52, 53, 62, 72)
+		RETURNF PLACE_ID
+	SIF GROUPMATCH(CFLAG:MASTER:현재위치, CFLAG:52:현재위치, CFLAG:53:현재위치, CFLAG:62:현재위치, CFLAG:72:현재위치)
+		RETURNF PLACE_ID
+;마리사 택의 연구실
+;다소의 신뢰도로 k
+CASE 513
+	SIF FLAG:역극 == 11
+		RETURNF PLACE_ID
+	SIF CFLAG:11:신뢰도 < 30
+		RETURNF 0
+	SIF CFLAG:11:현재위치 == CFLAG:MASTER:현재위치
+		RETURNF PLACE_ID
+;인형관의 연구실
+CASE 524
+	SIF GROUPMATCH(FLAG:역극, 17, 102)
+		RETURNF PLACE_ID
+	SIF INRANGE(CFLAG:MASTER:초기위치, 521, 531)
+		RETURNF PLACE_ID
+	SIF !TALENT:17:연모 && !TALENT:17:사모 && !TALENT:102:연모 && !TALENT:102:사모
+		RETURNF 0
+	SIF GROUPMATCH(CFLAG:MASTER:현재위치, CFLAG:17:현재위치, CFLAG:102:현재위치)
+		RETURNF PLACE_ID
+;선인 저택의 서재
+CASE 724
+	SIF FLAG:역극 == 43
+		RETURNF PLACE_ID
+	SIF INRANGE(CFLAG:MASTER:초기위치, 720, 730)
+		RETURNF PLACE_ID
+	SIF !TALENT:43:연모 && !TALENT:43:사모
+		RETURNF 0
+	SIF CFLAG:43:현재위치 == CFLAG:MASTER:현재위치
+		RETURNF PLACE_ID
+;사토리의 서재
+;동거(同居) 해도 신뢰도 50 필요
+CASE 920
+	SIF FLAG:역극 == 49
+		RETURNF PLACE_ID
+	SIF CFLAG:49:신뢰도 < 50
+		RETURNF 0
+	SIF INRANGE(CFLAG:MASTER:초기위치, 902, 926)
+		RETURNF PLACE_ID
+	SIF !TALENT:49:연모 && !TALENT:49:사모
+		RETURNF 0
+	SIF CFLAG:49:현재위치 == CFLAG:MASTER:현재위치
+		RETURNF PLACE_ID
+CASE 1422
+	RETURNF PLACE_ID
+ENDSELECT
+[SKIPEND]

@@ -1,0 +1,81 @@
+﻿;-------------------------------------------------
+;취침
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM402
+#DIM 노동량
+#DIM 수익
+
+IF FLAG:부업 && BASE:MASTER:기력 > 300 && BASE:MASTER:TSP > 0
+	PRINTFORML %마스터는% 자기 전에 남은 TSP를 사용해 부업을 했다
+	노동량 = MIN(BASE:MASTER:기력, BASE:MASTER:TSP /2)
+	수익 = 노동량 * (5 + RAND:5) / 10
+	MONEY += 수익
+	PRINTFORMW \\{수익}벌었다
+ENDIF
+IF FLAG:자동결연 && !FLAG:발원내용 && !CFLAG:동침중
+	PRINTFORM 자기 전에
+	IF MONEY >= 1000
+		CALL GANKAKE_0(FLAG:자동결연)
+		MONEY -= 1000
+		PRINTFORMW %마스터는% %조사처리(CALLNAME:(FLAG:자동결연),"와")% 친하게 될 수 있도록 신에게 빌었다
+	ELSE
+		PRINTFORMW %마스터는% %조사처리(CALLNAME:(FLAG:자동결연),"와")% 친하게 될 수 있도록 신에게 빌려고 했지만 새전이 없었다
+	ENDIF
+ENDIF
+
+IF 아이의수면시간(TARGET) && CFLAG:출산경과일 >= CHILD_아장아장 && FLAG:자식묘사 && !INRANGE(TIME, 540, 840)
+	PRINTFORMDL 가족 셋이서 川 글자가 되어 자기로 했다…
+	CALL KOJO_MESSAGE_SEND("EVENT", 0, TARGET, 0, 0, "CHILD_RAISING_OYASUMI")
+	TFLAG:193 = 1
+	RESETCOLOR
+ENDIF
+
+CALL OYASUMI
+
+RETURN 1
+
+;취침
+@COM_ABLE402
+;이동 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(402)
+	RETURN RESULT
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;개인 방 설정
+SIF CFLAG:MASTER:현재위치 != CFLAG:MASTER:311 && CFLAG:MASTER:현재위치 != OMANEKIBEYA() && CFLAG:동침중 == 0
+	RETURN 0
+;기상 후 12시간 이상 경과하고 있지 않으면 안 돼(디버그중)
+IF FLAG:1005 == 0
+SIF NEMUKE() < 720
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+ENDIF
+RETURN 1
+
+@OYASUMI
+IF TARGET > 0
+	CFLAG:동행 = 0
+	CFLAG:동침중 = 0
+	CFLAG:MASTER:동행 = 0
+	CFLAG:MASTER:동침중 = 0
+ENDIF
+
+IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:311
+	CALL SET_SLEEP(1, MASTER, 0)
+ELSE
+	CALL SET_SLEEP(1, TARGET, 1)
+	SIF CFLAG:TARGET:쇠약
+		CFLAG:TARGET:쇠약 = 0
+ENDIF
+
+CALL SET_SNEAK(0, TARGET, 1)
+;CALL SET_TOGETHER(0, TARGET, 1)
+
+CFLAG:MASTER:취침시간 = DAY * 1440 + TIME
+BEGIN AFTERTRAIN

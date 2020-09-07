@@ -1,0 +1,180 @@
+﻿;-------------------------------------------------
+;무릎베개받는다
+;일상계 커맨드 레벨 2
+;-------------------------------------------------
+@COM305
+IF TALENT:MASTER:체형 > TALENT:체형 + 2
+	PRINTFORML %CALLNAME:MASTER%의 머리를 얹은 %타겟은% 개구리가 짓밟힌 것 같은 소리를 질렀다
+	PRINTFORML %마스터는% 당황해 머리를 치웠다
+	BASE:체력 -= 500
+	BASE:기력 -= 500
+	TFLAG:193 = -5
+	TFLAG:호감도안들어감 = 1
+	TFLAG:97 = -20
+	RETURN -1
+ELSE
+	SELECTCASE TFLAG:192
+		;通常
+		CASE 0
+			LOCAL = RAND:110
+			LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+			SIF LOCAL:1 > 109
+				LOCAL:1 = 109
+			IF LOCAL <= 9
+				;10％で大成功
+				TFLAG:193 = 1
+				;信頼
+				TFLAG:98 = 5
+			ELSEIF LOCAL >= LOCAL:1
+				;10～1％で失敗
+				TFLAG:193 = -1
+				;信頼
+				TFLAG:98 = -2
+			ELSE
+				;残りは成功
+				TFLAG:193 = 0
+				;信頼
+				TFLAG:98 = 3
+			ENDIF
+		;強制成功or大成功
+		CASE 1
+			IF RAND:100 <= 9
+				;10％で大成功
+				TFLAG:193 = 1
+				;信頼
+				TFLAG:98 = 5
+			ELSE
+				;残りは成功
+				TFLAG:193 = 0
+				;信頼
+				TFLAG:98 = 3
+			ENDIF
+		;強制失敗
+		CASE -1
+			TFLAG:193 = -1
+			TFLAG:98 = -2
+		;コマンド終了
+		CASE -2
+			TFLAG:193 = -1
+			RETURN 0
+	ENDSELECT
+	;선제 발생시는 실패하지 않는다
+	SIF TFLAG:102 == 3 && TFLAG:192 != -1
+		TFLAG:193 = MAX(TFLAG:193,0)
+	DOWNBASE:기력 += 100
+	DOWNBASE:MASTER:기력 += 50
+
+	;고정으로 획득하는 소스
+	SOURCE:사랑 = 170
+	SOURCE:노출 = 55
+	SOURCE:반감 = 50
+	SIF TFLAG:193 == -1
+		SOURCE:반감 += 150
+
+	;ABL:친밀을 본다
+	IF ABL:친밀 <= 1
+		SOURCE:사랑 += (ABL:친밀 * 20)
+	ELSEIF ABL:친밀 <= 3
+		SOURCE:사랑 += 200 + (ABL:친밀 * 20)
+	ELSEIF ABL:친밀 <= 5
+		SOURCE:사랑 += 400 + (ABL:친밀 * 20)
+	ELSEIF ABL:친밀 <= 8
+		SOURCE:사랑 += 600 + (ABL:친밀 * 30)
+		SOURCE:노출 += 200 + (ABL:욕망 * 10)
+	ELSEIF ABL:친밀 <= 11
+		SOURCE:사랑 += 800 + (ABL:친밀 * 30)
+		SOURCE:노출 += 300 + (ABL:욕망 * 10)
+	ELSE
+		SOURCE:사랑 += 1800 + (ABL:친밀 * 20)
+		SOURCE:노출 += 700 + (ABL:욕망 * 10)
+	ENDIF
+
+	;호감 도를 본다
+	IF CFLAG:2 <= 500
+		SOURCE:복종 = CFLAG:2 / 5
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:복종 = 150 + CFLAG:2 / 20
+	ELSE
+		SOURCE:복종 = 400 + CFLAG:2 / 100
+	ENDIF
+	SIF SOURCE:복종 < 0
+		SOURCE:복종 = 0
+
+	LOCAL = 0
+	;호감도가 낮으면 호감도 저하
+	IF CFLAG:2 <= 50
+		LOCAL -= 3
+	ELSEIF CFLAG:2 <= 100
+		LOCAL -= 2
+	ELSEIF CFLAG:2 <= 250
+		LOCAL -= 1
+	ENDIF
+
+
+	SOURCE:수동 = 120 + 240 * ABL:순종
+
+	;호감도 변화
+	TFLAG:97 += LOCAL
+
+	IF TFLAG:193 == -1
+		TIMES SOURCE:사랑 , 0.50
+		TIMES SOURCE:수동 , 0.50
+		TIMES SOURCE:노출 , 0.40
+	ELSEIF TFLAG:193 == 0
+		TIMES SOURCE:사랑 , 1.00
+		TIMES SOURCE:수동 , 1.00
+		TIMES SOURCE:노출 , 0.90
+	ELSE
+		TIMES SOURCE:사랑 , 1.50
+		TIMES SOURCE:수동 , 2.00
+		TIMES SOURCE:노출 , 1.80
+	ENDIF
+	TIME += 20
+	CALL SET_DERAY(6,TARGET)
+	;무릎베개 플래그
+	TCVAR:310 = 1440 * DAY + TIME
+	RETURN 1
+ENDIF
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE305
+;무릎베개 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(305)
+	RETURN RESULT
+;친해져 강도 1
+SIF TCVAR:MASTER:친해져 < 1
+	RETURN 0
+;실내만
+SIF !(INROOM(CFLAG:MASTER:현재위치))
+	RETURN 0
+;목욕탕
+SIF BATHROOM()
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;업무중
+SIF CFLAG:행동 == 5
+	RETURN 0
+;장난중, 동침중은 무리
+SIF CFLAG:장난 || CFLAG:동침중
+	RETURN 0
+;1시간 간격
+SIF TIME_PROGRESS(TCVAR:310) < 60
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;식스나인 몸의자세
+SIF TEQUIP:식스나인
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+

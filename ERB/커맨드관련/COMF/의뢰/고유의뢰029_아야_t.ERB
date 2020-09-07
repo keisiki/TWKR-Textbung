@@ -1,0 +1,195 @@
+﻿@고유의뢰29(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE ARG % 1000
+;ID101：술을 주세요
+CASE 101
+	SELECTCASE O_DATA
+	CASE "의뢰명"
+		CALLF MAKE_STR(V_NAME, "술을 주세요")
+	CASE "의뢰내용 표시"
+		CALLF MAKE_STR(V_NAME, "술을 3개 이상 납입한다")
+	CASE "의뢰 보수 표시"
+		CALLF MAKE_STR(V_NAME, @"\\5000")
+	CASE "의뢰실행 커맨드 이름"
+		CALLF MAKE_STR(V_NAME, "술을 건네준다")
+		
+	;의뢰 대상이 실행시로 결정하므로
+	;우선 작업으로 해 CLIENT와의 동실 판정만 시켜
+	CASE "의뢰내용"
+		CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "작업"))
+	CASE "의뢰 서브"
+	CASE "의뢰기한"
+	;발생시는 아니고 수탁시에 확정합니다
+		CALLF MAKE_INT(V_NAME, 8)
+	CASE "의뢰 발생율"
+	;이것은 다른 고유 의뢰와의 상대 확률 어째서 10%가 아닙니다
+		CALLF MAKE_INT(V_NAME, 10)
+	CASE "의뢰 발생 조건"
+		CALLF MAKE_INT(V_NAME, 1)
+	CASE "의뢰 수탁 가능 조건"
+	;수탁 가능은@COM_ABLE366도 확인
+	;여기를 참조하는 것은 의뢰인을 TARGET로 하고 있는 때이므로 소안내로 좋아
+		CALLF MAKE_INT(V_NAME, 1)
+	CASE "의뢰실행 가능 조건"
+	;실행 가능은@COM_ABLE367도 확인
+		SIF MAX(ITEM:51, ITEM:52, ITEM:53) >= 3
+			CALLF MAKE_INT(V_NAME, 1)
+	;성공/실패 처리는 CARRYOUT로 직접 쓴다
+	;SOURCE나 ITEM 입수 따위, 내용이 복잡해서
+	CASE "의뢰 소멸 조건"
+	;30%로 소실
+		SIF RAND:100 < 30
+			CALLF MAKE_INT(V_NAME, 1)
+	ENDSELECT
+;ID102：가두 앙케이트
+CASE 102
+	SELECTCASE O_DATA
+	CASE "의뢰명"
+		CALLF MAKE_STR(V_NAME, "가두 앙케이트")
+	CASE "의뢰내용 표시"
+		CALLF MAKE_STR(V_NAME, "마을 광장에서의 탐문")
+	CASE "의뢰 보수 표시"
+		CALLF MAKE_STR(V_NAME, @"\\3000")
+	CASE "의뢰실행 커맨드 이름"
+		CALLF MAKE_STR(V_NAME, "가두 앙케이트")
+		
+	CASE "의뢰내용"
+		;마을 중앙 광장(202)이 대상
+		CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(202, "전령(장소)"))
+	CASE "의뢰 서브"
+	CASE "의뢰기한"
+	;발생시는 아니고 수탁시에 확정합니다
+		CALLF MAKE_INT(V_NAME, 7)
+	CASE "의뢰 발생율"
+	;이것은 다른 고유 의뢰와의 상대 확률 어째서 10%가 아닙니다
+		CALLF MAKE_INT(V_NAME, 10)
+	CASE "의뢰 발생 조건"
+		CALLF MAKE_INT(V_NAME, 1)
+	CASE "의뢰 수탁 가능 조건"
+	;수탁 가능은@COM_ABLE366도 확인
+	;여기를 참조하는 것은 의뢰인을 TARGET로 하고 있는 때이므로 소안내로 좋아
+		CALLF MAKE_INT(V_NAME, 1)
+	CASE "의뢰실행 가능 조건"
+	;실행 가능은@COM_ABLE367도 확인
+		IF FLAG:70
+		ELSE
+			CALLF MAKE_INT(V_NAME, 1)
+		ENDIF
+	;성공/실패 처리는 CARRYOUT로 직접 쓴다
+	;SOURCE나 ITEM 입수 따위, 내용이 복잡해서
+	CASE "의뢰 소멸 조건"
+	;30%로 소실
+		SIF RAND:100 < 30
+			CALLF MAKE_INT(V_NAME, 1)
+	ENDSELECT
+ENDSELECT
+
+
+
+;고유 의뢰의 설정용
+;이 함수는 실행/성공/실패시의
+;보수와 페널티와 지문만을 취급합니다
+;각 캐릭터의 메시지는 다른 장소에서
+@IRAI_고유29(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+;개개의 의뢰명으로 분기
+CASE "술을 주세요"
+	SELECTCASE SCENE
+	CASE "의뢰 조건 표시"
+	;무엇인가 전용의 표시 정보를 마련하고 싶을 시용
+	;수탁 끝난 의뢰 표시로 사용됩니다
+	;
+	;PRINT계만으로 SOURCE라든지는 넣으면 안 돼, WAIT도 없음으로
+	;여기 이외의표시 항목은
+	;PRINTFORML 　　　　　：
+	;되고 있으므로 스페이스를 가지런히 하는 편이 보기에 좋습니다
+	
+	CASE "의뢰실행시"
+	;이 CASE에 한정해, RESULT가 의미를 가집니다
+	;의뢰실행시의 RESULT에는 IRAI_CONST_RESULT()를 사용해 주세요
+	;가능한 인수는"캔슬", "실행해 성공", "실행해 실패", "실행해 미해결"입니다
+	;독자 처리를 가르치고 싶을 때는"실행해 미해결"로 유보하자 마자 해 주세요
+		PRINTL 어떤 것을 건네줄까?
+		CALL 술일람표시(3)
+		IF INRANGE(RESULT, 51, 53)
+			PRINTFORML %마스터는% %CALLNAME:TARGET%에게 술을 건네주었다
+			;TFLAG에 건네준 술번호를 보존. 보수등을 분기 시키고 싶은 경우에.
+			TFLAG:194 = RESULT
+			LOCALS = %ITEMNAME:RESULT%
+			CALL LOST_ITEM(LOCALS, 3, 2)
+			RETURN IRAI_CONST_RESULT("실행해 성공")
+		ELSE
+			RETURN IRAI_CONST_RESULT("캔슬")
+		ENDIF
+	CASE "의뢰 성공시"
+	;성공 보고시의 보수 등
+		CALL KIGEN_CHANGE(TARGET, 100, 1)
+		SOURCE:TARGET:환락 += 2000
+		;시스템 메시지 다하고 호감도 변화
+		;마지막 인수만 호감도가 변화
+		CALL CHANGE_CFLAG(2, TARGET, 30)
+		;시스템 메시지 다하고 신뢰도 변화
+		;마지막 인수만 신뢰도가 변화
+		CALL CHANGE_CFLAG(4, TARGET, 10)
+		CALL GET_MONEY_YEN(5000, 2)
+	CASE "의뢰 실패시"
+	;실패 보고시의 처리
+		;시스템 메시지 다하고 호감도 변화
+		;마지막 인수만 호감도가 변화
+		CALL CHANGE_CFLAG(2, TARGET, -20)
+		;시스템 메시지 다하고 신뢰도 변화
+		;마지막 인수만 신뢰도가 변화
+		CALL CHANGE_CFLAG(4, TARGET, -10)
+	ENDSELECT
+	
+CASE "가두 앙케이트"
+	SELECTCASE SCENE
+	CASE "의뢰 조건 표시"
+	;무엇인가 전용의 표시 정보를 마련하고 싶을 시용
+	;수탁 끝난 의뢰 표시로 사용됩니다
+	;
+	;PRINT계만으로 SOURCE라든지는 넣으면 안 돼, WAIT도 없음으로
+	;여기 이외의표시 항목은
+	;PRINTFORML 　　　　　：
+	;되고 있으므로 스페이스를 가지런히 하는 편이 보기에 좋습니다
+	
+	CASE "의뢰실행시"
+	;이 CASE에 한정해, RESULT가 의미를 가집니다
+	;의뢰실행시의 RESULT에는 IRAI_CONST_RESULT()를 사용해 주세요
+	;가능한 인수는"캔슬", "실행해 성공", "실행해 실패", "실행해 미해결"입니다
+	;독자 처리를 가르치고 싶을 때는"실행해 미해결"로 유보하자 마자 해 주세요
+		DOWNBASE:MASTER:기력 += 50
+		PRINTFORMW %마스터는% 길가는 마을 사람들을 붙잡고선 앙케이트 조사를 했다
+		TIME += 120
+		RETURN IRAI_CONST_RESULT("실행해 성공")
+	CASE "의뢰 성공시"
+	;성공 보고시의 보수 등
+		CALL KIGEN_CHANGE(TARGET, 100, 1)
+		SOURCE:TARGET:환락 = 1000
+		SOURCE:TARGET:정복 = 500
+		;시스템 메시지 다하고 호감도 변화
+		;마지막 인수만 호감도가 변화
+		CALL CHANGE_CFLAG(2, TARGET, 30)
+		;시스템 메시지 다하고 신뢰도 변화
+		;마지막 인수만 신뢰도가 변화
+		CALL CHANGE_CFLAG(4, TARGET, 15)
+		CALL GET_MONEY_YEN(3000, 2)
+	CASE "의뢰 실패시"
+	;실패 보고시의 처리
+		;시스템 메시지 다하고 호감도 변화
+		;마지막 인수만 호감도가 변화
+		CALL CHANGE_CFLAG(2, TARGET, -20)
+		;시스템 메시지 다하고 신뢰도 변화
+		;마지막 인수만 신뢰도가 변화
+		CALL CHANGE_CFLAG(4, TARGET, -10)
+	ENDSELECT
+ENDSELECT

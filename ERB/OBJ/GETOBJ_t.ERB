@@ -1,0 +1,132 @@
+﻿;-----------------------------------------------
+;오브젝트 참조 함수군
+;-----------------------------------------------
+;OBJ의 INT 정보의 참조 함수
+@GET_INT(ARG, CLASS_NAME, O_ID, O_DATA)
+#FUNCTION
+#DIMS CLASS_NAME  ;OBJ의 이름(예：WEAPON)
+#DIM  O_ID        ;참조하는 OBJ의 ID(예：1)
+#DIMS O_DATA      ;참조하고 싶은 정보의 이름(예：가격)
+;DEBUGPRINTFORML GET_INT ARG：{ARG}, CLASS_NAME：%CLASS_NAME%, O_ID：{O_ID}, O_DATA：%O_DATA%
+LOCALS = %GET_OBJ(ARG, CLASS_NAME, O_ID, O_DATA)%
+;DEBUGPRINTFORML GET_INT LOCALS：%LOCALS%
+SIF !STRLENS(LOCALS)
+	RETURNF 0
+SIF !ISNUMERIC(LOCALS)
+	RETURNF 0
+RETURNF TOINT(LOCALS)
+
+;OBJ의 STR 정보의 참조 함수
+@GET_STR(ARG, CLASS_NAME, O_ID, O_DATA)
+#FUNCTIONS
+#DIMS CLASS_NAME  ;OBJ의 이름(예：WEAPON)
+#DIM  O_ID        ;참조하는 OBJ의 ID(예：1)
+#DIMS O_DATA      ;참조하고 싶은 정보의 이름(예：이름)
+;DEBUGPRINTFORML GET_STR ARG：{ARG}, CLASS_NAME：%CLASS_NAME%, O_ID：{O_ID}, O_DATA：%O_DATA%
+RETURNF GET_OBJ(ARG, CLASS_NAME, O_ID, O_DATA)
+
+
+;-----------------------------------------------
+;OBJ 참조 함수
+;-----------------------------------------------
+;이 함수는 직접 부르지 않고 GET_INT/GET_STR를 개입시켜 참조하는 것
+;GET_INT측에서 TOINT 해 두면 참조원에서의 수고를 줄일 수 있다 라는 실마리-도 없는 이유
+@GET_OBJ(ARG, CLASS_NAME, O_ID, O_DATA)
+#FUNCTIONS
+#DIMS CLASS_NAME    ;CLASS의 이름(예：WEAPON)
+#DIM  O_ID          ;참조하는 OBJ의 ID(예：1)
+#DIMS O_DATA        ;참조하고 싶은 정보의 이름(예：가격)
+#DIM  STACK         ;호출 OBJ의 스택 카운터
+#DIMS V_NAME , 100  ;VAR 변수명의 보유
+#DIMS T_NAME        ;TEMP, 초기화의 형편상 퇴피의 필요가 있으므로
+
+;전OBJ의 ID의 범위외이다
+SIF !INRANGE(O_ID, OBJ_ID_FIRST, OBJ_ID_LAST)
+	RETURNF
+;OBJ에 그 ID가 존재하지 않는다
+SIF !GET_EXIST(CLASS_NAME, O_ID)
+	RETURNF
+
+STACK ++
+V_NAME:STACK = VAR{STACK}_%CLASS_NAME%{O_ID}_%O_DATA%
+CALLFORMF %CLASS_NAME%{O_ID}(ARG, O_DATA, V_NAME:STACK)
+T_NAME = %V_NAME:STACK%
+V_NAME:STACK =
+STACK --
+;DEBUGPRINTFORML GET_OBJ T_NAME=%T_NAME%
+
+;변수가 작성되지 않았던 때는 연주한다
+SIF TEMP_GET("GET_ID", T_NAME) == "0"
+	RETURNF
+
+RETURNF TEMP_RE_STR(T_NAME)
+
+
+;-----------------------------------------------
+;OBJ의 ID취득 함수
+;-----------------------------------------------
+;ARG는 등록 번호 상정
+;CLASS의 요소명으로부터 ID를 취득한다(존재하지 않는 경우는―1, 요소 0을 묶지 않았던 탓)
+;기동시에 CLASS_NAME 마다 RESET를 걸칠 필요가 있는 것 외에
+;사용할 수 있도록(듯이) 하려면  CLASS 마다 전용의 함수가 필요
+;일원 관리하고 있지 않는 것은 FINDELEMENT가 1 차원 변수로 밖에 사용할 수 없기 때문에
+;이 외 , 상황에 의해 이름이 변화하는 것 같은 CLASS의 이름의 변환에는 향하지 않는다
+;
+;ERB 문법에 익숙해 있기 위해서(때문에) 가짜 때에―1은 불안정의 온상이 되기 어렵지 라고 생각했지만
+;중도의 자작 시스템으로 요소 0을 사용하고 싶기 때문에 불가피
+@OBJNAME_TO_ID(ARG, COMMAND, CLASS_NAME, KEY)
+#FUNCTION
+#DIMS COMMAND     ;처리 내용
+#DIMS CLASS_NAME  ;대상의 CLASS명
+#DIMS KEY         ;검색하는 캐릭터라인
+#DIM  STACK       ;호출 스택
+#DIMS V_NAME, 100 ;주는 변수명
+#DIMS T_NAME      ;퇴피용
+SELECTCASE COMMAND
+;@SETLIST_EXIST 이외로부터 RESET를 걸치지 않는 것
+CASE "RESET"
+	CALLFORMF %CLASS_NAME%_ID(ARG, COMMAND)
+CASE "GET"
+	STACK ++
+	V_NAME:STACK = %CLASS_NAME%{STACK}_%COMMAND%
+	CALLFORMF %CLASS_NAME%_ID(ARG, KEY, V_NAME:STACK)
+	T_NAME = %V_NAME:STACK%
+	V_NAME:STACK =
+	STACK --
+	RETURNF TEMP_RE_INT(T_NAME)
+ENDSELECT
+
+
+
+;-----------------------------------------------
+;모든 클래스 함수의 존부를 설정한다
+;로드/뉴 게임시에 반드시 1회는 설정할 필요가 있지만
+;1회이상 설정할 필요는 없다
+;-----------------------------------------------
+@MAKE_ALL_CLASS_LIST
+SIF LOCAL
+	RETURN
+CALL SETLIST_EXIST("캐릭터데이터", 0, 캐릭터수상한)
+CALL SETLIST_EXIST("캐릭터리스트", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("의상세트", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("완부의복", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("머리장비", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("기모노", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("상반신윗도리_탈의불가", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("상반신윗도리_탈의가능", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("상반신속옷_탈의불가", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("상반신속옷_탈의가능", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("양말", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("신발", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("외투", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("하반신속옷_비켜놓기불가", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("하반신속옷_비켜놓기가능", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("원피스", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("레오타드", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("보디슈트", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("그외의상", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("바지", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("치마", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("액세서리", 0, OBJ_ID_LAST)
+CALL SETLIST_EXIST("일반의뢰", 0, OBJ_ID_LAST)
+LOCAL ++

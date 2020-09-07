@@ -1,0 +1,363 @@
+﻿;-------------------------------------------------
+;授乳プレイ
+;愛撫系派生コマンド
+;-------------------------------------------------
+@SCOM19
+;-------------------------------------------------
+;実行決定
+;-------------------------------------------------
+STR:0 = 모유 수유
+
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+;行為者
+TCVAR:116 = TARGET
+
+LOCALS = {TARGET}/
+CSTR:PLAYER:10 += LOCALS
+;TCVAR:2 射精箇所フラグ（-1=コンドーム 1=膣内 2=アナル 3=手淫 4=口淫 5=パイズリ 6=素股 7=足コキ 8=体表 9=アナル奉仕 10=道具 11=触手 12=Ａ責め 13=Ｖ責め）
+TCVAR:PLAYER:2 = 3
+
+;強度
+TCVAR:PLAYER:4 = 1000
+;奉仕快楽
+TCVAR:108 = 1
+
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+IF FLAG:70 == 1
+	;キャラ主体なので時止め中は実行不可能
+
+ELSE
+	;手淫によるマスターへのソース追加
+	IF ABL:손가락 < 4 || FLAG:70
+		SOURCE:PLAYER:쾌C += 80
+	ELSE
+		SOURCE:PLAYER:쾌C += ABL:손가락 * 20
+	ENDIF
+	
+	IF TALENT:TARGET:가슴사이즈 >= 1
+		;基本的に乳首吸いと一緒
+		DOWNBASE:체력 += 10
+		DOWNBASE:기력 += 50
+	
+		SOURCE:쾌B = 20
+		SOURCE:사랑 = 100
+		SOURCE:노출 = 20
+		SOURCE:굴종 = 200
+		SOURCE:일탈 = 100
+		SOURCE:반감 = 100
+	ELSE
+		;胸がちっちゃいと疲れるよ！ 頭しっかり抱き寄せないといけないからね！
+		DOWNBASE:체력 += 20
+		DOWNBASE:기력 += 80
+	
+		SOURCE:쾌B = 20
+		SOURCE:사랑 = 100
+		SOURCE:노출 = 20
+		SOURCE:굴종 = 200
+		SOURCE:일탈 = 200
+		SOURCE:반감 = 100
+	ENDIF
+		
+	;手淫と同じ汚れデータの計算
+	SOURCE:불결 = Y*10 + 60
+	
+	;乳首吸いよりキャラ依存のため、情愛を増やす
+	SOURCE:쾌B += ABL:PLAYER:혀 * 20
+	SOURCE:사랑 += ABL:PLAYER:혀 * 10
+
+	SIF ABL:친밀 >= 7
+		SOURCE:사랑 += (ABL:친밀 * 20)
+
+	;あなたのTALENT:혀놀림をみる
+	SIF TALENT:PLAYER:혀놀림
+		TIMES SOURCE:쾌B , 1.50
+
+	;あなたのTALENT:고양이혀をみる
+	SIF TALENT:PLAYER:고양이혀
+		TIMES SOURCE:쾌B , 0.75
+	;-------------------------------------------------
+	;特殊ソース処理
+	;-------------------------------------------------
+	;抑圧、抵抗持ちには、抑鬱ソース追加
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 200
+ENDIF
+
+;-------------------------------------------------
+;汚れの処理
+;-------------------------------------------------
+;キャラの指⇔あなたのＰの汚れが移動
+STAIN:1 |= STAIN:PLAYER:2
+STAIN:PLAYER:2 |= STAIN:1
+
+;奴隷のＢ⇔調教者の口の汚れが移動
+STAIN:5 |= STAIN:PLAYER:0
+STAIN:PLAYER:0 |= STAIN:5
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;手淫経験
+SIF !FLAG:70 && !CFLAG:장난
+	EXP:수음경험 ++
+
+;愛情経験
+SIF TALENT:연모 && !ASSIPLAY
+	EXP:애정경험 += 1
+	
+;母性持ちなら愛情経験にボーナス
+SIF TALENT:모성 && !ASSIPLAY
+	EXP:애정경험 += 1
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF FLAG:70 == 1
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 5
+ENDIF
+ELSE
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 5
+	EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 5
+ENDIF
+ENDIF
+
+;あなたが猫舌持ちの場合は、あなたに嗜虐快楽経験を追加
+SIF TALENT:PLAYER:고양이혀
+	EXP:PLAYER:가학쾌락경험 += 1
+EXP:PLAYER:펠라티오경험 ++
+RETURN 1
+
+;-------------------------------------------------
+;実行可能判定 難度はパイズリフェラよりちょい低いくらい
+;-------------------------------------------------
+@CAN_SCOM19(ARG)
+SKIPDISP ARG
+PRINTL 授乳プレイ
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+IF !FLAG:70
+
+	A = 0
+	S = 0
+
+	;すべての命令に共通の要素を考慮
+	;(従順が高いと命令に従いやすいなど)
+	CALL COM_ORDER
+
+	;ABL:욕망
+	IF ABL:욕망
+		SIF S
+			PRINT  + 
+		A += ABL:욕망 * 1
+		PRINT 욕망
+		PRINTV 'LV,ABL:욕망,'(,ABL:욕망 * 1,')
+		S = 1
+	ENDIF
+	;ABL:봉사정신
+	IF ABL:봉사정신
+		SIF S
+			PRINT  + 
+		A += ABL:봉사정신 * 4
+		PRINT 奉仕精神
+		PRINTV 'LV,ABL:봉사정신,'(,ABL:봉사정신 * 4,')
+		S = 1
+	ENDIF
+	;ABL:정액중독
+	IF ABL:정액중독
+		SIF S
+			PRINT  + 
+		A += ABL:정액중독 * 3
+		PRINT 精液中毒
+		PRINTV 'LV,ABL:정액중독,'(,ABL:정액중독 * 3,')
+		S = 1
+	ENDIF
+
+	IF MARK:쾌락각인
+		SIF S
+			PRINT  + 
+		A += MARK:쾌락각인 * 1
+		PRINT 快楽刻印
+		PRINTV 'LV,MARK:쾌락각인,'(,MARK:쾌락각인 * 1,')
+		S = 1
+	ENDIF
+	;PALAM:욕정
+	IF GETPALAMLV(PALAM:욕정,5)
+		SIF S
+			PRINT  + 
+		A += GETPALAMLV(PALAM:욕정,5) * 1
+		PRINT 欲情
+		PRINTV 'LV,GETPALAMLV(PALAM:욕정,5),'(,GETPALAMLV(PALAM:욕정,5) * 1,')
+		S = 1
+	ENDIF
+	;恥じらい
+	IF TALENT:수치심 > 0
+		PRINT  - 
+		A -= 3
+		PRINT 恥じらい
+		PRINTV '(,3,')
+		S = 1
+	ENDIF
+	;汚臭鈍感
+	IF TALENT:악취내성 > 0
+		SIF S
+			PRINT  + 
+		A += 1
+		PRINT 汚臭鈍感
+		PRINTV '(,1,')
+		S = 1
+	ENDIF
+	;汚臭敏感
+	IF TALENT:악취내성 < 0
+		PRINT  - 
+		A -= 3
+		PRINT 汚臭敏感
+		PRINTV '(,3,')
+		S = 1
+	ENDIF
+	;献身的
+	IF TALENT:헌신적
+		SIF S
+			PRINT  + 
+		A += 6
+		PRINT 献身的
+		PRINTV '(,6,')
+		S = 1
+	ENDIF
+	;快感の否定（淫乱、娼婦で無効）
+	IF TALENT:쾌감응답 < 0 && !TALENT:음란
+		PRINT  - 
+		A -= 3
+		PRINT 快感の否定
+		PRINTV '(,3,')
+		S = 1
+	ENDIF
+	;男嫌い（恋慕、親愛で無効）
+	IF OTOKOGIRAI(TARGET)
+		PRINT  - 
+		A -= 12
+		PRINT 男嫌い
+		PRINTV '(,12,')
+		S = 1
+	ENDIF
+	;恋慕
+	IF TALENT:연모 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 恋慕
+		PRINTV '(,5,')
+		S = 5
+	ENDIF
+	;親愛
+	IF TALENT:연모 > 1 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 親愛
+		PRINTV '(,5,')
+		S = 5
+	ENDIF
+
+	;調教者がふたなり
+	IF (TALENT:PLAYER:2 & 3) == 3
+		SIF S
+			PRINT  + 
+		A += 8
+		PRINT ふたなり
+		PRINTV '(,8,')
+		S = 1
+	ENDIF
+
+	Y = 0
+	;愛液の汚れ
+	SIF STAIN:PLAYER:2 & 1
+		Y += 1
+	;精液の汚れ
+	SIF STAIN:PLAYER:2 & 4
+		Y += 3
+	;アナルの汚れ
+	SIF STAIN:PLAYER:2 & 8
+		Y += 7
+	SIF STAIN:PLAYER:2 & 16
+		Y += 15
+
+	Y = Y * (2 - TALENT:악취내성) / 2
+
+	;汚れあり
+	IF Y
+		PRINT  - 
+		A -= Y
+		PRINT 汚れあり
+		;汚臭鈍感
+		IF TALENT:악취내성 > 0
+			PRINT 、汚臭鈍感
+		ELSEIF TALENT:악취내성 < 0
+			PRINT 、汚臭敏感
+		ENDIF
+		PRINTV '(,Y,')
+		S = 1
+	ENDIF
+
+	;合計を表示(30以上で実行)
+	PRINT  = 
+	PRINTV A
+
+	V = 32
+	SIF A < V
+		PRINT  < 
+	SIF A == V
+		PRINT  = 
+	SIF A > V
+		PRINT  > 
+	PRINT 実行値
+	PRINTV V
+
+	WAIT
+	SKIPDISP 0
+	;実行できない
+	SIF A < V
+		RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;選択可能判定
+;-------------------------------------------------
+@COM_ABLE519
+;授乳プレイ実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(58)
+	RETURN RESULT
+;睡眠姦中はダメ
+SIF CFLAG:장난 > 1
+	RETURN 0
+;時止めはダメ
+SIF FLAG:70
+	RETURN 0
+;オトコだとダメ
+SIF !(TALENT:2 & 1)
+	RETURN 0
+;上半身着衣だとダメ…というか現状乳首吸えないので無理…胸だけポロンやりたい所存…
+SIF TEQUIP:1 > 1
+	RETURN 0
+;搾乳器使用中は不可
+SIF TEQUIP:17
+	RETURN 0
+;ニプルキャップ使用中は不可
+SIF TEQUIP:16
+	RETURN 0
+;乳房電極装着中はダメ
+SIF TEQUIP:24
+	RETURN 0
+;Ｖインサート中はだめ
+SIF TEQUIP:체위 > 0
+	RETURN 0
+RETURN 1
+

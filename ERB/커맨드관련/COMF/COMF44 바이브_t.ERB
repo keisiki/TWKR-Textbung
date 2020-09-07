@@ -1,0 +1,212 @@
+﻿;-------------------------------------------------
+;바이브
+;도구 사용 커맨드, 레벨 2
+;-------------------------------------------------
+@COM44
+;착탈의처리
+TEQUIP:바이브 = !TEQUIP:바이브
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;봉사 쾌락 플래그
+TCVAR:PLAYER:108 = 1
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 13
+;강도
+TCVAR:TARGET:4 = 900
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 100
+SOURCE:PLAYER:성행동+= 10
+	SOURCE:쾌V = 250
+	SOURCE:고통 = 25
+
+	;처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:처녀 == 1
+		SOURCE:고통 += 1000
+	ENDIF
+
+	;재생 처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:처녀 == 2
+		SOURCE:고통 += 250
+	ENDIF
+
+ELSE
+
+	DOWNBASE:체력 += 30
+	DOWNBASE:기력 += 100
+SOURCE:PLAYER:성행동+= 10
+
+	SOURCE:쾌V = 250
+	SOURCE:고통 = 50
+	SOURCE:노출 = 20
+	SOURCE:일탈 = 40
+	SOURCE:반감 = 40
+
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 40
+
+	;처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:처녀 == 1
+		SOURCE:고통 += 2000
+		SOURCE:반감 += 3000
+	ENDIF
+
+	;재생 처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:처녀 == 2
+		SOURCE:고통 += 500
+		SOURCE:반감 += 1000
+	ENDIF
+ENDIF
+;V에의 고통은 먼저 처리해 둔다
+CALL PAIN_CHECK_V(TARGET)
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;삽입시는 V경험+
+EXP:V경험 ++
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ELSE
+	;이상경험
+	IF TALENT:처녀 == 1 && !GETBIT(CFLAG:3, 3)
+		EXP:이상경험 ++
+		SETBIT CFLAG:3, 3
+	ENDIF
+
+	;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 1
+	ENDIF
+ENDIF
+EXP:PLAYER:도구사용경험 ++
+
+RETURN 1
+
+;-------------------------------------------------
+;장착 계속의 처리
+;-------------------------------------------------
+@EQUIP_COM44(ARG)
+;바이브 삽입중
+PRINTL ＜바이브 삽입중＞
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+TCVAR:TARGET:2 = 13
+TCVAR:TARGET:4 = 450
+
+IF FLAG:70 == 1
+BASE:MASTER:TSP -= 50
+SOURCE:ARG:쾌V += 125
+
+ELSE
+
+
+DOWNBASE:ARG:체력 += 10
+DOWNBASE:ARG:기력 += 50
+
+SOURCE:ARG:쾌V += 125
+SOURCE:ARG:노출 += 10
+SOURCE:ARG:일탈 += 20
+
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;억압, 저항 소유에는, 억울소스 추가
+SIF TALENT:ARG:자기애 < 0 || TALENT:ARG:저항
+	SOURCE:ARG:울굴 += 20
+
+;V에의 고통은 먼저 처리해 둔다
+;EXP:V경험을 본다(처녀는 있을 수 없다)
+LOCAL = 25
+LOCAL:1 = 20
+IF EXP:ARG:V경험 < EXPLV:2
+	TIMES LOCAL , 0.80
+	TIMES LOCAL:1 , 1.20
+ELSEIF EXP:ARG:V경험 < EXPLV:3
+	TIMES LOCAL , 0.40
+ELSEIF EXP:ARG:V경험 < EXPLV:4
+	TIMES LOCAL , 0.10
+ELSEIF EXP:ARG:V경험 < EXPLV:5
+	TIMES LOCAL , 0.00
+ELSEIF EXP:ARG:V경험 >= EXPLV:5
+	TIMES LOCAL , 0.00
+ENDIF
+
+;PALAM:윤활을 본다
+IF PALAM:ARG:윤활 < PALAMLV:1
+	TIMES LOCAL , 1.20
+	TIMES LOCAL:1 , 1.50
+ELSEIF PALAM:ARG:윤활 < PALAMLV:2
+	TIMES LOCAL , 0.70
+	TIMES LOCAL:1 , 1.20
+ELSEIF PALAM:ARG:윤활 < PALAMLV:3
+	TIMES LOCAL , 0.40
+ELSEIF PALAM:ARG:윤활 < PALAMLV:4
+	TIMES LOCAL , 0.10
+ELSEIF PALAM:ARG:윤활 >= PALAMLV:4
+	TIMES LOCAL , 0.10
+ENDIF
+SOURCE:ARG:고통 += LOCAL
+SOURCE:ARG:반감 += LOCAL:1
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;자위 실행시는 경험＋1
+SIF EXP_UP(22, TARGET)
+	EXP:ARG:V경험 += 1
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE44
+;바이브 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(44)
+	RETURN RESULT
+;해제는 언제라도 가능
+SIF TEQUIP:13
+	RETURN 1
+;남자라면 안 돼
+SIF !(TALENT:2 & 1)
+	RETURN 0
+;아이템 을 가지고 있는인가, 아이템 없음 설정이 아니면 안 돼
+SIF ITEM:4 == 0 && NOITEM == 0
+	RETURN 0
+
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+;처녀로, 순종 4 이하·레즈끼 4 이하의 ASSI의 경우 바이브는 할 수 없다(새드라면 OK)
+IF TALENT:처녀 && ASSIPLAY
+	SIF (ABL:ASSI:순종 <= 4 || ABL:ASSI:레즈끼 <= 4) && TALENT:ASSI:새드 == 0
+		RETURN 0
+ENDIF
+;윤활 부족해, 순종 3 이하·레즈끼 3 이하의 ASSI의 경우 바이브는 할 수 없다(새드라면 OK)
+IF PALAM:윤활 < PALAMLV:2 && ASSIPLAY
+	SIF (ABL:ASSI:순종 <= 3 || ABL:ASSI:레즈끼 <= 3) && TALENT:ASSI:새드 == 0
+		RETURN 0
+ENDIF
+RETURN 1
+

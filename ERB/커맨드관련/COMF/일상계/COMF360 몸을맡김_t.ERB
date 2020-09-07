@@ -1,0 +1,48 @@
+﻿;-------------------------------------------------
+;몸을맡긴다
+;일상계 커맨드, 레벨 3
+;-------------------------------------------------
+@COM360
+TIME += 10
+;기력 제로 때는 변동하지 않는다(몸을 맡길 수밖에 할 수 없기 때문에)
+SIF BASE:MASTER:기력 <= 0
+	RETURN 1
+;통상은 플러스, 새드라면 반전
+IF TALENT:TARGET:새드
+	LOCAL = -1
+ELSE
+	LOCAL = 1
+ENDIF
+;지향이 반전중은 3배
+IF COUNTER_SIKOU:TARGET:(TCVAR:TARGET:카운터행동) > 0 && TALENT:TARGET:새드
+	LOCAL *= 3
+ELSEIF COUNTER_SIKOU:TARGET:(TCVAR:TARGET:카운터행동) < 0
+	LOCAL *= 3
+ENDIF
+;［솔직함］［습득 빠름］은 2배
+SIF TALENT:TARGET:태도 < 0 || TALENT:TARGET:습득속도 > 0
+	LOCAL *= 2
+;최대 영향도 10
+COUNTER_SIKOU:TARGET:(TCVAR:TARGET:카운터행동) = LIMIT(COUNTER_SIKOU:TARGET:(TCVAR:TARGET:카운터행동) + LOCAL, -10, 10)
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+
+@COM_ABLE360
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+;이루는 대로 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(360)
+	RETURN RESULT
+SIF CFLAG:우후후 != 2
+	RETURN 0
+;애원 안은 불가
+SIF INRANGE(TCVAR:카운터행동, 40, 49)
+	RETURN 0
+RETURN 1

@@ -1,0 +1,139 @@
+﻿;-------------------------------------------------
+;상대주도후배위애널
+;섹스계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM323
+;-------------------------------------------------
+;특수 파생 처리
+;-------------------------------------------------
+;실내가 아닌 or욕실에서 플레이매트가 없으면 립 정도에
+SIF !INROOM(CFLAG:PLAYER:현재위치) && !(BATHROOM() && ITEM:20)
+	TFLAG:193 = 1
+
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;봉사 쾌락 플래그
+TCVAR:PLAYER:108 = 1
+
+CSTR:PLAYER:10 += @"{TARGET}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:PLAYER:2 = 2
+TCVAR:PLAYER:동정상실 = 1
+TCVAR:A상실발생 = 1
+;강도
+TCVAR:PLAYER:4 = 2000
+
+CSTR:TARGET:10 += @"{PLAYER}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 12
+;강도
+TCVAR:TARGET:4 = 1500
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+DOWNBASE:체력 += 60
+DOWNBASE:기력 += 60
+DOWNBASE:PLAYER:체력 += 30
+DOWNBASE:PLAYER:기력 += 50
+SOURCE:PLAYER:쾌C = 400
+SOURCE:PLAYER:성행동+= 25
+SOURCE:쾌A = 500
+SOURCE:사랑 = 300
+SOURCE:고통 = 900
+SOURCE:노출 = 100
+SOURCE:일탈 = 200
+
+;위 쪽으로 계산한 더러운 데이터
+SOURCE:불결 = Y*10 + 60
+
+;A에의 고통은 먼저 처리해 둔다
+CALL PAIN_CHECK_A(TARGET)
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;사정에 관계없이 행해지는 처리는 여기에서
+;노예의 A⇔조교자의 P의 더러움이 이동
+CALL STAIN_애널P삽입
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:A경험 ++
+EXP:PLAYER:삽입경험 ++
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+	ENDIF
+		EXP:PLAYER:시간경험 += 1
+ELSE
+	IF HETEROSEX(TARGET, PLAYER)
+		EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+		EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+	ENDIF
+	EXP:A성교경험 ++
+	;애정경험
+	SIF !ASSIPLAY
+		EXP:애정경험 += TALENT:연모
+ENDIF
+RETURN 1
+
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE323
+SIF !TFLAG:100
+	RETURN 0
+SIF TCVAR:20 != 44
+	RETURN 0
+;조교자가 남자, 양성의 경우는 어느 정도 발기하고 있지 않으면 안 돼
+SIF (TALENT:PLAYER:2 & 2) && BASE:PLAYER:발기 < 1000
+	RETURN 0
+;애널바이브 삽입중은 안 돼
+SIF TEQUIP:14
+	RETURN 0
+;애널비즈 사용중은 불가
+SIF TEQUIP:15
+	RETURN 0
+;보통 관장 사용중은 불가
+SIF TEQUIP:21
+	RETURN 0
+;풍선 사용중은 불가
+SIF TEQUIP:22
+	RETURN 0
+;전극 사용중은 불가
+SIF TEQUIP:23
+	RETURN 0
+
+;체격 차이가 있는 경우는 경험이 없으면 안 돼
+SIF 삽입불가(TARGET) == 1 && EXP:A경험 < 50 && !TALENT:PLAYER:금단의지식
+	RETURN 0
+;한층 더 체격 차이가 있으면(자) 금단의지식이 필요
+SIF 삽입불가(TARGET) == 2 && (!TALENT:PLAYER:금단의지식 || EXP:A경험 < 50)
+	RETURN 0
+SIF 삽입불가(TARGET) == 3
+	RETURN 0
+;조교자가 남자, 반인반요, 후타나리, 혹은 페니스밴드가 없으면 안 돼
+SIF !(TALENT:PLAYER:2 & 2) && ITEM:PBAND == 0
+	RETURN 0
+
+
+;대면좌위로부터는 안 돼
+SIF TEQUIP:체위 == 4
+	RETURN 0
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+;목욕탕플레이중은 플레이매트가 없으면 안 돼
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+
+RETURN 1

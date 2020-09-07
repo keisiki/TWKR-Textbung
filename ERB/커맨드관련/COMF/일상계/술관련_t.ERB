@@ -1,0 +1,281 @@
+﻿@양조날짜(ARG)
+#FUNCTION
+SELECTCASE ARG
+;단순한 물
+	CASE 1
+		RETURNF 5
+;호
+	CASE 2
+		RETURNF 5
+;온천
+	CASE 3
+		RETURNF 5
+;와인
+	CASE 4
+		RETURNF 5
+;신주
+	CASE 5
+		RETURNF 5
+;감주
+	CASE 6
+		RETURNF 5
+;매실주
+	CASE 7
+		RETURNF 5
+;증류주, （와 약주? ）는 양조하지 않는다
+ENDSELECT
+
+@양조할수있던양(ARG)
+#FUNCTION
+#DIM 양조수
+SELECTCASE FLAG:술벌레
+;탁주
+	CASE 51
+		양조수 = 10
+;청주
+	CASE 52
+		양조수 = 10
+;오니고로시
+	CASE 53
+		양조수 = 5
+;와인
+;	CASE 54
+;		양조수 = 5
+;신주
+	CASE 55
+		양조수 = 1
+;감주
+;	CASE 56
+;		양조수 = 5
+;매실주
+;	CASE 57
+;		양조수 = 5
+ENDSELECT
+
+;탁주 청주의 경우
+IF FLAG:술벌레 == 51 || FLAG:술벌레 == 52
+	;MASTER의 교양의 값에 의해 RAND로 증가
+	양조수 += RAND:(ABL:MASTER:교양 * 2 + 1)
+;오니고로시의 경우
+ELSEIF FLAG:술벌레 == 53
+	;MASTER의 교양의 값에 의해 RAND로 증가
+	양조수 += RAND:(ABL:MASTER:교양 + 1)
+	;신주의 경우
+ELSEIF FLAG:술벌레 == 55
+	;MASTER의 교양의 값에 의해 RAND로 증가  신령의 호감도가 모릭과 오르기 쉽기 때문에 희소품 취급
+	양조수 += RAND:(ABL:MASTER:교양 / 2 + 1)
+;외 미설정
+;ELSEIF FLAG:술벌레 == 54 || FLAG:술벌레 == 56 || FLAG:술벌레 == 57
+	;MASTER의 교양의 값에 의해 RAND로 증가
+;	양조수 += RAND:(ABL:MASTER:교양 + 1)
+ELSE
+ENDIF
+RETURNF 양조수
+
+@주조
+DAY:10 ++
+IF 양조날짜(FLAG:술벌레) <= DAY:10 && FLAG:술벌레 < 50
+	PRINTFORMW 술벌레의 병안의 %조사처리(STR:(7000 + FLAG:술벌레),"는")% %조사처리(STR:(7050 + FLAG:술벌레),"로")% 변화했다
+	FLAG:술벌레 += 50
+	DAY:10 = 0
+ELSEIF FLAG:술벌레 == 51 && DAY:10 >= 5
+	PRINTFORMW 술벌레의 병안의 탁주는 청주가 되었다
+	FLAG:술벌레 = 52
+	DAY:10 = 0
+ENDIF
+
+@DRUNKEN(ARG,ARG:1)
+#DIM 술기운증가량
+SELECTCASE ARG:1
+;탁주
+	CASE 51
+		술기운증가량 = 300 + RAND:100
+;청주
+	CASE 52
+		술기운증가량 = 400 + RAND:300
+;오니고로시
+	CASE 53
+		술기운증가량 = 500 + RAND:300
+;신주  기본치는 청주보다 낮지만 랜덤치가 높고, 물건에 의해 도수가 다른 느낌
+	CASE 55
+		술기운증가량 = 300 + RAND:600
+;감주
+	CASE 56
+		SIF TALENT:ARG:술내성 <= -1
+			술기운증가량 = 20 + RAND:30
+	;미설정
+;	CASE 54
+;		술기운증가량 = 200 + RAND:300
+;	CASE 57
+;		술기운증가량 = 200 + RAND:300
+;증류주
+	CASE 58
+		술기운증가량 = 700 + RAND:200
+;약주
+	CASE 59
+		술기운증가량 = 200 + RAND:300
+;하룻밤의쿠시나다
+	CASE 513
+		술기운증가량 = 500 + RAND:200
+ENDSELECT
+;하룻밤의 쿠시나다는 술 내성이 높을수록 취기가 돌기 쉽다
+IF ARG:1 == 513 && ARG != MASTER
+	IF TALENT:ARG:술내성 == -1
+		TIMES 술기운증가량, 1.1
+	ELSEIF TALENT:ARG:술내성 == 1
+		TIMES 술기운증가량, 1.2
+	ELSEIF TALENT:ARG:술내성 == 2
+		TIMES 술기운증가량, 1.7
+	ELSEIF TALENT:ARG:술내성 == 3
+		TIMES 술기운증가량, 2.5
+	ELSEIF TALENT:ARG:술내성 == -2
+		IF CFLAG:ARG:술을못함 >= 5
+			TIMES 술기운증가량, 2.0
+		ELSEIF CFLAG:ARG:술을못함 >= 2
+			TIMES 술기운증가량, 1.5
+		ELSE
+			TIMES 술기운증가량, 1.0
+		ENDIF
+	ENDIF
+ELSE
+	IF TALENT:ARG:술내성 == -1
+		TIMES 술기운증가량, 1.2
+	ELSEIF TALENT:ARG:술내성 == 1
+		TIMES 술기운증가량, 0.9
+	ELSEIF TALENT:ARG:술내성 == 2
+		TIMES 술기운증가량, 0.75
+	ELSEIF TALENT:ARG:술내성 == 3
+		TIMES 술기운증가량, 0.5
+	ELSEIF TALENT:ARG:술내성 == -2
+		IF CFLAG:ARG:술을못함 >= 5
+			TIMES 술기운증가량, 2.0
+		ELSEIF CFLAG:ARG:술을못함 >= 2
+			TIMES 술기운증가량, 1.5
+		ELSE
+			TIMES 술기운증가량, 1.0
+		ENDIF
+	ENDIF
+ENDIF
+SIF ARG:1 == 53 && (TALENT:ARG:오니 || TALENT:ARG:흡혈귀)
+	TIMES 술기운증가량, 3.0
+SIF ARG == MASTER
+	술기운증가량 = 술기운증가량 / (1 + TFLAG:멀미약)
+BASE:ARG:술기운 = MIN(BASE:ARG:술기운 + 술기운증가량 ,MAXBASE:ARG:술기운)
+
+@ALCOHOL_TASTE(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE 51
+	;애주가에게는 어딘지 부족하다
+		IF TALENT:TARGET:술내성 > 0
+			LOCAL = 7
+		ELSE
+			LOCAL = 10
+		ENDIF
+	CASE 52
+	;술을 못함에는 힘들다
+		IF TALENT:TARGET:술내성 < 0
+			LOCAL = 8
+		ELSE
+			LOCAL = 15
+		ENDIF
+	CASE 53
+		IF TALENT:TARGET:오니 || TALENT:TARGET:흡혈귀
+			LOCAL = 30
+		ELSEIF TALENT:TARGET:술내성 <= 0
+			LOCAL = 5
+		ELSE
+			LOCAL = 12
+		ENDIF
+;	CASE 54
+;		IF TALENT:TARGET:술내성 > 0
+;			LOCAL = 7
+;		ELSE
+;			LOCAL = 10
+;		ENDIF
+	CASE 55
+	;개성이 강하고, 애주가에게는 좀 더이고 술을 못함에는 힘든, 다만 신님적으로는 좋아하는 것
+		IF TALENT:TARGET:신령
+			LOCAL = 30
+		ELSEIF TALENT:TARGET:술내성 > 0
+			LOCAL = 7
+		ELSEIF TALENT:TARGET:술내성 < 0
+			LOCAL = 8
+		ELSE
+			LOCAL = 10
+		ENDIF
+	CASE 56		;감주  어린이용
+		IF TALENT:TARGET:체형 <= -1 || TALENT:TARGET:애같음 || TALENT:TARGET:유치
+			LOCAL = 15
+		ELSEIF TALENT:TARGET:술내성 > 0
+			LOCAL = 9
+		ELSE
+			LOCAL = 10
+		ENDIF
+;	CASE 57
+;		IF TALENT:TARGET:술내성 > 0
+;			LOCAL = 7
+;		ELSE
+;			LOCAL = 10
+;		ENDIF
+	CASE 58
+	;술을 못함에는 꽤 힘든, 보통에서도 힘든, 애주가 이상으로 호평
+		IF TALENT:TARGET:술내성 < 0
+			LOCAL = 3
+		ELSEIF TALENT:TARGET:술내성 < 2
+			LOCAL = 9
+		ELSE
+			LOCAL = 20
+		ENDIF
+	CASE 59
+	;기본 씁쓸하기 때문에 우케는 나쁜, 일부의 지식인과 약에 들어 있는 독의 전문가에게는 호평
+		IF TALENT:TARGET:조합지식 || TALENT:TARGET:약독내성 || ABL:TARGET:교양 >= 3
+			LOCAL = 20
+		ELSEIF TALENT:TARGET:술내성 < 0
+			LOCAL = 7
+		ELSE
+			LOCAL = 9
+		ENDIF
+	CASE 513
+	;술을 못하는 사람 이외에는 마시기 쉽지만, 나중에는 매우
+		IF TALENT:TARGET:술내성 < 0
+			LOCAL = 8
+		ELSE
+			LOCAL = 25
+		ENDIF
+ENDSELECT
+RETURNF LOCAL
+
+@술일람표시(ARG)
+;소지수가 ARG 미만이라고 비표시, ARG 이상 소유하고 있는 술을 선택하면(자) 그 아이템 번호를 RETURN 한다
+$LOOP
+FOR LOCAL,51,60 ;58
+	;효과가 정해질 때까지는 신주 스킵
+	SIF !STRLENS(ITEMNAME:LOCAL)
+		CONTINUE
+	IF ITEM:LOCAL >= ARG
+		CALL PRINT_ITEM_EXPLANATION(LOCAL)
+	ENDIF
+NEXT
+IF ITEM:513 >= ARG		;일단 하룻밤의 쿠시나다를 추가
+	LOCAL = 513
+	CALL PRINT_ITEM_EXPLANATION(LOCAL)
+ENDIF
+DRAWLINE 
+PRINTL [100] 캔슬
+INPUT
+IF (INRANGE(RESULT, 51, 60) || RESULT == 513) && ITEM:RESULT >= ARG && STRLENS(ITEMNAME:RESULT)
+	RETURN RESULT
+ELSEIF RESULT == 100
+	RETURN 0
+ELSE
+	GOTO LOOP
+ENDIF
+
+@CAN_DRINK(ARG)
+#FUNCTION
+SIF TALENT:ARG:술내성 == -2
+	RETURNF 0
+SIF BASE:ARG:술기운 >= MAXBASE:ARG:술기운 * 2 / 3
+	RETURNF 0
+RETURNF 1

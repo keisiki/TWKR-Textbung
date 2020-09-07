@@ -1,0 +1,94 @@
+﻿;-------------------------------------------------
+;애무
+;자위계 커맨드 레벨 2
+;-------------------------------------------------
+@COM700
+PRINTFORML 애무 실행
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+DOWNBASE:PLAYER:체력 += 5
+DOWNBASE:PLAYER:기력 += 50
+
+SOURCE:PLAYER:쾌C = 80
+SOURCE:PLAYER:쾌B = 80
+SOURCE:PLAYER:사랑 = 50
+SOURCE:PLAYER:성행동 = 60
+SOURCE:PLAYER:노출 = 20
+SOURCE:PLAYER:불결 = 30
+SOURCE:PLAYER:일탈 = 20
+SOURCE:PLAYER:반감 = 20
+
+;성기술보정
+SOURCE:PLAYER:쾌C += ABL:PLAYER:손가락 * 5
+SOURCE:PLAYER:쾌B += ABL:PLAYER:손가락 * 5
+
+;혀를 사용하는 조교에서는, 조교자의 혀놀림에 의해, 쾌감의 소스 증가
+IF TALENT:PLAYER:능숙한손가락
+	TIMES SOURCE:PLAYER:쾌C , 1.50
+	TIMES SOURCE:PLAYER:쾌B , 1.50
+ENDIF
+
+SIF TALENT:PLAYER:혀놀림
+	TIMES SOURCE:PLAYER:사랑 , 1.50
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;억압, 저항 소유에는, 억울소스 추가
+SIF TALENT:PLAYER:자기애 < 0 || TALENT:PLAYER:저항
+	SOURCE:PLAYER:울굴 += 20
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+IF (FIRSTTIME(312,1) || FIRSTTIME(20,1)) || (MASTER_POSE(SET_M, SET_M) != TARGET && MASTER_POSE(0,4)) || (STAIN:구 >= 2 && (STAIN:구 != 16 && STAIN:구 != 17) && ASSIPLAY == 0 && TALENT:MASTER:악취내성 < 2) || TEQUIP:20
+;노예의 입의 더러움이 있을 때 키스는 없다(애액과 모유 얼룩은 OK, 더러움 무시나 조수 조교시는 문제 없음)
+;볼개그 사용중도 없음
+	SOURCE:PLAYER:불결 = 0
+	SOURCE:PLAYER:사랑 /= 4
+	SOURCE:PLAYER:액체 /= 2
+ELSE
+	;악취 둔감
+	SIF TALENT:PLAYER:악취내성 > 0
+		SOURCE:PLAYER:불결 /= 4
+	;악취 민감
+	SIF TALENT:PLAYER:악취내성 < 0
+		SOURCE:PLAYER:불결 *= 3
+	;자존심 높음
+	SIF TALENT:PLAYER:자존심 > 0
+		SOURCE:PLAYER:불결 *= 2
+ENDIF
+
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;조교자가 고양이혀 소유의 경우는, 조교자에게 가학쾌락경험을 추가
+SIF TALENT:PLAYER:고양이혀
+	EXP:PLAYER:가학쾌락경험 += 1
+;수음경험
+EXP:PLAYER:수음경험 ++
+;자위경험
+CFLAG:PLAYER:자위했다 ++
+SIF !FLAG:시간정지
+	TIME += 5
+RETURN 1
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+@COM_ABLE700
+;애무 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(700)
+	RETURN RESULT
+RETURN 1
+

@@ -1,0 +1,55 @@
+﻿@DAIRY_CONDITION_EV2
+IF !RAND:10 && TALENT:MASTER:120				;←여기에 발생 조건을 넣자 예로서 30분의 1으로 하고 있지만 적당하게 바꾸어
+	CALL DAIRY_EV2
+	RETURN 1
+ELSE
+	RETURN -1
+ENDIF
+
+@DAIRY_EV2
+#DIMS MAS_HOME
+PRINTFORML 한밤중, %마스터는% 행복한 감각에 눈을 떴다
+PRINTFORMW 왠지 고간이 따뜻하다……
+PRINTFORML !!!몽정해버리고 말았다!
+PRINTFORMW 좀더 의미 있는 일을 할 걸 그랬다…　%마스터는% 깊게 후회했다
+FLAG:71 = 0
+TALENT:MASTER:120 = 0
+BASE:MASTER:정력 -= 500
+MAXBASE:MASTER:정력 +=1*3;;정력증가
+EXP:MASTER:사정경험 ++
+IF RAND:20 == 0 
+	PRINTFORML 기온, 풍향, 습도, 대기압, 요일, 월력, 행성의 나열 등 여러 조건들이 기적적으로 조합된 결과,
+	FONTBOLD
+	PRINTFORM %마스터가% 발한 정액은 결정화해, 
+	CALL COLORMESSAGE("애욕을 독점하는 미라다의 돌 밀레니엄", C_D_PINK, 0, 1)
+	PRINTFORMW 이 생성되었습니다!
+	FONTREGULAR
+	CALL GET_ITEM(GETNUM(ITEM, "미라다의돌"), 1, 1)
+	RETURN 1
+ENDIF
+CALL FISHER_YATES_SHAFFLE(CHARANUM)
+LOCAL:1 = -1
+MAS_HOME '= AREANAME_CHARA_HOME(MASTER)
+FOR LOCAL, 0, CHARANUM
+	;대상이 당신
+	SIF SHAFFLE_ARRAY:LOCAL == MASTER
+		CONTINUE
+	;나오지 않는다
+	SIF CFLAG:(SHAFFLE_ARRAY:LOCAL):출금
+		CONTINUE
+	;동거(同居) 하지 않아
+	;판정이 다소 느슨하지만 전보다는 마시
+	SIF AREANAME_CHARA_HOME(SHAFFLE_ARRAY:LOCAL) != MAS_HOME
+		CONTINUE
+	LOCAL:1 = SHAFFLE_ARRAY:LOCAL
+	BREAK
+NEXT
+SIF LOCAL:1 <= 0
+	RETURN
+
+PRINTFORML %마스터가% 몽정으로 더럽힌 속옷을 빨고 있는데 %조사처리(CALLNAME:(LOCAL:1),"가")% 날아 왔다!
+PRINTFORMW %조사처리(CALLNAME:(LOCAL:1),"는")% 그런 걸 다른 빨래와 함께 빨지 말라고 항의하고는 %CALLNAME:MASTER%의 손에 들려있는 속옷을 낚아채 돌아갔다…
+JUEL:(LOCAL:1):11 += 500
+PRINTFORMW %CALLNAME:(LOCAL:1)%　욕정의 구슬＋500
+RETURN 1
+

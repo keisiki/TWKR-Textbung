@@ -1,0 +1,227 @@
+﻿;-------------------------------------------------
+;배란유발제
+;특수 커맨드
+;-------------------------------------------------
+@COM192
+IF TCVAR:강제배란
+	PRINTL 벌써 복용했다
+	RETURN -1
+ENDIF
+ITEM:배란유발제 -= 1
+TCVAR:강제배란 = 180
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+
+ELSE
+
+;조교자가 조합지식을 가지고 있으면 소비를 억제 당한다
+IF TALENT:PLAYER:조합지식
+	DOWNBASE:체력 += 200
+	DOWNBASE:기력 += 200
+ELSE
+	DOWNBASE:체력 += 100
+	DOWNBASE:기력 += 100
+ENDIF
+	SOURCE:일탈 = 1000
+ENDIF
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;동성애  레즈라면 반환값 1 동성애자라면 반환값 2
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 1
+	ENDIF
+ELSE
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 1
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 1
+	ENDIF
+ENDIF
+RETURN 1
+
+@CAN_COM192(ARG)
+SKIPDISP ARG
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+IF FLAG:70 == 1 || CFLAG:장난
+
+ELSE
+A = 0
+S = 0
+
+;모든 명령에 공통의 요소를 고려
+;(순종이 높다고 명령에 따르기 쉬운 등)
+CALL COM_ORDER
+
+;ABL:욕망
+IF ABL:욕망
+	SIF S
+		PRINT  + 
+	A += ABL:욕망 * 1
+	PRINT 욕망
+	PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 1, ')
+	S = 1
+ENDIF
+;ABL:V감각
+IF ABL:V감각
+	SIF S
+		PRINT  + 
+	A += ABL:V감각 * 2
+	PRINT V감각
+	PRINTV 'LV, ABL:V감각, '(, ABL:V감각 * 2, ')
+	S = 1
+ENDIF
+;ABL:정액중독
+IF ABL:정액중독
+	SIF S
+		PRINT  + 
+	A += ABL:정액중독 * 3
+	PRINT 정액중독
+	PRINTV 'LV, ABL:정액중독, '(, ABL:정액중독 * 3, ')
+	S = 1
+ENDIF
+
+IF MARK:쾌락각인
+	SIF S
+		PRINT  + 
+	A += MARK:쾌락각인 * 1
+	PRINT 쾌락각인
+	PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 1, ')
+	S = 1
+ENDIF
+;PALAM:욕정
+IF GETPALAMLV(PALAM:욕정,5)
+	SIF S
+		PRINT  + 
+	A += GETPALAMLV(PALAM:욕정,5) * 1
+	PRINT 욕정
+	PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 1, ')
+	S = 1
+ENDIF
+;수줍음
+IF TALENT:수치심 > 0
+	PRINT  - 
+	A -= 1
+	PRINT 수치심
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;남성기피（연모, 친애로 무효）
+IF OTOKOGIRAI(TARGET)
+	PRINT  - 
+	A -= 12
+	PRINT 남성기피
+	PRINTV '(,12,')
+	S = 1
+ENDIF
+;연모
+IF TALENT:연모 && ASSIPLAY == 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 연모
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+;애욕
+IF TALENT:애욕 && ASSIPLAY == 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 애욕
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+;친애
+IF TALENT:연모 > 1 && ASSIPLAY == 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 친애
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+
+;생 해금
+IF CFLAG:생해금 == 2
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 질내사정 합의
+	PRINTV '(,5,')
+	S = 1
+ELSE
+	SIF S
+		PRINT  - 
+	A -= 200
+	PRINT 질내사정 미합의
+	PRINTV '(,200,')
+	S = 1
+ENDIF
+
+;조교자가 후타나리
+IF (TALENT:PLAYER:2 & 3) == 3
+	SIF S
+		PRINT  + 
+	A += 8
+	PRINT 후타나리
+	PRINTV '(,8,')
+	S = 1
+ENDIF
+
+;합계를 표시(100이상으로 실행)
+PRINT  = 
+PRINTV A
+
+V = 100
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 실행치
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;실행 할 수 없다
+SIF A < V
+	RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE192
+;배란유발제 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(192)
+	RETURN RESULT
+;정지중은 불가
+SIF FLAG:70 == 1
+	RETURN 0
+; 아이템을 가지고 있지 않으면 안 돼
+SIF ITEM:배란유발제 == 0
+	RETURN 0
+;약독내성이라면 안 돼
+SIF TALENT:약독내성
+	RETURN 0
+SIF SHIRAHU(TARGET) && CFLAG:생해금 != 2
+	RETURN 0
+RETURN 1
+

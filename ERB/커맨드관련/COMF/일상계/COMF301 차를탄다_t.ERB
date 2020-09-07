@@ -1,0 +1,158 @@
+﻿;-------------------------------------------------
+;차를넣는
+;일상계 커맨드 레벨 1
+;-------------------------------------------------
+@COM301
+CALL SUC_FAIL()
+SELECTCASE TFLAG:193
+	;실패
+	CASE -1
+		SIF TFLAG:192 == -2
+			RETURN 0
+		TFLAG:98 = -2
+	;대성공
+	CASE 1
+		EXP:MASTER:회화경험 ++
+		TFLAG:98 = 2
+ENDSELECT
+
+;선제 발생시는 실패하지 않는다
+SIF TCVAR:20
+	TFLAG:193 = MAX(TFLAG:193, 0)
+DOWNBASE:MASTER:기력 += 100
+DOWNBASE:MASTER:체력 += 50
+TFLAG:무드상승억제 = 1
+;신뢰
+TFLAG:98 += 3
+
+;그 자리에 있는 TARGET 전원이 돌린다
+LOCAL:1 = TARGET
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	SIF TARGET:LOCAL <= 0
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):수면
+		CONTINUE
+	TARGET = TARGET:LOCAL
+	IF RAND:3 == 0&&!TALENT:TARGET:연모&&!TALENT:TARGET:연인
+		PRINTFORML %CALLNAME:TARGET%은 %마스터를% 흘겨보더니 잔을 거절했다
+		CONTINUE
+	ENDIF
+	CALL COM301_1
+NEXT
+TARGET = LOCAL:1
+SIF GETBIT(TCVAR:MASTER:특별한차, 0)
+	CLEARBIT TCVAR:MASTER:특별한차, 0
+TIME += 30
+RETURN 1
+
+@COM301_1
+
+DOWNBASE:기력 += 10
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 500
+
+;ABL:순종을 본다
+IF ABL:순종 <= 1
+	SOURCE:환락 += (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 3
+	SOURCE:환락 += 200 + (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 5
+	SOURCE:환락 += 500 + (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 8
+	SOURCE:환락 += 750 + (ABL:순종 * 75)
+ELSEIF ABL:순종 <= 11
+	SOURCE:환락 += 1000 + (ABL:순종 * 75)
+ELSE
+	SOURCE:환락 += 2000 + (ABL:순종 * 30)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+
+SOURCE:수동 = 200 + 100 * ABL:순종
+SOURCE:정복 = 200 + 100 * ABL:새드끼
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:정복 , 0.50
+	TIMES SOURCE:수동 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:정복 , 1.00
+	TIMES SOURCE:수동 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:정복 , 2.00
+	TIMES SOURCE:수동 , 2.00
+ENDIF
+
+IF GETBIT(TCVAR:MASTER:특별한차, 0)
+	SELECTCASE TARGET
+		CASE 15, 16, 17, 38, 50, 54, 59, 75
+			TIMES SOURCE:환락 , 2.00
+			TIMES SOURCE:정복 , 2.00
+			TIMES SOURCE:수동 , 2.00
+		CASEELSE
+			TIMES SOURCE:환락 , 1.50
+			TIMES SOURCE:정복 , 1.50
+			TIMES SOURCE:수동 , 1.50
+	ENDSELECT
+ENDIF
+
+;차를 마신 플래그
+TCVAR:300 = 1440 * DAY + TIME
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE301
+;차를넣는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+SIF TFLAG:131
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(301)
+	RETURN RESULT
+;2시간 간격
+SIF TIME_PROGRESS(TCVAR:300) < 120
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;동침중
+SIF CFLAG:동침중
+	RETURN 0
+;목욕탕
+;SIF CFLAG:MASTER:현재위치 == 13 || CFLAG:MASTER:현재위치 == 24 || CFLAG:MASTER:현재위치 == 30 || CFLAG:MASTER:현재위치 == 39
+SIF BATHCHECK(CFLAG:MASTER:현재위치)
+	RETURN 0
+;연회중
+SIF CFLAG:350 == 49
+	RETURN 0
+;데이트중
+SIF CHK_DATENOW(CFLAG:데이트중) && CFLAG:현재위치 != OMANEKIBEYA()
+	RETURN 0
+;외출처에서 실행시는 친밀 3을 요구
+SIF (GET_MAPID(CFLAG:MASTER:현재위치) != MAIN_MAP) && ABL:친밀 < 3
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+

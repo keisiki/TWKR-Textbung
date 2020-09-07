@@ -1,0 +1,199 @@
+﻿;*****************************************************
+;指定したコマンドが今回使われていたかを取得する関数
+;使われていた場合は使用したキャラの番号を返す
+;*****************************************************
+@FIND_SELECTCCOM(ARG)
+#FUNCTION
+FOR LOCAL, 0, 최대넘어뜨림인원수 - 1
+	SIF SELECTCCOM:LOCAL:1 == ARG
+		RETURNF SELECTCCOM:LOCAL:0
+NEXT
+RETURNF 0
+
+;*****************************************************
+;指定したキャラ(番号)が今回行動したかを取得する関数
+;行動していた場合はそのキャラの行ったカウンター커맨드번호を返す
+;*****************************************************
+@FIND_SELECTCCOM_CHARA(ARG)
+#FUNCTION
+FOR LOCAL, 0, 최대넘어뜨림인원수 - 1
+	SIF SELECTCCOM:LOCAL:0 == ARG
+		RETURNF SELECTCCOM:LOCAL:1
+NEXT
+RETURNF 0
+
+;*****************************************************
+;指定したコマンドが前回使われていたかを取得する関数
+;使われていた場合は使用したキャラの番号を返す
+;*****************************************************
+@FIND_PREVCCOM(ARG)
+#FUNCTION
+FOR LOCAL, 0, 최대넘어뜨림인원수 - 1
+	SIF PREVCCOM:LOCAL:1 == ARG
+		RETURNF PREVCCOM:LOCAL:0
+NEXT
+RETURNF 0
+
+;*****************************************************
+;指定したキャラ(番号)が前回行動したかを取得する関数
+;行動していた場合はそのキャラの行ったカウンター커맨드번호を返す
+;*****************************************************
+@FIND_PREVCCOM_CHARA(ARG)
+#FUNCTION
+FOR LOCAL, 0, 최대넘어뜨림인원수 - 1
+	SIF PREVCCOM:LOCAL:0 == ARG
+		RETURNF PREVCCOM:LOCAL:1
+NEXT
+RETURNF 0
+
+;************************************************************
+;カウンター時식스나인移行共通処理
+;引数1 対象の캐릭터번호 2 식스나인移行への確率
+;************************************************************
+@EVENT_COUNTER_POSE_69(ARG,ARG:2)
+IF ARG:2 == 0
+	TEQUIP:ARG:식스나인 = 0
+	RETURN 0
+ENDIF
+IF TEQUIP:ARG:식스나인
+	TFLAG:60 ++
+	RETURN 0
+ENDIF
+SIF TFLAG:60
+	RETURN 0
+IF RAND:(ARG:2) == 1
+	TEQUIP:ARG:식스나인 = 1
+	TCVAR:ARG:27 = 1
+ENDIF
+
+;**************************************************************************
+;カウンター中の挿入継続共通処理
+;ARG = 캐릭터번호
+;**************************************************************************
+@카운터삽입지속처리(ARG)
+;당신에게 V삽입중에서, 이번 카운터 커맨드가 V삽입계 이외의경우
+IF TEQUIP:PLAYER:50 == ARG && !GROUPMATCH(TCVAR:ARG:20, 80, 83, 84) && CFLAG:ARG:우후후 == 2
+	CALL TOUCH_SET(SET_FROM_P, SET_V, ARG)
+	SOURCE:ARG:성행동 += 150
+	SOURCE:ARG:정복 += 400
+	SOURCE:PLAYER:액체 += 100
+	SOURCE:ARG:가학 += 250
+	SOURCE:ARG:강요 += 400
+	SOURCE:PLAYER:쾌V += 500
+	CALL PAIN_CHECK_V_MASTER(ARG)
+	LOCALS = {ARG}/
+	CSTR:PLAYER:10 += LOCALS
+	TCVAR:PLAYER:2 = 13
+	TCVAR:PLAYER:4 += 75
+	LOCALS = {PLAYER}/
+	CSTR:ARG:10 += LOCALS
+	TCVAR:ARG:2 = 1
+	TCVAR:ARG:4 += 500
+	STAIN:ARG:2 |= STAIN:PLAYER:6
+	STAIN:PLAYER:6 |= STAIN:ARG:2
+	EXP:PLAYER:V성교경험 ++
+	TCVAR:ARG:기학플래그 = 1
+ENDIF
+
+;당신에게 A삽입중에서, 이번 카운터 커맨드가 역A계 이외의경우
+IF TEQUIP:PLAYER:51 == ARG && !GROUPMATCH(TCVAR:ARG:20, 90, 93, 94) && CFLAG:ARG:우후후 == 2
+	CALL TOUCH_SET(SET_FROM_P, SET_A, ARG)
+	SOURCE:ARG:성행동 += 150
+	SOURCE:ARG:정복 += 400
+	SOURCE:PLAYER:액체 += 100
+	SOURCE:ARG:가학 += 400
+	SOURCE:ARG:강요 += 400
+	SOURCE:PLAYER:쾌A += 500
+	CALL PAIN_CHECK_A_MASTER(ARG)
+	LOCALS = {ARG}/
+	CSTR:PLAYER:10 += LOCALS
+	TCVAR:PLAYER:2 = 12
+	TCVAR:PLAYER:4 += 125
+	LOCALS = {PLAYER}/
+	CSTR:ARG:10 += LOCALS
+	TCVAR:ARG:2 = 2
+	TCVAR:ARG:4 += 400
+	STAIN:ARG:2 |= STAIN:PLAYER:6
+	STAIN:PLAYER:6 |= STAIN:ARG:2
+	EXP:PLAYER:A성교경험 ++
+	TCVAR:ARG:기학플래그 = 1
+ENDIF
+RETURN 1
+
+;**************************************************************************
+;射精対象登録共通処理
+;ARG = 射精するキャラ
+;ARG:1 = 射精されるキャラ
+;ARG:2 = 射精箇所（1=膣内 2=アナル 3=手淫 4=口淫 5=パイズリ 6=素股 7=足コキ 8=体表 9=アナル奉仕 10=道具 11=触手 12=Ａ責め 13=Ｖ責め）
+;**************************************************************************
+@사정대상등록(ARG, ARG:1, ARG:2)
+SIF !(SAMEN_DIRECTION(ARG,ARG:1))
+	CSTR:ARG:10 += @"{ARG:1}/"
+TCVAR:ARG:2 = ARG:2
+RETURN 1
+
+;***************************************************************************
+;挿入され継続中마스터 카운터 공통 제어
+;ARG =  캐릭터번호
+;***************************************************************************
+@카운터삽입됨지속처리(ARG)
+;TCVAR:26 마스터카운터제어 
+;(비트 0=엉덩이를 어루만지는 불가 1=달라붙는 2=키스 하는 3=가슴애무 4=애널애무 5=구리 애무 6=손가락 삽입 7=치마걷어 올리기)
+
+;당신에게 A삽입중에서, 이번 카운터 커맨드가 역A계 이외의경우
+IF (TEQUIP:PLAYER:50 == ARG || TEQUIP:PLAYER:51 == ARG) && !GROUPMATCH(TCVAR:ARG:20, 90, 93)
+	IF TEQUIP:MASTER:체위 == 2
+		SETBIT TCVAR:ARG:26 ,0
+		SETBIT TCVAR:ARG:26 ,1
+		SETBIT TCVAR:ARG:26 ,2
+		SETBIT TCVAR:ARG:26 ,3
+	ENDIF
+	SETBIT TCVAR:ARG:26 ,4
+	SETBIT TCVAR:ARG:26 ,5
+	SETBIT TCVAR:ARG:26 ,6
+	SETBIT TCVAR:ARG:26 ,7
+ENDIF
+
+;***************************************************************************
+;カウンター脱衣挿入時共通制御
+;ARG =  캐릭터번호
+;***************************************************************************
+@DATUI_FOR_INSERT(ARG)
+IF BEDROOM(CFLAG:MASTER:현재위치)
+	SIF TEQUIP:ARG:0
+		CALL DATUI_BOTTOM_T(ARG,0)
+ELSE
+	SIF TEQUIP:ARG:0 & 14
+		CALL DATUI_BOTTOM_T(ARG,1)
+ENDIF
+
+;***************************************************************************
+;胸弄り解除共通制御
+;ARG =  캐릭터번호
+;***************************************************************************
+@가슴주무르기해제처리(ARG)
+;뭐든지 섹스하고 있으면 리셋하고 있으므로 조건을 변경
+;胸揉みながら挿入とか普通にするし…
+IF TEQUIP:MASTER:V섹스 >= 0 || TEQUIP:MASTER:A섹스 >= 0
+	;IF TEQUIP:ARG:가슴주무르기
+	;	TEQUIP:ARG:가슴주무르기 = 0
+	;	PRINTL ＜가슴주무르기 해제＞
+	;ENDIF
+	IF TEQUIP:ARG:유두빨기 && (TEQUIP:ARG:체위 == 2 || TEQUIP:ARG:체위 == 5)
+		TEQUIP:ARG:유두빨기 = 0
+		PRINTL ＜유두빨기 해제＞
+	ENDIF
+ENDIF
+
+;***************************************************************************
+;위치관계確認共通関数
+;ARG =  위치관계
+;***************************************************************************
+@POSITION_OCCUPATION(ARG)
+#FUNCTION
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	SIF TARGET:LOCAL <= 0
+		CONTINUE
+	SIF TCVAR:(TARGET:LOCAL):위치관계 == ARG
+		RETURNF 1
+NEXT

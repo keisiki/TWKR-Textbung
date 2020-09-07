@@ -1,0 +1,97 @@
+﻿;-------------------------------------------------
+;수업을받는다
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM441
+DOWNBASE:MASTER:체력 = 50
+DOWNBASE:MASTER:기력 = 200
+
+IF TARGET > 0 && !CFLAG:수면
+	;고정으로 획득하는 소스
+	SOURCE:환락 = 200
+
+	;신뢰
+	TFLAG:98 = 3
+	SIF ABL:MASTER:교양 > 2
+		TFLAG:98 ++ 
+	IF ABL:MASTER:교양 > ABL:교양
+		TFLAG:98 ++ 
+		EXP:학습경험 += 2
+	ENDIF
+	SIF ABL:MASTER:교양 < ABL:교양 - 2
+		EXP:MASTER:학습경험 ++
+	;ABL:순종을 본다
+	IF ABL:순종 <= 1
+		SOURCE:환락 += (ABL:순종 * 60)
+	ELSEIF ABL:순종 <= 3
+		SOURCE:환락 += 200 + (ABL:순종 * 60)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:환락 += 500 + (ABL:순종 * 60)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:환락 += 750 + (ABL:순종 * 75)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:환락 += 1000 + (ABL:순종 * 75)
+	ELSE
+		SOURCE:환락 += 2000 + (ABL:순종 * 30)
+	ENDIF
+	
+;수업을 받으면(자) 회수를 카운트
+SIF CFLAG:현재위치 == 서당 && CFLAG:67:행동 == 5
+	TCVAR:67:특수이벤트 ++
+	
+	;호감 도를 본다
+	IF CFLAG:2 <= 500
+		SOURCE:환락 += CFLAG:2
+	ELSEIF CFLAG:2 <= 5000
+		SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+	ELSE
+		SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+	ENDIF
+	SIF SOURCE:환락 < 0
+		SOURCE:환락 = 0
+	EXP:MASTER:학습경험 ++
+	EXP:학습경험 ++
+ENDIF
+
+TIME += 60
+EXP:MASTER:학습경험 ++
+SIF ITEM:103 && !RAND:2
+	EXP:MASTER:학습경험 ++
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+;수업을받는다
+@COM_ABLE441
+;청소 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(441)
+	RETURN RESULT
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;서당 이외 불가
+SIF CFLAG:MASTER:현재위치 != 240
+	RETURN 0
+;케이네이 있는 곳
+SIF CFLAG:MASTER:현재위치 != CFLAG:67:현재위치
+	RETURN 0
+;업무중 이외 불가
+SIF CFLAG:행동 != 5
+	RETURN 0
+;점심 시간중은 불가
+SIF TIME >= 720 && TIME <= 780
+	RETURN 0
+;수업 시간 뒤는 불가
+SIF TIME >= 840
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+RETURN 1
+

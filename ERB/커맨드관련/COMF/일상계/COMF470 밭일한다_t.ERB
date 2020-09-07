@@ -1,0 +1,103 @@
+﻿;-------------------------------------------------
+;밭일을한다
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+;COM계 함수, MESSAGE는 본래는 분리해 별파일
+
+;양잠이겠지만 밭일이 되지만 뭐 좋아
+@MESSAGE_COM470
+#LOCALSIZE 1
+#LOCALSSIZE 1
+PRINTFORML 당신은 %STR_NOUMIN(FLAG:지주, "밭의 종류")%로 향했다
+SELECTCASE TFLAG:193
+CASE 1
+	PRINTFORML 오늘의 밭일은 마치 안 돼였다
+CASE 2
+	PRINTFORML 오늘의 밭일은 그다지 진전되지 않았다
+CASE 3
+	PRINTFORML 밭일은 특별히 무슨 일도 없게 종료했다
+CASE 4
+	PRINTFORML 오늘의 밭일은 꽤 진전되었다
+CASE 5
+	PRINTFORML 오늘의 밭일은 일의 시작과 끝 자주(잘) 끝났다
+CASEELSE
+	PRINTFORML 오늘의 밭일은 나로서도 신현은 있었다
+ENDSELECT
+
+
+
+;시스템적으로 1 캐릭터 우대 하는 것은 어떨까라고 생각하는데
+;아이덴티티인걸 좋은 것 같아
+@COM470
+IF ITEM:원예용품일식
+	TFLAG:밭일성공도 = RAND(2, 7)
+ELSE
+	TFLAG:밭일성공도 = RAND(1, 4)
+ENDIF
+
+;신의 가호
+SELECTCASE CFLAG:(FINDCHARA(CALLNAME, "미노리코", 1)):호감도
+	CASE IS < 1000
+	CASE IS < 5000
+		TFLAG:밭일성공도 += 1
+	CASE IS < 10000
+		TFLAG:밭일성공도 += 2
+	CASE IS < 30000
+		TFLAG:밭일성공도 += 3
+	CASEELSE
+		TFLAG:밭일성공도 += 4
+ENDSELECT
+FLAG:밭일성과 += TFLAG:밭일성공도
+TFLAG:193 = TFLAG:밭일성공도
+IF FLAG:70
+	BASE:MASTER:TSP -= 500
+ELSE
+	TIME += 180
+	DOWNBASE:MASTER:체력 += 300
+	DOWNBASE:MASTER:기력 += 300
+ENDIF
+
+RETURN 1
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;밭일을한다
+@COM_ABLE470
+SIF !TFLAG:100
+	RETURN 0
+SIF TFLAG:망상중
+	RETURN 0
+;당신은 농민은 아니다
+SIF !FLAG:지주
+	RETURN 0
+;현재위치가 밭의 장소는 아닌, LOCAL에 밭의 위치를 일차 취득해 사용
+LOCAL = INT_NOUMIN(FLAG:지주, "장소 ID")
+SIF GET_MAPID(LOCAL) != MAIN_MAP
+	LOCAL = GET_MAP_REPLACEMENT(LOCAL)
+SIF CFLAG:MASTER:현재위치 != LOCAL
+	RETURN 0
+;감추고 있다
+SIF BASE:MASTER:술기운
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+;체력·기력 부족
+SIF BASE:MASTER:기력 < 300 || BASE:MASTER:체력 < 300
+	RETURN 0
+;날씨가 나쁘다
+SIF !GROUPMATCH(TIME:5, 0, 1, 2, 3, 4, 6, 7)
+	RETURN 0
+;오늘은 이제(벌써) 일을 했다
+SIF TFLAG:밭일성공도
+	RETURN 0
+;시간에 여유가 없으면 안 돼
+IF FLAG:70
+	;TSP 부족하다
+	SIF BASE:MASTER:TSP < 300
+		RETURN 0
+ELSE
+	;활동 한계를 720으로서 그 3시간전
+	SIF NEMUKE() >= 540
+		RETURN 0
+ENDIF
+RETURN 1

@@ -1,0 +1,196 @@
+﻿;-------------------------------------------------
+;필로토크
+;-------------------------------------------------
+@COM23
+#DIM 회복전체력
+#DIM 회복전기력
+#DIM 회복후체력
+#DIM 회복후기력
+#DIM 회복전정력
+#DIM 회복후정력
+#DIM 회복전체력2
+#DIM 회복전기력2
+#DIM 회복후체력2
+#DIM 회복후기력2
+
+;회화 누적치가 반응을 일으키는 최소의 물리량을 넘으면(자) 실패
+IF TCVAR:302&&!TALENT:MASTER:달변
+	PRINTFORML %CALLNAME:TARGET%에 말을 건네려고 했지만 말이 발견되지 않는다
+	PRINTW 근처에 거북한 공기가 흘렀다…
+	TIME += 10
+	DOWNBASE:기력 += 100
+	DOWNBASE:PLAYER:기력 += 100
+	RETURN 1
+ENDIF
+
+;======회화로부터 코히˚헤˚======
+;고정으로 획득하는 소스
+SOURCE:환락 = 200
+
+;ABL:친밀을 본다
+IF ABL:친밀 <= 1
+	SOURCE:환락 += (ABL:순종 * 40)
+ELSEIF ABL:친밀 <= 3
+	SOURCE:환락 += 200 + (ABL:순종 * 40)
+ELSEIF ABL:친밀 <= 5
+	SOURCE:환락 += 500 + (ABL:순종 * 40)
+ELSEIF ABL:친밀 <= 8
+	SOURCE:환락 += 750 + (ABL:순종 * 60)
+ELSEIF ABL:친밀 <= 10
+	SOURCE:환락 += 1000 + (ABL:순종 * 60)
+ELSE
+	SOURCE:환락 += 1600 + (ABL:순종 * 30)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 1000
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+
+SOURCE:수동 = 100 + 100 * ABL:순종
+SOURCE:정복 = 100 + 100 * ABL:새드끼
+
+;그러나 연모가 아니면 성공율이 내린다
+LOCAL = RAND:(200 - TALENT:연모 * 100 - TALENT:사모 * 50)
+
+IF LOCAL <= 20
+	;대성공
+	TFLAG:98 = 2
+	EXP:PLAYER:회화경험 ++
+	TFLAG:193 = 1
+ELSEIF LOCAL >= 95
+	;운이 나쁘면 실패
+	TFLAG:호감도마이너스 = 2
+	TFLAG:193 = -1
+ENDIF
+
+IF TFLAG:193 == -1
+	TIMES SOURCE:환락 , 0.10
+	TIMES SOURCE:정복 , 0.50
+	TIMES SOURCE:수동 , 0.50
+ELSEIF TFLAG:193 == 0
+	TIMES SOURCE:환락 , 1.00
+	TIMES SOURCE:정복 , 1.00
+	TIMES SOURCE:수동 , 1.00
+ELSE
+	TIMES SOURCE:환락 , 2.00
+	TIMES SOURCE:정복 , 2.00
+	TIMES SOURCE:수동 , 2.00
+ENDIF
+SELECTCASE ABL:PLAYER:화술기능
+	CASE 0
+		TIMES SOURCE:환락 , 0.20
+		TIMES SOURCE:정복 , 0.20
+		TIMES SOURCE:수동 , 0.20
+	CASE 1
+		TIMES SOURCE:환락 , 0.40
+		TIMES SOURCE:정복 , 0.40
+		TIMES SOURCE:수동 , 0.40
+	CASE 2
+		TIMES SOURCE:환락 , 0.70
+		TIMES SOURCE:정복 , 0.70
+		TIMES SOURCE:수동 , 0.70
+	CASE 3
+		TIMES SOURCE:환락 , 1.00
+		TIMES SOURCE:정복 , 1.00
+		TIMES SOURCE:수동 , 1.00
+	CASE 4
+		TIMES SOURCE:환락 , 1.20
+		TIMES SOURCE:정복 , 1.20
+		TIMES SOURCE:수동 , 1.20
+	CASEELSE
+		TIMES SOURCE:환락 , 1.50
+		TIMES SOURCE:정복 , 1.50
+		TIMES SOURCE:수동 , 1.50
+ENDSELECT
+;==================================
+;회화 누적치
+TCVAR:301 += 800 / (10 + ABL:PLAYER:화술기능)
+회복전체력= BASE:PLAYER:체력
+회복전기력= BASE:PLAYER:기력
+회복전정력 = BASE:PLAYER:정력
+회복전정력 = BASE:PLAYER:정력
+회복전체력2 = BASE:체력
+회복전기력2 = BASE:기력
+
+CALL RECOVER_PERMIL(PLAYER, 20,"체력", 1)
+CALL RECOVER_PERMIL(PLAYER, 50,"기력", 1)
+CALL RECOVER_PERMIL(PLAYER, 50,"정력", 1)
+
+CALL RECOVER_PERMIL(TARGET, 20,"체력", 1)
+CALL RECOVER_PERMIL(TARGET, 50,"기력", 1)
+
+IF TFLAG:193 == -1
+	CALL RECOVER_PERMIL(PLAYER,-80,"기력", 1)
+	CALL RECOVER_PERMIL(TARGET,-80,"기력", 1)
+ENDIF
+
+TIME += 30
+회복후체력= BASE:PLAYER:체력
+회복후기력= BASE:PLAYER:기력
+회복후정력 = BASE:PLAYER:정력
+회복후체력2 = BASE:체력
+회복후기력2 = BASE:기력
+
+DRAWLINE
+PRINTFORML 체력+{ABS(회복후체력- 회복전체력)}(%CALLNAME:PLAYER%)
+PRINTFORML 기력+{ABS(회복후기력- 회복전기력)}(%CALLNAME:PLAYER%)
+PRINTFORML 정력+{ABS(회복후정력 - 회복전정력)}(%CALLNAME:PLAYER%)
+PRINTFORML 체력+{ABS(회복후체력2 - 회복전체력2)}(%CALLNAME:TARGET%)
+PRINTFORML 기력+{ABS(회복후기력2 - 회복전기력2)}(%CALLNAME:TARGET%)
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE23
+;필로토크
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(150)
+	RETURN RESULT
+;상대가 지치지 않았다고 안 돼
+SIF BASE:체력 > 1000
+	RETURN 0
+
+;시간정지중도 안 돼
+SIF FLAG:70
+	RETURN 0
+;어쩐지 장착하고 있다고(면) 안 돼
+FOR LOCAL, 11,25
+	SIF TEQUIP:LOCAL
+		RETURN 0
+NEXT
+;삽입중은 안 돼
+SIF TEQUIP:50 != -1
+	RETURN 0
+SIF TEQUIP:51 != -1
+	RETURN 0
+;샤워중은 안 돼
+SIF TEQUIP:32
+	RETURN 0
+;유두빨기 안은 안 돼
+SIF TEQUIP:41
+	RETURN 0
+;젖 비비어 안은 안 돼
+SIF TEQUIP:42
+	RETURN 0
+;계속키스
+SIF TEQUIP:계속키스
+	RETURN 0
+;수면간중
+SIF CFLAG:장난 > 1
+	RETURN 0
+;침대 룸이 아니면 안 돼
+SIF !BEDROOM(CFLAG:PLAYER:현재위치)
+	RETURN 0
+
+RETURN 1

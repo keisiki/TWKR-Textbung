@@ -1,0 +1,118 @@
+﻿;--------------------------------------------------
+;	맵내 이동 처리 확장 패치 부속
+;	명련사MAP용 함수
+;--------------------------------------------------
+@MAP_PLACENAME_7(ARG)
+#FUNCTIONS
+
+IF GET_MAPID(ARG) == MAIN_MAP
+	SELECTCASE ARG
+		CASE 1 TO (MAXROOM - 1)
+			RETURNF STR:(ARG + 8000)
+		CASE 798
+			RETURNF OMANEKI_PLACE()
+		CASE 799
+			RETURNF "스키마 공간"
+		CASE MAXROOM
+			RETURNF "도의 저 편"
+		CASEELSE
+			RETURNF "불명"
+	ENDSELECT
+ELSE
+	RETURNF "불명"
+ENDIF
+
+@MAP_VIEWING_7(AA)
+#DIMS REF AA, 0
+IF !TFLAG:맵변환
+	SELECTCASE CFLAG:MASTER:현재위치
+		CASE 720 TO 725,729,730
+			TFLAG:맵변환 = 3
+		CASE 715 TO 719
+			TFLAG:맵변환 = 2
+		CASE 726,727,728
+			TFLAG:맵변환 = 4
+		CASEELSE
+			TFLAG:맵변환 = 1
+	ENDSELECT
+ENDIF
+CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
+PRINTFORML 
+TRYCALLFORM MAP_SANROKU_{TFLAG:맵변환}(AA)
+
+@MAP_CAN_MOVE_7(ARG, ARG:1)
+#FUNCTION
+SELECTCASE ARG
+	;카센하우스
+	CASE 720 TO 730
+		;본인은 제외
+		SIF ARG:1 == [[카센]]
+			RETURNF 1
+		;안으로부터는 움직일 수 있다
+		SIF INRANGE(CFLAG:(ARG:1):현재위치, 720,730)
+			RETURNF 1
+		;연모인가 거주해
+		IF ARG:1 == MASTER && (INRANGE(CFLAG:MASTER:초기위치, 720,730) || TALENT:[[카센]]:연모)
+			RETURNF 1
+		;데이트상대가 텐시나 자신이 텐시
+		ELSEIF FLAG:데이트상대 == [[텐시]] || ARG:1 == [[텐시]]
+			RETURNF 1
+		;교양이 부족하면 가까스로 도착할 수 없다
+		ELSEIF ABL:(ARG:1):교양 < 3
+			TFLAG:이동불능메시지 = 1
+			SIF ARG:1 == MASTER
+				TIME += 30
+			RETURNF 0
+		ELSE
+			;전투력 3이상 필요
+			IF ABL:(ARG:1):전투능력 < 3 && !FLAG:시간정지
+				TFLAG:이동불능메시지 = 2
+				;CFLAG:(ARG:1):현재위치 = 731
+				SIF ARG:1 == MASTER
+					TIME += 15
+				RETURNF 0
+			ELSE
+				RETURNF 1
+			ENDIF
+		ENDIF
+;세이자택
+	CASE 733
+		;당신은 연모가 있으면 들어갈 수 있어 줄 수 있다
+		IF TALENT:[[세이자]]:연모 && ARG:1 == MASTER
+			RETURNF 1
+		;본인은 들어갈 수 있다
+		ELSEIF ARG:1 == [[세이자]]
+			RETURNF 1
+		ELSE
+			TFLAG:이동불능메시지 = ARG
+			RETURNF 0
+		ENDIF
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+
+@MAP_CANNOT_WORD_7(ARG)
+SELECTCASE TFLAG:이동불능메시지
+	CASE 1
+		PRINTFORMW 조금 전부터 저택과의 거리가 전혀 줄어들지 않는다……
+		PRINTFORMW 같은 곳을 빙빙 돌고 있는 것 같다
+		;CALL TARGETSET_CHACK
+	CASE 2
+		PRINTFORMW 뜰에 웅크리고 있던 무서운 호랑이가, %CALLNAME:MASTER%의 모습을 알아차리고 낮은 소리를 냈다
+		PRINTFORMW 가까이 가지 않는 것이 좋을 것 같다
+		;CALL TARGETSET_CHACK
+	CASE 733
+		PRINTFORMW 어디에 있는지 모른다…
+ENDSELECT
+
+@MAP소개_7
+;とりあえず5行
+PRINTFORML 数多くの採集ポイントと２か所の釣りポイントをも備える、山師垂涎の拠点。
+PRINTFORML 間欠泉地下センターからは灼熱地獄跡に直通できる他、山頂への短絡路もある。
+PRINTFORML 正邪の家や華扇の屋敷は特定の条件を満たさないと入れない。
+PRINTFORML 
+PRINTFORML 
+;PRINTFORML 製材所と伐採ポイントの両方を有するため、製材所の営業時間内であれば、伐採→製材→伐採……
+;PRINTFORML と効率よく製材を貯めていくことができる。
+
+

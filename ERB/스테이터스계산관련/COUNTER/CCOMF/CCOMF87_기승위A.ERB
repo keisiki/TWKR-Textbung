@@ -1,0 +1,120 @@
+﻿;*********************************************************************************************
+;カウンターコマンド：Ａ挿入させる
+;ARG = 対象のキャラ番号
+;*********************************************************************************************
+@CCOMF87(ARG)
+
+	;몸의자세の変更
+	;=============================
+	SIF MASTER_POSE(0,SET_V) == ARG || MASTER_POSE(0,SET_A) == ARG
+		CALL TOUCH_RESET_T(ARG)
+	CALL TOUCH_SET(SET_FROM_A,1,ARG)
+	TFLAG:MASTER의P삽입중 = 1
+	TFLAG:MASTER의C사용중 ++
+	
+	;ソース計算および内部処理系統
+	;=============================
+	SIF TEQUIP:PLAYER:0
+		CALL DATUI_BOTTOM(ARG,0)
+	CALL DATUI_FOR_INSERT(ARG)
+	TCVAR:ARG:A상실발생 = 1
+	TCVAR:PLAYER:동정상실 = 1
+	SOURCE:ARG:액체 += 100
+	DOWNBASE:ARG:체력 += 60
+	DOWNBASE:ARG:기력 += 150
+	SOURCE:ARG:쾌A = 500
+	SOURCE:ARG:사랑 = 150
+	SOURCE:ARG:성행동 = 500
+	SOURCE:ARG:달성 = 300
+	SOURCE:ARG:고통 = 400
+	SOURCE:ARG:노출 = 60
+	SOURCE:ARG:정복 += 700
+	SOURCE:ARG:강요 += 200
+	SOURCE:ARG:가학 += 300
+	TCVAR:116 = PLAYER
+	CALL PAIN_CHECK_A(ARG)
+	CALL LOST_VIRGIN(ARG)
+	;사정장소（1=질내 2=애널 3=수음 4=口淫 5=파이즈리 6=스마타 7=풋잡 8=体表 9=애널봉사 10=道具 11=触手 12=Ａ고문 13=Ｖ고문）
+	CALL 사정대상등록(PLAYER, ARG, 2)
+	TEQUIP:ARG:체위 = 3
+	;強度
+	TCVAR:PLAYER:4 = 1000
+	STAIN:ARG:7 |= STAIN:PLAYER:2
+	STAIN:PLAYER:2 |= STAIN:ARG:7
+	EXP:ARG:A성교경험 ++
+	EXP:PLAYER:삽입경험 ++
+	EXP:ARG:애정경험 += TALENT:ARG:연모
+	TEQUIP:ARG:51 = MASTER
+	;봉사플래그
+	TCVAR:ARG:108 = 1
+	TCVAR:ARG:기학플래그 = 1
+
+	;マスターカウンター制御
+	;(ビット立ちで不可 0=엉덩이를 쓰다듬는다 1=껴안는다 2=키스한다 3=가슴애무 4=애널애무 5=클리애무 6=指挿入れ 7=치마를 넘긴다)
+	;=============================
+	;CALL 카운터삽입됨지속처리(ARG)
+	SETBIT TCVAR:ARG:26 ,4
+	SETBIT TCVAR:ARG:26 ,7
+
+RETURN 1
+
+;*********************************************************************************************
+;カウンター実行可否出力関数
+;ARG = 対象のキャラ番号
+;*********************************************************************************************
+@CCOM_ABLE87(ARG)
+
+	SIF 삽입불가(ARG) >= 2
+		RETURN 0
+	SIF !(TALENT:ARG:2 & 1)
+		RETURN 0
+	SIF !(TALENT:PLAYER:2 & 2)
+		RETURN 0
+	SIF BASE:MASTER:발기 < 1000
+		RETURN 0
+	SIF TALENT:ARG:임신 && (CFLAG:ARG:903 <= 30 || CFLAG:ARG:903 >= 71)
+		RETURN 0
+	SIF CFLAG:ARG:육아인원수 >= 1 && CFLAG:ARG:육아인원수 <= 30
+		RETURN 0
+	SIF ABL:2 < 3
+		RETURN 0
+	SIF TFLAG:63
+		RETURN 0
+	SIF TEQUIP:50 >= 0 || TEQUIP:51 >= 0
+		RETURN 0
+	SIF TEQUIP:MASTER:50 >= 0 || TEQUIP:MASTER:51 >= 0
+		RETURN 0
+	SIF TEQUIP:ARG:체위
+		RETURN 0
+	SIF PALAM:ARG:윤활 < PALAMLV:3
+		RETURN 0
+	SIF TEQUIP:ARG:애널바이브
+		RETURN 0
+	SIF TEQUIP:MASTER:50 >= 0 || TEQUIP:MASTER:51 >= 0
+		RETURN 0
+
+RETURN 1
+
+;*********************************************************************************************
+;カウンター実行判定値算出関数
+;ARG = 対象のキャラ番号
+;*********************************************************************************************
+@CCOM_ORDER87(커맨드번호, ARG, 기본치)
+#DIM 커맨드번호
+#DIM 기본치
+#DIMS 카운터타입
+
+	;카운터타입設定
+	;=============================
+	카운터타입 = 성교
+
+	;実行判定値算出式
+	;=============================
+	LOCAL = 기본치 + ABL:ARG:A감각 * 3+ EX:ARG:A절정직전 * 10
+
+	;카운터타입別計算処理 実質実行判定処理を含む
+	;=============================
+	LOCAL = MAX(LOCAL + COUNTER_SIKOU:ARG:커맨드번호, 1)
+	LOCAL *= COUNTER_TYPE(카운터타입, ARG)
+
+RETURN LOCAL

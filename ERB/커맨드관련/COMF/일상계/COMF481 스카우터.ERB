@@ -1,0 +1,1668 @@
+﻿;-------------------------------------------------
+;스카우터
+;道具使用コマンド、レベル1
+;-------------------------------------------------
+@COM481
+PRINTFORML 누구의 여자력을 측정하겠습니까?
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:현재위치 !=  CFLAG:MASTER:현재위치
+		CONTINUE
+	PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%
+NEXT
+DRAWLINE
+PRINTFORML [999] - 그만둔다
+INPUT
+IF RESULT == 999
+	RETURN -1
+ELSE
+	CALL EVALUATE_GIRLPOWER(RESULT)
+	TIME += 3
+	RETURN 1
+ENDIF
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+;行為者
+TCVAR:116 = PLAYER
+
+RETURN 0
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE481
+;스카우터
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(481)
+	RETURN RESULT
+SIF !ITEM:스카우터
+	RETURN 0
+RETURN 1
+
+;ここで算出
+@EVALUATE_GIRLPOWER, ARG
+#DIM 合計여자력
+#DIM 評価値
+#DIM 만単位
+#DIM 端数
+
+;キャラの原価は一律10000とする
+合計여자력 = 10000
+
+FOR LOCAL, 0, 5
+	REUSELASTLINE  \@ ARG ? %CALLNAME:ARG%의 여자력을 #  \@측정중.%"." * LOCAL%
+	TWAIT 150, 1
+NEXT
+
+FONTBOLD
+SETCOLOR COLOR("PINK")
+PRINTL 
+PRINTL □ 측정결과 □---------------------------------------------------------------------------
+PRINTL 
+PRINTL ◇신체평가◇
+PRINTL 
+
+;체력をみる　성장量を評価
+評価値 = (MAXBASE:ARG:체력 - CSVBASE(ARG,0)) * 2
+IF MAXBASE:ARG:체력 >= 9000
+	評価値 = 評価値 / 10 * 17 + 700
+ELSEIF MAXBASE:ARG:체력 >= 8000
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF MAXBASE:ARG:체력 >= 7000
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF MAXBASE:ARG:체력 >= 6000
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF MAXBASE:ARG:체력 >= 5000
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF MAXBASE:ARG:체력 >= 4000
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF MAXBASE:ARG:체력 >= 3000
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+IF 評価値 > 0
+	合計여자력 += 評価値
+	PRINTFORML 최대체력：{MAXBASE:ARG:체력} ＋{評価値}　
+ENDIF
+
+;기력をみる　성장量を評価
+評価値 = (MAXBASE:ARG:기력 - CSVBASE(ARG,1)) * 2
+IF MAXBASE:ARG:기력 >= 9000
+	評価値 = 評価値 / 10 * 17 + 700
+ELSEIF MAXBASE:ARG:기력 >= 8000
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF MAXBASE:ARG:기력 >= 7000
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF MAXBASE:ARG:기력 >= 6000
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF MAXBASE:ARG:기력 >= 5000
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF MAXBASE:ARG:기력 >= 4000
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF MAXBASE:ARG:기력 >= 3000
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+IF 評価値 > 0
+	合計여자력 += 評価値
+	PRINTFORML 최대기력：{MAXBASE:ARG:기력} ＋{評価値}　
+ENDIF
+
+;C감각をみる
+評価値 = ABL:ARG:C감각 * 100
+IF ABL:ARG:C감각 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:C감각 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:C감각 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:C감각 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:C감각 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:C감각 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:C감각 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:C감각 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:C감각 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+IF 評価値 > 0
+	IF TALENT:ARG:C감도 == 1
+		評価値 = 評価値 / 10 * 15
+		PRINTFORM C감각　：LV{ABL:ARG:C감각} ＋{評価値}　
+		PRINTFORML （C감각 ×１.５）
+	ELSE
+		PRINTFORML C감각　：LV{ABL:ARG:C감각} ＋{評価値}　
+	ENDIF
+	合計여자력 += 評価値
+ENDIF
+
+;V감각をみる
+評価値 = ABL:ARG:V감각 * 100
+IF ABL:ARG:V감각 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:V감각 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:V감각 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:V감각 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:V감각 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:V감각 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:V감각 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:V감각 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:V감각 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	IF TALENT:ARG:V감도 == 1
+		評価値 = 評価値 / 10 * 15
+		PRINTFORM V감각　：LV{ABL:ARG:V감각} ＋{評価値}　
+		PRINTFORML （V감각 ×１.５）
+	ELSE
+		PRINTFORML V감각　：LV{ABL:ARG:V감각} ＋{評価値}
+	ENDIF
+	合計여자력 += 評価値
+ENDIF
+
+;A감각をみる
+評価値 = ABL:ARG:A감각 * 100
+IF ABL:ARG:A감각 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:A감각 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:A감각 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:A감각 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:A감각 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:A감각 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:A감각 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:A감각 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:A감각 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	IF TALENT:ARG:A감도 == 1
+		評価値 = 評価値 / 10 * 15
+		PRINTFORM A감각　：LV{ABL:ARG:A감각} ＋{評価値}　
+		PRINTFORML （A감각 ×１.５）
+	ELSE
+		PRINTFORML A감각　：LV{ABL:ARG:A감각} ＋{評価値}　
+	ENDIF
+	合計여자력 += 評価値
+ENDIF
+
+;B감각をみる
+評価値 = ABL:ARG:B감각 * 100
+IF ABL:ARG:B감각 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:B감각 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:B감각 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:B감각 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:B감각 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:B감각 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:B감각 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:B감각 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:B감각 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	IF TALENT:ARG:B감도 == 1
+		評価値 = 評価値 / 10 * 15
+		PRINTFORM B감각　：LV{ABL:ARG:B감각} ＋{評価値}　
+		PRINTFORML （B감각 ×１.５）
+	ELSE
+		PRINTFORML B감각　：LV{ABL:ARG:B감각} ＋{評価値}　
+	ENDIF
+	合計여자력 += 評価値
+ENDIF
+
+;M감각をみる
+評価値 = ABL:ARG:M감각 * 100
+IF ABL:ARG:M감각 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:M감각 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:M감각 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:M감각 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:M감각 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:M감각 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:M감각 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:M감각 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:M감각 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	IF TALENT:ARG:M감도 == 1
+		評価値 = 評価値 / 10 * 15
+		PRINTFORM M감각　：LV{ABL:ARG:M감각} ＋{評価値}　
+		PRINTFORML （M감각 ×１.５）
+	ELSE
+		PRINTFORML M감각　：LV{ABL:ARG:M감각} ＋{評価値}　
+	ENDIF
+	合計여자력 += 評価値
+ENDIF
+
+
+;친밀はあなたとの仲の良さなので測定外
+
+
+;ABL:순종をみる 評価高め
+評価値 = ABL:ARG:순종 * 200
+IF ABL:ARG:순종 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:순종 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:순종 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:순종 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:순종 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:순종 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:순종 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:순종 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:순종 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 순종　　：LV{ABL:ARG:순종} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:욕망をみる 評価最高
+評価値 = ABL:ARG:욕망 * 300
+IF ABL:ARG:욕망 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:욕망 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:욕망 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:욕망 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:욕망 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:욕망 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:욕망 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:욕망 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:욕망 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 욕망　　：LV{ABL:ARG:욕망} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:기교をみる 評価最高
+評価値 = ABL:ARG:기교 * 300
+IF ABL:ARG:기교 >= 20
+	評価値 = 評価値 / 10 * 20 + 1000
+ELSEIF ABL:ARG:기교 >= 18
+	評価値 = 評価値 / 10 * 19 + 900
+ELSEIF ABL:ARG:기교 >= 16
+	評価値 = 評価値 / 10 * 18 + 800
+ELSEIF ABL:ARG:기교 >= 14
+	評価値 = 評価値 / 10 * 17 + 700
+ELSEIF ABL:ARG:기교 >= 12
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:기교 >= 10
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:기교 >= 8
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:기교 >= 6
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:기교 >= 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:기교 >= 2
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 기교　　：LV{ABL:ARG:기교} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:봉사정신をみる 評価高め
+評価値 = ABL:ARG:봉사정신 * 200
+IF ABL:ARG:봉사정신 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:봉사정신 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:봉사정신 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:봉사정신 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:봉사정신 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:봉사정신 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:봉사정신 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:봉사정신 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:봉사정신 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 봉사정신：LV{ABL:ARG:봉사정신} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:노출벽をみる 評価高め
+評価値 = ABL:ARG:노출벽 * 200
+IF ABL:ARG:노출벽 >= 20
+	評価値 = 評価値 / 10 * 20 + 1000
+ELSEIF ABL:ARG:노출벽 >= 18
+	評価値 = 評価値 / 10 * 19 + 900
+ELSEIF ABL:ARG:노출벽 >= 16
+	評価値 = 評価値 / 10 * 18 + 800
+ELSEIF ABL:ARG:노출벽 >= 14
+	評価値 = 評価値 / 10 * 17 + 700
+ELSEIF ABL:ARG:노출벽 >= 12
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:노출벽 >= 10
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:노출벽 >= 8
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:노출벽 >= 6
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:노출벽 >= 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:노출벽 >= 2
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 노출벽　：LV{ABL:ARG:노출벽} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;교양をみる
+評価値 = ABL:ARG:교양 * 300
+IF ABL:ARG:교양 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:교양 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:교양 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:교양 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:교양 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:교양 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:교양 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:교양 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 교양　　：LV{ABL:ARG:교양} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;화술기능をみる
+評価値 = ABL:ARG:화술기능 * 300
+IF ABL:ARG:화술기능 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:화술기능 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:화술기능 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:화술기능 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:화술기능 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:화술기능 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:화술기능 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:화술기능 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 화술기능：LV{ABL:ARG:화술기능} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;전투능력をみる 評価超高い
+評価値 = ABL:ARG:전투능력 * 500
+IF ABL:ARG:전투능력 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:전투능력 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:전투능력 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:전투능력 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:전투능력 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:전투능력 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:전투능력 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:전투능력 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 전투능력：LV{ABL:ARG:전투능력} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;청소기능をみる
+評価値 = ABL:ARG:청소기능 * 300
+IF ABL:ARG:청소기능 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:청소기능 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:청소기능 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:청소기능 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:청소기능 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:청소기능 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:청소기능 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:청소기능 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 청소기능：LV{ABL:ARG:청소기능} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;요리기능をみる
+評価値 = ABL:ARG:요리기능 * 300
+IF ABL:ARG:요리기능 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:요리기능 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:요리기능 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:요리기능 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:요리기능 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:요리기능 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:요리기능 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:요리기능 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 요리기능：LV{ABL:ARG:요리기능} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;음악기능をみる
+評価値 = ABL:ARG:음악기능 * 300
+IF ABL:ARG:음악기능 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:음악기능 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:음악기능 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:음악기능 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:음악기능 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:음악기능 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:음악기능 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:음악기능 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 음악기능：LV{ABL:ARG:음악기능} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;손가락をみる
+評価値 = ABL:ARG:손가락 * 300
+IF ABL:ARG:손가락 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:손가락 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:손가락 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:손가락 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:손가락 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:손가락 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:손가락 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:손가락 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 손가락　　　：LV{ABL:ARG:손가락} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;질をみる
+評価値 = ABL:ARG:질 * 500
+IF ABL:ARG:질 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:질 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:질 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:질 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:질 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:질 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:질 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:질 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 질　　　：LV{ABL:ARG:질} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;애널をみる
+評価値 = ABL:ARG:애널 * 500
+IF ABL:ARG:애널 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:애널 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:애널 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:애널 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:애널 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:애널 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:애널 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:애널 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 애널　：LV{ABL:ARG:애널} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;가슴をみる
+評価値 = ABL:ARG:가슴 * 300
+IF ABL:ARG:가슴 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:가슴 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:가슴 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:가슴 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:가슴 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:가슴 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:가슴 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:가슴 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 가슴　　　：LV{ABL:ARG:가슴} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;혀をみる
+評価値 = ABL:ARG:혀 * 300
+IF ABL:ARG:혀 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:혀 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:혀 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:혀 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:혀 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:혀 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:혀 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:혀 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 혀　　　：LV{ABL:ARG:혀} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;허리をみる
+評価値 = ABL:ARG:허리 * 500
+IF ABL:ARG:허리 >= 10
+	評価値 = 評価値 / 10 * 18 + 600
+ELSEIF ABL:ARG:허리 >= 9
+	評価値 = 評価値 / 10 * 17 + 600
+ELSEIF ABL:ARG:허리 >= 8
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:허리 == 7
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:허리 == 6
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:허리 == 5
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:허리 == 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:허리 == 3
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 허리　　　：LV{ABL:ARG:허리} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+
+;ABL:새드끼をみる
+評価値 = ABL:ARG:새드끼 * 300
+IF ABL:ARG:새드끼 >= 20
+	評価値 = 評価値 / 10 * 20 + 1000
+ELSEIF ABL:ARG:새드끼 >= 18
+	評価値 = 評価値 / 10 * 19 + 900
+ELSEIF ABL:ARG:새드끼 >= 16
+	評価値 = 評価値 / 10 * 18 + 800
+ELSEIF ABL:ARG:새드끼 >= 14
+	評価値 = 評価値 / 10 * 17 + 700
+ELSEIF ABL:ARG:새드끼 >= 12
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:새드끼 >= 10
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:새드끼 >= 8
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:새드끼 >= 6
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:새드끼 >= 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:새드끼 >= 2
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 새드끼：LV{ABL:ARG:새드끼} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:마조끼をみる
+評価値 = ABL:ARG:마조끼 * 300
+IF ABL:ARG:마조끼 >= 20
+	評価値 = 評価値 / 10 * 20 + 1000
+ELSEIF ABL:ARG:마조끼 >= 18
+	評価値 = 評価値 / 10 * 19 + 900
+ELSEIF ABL:ARG:마조끼 >= 16
+	評価値 = 評価値 / 10 * 18 + 800
+ELSEIF ABL:ARG:마조끼 >= 14
+	評価値 = 評価値 / 10 * 17 + 700
+ELSEIF ABL:ARG:마조끼 >= 12
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:마조끼 >= 10
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:마조끼 >= 8
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:마조끼 >= 6
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:마조끼 >= 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:마조끼 >= 2
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 마조끼：LV{ABL:ARG:마조끼} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:레즈끼
+評価値 = ABL:ARG:레즈끼 * 300
+IF ABL:ARG:레즈끼 >= 20
+	評価値 = 評価値 / 10 * 20 + 1000
+ELSEIF ABL:ARG:레즈끼 >= 18
+	評価値 = 評価値 / 10 * 19 + 900
+ELSEIF ABL:ARG:레즈끼 >= 16
+	評価値 = 評価値 / 10 * 18 + 800
+ELSEIF ABL:ARG:레즈끼 >= 14
+	評価値 = 評価値 / 10 * 17 + 700
+ELSEIF ABL:ARG:레즈끼 >= 12
+	評価値 = 評価値 / 10 * 16 + 600
+ELSEIF ABL:ARG:레즈끼 >= 10
+	評価値 = 評価値 / 10 * 15 + 500
+ELSEIF ABL:ARG:레즈끼 >= 8
+	評価値 = 評価値 / 10 * 14 + 400
+ELSEIF ABL:ARG:레즈끼 >= 6
+	評価値 = 評価値 / 10 * 13 + 300
+ELSEIF ABL:ARG:레즈끼 >= 4
+	評価値 = 評価値 / 10 * 12 + 200
+ELSEIF ABL:ARG:레즈끼 >= 2
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 레즈끼：LV{ABL:ARG:레즈끼} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+
+;ABL:자위중독をみる
+評価値 = ABL:ARG:자위중독 * 300
+IF ABL:ARG:자위중독 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:자위중독 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:자위중독 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:자위중독 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:자위중독 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:자위중독 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:자위중독 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:자위중독 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:자위중독 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 자위중독：LV{ABL:ARG:자위중독} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:정액중독をみる
+評価値 = ABL:ARG:정액중독 * 300
+IF ABL:ARG:정액중독 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:정액중독 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:정액중독 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:정액중독 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:정액중독 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:정액중독 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:정액중독 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:정액중독 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:정액중독 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 정액중독：LV{ABL:ARG:정액중독} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:레즈중독
+評価値 = ABL:ARG:레즈중독 * 300
+IF ABL:ARG:레즈중독 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:레즈중독 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:레즈중독 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:레즈중독 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:레즈중독 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:레즈중독 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:레즈중독 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:레즈중독 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:레즈중독 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 레즈중독：LV{ABL:ARG:레즈중독} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:질내사정중독をみる
+評価値 = ABL:ARG:질내사정중독 * 300
+IF ABL:ARG:질내사정중독 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:질내사정중독 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:질내사정중독 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:질내사정중독 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:질내사정중독 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:질내사정중독 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:질내사정중독 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:질내사정중독 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:질내사정중독 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 질내사정중독：LV{ABL:ARG:질내사정중독} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+;ABL:항내사정중독をみる
+評価値 = ABL:ARG:항내사정중독 * 300
+IF ABL:ARG:항내사정중독 >= 50
+	評価値 = 評価値 / 10 * 19 + 500
+ELSEIF ABL:ARG:항내사정중독 >= 45
+	評価値 = 評価値 / 10 * 18 + 450
+ELSEIF ABL:ARG:항내사정중독 >= 40
+	評価値 = 評価値 / 10 * 17 + 400
+ELSEIF ABL:ARG:항내사정중독 >= 35
+	評価値 = 評価値 / 10 * 16 + 350
+ELSEIF ABL:ARG:항내사정중독 >= 30
+	評価値 = 評価値 / 10 * 15 + 300
+ELSEIF ABL:ARG:항내사정중독 >= 25
+	評価値 = 評価値 / 10 * 14 + 250
+ELSEIF ABL:ARG:항내사정중독 >= 20
+	評価値 = 評価値 / 10 * 13 + 200
+ELSEIF ABL:ARG:항내사정중독 >= 15
+	評価値 = 評価値 / 10 * 12 + 150
+ELSEIF ABL:ARG:항내사정중독 >= 10
+	評価値 = 評価値 / 10 * 11 + 100
+ENDIF
+
+IF 評価値 > 0
+	PRINTFORML 항내사정중독：LV{ABL:ARG:항내사정중독} ＋{評価値}　
+	合計여자력 += 評価値
+ENDIF
+
+PRINTL 
+PRINTFORML 기본 여자력：{合計여자력}
+PRINTL 
+PRINTL ◇소질 평가◇
+PRINTL 
+
+;[처녀]をみる
+IF TALENT:ARG:처녀 == 1
+	合計여자력 = 合計여자력 / 100 * 175
+	PRINTFORML 【처녀】　　　　　×１.７５
+ELSEIF TALENT:ARG:처녀 == 2
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【재생처녀】　　　×１.２
+ENDIF
+;[연인]をみる　愛情補正
+IF TALENT:ARG:연인
+	合計여자력 = 合計여자력 / 10 * 20
+	PRINTFORML 【연인】　　　　　×２.０
+ENDIF
+;[담력]をみる
+IF TALENT:ARG:담력 == 1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【다부짐】　　　　　×１.２
+ELSEIF TALENT:ARG:담력 == -1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【병약】　　　　　×１.２
+ENDIF
+;[태도]をみる
+IF TALENT:ARG:태도 == 1
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【반항적】　　　　×０.８
+ELSEIF TALENT:ARG:태도 == -1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【솔직】　　　　　×１.２
+ENDIF
+;[응답]をみる
+IF TALENT:ARG:응답 == 1
+	合計여자력 = 合計여자력 / 10 * 9
+	PRINTFORML 【건방짐】　　　　×０.９
+ELSEIF TALENT:ARG:응답 == -1
+	合計여자력 = 合計여자력 / 10 * 11
+	PRINTFORML 【얌전함】　　　×１.１
+ENDIF
+;[자존심]をみる
+IF TALENT:ARG:자존심 == 1
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【자존심높음】　×１.５
+ELSEIF TALENT:ARG:자존심 == -1
+	合計여자력 = 合計여자력 / 10 * 11
+	PRINTFORML 【자존심낮음】　×１.１
+ENDIF
+;[츤데레]をみる
+IF TALENT:ARG:츤데레
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【츤데레】　　　×１.３
+ENDIF
+;[용모]をみる
+IF TALENT:ARG:용모 == 1 || ARG == 62
+	合計여자력 = 合計여자력 / 10 * 18
+	PRINTFORML 【용모단정】　　　×１.８
+ELSEIF TALENT:ARG:용모 == -1
+	合計여자력 = 合計여자력 / 10 * 2
+	PRINTFORML 【추악】　　　　　×０.２
+ENDIF
+;[자제심]をみる
+IF TALENT:ARG:자제심
+	合計여자력 = 合計여자력 / 10 * 14
+	PRINTFORML 【자제심】　　　　×１.４
+ENDIF
+;[무관심]をみる
+IF TALENT:ARG:무관심
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【무관심】　　　　×０.８
+ENDIF
+;[감정결여]をみる
+IF TALENT:ARG:감정결여
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【감정결여】　　×０.８
+ENDIF
+;[성적흥미]をみる
+IF TALENT:ARG:성적흥미 == 1
+	合計여자력 = 合計여자력 / 10 * 14
+	PRINTFORML 【호기심】　　　　×１.４
+ELSEIF TALENT:ARG:성적흥미 == -1
+	IF ABL:ARG:욕망 >= 20
+		合計여자력 = 合計여자력 / 10 * 12
+		PRINTFORML 【보수적】　　　　×１.２
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 5
+		PRINTFORML 【보수적】　　　　×０.５　（반전조건：욕망 20）
+	ENDIF
+ENDIF
+;[명랑／음침]をみる
+IF TALENT:ARG:명랑／음침 == 1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【양기】　　　　　×１.２
+ELSEIF TALENT:ARG:명랑／음침 == -1
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【음기】　　　　　×０.８
+ENDIF
+;[일선을넘지않음]をみる
+IF TALENT:ARG:일선을넘지않음
+	IF ABL:ARG:욕망 >= 20
+		合計여자력 = 合計여자력 / 10 * 15
+		PRINTFORML 【일선을넘지않음】　×１.５
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 5
+		PRINTFORML 【일선을넘지않음】　×０.５　（반전조건：욕망 20）
+	ENDIF
+ENDIF
+;[눈에띄고싶어함]をみる
+IF TALENT:ARG:눈에띄고싶어함
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【눈에띄고싶어함】　×１.２
+ENDIF
+;[무지]をみる
+IF TALENT:ARG:무지
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【무지】　　　　　×１.３
+ENDIF
+;[정조]をみる
+IF TALENT:ARG:정조 == 1
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【정조관념】　　　×１.５
+ELSEIF TALENT:ARG:정조 == -1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【정조무관심】　　×１.２
+ENDIF
+;[解放]をみる
+IF TALENT:ARG:자기애 == 1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【해방】　　　　　×１.２
+ELSEIF TALENT:ARG:자기애 == -1
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【억압】　　　　　×０.８
+ENDIF
+;[저항]をみる
+IF TALENT:ARG:저항
+	IF ABL:ARG:순종 >= 20
+		合計여자력 = 合計여자력 / 10 * 15
+		PRINTFORML 【저항】　　　　　×１.５
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 5
+		PRINTFORML 【저항】　　　　　×０.５　（반전조건：순종 20）
+	ENDIF
+ENDIF
+;[수치심]をみる
+IF TALENT:ARG:수치심 == 1
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【수줍음】　　　×１.３
+ELSEIF TALENT:ARG:수치심 == -1
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【창피함】　　　　×１.３
+ENDIF
+;[통각]をみる
+IF TALENT:ARG:통각 == 1
+	合計여자력 = 合計여자력 / 10 * 9
+	PRINTFORML 【고통에약함】　　×０.９
+ELSEIF TALENT:ARG:통각 == -1
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【고통에강함】　　×１.３
+ENDIF
+;[젖기쉬움]をみる
+IF TALENT:ARG:젖기쉬움 == 1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【젖기쉬움】　　×１.２
+ELSEIF TALENT:ARG:젖기쉬움 == -1
+	合計여자력 = 合計여자력 / 10 * 9
+	PRINTFORML 【젖기어려움】　　×０.９
+ENDIF
+
+;[습득속도]をみる
+IF TALENT:ARG:습득속도 == 1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【습득빠름】　　　×１.２
+ELSEIF TALENT:ARG:습득속도 == -1
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【습득느림】　　　×０.８
+ENDIF
+;[바늘질]をみる
+IF TALENT:ARG:바늘질
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【바늘질】　　　×１.２
+ENDIF
+;[고양이혀]をみる
+IF TALENT:ARG:고양이혀
+	IF ABL:ARG:기교 >= 5
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【고양이혀】　　　　　×１.３
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 9
+		PRINTFORML 【고양이혀】　　　　　×０.９
+	ENDIF
+ENDIF
+;[조합지식]をみる
+IF TALENT:ARG:조합지식
+	合計여자력 = 合計여자력 / 100 * 125
+	PRINTFORML 【조합지식】　　　×１.２５
+ENDIF
+;[약독내성]をみる
+IF TALENT:ARG:약독내성
+	合計여자력 = 合計여자력 / 100 * 125
+	PRINTFORML 【약독내성】　　　×１.２５
+ENDIF
+;[오줌싸개버릇]をみる
+IF TALENT:ARG:오줌싸개버릇
+	合計여자력 = 合計여자력 / 10 * 11
+	PRINTFORML 【오줌싸개버릇】　　×１.１
+ENDIF
+
+;[자위하기쉬움]をみる
+IF TALENT:ARG:자위하기쉬움
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【자위하기쉬움】　×１.２
+ENDIF
+;[악취내성]をみる
+IF TALENT:ARG:악취내성 == 2
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【더러움무시】　　　×１.２
+ELSEIF TALENT:ARG:악취내성 == 1
+	合計여자력 = 合計여자력 / 10 * 11
+	PRINTFORML 【악취둔감】　　　×１.１
+ELSEIF TALENT:ARG:악취내성 == -1
+	合計여자력 = 合計여자력 / 10 * 9
+	PRINTFORML 【악취감각】　　　×０.９
+ELSEIF TALENT:ARG:악취내성 == -2
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【결벽증】　　　　×０.８
+ENDIF
+;[헌신적]をみる
+IF TALENT:ARG:헌신적
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【헌신적】　　　　×１.２
+ENDIF
+
+;[쾌감응답]をみる
+IF TALENT:ARG:쾌감응답 == 1
+	合計여자력 = 合計여자력 / 10 * 18
+	PRINTFORML 【쾌감에솔직】　　×１.８
+ELSEIF TALENT:ARG:쾌감응답 == -1
+	IF ABL:ARG:욕망 >= 20
+		合計여자력 = 合計여자력 / 10 * 15
+		PRINTFORML 【쾌감을부정】　　×１.５
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 6
+		PRINTFORML 【쾌감을부정】　　×０.６　（반전조건：욕망 20）
+	ENDIF
+ENDIF
+
+;[중독되기쉬움]をみる
+IF TALENT:ARG:중독되기쉬움
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【중독되기쉬움】　×１.２
+ENDIF
+
+IF TALENT:ARG:능숙한손가락 && TALENT:ARG:혀놀림 && TALENT:ARG:음호 && TALENT:ARG:항문광 && TALENT:ARG:음유
+	SETCOLOR COLOR("RED")
+	合計여자력 = 合計여자력 / 10 * 40
+	PRINTFORML 【기교의달인】　　×４.０
+	SETCOLOR COLOR("PINK")
+ELSE
+	;[능숙한손가락]をみる
+	IF TALENT:ARG:능숙한손가락
+		合計여자력 = 合計여자력 / 10 * 12
+		PRINTFORML 【능숙한손가락】　　　×１.２
+	ENDIF
+	;[혀놀림]をみる
+	IF TALENT:ARG:혀놀림
+		合計여자력 = 合計여자력 / 10 * 12
+		PRINTFORML 【혀놀림】　　　　×１.２
+	ENDIF
+	;[음호]をみる
+	IF TALENT:ARG:음호
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【음호】　　　　　×１.３
+	ENDIF
+	;[항문광]をみる
+	IF TALENT:ARG:항문광
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【항문광】　　　×１.３
+	ENDIF
+	;[음유]をみる
+	IF TALENT:ARG:음유
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【음유】　　　　　×１.３
+	ENDIF
+ENDIF
+
+;[키스마]をみる
+IF TALENT:ARG:키스마
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【키스마】　　　　×１.３
+ENDIF
+;[자위중독]をみる
+IF TALENT:ARG:자위중독
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【자위중독】　　　×１.３
+ENDIF
+;[포르치오성감]をみる
+IF TALENT:ARG:포르치오성감
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【포르치오성감】　×１.３
+ENDIF
+
+;[도착적]をみる
+IF TALENT:ARG:도착적
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【도착적】　　　　×１.２
+ENDIF
+;[両刀]をみる
+IF TALENT:ARG:성별기호 == -1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【바이】　　　　　×１.２
+ENDIF
+;[새드]をみる
+IF TALENT:ARG:새드
+	合計여자력 = 合計여자력 / 10 * 14
+	PRINTFORML 【새드】　　　　　×１.４
+ENDIF
+;[마조]をみる
+IF TALENT:ARG:마조
+	合計여자력 = 合計여자력 / 10 * 14
+	PRINTFORML 【마조】　　　　　×１.４
+ENDIF
+;[질투]をみる
+IF TALENT:ARG:질투
+	IF ABL:ARG:봉사정신 >= 20
+		合計여자력 = 合計여자력 / 10 * 15
+		PRINTFORML 【질투】　　　　　×１.５
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 5
+		PRINTFORML 【질투】　　　　　×０.５　（반전조건：봉사정신 20）
+	ENDIF
+ENDIF
+;[소악마]をみる
+IF TALENT:ARG:소악마
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【소악마】　　　　×１.２
+ENDIF
+
+;[요호]をみる
+IF TALENT:ARG:요호
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【요호】　　　　　×１.５
+ENDIF
+;[매력]をみる
+IF TALENT:ARG:매력
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【매력】　　　　　×１.５
+ENDIF
+;[매혹]をみる
+IF TALENT:ARG:매혹
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【매혹】　　　　　×１.５
+ENDIF
+;[수수께끼의매력]をみる
+IF TALENT:ARG:수수께끼의매력
+	合計여자력 = 合計여자력 / 10 * 20
+	PRINTFORML 【수수께끼의매력】　　　×２.０
+ENDIF
+
+;五箇所全て감각だとまとめてボー가지
+IF TALENT:ARG:C감도 == 1 && TALENT:ARG:V감도 == 1 && TALENT:ARG:A감도 == 1 && TALENT:ARG:B감도 == 1 && TALENT:ARG:M감도 == 1
+	SETCOLOR COLOR("RED")
+	合計여자력 = 合計여자력 / 10 * 40
+	PRINTFORML 【전신성감대】　　×４.０
+	SETCOLOR COLOR("PINK")
+ELSE
+	;[C감도]をみる
+	IF TALENT:ARG:C감도 == 1
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【Ｃ감각】　　　　×１.３
+	ELSEIF TALENT:ARG:C감도 == -1
+		合計여자력 = 合計여자력 / 10 * 8
+		PRINTFORML 【Ｃ둔감】　　　　×０.８
+	ENDIF
+	;[V감도]をみる
+	IF TALENT:ARG:V감도 == 1
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【Ｖ감각】　　　　×１.３
+	ELSEIF TALENT:ARG:V감도 == -1
+		合計여자력 = 合計여자력 / 10 * 8
+		PRINTFORML 【Ｖ둔감】　　　　×０.８
+	ENDIF
+	;[A감도]をみる
+	IF TALENT:ARG:A감도 == 1
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【Ａ감각】　　　　×１.３
+	ELSEIF TALENT:ARG:A감도 == -1
+		合計여자력 = 合計여자력 / 10 * 8
+		PRINTFORML 【Ａ둔감】　　　　×０.８
+	ENDIF
+	;[B감도]をみる
+	IF TALENT:ARG:B감도 == 1
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【Ｂ감각】　　　　×１.３
+	ELSEIF TALENT:ARG:B감도 == -1
+		合計여자력 = 合計여자력 / 10 * 8
+		PRINTFORML 【Ｂ둔감】　　　　×０.８
+	ENDIF
+	;[M감도]をみる
+	IF TALENT:ARG:M감도 == 1
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【Ｍ감각】　　　　×１.３
+	ELSEIF TALENT:ARG:M감도 == -1
+		合計여자력 = 合計여자력 / 10 * 8
+		PRINTFORML 【Ｍ둔감】　　　　×０.８
+	ENDIF
+ENDIF
+;[가슴사이즈]をみる
+IF TALENT:ARG:가슴사이즈 == 2
+	IF TALENT:ARG:체형 < 0
+		合計여자력 = 合計여자력 / 10 * 17
+		PRINTFORML 【로리폭유】　　　×１.７
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 15
+		PRINTFORML 【폭유】　　　　　×１.５
+	ENDIF
+ELSEIF TALENT:ARG:가슴사이즈 == 1
+	IF TALENT:ARG:체형 < 0
+		合計여자력 = 合計여자력 / 10 * 15
+		PRINTFORML 【로리거유】　　　×１.５
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 13
+		PRINTFORML 【거유】　　　　　×１.３
+	ENDIF
+ELSEIF TALENT:ARG:가슴사이즈 == -1
+	IF TALENT:ARG:체형 < 0
+		合計여자력 = 合計여자력 / 10 * 9
+		PRINTFORML 【빈유】　　　　　×１.１
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 9
+		PRINTFORML 【빈유】　　　　　×０.９
+	ENDIF
+ELSEIF TALENT:ARG:가슴사이즈 == -2
+	IF TALENT:ARG:체형 < 0
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 8
+		PRINTFORML 【절벽】　　　　　×０.８
+	ENDIF
+ENDIF
+;[정애미각]をみる
+IF TALENT:ARG:정애미각
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【정애미각】　　　×１.３
+ENDIF
+
+;[회복속도]をみる
+IF TALENT:ARG:회복속도 == 1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【회복빠름】　　　×１.２
+ELSEIF TALENT:ARG:회복속도 == -1
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【회복느림】　　　×０.８
+ENDIF
+
+;[흡혈귀]をみる
+IF TALENT:ARG:흡혈귀
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【흡혈귀】　　　　×１.５
+ENDIF
+;[일광욕]をみる
+IF TALENT:ARG:일광욕
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【일광욕】　　　　×１.２
+ENDIF
+;[월광욕]をみる
+IF TALENT:ARG:월광욕
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【월광욕】　　　　×１.２
+ENDIF
+;[치료]をみる
+IF TALENT:ARG:치료
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【치료】　　　　　×１.５
+ENDIF
+;[고무]をみる
+IF TALENT:ARG:고무
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【고무】　　　　　×１.５
+ENDIF
+;[이상한뿌리]をみる
+IF TALENT:ARG:이상한뿌리
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【이상한뿌리】　　×１.２
+ENDIF
+
+;[광기]をみる
+IF TALENT:ARG:광기
+	IF ABL:ARG:순종 >= 20 || ABL:ARG:봉사정신 >= 20
+		合計여자력 = 合計여자력 / 10 * 15
+		PRINTFORML 【광기】　　　　　×１.５
+	ELSE
+		合計여자력 = 合計여자력 / 10 * 5
+		PRINTFORML 【광기】　　　　　×０.５　（반전조건：순종 20かつ봉사정신 20）
+	ENDIF
+ENDIF
+;[걸레]をみる
+IF TALENT:ARG:걸레
+	合計여자력 = 合計여자력 / 10 * 20
+	PRINTFORML 【걸레】　　　×２.０
+ENDIF
+
+;[동물귀]をみる
+IF TALENT:ARG:동물귀 == 2
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【토끼귀】　　　　　×１.５
+ELSEIF TALENT:ARG:동물귀 == 3
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【강아지귀】　　　　　×１.５
+ELSEIF TALENT:ARG:동물귀 == 4
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【고양이귀】　　　　　×１.５
+ELSEIF TALENT:ARG:동물귀
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【동물귀】　　　　×１.５
+ENDIF
+;[금단의지식]をみる
+IF TALENT:ARG:금단의지식
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【금단의지식】　　×１.５
+ENDIF
+;[인기]をみる
+IF TALENT:ARG:인기
+	合計여자력 = 合計여자력 / 100 * 125
+	PRINTFORML 【인기】　　　　　×１.２５
+ENDIF
+;[구현]をみる
+IF TALENT:ARG:구현
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【구현】　　　　　×１.３
+ENDIF
+
+;[모유체질]をみる
+IF TALENT:ARG:모유체질
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【모유체질】　　　×１.３
+ENDIF
+;[임신]をみる
+IF TALENT:ARG:임신
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【임신】　　　　　×０.８
+ENDIF
+;[모성]をみる
+IF TALENT:ARG:모성
+	合計여자력 = 合計여자력 / 10 * 11
+	PRINTFORML 【모성】　　　　　×１.１
+ENDIF
+;[초경]をみる
+IF TALENT:ARG:초경
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【초경】　　　　　×１.５
+ENDIF
+;[음악지식]をみる
+IF TALENT:ARG:음악지식 == 1
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【악기지식】　　　×１.３
+ELSEIF TALENT:ARG:음악지식 == 2
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【가창지식】　　　×１.３
+ELSEIF TALENT:ARG:음악지식 == 3
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【무도지식】　　　×１.３
+ENDIF
+;[음감]をみる
+IF TALENT:ARG:음감 == -1
+	合計여자력 = 合計여자력 / 10 * 8
+	PRINTFORML 【음치】　　　　　×０.８
+ELSEIF TALENT:ARG:음감 == 1
+	合計여자력 = 合計여자력 / 10 * 11
+	PRINTFORML 【음감】　　　　　×１.１
+ELSEIF TALENT:ARG:음감 == 2
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【절대음감】　　　×１.３
+ENDIF
+
+;[습기선호]をみる
+IF TALENT:ARG:습기선호
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【습기선호】　　　　×１.２
+ENDIF
+;[한기선호]をみる
+IF TALENT:ARG:한기선호 == 1
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【한기선호】　　　　　×１.２
+ELSEIF TALENT:ARG:한기선호 == 2
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【설녀】　　　　　×１.２
+ENDIF
+;[반백택]をみる
+IF TALENT:ARG:반백택
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【반백택】　　　　×１.５
+ENDIF
+;[요정]をみる
+IF TALENT:ARG:요정
+	合計여자력 = 合計여자력 / 10 * 11
+	PRINTFORML 【요정】　　　　　×１.１
+ENDIF
+;[봉래인]をみる
+IF TALENT:ARG:봉래인
+	合計여자력 = 合計여자력 / 10 * 20
+	PRINTFORML 【봉래인】　　　　×２.０
+ENDIF
+;[비생물]をみる
+IF TALENT:ARG:비생물 == 1
+	合計여자력 = 合計여자력 / 10 * 11
+	PRINTFORML 【비생물】　　　　×１.１
+ELSEIF TALENT:ARG:비생물 == 2
+	合計여자력 = 合計여자력 / 10 * 11
+	PRINTFORML 【영체】　　　　　×１.１
+ENDIF
+;[신령]をみる
+IF TALENT:ARG:신령 == 1
+	合計여자력 = 合計여자력 / 10 * 20
+	PRINTFORML 【신령】　　　　　×２.０
+ELSEIF TALENT:ARG:신령 == 2
+	合計여자력 = 合計여자력 / 10 * 20
+	PRINTFORML 【사신】　　　　　×２.０
+ELSEIF TALENT:ARG:신령 == 3
+	合計여자력 = 合計여자력 / 10 * 20
+	PRINTFORML 【염마】　　　　　×２.０
+ENDIF
+;[인간]をみる
+IF TALENT:ARG:인간 == 2
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【마법사】　　　×１.５
+ELSEIF TALENT:ARG:인간 == 3
+	合計여자력 = 合計여자력 / 10 * 18
+	PRINTFORML 【무녀】　　　　　×１.８
+ELSEIF TALENT:ARG:인간 == 4
+	合計여자력 = 合計여자력 / 10 * 18
+	PRINTFORML 【천인】　　　　　×１.８
+ELSEIF TALENT:ARG:인간 == 5
+	合計여자력 = 合計여자력 / 10 * 18
+	PRINTFORML 【선인】　　　　　×１.８
+ELSEIF TALENT:ARG:인간 == 6
+	合計여자력 = 合計여자력 / 10 * 20
+	PRINTFORML 【월인】　　　　　×２.０
+ENDIF
+;[鬼]をみる
+IF TALENT:ARG:오니
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【오니】　　　　　　×１.５
+ENDIF
+;[츠쿠모가미]をみる
+IF TALENT:ARG:츠쿠모가미
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【츠쿠모가미】　　　　×１.２
+ENDIF
+;[텐구]をみる
+IF TALENT:ARG:텐구
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【텐구】　　　　　×１.５
+ENDIF
+;さとり
+IF ARG == 38 || ARG == 49
+	合計여자력 = 合計여자력 / 10 * 13
+	PRINTFORML 【사토리】　　　　　　×１.３
+ENDIF
+;阿求
+IF ARG == 80
+	合計여자력 = 合計여자력 / 10 * 15
+	PRINTFORML 【아레의 여자】　　　×１.５
+ENDIF
+;外来人
+IF ARG == 8 || ARG == 9 || ARG == 81 || ARG == 82 || ARG == 106
+	合計여자력 = 合計여자력 / 10 * 12
+	PRINTFORML 【외래인】　　　　×１.２
+ENDIF
+IF TALENT:ARG:스침
+	合計여자력 = 合計여자력 / 10 * 3
+	PRINTFORML 【범용 캐릭터】　　　　×０.３
+ENDIF
+PRINTL 
+
+
+PRINTL 
+PRINTL □ 측정 결과 □---------------------------------------------------------------------------
+PRINTL 
+RESETCOLOR
+FONTREGULAR
+
+SIF 合計여자력 > 5000000
+	PRINTFORMW 여자력200만…300만…아직 오른단 말인가！？
+SIF 合計여자력 > 10000000
+	PRINTFORMW 자、여자력1000만을 돌파！
+SIF 合計여자력 > 50000000
+	PRINTFORMW 5、5000만을 넘었어！？바보같은、스카우터의 고장이다！
+IF 合計여자력 >= 100000000
+	PRINTFORMW 퍼 어 엉 ！ ！
+	PRINTFORMW 그 순간{合計여자력}라는 수치를 표시하고는、스카우터는 폭발하고 말았다！
+	合計여자력 /= 100000000
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%의 여자력：{合計여자력}億",C_YELLOW,2,1)
+ELSE
+	만単位 = 合計여자력 / 10000
+	端数 = 合計여자력 % 10000
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%의 여자력：{만単位}만{端数}",C_YELLOW,2,1)
+	SIF 合計여자력 < 100000
+		PRINTFORMW 여자력…겨우 {合計여자력}인가！쓰레기！
+ENDIF
+;;一億オーバー
+;IF 合計여자력 >= 100000000
+;	PRINTFORMW SSSランク！！！ 幻想郷で一番愛された女性です
+;;五千만オーバー
+;ELSEIF 合計여자력 >= 50000000
+;	PRINTFORMW SSランク！！ 権力者がこぞって求婚しに来るほどの美姫です
+;;一千만オーバー
+;ELSEIF 合計여자력 >= 10000000
+;	PRINTFORMW Ｓランク！！ 世に出れば国が傾くレベルの美女です
+;;五百만オーバー
+;ELSEIF 合計여자력 >= 5000000
+;	PRINTFORMW Ａランク！ 一般人は手が届かない高級娼婦です
+;;百만オーバー
+;ELSEIF 合計여자력 >= 1000000
+;	PRINTFORMW Ｂランク！ どの店でも看板を張れる一流娼婦です
+;;五十만オーバー
+;ELSEIF 合計여자력 >= 500000
+;	PRINTFORMW Ｃランク！ 一人前のお手頃な雌奴隷です
+;;十만オーバー
+;ELSEIF 合計여자력 >= 100000
+;	PRINTFORMW Ｄランク！ 奴隷としてはまあまあです
+;ELSE
+;	PRINTFORMW Ｅランク！ うぶなネンネちゃんです
+;ENDIF
+
+RETURN 1

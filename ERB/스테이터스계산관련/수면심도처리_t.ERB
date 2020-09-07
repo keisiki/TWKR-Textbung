@@ -1,0 +1,143 @@
+﻿;FileName_SOURCE1.ERB ------------------------------ Rev1. 00
+;수면심도의 감소 처리
+;ARG		캐릭터 NO
+;-----------------------------------------------------------
+@수면심도감소(ARG)
+IF CFLAG:MASTER:장난 == 2
+	LOCAL:1 += CUP:ARG:불쾌 * 10 + CUP:ARG:고통 + CUP:ARG:공포 + CUP:ARG:반감 / 2 + CUP:ARG:억울 / 2
+	SELECTCASE CUP:ARG:욕정
+		CASE 50 TO 100
+			LOCAL:1 += 50
+		CASE 101 TO 500
+			LOCAL:1 += 250
+		CASE 501 TO 1000
+			LOCAL:1 += 500
+		CASE IS > 1000
+			LOCAL:1 += 1000
+		CASEELSE
+	ENDSELECT
+;		PRINTFORM 수면심도 기초치{LOCAL:1}
+	SELECTCASE EXP:MASTER:수면간경험
+		CASE 100 TO 500
+			LOCAL:1 -= 100
+		CASE 501 TO 1000
+			LOCAL:1 -= 250
+		CASE IS > 1000
+			LOCAL:1 -= 500
+		CASEELSE
+	ENDSELECT
+	SELECTCASE EXP:TARGET:수면간경험
+		CASE 100 TO 500
+			LOCAL:1 -= 100
+		CASE 501 TO 1000
+			LOCAL:1 -= 250
+		CASE IS > 1000
+			LOCAL:1 -= 500
+		CASEELSE
+	ENDSELECT
+	SIF TCVAR:TARGET:수면제강도 == 1
+			LOCAL:1 = LOCAL:1 / 2
+	SIF TCVAR:TARGET:수면제강도 == 2
+			LOCAL:1 = LOCAL:1 / 4
+	SIF TCVAR:TARGET:수면제강도 == 3
+			LOCAL:1 = 0
+;	PRINTFORM 수면심도가 {LOCAL:1} 줄어들었다
+	TCVAR:ARG:수면심도 -= LOCAL:1
+ENDIF
+
+;FileName_TRACHECK.ERB ----------------------------- Rev1. 00
+;호감도 상승 계산 처리
+;CALL		USER
+;ARG		0:캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@수면간발각(ARG)
+IF TCVAR:ARG:수면제강도 == 3 && 수면시간(ARG)
+;혼수라고 일어나지 않는다
+ELSE
+	PRINTFORML %CALLNAME:ARG%가 눈을 떴다
+	IF !TEQUIP:TARGET:밧줄
+	;밧줄로 묶지 않았다
+		IF TALENT:ARG:연모
+			PRINTFORML %CALLNAME:ARG%는 흐트러진 의복을 확인하면(자) 기가 막힌 것처럼%마스터를% 응시했다
+			PRINTFORMW 복장을 정돈하면서 %CALLNAME:ARG%는 적당히 하도록(듯이)라고 잔소리를 했다…
+			CFLAG:ARG:호감도 += ABL:ARG:욕망
+			PRINTFORML 호감도＋{ABL:ARG:욕망}
+			CALL CHARA_AWAKE(ARG, 1,1)
+			CALL SET_PRANK(0, ARG, 2)
+			CALL ENDUFUFU(ARG)
+		ELSEIF TALENT:TARGET:섹프 || TALENT:TARGET:애욕
+			PRINTFORML %CALLNAME:ARG%는 쾌감에 눈을 뜨자 자신의 몸을 짐승처럼 탐내는 %마스터를% 인식했다
+			PRINTFORMW %CALLNAME:ARG%는 음미한 포즈를 취하면서도 와 귀여워했으면 좋겠다고 %마스터를% 권하고 있다…
+			CFLAG:ARG:호감도 += ABL:ARG:욕망 * 2
+			PRINTFORML 호감도＋{ABL:ARG:욕망 * 2}
+			CALL CHARA_AWAKE(ARG, 1,1)
+			CALL SET_PRANK(0, ARG, 2)
+			FOR LOCAL, 1, GET_TARGETNUM() + 1
+				CFLAG:(TARGET:LOCAL):우후후 = 1
+			NEXT
+		ELSE
+			PRINTFORML %CALLNAME:ARG%는 흐트러진 의복을 확인한다고 믿을 수 없다는 표정으로 %마스터를% 노려보는
+			PRINTFORMW %CALLNAME:ARG%는 분노를 배이게 한 표정을 하고 있다……
+			IF MARK:ARG:반발각인 <= 2
+				MARK:ARG:반발각인 = 3
+				PRINTFORML %CALLNAME:ARG%는 분노에 얼굴을 비뚤어지게 해, 원망의 말을 중얼거리고 있다……
+				SETCOLOR C_RED
+				PRINTFORMW %CALLNAME:ARG%는 반발각인 LV3를 얻었다
+				RESETCOLOR
+			ENDIF
+			CALL CHARA_AWAKE(ARG, 1,1)
+			CALL SET_PRANK(0, ARG, 2)
+			CALL ENDUFUFU(ARG)
+		ENDIF
+	ELSE
+	;밧줄로 묶고 있다면 그대로 약
+		IF TALENT:ARG:연모
+			PRINTFORML %CALLNAME:ARG%는 눈을 뜨자 자신이 묶여져 있어 일을 깨달았다
+			PRINTFORMW %마스터를% 눈치채자 기가 막힌 표정으로 빨리 개방 해 주시라고 말했다…
+			CALL CHARA_AWAKE(ARG, 1,1)
+			CALL SET_PRANK(0, ARG, 2)
+			FOR LOCAL, 1, GET_TARGETNUM() + 1
+				CFLAG:(TARGET:LOCAL):우후후 = 1
+			NEXT
+		ELSEIF TALENT:TARGET:섹프 || TALENT:TARGET:애욕
+			PRINTFORML %CALLNAME:ARG%는 쾌감에 눈을 뜨자 %마스터가% 자신을 묶어 범하고 있는 것에 깨달았다
+			PRINTFORMW %CALLNAME:ARG%는 허리를 거절하면서도 와 범했으면 좋겠다고 %마스터를% 권하고 있다…
+			CFLAG:ARG:호감도 += ABL:ARG:욕망 * 3
+			PRINTFORML 호감도＋{ABL:ARG:욕망 * 3}
+			CALL CHARA_AWAKE(ARG, 1,1)
+			CALL SET_PRANK(0, ARG, 2)
+			FOR LOCAL, 1, GET_TARGETNUM() + 1
+				CFLAG:(TARGET:LOCAL):우후후 = 1
+			NEXT
+		ELSE
+			PRINTFORML %CALLNAME:ARG%가 눈을 뜨자 %CALLNAME:MASTER%에 얽매여 범해지고 있는 것에 깨달았다
+			IF TALENT:TARGET:담력 < 0
+				PRINTFORMW %CALLNAME:ARG%는 울면서 그만두라고 애원하고 있다……
+			ELSE
+				PRINTFORMW %CALLNAME:ARG%는 분노를 배이게 한 표정으로 %마스터를% 매도하고 있다……
+			ENDIF
+			IF MARK:ARG:반발각인 <= 2
+				MARK:ARG:반발각인 = 3
+				PRINTFORM %CALLNAME:ARG%는
+				IF TALENT:TARGET:담력 < 0
+					PRINTFORM 울면서
+				ELSE
+					PRINTFORM 분노에 얼굴을 비뚤어지게 해,
+				ENDIF
+				PRINTFORML 원망의 말을 중얼거리고 있다……
+				SETCOLOR C_RED
+				PRINTFORMW %CALLNAME:ARG%는 반발각인 LV3를 얻었다
+				RESETCOLOR
+			ENDIF
+			CALL CHARA_AWAKE(ARG, 1,1)
+			CALL SET_PRANK(0, ARG, 2)
+			FOR LOCAL, 1, GET_TARGETNUM() + 1
+				CFLAG:(TARGET:LOCAL):우후후 = 1
+			NEXT
+			TCVAR:ARG:억지로 = 1
+		ENDIF
+	ENDIF
+	CFLAG:ARG:면간발각 = 1
+ENDIF

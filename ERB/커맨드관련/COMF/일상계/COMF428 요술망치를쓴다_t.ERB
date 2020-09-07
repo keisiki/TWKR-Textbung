@@ -1,0 +1,105 @@
+﻿;-------------------------------------------------
+;요술망치를 쓴다
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM428
+SIF FLAG:역극 != 71
+	PRINTL 신묘마루 「이용은 계획적으로」
+PRINTL 무슨 소원을 빌겠습니까?
+SIF TALENT:71:체형 != 0
+	PRINTL [2] - 신묘마루를 평범한 크기로
+IF GETBIT(TALENT:MASTER:성별, 1)
+	PRINTL [3] - 경이적인 양물로!
+	PRINTL [4] - 아예 인간 물건이 아닌 걸로!
+ENDIF
+SIF TALENT:MASTER:100 >= -4
+	PRINTL [5] - 난쟁이로 해줘!
+SIF TALENT:MASTER:100 < -4 && CFLAG:MASTER:요술망치 == 6
+	PRINTL [6] - 원래 크기에 되돌려줘……
+PRINTL [7] - 거인으로 해줘!
+PRINTL 
+PRINTL [100] - 돌아간다
+$LOOP
+INPUT
+IF RESULT == 2
+	PRINTFORMW 소원을 담아 요술망치를 휘둘러보았다
+	PRINTFORMW 신묘마루의 몸은 평범한 소녀 사이즈가 되었다.
+	CFLAG:MASTER:요술망치 = 8
+	TALENT:71:체형 = 0
+ELSEIF RESULT ==  3
+	PRINTW 소원을 담아 요술망치를 휘둘러보았다
+	PRINTW 도저히 숨기지 못할 정도로 양물이 커졌다
+	CFLAG:MASTER:요술망치 = 4
+	CFLAG:MASTER:382 = TALENT:MASTER:형상
+	TALENT:MASTER:형상 = 10
+	CFLAG:MASTER:마력회수 = 6
+ELSEIF RESULT == 4
+	PRINTW 소원을 담아 요술망치를 휘둘러보았다
+	PRINTW 놀랍게도 자신의 물건이 아예 한 개 더 생겼다
+	CFLAG:MASTER:382 = TALENT:MASTER:형상
+	CFLAG:MASTER:요술망치 = 5
+	TALENT:MASTER:183 = 1
+	CFLAG:MASTER:마력회수 = 6
+ELSEIF RESULT == 5 && TALENT:MASTER:100 >= -4
+	PRINTFORMW 소원을 담아 요술망치를 휘둘러보았다
+	PRINTFORMW %CALLNAME:MASTER%의 몸은 순식간에 줄어들었다
+	CFLAG:MASTER:마력회수 = 3
+	CFLAG:MASTER:요술망치 = 6
+	FLAG:원래체격 = TALENT:MASTER:100
+	TALENT:MASTER:체형 = -5
+ELSEIF RESULT == 6 && TALENT:MASTER:체형 < -4 && CFLAG:MASTER:현재위치 == 54
+	PRINTFORMW 「여기서 하지 마!」
+	RETURN -1
+ELSEIF RESULT == 6 && (TALENT:MASTER:체형 < -4 || TALENT:MASTER:100 > 4)
+	PRINTFORMW 소원을 담아 요술망치를 휘둘러보았다
+	PRINTFORMW %CALLNAME:MASTER%의 몸은 원래대로 돌아왔다
+	TALENT:MASTER:100 = FLAG:원래체격
+	CFLAG:MASTER:마력회수 = 3
+	CFLAG:MASTER:요술망치 = 7
+ELSEIF RESULT == 7 && TALENT:MASTER:체형 <= 4
+	PRINTFORMW 소원을 담아 요술망치를 휘둘러보았다
+	PRINTFORMW %CALLNAME:MASTER%의 몸은 커졌다
+	CFLAG:MASTER:마력회수 = 3
+	CFLAG:MASTER:요술망치 = 6
+	FLAG:원래체격 = TALENT:MASTER:체형
+	TALENT:MASTER:100 = 5
+ELSEIF RESULT == 100
+SIF FLAG:역극 != 71
+	PRINTL 신묘마루 「그러는 게 현명하죠」
+	RETURN -1
+ELSE
+	GOTO LOOP
+ENDIF
+TIME += 5
+
+RETURN 1
+
+;요술망치를 쓴다
+@COM_ABLE428
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+;이동 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(428)
+	RETURN RESULT
+;신묘마루가 자고 있으면 불가
+SIF CFLAG:71:수면
+	RETURN 0
+;신묘마루가 있는 곳. 신묘마루가 벌레통에 있을 때는 거실이나 툇마루에 있으면 세이프
+IF CFLAG:MASTER:현재위치 != CFLAG:71:현재위치 && FLAG:역극 != 71
+	IF CFLAG:71:현재위치 == 54 && (CFLAG:MASTER:현재위치 == 9 || CFLAG:MASTER:현재위치 == 10) && AT_HOME(MASTER)
+	ELSE
+	RETURN 0
+	ENDIF
+ENDIF
+;SIF CFLAG:MASTER:현재위치 != CFLAG:71:현재위치
+;	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+;마력회수중 및 신묘마루 거대화 중에는 사용할 수 없다
+SIF CFLAG:MASTER:마력회수 > 0 || CFLAG:MASTER:요술망치 == 8
+	RETURN 0
+RETURN 1

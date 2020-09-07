@@ -1,0 +1,301 @@
+﻿;-------------------------------------------------
+;자위
+;애무계 커맨드, 레벨 3
+;-------------------------------------------------
+@COM9
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = TARGET
+
+CSTR:TARGET:10 += @"{TARGET}/"
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+TCVAR:TARGET:2 = 3
+;강도
+TCVAR:TARGET:4 = 500
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+DOWNBASE:체력 += 5
+DOWNBASE:기력 += 50
+	SOURCE:PLAYER:성행동 = 8
+
+SOURCE:쾌C = 80
+SOURCE:쾌B = 80
+SOURCE:성행동 = 100
+SOURCE:공포 = 200
+SOURCE:노출 = 400
+SOURCE:굴종 = 500
+SOURCE:일탈 = 300
+SOURCE:반감 = 250
+;바이브
+IF TEQUIP:바이브
+	SOURCE:PLAYER:성행동 += 4
+	SOURCE:쾌V += 80
+	SOURCE:굴종 += 100
+	SOURCE:반감 += 100
+	DOWNBASE:기력 += 10
+	TIMES SOURCE:쾌C , 0.70
+	TIMES SOURCE:쾌B , 0.70
+ENDIF
+;애널바이브
+IF TEQUIP:애널바이브
+
+	SOURCE:PLAYER:성행동 +=4 
+	SOURCE:굴종 += 150
+	SOURCE:반감 += 150
+	SOURCE:쾌A += 80
+	DOWNBASE:기력 += 50
+	TIMES SOURCE:쾌C , 0.70
+	TIMES SOURCE:쾌B , 0.70
+ENDIF
+;샤워
+IF TEQUIP:32
+	SOURCE:쾌C += 50
+	SOURCE:노출 += 100
+	SOURCE:굴종 += 50
+	SOURCE:반감 += 80
+ENDIF
+;비디오
+IF TEQUIP:28
+	SOURCE:액체 += 50
+	SOURCE:욕정 += 100
+	SOURCE:반감 += 200
+ENDIF
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;억압, 저항 소유에는, 억울소스 추가
+SIF TALENT:자기애 < 0 || TALENT:저항
+	SOURCE:울굴 += 400
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;노예의 손가락⇔노예의 B의 더러움이 이동
+STAIN:1 |= STAIN:5
+STAIN:5 |= STAIN:1
+
+;노예의 손가락⇔노예의 V의 더러움이 이동
+STAIN:1 |= STAIN:3
+STAIN:3 |= STAIN:1
+
+;샤워 자위의 경우 더러움을 리셋, 윤활 더욱 반.
+IF TEQUIP:32 == 1
+	STAIN:1 = 0
+	STAIN:2 = 2
+	STAIN:3 = 1
+	STAIN:4 = 8
+	PALAM:4 /= 2
+ENDIF
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;비디오촬영시는 경험에 플러스
+IF TEQUIP:비디오촬영
+	EXP:자위경험 += 2
+	EXP:조교자위경험 += 2
+ELSE
+	EXP:자위경험 += 1
+	EXP:조교자위경험 += 1
+ENDIF
+;공개 자위시는 이상경험 부가
+IF TEQUIP:비디오촬영 && !GETBIT(CFLAG:3, 0)
+	EXP:이상경험 ++
+	SETBIT CFLAG:3, 0
+ENDIF
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+ENDIF
+RETURN 1
+
+
+@CAN_COM9(ARG)
+SKIPDISP ARG
+SIF TEQUIP:비디오촬영
+	PRINT 공개
+SIF TEQUIP:샤워
+	PRINT 샤워
+IF TEQUIP:바이브 && TEQUIP:애널바이브
+	PRINT 두 구멍 바이브
+ELSEIF TEQUIP:바이브
+	PRINT 바이브
+ELSEIF TEQUIP:애널바이브
+	PRINT 애널바이브
+ENDIF
+
+IF TEQUIP:비디오촬영 || TEQUIP:샤워 || TEQUIP:바이브 || TEQUIP:애널바이브
+	PRINTL 자위
+ELSE
+	PRINTL 자위
+ENDIF
+;-------------------------------------------------
+;실행할 수 있을까의 판정
+;-------------------------------------------------
+VARSET A
+;모든 명령에 공통의 요소를 고려
+;(순종이 높다고 명령에 따르기 쉬운 등)
+CALL COM_ORDER
+
+;ABL:욕망
+IF ABL:욕망
+	SIF S
+		PRINT  + 
+	A += ABL:욕망 * 3
+	PRINT 욕망
+	PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 3, ')
+	S = 1
+ENDIF
+;ABL:노출벽
+IF ABL:노출벽
+	SIF S
+		PRINT  + 
+	A += ABL:노출벽 * 4
+	PRINT 노출벽
+	PRINTV 'LV, ABL:노출벽, '(, ABL:노출벽 * 4, ')
+	S = 1
+ENDIF
+;ABL:자위중독
+IF ABL:자위중독
+	SIF S
+		PRINT  + 
+	A += ABL:자위중독 * 3
+	PRINT 자위중독
+	PRINTV 'LV, ABL:자위중독, '(, ABL:자위중독 * 3, ')
+	S = 1
+ENDIF
+
+IF MARK:쾌락각인
+	SIF S
+		PRINT  + 
+	A += MARK:쾌락각인 * 3
+	PRINT 쾌락각인
+	PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 3, ')
+	S = 1
+ENDIF
+
+;자제심
+IF TALENT:자제심
+	PRINT  - 
+	A -= 5
+	PRINT 자제심
+	PRINTV '(, 5, ')
+	S = 1
+ENDIF
+;수줍음
+IF TALENT:수치심 > 0
+	PRINT  - 
+	A -= 5
+	PRINT 수줍음
+	PRINTV '(, 5, ')
+	S = 1
+ENDIF
+;수치심 없음
+IF TALENT:수치심 < 0
+	SIF S
+		PRINT  + 
+	A += 2
+	PRINT 수치심 없음
+	PRINTV '(, 2, ')
+	S = 1
+ENDIF
+;자위하기쉬움
+IF TALENT:자위하기쉬움
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 자위하기쉬움
+	PRINTV '(, 5, ')
+	S = 1
+ENDIF
+;쾌감에 솔직
+IF TALENT:쾌감응답 > 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 쾌감에 솔직
+	PRINTV '(, 5, ')
+	S = 1
+ENDIF
+;쾌감에 부정(음란, 창부로 무효)
+IF TALENT:쾌감응답 < 0 && !TALENT:음란
+	PRINT  - 
+	A -= 5
+	PRINT 쾌감에 부정
+	PRINTV '(, 5, ')
+	S = 1
+ENDIF
+
+;미약
+IF TCVAR:미약
+	SIF S
+		PRINT  + 
+	A += 8
+	PRINT 미약
+	PRINTV '(, 8, ')
+	S = 1
+ENDIF
+
+;합계를 표시(33이상으로 실행)
+PRINT  = 
+PRINTV A
+
+;난이도 상승
+;공개로+10, 바이브로+5, 애널바이브로+5, 샤워로＋3
+V = 33
+SIF TEQUIP:비디오촬영
+	V += 10
+SIF TEQUIP:샤워
+	V += 3
+SIF TEQUIP:바이브
+	V += 5
+SIF TEQUIP:애널바이브
+	V += 5
+
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 실행치
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;실행할 수 없다
+SIF A < V
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE9
+;자위 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(9)
+	RETURN RESULT
+;순종 3 이하·레즈끼 3 이하의 ASSI의 경우 자위는 할 수 없다(소악마라면 OK)
+IF ASSIPLAY
+	SIF (ABL:ASSI:순종 <= 3 || ABL:ASSI:레즈끼 <= 3) && TALENT:ASSI:소악마 == 0
+		RETURN 0
+ENDIF
+;수면간중
+SIF CFLAG:장난 > 1
+	RETURN 0
+;밧줄 사용 중에는 불가
+SIF TEQUIP:밧줄
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+
+RETURN 1

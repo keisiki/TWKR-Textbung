@@ -1,0 +1,271 @@
+﻿@탈의처리(C_ID, TYPE, OP)
+#DIM  C_ID ;대상이 되는 등록 번호
+#DIMS TYPE ;처리 내용
+#DIMS OP   ;실행 옵션
+SELECTCASE TYPE
+CASE "전라"
+	IF !(C_ID == MASTER) && !STRCOUNT(OP, "「표시 없음」")
+		CALL MESSAGE_탈의상
+		TSTR:3 = %CALLNAME:C_ID%{EQUIP:C_ID:하반신속옷2}/
+		IF (FLAG:시간정지 || TCVAR:C_ID:만취) && EQUIP:하반신속옷2
+		;IF (TIMESTOP() == 2|| TCVAR:C_ID:만취) && EQUIP:하반신속옷 2
+			CALL MESSAGE_탈의하
+			SIF !PANTS_ALREADY_COLLECTED(C_ID)
+				SETCOLOR C_PINK
+			PRINTFORML %조사처리(CALLNAME:C_ID,"는")% %PANTSNAME(EQUIP:C_ID:하반신속옷2, C_ID)%를 입고 있는 것 같다
+			RESETCOLOR
+			IF FLAG:팬티도둑 == 1
+				CALL 탈의처리(C_ID, "훔친다")
+			ELSEIF FLAG:팬티도둑 == 2
+				GOTO PANTU_NUGASUDAKE
+			ELSE
+				PRINTFORML 어떻게 합니까?
+				CALL ASK_YN("훔친다","벗기기만 할 뿐")
+				IF RESULT == 0
+					CALL 탈의처리(C_ID, "훔친다")
+				ELSE
+					$PANTU_NUGASUDAKE
+					CALL MESSAGE_탈의하속옷
+					EQUIP:C_ID:하반신속옷2 = 0
+				ENDIF
+			ENDIF
+		ELSEIF EQUIP:하반신속옷2
+			CALL MESSAGE_탈의하
+			SIF !PANTS_ALREADY_COLLECTED(C_ID)
+				SETCOLOR C_PINK
+			CALL MESSAGE_탈의하속옷
+			PRINTFORML %조사처리(CALLNAME:C_ID,"가")% 입고 있던 %PANTSNAME(EQUIP:C_ID:하반신속옷2, C_ID)%를 받겠습니까?
+			RESETCOLOR
+			PRINT [0] - 간절히 부탁한다 
+			PRINT [1] - 그만둔다
+			DO
+				INPUT
+				SIF !GROUPMATCH(RESULT, 0, 1)
+					CONTINUE
+				IF RESULT
+					EQUIP:C_ID:하반신속옷2 = 0
+					PRINTL  
+					BREAK
+				ENDIF
+
+				;여기서부터 RESULT == 0
+				IF ABL:C_ID:순종 > 7 && ABL:C_ID:친밀 > 7
+					IF ABL:C_ID:욕망 > 7 && !RAND:4
+						PRINTFORMW %타겟은% 대신에 %CALLNAME:MASTER%의 속옷을 갖고 싶어한다…
+						IF EQUIP:MASTER:하반신속옷2
+							SIF !PANTS_ALREADY_COLLECTED()
+								SETCOLOR C_PINK
+							PRINTFORMW %마스터는% 자신의 속옷과 바꿔 %CALLNAME:C_ID%의 %PANTSNAME(EQUIP:C_ID:하반신속옷2, C_ID)%를 손에 넣었다!
+							RESETCOLOR
+							CALL KOJO_MESSAGE_SEND("EVENT", 28, C_ID, 3, 0)
+							TSTR:3 = %CALLNAME:C_ID%{EQUIP:C_ID:하반신속옷2}/
+							CSTR:MASTER:12 += TSTR:3
+							CALL PANTS_GET(C_ID, "받는다")
+							CFLAG:MASTER:노팬티 = 2
+							CFLAG:C_ID:팬티2 = 1
+							CFLAG:C_ID:당신의팬티 = 1
+							EQUIP:MASTER:하반신속옷2 = 0
+						ELSE
+							PRINTFORMW 그러나 %마스터는% 노팬티였다
+							PRINTFORMW %타겟은% 살짝 질겁하고 있다…
+						ENDIF
+					ELSE
+						SIF !PANTS_ALREADY_COLLECTED()
+							SETCOLOR C_PINK
+						PRINTFORMW %조사처리(CALLNAME:C_ID,"는")% 얼굴이 새빨개져서 벗은지 얼마 안 된 %PANTSNAME(EQUIP:C_ID:하반신속옷2, C_ID)%를 %CALLNAME:MASTER%에 전했다
+						PRINTFORMW %마스터는% %CALLNAME:C_ID%의 %PANTSNAME(EQUIP:C_ID:하반신속옷2, C_ID)%를 손에 넣었다!
+						RESETCOLOR
+						CALL KOJO_MESSAGE_SEND("EVENT", 28, C_ID, 3, 1)
+						CALL PANTS_GET(C_ID, "받는다")
+					ENDIF
+				ELSEIF ABL:TARGET:순종 > 5 && ABL:TARGET:친밀 > 5
+					SIF !PANTS_ALREADY_COLLECTED()
+						SETCOLOR C_PINK
+					PRINTFORMW %조사처리(CALLNAME:C_ID,"는")% 마지못해 벗은지 얼마 안된 %PANTSNAME(EQUIP:C_ID:하반신속옷2, C_ID)%를 내몄다
+					PRINTFORMW %마스터는% %CALLNAME:C_ID%의 %PANTSNAME(EQUIP:C_ID:하반신속옷2, C_ID)%를 손에 넣었다!
+					RESETCOLOR
+					CALL KOJO_MESSAGE_SEND("EVENT", 28, C_ID, 3, 2)
+					CALL PANTS_GET(C_ID, "받는다")
+				ELSE
+					PRINTFORMW %타겟은% 살짝 깨는 눈치로 거부했다
+					;PRINTFORMW 어쩔 수 없이 벗기는 만큼 했다…
+					CALL KOJO_MESSAGE_SEND("EVENT", 28, C_ID, 3, 3)
+					EQUIP:C_ID:하반신속옷2 = 0
+				ENDIF
+			PRINTL  
+			BREAK
+			LOOP 1
+		ELSE
+			CALL MESSAGE_탈의하
+			CALL MESSAGE_탈의하속옷
+		ENDIF
+		CALL KOJO_MESSAGE_SEND("EVENT", 28, C_ID, 0, 0)
+	ENDIF
+	CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_전라")
+	CALL CLOTHES_SETTING_TRAIN(C_ID)
+	RETURN 0
+CASE "훔친다"
+	SIF EQUIP:TARGET:바지
+		CALL MESSAGE_탈의하(1)
+	TSTR:3 = %CALLNAME:C_ID%{EQUIP:C_ID:하반신속옷2}/
+	CALL MESSAGE_탈의하속옷
+	SIF !PANTS_ALREADY_COLLECTED(C_ID)
+		SETCOLOR C_PINK
+	PRINTFORMW %조사처리(CALLNAME:C_ID,"가")% 입고 있던 %PANTSNAME(EQUIP:C_ID:하반신속옷2, C_ID)%를 벗겨 품에 넣었다
+	RESETCOLOR
+	CALL PANTS_GET(C_ID)
+	RETURN 0
+CASE "속옷 모습으로 한다"
+	IF !(C_ID == MASTER) && !STRCOUNT(OP, "「표시 없음」")
+		CALL MESSAGE_탈의윗도리
+		CALL MESSAGE_탈의하
+		CALL KOJO_MESSAGE_SEND("EVENT", 28, C_ID, 1, 0)
+	ENDIF
+	CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_속옷 모습")
+	CALL CLOTHES_SETTING_TRAIN(C_ID)
+	;"현재 의상의 변경_속옷 모습"에는 TEQUIP의 직접 조작이 있는, 전모를 파악하고 있지 않지만 원래의 구문이라면
+	;호출원으로 최종적으로 전캐릭터에 대해서 CLOTHES_SETTING_TRAIN를 실행하고 있었기 때문에
+	;거동으로서는 변함없을 것
+	;TEQUIP:TARGET:상반신탈의상태 = 1
+	RETURN 0
+CASE "팬티 받는다"
+CASE "반라"
+	IF !(C_ID == MASTER) && !STRCOUNT(OP, "「표시 없음」")
+		CALL MESSAGE_탈의윗도리
+		CALL MESSAGE_탈의하(1)
+		CALL KOJO_MESSAGE_SEND("EVENT", 28, C_ID, 2, 0)
+	ENDIF
+	CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_반라")
+	CALL CLOTHES_SETTING_TRAIN(C_ID)
+	RETURN 0
+CASEELSE
+	THROW 불명한 TYPE %TYPE%
+ENDSELECT
+
+
+
+@옷을벗게한다
+SIF !TARGET
+	JUMP SIMATTYAUOJISAN
+
+IF CFLAG:TARGET:노팬티 == 0
+
+	
+	SELECTCASE FLAG:탈의선택
+	CASE 0
+		PRINTL 반라로 합니까?
+		PRINT [0] - 전부탈 
+		IF TEQUIP:TARGET:윗도리탈의가끝난상태 == 0 || EQUIP:TARGET:상반신속옷1
+			SIF EQUIP:0 && TARGET && EQUIP:TARGET:상반신속옷1 != 0 && (EQUIP:TARGET:기모노!= 0 || EQUIP:TARGET:상반신윗도리2 != 0 || EQUIP:TARGET:보디슈트== 3)
+				PRINT [1] - 반라 착의 플레이
+		ENDIF
+		IF TEQUIP:TARGET:윗도리탈의가끝난상태 == 0
+			SIF EQUIP:0 && TARGET && (EQUIP:TARGET:상반신속옷1 != 0 || EQUIP:TARGET:상반신속옷2 != 0 || EQUIP:TARGET:하반신속옷1 != 0 || EQUIP:TARGET:하반신속옷2 != 0 || EQUIP:TARGET:레오타드!= 0 || EQUIP:TARGET:보디슈트!= 0)
+				PRINT [2] - 속옷인 만큼 한다
+		ENDIF
+		DO
+			INPUT
+			SELECTCASE RESULT
+			CASE 0
+				CALL 탈의처리(TARGET, "전라")
+				CALL 탈의처리(MASTER, "전라")
+			CASE 1
+				CALL 탈의처리(TARGET, "반라")
+				CALL 탈의처리(MASTER, "반라")
+			CASE 2
+				CALL 탈의처리(TARGET, "속옷 모습으로 한다")
+				CALL 탈의처리(MASTER, "속옷 모습으로 한다")
+			CASEELSE
+				CONTINUE
+			ENDSELECT
+			BREAK
+		LOOP 1
+	CASE 1
+		CALL 탈의처리(TARGET, "전라")
+		CALL 탈의처리(MASTER, "전라")
+	CASE 2
+		IF !TEQUIP:3
+			CALL 탈의처리(TARGET, "반라")
+			CALL 탈의처리(MASTER, "반라")
+		ELSE
+			PRINTFORML %CALLNAME:TARGET%의 옷은 벌써 풀어헤쳐지고 있다
+			PRINTL 전부 벗기겠습니까?
+			PRINT [0] - 네 
+			PRINT [1] - 아니오
+			INPUT
+			IF RESULT == 0
+				CALL 탈의처리(TARGET, "전라")
+				CALL 탈의처리(MASTER, "전라")
+			ELSE
+				RETURN 0
+			ENDIF
+		ENDIF
+	ENDSELECT
+;벌써 입지 않다
+ELSE
+	IF TEQUIP:TARGET:윗도리탈의가끝난상태
+		CALL 탈의처리(TARGET, "전라")
+		CALL 탈의처리(MASTER, "전라")
+	ELSE
+		;착의 플레이의 선택
+		PRINTFORML %타겟은% 벌써 입지 않았다
+		SELECTCASE FLAG:탈의선택
+		CASE 0
+			PRINTL 반라로 하겠습니까?
+			PRINT [0] - 전부탈 
+			IF EQUIP:TARGET:상반신속옷1
+				SIF EQUIP:0 && TARGET && EQUIP:TARGET:상반신속옷1 && (EQUIP:TARGET:기모노!= 0 || EQUIP:TARGET:상반신윗도리2 != 0 || EQUIP:TARGET:보디슈트== 3)
+					PRINT [1] - 반라 착의 플레이
+			ENDIF
+			SIF EQUIP:0 && TARGET && (EQUIP:TARGET:상반신속옷1 != 0 || EQUIP:TARGET:상반신속옷2 != 0 || EQUIP:TARGET:하반신속옷1 != 0 || EQUIP:TARGET:하반신속옷2 != 0 || EQUIP:TARGET:레오타드!= 0 || EQUIP:TARGET:보디슈트!= 0)
+				PRINT [2] - 속옷인 만큼 한다
+			DO
+				INPUT
+				SELECTCASE RESULT
+				CASE 0
+					CALL 탈의처리(TARGET, "전라")
+					CALL 탈의처리(MASTER, "전라")
+				CASE 1
+					CALL 탈의처리(TARGET, "반라")
+					CALL 탈의처리(MASTER, "반라")
+				CASE 2
+					CALL 탈의처리(TARGET, "속옷 모습으로 한다")
+					CALL 탈의처리(MASTER, "속옷 모습으로 한다")
+				CASEELSE
+					CONTINUE
+				ENDSELECT
+				BREAK
+			LOOP 1
+		CASE 1
+			CALL 탈의처리(TARGET, "전라")
+		CASE 2
+			IF !TEQUIP:TARGET:3
+				CALL 탈의처리(TARGET, "반라")
+				CALL 탈의처리(MASTER, "반라")
+			ELSE
+				PRINTFORML %CALLNAME:TARGET%의 옷은 벌써 풀어헤쳐지고 있다
+				PRINTL 전부 벗게 하겠습니까?
+				PRINT [0] - 네 
+				PRINT [1] - 아니오
+				INPUT
+				IF RESULT == 0
+					CALL 탈의처리(TARGET, "전라")
+					CALL 탈의처리(MASTER, "전라")
+				ELSE
+					RETURN 0
+				ENDIF
+			ENDIF
+		ENDSELECT
+	ENDIF
+ENDIF
+
+;갈아입히기 플래그 OFF
+;EQUIP:TARGET:0 = 0
+;캐릭터 전원의 복재세팅
+;개개로 하고 있으니 고례등응이라고 생각한다
+[SKIPSTART]
+FOR LOCAL, 0, CHARANUM
+	CALL CLOTHES_SETTING_TRAIN(LOCAL)
+NEXT
+[SKIPEND]
+RETURN 1

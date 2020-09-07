@@ -1,0 +1,201 @@
+﻿;산의제재소
+@COM624
+#DIM 판매가
+#DIM 루프수
+#DIM 결과보관
+
+루프수 = 0
+
+;開店時間・閉店時間
+IF INRANGE(TIME:0, 540, 1080) == 0
+	PRINTFORMW 영업시간 외 같다
+	RETURN -1
+ENDIF
+
+;初回イベント
+IF FLAG:마지막제재소방문일 == 0
+	;初回イベント前は、통나무持ちでなければ店にも入れない
+	IF ITEM:통나무 == 0
+		PRINTFORMW 特に今は用はない…売り物になる材木を伐ってこなくては
+		RETURN -1
+	ENDIF
+	;依頼の報酬など、伐採以外で통나무を入手してしまった場合の退避用
+	SIF !FLAG:통나무종류
+		FLAG:통나무종류 = MAX(RAND:12, 1)
+	
+	PRINTFORMW 「はじめまして、盟友」
+	SIF FLAG:역극 == 0
+		PRINTFORMW 「噂は聞いてるよー。やたらアクティブで、妙な外来人がいるって」
+	SIF ABL:[[니토리]]:친밀 >= 3
+		PRINTFORMW 「河童の仲間も世話になってるみたいだね。良いカ……げふんげふん、善良で信頼のおけるヤツだって」
+	PRINTFORMW 「で、何の用？　へえ、통나무から製材してほしい、と。いいよー、工賃はこんな感じで――」
+	PRINTFORMW ずずい、と河童が説明用のパネルを突き出してくるが……
+	PRINTFORMW これ、人里の相場と比べてだいぶ安くないか？
+	PRINTFORMW 「そりゃそうさ。工作機械による全自動製材が、人力に後れをとるわけないでしょ」
+	PRINTFORMW 「……とはいえ、寺の建立や神社の修復とかが終わって注文が少なくて、せっかくこさえた機械も持て余し気味でさ」
+	PRINTFORMW 「そうだ。今後ともご贔屓にしてもらえるなら、今日は初回サービスってことで、タダでやってあげるけど？」
+	PRINTFORMW …それ、自分の機械を自慢したいだけなんじゃないの、という言葉は飲み込んで、ご厚意に甘えることにした
+	PRINTFORMW 「決まりだね。それじゃあ통나무をここにセットしてくれ」
+	PRINTFORMW 「では、スイッチ・オーン！　ふふふ、唸れ我がマシン！　河童の技術力の粋を見よ！」
+	PRINTFORMW 妙にテンションが上がってる河童はさておき、工作機械は緻密かつ高速に製材を仕上げていった
+	PRINTFORMW …………
+	PRINTFORMW ……
+	CALL LogRefine("제재소")
+	PRINTL 
+	PRINTFORMW 「はい完成！　どうよ！」
+	PRINTFORMW ふんすー、とドヤ顔を浮かべる河童に、素直に感謝を述べておいた
+	PRINTFORMW 「へへ、お眼鏡に適ったのなら何よりだよ。じゃあ、今後ともご贔屓にねー」
+	PRINTL 
+	루프수 = 1
+ENDIF
+
+$LOOP_SELECT
+
+IF 루프수
+	PRINTL 
+	PRINTFORMW 「さあさあ、次の통나무を持ってきてくれよ」
+ELSE
+	;平常来店
+	PRINTL 
+	IF FLAG:마지막제재소방문일 == DAY:0
+		PRINTFORMW 「およ？　どしたの？」
+	ELSE
+		PRINTFORM 「やあ、
+		SELECTCASE TIME:0
+			CASE 540 TO 600
+				PRINTFORM おはよう
+			CASE 601 TO 1020
+				PRINTFORM こんにちわ
+			CASEELSE
+				PRINTFORM こんばんわ
+		ENDSELECT
+		PRINTFORM 盟友。　
+		IF DAY:0 - FLAG:마지막제재소방문일 > 28
+			PRINTFORMW しばらく顔を見なかったから、心配してたんだ」
+		ELSEIF DAY:0 - FLAG:마지막제재소방문일 > 14
+			PRINTFORMW 久しぶりだね」
+		ELSE
+			PRINTFORMW 今日は何の用かな？」
+		ENDIF
+	ENDIF
+ENDIF
+
+루프수 ++
+FLAG:마지막제재소방문일 = DAY:0
+
+PRINTFORML 　　소지금: %TOSTR(MONEY,"#,###")%　소지카리스마: %TOSTR(MONEY:2,"#,###")%
+DRAWLINE
+
+CALL ASK_M("製材してほしい", ITEM:통나무, "取引内容を確認する", 1, "店を出る", 2)
+CLEARLINE 7
+
+SELECTCASE RESULT
+	;製材してほしい
+	CASE 0
+		;依頼の報酬など、伐採以外で통나무を入手してしまった場合の退避用
+		SIF !FLAG:통나무종류
+			FLAG:통나무종류 = MAX(RAND:12, 1)
+
+		SETCOLOR 0x00FF00
+		PRINTFORMD 「
+		PRINTFORM %WOOD_NAME(FLAG:통나무종류)%
+		PRINTFORMD の製材だね。工賃は
+		PRINTFORM \\%TOSTR(LUMBERING(FLAG:통나무종류, "제재소"),"#,###")%
+		PRINTFORMD でやったげるよ。ああ、
+		PRINTFORM %TOSTR(LUMBERING_CMCOST(FLAG:통나무종류),"#,###")%カリスマ
+		RESETCOLOR
+		PRINTFORMW でもいいよ？」
+		CALL ASK_M("\\で支払う", MONEY >= LUMBERING(FLAG:통나무종류, "제재소"), "カリスマで支払う", MONEY:2 >= LUMBERING_CMCOST(FLAG:통나무종류), "やっぱりやめる", 2)
+
+		결과보관 = RESULT
+		IF 결과보관 == 0 || 결과보관 == 1
+			IF 결과보관 == 0
+				PRINTFORMW 　소지금: \\%TOSTR(MONEY,"#,###")% → \\%TOSTR(MONEY - LUMBERING(FLAG:통나무종류, "제재소"),"#,###")%
+				PRINT 　
+				CALL PAY_MONEY_YEN(LUMBERING(FLAG:통나무종류, "제재소"), 2)
+			ELSE
+				PRINTFORMW 　소지카리스마: %TOSTR(MONEY:2,"#,###")% → %TOSTR(MONEY:2 - LUMBERING_CMCOST(FLAG:통나무종류),"#,###")%
+				PRINT 　
+				CALL PAY_MONEY_CM(LUMBERING_CMCOST(FLAG:통나무종류), 2)
+			ENDIF
+			PRINTL 
+			PRINTDATAW
+				DATAFORM 「まいどー。それじゃあ、スイッチ・オーン！　ふふふ、唸れ我がマシン！　河童の技術力の粋を見よ！」
+				DATAFORM 「まいど。ここに통나무をセットして、あとはフルオートでお任せだよ！」
+				DATAFORM 「まいどー。では、ファクトリー・オートメーションの神髄をお見せしよう！」
+			ENDDATA
+			CALL LogRefine("제재소")
+			PRINTL 
+		ELSEIF 결과보관 == 2
+			PRINTFORMW 「む、値切り交渉は受け付けないからねー」
+			PRINTL 
+			GOTO LOOP_SELECT
+		ENDIF
+	;取引内容を確認する
+	CASE 1
+		PRINTFORMW 「통나무の製材、格安で承ってるよー」
+		PRINTFORMW 「통나무や製材の買い取り？　山ではその手の物資は供給過多だからね、人里で卸したほうがいい値がつくんじゃない？」
+		PRINTFORMW 「家具とか作れないかって？　うーん。私ら飽きっぽいから、あんまりそういうのに向いてないんだよね」
+		PRINTFORMW 「そういう手の込んだ仕事は、人間の職人たちに頼むのがいいと思うよ」
+		PRINTFORMW 「私らが作ると、気の向くまま、いらない機能をゴテゴテ載せた河童家具になっちゃいそうだしねー」
+		PRINTFORMW 「…それはそれで興味がある？　へへ、まぁそのうちにねー」
+		PRINTL 
+	CASE 2
+		PRINTFORMW 「じゃあ、またね」
+		PRINTL 
+		TIME += 루프수 * 5
+		RETURN 1
+ENDSELECT
+GOTO LOOP_SELECT
+
+;-------------------------------------------------
+;実行可能判定
+;-------------------------------------------------
+;山の제재소
+@COM_ABLE624
+;一括管理
+SIF GLOBAL_COMABLE(624)
+	RETURN RESULT
+
+IF !AT_HOME(MASTER)
+	SIF CFLAG:MASTER:현재위치 != 현무의늪
+		RETURN 0
+ELSE
+	;山麓が拠点の場合は、河童のアジト
+	SIF CFLAG:MASTER:현재위치 != 704
+		RETURN 0
+ENDIF
+;睡眠中
+SIF CFLAG:수면
+	RETURN 0
+;時間停止中
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;製材コストをカリスマに変換する関数
+;ARG …FLAG:통나무종류
+;-------------------------------------------------
+@LUMBERING_CMCOST(ARG)
+#FUNCTION
+#DIM 비용베이스
+
+비용베이스 = LUMBERING(ARG, 1, 0)
+
+;元値の幅がそんなに広くないので、一律で
+RETURNF 비용베이스 / 300
+
+;-------------------------------------------------
+;製材結果の表示など
+;-----------------------------------------------
+@LogRefine(Craft)
+#DIMS Craft
+LOCAL = LUMBERING(FLAG:통나무종류, Craft, "QYT")
+SETCOLOR 0x00FF00
+PRINTFORMW 　%WOOD_NAME(FLAG:통나무종류, 1)%の製材: {LOG_SALES:WOOD_NUM(FLAG:통나무종류)} → {LOG_SALES:WOOD_NUM(FLAG:통나무종류) + LOCAL}
+LOG_SALES:WOOD_NUM(FLAG:통나무종류) += LOCAL
+ITEM:통나무 = 0
+FLAG:통나무종류 = 0
+RESETCOLOR

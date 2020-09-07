@@ -1,0 +1,461 @@
+﻿;-------------------------------------------------
+;식스나인
+;애무·봉사계 파생 커맨드
+;-------------------------------------------------
+@SCOM1
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = TARGET
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수)
+
+LOCALS = {TARGET}/
+CSTR:PLAYER:10 += LOCALS
+TCVAR:PLAYER:2 = 4
+;강도
+TCVAR:PLAYER:4 = 1500
+
+LOCALS = {PLAYER}/
+CSTR:TARGET:10 += LOCALS
+TCVAR:TARGET:2 = 4
+;강도
+TCVAR:TARGET:4 = 1500
+
+;봉사 쾌락 플래그
+TCVAR:PLAYER:108 = 1
+TCVAR:108 = 1
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 25
+	SOURCE:MASTER:쾌C = 100
+	SIF GETBIT(TALENT:MASTER:성별, 0)
+		SOURCE:MASTER:액체 = 80
+	SOURCE:PLAYER:성행동 = 5
+	SOURCE:쾌C = 100
+	SOURCE:액체 = 80
+
+	;위 쪽으로 계산한 더러운 데이터
+	IF SELECTCOM == 3
+		;파과 억제
+		TFLAG:2 = 1
+		IF !TALENT:처녀 || TALENT:처녀 == -1
+			SOURCE:PLAYER:성행동 += 6
+			SOURCE:쾌V += 120
+			SOURCE:고통 += 8
+		;V경험이 0때는 V경험을 수반하지 않는 것에 파생
+		;V의 구슬은 들어가지 않지만, 쾌V가 높으면 길들여 있기 (위해)때문에 처녀상실시에 영향
+		ELSE
+			SOURCE:PLAYER:성행동 += 3
+			SOURCE:쾌V += 60
+			SOURCE:고통 += 5
+
+		ENDIF
+		;V에의 고통
+		CALL PAIN_CHECK_V(TARGET)
+		;-------------------------------------------------
+		;더러움의 처리
+		;-------------------------------------------------
+		;노예의 질내⇔조교자의 손가락의 더러움이 이동
+			STAIN:6 |= STAIN:PLAYER:1
+			STAIN:PLAYER:1 |= STAIN:6
+	ELSEIF SELECTCOM == 5
+		SOURCE:PLAYER:성행동 += 5
+		SOURCE:쾌A += 100
+		SOURCE:고통 += 50
+
+
+		;A에의 고통은 먼저 처리해 둔다
+		CALL PAIN_CHECK_A(TARGET)
+		;-------------------------------------------------
+		;더러움의 처리
+		;-------------------------------------------------
+		;노예의 A⇔조교자의 손가락의 더러움이 이동
+		STAIN:PLAYER:1 |= STAIN:4
+		STAIN:PLAYER:1 |= STAIN:7
+		STAIN:4 |= STAIN:PLAYER:1
+		STAIN:7 |= STAIN:PLAYER:1
+	ENDIF
+
+ELSE
+
+	DOWNBASE:체력 += 20
+	DOWNBASE:기력 += 160
+
+	SOURCE:MASTER:쾌C = 100
+	SOURCE:MASTER:쾌M = 40
+	SIF GETBIT(TALENT:MASTER:성별, 0)
+		SOURCE:MASTER:액체 = 80
+
+	SOURCE:PLAYER:성행동 = 7
+	SOURCE:쾌C = 100
+	SOURCE:쾌M = 40
+	SOURCE:사랑 = 100
+	SOURCE:성행동 = 450
+	SOURCE:달성 = 200
+	SOURCE:액체 = 80
+	SOURCE:노출 = 100
+	SOURCE:굴종 = 800
+	SOURCE:반감 = 400
+	SOURCE:일탈 = 50
+	;위 쪽으로 계산한 더러운 데이터
+	SOURCE:불결 = Y*80 + 50
+	IF SELECTCOM == 3
+		;파과 억제
+		TFLAG:2 = 1
+		IF !TALENT:처녀 && TALENT:처녀 == -1
+	SOURCE:PLAYER:성행동 += 6
+			SOURCE:쾌V += 120
+			SOURCE:고통 += 15
+			SOURCE:노출 += 10
+			SOURCE:일탈 += 20
+			SOURCE:반감 += 20
+		;V경험이 0때는 V경험을 수반하지 않는 것에 파생
+		;V의 구슬은 들어가지 않지만, 쾌V가 높으면 길들여 있기 (위해)때문에 처녀상실시에 영향
+		ELSE
+	SOURCE:PLAYER:성행동 += 3
+			SOURCE:쾌V += 60
+			SOURCE:고통 += 10
+			SOURCE:노출 += 30
+			SOURCE:일탈 += 30
+			SOURCE:반감 += 30
+		ENDIF
+		;V에의 고통
+		CALL PAIN_CHECK_V(TARGET)
+		;-------------------------------------------------
+		;더러움의 처리
+		;-------------------------------------------------
+		;노예의 질내⇔조교자의 손가락의 더러움이 이동
+			STAIN:6 |= STAIN:PLAYER:1
+			STAIN:PLAYER:1 |= STAIN:6
+	ELSEIF SELECTCOM == 5
+	SOURCE:PLAYER:성행동 += 5
+		SOURCE:쾌A += 100
+		SOURCE:고통 += 100
+		SOURCE:굴종 += 100
+		SOURCE:일탈 += 80
+		SOURCE:반감 += 60
+
+		;A에의 고통은 먼저 처리해 둔다
+		CALL PAIN_CHECK_A(TARGET)
+		;-------------------------------------------------
+		;더러움의 처리
+		;-------------------------------------------------
+		;노예의 A⇔조교자의 손가락의 더러움이 이동
+		STAIN:PLAYER:1 |= STAIN:4
+		STAIN:PLAYER:1 |= STAIN:7
+		STAIN:4 |= STAIN:PLAYER:1
+		STAIN:7 |= STAIN:PLAYER:1
+	ENDIF
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 800
+ENDIF
+;혀를 사용하는 조교에서는, 조교자의 혀놀림에 의해, 쾌감의 소스 증가
+SIF TALENT:PLAYER:혀놀림
+	TIMES SOURCE:쾌C , 1.50
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;노예의 입⇔조교자의 V의 더러움이 이동(반인반요, 후타나리, 남자는 페니스)
+IF TALENT:PLAYER:2 & 2
+	STAIN:구 |= STAIN:PLAYER:2
+	STAIN:PLAYER:2 |= STAIN:구
+ELSE
+	STAIN:구 |= STAIN:PLAYER:3
+	STAIN:PLAYER:3 |= STAIN:구
+ENDIF
+;노예의 V⇔조교자의 입의 더러움이 이동(반인반요, 후타나리, 남자는 페니스)
+IF HAS_PENIS(TARGET)
+	STAIN:2 |= STAIN:PLAYER:구
+	STAIN:PLAYER:구 |= STAIN:2
+ELSE
+	STAIN:3 |= STAIN:PLAYER:구
+	STAIN:PLAYER:구 |= STAIN:3
+ENDIF
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:펠라티오경험 ++
+EXP:PLAYER:펠라티오경험 ++
+
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 8
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 8
+ENDIF
+
+IF FLAG:70 == 1
+	EXP:MASTER:시간경험 += 1
+ELSE
+
+	;애정경험
+	SIF TALENT:연모 && ASSIPLAY == 0
+		EXP:애정경험 += 1
+
+	;노예가 고양이혀 소유의 경우는, 조교자에게 가학쾌락경험을 추가
+	SIF TALENT:TARGET:고양이혀
+		EXP:가학쾌락경험 += 1
+ENDIF
+;조교자가 고양이혀 소유의 경우는, 조교자에게 가학쾌락경험을 추가
+SIF TALENT:PLAYER:고양이혀
+	EXP:PLAYER:가학쾌락경험 += 1
+
+;정액 더러움
+SIF STAIN:PLAYER:2 & 4
+	EXP:정음경험 ++
+
+RETURN 1
+
+@CAN_SCOM1(ARG)
+SKIPDISP ARG
+PRINTL 식스나인
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+IF FLAG:70 == 1
+
+ELSE
+
+	A = 0
+	S = 0
+
+	;모든 명령에 공통의 요소를 고려
+	;(순종이 높다고 명령에 따르기 쉬운 등)
+	CALL COM_ORDER
+
+	;ABL:욕망
+	IF ABL:욕망
+		SIF S
+			PRINT  + 
+		A += ABL:욕망 * 2
+		PRINT 욕망
+		PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 2, ')
+		S = 1
+	ENDIF
+	;ABL:봉사정신
+	IF ABL:봉사정신
+		SIF S
+			PRINT  + 
+		A += ABL:봉사정신 * 4
+		PRINT 봉사정신
+		PRINTV 'LV, ABL:봉사정신, '(, ABL:봉사정신 * 4, ')
+		S = 1
+	ENDIF
+
+	IF MARK:쾌락각인
+		SIF S
+			PRINT  + 
+		A += MARK:1 * 2
+		PRINT 쾌락각인
+		PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 2, ')
+		S = 1
+	ENDIF
+	;PALAM:욕정
+	IF GETPALAMLV(PALAM:욕정, 5)
+		SIF S
+			PRINT  + 
+		A += GETPALAMLV(PALAM:욕정, 5) * 2
+		PRINT 욕정
+		PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 2, ')
+		S = 1
+	ENDIF
+	;수줍음
+	IF TALENT:수치심 > 0
+		PRINT  - 
+		A -= 3
+		PRINT 수줍음
+		PRINTV '(, 3, ')
+		S = 1
+	ENDIF
+	;악취 둔감
+	IF TALENT:악취내성 > 0
+		SIF S
+			PRINT  + 
+		A += 3
+		PRINT 악취 둔감
+		PRINTV '(, 3, ')
+		S = 1
+	ENDIF
+	;악취 민감
+	IF TALENT:악취내성 < 0
+		PRINT  - 
+		A -= 3
+		PRINT 악취 민감
+		PRINTV '(, 3, ')
+		S = 1
+	ENDIF
+	;헌신적
+	IF TALENT:헌신적
+		SIF S
+			PRINT  + 
+		A += 6
+		PRINT 헌신적
+		PRINTV '(, 6, ')
+		S = 1
+	ENDIF
+	;쾌감에 솔직
+	IF TALENT:쾌감응답 > 0 
+		SIF S
+			PRINT  + 
+		A += 3
+		PRINT 쾌감에 솔직
+		PRINTV '(, 3, ')
+		S = 1
+	ENDIF
+	;쾌감에 부정(음란, 창부로 무효)
+	IF TALENT:쾌감응답 < 0 && !TALENT:음란
+		PRINT  - 
+		A -= 3
+		PRINT 쾌감에 부정
+		PRINTV '(, 3, ')
+		S = 1
+	ENDIF
+	;연모
+	IF TALENT:연모 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 연모
+		PRINTV '(, 5, ')
+		S = 5
+	ENDIF
+	;친애
+	IF TALENT:연모 > 1 && ASSIPLAY == 0
+		SIF S
+			PRINT  + 
+		A += 4
+		PRINT 친애
+		PRINTV '(, 4, ')
+		S = 1
+	ENDIF
+
+	;미약
+	IF TCVAR:미약
+		SIF S
+			PRINT  + 
+		A += 8
+		PRINT 미약
+		PRINTV '(, 8, ')
+		S = 1
+	ENDIF
+
+	Y = 0
+	;애액의 더러움
+	SIF STAIN:PLAYER:3 & 1
+		Y += 1
+	;정액의 더러움
+	SIF STAIN:PLAYER:3 & 4
+		Y += 3
+	;애널의 더러움
+	SIF STAIN:PLAYER:3 & 8
+		Y += 7
+	SIF STAIN:PLAYER:3 & 16
+		Y += 15
+	Y = Y * (2 - TALENT:악취내성) / 2
+
+	;서로 더러워져
+	IF Y
+		PRINT  - 
+		A -= Y
+		PRINT 서로 더러워져
+		;악취 둔감
+		IF TALENT:악취내성 > 0
+			PRINT , 악취 둔감
+		ELSEIF TALENT:악취내성 < 0
+			PRINT , 악취 민감
+		ENDIF
+		PRINTV '(, Y, ')
+		S = 1
+	ENDIF
+
+	;합계를 표시(33이상으로 실행)
+	PRINT  = 
+	PRINTV A
+
+	V = 33
+	SIF A < V
+		PRINT  < 
+	SIF A == V
+		PRINT  = 
+	SIF A > V
+		PRINT  > 
+	PRINT 실행치
+	PRINTV V
+
+	WAIT
+	SKIPDISP 0
+	;실행할 수 없다
+	SIF A < V
+		RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;선택 가능 판정
+;-------------------------------------------------
+@COM_ABLE501
+;식스나인 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(501)
+	RETURN RESULT
+;수면간중
+SIF CFLAG:장난 > 1
+	RETURN 0
+;욕망 3 이하·레즈끼 3 이하의 ASSI의 경우 식스나인은 할 수 없다(소악마, 궁합 양호하면 OK)
+IF ASSIPLAY
+	SIF (ABL:ASSI:욕망 <= 3 || ABL:ASSI:레즈끼 <= 3) && TALENT:ASSI:소악마 == 0
+		RETURN 0
+;시간정지중은 허가
+IF FLAG: 70 != 1
+	;조교자가 조수가 아니면 순종 3이상, 봉사정신 3이상 필요
+	SIF ABL:순종 < 3 || ABL:봉사정신 < 3
+		RETURN 0
+	;고양이혀의 노예의 경우는 기교 Lv2 이상 필요
+	SIF TALENT:고양이혀 && ABL:기교 < 2
+		RETURN 0
+	;밧줄 사용 중에는 불가
+	SIF TEQUIP:밧줄
+		RETURN 0
+	ENDIF
+ENDIF
+;체격 차이가 있으면(자) 안 돼
+SIF ABS(TALENT:체형 - TALENT:PLAYER:체형) > 2
+	RETURN 0
+;고양이혀의 조교자의 경우는 기교 Lv2 이상 필요
+SIF TALENT:PLAYER:고양이혀 && ABL:PLAYER:기교 < 2
+	RETURN 0
+
+
+;하반신착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+;오나홀사용중은 안 돼
+SIF TEQUIP:12
+	RETURN 0
+;볼개그 사용중은 불가
+SIF TEQUIP:볼개그
+	RETURN 0
+
+;목욕탕플레이중은 플레이매트가 없으면 안 돼
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+;침대 룸이 아니면 안 돼
+SIF !BEDROOM(CFLAG:PLAYER:현재위치) && !(BATHROOM() && ITEM:20)
+	RETURN 0
+	
+RETURN 1
+

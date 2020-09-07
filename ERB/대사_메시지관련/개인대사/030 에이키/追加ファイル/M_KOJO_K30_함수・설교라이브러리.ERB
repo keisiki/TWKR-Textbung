@@ -1,0 +1,451 @@
+﻿;### 함수 ###################################
+;==================================================
+;남의 눈이 어느 판정 함수＠스커트 넘기기 판정의 것을 집계한 것 뿐
+;남의 눈이 있다 = 1없다 =0
+@K30_BE_SEEN()
+#FUNCTION
+SIF GET_TARGETNUM() > 1 || DATE_HITOGOMI(CFLAG:PLAYER:현재위치) || WITH_MOB()
+	RETURNF 1
+RETURNF 0 
+;==================================================
+;인사를 돌려주는 식 나카노세키수
+;4때~10시 전·10시~18시 전·그 이외
+@K30_GREETING_EIKI()
+#FUNCTIONS
+SELECTCASE TIME
+	CASE 240 TO 599
+		SIF TALENT:연인
+			RETURNF "안녕"
+		RETURNF "안녕하세요"
+	CASE 600 TO 1079
+		RETURNF "안녕하세요"
+	CASEELSE
+		RETURNF "안녕하세요"
+ENDSELECT
+;==================================================
+;MASTER의 연인이 그 자리에 있을지 어떨지 돌려주는 식 나카노세키수
+;=-1 에이키님이 연인 =0원으로부터 연인 없음 =1 그 자리에 없다 =2 연인과 동석
+;비연인시의 에이키님을 귀찮은 여자에게 시킨다
+@K30_FIND_LOVER()
+#FUNCTION
+SIF TALENT:MASTER:연인 ==  0
+	RETURNF 0
+SIF TALENT:연인
+	RETURNF -1
+LOCAL = TALENT:MASTER:연인
+SIF CFLAG:LOCAL:현재위치 ==  CFLAG:MASTER:현재위치
+	RETURNF 2
+RETURNF 1
+;==================================================
+;술주정꾼도를 숫자로 돌려주는 식 나카노세키수
+;=0 맹숭맹숭한 얼굴 =1취기 =2 주정꾼 3=곤드레만드레
+@K30_DRUNK()
+#FUNCTION
+SIF BASE:30:술기운 <=  2
+	RETURNF 0
+SELECTCASE BASE:30:술기운
+	;곤드레만드레
+	CASE IS > (MAXBASE:30:술기운 / 10) * 8
+		RETURNF 3
+	;주정꾼
+	CASE IS > (MAXBASE:30:술기운 / 10) * 5
+		RETURNF 2
+	;취기
+	CASE IS <=  (MAXBASE:30:술기운 / 10) * 5
+		RETURNF 1
+ENDSELECT
+;==================================================
+;키스 그 외를 시선 가미해 통할까 판단하는 식 나카노세키수 
+;플래이버이니까 짭짤해도 좋아
+;=0 실패 =1 성공
+@K30_TRY_HARASS
+#FUNCTION
+;상태 이상·후후시·초대시는 통한다
+SIF SHIRAHU(30) != 1 || CFLAG:30:우후후 || CFLAG:30:초대
+	RETURNF 1
+;키스마가 붙으면 키스는 전노선 개통해
+SIF TALENT:키스마 && SELECTCOM ==  312
+	RETURNF 1
+LOCAL = RAND:110
+LOCAL:1 = 25 + GET_SUCCESS_RATE() / 8
+SIF LOCAL:1 > 109
+	LOCAL:1 = 109
+;캡을 걸친 뒤로 시선이 다니고 있으면-33%,+20%
+IF K30_BE_SEEN() ==  0
+	LOCAL:1 += 20
+ELSE
+	LOCAL:1 -= 33
+ENDIF
+;반발각인 1에 대해-20%
+LOCAL:1 -= MARK:30:반발각인 * 20
+SIF LOCAL >=  LOCAL:1
+	RETURNF 0
+RETURNF 1
+;==================================================
+;같은 방의 캐릭터를 줍는 식 나카노세키수. 찾는 순위는[연인]가져→안면→TARGET내 랜덤
+;앨리스 말의 함수빌려 평 아야화했습니다. ERH라면 동작이 빠르기도 하고 안정될까나
+;환카피는 저것으로 알게되어 이외는 랜덤으로 선택해 ID를 돌려주도록(듯이). 아무도 없으면 0을 돌려준다
+@K30_FIND_AROUND()
+#FUNCTION
+#DIM 안면, 7 = 76, 129, 49, 113, 80, 66, 26
+#DIM 총인원수
+#DIM 추첨
+#LOCALSIZE 20
+;에이키님의 안면은 7명, 코마치>히사시차가>사토리>헤카티아>아큐>유유코>유카리의 순서에(마음대로) 설정
+VARSET LOCAL
+추첨 = 0
+총인원수 = GET_TARGETNUM() 
+;방에 한사람이라면 당연히 0
+SIF 총인원수 ==  1
+	RETURNF 0
+;[연인]소유가 있으면 우선해 ID를 돌려준다
+SIF K30_FIND_LOVER() ==  2
+	RETURNF TALENT:MASTER:연인
+;안면 우선도순에 현재위치를 조사 MASTER와 같으면 ID를 돌려준다
+FOR COUNT, 0, 7
+	SIF CFLAG:(안면:COUNT):현재위치 ==  CFLAG:MASTER:현재위치
+		RETURNF 안면:COUNT
+NEXT
+;안면이 없으면 동실[同室]의 TARGET_ID전부를 줍는다
+FOR COUNT, 1, 총인원수 + 1
+	;지옥의 단두대 with 제로니모 상태를 막기 위해 말주는 스킵
+	SIF TARGET:COUNT ==  TARGET:0
+		CONTINUE
+	;MASTER와 에이키님의 현재위치에 없으면 스킵
+	SIF (CFLAG:(TARGET:COUNT):현재위치 != CFLAG:MASTER:현재위치) || (CFLAG:(TARGET:COUNT):현재위치 != CFLAG:30:현재위치)
+		CONTINUE
+	;배열의 카운트는 별개로 취하면서 대입
+	LOCAL:추첨 = TARGET:COUNT
+	추첨 ++
+NEXT
+;추첨해 ID를 결정
+RETURNF LOCAL:(RAND(추첨))
+;==================================================
+;에이키님이 다른 캐릭터를 부르는 식 나카노세키수
+;경칭 생략 =코마치 쿠타카:경칭 =헤카티아 「모양」:외는 모두 「씨」짓고:0으로 당신의 이름을 돌려준다
+;인수, 1 or2를 취하면 스침 캐릭터 /MASTER/대상 캐릭터 없음(ARG=0)이 지정되면 「누군가」 「다른 사람」이라고 부르는＠성희롱이 진전된다
+@K30_C_NAME(ARG, 애매하게한다)
+#FUNCTIONS
+#DIM 애매하게한다
+LOCAL = ARG
+IF 애매하게한다 && (LOCAL ==  RANDOM_CHARANUM || LOCAL ==  0)
+	SIF 애매하게한다 ==  1
+		RETURNF "누군가"
+	SIF 애매하게한다 ==  2
+		RETURNF "다른 사람"
+ENDIF
+SELECTCASE LOCAL
+	CASE 0
+		IF TALENT:TARGET:연인
+			RETURNF CALLNAME:MASTER
+		ELSE
+			RETURNF CALLNAME:MASTER + "씨"
+		ENDIF
+	CASE 76, 129
+		RETURNF CALLNAME:LOCAL
+	CASE 113
+		RETURNF CALLNAME:LOCAL + "모양"
+	CASEELSE
+		RETURNF CALLNAME:LOCAL + "씨"
+ENDSELECT
+;==================================================
+;지문 개변시에 이치 합하는 함수
+@K30_COMPENSATE_MESSAGE
+SIF CFLAG:MASTER:우후후 != 2 && SELECTCOM != 461
+	CALL 카운터호출처리
+CALL M_KOJO_COLOR_K30
+RETURN 1
+;==================================================
+;흰 선을 긋는다. 단지 그것만의 함수
+@K30_D_LINE
+RESETCOLOR
+DRAWLINE
+SETCOLOR 0x337D5C
+RETURN 1
+;==================================================
+;범용 설교 개시
+@K30_LECTURE_RAND(ARG, ARG:1)
+#DIM TEMP
+;--------------------------------------------------
+;ARG 설교의 행수
+;ARG:1 설교 내용(=0 팬티 도둑질 =1 성희롱 =2 강제 외설)
+;--------------------------------------------------
+PRINTFORML 「우선은 거기에 앉으세요」
+FORCEWAIT
+PRINTFORMDW 에이키가 지면을 가리켰다. %CALLNAME:MASTER%는 얌전하게 정좌를 했다…
+PRINTFORMW 
+LOCAL:1 = ARG:1
+SELECTCASE LOCAL:1
+	CASE 0
+		PRINTFORMW 「도대체 얼마나의 팬츠를 슬쩍 한 것입니까? 에에, 주웠다니변명은 전혀 신용하고 있지 않습니다」
+		PRINTFORMW 「그래, 당신은 조금 손버릇이 너무 나쁘다!」
+	CASE 1
+		PRINTFORMW 「원래 여성에게 함부로 손대어, 자제심이라는 것을 가지고 있지 않습니까?」
+		PRINTFORMW 「그래, 당신은 조금 욕망에 너무 충실하다!」
+	CASE 2
+		PRINTFORMW 「\@ TALENT:30:연인? 비록 연인이라도 # 아무리 사이가 좋아도\@해 좋은 일에는 한도가 있습니다! 얼마나 사람을 욕보입니까!」
+		PRINTFORMW 「그래, 당신은 조금 걱정이 너무 없다!」
+	CASEELSE
+		PRINTFORMDW 상정외입니다. 수고걸칩니다만, 직전 사용의 커맨드와 함께 버그 보고 바랍니다.
+		PRINTFORMW 「K30_LECTURE_RAND, 당신의 인수는 너무 이상하다! … 아라?」
+ENDSELECT
+PRINTFORML 
+LOCAL = ARG
+TEMP = ARG
+WHILE TEMP
+	;줄머리의 수식. 2행에 1회 확률로 붙인다
+	IF  (((TEMP + LOCAL) % 2 ==  0) && RAND:5 ==  0) || (TEMP ==  LOCAL)
+		PRINTFORM 「%TEXTR("원래/생각해도 봐 주세요/분명히 말하면/자주(잘) 들으세요/구체적으로 말하면/좋습니까/")%………………
+	ELSE
+		PRINT 「……
+	ENDIF
+	;1행의 길이는 적당하게
+REPEAT 4 + RAND:6
+	;엉성하게 백분율
+	SELECTCASE RAND:100
+		CASE 0 TO 9
+			SELECTCASE ARG:1
+				CASE 0
+					PRINTFORM …%TEXTR("팬츠/조금은/당신의/선행을/팬티/대체로 당신은…/팬티/(듣)묻고 있습니까…? /무엇을 위해서")%…
+				CASE 1
+					PRINTFORM …%TEXTR("사후에/사양을/끈적끈적와/싫은데/당신의/선행을/자성을/타인의 기분에…/부끄럽다…/주위의 눈을…/사양도 없이…")%…
+				CASE 2
+					PRINTFORM …%TEXTR("사후에/의지의/안돼와/싫은데/당신의/선행을/자성을/타인의 기분에…/부끄럽다…/주위의 눈을…/사양도 없이…")%…
+				CASEELSE
+					PRINTFORM …%TEXTR("반성을/조금은/죄가/선행을/지옥에/대체로 당신은/잘못을/(듣)묻고 있습니까…? /사후의")%…
+			ENDSELECT
+		CASE 10 TO 13
+			PRINTFORM ………!
+		CASEELSE
+			PRINTFORM ………
+	ENDSELECT
+REND
+PRINTW 」
+TEMP --
+WEND
+LOCAL *=2
+TIME += LOCAL
+BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 50, 0)
+BASE:MASTER:기력 = MAX(BASE:MASTER:기력 - MAXBASE:MASTER:기력 / 3, 0)
+CALL K30_D_LINE
+PRINTFORMW 
+SELECTCASE LOCAL:1
+	CASE 0
+		PRINTFORMW 「모아둔 팬츠를 제대로 처분하는 것. 이것이 지금의 당신을 쌓을 수 있는 선행이야」
+	CASE 1
+		PRINTFORMW 「욕구를 채우는 대상에 대해 좀 더 생각 반성하는 것. 이것이 지금의 당신을 쌓을 수 있는 선행이야」
+	CASE 2
+		PRINTFORMW 「사람의 기분과 배려에 대해 확실히 배우는 것. 이것이 지금의 당신을 쌓을 수 있는 선행이야」
+	CASEELSE
+ENDSELECT
+PRINTFORMW 
+PRINTFORMDW 간신히 끝났다……
+PRINTFORMDL 에이키에{LOCAL}분간도 설교되어, 매우 지쳤다……
+PRINTFORMDW 정좌로 다리도 시비…
+FORCEWAIT
+;에이키님이 취미를 만끽
+SOURCE:울굴 -= 1000
+SIF SOURCE:울굴 < 0
+	SOURCE:울굴 = 0
+SOURCE:환락 += ABL:30:친밀 * 70
+SOURCE:사랑 += 300
+TEMP = RAND:5 - LOCAL:1
+SIF TEMP < 0
+	TEMP = 1
+CFLAG:30:신뢰도 += TEMP
+PRINTFORMDW 설교를 얌전하게 (들)물었으므로 에이키의 신뢰도가 아주 조금 올랐다.
+RETURN 1
+;==================================================
+;범용 설교 성공 여부 판정
+@K30_LECTURE_CHECK(설교장, 이유)
+;--------------------------------------------------
+#DIM 설교장
+#DIM 이유
+;TCVAR:30:363 범용 설교 카운트＠팬티
+;TCVAR:30:364 범용 설교 카운트＠성희롱
+;TCVAR:30:365 범용 설교 카운트＠강제 외설
+;설교장=설교의 행수=분노 상태
+;이유=설교 이유(=0 팬츠 =1 성희롱 커맨드 실패시 =2 강제 외설)
+;--------------------------------------------------
+;가드 저하시·그 외 상태 이상·후후시는 판정 없음 무죄
+SIF CFLAG:1801 ==  0 || SHIRAHU(30) != 1 || CFLAG:30:우후후
+	RETURN 1
+;러브호텔과 초대 방에 있어도 설교하지 않는다
+SIF (CFLAG:TARGET:현재위치 == 러브호텔 || CFLAG:TARGET:현재위치 == 러브호텔 || CFLAG:TARGET:현재위치 ==  OMANEKIBEYA())
+	RETURN 1
+SELECTCASE 이유
+	;팬츠 가택수색 넣고
+	CASE 0
+	TCVAR:30:363 ++
+	;1날에 대해 2회까지 설교
+		IF TCVAR:30:363 < 2
+			CFLAG:1700 = -1
+			CALL K30_LECTURE_RAND(설교장, 이유)
+	;3회째로 후려쳐진다
+		ELSE
+			CALL K30_DISCIPLINE_HEAD
+		ENDIF
+	;성희롱 실패시
+	CASE 1
+	;분노 상태 30 이하 노우 캔
+		IF 설교장 > 30
+	;1날에 대해 2회까지 설교
+			IF TCVAR:30:364 < 2
+				TCVAR:30:364 ++
+				PRINTFORMW 
+				PRINTFORMW 「… 조금 눈에 거슬리네요」
+				CALL K30_LECTURE_RAND(설교장, 이유)
+	;3회째로 후려쳐진다
+			ELSE
+				CALL K30_DISCIPLINE_HEAD
+			ENDIF
+		ENDIF
+	;통상시 VA커맨드 확률로
+	CASE 2
+		TCVAR:30:365 ++
+	;처음은 설교
+		IF TCVAR:30:365 ==  1
+			PRINTFORMW 「… 당신, 너무 심합니다」
+			CALL K30_LECTURE_RAND(설교장, 이유)
+	;인내는 1회만
+		ELSE
+			CALL K30_DISCIPLINE_HEAD
+		ENDIF
+ENDSELECT
+RETURN 0
+;==================================================
+;에이키님의 엄벌＠기탄없는 일격
+@K30_DISCIPLINE_HEAD
+;--------------------------------------------------
+PRINTFORML 
+PRINTFORMW 「이만큼 말해도 아직 통하지 않습니까」
+PRINTFORMW 「…… 당신은, 조금 아픈 꼴을 당해」
+SETCOLOR 206, 8, 21
+PRINTFORMW 「자신의 생활을 다시 보는 것이 좋다!」
+CALL M_KOJO_COLOR_K30
+PRINTFORMDW 회개봉으로 마음껏 때려 누여졌다…
+FORCEWAIT
+BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 1200, 0)
+TCVAR:30:371 ++
+RETURN 0
+;==================================================
+;에이키님의 설법
+;차를 마시면서 이야기를 한가롭게 (듣)묻는 이미지
+@K30_LECTURE_BENEFIT
+;--------------------------------------------------
+;CFLAG:1701좋은 이야기의 누계
+;--------------------------------------------------
+CFLAG:1701 ++
+PRINTFORMW 
+;이야기 3종류 밖에 없기 때문에 누계 해 3으로 나눈 남짓해 배분
+LOCAL = (CFLAG:1701 + 3) % 3
+SELECTCASE LOCAL
+	CASE 0
+		PRINTFORMW 「그렇네요… 당신은 『욕망』에 임해서 어떻게 생각합니까?」
+		PRINTFORML 
+		PRINTFORML 「이런 옛날 이야기가 있습니다」
+		PRINTFORML 「옛날, 있는 (곳)중에, 한사람의 선승이 스승의 원으로 수업을 계속하고 있었습니다」
+		PRINTFORML 「승려가 자기 방에서 좌선을 짜고 있으면, 낯선 여성이 갑자기 선승에게 기대어」
+		PRINTFORML 「『당신은 이렇게 되면 어떤 기분인가』등이라고 물었습니다」
+		PRINTFORML 「이 여성은 스승의 교육으로 일종의 시험으로서 그를 유혹시킨 것입니다」
+		PRINTFORML 「승려는, 안색 1개 움직이지 않고, 『고목한엄에 의, 삼동난기없음』이라고 단언했습니다」
+		PRINTFORMW 「『마치 고목이 차가워진 바위에 의지한 것 같은 것, 겨울의 한창때 노천의 기분이다』라고」
+		PRINTFORML 
+		PRINTFORMW 「당신은 이 승려를 어떻게 생각합니까? 훌륭하다고 생각합니까?」
+		PRINTFORML 
+		PRINTFORML 「아니오, 스승은 이 대답에 몹시 화내서 『의외로 속물의 승려였다. 나는 오산을 하고 있었다』」
+		PRINTFORMW 「이렇게 말해, 그 승려를 내쫓아 버렸습니다. 그의 무엇이 안 되었던 것 압니까?」
+		PRINTFORML 
+		PRINTFORML 「실제로는, 한사람의 여성에게 사랑된 남성으로서 취해야 할 태도는 얼마나, 라고 하는 것이 이 문제 해결의 연구입니다」
+		PRINTFORML 「상대는 낯선 여성입니다. 비록 향하고는 여기를 잘 알아 그리고 사랑했음에도해」
+		PRINTFORML 「여기는 처음 만나는 여성입니다. 이런 경우에는, 1인분의 남성으로서 일단은 거절하는 것에 해라 혹은 영구히 거절하는 것에 해라」
+		PRINTFORML 「상대의 여성에게 수치를 거르지 않고, 그렇다면이라고 해 자신의 품위도 타좌도, 마땅한 인정미가 있는 처치와 말이 있을 듯 하는 것입니다」
+		PRINTFORMW 「고목한엄의 마다 해라고 말해 끝내 돌아간 승려와 같은 태도, 상대의 여성은 일생 원망해 자르는지, 반발적으로 자살 혹시 자지 않는 다루는 방법입니다」
+		PRINTFORML 
+		PRINTFORML 「같은 거절하는 방법에서도, 그 여성의 기분을 참작하면서의 거절하는 방법도 있습니다. 그것을 유혹에 지지 않으려고 열심히, 한쪽 팔꿈치 펴」
+		PRINTFORMW 「몰인정하게 물지 않으면 안 된다고는, 이 승려에게 마음에 약한 곳이 있으면 스승은 간파한 것입니다」
+		PRINTFORML 
+		PRINTFORML 「유혹을 피해 피하는 것은 최상의 인생이 아니라고 단정합니다」
+		PRINTFORML 「오히려 니중의 연꽃의 꽃과 같이, 잡다한 야심이나 유혹이나 애욕의 진다만 (안)중에 생활하면서도」
+		PRINTFORML 「그 더러움에 마음에 끌리지 않고 게다가 그 욕망, 유혹을」
+		PRINTFORML 「잘 소화 선용 해 훌륭한 인격 완성, 무상의 행복이라고 하는 꽃을 피워야 한 것입니다」
+		PRINTFORML 「잠시 전의 승려도, 이 일을 체득하지 않으면 속인에게 뒤떨어진다고 하지 않으면 되지 않습니다」
+		PRINTFORMW 「속세를 은둔 하거나 유혹을 무서워해 필사적으로 도망치려고 한다 따위는 잘못되어 있습니다」
+		PRINTFORML 
+		PRINTFORMW 「욕구를 가지는 것이 죄가 아닙니다. 욕구에 빠지거나 욕구를 버렸다고 허세를 치는 것이 죄인 것입니다」
+	CASE 1
+		PRINTFORMW 「그렇네요, 당신은 「눈물의 가치」에 대해 어떻게 생각합니까?」
+		PRINTFORML 
+		PRINTFORML 「사물을 적당히 하고 있으면 눈물은 없습니다. 괴롭지 않기 때문입니다」
+		PRINTFORML 「사물을 성실하게 생각해, 온전히 향하면 눈물이 있습니다. 괴롭기 때문입니다」
+		PRINTFORMW 「왜, 적당히 하고 있으면 괴롭지 않고, 성실하게 되면 괴로운 것일까요?」
+		PRINTFORML 
+		PRINTFORML 「적당히 하고 있으면, 모순도 모순으로 보이지 않고, 보다 좋은의 것이 눈에 붙지 않기 때문입니다」
+		PRINTFORML 「지금 상태에서도 아무래도 차를 흐릴 수 있기 때문입니다. 그래서 괴롭지 않습니다」
+		PRINTFORML 「반대로, 성실하게 되어, 온전히 향하면, 모순이 눈에 띄어, 보다 좋은의 것이 바람직하고」
+		PRINTFORMW 「현상에 심한 불만을 느껴 오기 때문입니다. 그래서 괴로워합니다」
+		PRINTFORML 
+		PRINTFORML 「제일보다 좋은의 것을 바라는 마음, 만일 이것을 『보리심』이라고 부를까요」
+		PRINTFORMW 「『보리심』이란, 자신을 자주(잘) 해, 사람도 자주(잘) 하자고 하는 성실하고 정직한 소원심입니다」
+		PRINTFORML 
+		PRINTFORML 「예를 들면 양심은 시대에 의해 변해, 주위의 정세에 의해 변하는 일도 있습니다」
+		PRINTFORML 「자신의 육체의 정조를 팔아도, 남편에게 마음의 정조를 바치는 것을 좋다라고 인정했다」
+		PRINTFORMW 「봉건 시대의 여성의 양심은, 이제 오늘의 여성의 양심이 아닙니다」
+		PRINTFORML 
+		PRINTFORML 「그러나 『보리심』은, 시대에 의해 정세에 의해 변하는 것이 아닙니다」
+		PRINTFORML 「인간이 있는 한, 그 중에 있어 그 발전의 방향을 나타내, 이것을 정화 추진해 가는 약입니다」
+		PRINTFORML 「세균이 잠입해도, 마음중에 있는 약 즉 『보리심』이 그것이 있다고는 알지 못하고 정화되고 있습니다」
+		PRINTFORML 「우리는 『보리심』있음으로는 알지 못하고, 마음의 청순을 유지되고 있습니다」
+		PRINTFORMW 「이 경우의 세균과는 『보리심』에 상반되는 유혹·악의라고 한 것습니다」
+		PRINTFORML 
+		PRINTFORML 「그렇지만 만능약 따위 이 세상에는 없습니다. 약이 효과가 있을 때에는 뭔가 바라지 않는 것도 태어납니다」
+		PRINTFORML 「악의를 『보리심』이 구축했을 때에 나오는 찌꺼기, 잔해가 최초로 말한 눈물이며 괴로움입니다」
+		PRINTFORML 「인간을 괴로움이나 눈물이 유도할 때, 그것을 무료하게 하지 않고, 그 원인을 깊게 더듬어 갈 때는」
+		PRINTFORMW 「반드시 이 『보리심』의 발로를 만납니다. 그리고 그 마음의 지시에 의해 새롭고 올바른 인생의 방향을 맡으세요」
+		PRINTFORML 
+		PRINTFORML 「『산고』라고 말하는 것이 있습니다. 낡은 생으로부터 새로운 생을 낳을 때는, 반드시 고뇌가 있습니다. 눈물이 있습니다」
+		PRINTFORML 「수가 싹을 불 때, 나무의 가죽에 나타나는 것은 우선 자입니다. 고뇌입니다. 다음에 수지――」
+		PRINTFORMW 「즉 눈물입니다. 거기로부터 간신히 새로운 생되는 5월의 신록이 싹틉니다」
+	CASE 2
+		PRINTFORMW 「그렇네요… 당신은 『좋고 싫음』에 임해서 어떻게 생각합니까?」
+		PRINTFORML 
+		PRINTFORML 「인간에게 마음이 있어, 마음에 감정이 있는 이상, 누구에게도 좋고 싫음의 기분이 일하는 것은 당연합니다」
+		PRINTFORML 「그것을 꾸짖는 것은 하지 않습니다. 벚꽃이나 매화나 대나무, 그 모모키 치쿠사의 변화가 있어 자연의 풍경이 재미있게」
+		PRINTFORML 「인간에게 좋고 싫음의 기분의 음영이 있어야만, 오히려 사람들의 변화나 리듬이 있어 재미있고
+		PRINTFORMW 「세상이 단조롭게 흐르지 않습니다. 그러니까 좋고 싫음은 많이 있어 좋습니다」
+		PRINTFORML 
+		PRINTFORML 「그렇지만 이러한 나중에 특히도 덧붙이지 않으면 안 되는 것은, 부디 그 좋고 싫음의 기분에」
+		PRINTFORML 「사로잡혀서는 안 된다고 말하는 일입니다. 사로잡혀, 그것을 고집에 통해 가려고 할 때, 그 사람은 이기적임자가 되는 것입니다」
+		PRINTFORML 「예를 들면 『나는 그 사람은 싫기 때문에 친구로 하지 않는다』」
+		PRINTFORML 「『그러니까 다른 누구라도 모두 그 사람을 친구로 해서는 안 된다』라고 하는 것 같은, 이런 싫은 (분)편은 절대로 멋대로입니다」
+		PRINTFORML 「『나는 송은 싫다. 세상으로부터 송은 한 개도 없애 버려라』」
+		PRINTFORML 「『나는 대나무를 좋아하기 때문에 대나무만으로 해 버려라』라고 하는 것과 같습니다」
+		PRINTFORMW 「이것으로는 환상향도 대나무숲만 증가해 뭐라고도 재미있지 않은 풍경이 되어 버립니다」
+		PRINTFORML 
+		PRINTFORML 「그것과 같이 인간이라도」
+		PRINTFORML 「『나는 그 사람은 싫지만 누구들씨에게는 자주(잘) 보이는지도 모르기 때문에 친구가 되어 있을테니까 그래서 좋다』」
+		PRINTFORML 「이럭저럭 기분을 진정해, 자신이 싫은 것을 자신만으로 싫어 하고 있으면 좋습니다. 자신이 싫은 기분으로 그 사람을 뒤쫓아 가」
+		PRINTFORML 「그 사람의 사랑받는 장소까지 들어가 방해를 한다 따위는 멋대로인 조업입니다」
+		PRINTFORML 「그것은 세상의 조화를 어지럽히는 사람이어서 용서되지 않는 제멋대로입니다」
+		PRINTFORMW 「이 폐에 떨어지고 들어가 버린 사람은 자기 자신으로 몸의 발버둥이 붙지 않는 거북한 처지에 접어들지 않으면 안됩니다」
+		PRINTFORML 
+		PRINTFORML 「나부터 보면 천지간의 모든 생물 초목에 이를 때까지, 어떤 것 하나로서 고귀한 생명의 종자를 갖추지 않은 것은 없습니다」
+		PRINTFORML 「그것 까닭, 사용법에 따라서는 무엇하나로서 버리는 것, 쓸데없는 것은 없습니다」
+		PRINTFORML 「그러니까 굳이 것에 대해도, 그것의 가치를 절대로 무시하는 것은 용서되지 않습니다. 그것은 자연에의 모독입니다」
+		PRINTFORMW 「천지불신에의 불경에 걸쳐, 이윽고 나에게 벌 받게 되어지지 않으면 안됩니다」
+		PRINTFORMW 
+		PRINTFORMW 「내가 벌한다고 하면 어떻게 되는 것인가 알지요? 당신도 조심해 주세요」
+ENDSELECT
+CALL K30_D_LINE
+PRINTFORMW 
+PRINTFORMW 「어땠습니까. 이 이야기가 선행을 쌓는 일에의 도움이 되면 나도 기쁩니다」
+PRINTFORMDW 설법으로 교제해, 에이키의 호감도와 신뢰도가 조금 올랐다
+CFLAG:30:신뢰도 += RAND:4 + 2
+CFLAG:30:호감도 += RAND:7 + 7
+SOURCE:반감 = 0
+SOURCE:울굴 = 0
+SOURCE:환락 += ABL:30:친밀 * 50
+SOURCE:사랑 += 1500
+BASE:MASTER:기력 = MAX(BASE:MASTER:기력 - 50, 0)
+RETURN 0
+

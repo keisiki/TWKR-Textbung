@@ -1,0 +1,136 @@
+﻿;-------------------------------------------------
+;손가락 삽입
+;일상계 커맨드 레벨 3
+;-------------------------------------------------
+@COM316
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+
+;파과 억제
+TFLAG:2 = 1
+TFLAG:이성깎기 = 1
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 40
+	IF !TALENT:처녀 || TALENT:처녀 -1
+		SOURCE:쾌V = 120
+	ELSE
+		SOURCE:쾌V = 60
+	ENDIF
+ELSE
+	IF FLAG:생활능력무 && !CFLAG:우후후
+		DRAWLINE
+		PRINTFORMW %CALLNAME:MASTER%에게 그런 담력은 없다
+		RETURN -1
+	ENDIF
+	DOWNBASE:체력 += 30
+	DOWNBASE:기력 += 80
+
+	IF !TALENT:처녀 || TALENT:처녀 -1
+		SOURCE:쾌V = 120
+		SOURCE:사랑 = 150
+		SOURCE:고통 = 250
+		SOURCE:욕정 = 200
+		SOURCE:노출 = 120
+		SOURCE:일탈 = 150
+		SOURCE:반감 = 200
+	;V경험이 0때는 V경험을 수반하지 않는 것에 파생
+	;V의 구슬은 들어가지 않지만, 쾌V가 높으면 길들여 있기 (위해)때문에 처녀상실시에 영향
+	ELSE
+		SOURCE:쾌V = 60
+		SOURCE:사랑 = 150
+		SOURCE:고통 = 250
+		SOURCE:욕정 = 200
+		SOURCE:노출 = 120
+		SOURCE:일탈 = 300
+		SOURCE:반감 = 400
+	ENDIF
+
+	;신뢰
+	TFLAG:98 = -7
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	IF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 20
+		;처녀
+		SIF TALENT:처녀
+			SOURCE:울굴 += 10
+	ENDIF
+ENDIF
+;V에의 고통
+CALL PAIN_CHECK_V(TARGET)
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;노예의 질내⇔조교자의 손가락의 더러움이 이동
+STAIN:6 |= STAIN:PLAYER:1
+STAIN:PLAYER:1 |= STAIN:6
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+EXP:PLAYER:수음경험 ++
+IF FLAG:70 == 1
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 4
+	ENDIF
+ELSE
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 4
+		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 4
+	ENDIF
+	TIME += 10
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE316
+;손가락 삽입실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(316)
+	RETURN RESULT
+;시간정지중은 스킵
+IF !FLAG:70
+	;친해져 강도 2
+	SIF (TCVAR:MASTER:친해져 < 2) && CFLAG:수면 == 0
+		RETURN 0
+	;착의
+	SIF TEQUIP:0 & 4
+		RETURN 0
+	;수면중
+	SIF CFLAG:수면 && CFLAG:장난 < 2
+		RETURN 0
+	;업무중
+	SIF CFLAG:행동 == 5
+		RETURN 0
+	;데이트중
+	SIF CHK_DATENOW(CFLAG:데이트중) && CFLAG:현재위치 != OMANEKIBEYA()
+		RETURN 0
+	;동침중
+	SIF CFLAG:동침중
+		RETURN 0
+	SIF TEQUIP:50 >= 0
+		RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;팔사용중
+SIF TFLAG:61 && MASTER_POSE(SET_C,3) != TARGET && MASTER_POSE(SET_P,SET_YUBI) != TARGET && MASTER_POSE(SET_V,SET_YUBI) != TARGET && MASTER_POSE(SET_A,SET_YUBI) != TARGET
+	RETURN 0
+SIF GETBIT (TCVAR:26,5)
+	RETURN 0
+RETURN 1
+

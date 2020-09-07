@@ -1,0 +1,248 @@
+﻿;-------------------------------------------------
+;조수를 범하게 한다
+;조수에 의한 커맨드, 및 레즈비언 플레이, 레벨 4
+;-------------------------------------------------
+@COM122
+PRINTL 조수를 범하게 한다
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+A = 0
+S = 0
+
+;모든 명령에 공통의 요소를 고려
+;(순종이 높다고 명령에 따르기 쉬운 등)
+CALL COM_ORDER
+
+;ABL:욕망
+IF ABL:욕망
+	SIF S
+		PRINT  + 
+	A += ABL:욕망 * 2
+	PRINT 욕망
+	PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 2, ')
+	S = 1
+ENDIF
+;ABL:봉사정신
+IF ABL:봉사정신
+	SIF S
+		PRINT  + 
+	A += ABL:봉사정신 * 4
+	PRINT 봉사정신
+	PRINTV 'LV, ABL:봉사정신, '(, ABL:봉사정신 * 4, ')
+	S = 1
+ENDIF
+
+IF MARK:쾌락각인
+	SIF S
+		PRINT  + 
+	A += MARK:쾌락각인 * 2
+	PRINT 쾌락각인
+	PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 2, ')
+	S = 1
+ENDIF
+;PALAM:욕정
+IF GETPALAMLV(PALAM:욕정, 5)
+	SIF S
+		PRINT  + 
+	A += GETPALAMLV(PALAM:욕정, 5) * 2
+	PRINT 욕정
+	PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 2, ')
+	S = 1
+ENDIF
+;수줍음
+IF TALENT:수치심 > 0
+	PRINT  - 
+	A -= 1
+	PRINT 수줍음
+	PRINTV '(, 1, ')
+	S = 1
+ENDIF
+;헌신적
+IF TALENT:헌신적
+	SIF S
+		PRINT  + 
+	A += 6
+	PRINT 헌신적
+	PRINTV '(, 6, ')
+	S = 1
+ENDIF
+;쾌감에 솔직
+IF TALENT:쾌감응답 > 0
+	SIF S
+		PRINT  + 
+	A += 2
+	PRINT 쾌감에 솔직
+	PRINTV '(, 2, ')
+	S = 1
+ENDIF
+;쾌감에 부정(음란, 창부로 무효)
+IF TALENT:쾌감응답 < 0 && !TALENT:음란
+	PRINT  - 
+	A -= 2
+	PRINT 쾌감에 부정
+	PRINTV '(, 2, ')
+	S = 1
+ENDIF
+;음란
+IF TALENT:음란 && ASSIPLAY == 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 음란
+	PRINTV '(, 5, ')
+	S = 5
+ENDIF
+;창부
+IF TALENT:음란 > 1 && ASSIPLAY == 0
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 창부
+	PRINTV '(, 5, ')
+	S = 5
+ENDIF
+
+;조수가 처녀
+IF TALENT:PLAYER:처녀
+	PRINT  - 
+	A -= 15
+	PRINT 조수가 처녀
+	PRINTV '(, 15, ')
+	S = 1
+ENDIF
+
+;합계를 표시(40이상으로 실행)
+PRINT  = 
+PRINTV A
+
+V = 40
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 실행치
+PRINTV V
+
+WAIT
+
+;실행할 수 없다
+SIF A < V
+	RETURN 0
+
+;-------------------------------------------------
+;실행 결정
+;-------------------------------------------------
+STR:0 = 조수를 범하게 한다
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = TARGET
+;TCVAR:0 사정 대상 플래그(비트 0=TARGET 1=PLAYER 2=MASTER 3=ASSI)
+;TCVAR:1 예비 사정 대상 플래그(비트를 사용하고 싶지 않은 인용, CFLAG:100으로 번역됩니다)	(1=TARGET 2=PLAYER 3=MASTER 4=ASSI 5=TARGET+ASSI 6=MASTER+ASSI)
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
+
+SETBIT TCVAR:TARGET:0, 3
+TCVAR:TARGET:2 = 1
+;강도
+TCVAR:TARGET:4 = 2000
+
+TEQUIP:ASSI:50 = TARGET
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+DOWNBASE:체력 += 50
+DOWNBASE:기력 += 150
+SOURCE:PLAYER:성행동=20
+SOURCE:쾌C = 400
+SOURCE:성행동 = 500
+SOURCE:달성 = 400
+SOURCE:굴종 = 700
+SOURCE:일탈 = 500
+SOURCE:반감 = 500
+
+
+;-------------------------------------------------
+;특수소스처리
+;-------------------------------------------------
+;억압, 저항 소유에는, 억울소스 추가
+SIF TALENT:자기애 < 0 || TALENT:저항
+	SOURCE:울굴 += 500
+
+;조수가 처녀의 경우, 굴복 일탈이 배화해, 순종이 2가 된다. 다만 한번뿐
+IF TALENT:PLAYER:처녀 == 1
+	TIMES SOURCE:굴종 , 5.00
+	TIMES SOURCE:일탈 , 3.00
+	TALENT:PLAYER:처녀 = 0
+	IF !GETBIT(CFLAG:3, 4)
+		;이상경험 추가(일회뿐)
+		EXP:이상경험 += 1
+		SETBIT CFLAG:3, 4
+	ENDIF
+	IF ABL:순종 < 2
+		PRINTFORML 그리고%ABLNAME:0%가 2가 되었다
+		ABL:순종 = 2
+	ENDIF
+ENDIF
+EXP:ASSI:V경험 += 1
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;사정에 관계없이 행해지는 처리는 여기에서
+IF HAS_PENIS(TARGET)
+	;노예의 P⇔조교자의 V의 더러움이 이동
+	STAIN:2 |= STAIN:PLAYER:3
+	STAIN:PLAYER:3 |= STAIN:2
+ENDIF
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+SIF HETEROSEX(TARGET, ASSI)
+	EXP:(50 + HETEROSEX(TARGET, ASSI)) += 10
+
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE122
+;조수를 범하게 하는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(122)
+	RETURN RESULT
+;조수가 아니면 안 돼
+SIF PLAYER != ASSI
+	RETURN 0
+;조수가 남자라면 안 돼
+SIF !(TALENT:ASSI:2 & 1)
+	RETURN 0
+;체격 차이가 있는 경우는 주인이 금단의지식 소유가 아니면 안 돼
+SIF ABS(TALENT:체형 - TALENT:ASSI:체형) > 2 && TALENT:MASTER:금단의지식 == 0
+	RETURN 0
+;남자, 반인반요, 후타나리, 혹은 페니스밴드가 없으면 안 돼
+SIF !(HAS_PENIS(TARGET)) && ITEM:PBAND == 0
+	RETURN 0
+;오나홀사용중은 안 돼
+SIF TEQUIP:12
+	RETURN 0
+;하반신속옷착의
+SIF TEQUIP:0 & 4
+	RETURN 0
+;목욕탕플레이중은 플레이매트가 없으면 안 돼
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ENDIF
+;정지 중에는 불가
+SIF FLAG:70 == 1
+	RETURN 0
+RETURN 1
+

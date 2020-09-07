@@ -1,0 +1,140 @@
+﻿;-------------------------------------------------
+;간호한다
+;일상계 커맨드, 레벨 1
+;-------------------------------------------------
+@COM335
+SELECTCASE TFLAG:192
+	;통상
+	CASE 0
+		;성공 여부 판정
+		LOCAL = RAND:100
+		LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+		SIF LOCAL:1 > 99
+			LOCAL:1 = 99
+		IF LOCAL <= 9
+			;10％で대성공
+			TFLAG:193 = 1
+			TFLAG:98 = 2
+			LOCAL:2 = 6
+			EXP:MASTER:회화경험 ++
+		ELSEIF LOCAL >= LOCAL:1
+			;10～1％で실패
+			TFLAG:193 = -1
+			TFLAG:98 = -1
+			LOCAL:2 = -1
+		ELSE
+			;나머지는 성공
+			TFLAG:193 = 0
+			TFLAG:98 = 0
+			LOCAL:2 = 2
+		ENDIF
+	;강제성공 or 대성공
+	CASE 1
+		IF RAND:100 <= 9
+			TFLAG:193 = 1
+			TFLAG:98 = 2
+			LOCAL:2 = 6
+			EXP:MASTER:회화경험 ++
+		ELSE
+			TFLAG:193 = 0
+			TFLAG:98 = 0
+			LOCAL:2 = 2
+		ENDIF
+	;강제실패
+	CASE -1
+		TFLAG:193 = -1
+		TFLAG:98 = -1
+		LOCAL:2 = -1
+	;커맨드종료
+	CASE -2
+		TFLAG:193 = -1
+		RETURN 0
+ENDSELECT
+
+SIF RAND:2
+	EXP:MASTER:회화경험 ++
+
+;랜덤에(0~2)+(성공 보정)%의 술기운감소
+LOCAL:3 = MAX(MAXBASE:술기운 * (RAND:3 + LOCAL:2) / 100, 0)
+BASE:술기운 = MAX(BASE:술기운 - LOCAL:3, 0)
+
+DOWNBASE:MASTER:체력 += 20
+DOWNBASE:MASTER:기력 += 100
+
+;소요시간
+TIME += 30
+
+DOWNBASE:기력 += 10
+
+;신뢰
+TFLAG:98 += 10
+
+;고정으로 획득하는 소스
+SOURCE:환락 = 400
+
+;ABL:순종을 본다
+IF ABL:순종 <= 1
+	SOURCE:환락 += (ABL:순종 * 50)
+ELSEIF ABL:순종 <= 3
+	SOURCE:환락 += 100 + (ABL:순종 * 40)
+ELSEIF ABL:순종 <= 5
+	SOURCE:환락 += 200 + (ABL:순종 * 50)
+ELSEIF ABL:순종 <= 8
+	SOURCE:환락 += 400 + (ABL:순종 * 70)
+ELSEIF ABL:순종 <= 11
+	SOURCE:환락 += 500 + (ABL:순종 * 60)
+ELSE
+	SOURCE:환락 += 800 + (ABL:순종 * 40)
+ENDIF
+
+;ABL:친밀 체크
+IF ABL:친밀 <= 1
+	SOURCE:환락 += (ABL:친밀 * 50)
+ELSEIF ABL:친밀 <= 3
+	SOURCE:환락 += 80 + (ABL:친밀 * 50)
+ELSEIF ABL:친밀 <= 5
+	SOURCE:환락 += 200 + (ABL:친밀 * 50)
+ELSEIF ABL:친밀 <= 8
+	SOURCE:환락 += 500 + (ABL:친밀 * 40)
+ELSEIF ABL:친밀 <= 11
+	SOURCE:환락 += 800 + (ABL:친밀 * 40)
+ELSE
+	SOURCE:환락 += 1200 + (ABL:친밀 * 30)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+ENDIF
+
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+
+SOURCE:수동 = 200 + 200 * ABL:순종
+SOURCE:정복 = 40 + 40 * ABL:새드끼
+RETURN 1
+
+;-------------------------------------------------
+;실행 판정
+;-------------------------------------------------
+@COM_ABLE335
+;간호하는 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(335)
+	RETURN RESULT
+;일내용이 만취하고 이외
+SIF CFLAG:직종 != 만취한다
+	RETURN 0
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1

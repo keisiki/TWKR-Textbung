@@ -1,0 +1,704 @@
+﻿;사정 확정 후의 처리
+@EJAC_CHECK_AFTER(캐릭터등록번호)
+#DIM 캐릭터등록번호
+#DIM 사정회수
+#DIM 과잉사정
+
+VARSET 사정회수
+VARSET 과잉사정
+;캐릭터등록번호 사정하는 사람
+IF !TCVAR:캐릭터등록번호:이기초
+	IF BASE:캐릭터등록번호:사정 > MAXBASE:캐릭터등록번호:사정
+		IF BASE:캐릭터등록번호:발기 < 1000
+			BASE:캐릭터등록번호:사정 = MAXBASE:캐릭터등록번호:사정 - 1
+		ELSE
+			TCVAR:캐릭터등록번호:이기초 = 1
+		ENDIF
+	ENDIF
+	RETURN 0
+ELSEIF TEQUIP:캐릭터등록번호:애태우기모드 && 캐릭터등록번호 != MASTER
+	TCVAR:캐릭터등록번호:초조하게해회수 += 2
+	RETURN 0
+ENDIF
+
+;사정(절정) 회수
+사정회수 = MIN(BASE:캐릭터등록번호:사정 / MAXBASE:캐릭터등록번호:사정, (100 + BASE:캐릭터등록번호:정력) / 100)
+
+
+IF NOWEX:캐릭터등록번호:사정량 > BASE:캐릭터등록번호:정력
+	NOWEX:캐릭터등록번호:사정량 = (NOWEX:캐릭터등록번호:사정량 - BASE:캐릭터등록번호:정력) / 2 + BASE:캐릭터등록번호:정력
+	과잉사정 = NOWEX:캐릭터등록번호:사정량 - BASE:캐릭터등록번호:정력
+ENDIF
+
+NOWEX:캐릭터등록번호:사정량 =BASE:캐릭터등록번호:사정 * 10 / (ABL:캐릭터등록번호:C감각 / 2 + 10) / 100
+
+NOWEX:캐릭터등록번호:사정량 = NOWEX:캐릭터등록번호:사정량 * 10 / (ABL:캐릭터등록번호:C감각 / 2 + 10)
+
+IF 과잉사정
+	IF TALENT:캐릭터등록번호:절륜 ;절륜 관련 KR판 구잔재 또는 오리지날
+	ELSEIF TFLAG:포이즌바디
+		DOWNBASE:캐릭터등록번호:체력 += 과잉사정 * 5
+	ELSE
+		DOWNBASE:캐릭터등록번호:체력 += 과잉사정 * 3
+	ENDIF
+ENDIF
+
+	
+BASE:캐릭터등록번호:정력 = MAX(0, BASE:캐릭터등록번호:정력 - NOWEX:캐릭터등록번호:사정량)
+TCVAR:캐릭터등록번호:이기초 = 0
+STAIN:캐릭터등록번호:P |= 4
+
+;BASE의 처리
+BASE:캐릭터등록번호:사정 = 0
+
+CSTR:캐릭터등록번호:사정후처리용 = %CSTR:캐릭터등록번호:사정판정용%
+TCVAR:캐릭터등록번호:사정한개소플래그 = TCVAR:캐릭터등록번호:사정장소
+
+;이상경험, 사정경험, 정음경험
+;여성기가 있는 경우?
+SIF !EXP:캐릭터등록번호:사정경험 && TALENT:캐릭터등록번호:성별 & 1
+	EXP:캐릭터등록번호:이상경험 += 1
+
+EXP:캐릭터등록번호:절정경험 ++ 
+MAXBASE:캐릭터등록번호:정력 += 사정회수*3;;정력증가;KR판 구잔재 또는 오리지날
+EXP:캐릭터등록번호:사정경험 += 사정회수
+
+NOWEX:캐릭터등록번호:사정 += 사정회수
+EX:캐릭터등록번호:사정 += 사정회수
+TCVAR:캐릭터등록번호:초조하게해회수 = 0
+TEQUIP:캐릭터등록번호:애태우기모드 = 0
+SIF AT_HOME(캐릭터등록번호)
+	YOGORE:(CFLAG:캐릭터등록번호:현재위치) += 사정회수 * 50
+
+IF (TALENT:캐릭터등록번호:절륜);KR판 고유 또는 오리지날. 원본은 무조건 사정량 초과시 감소
+ELSEIF TFLAG:포이즌바디
+	DOWNBASE:캐릭터등록번호:체력 += LIMIT(NOWEX:캐릭터등록번호:사정량 / 4, 30, 300)
+	DOWNBASE:캐릭터등록번호:기력 += LIMIT(NOWEX:캐릭터등록번호:사정량 / 2, 40, 400)
+ELSE
+	DOWNBASE:캐릭터등록번호:체력 += LIMIT(NOWEX:캐릭터등록번호:사정량 / 8, 10, 100)
+	DOWNBASE:캐릭터등록번호:기력 += LIMIT(NOWEX:캐릭터등록번호:사정량 / 4, 20, 200)
+ENDIF
+	
+;MASTER가 아니면 BASE나 SOURCE등의 처리를 넣는다
+SIF 캐릭터등록번호 == MASTER
+	RETURN 0
+
+IF EXP:캐릭터등록번호:사정경험 < EXPLV:1
+	SOURCE:캐릭터등록번호:노출 += 5000 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:굴종 += 2500 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:불결 += 200 * (사정회수 + 1) / 2
+ELSEIF EXP:캐릭터등록번호:사정경험 < EXPLV:2
+	SOURCE:캐릭터등록번호:노출 += 2500 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:굴종 += 2000 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:불결 += 150 * (사정회수 + 1) / 2
+ELSEIF EXP:캐릭터등록번호:사정경험 < EXPLV:3
+	SOURCE:캐릭터등록번호:노출 += 1000 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:굴종 += 800 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:불결 += 100 * (사정회수 + 1) / 2
+ELSEIF EXP:캐릭터등록번호:사정경험 < EXPLV:4
+	SOURCE:캐릭터등록번호:노출 += 800 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:굴종 += 600 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:불결 += 50 * (사정회수 + 1) / 2
+ELSEIF EXP:캐릭터등록번호:사정경험 < EXPLV:5
+	SOURCE:캐릭터등록번호:노출 += 400 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:굴종 += 400 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:불결 += 10 * (사정회수 + 1) / 2
+ELSE
+	SOURCE:캐릭터등록번호:노출 += 200 * (사정회수 + 1) / 2
+	SOURCE:캐릭터등록번호:굴종 += 250 * (사정회수 + 1) / 2
+ENDIF
+
+;-------------------------------------------------
+;조교 대상의 사정 체크
+;-------------------------------------------------
+@TARGET_EJAC_CHECK(캐릭터등록번호)
+#DIM 캐릭터등록번호
+
+;남성기가 없으면 돌아간다
+SIF !HAS_PENIS(캐릭터등록번호)
+	RETURN 0
+
+LOCAL = (CUP:캐릭터등록번호:쾌C + CUP:캐릭터등록번호:쾌V + CUP:캐릭터등록번호:쾌A + CUP:캐릭터등록번호:쾌B) / 4
+
+;자제심
+SIF TALENT:캐릭터등록번호:자제심
+	LOCAL /= 2
+
+;쾌감에 솔직
+SIF TALENT:캐릭터등록번호:쾌감응답 > 0
+	TIMES LOCAL , 1.20
+
+;쾌감에 부정(음란, 창부로 무효)
+SIF TALENT:캐릭터등록번호:쾌감응답 < 0 && !TALENT:캐릭터등록번호:음란
+	TIMES LOCAL , 0.80
+
+;미약
+SIF TCVAR:캐릭터등록번호:춘약
+	LOCAL *= 2
+
+;仙香玉兎
+SIF IsInsenceValid(캐릭터등록번호)
+	LOCAL *= 2
+
+;이뇨제
+SIF TCVAR:캐릭터등록번호:이뇨제
+	LOCAL /= 2
+;수면중
+SIF CFLAG:캐릭터등록번호:수면
+	LOCAL /= 2
+BASE:캐릭터등록번호:사정 += LOCAL
+;SIF BASE:캐릭터등록번호:사정 > MAXBASE:캐릭터등록번호:사정
+;	BASE:캐릭터등록번호:사정 = MAXBASE:캐릭터등록번호:사정 - 1
+
+;사정 처리의 캐릭터별 터미널
+@SAMEN_SHOOT(사정한캐릭터번호)
+#DIM 사정한캐릭터번호
+#DIM 사정된캐릭터번호
+
+FOR 사정된캐릭터번호, 0, CHARANUM
+	SIF SAMEN_DIRECTION2(사정한캐릭터번호, 사정된캐릭터번호)
+		CALL SAMEN_SHOOT2(사정한캐릭터번호, 사정된캐릭터번호)
+NEXT
+
+;부위별 처리
+@SAMEN_SHOOT2(SENDER, RECEIVER)
+#DIM SENDER
+#DIM RECEIVER
+#DIM 억지로반감
+#DIM 억지로공포
+#DIM 신뢰마이나스
+#DIM 호감도마이너스
+#DIM 욕구불만해소계수
+#DIM 중독보너스
+#DIM 모브코용
+#DIM AblBonus
+#DIM DecrementAmount
+
+; 기술에 따른 사정량 배율
+; 하단에도 같은 케이스문이 있는데, 개발 편의를 위해 걍 여기서 한번 더 돌리는거야!
+; 방중술보다 먼저 처리되게 설계되어있어. 생명력(?) 소진 알고리즘이 방중술로 인해서 고장나는 버그가 있어서야!
+; By Subroutineuser
+AblBonus = BASE:SENDER:정력 / 50
+DEBUGPRINTFORML "-SAMEN_SHOOT2.AblBonus: " + {AblBonus} + " (BEFORE HANDLE)"
+; 만약 사정자가 절륜 소질을 가지고 있다면 25% 추가
+IF TALENT:SENDER:절륜
+	AblBonus += 25
+ENDIF
+;1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수
+SELECTCASE TCVAR:SENDER:사정한개소플래그
+	CASE 1
+		AblBonus += ((ABL:SENDER:허리 + ABL:RECEIVER:질) * 2) + ((ABL:RECEIVER:기교 + ABL:SENDER:기교) / 2)
+	CASE 2
+		AblBonus += ((ABL:SENDER:허리 + ABL:RECEIVER:애널) * 2) + ((ABL:RECEIVER:기교 + ABL:SENDER:기교) / 2)
+	CASE 3
+		AblBonus += ((ABL:RECEIVER:손가락) + (ABL:RECEIVER:기교)) * 2
+	CASE 4
+		AblBonus += (ABL:RECEIVER:혀 * 2) + ABL:RECEIVER:기교
+	CASE 5
+		AblBonus += ABL:RECEIVER:기교
+	CASE 6
+		AblBonus += (ABL:RECEIVER:허리 * 2) + ABL:RECEIVER:기교
+	CASE 7
+		AblBonus += ABL:RECEIVER:기교
+ENDSELECT
+AblBonus = MAX(20, AblBonus)
+NOWEX:SENDER:사정량 += (NOWEX:SENDER:사정량 * AblBonus) / 100
+IF BASE:SENDER:정력 == 0
+	SETCOLOR 150, 50, 50
+	; 네 정력이 아니라 생명을 짜내고 있는데?
+	IF BASE:SENDER:기력 > 0
+		DecrementAmount = MAX(0, (NOWEX:SENDER:사정량 * 125) / 100)
+		BASE:SENDER:기력 -= DecrementAmount
+		PRINTFORML 이미 한계에 도달했다...! (기력 -{DecrementAmount})
+	ELSE
+		DecrementAmount = NOWEX:SENDER:사정량
+		BASE:SENDER:체력 -= DecrementAmount
+		PRINTFORML 더 이상 견딜 수가 없다...! (체력 -{NOWEX:SENDER:사정량})
+	ENDIF	
+	RESETCOLOR
+ENDIF
+BASE:SENDER:정력 = MAX(0, BASE:SENDER:정력 - NOWEX:SENDER:사정량)
+DEBUGPRINTFORML "-SAMEN_SHOOT2.AblBonus: " + {AblBonus} + " (AFTER HANDLE)"
+; End
+;;방중술 및 채양/채음 처리
+IF TALENT:SENDER:방중술
+	MAXBASE:SENDER:기력++
+	MAXBASE:RECEIVER:기력++
+	BASE:SENDER:기력 = LIMIT(BASE:SENDER:기력 + 100, 0, MAXBASE:SENDER:기력)
+	BASE:RECEIVER:기력 = LIMIT(BASE:RECEIVER:기력 + 100, 0, MAXBASE:RECEIVER:기력)
+ENDIF
+IF GETBIT(TALENT:SENDER:179,0)&&GETBIT(TALENT:SENDER:179,2)
+	MAXBASE:SENDER:체력++
+	MAXBASE:SENDER:체력++
+	BASE:SENDER:체력 = LIMIT(BASE:SENDER:체력 + 100, 0, MAXBASE:SENDER:체력)
+	BASE:RECEIVER:체력 = LIMIT(BASE:RECEIVER:체력 - 20, 0, MAXBASE:RECEIVER:체력)
+ELSEIF GETBIT(TALENT:SENDER:179,1)&&GETBIT(TALENT:SENDER:179,3)
+	MAXBASE:RECEIVER:체력++
+	MAXBASE:RECEIVER:체력++
+	BASE:SENDER:체력 = LIMIT(BASE:SENDER:체력 - 20, 0, MAXBASE:SENDER:체력)
+	BASE:RECEIVER:체력 = LIMIT(BASE:RECEIVER:체력 + 100, 0, MAXBASE:RECEIVER:체력)
+ENDIF
+	
+중독보너스 = 0
+IF SENDER == MASTER && CFLAG:RECEIVER:우후후 == 2
+	SOURCE:RECEIVER:달성 += NOWEX:SENDER:사정 * 150
+	SOURCE:RECEIVER:정복 += NOWEX:SENDER:사정 * 150
+	SIF !(NOWEX:RECEIVER:C절정 + NOWEX:RECEIVER:V절정 + NOWEX:RECEIVER:A절정 + NOWEX:RECEIVER:B절정 + NOWEX:RECEIVER:M절정)
+		SOURCE:RECEIVER:정복 += NOWEX:SENDER:사정 * 100
+ENDIF
+IF SENDER == MASTER && TALENT:RECEIVER:스침 == 1
+	모브코용 = MIN(NOWEX:SENDER:사정,3)
+	SELECTCASE TCVAR:SENDER:사정한개소플래그
+		CASE 1
+			SIF ABL:RECEIVER:질 < 모브코용
+				CALL ChangeABL(RECEIVER, "질", 1)
+		CASE 2
+			SIF ABL:RECEIVER:애널 < 모브코용
+				CALL ChangeABL(RECEIVER, "애널", 1)
+		CASE 3
+			SIF ABL:RECEIVER:손가락 < 모브코용
+				CALL ChangeABL(RECEIVER, "손가락", 1)
+		CASE 4
+			SIF ABL:RECEIVER:혀 < 모브코용
+				CALL ChangeABL(RECEIVER, "혀", 1)
+		CASE 4
+			SIF ABL:RECEIVER:가슴 < 모브코용
+				CALL ChangeABL(RECEIVER, "가슴", 1)
+	ENDSELECT
+ENDIF
+
+IF TEQUIP:SENDER:콘돔
+	;고무를 제외한다
+	TEQUIP:SENDER:콘돔 = 0
+	IF RECEIVER
+		SELECTCASE TCVAR:SENDER:사정한개소플래그
+			CASE 1
+				CFLAG:RECEIVER:욕구불만도 += ABL:RECEIVER:질내사정중독 * NOWEX:SENDER:사정 * 15
+			CASE 2
+				CFLAG:RECEIVER:욕구불만도 += ABL:RECEIVER:항내사정중독 * NOWEX:SENDER:사정 * 15
+		ENDSELECT
+	ENDIF
+	;접촉의 리셋
+	CALL 삽입해제(RECEIVER)
+	TFLAG:고무내 = NOWEX:SENDER:사정량
+	IF CFLAG:RECEIVER:자동고무 && ITEM:콘돔 && SENDER == MASTER
+		ITEM:콘돔 --
+		TEQUIP:SENDER:콘돔 = 1
+	ENDIF
+ELSE
+;TCVAR:12 사정장소 플래그(1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수)
+SELECTCASE TCVAR:SENDER:사정한개소플래그
+	;질내
+	CASE 1
+		EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정 * 2
+		EXP:RECEIVER:질내사정경험 += NOWEX:SENDER:사정 * 2
+		STAIN:RECEIVER:V |= 4
+		STAIN:RECEIVER:질내 |= 4
+		TCVAR:RECEIVER:V에질내사정된플래그 = 2
+		TCVAR:RECEIVER:V에질내사정한캐릭터의번호 = SENDER
+		IF FLAG:시간정지 == 1
+			CFLAG:RECEIVER:질내사정 = 2
+		ELSE
+			CFLAG:RECEIVER:질내사정 = 1
+		ENDIF
+		NOWEX:RECEIVER:질내정액 = NOWEX:SENDER:사정량
+		EX:RECEIVER:질내정액 += NOWEX:RECEIVER:질내정액
+		욕구불만해소계수 = 1000 / MIN(100 + ABL:RECEIVER:질내사정중독 * 10,200)
+		CFLAG:RECEIVER:욕구불만도 -= SQRT(NOWEX:RECEIVER:질내정액) * 욕구불만해소계수
+		CFLAG:RECEIVER:누계질내정액 += NOWEX:RECEIVER:질내정액
+		;SIF !TCVAR:RECEIVER:피임약
+		;PRINTFORML %CALLNAME:SENDER%が%CALLNAME:RECEIVER%に{NOWEX:RECEIVER:질내정액}出した
+		CALL SAMEN_SHOOT3(NOWEX:RECEIVER:질내정액 , SENDER, RECEIVER)
+		IF SHIRAHU(RECEIVER)
+			TCVAR:RECEIVER:씨받음자각 = 1
+		ENDIF
+		IF SHIRAHU(SENDER) && SENDER != MASTER
+			TCVAR:SENDER:씨뿌림자각 = 1
+		ENDIF
+		IF TCVAR:RECEIVER:억지로
+			IF TALENT:RECEIVER:스침 == 1
+				CSTR:RECEIVER:모브코프로필2 = %REPLACE(@"%CSTR:RECEIVER:모브코프로필2%","され今はもう大人しい","され、膣内射精された")%
+				SIF !STRCOUNT(CSTR:RECEIVER:모브코프로필2, "膣内射精された")
+					CSTR:RECEIVER:모브코프로필2 = %REPLACE(@"%CSTR:RECEIVER:모브코프로필2%","処女を奪われた","処女を奪われた挙句、膣内射精された")%
+				IF EX:RECEIVER:질내정액 >= 300 && !STRCOUNT(CSTR:RECEIVER:모브코프로필2, "たっぷりと")
+					CSTR:RECEIVER:모브코프로필2 = %REPLACE(@"%CSTR:RECEIVER:모브코프로필2%","膣内射精された","たっぷりと精液を注ぎ込まれた")%
+				ENDIF
+				IF 모브코초기V성교경험 + 10 <= EXP:RECEIVER:V성교경험
+					IF !STRCOUNT(CSTR:RECEIVER:모브코프로필2, "ハメ倒されて")
+						CSTR:RECEIVER:모브코프로필2 = %REPLACE(@"%CSTR:RECEIVER:모브코프로필2%","膣内射精された", "ハメ倒されて膣内射精された")%
+					ENDIF
+					IF 모브코초기V성교경험 + 15 <= EXP:RECEIVER:V성교경험 && !STRCOUNT(CSTR:RECEIVER:모브코프로필2, "散々")
+						CSTR:RECEIVER:모브코프로필2 = %REPLACE(@"%CSTR:RECEIVER:모브코프로필2%","ハメ倒されて", "散々ハメ倒されて")%
+					ENDIF
+				ENDIF
+				IF MARK:RECEIVER:쾌락각인 && !STRCOUNT(CSTR:RECEIVER:모브코프로필2, "イかされ")
+					CSTR:RECEIVER:모브코프로필2 = %REPLACE(@"%CSTR:RECEIVER:모브코프로필2%","ハメ倒されて", "ハメ倒されてイかされ")%
+				ENDIF
+				IF MARK:RECEIVER:쾌락각인 && !STRCOUNT(CSTR:RECEIVER:모브코프로필2, "イキ狂わされ")
+					CSTR:RECEIVER:모브코프로필2 = %REPLACE(@"%CSTR:RECEIVER:모브코프로필2%","イかされ", "イキ狂わされ")%
+				ENDIF
+			ENDIF
+			SELECTCASE ABL:RECEIVER:질내사정중독
+				CASE IS < 3
+					억지로반감 = 100000
+					호감도마이너스 = NOWEX:SENDER:사정 * RAND:50 + NOWEX:SENDER:사정 * RAND:50
+					신뢰마이나스 = NOWEX:SENDER:사정 * RAND:20 + NOWEX:SENDER:사정 * RAND:20
+					억지로공포 = NOWEX:RECEIVER:질내정액 * 5
+				CASE 3 TO 5
+					억지로반감 = 50000
+					호감도마이너스 = NOWEX:SENDER:사정 * RAND:30 + NOWEX:SENDER:사정 * RAND:30
+					신뢰마이나스 = NOWEX:SENDER:사정 * RAND:15 + NOWEX:SENDER:사정 * RAND:15
+					억지로공포 = NOWEX:RECEIVER:질내정액 * 3
+				CASEELSE
+					억지로반감 = 10000
+					호감도마이너스 = NOWEX:SENDER:사정 * RAND:10 + NOWEX:SENDER:사정 * RAND:10
+					신뢰마이나스 = NOWEX:SENDER:사정 * RAND:10 + NOWEX:SENDER:사정 * RAND:10
+					억지로공포 = NOWEX:RECEIVER:질내정액
+			ENDSELECT
+			IF CFLAG:RECEIVER:생리주기 == 7
+				억지로반감 *= 2
+				억지로공포 *= 2
+				호감도마이너스 *= 2
+				신뢰마이나스 *= 2
+			ENDIF
+			IF CFLAG:RECEIVER:억지로질내사정 > 1
+				억지로반감 *= 2
+				억지로공포 *= 2
+				호감도마이너스 *= 2
+				신뢰마이나스 *= 2
+			ENDIF
+			SOURCE:RECEIVER:반감 += 억지로반감
+			IF CFLAG:RECEIVER:억지로질내사정 > 1
+				CFLAG:RECEIVER:억지로질내사정 = 3
+			ELSE
+				CFLAG:RECEIVER:억지로질내사정 = 1
+			ENDIF
+			TFLAG:호감도관리 -= 호감도마이너스
+			CALL CHANGE_CFLAG(4,RECEIVER,신뢰마이나스 * (-1))
+		ENDIF
+		
+		;비디오;KR판 구잔재
+		IF TEQUIP:비디오촬영
+			LOCALS = SV/
+			TSTR:1 += LOCALS
+		ENDIF
+	;애널
+	CASE 2
+		EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정 * 2
+		EXP:RECEIVER:항내사정경험 += NOWEX:SENDER:사정 * 2
+		STAIN:RECEIVER:A |= 4
+		STAIN:RECEIVER:장내 |= 4
+		;질내사정 표시용
+		TCVAR:RECEIVER:A에질내사정된플래그 = 2
+		TCVAR:RECEIVER:A에질내사정한캐릭터의번호 = SENDER
+		IF FLAG:시간정지 == 1
+			CFLAG:RECEIVER:애널사정 = 2
+		ELSE
+			CFLAG:RECEIVER:애널사정 = 1
+		ENDIF
+		NOWEX:RECEIVER:애널내정액 = NOWEX:SENDER:사정량
+		EX:RECEIVER:애널내정액 += NOWEX:SENDER:사정량
+		욕구불만해소계수 = 1000 / MIN(100 + ABL:RECEIVER:항내사정중독 * 10,200)
+		CFLAG:RECEIVER:욕구불만도 -= SQRT(NOWEX:RECEIVER:애널내정액) * 욕구불만해소계수
+		CFLAG:RECEIVER:누계애널정액 += NOWEX:SENDER:사정량
+		CALL POISONBODY(RECEIVER, SENDER, 2)
+	;수음
+	CASE 3
+		EXP:RECEIVER:정음경험 += 1 + NOWEX:SENDER:사정
+		STAIN:RECEIVER:손 |= 4
+		IF FLAG:시간정지 == 1
+			CFLAG:RECEIVER:손에정액 = 2
+		ELSE
+			CFLAG:RECEIVER:손에정액 = 1
+		ENDIF
+		IF ABL:RECEIVER:정액중독 > 2 && ABL:RECEIVER:기교 > 2
+			EXP:RECEIVER:정음경험 ++
+			CFLAG:RECEIVER:누계정음 += NOWEX:SENDER:사정량 / 2
+			CFLAG:RECEIVER:욕구불만도 -= NOWEX:SENDER:사정량 * ABL:RECEIVER:정액중독 / 10 * (TALENT:RECEIVER:정애미각 + 1)
+			CALL POISONBODY(RECEIVER, SENDER, 31)
+		ELSE
+			CALL POISONBODY(RECEIVER, SENDER, 3)
+		ENDIF
+		;접촉의 리셋
+		TEQUIP:SENDER:손가락접촉부위 = 0
+	;펠라티오
+	CASE 4
+		EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정 * 3
+		STAIN:RECEIVER:구 |= 4
+		IF FLAG:시간정지 == 1
+			CFLAG:RECEIVER:구내정액 = 2
+		ELSE
+			CFLAG:RECEIVER:구내정액 = 1
+		ENDIF
+		;이라마치오
+		욕구불만해소계수 = 1000 / MIN(100 + ABL:RECEIVER:정액중독 * 10,200)
+		IF TALENT:RECEIVER:정애미각
+			SOURCE:RECEIVER:쾌M += NOWEX:SENDER:사정 * 10
+			욕구불만해소계수 += 1
+		ENDIF
+		IF SELECTCOM == 140
+			EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정 * 3
+			CFLAG:RECEIVER:누계정음 += NOWEX:SENDER:사정량
+		ELSEIF  RAND:(MIN(60, EXP:RECEIVER:정음경험 + 1)) > 10 + RAND:30
+			EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정 * 3
+			CFLAG:RECEIVER:누계정음 += NOWEX:SENDER:사정량
+		ELSE
+			EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정
+			CFLAG:RECEIVER:누계정음 += NOWEX:SENDER:사정량 / 3
+			욕구불만해소계수 /= 2
+		ENDIF
+		CALL POISONBODY(RECEIVER, SENDER, 4)
+		CFLAG:RECEIVER:욕구불만도 -= SQRT(NOWEX:SENDER:사정량) * 욕구불만해소계수 / 4
+
+		;접촉의 리셋
+		TEQUIP:SENDER:입접촉부위 = 0
+	;파이즈리
+	CASE 5
+		EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정 * 3
+		CFLAG:RECEIVER:누계뿌려짐 += NOWEX:SENDER:사정량
+		CALL POISONBODY(RECEIVER, SENDER, 5)
+		STAIN:RECEIVER:5 |= 4
+		IF FLAG:시간정지 == 1
+			CFLAG:RECEIVER:안면정액 = 2
+		ELSE
+			CFLAG:RECEIVER:안면정액 = 1
+		ENDIF
+		;TFLAG:특수COM = 12 에 해당하는 것이 CSV에 쓰여있지 않다
+		;(1=식스나인 2=이와시미즈 3=G 스폿 자극 4=흐트러지고 모란 5=수음 펠라 6= 7= 8= 식스나인 파이즈리 13=교호 삽입 )
+		;TFLAGS.txt라고 써 있는 것이 다르다(TFLAG:12 역강간계속 플래그(VA공통))
+		;	→싫은 예감
+		SIF TFLAG:특수COM == 12
+			STAIN:RECEIVER:구 |= 4
+		;접촉의 리셋
+		TEQUIP:SENDER:B접촉부위 = 0
+	;스마타
+	CASE 6
+		EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정
+		CFLAG:RECEIVER:누계뿌려짐 += NOWEX:SENDER:사정량
+		CALL POISONBODY(RECEIVER, SENDER, 6)
+		STAIN:RECEIVER:V |= 4
+		;접촉의 리셋
+		TEQUIP:SENDER:C접촉부위 = 0
+	;풋잡
+	CASE 7
+		EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정
+		CFLAG:RECEIVER:누계뿌려짐 += NOWEX:SENDER:사정량
+		CALL POISONBODY(RECEIVER, SENDER, 7)
+	;체표
+	CASE 8
+		EXP:RECEIVER:정음경험 += NOWEX:SENDER:사정 * 2
+		CFLAG:RECEIVER:누계뿌려짐 += NOWEX:SENDER:사정량
+		CALL POISONBODY(RECEIVER, SENDER, 8)
+ENDSELECT
+SIF SHIRAHU(RECEIVER)
+	CALL ADDICTION_SOURCE(RECEIVER, SENDER)
+ENDIF
+CFLAG:RECEIVER:욕구불만도 = LIMIT(CFLAG:RECEIVER:욕구불만도, 0, 1000)
+CFLAG:SENDER:욕구불만도 = MAX(CFLAG:SENDER:욕구불만도 - NOWEX:SENDER:사정 * 50, 0)
+
+;사정된 정자를 자궁내에 보내는 처리
+@SAMEN_SHOOT3(사정한정액량, 사정한캐릭터, 사정된캐릭터)
+#DIM 사정한정액량
+#DIM 사정된캐릭터
+#DIM 감산보정치
+#DIM 가산치
+
+;사용되지 않았다……
+#DIM 사정한캐릭터
+
+;73, 삽입자궁입구고문
+;뒤로부터 덧쓰기되고 있지만 이것 의미 있어?
+IF SELECTCOM == 73
+	감산보정치 = 100
+ELSE
+	SELECTCASE TEQUIP:사정된캐릭터:자궁
+	CASE 0
+		감산보정치 = 150
+	CASE 1
+		감산보정치 = 120
+	CASE 2
+		감산보정치 = 100
+ENDSELECT
+ENDIF
+
+;정말좋아 hold
+SIF TCVAR:사정된캐릭터:카운터행동의파생 == 2 && TCVAR:사정된캐릭터:카운터행동 == 500
+	감산보정치 -= 30
+
+가산치 = 사정한정액량 - 감산보정치
+
+IF !TALENT:사정된캐릭터:스침
+	SELECTCASE EXP:사정된캐릭터:자궁구개발경험
+		CASE IS >= 300
+		CASE IS > 100
+			가산치 = 가산치 * 2 / 3
+		CASEELSE
+			가산치 /= 2 
+	ENDSELECT
+ENDIF
+
+;계산 결과가 부라면 가산하지 않는다
+IF 가산치 < 0
+	RETURN 0
+ENDIF
+SIF 사정된캐릭터 == MASTER
+	TCVAR:사정한캐릭터:씨받이양 += 가산치
+EX:사정된캐릭터:자궁내정액 += 가산치
+
+;통상의 커맨드 밖에서 당신이 V에 냈을 때의 처리를 일괄로 하는 함수
+;기본적으로 오나바렉스용
+@ADD_SAMEN_V(ARG, 사정한정액량, 무자각)
+#DIM 사정한정액량
+#DIM 무자각
+
+사정한정액량 = MIN(BASE:MASTER:정력, 사정한정액량)
+BASE:MASTER:정력 -= 사정한정액량
+CALL SAMEN_SHOOT3(사정한정액량, MASTER, ARG)
+SIF (TALENT:MASTER:절륜);KR판 오리지날 또는 구잔재
+	사정한정액량=사정한정액량*2
+EX:ARG:질내정액 += 사정한정액량
+CFLAG:ARG:누계질내정액 += 사정한정액량
+
+SIF !무자각
+	TCVAR:ARG:씨받음자각 = 1
+
+STAIN:ARG:V |= 4
+STAIN:ARG:질내 |= 4
+
+STAIN:MASTER:P |= 1
+STAIN:MASTER:P |= 4
+
+;통상의 커맨드 밖에서 당신이 A에 냈을 때의 처리를 일괄로 하는 함수
+;기본적으로 오나바렉스용
+@ADD_SAMEN_A(ARG, 사정한정액량)
+#DIM 사정한정액량
+
+사정한정액량 = MIN(BASE:MASTER:정력, 사정한정액량)
+
+BASE:MASTER:정력 -= 사정한정액량
+SIF (TALENT:MASTER:절륜);KR판 구잔재 또는 오리지날
+	사정한정액량=사정한정액량*2
+EX:ARG:애널내정액 += 사정한정액량
+CFLAG:ARG:누계애널정액 += 사정한정액량
+
+STAIN:ARG:A |= 4
+STAIN:ARG:장내 |= 4
+
+STAIN:MASTER:P |= 8
+STAIN:MASTER:P |= 4
+
+@ADDICTION_SOURCE(RECEIVER, SENDER)
+#DIM RECEIVER
+#DIM SENDER
+#DIM AMOUNT
+#DIMS REVISED_FLAG
+#DIM REVISION
+#DIM 중독레벨
+
+
+SELECTCASE TCVAR:SENDER:사정한개소플래그
+	CASE 1
+		중독레벨 = ABL:RECEIVER:질내사정중독
+		REVISED_FLAG = 질내사정보정
+	CASE 2
+		중독레벨 = ABL:RECEIVER:항내사정중독
+		REVISED_FLAG = 항내사정보정
+	CASE 4
+		중독레벨 = ABL:RECEIVER:정액중독
+		REVISED_FLAG = 구강사정보정
+	CASEELSE
+		RETURN
+ENDSELECT
+
+TCVAR:RECEIVER:REVISED_FLAG = NOWEX:SENDER:사정량 * (10 + 중독레벨)
+
+IF TALENT:SENDER:농후정액
+	REVISION = GET_REVISION(TCVAR:RECEIVER:REVISED_FLAG, 500, 1000)
+ELSE
+	REVISION = GET_REVISION(TCVAR:RECEIVER:REVISED_FLAG, 500, 2000)
+ENDIF
+
+;동시절정의 경우 증가
+SIF SENDER == MASTER && SYNCED_ORGASM(RECEIVER)
+	REVISION = REVISION * 5 / 4
+
+SOURCE:RECEIVER:사랑 += REVISION * 2
+SOURCE:RECEIVER:욕정 += REVISION * 2
+SOURCE:RECEIVER:복종 += REVISION
+SOURCE:RECEIVER:굴종 += REVISION
+
+TCVAR:RECEIVER:REVISED_FLAG = REVISION
+
+@ADDICTION_SHOW(ARG, 보정명, 대응중독)
+#DIMS 대응중독
+#DIMS 보정명
+#DIM REVISION
+
+LOCAL = FINDELEMENT(ABLNAME, 대응중독)
+
+REVISION = TCVAR:ARG:보정명
+SIF REVISION
+	PRINTFORML %CALLNAME:ARG%（%ABLNAME:LOCAL%{ABL:ARG:대응중독}）:사랑+{REVISION * 2} 욕정+{REVISION * 2} 굴종+{REVISION} 복종+{REVISION}
+IF TALENT:ARG:스침 == 1 && ABL:ARG:대응중독 < REVISION / 150 && ABL:ARG:대응중독 < 3
+	ABL:ARG:대응중독 ++
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%의 %조사처리(ABLNAME:LOCAL,"가")% {ABL:ARG:대응중독}이 되었다",C_YELLOW,2)
+ENDIF
+
+@AUTO_SKIN_EQUIP
+SIF !CFLAG:TARGET:자동고무
+	RETURN
+SIF !ITEM:콘돔
+	RETURN
+SIF TEQUIP:MASTER:콘돔
+	RETURN
+
+ITEM:콘돔 --
+TEQUIP:MASTER:콘돔 = 1
+PRINTFORML %마스터는% 콘돔을 착용했다. 나머지 {ITEM:콘돔}매
+
+;===========================================
+;포이즌바디の効果を規定 MASTER限定
+;POINTは射精箇所
+;===========================================
+@POISONBODY(RECEIVER, SENDER, POINT)
+#DIM RECEIVER
+#DIM SENDER
+#DIM POINT
+#DIM 게이지증가
+
+게이지증가 = 0
+IF TFLAG:포이즌바디 && SENDER == MASTER
+	SELECTCASE POINT
+		;膣内。粘膜吸収1.5倍。一番効果が出る
+		CASE 1
+			게이지증가 += NOWEX:SENDER:사정량 * 3 / 2
+		;アナル。粘膜吸収1.0倍。
+		CASE 2
+			게이지증가 += NOWEX:SENDER:사정량
+		;手淫。経皮0.2倍。一応効果はある程度
+		CASE 3
+			게이지증가 += NOWEX:SENDER:사정량 / 5
+		;手淫→舐め取り。粘膜0.5倍
+		CASE 31
+			게이지증가 += NOWEX:SENDER:사정량 / 2
+		;口。粘膜吸収1.0倍。飲みこぼしなどで減免はしない
+		CASE 4
+			게이지증가 += NOWEX:SENDER:사정량
+		;胸。経皮0.5倍。手よりは多い
+		CASE 5
+			게이지증가 += NOWEX:SENDER:사정량 / 2
+		;素股。粘膜？0.75倍
+		CASE 6
+			게이지증가 += NOWEX:SENDER:사정량 * 3 / 4
+		;足。経皮0.2倍。一応効果はある程度
+		CASE 7
+			게이지증가 += NOWEX:SENDER:사정량 / 5
+		;体表。経皮0.1倍。
+		CASE 8
+			게이지증가 += NOWEX:SENDER:사정량 / 10
+	ENDSELECT
+	;농후정액の場合は２倍に補正
+	SIF TALENT:SENDER:농후정액
+		게이지증가 *= 2
+ENDIF
+TCVAR:RECEIVER:포이즌게이지 += 게이지증가

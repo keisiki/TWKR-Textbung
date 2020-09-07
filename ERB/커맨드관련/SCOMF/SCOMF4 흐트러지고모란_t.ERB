@@ -1,0 +1,347 @@
+﻿;-------------------------------------------------
+;흐트러지고 모란
+;섹스계 파생 커맨드
+;-------------------------------------------------
+@SCOM4
+;-------------------------------------------------
+;COM별 FLAG의 설정
+;-------------------------------------------------
+;행위자
+TCVAR:116 = PLAYER
+;TCVAR:2 사정장소 플래그(-1=콘돔 1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수)
+
+LOCALS = {TARGET}/
+CSTR:PLAYER:10 += LOCALS
+TCVAR:PLAYER:2 = 1
+;강도
+TCVAR:PLAYER:4 = 2300
+
+;봉사 쾌락 플래그
+TCVAR:PLAYER:108 = 1
+
+;-------------------------------------------------
+;소스 추가 처리
+;-------------------------------------------------
+;소비 체력, 기력
+IF FLAG:70 == 1
+	BASE:MASTER:TSP -= 60
+	SOURCE:PLAYER:성행동 =50
+	SOURCE:쾌C = 300
+	SOURCE:쾌V = 400
+	SOURCE:쾌B = 300
+	SOURCE:고통 = 200
+
+	;처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:처녀 == 1
+		SOURCE:고통 += 1000
+	ENDIF
+
+	;재생 처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:처녀 == 2
+		SOURCE:고통 += 250
+	ENDIF
+
+ELSE
+
+	DOWNBASE:체력 += 50
+	DOWNBASE:기력 += 100
+	SOURCE:PLAYER:성행동 =50
+
+	SOURCE:쾌C = 300
+	SOURCE:쾌V = 400
+	SOURCE:쾌B = 300
+	SOURCE:사랑 = 400
+	SOURCE:고통 = 400
+	SOURCE:노출 = 600
+	SOURCE:일탈 = 700
+	SOURCE:반감 = 1200
+
+	;위 쪽으로 계산한 더러운 데이터
+	SOURCE:불결 = Y*10 + 60
+
+
+	;-------------------------------------------------
+	;특수소스처리
+	;-------------------------------------------------
+	;억압, 저항 소유에는, 억울소스 추가
+	SIF TALENT:자기애 < 0 || TALENT:저항
+		SOURCE:울굴 += 1000
+
+	;정조 관념 소유로 연모, 친애 가져 이외에는 항상 반발의 소스를 추가한다(섹스계만)
+	SIF TALENT:정조 > 0 && !TALENT:연모
+		SOURCE:반감 += 1000
+
+	;처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:처녀 == 1
+		SOURCE:고통 += 2000
+		SOURCE:반감 += 3000
+	ENDIF
+
+	;재생 처녀였던 경우는, 고통의 소스와 반발의 소스를 추가한다
+	IF TALENT:처녀 == 2
+		SOURCE:고통 += 500
+		SOURCE:반감 += 1000
+	ENDIF
+ENDIF
+;V에의 고통은 먼저 처리해 둔다
+CALL PAIN_CHECK_V(TARGET)
+
+;-------------------------------------------------
+;더러움의 처리
+;-------------------------------------------------
+;사정에 관계없이 행해지는 처리는 여기에서
+;질내에 파과의 피의 더러움을 부가
+SIF TALENT:처녀  &&TALENT:처녀 != -1
+	STAIN:6 |= 64
+;노예의 질내⇔조교자의 P의 더러움이 이동
+STAIN:6 |= STAIN:PLAYER:2
+STAIN:PLAYER:2 |= STAIN:6
+
+;-------------------------------------------------
+;경험의 처리
+;-------------------------------------------------
+;성교경험
+EXP:PLAYER:삽입경험 ++
+
+;동성애 레즈비언이라면 반환값 1 동성애자라면 반환값 2
+IF HETEROSEX(TARGET, PLAYER)
+	EXP:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+	EXP:PLAYER:(50 + HETEROSEX(TARGET, PLAYER)) += 4
+ENDIF
+
+IF FLAG:70 == 1
+	EXP:MASTER:시간경험 += 1
+ELSE
+	EXP:V성교경험 += 1
+	;애정경험
+	SIF !ASSIPLAY
+		EXP:애정경험 += 2 * TALENT:연모
+ENDIF
+RETURN 1
+
+@CAN_SCOM4(ARG)
+;-------------------------------------------------
+;실행 판정 처리
+;-------------------------------------------------
+IF FLAG:70 == 1
+
+ELSE
+
+	;밧줄로 묶여 있을 경우는 무시(밧줄이 없을 때만 실행 판정을 실시한다)
+	IF !TEQUIP:밧줄
+		SKIPDISP ARG
+		PRINTL 흐트러지고 모란
+		A = 0
+		S = 0
+		;모든 명령에 공통의 요소를 고려
+		;(순종이 높다고 명령에 따르기 쉬운 등)
+		CALL COM_ORDER
+
+		;ABL:욕망
+		IF ABL:욕망
+			SIF S
+				PRINT  + 
+			A += ABL:욕망 * 3
+			PRINT 욕망
+			PRINTV 'LV, ABL:욕망, '(, ABL:욕망 * 3, ')
+			S = 1
+		ENDIF
+		;ABL:V감각
+		IF ABL:V감각
+			SIF S
+				PRINT  + 
+			A += ABL:V감각 * 2
+			PRINT V감각
+			PRINTV 'LV, ABL:V감각, '(, ABL:V감각 * 2, ')
+			S = 1
+		ENDIF
+		;쾌락각인
+		IF MARK:쾌락각인
+			SIF S
+				PRINT  + 
+			A += MARK:쾌락각인 * 3
+			PRINT 쾌락각인
+			PRINTV 'LV, MARK:쾌락각인, '(, MARK:쾌락각인 * 3, ')
+			S = 1
+		ENDIF
+		;PALAM:윤활(의 부족)
+		IF PALAM:윤활 < PALAMLV:3
+			PRINT  - 
+			A -= 5
+			PRINT 윤활 부족
+			PRINTV '(, 5, ')
+			S = 1
+		ENDIF
+		;PALAM:욕정
+		IF GETPALAMLV(PALAM:욕정, 5)
+			SIF S
+				PRINT  + 
+			A += GETPALAMLV(PALAM:욕정, 5) * 3
+			PRINT 욕정
+			PRINTV 'LV, GETPALAMLV(PALAM:욕정, 5), '(, GETPALAMLV(PALAM:욕정, 5) * 3, ')
+			S = 1
+		ENDIF
+		;수줍음
+		IF TALENT:수치심 > 0
+			PRINT  - 
+			A -= 2
+			PRINT 수줍음
+			PRINTV '(, 2, ')
+			S = 1
+		ENDIF
+		;쾌감에 부정
+		IF TALENT:쾌감응답 < 0 && !TALENT:연모
+			PRINT  - 
+			A -= 5
+			PRINT 쾌감에 부정
+			PRINTV '(, 5, ')
+			S = 1
+		ENDIF
+		;남성기피(연모, 친애로 무효)
+		IF OTOKOGIRAI(TARGET)
+			PRINT  - 
+			A -= 12
+			PRINT 남성기피
+			PRINTV '(, 12, ')
+			S = 1
+		ENDIF
+		;연모
+		IF TALENT:연모 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 15
+			PRINT 연모
+			PRINTV '(, 15, ')
+			S = 15
+		ENDIF
+		;친애
+		IF TALENT:연모 > 1 && ASSIPLAY == 0
+			SIF S
+				PRINT  + 
+			A += 5
+			PRINT 친애
+			PRINTV '(, 5, ')
+			S = 5
+		ENDIF
+		;처녀
+		LOCAL = MAX(0,40 - EXP:V경험)
+		IF TALENT:처녀 && TALENT:처녀 != -1 && LOCAL
+			PRINT  - 
+			A -= LOCAL
+			PRINT 처녀
+			PRINTV '(, LOCAL, ')
+			S = 1
+		;V경험
+		ELSEIF EXP:V경험 < EXPLV:2
+			PRINT  - 
+			A -= 15
+			PRINT V경험
+			PRINT 부족
+			PRINTV '(, 15, ')
+			S = 1
+		ENDIF
+
+		;조교자가 후타나리
+		IF (TALENT:PLAYER:2 & 3) == 3
+			SIF S
+				PRINT  + 
+			A += 4
+			PRINT 후타나리
+			PRINTV '(, 4, ')
+			S = 1
+		ENDIF
+
+		;미약
+		IF TCVAR:미약
+			SIF S
+				PRINT  + 
+			A += 6
+			PRINT 미약
+			PRINTV '(, 6, ')
+			S = 1
+		ENDIF
+
+		Y = 0
+		;애액의 더러움
+		SIF STAIN:PLAYER:2 & 1
+			Y += 1
+		;정액의 더러움
+		SIF STAIN:PLAYER:2 & 4
+			Y += 3
+		;애널의 더러움
+		SIF STAIN:PLAYER:2 & 8
+			Y += 7
+		SIF STAIN:PLAYER:2 & 16
+			Y += 15
+		Y = Y * (2 - TALENT:악취내성) / 2
+
+		;서로 더러워져
+		IF Y
+			PRINT  - 
+			A -= Y
+			PRINT 서로 더러워져
+			;악취 둔감
+			IF TALENT:악취내성 > 0
+				PRINT , 악취 둔감
+			ELSEIF TALENT:악취내성 < 0
+				PRINT , 악취 민감
+			ENDIF
+			PRINTV '(, Y, ')
+			S = 1
+		ENDIF
+
+		;합계를 표시(47이상으로 실행)
+		PRINT  = 
+		PRINTV A
+
+		V = 47
+		SIF A < V
+			PRINT  < 
+		SIF A == V
+			PRINT  = 
+		SIF A > V
+			PRINT  > 
+		PRINT 실행치
+		PRINTV V
+
+	ENDIF
+
+	WAIT
+	SKIPDISP 0
+	;실행할 수 없다
+	SIF A < V
+		RETURN 0
+ENDIF
+RETURN 1
+
+
+;-------------------------------------------------
+;선택 가능 판정
+;-------------------------------------------------
+@COM_ABLE504
+;흐트러지고 모란 실행 판정
+SIF !TFLAG:100
+	RETURN 0
+;일괄관리
+SIF GLOBAL_COMABLE(504)
+	RETURN RESULT
+;조교자가 남자, 후타나리의 경우는 어느 정도 발기하고 있지 않으면 안 돼
+SIF (TALENT:PLAYER:2 & 2) && BASE:MASTER:발기 < 1000
+	RETURN 0
+;조교자가 남자, 반인반요, 후타나리, 혹은 페니스밴드가 없으면 안 돼
+SIF !(TALENT:PLAYER:2 & 2) && ITEM:PBAND == 0
+	RETURN 0
+;수치플레이중이 아니면 안 돼
+SIF TEQUIP:30 == 0
+	RETURN 0
+;바이브 삽입중은 안 돼
+SIF TEQUIP:13
+	RETURN 0
+;남자라면 안 돼
+SIF  !(TALENT:2 & 1)
+	RETURN 0
+;전라가 아니면 안 돼(양말, 특수는 제외하다)
+SIF TEQUIP:0 || TEQUIP:1
+	RETURN 0
+RETURN 1
+

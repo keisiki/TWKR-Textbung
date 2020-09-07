@@ -1,0 +1,283 @@
+﻿@CHK_NAMA_POISONING(ARG)
+#FUNCTION
+LOCAL = 0
+
+;애정경험계보다 질내사정중독등의 (분)편이 물건을 말한다
+;여러가지 반응을 일으키는 최소의 물리량이 알지 느낌
+;말용 이벤트는, 일단 EVENT31로 설정.
+;1：OK
+;2：NG
+;3：(은)는? (진지한 얼굴)
+
+
+
+SIF TALENT:ARG:연인
+	LOCAL += 100
+SIF TALENT:ARG:걸레
+	LOCAL += 300
+SIF TALENT:ARG:자기애 == 1
+	LOCAL += 50
+SIF TALENT:ARG:도착적
+	LOCAL += 100
+SIF TALENT:ARG:V감도 == 1
+	LOCAL += 50
+SIF TALENT:ARG:포르치오성감
+	LOCAL += 100
+SIF TALENT:ARG:음호
+	LOCAL += 150
+
+LOCAL:3 += GETPALAMLV(PALAM:욕정, 15) * (10 + TALENT:ARG:쾌감응답 * 2)
+LOCAL:3 += GETPALAMLV(PALAM:복종, 15) * (10 - TALENT:ARG:태도 * 2)
+IF TALENT:ARG:마조
+	LOCAL:3 += GETPALAMLV(PALAM:굴복, 15) * 2
+ELSE
+	LOCAL:3 += GETPALAMLV(PALAM:굴복, 15)
+ENDIF
+
+LOCAL:5 += ABL:ARG:순종 * 5
+LOCAL:5 += ABL:ARG:욕망 * (10 + TALENT:ARG:쾌감응답 * 2)
+LOCAL:5 += ABL:ARG:봉사정신 * 5
+LOCAL:5 += ABL:ARG:V감각 * 10
+LOCAL:5 += ABL:ARG:마조끼 * 5
+LOCAL:5 += ABL:ARG:정액중독 * 7
+LOCAL:5 += ABL:ARG:질내사정중독 * 20
+LOCAL:5 += ABL:ARG:질내사정중독 * 15
+LOCAL:5 += MARK:ARG:쾌락각인 * 10
+LOCAL:5 += MARK:ARG:고통각인 * 10
+LOCAL:5 += MARK:ARG:시간각인 * 10
+
+
+LOCAL = LOCAL:3 * LOCAL:5 / 500
+
+
+RETURNF LOCAL
+
+
+@CHK_NAMA_REASON(ARG, ARGS)
+#FUNCTION
+#DIM 이성판정치
+VARSET LOCAL
+
+
+이성판정치 = 800 + MARK:ARG:반발각인 * 500
+
+SIF ESTRUS_CYCLE(ARG) == 150
+	이성판정치 += 1000
+
+IF TCVAR:ARG:발정
+	이성판정치 -= 200
+ELSEIF TCVAR:ARG:춘약
+	이성판정치 -= 50
+ENDIF
+
+IF TALENT:ARG:츤데레
+	IF TALENT:ARG:연모
+		이성판정치 = 이성판정치 / 2
+	ELSE
+		이성판정치 = 이성판정치 * 3 / 2
+	ENDIF
+ENDIF
+
+;신뢰도
+IF CFLAG:ARG:신뢰도 < 100
+	이성판정치 *= 5
+ELSEIF CFLAG:ARG:신뢰도 < 300
+	이성판정치 *= 5 / 2
+ELSEIF CFLAG:ARG:신뢰도 < 500
+	이성판정치 *= 5 / 3
+ELSEIF CFLAG:ARG:신뢰도 < 1000
+	이성판정치 *= 5 / 4
+ENDIF
+
+;호감도
+SELECTCASE CFLAG:ARG:호감도
+CASE 0 TO 2000
+	이성판정치 *= 10
+CASE 2000 TO 3999
+	이성판정치 *= 8
+CASE 4000 TO 5999
+	이성판정치 *= 6
+CASE 6000 TO 7999
+	이성판정치 *= 4
+CASE 8000 TO 9999
+	이성판정치 *= 2
+CASEELSE
+;	이성판정치 *= 1
+ENDSELECT
+
+;카운터라면 여기서 소질 처리해 둔다
+IF ARGS == "COUNTER"
+	SIF TALENT:ARG:저항
+		이성판정치 += 300
+	IF TALENT:MASTER:수수께끼의매력
+		이성판정치 = 이성판정치 * 9 / 10
+	ENDIF
+	IF TALENT:ARG:자존심 == 1
+		이성판정치 = 이성판정치 * 7 / 5
+	ENDIF
+	IF OTOKOGIRAI(ARG)
+		이성판정치 = 이성판정치 * 3 / 2
+	ENDIF
+	IF TALENT:ARG:도착적
+		이성판정치 = 이성판정치 * 9 / 10
+	ENDIF
+
+
+	IF ABL:ARG:V감각 > 10
+		이성판정치 = 이성판정치 * 9 / 10
+		SIF TALENT:ARG:V감도 == 1
+			이성판정치 = 이성판정치 * 4 / 5
+		SIF TALENT:ARG:포르치오성감
+			이성판정치 = 이성판정치 * 4 / 5
+		SIF TALENT:ARG:음호
+			이성판정치 = 이성판정치 / 2
+	ENDIF
+
+	IF TALENT:ARG:츤데레
+		IF TALENT:ARG:연모
+			이성판정치 = 이성판정치 * 2 / 3
+		ELSE
+			이성판정치 = 이성판정치 * 3 / 2
+		ENDIF
+	ENDIF
+ENDIF
+
+
+이성판정치 = MAX(이성판정치, 0)
+RETURNF 이성판정치
+
+@NAMA_POISONING(ARG)
+#DIM 이성판정치
+#DIM 욕망판정치
+#DIM 호의표시
+VARSET LOCAL
+
+
+PRINTFORMW %CALLNAME:ARG%의 가슴 속
+
+욕망판정치 = CHK_NAMA_POISONING(ARG) 
+CALL SHOW_NAMAPOWER(욕망판정치)
+
+WAIT
+이성판정치 = CHK_NAMA_REASON(ARG)
+
+CALL SHOW_REASONWALL(이성판정치)
+IF TALENT:MASTER:수수께끼의매력
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%는, %CALLNAME:MASTER%의 수수께끼의매력에 이성이 흔들리는 것을 느낀……", C_PINK, 1,1)
+	이성판정치 = 이성판정치 * 9 / 10
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+IF TALENT:ARG:자존심 == -1 || TALENT:ARG:헌신적 == 1
+	이성판정치  = 이성판정치 * 9 / 10
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%는, 여기까지 신신 부탁해지면 좋겠다고 생각해 버린……", C_PINK, 1,1)
+ELSEIF TALENT:ARG:자존심 == 1
+	이성판정치 = 이성판정치 * 7 / 5
+	CALL COLORMESSAGE(@"자존심의 높은 %CALLNAME:ARG%는, 제멋대로언동에 화를 낸……", C_PINK, 1,1)
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+IF OTOKOGIRAI(ARG)
+	이성판정치 = 이성판정치 * 3 / 2
+	IF TALENT:ARG:성별기호 == 3
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%는 다른 사람 일반적으로 대해 기피 감정 을 가지고 있는……", C_PINK, 1,1)
+	ELSEIF TALENT:ARG:성별기호 == 1
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%는 남성 일반적으로 대해 기피 감정 을 가지고 있는……", C_PINK, 1,1)
+	ENDIF
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+IF TALENT:ARG:도착적
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%는, 전후를 생각하지 않는 성교에 도착적인 매력을 느낀……", C_PINK, 1,1)
+	이성판정치 = 이성판정치 * 9 / 10
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+
+
+IF ABL:ARG:V감각 > 10
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%의 자궁이, 비유하자도 없게 쑤셨다……!", C_PINK, 1,1)
+	이성판정치 = 이성판정치 * 9 / 10
+	SIF TALENT:ARG:V감도 == 1
+		이성판정치 = 이성판정치 * 4 / 5
+	SIF TALENT:ARG:포르치오성감
+		이성판정치 = 이성판정치 * 4 / 5
+	SIF TALENT:ARG:음호
+		이성판정치 = 이성판정치 / 2
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+
+
+IF TALENT:ARG:츤데레
+	IF TALENT:ARG:연모
+		이성판정치 = 이성판정치 * 2 / 3
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%는 데레!", C_PINK, 1,1)
+	ELSE
+		이성판정치 = 이성판정치 * 3 / 2
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%는 반감을 안은……", C_PINK, 1,1)
+	ENDIF
+	CALL SHOW_REASONWALL(이성판정치)
+ENDIF
+
+WAIT
+IF CHK_NAMA_POISONING(ARG) > 이성판정치
+	PRINTFORMW %CALLNAME:MASTER%로부터의 물음에, %CALLNAME:ARG%의 눈동자가 욕정에 녹는다
+	PRINTFORMW %CALLNAME:ARG%는, 끄덕하고 수긍했다……
+	CFLAG:ARG:육아중해금 = 1
+	;일단 EVENT31로 설정.
+	CALL KOJO_MESSAGE_SEND("EVENT", 31, TARGET, 1,0)
+ELSE
+	PRINTFORML 	%CALLNAME:ARG%는 넌지시 끊었다
+	CALL KOJO_MESSAGE_SEND("EVENT", 31, TARGET, 2,0)
+	PRINTL [0]상대의 의지를 존중한다
+	PRINTL [1]밀어붙인다
+	$INPUT2_LOOP
+	INPUT
+	
+	IF RESULT == 0
+		TFLAG:16 =2
+		TFLAG:17 = TARGET
+	ELSEIF RESULT == 1
+	;입의 능숙함과 상대 나름에서는 달라붙으면 어떻게든 된다
+		LOCAL = (4 - TALENT:ARG:응답 - TALENT:ARG:담력 - TALENT:ARG:태도) * (ABL:MASTER:화술기능 + 2 * CFLAG:ARG:퇴짜)
+		LOCAL:2 = 이성판정치 * (100 - LOCAL) / 200
+		CALL SHOW_REASONWALL(LOCAL:2)
+		IF CHK_NAMA_POISONING(ARG) > LOCAL:2
+			PRINTFORMW %마스터는% 세 치 혓바닥으로 어떻게든%CALLNAME:ARG%의 욕망을 꺼냈다
+			PRINTFORMW %CALLNAME:ARG%는, 끄덕하고 수긍했다……
+			CFLAG:ARG:육아중해금 = 1
+			CALL KOJO_MESSAGE_SEND("EVENT", 31, TARGET, 1,0)
+		ELSE
+			CALL KOJO_MESSAGE_SEND("EVENT", 31, TARGET, 3,0)
+			PRINTFORMW %CALLNAME:ARG%에 마음껏 화가 났다…
+			CFLAG:ARG:퇴짜 += 1
+			CALL ENDUFUFU(ARG)
+			CALL GET_ANGRY(ARG)
+			MARK:ARG:반발각인 = MIN(MARK:ARG:반발각인 + 1, 3)
+			TFLAG:106 = 0
+			TFLAG:16 = 2
+		ENDIF
+	ELSE
+		GOTO INPUT2_LOOP
+	ENDIF
+ENDIF
+
+@SHOW_NAMAPOWER(욕망판정치, UNIT = 100)
+#DIM 욕망판정치
+#DIM 욕망표시
+#DIM UNIT
+
+PRINTFORM 삽입 하고 싶음:
+욕망표시 = MAX(욕망판정치 / UNIT, 0)
+LOCALS:1 = %GETFONT()%
+SETFONT "Times New Roman"
+LOCAL = GETCOLOR()
+PRINTFORM %UNICODE(0x2764) * MAX((욕망표시 / 10000 -1), 0)%
+RESETCOLOR
+SETCOLOR 255,51,153
+SIF 욕망표시 >=10000
+	PRINTFORM %UNICODE(0x2764) * (9999) %%UNICODE(0x2764)%
+
+PRINTFORM %UNICODE(0x2764) * (욕망표시 % 10000)%
+SETCOLOR LOCAL
+
+SIF 욕망판정치 % UNIT > (UNIT / 2)
+	PRINTFORML %UNICODE(0x2764)%
+SETFONT LOCALS:1
+PRINTW

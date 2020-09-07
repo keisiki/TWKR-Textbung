@@ -1,0 +1,322 @@
+﻿;-------------------------------------------------
+;방을방문한다
+;외출 커맨드
+;-------------------------------------------------
+@COM697
+#DIM 집주인
+#DIM 질투
+#DIM 바람기
+#DIM 방의더러움
+FOR LOCAL, 1, CHARANUM
+	IF CFLAG:LOCAL:자택위치 == CFLAG:MASTER:현재위치
+		SIF CFLAG:LOCAL:출금
+			CONTINUE
+		SIF LOCAL == TARGET
+			CONTINUE
+		SIF CFLAG:LOCAL:약점잡힘
+			SETCOLOR C_AQUA
+		SIF CFLAG:LOCAL:현재위치 != SUKIMA() || !VISIT(LOCAL) || CFLAG:LOCAL:거점내방 || BASE:LOCAL:체력 < 1000
+			SETCOLOR C_GRAY
+		PRINTFORML [{LOCAL}] %OMANEKI_PLACE(LOCAL)%
+		RESETCOLOR
+	ENDIF
+NEXT
+DRAWLINE
+PRINTL [999] 그만둔다
+INPUT
+SIF RESULT == 999
+	RETURN -1
+SIF CFLAG:RESULT:자택위치 != CFLAG:MASTER:현재위치
+	RETURN -1
+
+집주인 = RESULT
+
+;다른 아이와 데이트중
+IF FLAG:데이트상대
+	PRINTFORMW %OMANEKI_PLACE(집주인)%에 들어가려 했으나, %CALLNAME:(FLAG:데이트상대)%에게 마음껏 노려보였다
+	RETURN -1
+ENDIF
+
+;볼 수 있지 않은가 체크
+바람기 = 0
+질투 = 0
+FOR LOCAL, 1, CHARANUM
+	IF LOCAL != 집주인 && CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+		SIF LOCAL == 60
+			질투 = 60
+		SIF TALENT:LOCAL:연모 && CFLAG:LOCAL:신뢰도 < 1000
+			바람기 = LOCAL
+	ENDIF
+NEXT
+;파르시가 출현해 4명이나 살고 있는 지령전은 꽤 난이도가 높다
+;연동 캐릭터도 달려 들어 오므로 양다리 하고 있다고(면) 큰 일
+IF 질투 || 바람기
+	PRINTFORM %OMANEKI_PLACE(집주인)%에 들어가려 했으나, 
+	IF 질투
+		PRINTFORMW 오니같은 형상의 %CALLNAME:질투%에게 방해받았다
+	ELSE
+		PRINTFORMW 의아한 얼굴을 한 %CALLNAME:바람기%에게 불러세워졌다
+	ENDIF
+	RETURN -1
+ENDIF
+
+IF TCVAR:집주인:댁방문
+	PRINTFORML 오늘은 이제 그만 두자
+	RETURN -1
+ENDIF
+
+SELECTCASE RAND:10
+	CASE IS <= 1
+		TFLAG:193 = 1
+	CASE 2 TO 4
+	;매우 바쁜
+		TFLAG:193 = 2
+	CASE 5,6,7
+	;잠시
+		TFLAG:193 = 3
+	CASE 8,9
+	;올려 줄 수 있다
+		TFLAG:193 = 4
+ENDSELECT
+SIF !TALENT:집주인:연모 && !TALENT:집주인:사모 && TFLAG:193 > 2
+	TFLAG:193 --
+
+SIF CFLAG:집주인:현재위치 != SUKIMA() || !VISIT(집주인) || CFLAG:집주인:거점내방 || BASE:집주인:체력 < 1000
+	TFLAG:193 = 1
+
+PRINTFORMW %마스터는% %조사처리(OMANEKI_PLACE(집주인),"를")% 방문했다
+TCVAR:집주인:댁방문 = 1
+[IF_DEBUG]
+IF FLAG:테스트용딸딸이들킴발생
+	CALL ONABARE(집주인)
+	GOTO OWARI
+ENDIF
+[ENDIF]
+
+CALL IRAI_VISIT_HOME(집주인)
+SIF RESULT
+	GOTO OWARI
+
+
+IF DAY:2 == 3 && (DAY:3 == 13 || DAY:3 == 15) && TFLAG:193 > 1
+	CFLAG:집주인:마지막에만난날 = DAY
+	PRINTFORML %조사처리(CALLNAME:집주인,"가")% 나왔다
+	PRINTFORMW 「복조리 받아라, 밭에 풍년 받아라!」%마스터는% 풍년을 빌었다
+	IF ABL:집주인:교양 >= 5 || 집주인 == 77 || 집주인 == 78
+		PRINTFORML %조사처리(CALLNAME:집주인,"는")% 과자를 주었다!
+		;현상 실장되고 있는 과자를 랜덤에
+		SELECTCASE RAND:5
+			CASE 0
+				ITEM:120 ++
+			CASE 1
+				ITEM:212 ++
+			CASE 2
+				ITEM:213 ++
+			CASE 3
+				ITEM:216 ++
+			CASEELSE
+				ITEM:376 ++
+		ENDSELECT
+	ELSE
+		PRINTFORML %조사처리(CALLNAME:집주인,"는")% 의아한 얼굴을 하고 있다…아무래도 「복조리」를 모르는 것 같다
+		PRINTFORML %조사처리(CALLNAME:집주인,"는")% 말없이 문을 닫아버렸다
+		PRINTFORML %마스터는% 슬퍼졌다
+	ENDIF
+	TIME += 10
+	RETURN 1
+ENDIF
+
+IF TFLAG:193 > 1 && CFLAG:집주인:욕구불만도 > 300
+	IF RAND:(CFLAG:집주인:욕구불만도 + TFLAG:행운보정 * 50) >= RAND:700
+		CALL ONABARE(집주인)
+		GOTO OWARI
+	ELSEIF ITEM:토부「개운대문」
+		PRINTL 이런, 개운대문의 모습이…?
+		CALL ASK_YN("꺼낸다","방치한다")
+		IF !RESULT
+			ITEM:토부「개운대문」 --
+			CALL COLORMESSAGE(@"토부「개운대문」이 발동!", C_YELLOW, 2)
+			CALL ONABARE(집주인)
+			GOTO OWARI
+		ENDIF
+	ENDIF
+ENDIF
+SELECTCASE TFLAG:193
+	CASE 1
+		IF CFLAG:MASTER:현재위치 == CFLAG:집주인:현재위치
+			PRINTFORMW 눈 앞에 있는 %조사처리(CALLNAME:집주인,"가")%,  멋대로 들어가지말라고 했다
+		ELSE
+			PRINTFORMW 대답이 없다… 부재중이거나 자고 있을 것이다
+		ENDIF
+	CASE 2
+		CFLAG:집주인:마지막에만난날 = DAY
+		PRINTFORMW %조사처리(CALLNAME:집주인,"가")% 나왔다
+		IF !TALENT:집주인:연모 && !TALENT:집주인:사모
+			PRINTFORM %조사처리(CALLNAME:집주인,"는")% 귀찮은 듯, 
+		ELSE
+			PRINTFORM %조사처리(CALLNAME:집주인,"는")% 미안한 듯, 
+		ENDIF
+		PRINTFORMW 오늘은 시간이 없으니까 또 다음에라고 말했다
+		PRINTFORM 내일 만날 수 있는지 물어보니까, 
+		IF !RAND:2 && !GETBIT (TFLAG:일일일회, 5)
+			PRINTFORMW 내일은 %GET_MAPNAME(MAIN_MAP)%에 갈 생각이라는 것이다
+			CFLAG:집주인:다음날내방 = 1
+			SETBIT TFLAG:일일일회, 5
+		ELSE
+			PRINTFORMW 좀 모르겠다, 라는 말을 들었다
+		ENDIF
+		CALL COM697_1(집주인)
+		TIME += 5
+	CASE 3
+		CFLAG:집주인:마지막에만난날 = DAY
+		PRINTFORML %조사처리(CALLNAME:집주인,"가")% 나왔다
+		PRINTFORML %조사처리(CALLNAME:집주인,"를")% 보고 싶어져서 왔다고 하자, 조금이라면 라며 들여보내 주었다
+		PRINTFORMW …
+		PRINTFORMW ……
+		PRINTFORMW ………
+		PRINTFORMW %조사처리(CALLNAME:집주인,"와")% 잠시 담소했다
+		PRINTFORMW 헤어질 때, 내일 만날 수 있는지 물어보았다
+		IF !RAND:2 && !GETBIT (TFLAG:일일일회, 5)
+			PRINTFORMW 내일은 %GET_MAPNAME(MAIN_MAP)%에 갈 생각이라는 것이다
+			CFLAG:집주인:다음날내방 = 1
+			SETBIT TFLAG:일일일회, 5
+		ELSE
+			PRINTFORMW 좀 모르겠다, 라는 말을 들었다
+		ENDIF
+		CALL COM697_1(집주인)
+		TIME += 27
+	CASE 4
+		CFLAG:집주인:마지막에만난날 = DAY
+		PRINTFORMW %조사처리(CALLNAME:집주인,"가")% 나왔다
+		PRINTFORMW %조사처리(CALLNAME:집주인,"는")% 기쁜 듯하다…
+		CALL ASK_YN("데이트를 신청하다","방문한다")
+		IF !RESULT || !TALENT:집주인:연모
+			IF !RESULT
+				PRINTFORMW %CALLNAME:집주인%에게 데이트를 신청했다
+			ELSE
+				PRINTFORML 방문할 수 있기를 바랐지만, 거부당하고 말았다
+				PRINTFORMW 대신 데이트라면 라고 제안되어지자, %마스터는% 두말없이 고개를 끄덕였다
+			ENDIF
+			CFLAG:MASTER:동행 = 60
+			CFLAG:집주인:동행 = 60
+			CFLAG:집주인:현재위치 = CFLAG:MASTER:현재위치
+			CFLAG:집주인:데이트중 = CFLAG:MASTER:현재위치 / 100
+			CFLAG:집주인:거점내방 = 1
+			FLAG:데이트상대 = 집주인
+			TFLAG:데이트전호감도 = CFLAG:집주인:2
+		ELSE
+			CFLAG:집주인:데이트중 = CFLAG:MASTER:현재위치 / 100
+			CALL OMANEKI_ENTER(집주인)
+		ENDIF
+ENDSELECT
+
+$OWARI
+TIME += 3
+RETURN 1
+
+@COM697_1(ARG)
+#DIM 환락UP
+#DIM 수동UP
+#DIM 정복UP
+
+;회화의 콘파치
+TFLAG:98 = 5
+;고정으로 획득하는 소스
+환락UP = 200
+수동UP = 0
+정복UP = 0
+;ABL:친밀을 본다
+IF ABL:ARG:친밀 <= 1
+	환락UP += (ABL:ARG:순종 * 40)
+ELSEIF ABL:ARG:친밀 <= 3
+	환락UP += 200 + (ABL:ARG:순종 * 40)
+ELSEIF ABL:ARG:친밀 <= 5
+	환락UP += 500 + (ABL:ARG:순종 * 40)
+ELSEIF ABL:ARG:친밀 <= 8
+	환락UP += 750 + (ABL:ARG:순종 * 60)
+ELSEIF ABL:ARG:친밀 <= 10
+	환락UP += 1000 + (ABL:ARG:순종 * 60)
+ELSE
+	환락UP += 1600 + (ABL:ARG:순종 * 30)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:ARG:2 <= 1000
+	환락UP += CFLAG:ARG:2
+ELSEIF CFLAG:2 <= 5000
+	환락UP += 500 + (CFLAG:ARG:2 - 500) / 3
+ELSE
+	환락UP += 2000 + (CFLAG:ARG:2 - 5000) / 5
+ENDIF
+SIF 환락UP < 0
+	환락UP = 0
+
+
+수동UP = 100 + 100 * ABL:ARG:순종
+정복UP = 100 + 100 * ABL:ARG:새드끼
+
+SELECTCASE ABL:MASTER:화술기능
+	CASE 0
+		TIMES 환락UP , 0.20
+		TIMES 정복UP , 0.20
+		TIMES 수동UP , 0.20
+	CASE 1
+		TIMES 환락UP , 0.40
+		TIMES 정복UP , 0.40
+		TIMES 수동UP , 0.40
+	CASE 2
+		TIMES 환락UP , 0.70
+		TIMES 정복UP , 0.70
+		TIMES 수동UP , 0.70
+	CASE 3
+		TIMES 환락UP , 1.00
+		TIMES 정복UP , 1.00
+		TIMES 수동UP , 1.00
+	CASE 4
+		TIMES 환락UP , 1.20
+		TIMES 정복UP , 1.20
+		TIMES 수동UP , 1.20
+	CASEELSE
+		TIMES 환락UP , 1.50
+		TIMES 정복UP , 1.50
+		TIMES 수동UP , 1.50
+ENDSELECT
+
+IF TFLAG:193 == 3
+	TIMES 환락UP , 3.50
+	TIMES 정복UP , 3.50
+	TIMES 수동UP , 3.50
+	TFLAG:호감도보너스 = 200
+ENDIF
+SOURCE:ARG:환락 = 환락UP
+SOURCE:ARG:정복 = 정복UP
+SOURCE:ARG:수동 = 수동UP
+
+CALL FAVOR_CALC(ARG)
+CALL TRUST_CALC(ARG)
+TFLAG:호감도보너스 = 0
+
+;-------------------------------------------------
+;실행 가능 판정
+;-------------------------------------------------
+;방을방문한다
+@COM_ABLE697
+;일괄관리
+SIF GLOBAL_COMABLE(697)
+	RETURN RESULT
+SIF AT_HOME(MASTER)
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	SIF CFLAG:LOCAL:출금
+		CONTINUE
+	SIF CFLAG:LOCAL:자택위치 == CFLAG:MASTER:현재위치 && !CFLAG:LOCAL:신사거주 && LOCAL != TARGET; && (TALENT:LOCAL:사모 || TALENT:LOCAL:연모) 
+		LOCAL:1 ++
+NEXT
+
+SIF !LOCAL:1
+	RETURN 0
+RETURN 1
