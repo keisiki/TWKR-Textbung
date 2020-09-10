@@ -2,7 +2,8 @@
 unofficial version of eratoho TWKR
 
 
-##이게 뭡니까?##
+## 이게 뭡니까?
+
 Eratoho TWKR 0.15.0-beta 2를 기반으로 작성된 사가판(私家版) 게임입니다
 
 보통의 TWKR에선 즐거운 미연시를 즐길수 있지만 그런 모습은 현실의 TextbungE와 맞지 않습니다
