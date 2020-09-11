@@ -247,6 +247,7 @@ DO
 	
 	;ELSEIF CAN_SKIPMOVE(MAIN_MAP) 벌써 전부 스킵무브로 한다
 	CALL SKIP_MOVE(CFLAG:MASTER:현재위치, RESULT)
+	CALL 폭행
 	RETURN
 	
 	
@@ -273,26 +274,6 @@ DO
 	
 	;eraTW4.570 proto 시점에서는 은밀중 플래그를 사용하지 않은 같아?
 	;자세한 사양이 조금 잘 모른다
-	
-		;은밀 해제 처리
-	;	요점 검증
-	;IF CFLAG:MASTER:은밀중
-	;	FOR LOCAL, 1, CHARANUM
-	;		;MASTER의 전턴 위치가 개인 방이었을 경우
-	;		IF (CFLAG:LOCAL:311 == CFLAG:MASTER:전턴위치) || (CFLAG:LOCAL:현재위치 == CFLAG:MASTER:311 && CFLAG:MASTER:전턴위치 == CFLAG:MASTER:311)
-	;			CFLAG:LOCAL:은밀중 = 0
-	;			CFLAG:LOCAL:장난 = 0
-	;		ENDIF
-	;		;MASTER의 현재 위치가 개인 방이었을 경우
-	;		SIF ((CFLAG:MASTER:현재위치 == CFLAG:LOCAL:311) && CFLAG:LOCAL:수면) || ((CFLAG:LOCAL:현재위치 == CFLAG:MASTER:311 && CFLAG:MASTER:현재위치 == CFLAG:MASTER:311) && CFLAG:LOCAL:수면)
-	;			CFLAG:LOCAL:은밀중 = 1
-	;	NEXT
-	;	;개인 방 이외는 은밀할 수 없을… 터
-	;	IF CFLAG:MASTER:현재위치 < 13
-	;		CFLAG:MASTER:은밀중 = 0
-	;		CFLAG:MASTER:장난 = 0
-	;	ENDIF
-	;ENDIF
 	PREVCOM = 400
 	STR:0 = 이동
 	;NEXTCOM에 무엇인가의 값이 들어가 있는 경우는 그것을 고쳐 쓰지 않는다
@@ -539,3 +520,143 @@ STR:0 = 이동
 ;그렇지 않은 경우―1으로 리셋
 SIF NEXTCOM == 0
 	NEXTCOM = -1
+
+
+@폭행
+#DIM 가해자수
+#DIM 만류자수
+#DIM 방관자수
+#DIM 횟수
+#DIM 가해확률
+가해확률 = 1000
+가해자수 = 0
+방관자수 = 0
+만류자수 = 0
+횟수 = 0
+FOR LOCAL, 1, GET_TARGETNUM()
+	SIF LOCAL > CHARANUM
+		CONTINUE
+	SIF CFLAG:LOCAL:현재위치 != CFLAG:MASTER:현재위치
+		CONTINUE
+	IF TALENT:LOCAL:연인||TALENT:LOCAL:연모
+		만류자수++
+	ELSEIF MARK:LOCAL:반발각인 == 0||CFLAG:탄막승부승리 != 0
+		방관자수++
+	ELSE
+		가해자수++
+	ENDIF
+NEXT
+
+횟수 = 만류자수+방관자수+가해자수
+
+IF GET_TARGETNUM() >= 3&&가해자수 > 0&&!FLAG:시간정지
+	IF RAND:100 + 1 <= 가해확률 
+		SELECTCASE RAND:2
+			CASE 0
+				PRINTFORML 갑자기 누군가 %마스터의% 어깨를 톡톡 건드렸다
+				PRINTFORML 누구인지 확인하려 고개를 돌리자마자 주먹이 날라왔다!
+				PRINTFORML %마스터가% 쓰러지자 주위에 사람들이 모이기 시작했다
+				FOR LOCAL, 1, 횟수
+					IF 만류자수 >= 1&&RAND:3 == 1
+						SELECTCASE RAND:2
+							CASE 0
+								PRINTFORMW 누군가가 %마스터를% 때리려는 사람들을 말리고 있다...
+							CASE 1
+								PRINTFORMW 날아오는 주먹을 누군가 막아주었다...
+						ENDSELECT
+					ELSEIF 방관자수 >= 1&&RAND:3 == 1
+						PRINTFORMW 누군가 %마스터를% 시큰둥하게 바라보고 있다...
+					ELSEIF 가해자수 >= 1&&RAND:3 == 1
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW %마스터의% 얼굴에 주먹이 내리꽃혔다!
+							CASE 1
+								PRINTFORMW %마스터의% 배가 걷어차였다!
+							CASE 2
+								PRINTFORMW 누군가 %마스터의% 머리채를 잡고 쥐어당기기 시작했다!
+						ENDSELECT
+					ELSE
+						;안걸렸으면...우선순서대로 출력
+						IF 가해자수 >= 1
+							SELECTCASE RAND:3
+								CASE 0
+									PRINTFORMW %마스터의% 얼굴에 주먹이 내리꽃혔다!
+								CASE 1
+									PRINTFORMW %마스터의% 배가 걷어차였다!
+								CASE 2
+									PRINTFORMW 누군가 %마스터의% 머리채를 잡고 쥐어당기기 시작했다!
+							ENDSELECT
+						ELSEIF 방관자수 >= 1
+							PRINTFORMW 누군가 %마스터를% 시큰둥하게 바라보고 있다...
+						ELSEIF 만류자수 >= 1
+							SELECTCASE RAND:2
+								CASE 0
+									PRINTFORMW 누군가가 %마스터를% 때리려는 사람들을 말리고 있다...
+								CASE 1
+									PRINTFORMW 날아오는 주먹을 누군가 막아주었다...
+							ENDSELECT
+						ENDIF
+					ENDIF
+				NEXT
+				IF 가해자수 > 5
+					PRINTFORMW %마스터는% 고통에 몸부림치며 기절해버렸다...
+					TIME += 180
+				ELSE
+					PRINTFORMW %마스터가% 잠시 의식을 잃은 사이 가해자들은 멀리 도망가버렸다...
+				ENDIF
+				BASE:MASTER:체력 -= 가해자수 * 100
+				BASE:MASTER:기력 = 0
+			CASE 1
+				PRINTFORML %마스터가% 다가오자 몇몇 소녀들이 수군거리기 시작했다...
+				FOR LOCAL, 1, 횟수
+					IF 만류자수 >= 1&&RAND:3 == 1
+						SELECTCASE RAND:2
+							CASE 0
+								PRINTFORMW 누군가가 화를 내며 %마스터를% 변호했다
+							CASE 1
+								PRINTFORMW 누군가가 %마스터는% 그런 사람 아니라고 변호해주었다...
+						ENDSELECT
+					ELSEIF 방관자수 >= 1&&RAND:3 == 1
+						PRINTFORMW 누군가는 그저 시큰둥하게 동의했다
+					ELSEIF 가해자수 >= 1&&RAND:3 == 1
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW 누군가 %마스터의% 생김새를 까내리고 있다...
+							CASE 1
+								PRINTFORMW %마스터의% 행동거지를 비난하는 목소리가 들려왔다...
+							CASE 2
+								PRINTFORMW 누군가 %마스터의% 말투를 흉내내며 킬킬거렸다...
+						ENDSELECT
+					ELSE
+						;안걸렸으면...우선순서대로 출력
+						IF 가해자수 >= 1
+							SELECTCASE RAND:3
+								CASE 0
+									PRINTFORMW 누군가 %마스터의% 생김새를 까내리고 있다...
+								CASE 1
+									PRINTFORMW %마스터의% 행동거지를 비난하는 목소리가 들려왔다...
+								CASE 2
+									PRINTFORMW 누군가 %마스터의% 말투를 흉내내며 킬킬거렸다...
+							ENDSELECT
+						ELSEIF 방관자수 >= 1
+							PRINTFORMW 누군가는 그저 시큰둥하게 동의했다
+						ELSEIF 만류자수 >= 1
+							SELECTCASE RAND:2
+								CASE 0
+									PRINTFORMW 누군가가 화를 내며 %마스터를% 변호했다
+								CASE 1
+									PRINTFORMW 누군가가 %마스터는% 그런 사람 아니라고 변호해주었다...
+							ENDSELECT
+						ENDIF
+					ENDIF
+				NEXT
+				IF 가해자수 > 5
+					PRINTFORMW %마스터의% 눈에 눈물이 맺히기 시작했다... 
+				ELSE
+					PRINTFORMW %마스터가% 좀 더 다가오자 모두들 시치미를 뚝 떼고 일상적인 회화로 돌아갔다...
+				ENDIF
+				BASE:MASTER:기력 -= 가해자수 * 100
+		ENDSELECT
+	ENDIF
+
+ENDIF
