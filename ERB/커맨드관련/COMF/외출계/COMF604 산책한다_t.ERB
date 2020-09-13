@@ -8,10 +8,14 @@
 #DIM 소요시간, 11
 #DIM 행선지
 #DIM 특수쇼트컷
+#DIM 전턴위치
+#DIM 이동취소플래그
 ;散策する
 VARSET LOCAL
 DRAWLINEFORM ~
 
+전턴위치 = CFLAG:MASTER:현재위치
+이동취소플래그 = 0
 
 CALL DRAW_MAP("ODEKAKE")
 
@@ -196,28 +200,57 @@ SIF RESULT == -1
 
 이동처지점 = RESULT
 행선지 = 이동처지점 * 10 + CFLAG:MASTER:데이트중 * 100
+
+IF 전턴위치 == 310||전턴위치 == 320||전턴위치 == 330||전턴위치 == 340||전턴위치 == 910||전턴위치 == 920
+	IF FLAG:70 == 0
+		IF (CFLAG:60:데이트중 == 0&&(행선지 == 930||행선지 == 940||행선지 == 950||행선지 == 960||행선지 == 970))||FLAG:지저통행권
+			CALL 통행료뜯기(920)
+			IF RESULT == 0
+				;처리없음
+			ELSE
+				행선지 = 920
+				IF 전턴위치 == 920
+					이동취소플래그 = 1
+				ENDIF
+			ENDIF
+		ELSEIF (CFLAG:58:데이트중 == 0&&(행선지 == 350||행선지 == 360||행선지 == 370||행선지 == 380))||FLAG:홍마관출입증
+			CALL 통행료뜯기(340)
+			IF RESULT == 0
+				;처리없음
+			ELSE
+				행선지 = 340
+				IF 전턴위치 == 340
+					이동취소플래그 = 1
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
 [IF_DEBUG]
 PRINTFORML 이동처 지점은 {이동처지점}, 행선지는 {행선지}
 [ENDIF]
-FOR LOCAL, 0, CHARANUM
-	SIF CHK_DATENOW(CFLAG:LOCAL:데이트중)
-		CFLAG:LOCAL:현재위치 = 행선지
-NEXT
-IF FLAG:70 == 1
-	BASE:MASTER:TSP -= 소요시간:이동처지점 * 2
-	IF TFLAG:운반
-		BASE:MASTER:TSP -= 소요시간:이동처지점 / 3
-		CFLAG:(TFLAG:운반):현재위치 = CFLAG:MASTER:현재위치
+IF 이동취소플래그 == 0
+	FOR LOCAL, 0, CHARANUM
+		SIF CHK_DATENOW(CFLAG:LOCAL:데이트중)
+			CFLAG:LOCAL:현재위치 = 행선지
+	NEXT
+	IF FLAG:70 == 1
+		BASE:MASTER:TSP -= 소요시간:이동처지점 * 2
+		IF TFLAG:운반
+			BASE:MASTER:TSP -= 소요시간:이동처지점 / 3
+			CFLAG:(TFLAG:운반):현재위치 = CFLAG:MASTER:현재위치
+		ENDIF
+	ELSEIF GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP > 소요시간:이동처지점 * 2 && !FLAG:데이트상대
+		BASE:MASTER:TSP -= 소요시간:이동처지점 * 2
+	ELSE
+		TIME += 소요시간:이동처지점
+		SIF CHK_DATENOW(CFLAG:93:데이트중) && !GETBIT (FLAG:풀장, 0)
+			BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 50,500)
+		PRINTFORML {소요시간:이동처지점}분 걸려 %STR:(6000 + 행선지 / 10)%로 이동했다
 	ENDIF
-ELSEIF GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP > 소요시간:이동처지점 * 2 && !FLAG:데이트상대
-	BASE:MASTER:TSP -= 소요시간:이동처지점 * 2
-ELSE
-	TIME += 소요시간:이동처지점
-	SIF CHK_DATENOW(CFLAG:93:데이트중) && !GETBIT (FLAG:풀장, 0)
-		BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 50,500)
-	PRINTFORML {소요시간:이동처지점}분 걸려 %STR:(6000 + 행선지 / 10)%로 이동했다
 ENDIF
-
+;노파심에 한 번 더 꺼둔다
+이동취소플래그 = 0
 RETURN 1
 
 
