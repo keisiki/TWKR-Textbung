@@ -1,19 +1,35 @@
 ﻿
-@창녀전락(ARG)
-SIF TALENT:ARG:렌탈창녀 = 0
-    TALENT:ARG:창녀 = 1
+@창녀전락(ARG, ARG:1)
+IF ARG:1 == 1
+    SIF TALENT:ARG:렌탈창녀 = 0
+        TALENT:ARG:창녀 = 1
+ELSEIF ARG:1 == 2
+    SIF TALENT:ARG:창녀 = 0
+        TALENT:ARG:렌탈창녀 = 1
+ENDIF
 FLAG:팔려간여자수++
+
+@창녀해제(ARG)
+SIF TALENT:ARG:렌탈창녀 = 0
+    RETURN 0
+SIF TALENT:ARG:창녀 == 1
+    TALENT:ARG:창녀 = 0
+FLAG:팔려간여자수--
 
 
 @지하매음굴
-#DIM 시간흐름
 ;PRINTFORML 「」
 시간흐름 = 0
 PRINTFORMW 「어서오십쇼」
 $창관초기화면
+CALL 시간체크
+IF RESULT == 1
+    RETURN 0
+ENDIF
 DRAWLINE
+PRINTFORML 소지금 : {MONEY}
 PRINTFORML 「무엇을 도와드릴까요?」
-PRINTFORMLC [100] 호출한다
+PRINTFORMLC [100] 대연회장으로 간다
 PRINTFORMLC [101] 스트립바에 간다
 PRINTFORMLC [102] 개인실로 간다
 PRINTFORML
@@ -38,13 +54,12 @@ ELSEIF RESULT == 102
     CALL 개인실
 ELSEIF RESULT == 200
     CALL 알바
-    시간흐름 += RESULT
 ELSEIF RESULT == 300
-    CALL 노예판매
+    CALL 노예판매(1)
 ELSEIF RESULT == 301
-    CALL 노예렌탈
+    CALL 노예판매(2)
 ELSEIF RESULT == 302&&FLAG:팔려간여자수>0
-    CALL 노예돌려받기
+    CALL 노예판매(3)
 ELSEIF RESULT == 998
     CALL 창관설명
 ELSEIF RESULT == 999
@@ -66,6 +81,7 @@ PRINTFORML [4] 페이에 관해
 PRINTFORML [5] 당신 마음에 드는데…
 PRINTFORML [999]돌아간다
 INPUT
+DRAWLINE
 IF RESULT == 0
     PRINTFORML 「이곳은… 인간 마을 지하 깊숙히 숨어있는 창관, '잠식환상향'입니다」
     PRINTFORML 「환상향에 있는 다른 창관들보다도 더 자유로운 플레이가 가능하기 때문에 인기가 있죠」
@@ -97,9 +113,14 @@ ELSEIF RESULT == 2
     PRINTFORML 「대연회장에서도 술과 음식, 그리고 약물을 이용할 순 있지만… 이용하려면 입구 기준 좌측의 카운터에서 계산하고 받아가셔야 합니다」
     PRINTFORML 「한 가지 유의할 점은- 개인실은 정해진 시간동안 상대방을 독점하지만, 대연회장은 그렇지 않으니… 한창 즐기던 중 남들이 난입하는 경우도…」
 ELSEIF RESULT == 3
-
+    PRINTFORML 「스트립 바에선 간단하게 술이랑 식사를 즐기시면서 공연을 즐길수 있습니다」
+    PRINTFORML 「입장료가 없다는게 장점이죠, 원한다면야 5000원에 도우미 한 명쯤 부를순 있지만...」
+    PRINTFORML 「야한짓은 못하니까 알아두세요, 개인실로 가기전에 맛보기로 만나보는 용으론 괜찮을지도 모르겠군요」
+    PRINTFORML 「또한 VIP전용의 경마 중계도 열리고 있으니 관심있으면 들려보시기를」
 ELSEIF RESULT == 4
-    
+    PRINTFORML 「당 점에서는 늘 단기 알바를 모집하고 있습니다」
+    PRINTFORML 「그때그때 인원이 필요한대로 쓰니까 가볍게 한두번 할 수도 있고, 계속 할 수도 있습니다」
+    PRINTFORML 「급료는 성과에 비례해 알바 종료후 정산하니 염두해 주세요」
 ELSEIF RESULT == 5
     IF TALENT:MASTER:성별 == 2
         PRINTFORML 「…저는 그런 쪽 취향 아닙니다…」
@@ -142,12 +163,14 @@ ENDIF
 @알바
 #DIM 페이증가
 #DIM 페이
-#DIM 알바횟수
 #DIMS 요리
 #DIMS 술
 페이 = 0
 페이증가 = 0
 $알바루프
+IF 시간흐름 >= 360
+    RETURN 0
+ENDIF
 요리 = " "
 술 = " "
 페이 += 페이증가
@@ -166,7 +189,7 @@ DRAWLINE
 IF RESULT == 0
     ;청소
     페이증가 = (1 + MIN(ABL:MASTER:청소기능,5) + 3 * TALENT:MASTER:청소중독 + RAND:2) * 100
-    알바횟수++
+    시간흐름 += 10
     SELECTCASE RAND:7
         CASE 0
             PRINTFORML 대연회장의 더러운 테이블들을 발견했다
@@ -193,8 +216,7 @@ IF RESULT == 0
 ELSEIF RESULT == 1
     ;홍보
     페이증가 = (2 + MIN(ABL:MASTER:낚시기능,5) + 3 * TALENT:MASTER:고무 + RAND:3) * 100
-    알바횟수++
-    알바횟수++
+    시간흐름 += 20
     SELECTCASE RAND:4
         CASE 0
             PRINTFORML 거리로 나가 혼자 다니는 사람들에게 전단지를 나눠주었다
@@ -217,7 +239,7 @@ ELSEIF RESULT == 1
 ELSEIF RESULT == 2
     ;연주
     페이증가 = (0 + MIN(ABL:MASTER:음악기능,5) + 3 * TALENT:MASTER:음감 + RAND:4) * 100
-    알바횟수++
+    시간흐름 += 10
     SELECTCASE RAND:4
         CASE 0
             PRINTFORML 무대 옆에 서서 간단하게 음악을 연주했다
@@ -305,7 +327,7 @@ ELSEIF RESULT == 3
             술 = 보드카
     ENDSELECT
     페이증가 = (1 + MIN(ABL:MASTER:요리기능,5) + RAND:3) * 100
-    알바횟수++
+    시간흐름 += 10
     SELECTCASE RAND:4
         CASE 0
             PRINTFORML 개인실에서 주문이 들어왔다…
@@ -329,8 +351,7 @@ ELSEIF RESULT == 3
 ELSEIF RESULT == 4
     ;조제
     페이증가 = (1 + MIN(ABL:MASTER:조제기능,5) + 3 * TALENT:MASTER:조합지식 + RAND:2) * 100
-    알바횟수++
-    알바횟수++
+    시간흐름 += 20
     SELECTCASE RAND:4
         CASE 0
             PRINTFORML 다른 알바와 협업해서 약을 만들었다
@@ -366,7 +387,7 @@ ELSEIF RESULT == 4
 ELSEIF RESULT == 5&&TALENT:MASTER:성별 != 2
     ;스트립
     페이증가 = (0 + MIN(ABL:MASTER:노출벽,5) + 3 * TALENT:MASTER:용모 + RAND:3) * 100
-    알바횟수++
+    시간흐름 += 10
     SELECTCASE RAND:4
         CASE 0
             PRINTFORML 무대 위에 올라가 옷을 벗어가며 춤을 추었다
@@ -384,7 +405,7 @@ ELSEIF RESULT == 5&&TALENT:MASTER:성별 != 2
 ELSEIF RESULT == 999
     MONEY += 페이
     PRINTFORMW 알바비로 {페이}원 받았다
-    RETURN 알바횟수
+    RETURN 0
 ELSE
     GOTO 알바루프
 ENDIF
@@ -482,7 +503,7 @@ ELSEIF ARG == 3
     PRINTFORML 누구를 사들일까...?
 ENDIF
 DRAWLINE
-IF ARG == 2
+IF ARG == 3
     CALL 창녀목록(1)
 ELSE
     CALL 노예목록
@@ -494,11 +515,48 @@ INPUT
 SIF RESULT == 9999
     RETURN 0
 판매노예 = RESULT
-IF ARG == 2
-    
-ELSE
-
+IF ARG == 3
+    SIF 판매노예 > CHARANUM
+        GOTO 노예판매루프
+    SIF !TALENT:판매노예:창녀||TALENT:판매노예:렌탈창녀
+        GOTO 노예판매루프
+    CALL 가격책정(판매노예,2)
+    판매가 = RESULT
+ELSEIF ARG == 2
+    SIF 판매노예 > CHARANUM
+        GOTO 노예판매루프
+    SIF !TALENT:판매노예:당신의노예
+        GOTO 노예판매루프
+    SIF TALENT:판매노예:창녀||TALENT:판매노예:렌탈창녀
+        GOTO 노예판매루프
+    CALL 가격책정(판매노예,3)
+    판매가 = RESULT
+ELSEIF ARG == 1
+    SIF 판매노예 > CHARANUM
+        GOTO 노예판매루프
+    SIF !TALENT:판매노예:당신의노예
+        GOTO 노예판매루프
+    SIF TALENT:판매노예:창녀||TALENT:판매노예:렌탈창녀
+        GOTO 노예판매루프
+    CALL 가격책정(판매노예,1)
+    판매가 = RESULT
 ENDIF
+INPUT
+IF RESULT == 0
+    IF ARG == 3
+        PRINTFORML %CALLNAME:판매노예%를 {판매가}\\에 구매했습니다
+        CALL 창녀해제(판매노예)
+    ELSEIF ARG == 2
+        PRINTFORML %CALLNAME:판매노예%는 {판매가}\\에 오늘 밤 창녀가 됩니다
+        CALL 창녀전락(판매노예,2)
+    ELSE
+        PRINTFORML 매각결과, %CALLNAME:판매노예%는 {판매가}\\에 팔렸습니다
+        CALL 창녀전락(판매노예,1)
+    ENDIF
+ELSE
+    GOTO 노예판매루프
+ENDIF
+GOTO 노예판매루프
 
 @창관정경묘사
 ;정경묘사
@@ -1221,8 +1279,25 @@ ENDIF
 ;예 아니오
 RESETCOLOR
 PRINTFORML --------------------
-PRINTFORML %ARG는% {가격}원에 팔릴 것 같습니다
-PRINTFORML %ARG를% 매각합니까?
+IF ARG:1 == 1
+    PRINTFORML %ARG는% {가격}원에 팔릴 것 같습니다
+    PRINTFORML %ARG를% 매각합니까?
+ELSEIF ARG:1 == 2
+    PRINTFORML %ARG는% {가격}원에 팔리는 것 같습니다
+    PRINTFORML %ARG를% 구매합니까?
+ELSE
+    PRINTFORML %ARG는% {가격}원에 대여될 것 같습니다
+    PRINTFORML %ARG를% 하룻밤동안 일하게 합니까?
+ENDIF
 PRINTFORML [0] 예
 PRINTFORML [1] 아니오
 RETURN 가격
+
+@시간체크
+IF 시간흐름 >= 360
+    PRINTFORML 「죄송합니다만 슬슬 폐점할 시간이라서요」
+    PRINTFORML 「내일 다시 방문해 주십시오」
+    RETURN 1
+ELSE
+    RETURN 0
+ENDIF
