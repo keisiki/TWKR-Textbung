@@ -153,6 +153,14 @@ ELSEIF ARG == 2
     NEXT
 ENDIF
 
+@노예목록
+FOR LOCAL, 1, CHARANUM
+    SIF LOCAL == MASTER
+         CONTINUE
+    IF TALENT:LOCAL:당신의노예&&(!TALENT:LOCAL:렌탈창녀||!TALENT:LOCAL:창녀)
+        PRINTFORML [{LOCAL}] %CALLNAME:LOCAL%
+    ENDIF
+NEXT
 
 @대연회장
 
@@ -532,26 +540,36 @@ ELSEIF ARG == 2
     CALL 가격책정(판매노예,3)
     판매가 = RESULT
 ELSEIF ARG == 1
-    SIF 판매노예 > CHARANUM
+    IF 판매노예 > CHARANUM
         GOTO 노예판매루프
-    SIF !TALENT:판매노예:당신의노예
-        GOTO 노예판매루프
-    SIF TALENT:판매노예:창녀||TALENT:판매노예:렌탈창녀
-        GOTO 노예판매루프
-    CALL 가격책정(판매노예,1)
-    판매가 = RESULT
+    ELSE
+        IF !TALENT:판매노예:당신의노예||TALENT:판매노예:창녀||TALENT:판매노예:렌탈창녀
+            PRINTL 소질 에러
+            GOTO 노예판매루프
+        ENDIF
+        PRINTL 가격책정
+        CALL 가격책정(판매노예,1)
+        판매가 = RESULT
+    ENDIF
 ENDIF
 INPUT
 IF RESULT == 0
     IF ARG == 3
-        PRINTFORML %CALLNAME:판매노예%를 {판매가}\\에 구매했습니다
-        CALL 창녀해제(판매노예)
+        IF MONEY >= 판매가
+            PRINTFORML %CALLNAME:판매노예%를 {판매가}\\에 구매했습니다
+            CALL 창녀해제(판매노예)
+            MONEY -= 판매가
+        ELSE
+            PRINTFORML 돈이 부족하다...
+        ENDIF
     ELSEIF ARG == 2
         PRINTFORML %CALLNAME:판매노예%는 {판매가}\\에 오늘 밤 창녀가 됩니다
         CALL 창녀전락(판매노예,2)
+        MONEY += 판매가
     ELSE
         PRINTFORML 매각결과, %CALLNAME:판매노예%는 {판매가}\\에 팔렸습니다
         CALL 창녀전락(판매노예,1)
+        MONEY += 판매가
     ENDIF
 ELSE
     GOTO 노예판매루프
