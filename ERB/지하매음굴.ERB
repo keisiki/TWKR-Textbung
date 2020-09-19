@@ -137,6 +137,7 @@ GOTO 창관설명시작
 
 @창녀목록(ARG)
 IF ARG == 1
+;구매용 창녀목록
     FOR LOCAL, 1, CHARANUM
         SIF LOCAL == MASTER
             CONTINUE
@@ -145,6 +146,16 @@ IF ARG == 1
         ENDIF
     NEXT
 ELSEIF ARG == 2
+;렌탈창녀 포함
+    FOR LOCAL, 1, CHARANUM
+        SIF LOCAL == MASTER
+            CONTINUE
+        IF TALENT:LOCAL:창녀 == 1||TALENT:LOCAL:렌탈창녀 == 1
+            PRINTFORML [{LOCAL}] %CALLNAME:LOCAL%
+        ENDIF
+    NEXT
+ELSEIF ARG == 3
+;랜덤캐릭터 포함 예정
     FOR LOCAL, 1, CHARANUM
         SIF LOCAL == MASTER
             CONTINUE
@@ -164,10 +175,58 @@ FOR LOCAL, 1, CHARANUM
 NEXT
 
 @대연회장
+PRINTFORML 대연회장에 왔다...
 
 @스트립바
+PRINTFORML 스트립 바에 왔다...
 
 @개인실
+#DIM 접대부
+#DIM 화대
+$접대목록
+접대부 = 0
+화대 = 0
+DRAWLINE
+PRINTFORML 「어떤 아이로 하시겠습니까?」
+CALL 창녀목록(2)
+PRINTL
+DRAWLINE
+PRINTFORML [9999]돌아간다
+INPUT
+SIF RESULT == 9999
+    RETURN 0
+SIF RESULT > CHARANUM||RESULT == 0
+    GOTO 접대목록
+접대부 = RESULT
+IF EXP:접대부:매춘경험 >= 50
+    화대 = 50000
+ELSEIF EXP:접대부:매춘경험 >= 30
+    화대 = 40000
+ELSEIF EXP:접대부:매춘경험 >= 10
+    화대 = 30000
+ELSE
+    ;화대 = 20000
+    ;디버그용 임시
+    화대 = 0
+ENDIF
+PRINTFORML %CALLNAME:접대부%의 화대는 {화대}\\인 것 같다...
+PRINTFORML %CALLNAME:접대부%와 즐기겠습니까?
+PRINTFORML [0] 예
+PRINTFORML [1] 아니오
+INPUT
+IF RESULT == 0
+    IF MONEY < 화대
+        PRINTFORMW 돈이 부족하다...
+    ELSE
+        MONEY -= 화대
+        PRINTFORMW {화대}\\ 지불하자 개인실 열쇠를 받았다...
+        DRAWLINE
+        CALL 가상조교(접대부)
+    ENDIF
+ELSE
+    GOTO 접대목록
+ENDIF
+GOTO 접대목록
 
 @알바
 #DIM 페이증가
@@ -893,7 +952,7 @@ IF ABL:ARG:애널 != 0
     가격 += ABL:ARG:애널 * 50
     PRINTFORML 애널 LV{ABL:ARG:애널}: {ABL:ARG:애널 * 50}\\
 ENDIF
-SETCOLOR 0xFFFFFF
+RESETCOLOR
 PRINTFORML --------------------
 ;TALENT에 따른 양보정 증가
 SETCOLOR 0xFFFF00
