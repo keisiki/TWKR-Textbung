@@ -7,14 +7,16 @@
 가체력 = MAXBASE:ARG:체력
 가기력 = MAXBASE:ARG:기력
 가타겟 = ARG
+EXP:가타겟:매춘경험++
 DRAWLINE
 CALL 가상조교루틴(ARG)
 RETURN 0
 
 @가상조교루틴(ARG)
 ;실제 처리는 여기서
-IF 가상조교시간 >= 60
+IF 가상조교시간 >= 120
     ;시간 마감 처리
+    PRINTFORMW 시간이 끝났다...
     RETURN 0
 ENDIF
 CALL 가상조교상태창(ARG)
@@ -23,7 +25,14 @@ DRAWLINE
 ;커맨드표시
 CALL 가커맨드
 ;루프
-PRINTW
+INPUT
+IF RESULT == 999
+    PRINTFORMW %CALLNAME:가타겟%을 뒤로하고 개인실에서 나왔다
+    RETURN 가상조교시간
+ENDIF
+;V_COM100
+TRYCALLFORM V_COM{RESULT}
+PRINTFORML
 RESTART
 
 @가상조교상태창(ARG)
@@ -276,9 +285,9 @@ ENDIF
 PRINTL
 FOR LOCAL, 100, 300
     TRYCALLFORM V_COM{LOCAL}_ABLE
-    IF LOCAL % 3 == 0
-        PRINTL
-    ENDIF
+    ;IF LOCAL % 3 == 0
+    ;    PRINTL
+    ;ENDIF
 NEXT
 DRAWLINE
 PRINTFORML [999] 그만둔다
@@ -289,22 +298,127 @@ PRINTFORML [999] 그만둔다
 PRINTFORML [100]애무한다
 
 @V_COM100
-PRINTFORML %마스터는% %가타겟의% 몸을 애무하기 시작했다...
+#DIM DYNAMIC 강도
+가상조교시간++
+PRINTFORMW %마스터는% %가타겟의% 몸을 애무하기 시작했다...
+강도 += ABL:MASTER:기교 * 100 
+강도 += TALENT:MASTER:능숙한손가락 * 500
+강도 += TALENT:가타겟:C감도 * 200
+CALL V_C쾌감(강도)
 
+@V_COM101_ABLE
+PRINTFORML [101]커널링구스
+
+@V_COM101
+#DIM DYNAMIC 강도
+가상조교시간++
+PRINTFORML %마스터는% %가타겟의% 음부를 혀로 핥기 시작했다...
+강도 += ABL:MASTER:기교 * 150 
+강도 += TALENT:MASTER:혀놀림 * 500
+강도 += TALENT:가타겟:C감도 * 250
+CALL V_C쾌감(강도)
+
+[SKIPSTART]
+;이러한 형식대로 추가하시면 됩니다
+@V_COM102_ABLE
+PRINTFORML [101]커널링구스
+
+@V_COM102
+#DIM DYNAMIC 강도
+가상조교시간++
+;조교시 나올 텍스트
+PRINTFORML 
+;쾌감이 얼마만큼 증가하는지에 대해 결정
+강도 += ABL:MASTER:기교 * 150 
+강도 += TALENT:MASTER: * 500
+강도 += TALENT:가타겟:감도 * 250
+CALL V_쾌감(강도)
+[SKIPEND]
 
 ;-----이하 쾌감처리----
 ;ARG = 조교강도
 @V_C쾌감(ARG)
-가쾌C += ABL:MASTER:기교 * ARG
-가쾌C = 가쾌C
+PRINTFORML C경험 + 1
+EXP:가타겟:C경험++
+가쾌C += ARG
+PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+IF 가쾌C >= 10000
+    CALL V_C절정
+ENDIF
 
 @V_V쾌감(ARG)
-
+PRINTFORML V경험 + 1
+EXP:가타겟:V경험++
+가쾌V += ARG
+PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+IF 가쾌V >= 10000
+    CALL V_V절정
+ENDIF
 
 @V_A쾌감(ARG)
-
+PRINTFORML A경험 + 1
+EXP:가타겟:A경험++
+가쾌A += ARG
+PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+IF 가쾌A >= 10000
+    CALL V_A절정
+ENDIF
 
 @V_B쾌감(ARG)
-
+PRINTFORML B경험 + 1
+EXP:가타겟:B경험++
+가쾌B += ARG
+PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+IF 가쾌B >= 10000
+    CALL V_B절정
+ENDIF
 
 @V_M쾌감(ARG)
+PRINTFORML M경험 + 1
+EXP:가타겟:M경험++
+가쾌M += ARG
+PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+IF 가쾌M >= 10000
+    CALL V_M절정
+ENDIF
+
+@V_C절정
+    PRINTFORML [C절정]
+    PRINTFORML %가타겟은% 클리로부터의 절정에몸을 바들바들 떨고 있다
+    PRINTFORML C절정경험 +1
+    PRINTFORML 절정경험 +1
+    EXP:가타겟:C절정경험++
+    EXP:가타겟:절정경험++
+    가쾌C = 0
+@V_V절정
+    PRINTFORML [V절정]
+    PRINTFORML 질내로부터 쏟아지는 쾌감에 %가타겟의% 몸이 떨린다
+    PRINTFORML V절정경험 +1
+    PRINTFORML 절정경험 +1
+    EXP:가타겟:V절정경험++
+    EXP:가타겟:절정경험++
+    가쾌V = 0
+@V_A절정
+    PRINTFORML [A절정]
+    PRINTFORML 등골을 타고오르는 오싹한 쾌감에 %가타겟의% 신음소리도 높아져갔다
+    PRINTFORML A절정경험 +1
+    PRINTFORML 절정경험 +1
+    EXP:가타겟:A절정경험++
+    EXP:가타겟:절정경험++
+    가쾌A = 0
+@V_B절정
+    PRINTFORML [B절정]
+    PRINTFORML %가타겟의% 유두가 파르르 떨리고 있다
+    PRINTFORML B절정경험 +1
+    PRINTFORML 절정경험 +1
+    EXP:가타겟:B절정경험++
+    EXP:가타겟:절정경험++
+    가쾌B = 0
+@V_M절정
+    PRINTFORML [M절정]
+    PRINTFORML %가타겟은% 입술을 파르르 떨고 있다
+    PRINTFORML M절정경험 +1
+    PRINTFORML 절정경험 +1
+    EXP:가타겟:M절정경험++
+    EXP:가타겟:절정경험++
+    가쾌M = 0
