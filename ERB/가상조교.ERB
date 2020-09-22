@@ -14,6 +14,8 @@ RETURN 0
 
 @가상조교루틴(ARG)
 ;실제 처리는 여기서
+SIF 가기력 < 0
+    가기력 = 0
 IF 가상조교시간 >= 120
     ;시간 마감 처리
     PRINTFORMW 시간이 끝났다...
@@ -281,13 +283,17 @@ ELSE
 ENDIF
 
 @가커맨드
+#DIM DYNAMIC 카운트
 ;커맨드표를 띄운다 일단은 취소만
 PRINTL
 FOR LOCAL, 100, 300
+    RESULT = 0
     TRYCALLFORM V_COM{LOCAL}_ABLE
-    ;IF LOCAL % 3 == 0
-    ;    PRINTL
-    ;ENDIF
+    SIF RESULT == 1
+        카운트++
+    IF 카운트 % 3 == 0
+        PRINTL
+    ENDIF
 NEXT
 DRAWLINE
 PRINTFORML [999] 그만둔다
@@ -295,89 +301,192 @@ PRINTFORML [999] 그만둔다
 
 ;------이하 커맨드-----
 @V_COM100_ABLE
-PRINTFORML [100]애무한다
+PRINTFORML [100]애무
+RETURN 1
 
 @V_COM100
 #DIM DYNAMIC 강도
 가상조교시간++
+;감소량
+CALL 가체력감소(10)
+CALL 가기력감소(50)
 PRINTFORMW %마스터는% %가타겟의% 몸을 애무하기 시작했다...
-강도 += ABL:MASTER:기교 * 100 
-강도 += TALENT:MASTER:능숙한손가락 * 500
-강도 += TALENT:가타겟:C감도 * 200
+강도 += ABL:MASTER:기교 * 10
+강도 += TALENT:MASTER:능숙한손가락 * 50
+강도 += TALENT:MASTER:혀놀림 * 50
 CALL V_C쾌감(강도)
+CALL V_B쾌감(강도/2)
 
 @V_COM101_ABLE
 PRINTFORML [101]커널링구스
+RETURN 1
 
 @V_COM101
 #DIM DYNAMIC 강도
 가상조교시간++
+CALL 가체력감소(5)
+CALL 가기력감소(80)
 PRINTFORML %마스터는% %가타겟의% 음부를 혀로 핥기 시작했다...
-강도 += ABL:MASTER:기교 * 150 
-강도 += TALENT:MASTER:혀놀림 * 500
-강도 += TALENT:가타겟:C감도 * 250
+강도 += ABL:MASTER:기교 * 15
+강도 += TALENT:MASTER:혀놀림 * 50
 CALL V_C쾌감(강도)
 
-[SKIPSTART]
-;이러한 형식대로 추가하시면 됩니다
 @V_COM102_ABLE
-PRINTFORML [101]커널링구스
+;여기에 커맨드 이름을 넣으세요
+PRINTFORML [102]손가락 삽입
+RETURN 1
 
 @V_COM102
 #DIM DYNAMIC 강도
 가상조교시간++
-;조교시 나올 텍스트
-PRINTFORML 
-;쾌감이 얼마만큼 증가하는지에 대해 결정
-강도 += ABL:MASTER:기교 * 150 
-강도 += TALENT:MASTER: * 500
-강도 += TALENT:가타겟:감도 * 250
-CALL V_쾌감(강도)
+;감소량을 입력하세요
+CALL 가체력감소(10)
+CALL 가기력감소(50)
+;대사를 입력하세요
+PRINTFORMW %마스터는% %가타겟의% 몸을 애무하기 시작했다...
+;소스처리를 하세요
+강도 += ABL:MASTER:기교 * 10
+강도 += TALENT:MASTER:능숙한손가락 * 50
+강도 += TALENT:MASTER:혀놀림 * 50
+;처리된 소스를 입력하세요
+CALL V_C쾌감(강도)
+
+[SKIPSTART]
+;이러한 형식대로 추가하시면 됩니다
+@V_COM100_ABLE
+;여기에 커맨드 이름을 넣으세요
+PRINTFORML [100]애무한다
+RETURN 1
+
+@V_COM100
+#DIM DYNAMIC 강도
+가상조교시간++
+;감소량을 입력하세요
+CALL 가체력감소(10)
+CALL 가기력감소(50)
+;대사를 입력하세요
+PRINTFORMW %마스터는% %가타겟의% 몸을 애무하기 시작했다...
+;소스처리를 하세요
+강도 += ABL:MASTER:기교 * 10
+강도 += TALENT:MASTER:능숙한손가락 * 50
+강도 += TALENT:MASTER:혀놀림 * 50
+;처리된 소스를 입력하세요
+CALL V_C쾌감(강도)
 [SKIPEND]
 
 ;-----이하 쾌감처리----
 ;ARG = 조교강도
 @V_C쾌감(ARG)
-PRINTFORML C경험 + 1
-EXP:가타겟:C경험++
-가쾌C += ARG
-PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+#DIM DYNAMIC 증가량
+증가량 = ARG
+SELECTCASE ABL:가타겟:C감각
+    CASE 0
+        TIMES 증가량 , 1.0
+    CASE IS < 2
+        TIMES 증가량 , 1.5
+    CASE IS < 4
+        TIMES 증가량 , 2.0
+    CASE IS < 6
+        TIMES 증가량 , 2.5
+    CASE IS >= 6
+        TIMES 증가량 , 3.0
+ENDSELECT
+PRINTFORML C경험 + {증가량/500+1}
+EXP:가타겟:C경험 += 증가량/500 + 1
+가쾌C += 증가량
+PALAM:가타겟:윤활 += (증가량 / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
 IF 가쾌C >= 10000
     CALL V_C절정
 ENDIF
 
 @V_V쾌감(ARG)
-PRINTFORML V경험 + 1
-EXP:가타겟:V경험++
-가쾌V += ARG
-PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+#DIM DYNAMIC 증가량
+증가량 = ARG
+SELECTCASE ABL:가타겟:V감각
+    CASE 0
+        TIMES 증가량 , 1.0
+    CASE IS < 2
+        TIMES 증가량 , 1.5
+    CASE IS < 4
+        TIMES 증가량 , 2.0
+    CASE IS < 6
+        TIMES 증가량 , 2.5
+    CASE IS >= 6
+        TIMES 증가량 , 3.0
+ENDSELECT
+PRINTFORML V경험 + {증가량/500+1}
+EXP:가타겟:V경험 += 증가량/500 + 1
+가쾌V += 증가량
+PALAM:가타겟:윤활 += (증가량 / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
 IF 가쾌V >= 10000
     CALL V_V절정
 ENDIF
 
 @V_A쾌감(ARG)
-PRINTFORML A경험 + 1
-EXP:가타겟:A경험++
-가쾌A += ARG
-PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+#DIM DYNAMIC 증가량
+증가량 = ARG
+SELECTCASE ABL:가타겟:A감각
+    CASE 0
+        TIMES 증가량 , 1.0
+    CASE IS < 2
+        TIMES 증가량 , 1.5
+    CASE IS < 4
+        TIMES 증가량 , 2.0
+    CASE IS < 6
+        TIMES 증가량 , 2.5
+    CASE IS >= 6
+        TIMES 증가량 , 3.0
+ENDSELECT
+PRINTFORML C경험 + {증가량/500+1}
+EXP:가타겟:C경험 += 증가량/500 + 1
+가쾌A += 증가량
+PALAM:가타겟:윤활 += (증가량 / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
 IF 가쾌A >= 10000
     CALL V_A절정
 ENDIF
 
 @V_B쾌감(ARG)
-PRINTFORML B경험 + 1
-EXP:가타겟:B경험++
-가쾌B += ARG
-PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+#DIM DYNAMIC 증가량
+증가량 = ARG
+SELECTCASE ABL:가타겟:B감각
+    CASE 0
+        TIMES 증가량 , 1.0
+    CASE IS < 2
+        TIMES 증가량 , 1.5
+    CASE IS < 4
+        TIMES 증가량 , 2.0
+    CASE IS < 6
+        TIMES 증가량 , 2.5
+    CASE IS >= 6
+        TIMES 증가량 , 3.0
+ENDSELECT
+PRINTFORML B경험 + {증가량/500+1}
+EXP:가타겟:B경험 += 증가량/500 + 1
+가쾌B += 증가량
+PALAM:가타겟:윤활 += (증가량 / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
 IF 가쾌B >= 10000
     CALL V_B절정
 ENDIF
 
 @V_M쾌감(ARG)
-PRINTFORML M경험 + 1
-EXP:가타겟:M경험++
-가쾌M += ARG
-PALAM:가타겟:윤활 += (ARG / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
+#DIM DYNAMIC 증가량
+증가량 = ARG
+SELECTCASE ABL:가타겟:M감각
+    CASE 0
+        TIMES 증가량 , 1.0
+    CASE IS < 2
+        TIMES 증가량 , 1.5
+    CASE IS < 4
+        TIMES 증가량 , 2.0
+    CASE IS < 6
+        TIMES 증가량 , 2.5
+    CASE IS >= 6
+        TIMES 증가량 , 3.0
+ENDSELECT
+PRINTFORML M경험 + {증가량/500+1}
+EXP:가타겟:M경험 += 증가량/500 + 1
+가쾌M += 증가량
+PALAM:가타겟:윤활 += (증가량 / 50) + ((TALENT:가타겟:젖기쉬움+2)*(RAND:50+1))
 IF 가쾌M >= 10000
     CALL V_M절정
 ENDIF
@@ -422,3 +531,18 @@ ENDIF
     EXP:가타겟:M절정경험++
     EXP:가타겟:절정경험++
     가쾌M = 0
+
+@가체력감소(ARG)
+IF 가체력 < ARG
+    가체력 = 0
+ELSE
+    가체력 -= ARG
+ENDIF
+
+@가기력감소(ARG)
+IF 가기력 < ARG
+    CALL 가체력감소(ARG - 가기력)
+    가기력 = 0
+ELSE
+    가기력 -= ARG
+ENDIF
