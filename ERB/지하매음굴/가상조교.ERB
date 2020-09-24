@@ -25,6 +25,11 @@
 가총약물증가= 0
 가총선도증가= 0
 가총반감증가= 0
+가체력감소량 = 0
+가기력감소량 = 0
+
+가아체력 = MAXBASE:MASTER:체력
+가아기력 = MAXBASE:MASTER:기력
 EXP:가타겟:매춘경험++
 DRAWLINE
 CALL 가상조교루틴(ARG)
@@ -37,13 +42,17 @@ SIF 가기력 < 0
 IF 가체력 == 0
     PRINTFORMW %가타겟은% 지쳐서 그만 쓰러져 버렸다...
     PRINTFORMW 어쩔수 없이 %가타겟을% 뒤로 한 채 밖으로 나섰다
+    CALL 가상조교종료
     RETURN 0
 ENDIF
 IF 가상조교시간 >= 120
     ;시간 마감 처리
     PRINTFORMW 시간이 끝났다...
+    CALL 가상조교종료
     RETURN 0
 ENDIF
+가체력감소량 = 0
+가기력감소량 = 0
 CALL 가상조교상태창(ARG)
 PRINTL
 DRAWLINE
@@ -53,15 +62,19 @@ CALL 가커맨드
 INPUT
 IF RESULT == 999
     PRINTFORMW %CALLNAME:가타겟%을 뒤로하고 개인실에서 나왔다
+    CALL 가상조교종료
     RETURN 가상조교시간
 ENDIF
 ;V_COM100
 TRYCALLFORM V_COM{RESULT}
 IF RESULT == 1
+    CALL 가감소량체크
+    CALL 가체력감소
+    CALL 가기력감소
     CALL V_소스처리
     CALL V_절정처리
     CALL V_경험처리
-    CALL v_증가초기화
+    CALL V_증가초기화
 ENDIF
 PRINTFORMW
 RESTART
@@ -69,9 +82,13 @@ RESTART
 @가상조교상태창(ARG)
 #DIM 체력백분율
 #DIM 기력백분율
+#DIM 아체력백분율
+#DIM 아기력백분율
 DRAWLINE
 체력백분율 = (가체력 * 100)/MAXBASE:ARG:체력
 기력백분율 = (가기력 * 100)/MAXBASE:ARG:기력
+아체력백분율 = (가아체력 * 100)/MAXBASE:MASTER:체력
+아기력백분율 = (가아기력 * 100)/MAXBASE:MASTER:기력
 PRINTFORML 조교 대상 : %CALLNAME:ARG%  조교자 : %CALLNAME:MASTER%  남은 시간 : {60 - 가상조교시간}분
 PRINTFORML (조교경험 : {EXP:ARG:조교경험} 호감도 : {CFLAG:ARG:호감도} 신뢰도 : {CFLAG:ARG:신뢰도}  이상경험 : {EXP:ARG:이상경험})
 PRINTFORM 체력
@@ -293,22 +310,91 @@ REND
 PRINTFORM ]
 CALL 가파라메터띄기(가반감)
 PRINTFORM {가반감} 
-
 PRINTL
 
-@가체력감소(ARG)
-IF 가체력 < ARG
+PRINTFORM 체력(%CALLNAME:MASTER%)
+IF 아체력백분율 >= 70
+    SETCOLOR 0x19FF19
+ELSEIF 아체력백분율 >= 50
+    SETCOLOR 0xFF8000
+ELSEIF 아체력백분율 >= 30
+    SETCOLOR 0xFFFF00
+ELSE
+    SETCOLOR 0xFF0000
+ENDIF
+PRINTFORM [
+REPEAT (아체력백분율/5)
+    PRINTFORM *
+REND
+REPEAT 20 - (아체력백분율/5)
+    PRINTFORM .
+REND
+PRINTFORM ]
+RESETCOLOR
+PRINTFORML  ({가아체력}/{MAXBASE:MASTER:체력})
+PRINTFORM 기력(%CALLNAME:MASTER%)
+IF 아기력백분율 >= 70
+    SETCOLOR 0x19FF19
+ELSEIF 아기력백분율 >= 50
+    SETCOLOR 0xFF8000
+ELSEIF 아기력백분율 >= 30
+    SETCOLOR 0xFFFF00
+ELSE
+    SETCOLOR 0xFF0000
+ENDIF
+PRINTFORM [
+REPEAT (아기력백분율/5)
+    PRINTFORM *
+REND
+REPEAT 20 - (아기력백분율/5)
+    PRINTFORM .
+REND
+PRINTFORM ]
+RESETCOLOR
+PRINTFORM  ({가아기력}/{MAXBASE:MASTER:기력})
+PRINTL
+PRINTFORM 발기
+PRINTFORM [
+REPEAT (가아발기/250)
+    PRINTFORM *
+REND
+REPEAT 40 - (가아발기/250)
+    PRINTFORM .
+REND
+PRINTFORM ]
+PRINTL
+PRINTFORM 사정
+PRINTFORM [
+REPEAT (가아사정/250)
+    PRINTFORM *
+REND
+REPEAT 40 - (가아사정/250)
+    PRINTFORM .
+REND
+PRINTFORM ]
+PRINTL
+
+RESETCOLOR
+PRINTL
+
+@가체력감소
+IF 가체력 < 가체력감소량
     가체력 = 0
 ELSE
-    가체력 -= ARG
+    가체력 -= 가체력감소량
 ENDIF
 
-@가기력감소(ARG)
-IF 가기력 < ARG
-    CALL 가체력감소(ARG - 가기력)
+@가기력감소
+IF 가기력 < 가기력감소량
+    가체력감소량 = 가기력감소량 - 가기력
+    IF 가체력 < 가체력감소량
+        가체력 = 0
+    ELSE
+        가체력 -= 가체력감소량
+    ENDIF
     가기력 = 0
 ELSE
-    가기력 -= ARG
+    가기력 -= 가기력감소량
 ENDIF
 
 @가파라메터띄기(ARG)
@@ -327,12 +413,25 @@ ELSE
 ENDIF
 
 @가커맨드
-;커맨드표를 띄운다 일단은 취소만
 가커맨드개행 = 0
+SIF 가자세 == 1
+    PRINT [정상위로삽입중]
+SIF 가자세 == 2
+    PRINT [후배위로삽입중]
+SIF 가자세 == 3
+    PRINT [기승위로삽입중]
+SIF 가자세 == 4
+    PRINT [A정상위로삽입중]
+SIF 가자세 == 5
+    PRINT [A후배위로삽입중]
+SIF 가자세 == 6
+    PRINT [A기승위로삽입중]
+SIF 가펠라치오 == 1
+    PRINT [구내삽입]
 PRINTL
 FOR LOCAL, 100, 300
     TRYCALLFORM V_COM{LOCAL}_ABLE
-    IF 가커맨드개행 == 5
+    IF 가커맨드개행 == 4
         가커맨드개행 = 0
         PRINTL
     ENDIF
@@ -342,124 +441,152 @@ DRAWLINE
 PRINTFORML [999] 그만둔다
 
 
-;------이하 커맨드-----
-@V_COM100_ABLE
-PRINTFORMLC [100]애무
-가커맨드개행++
-RETURN 1
-
-@V_COM100
-#DIM DYNAMIC 강도
-가상조교시간++
-;감소량
-CALL 가체력감소(10)
-CALL 가기력감소(50)
-PRINTFORML %마스터는% %가타겟의% 몸을 애무하기 시작했다...
-강도 += 5
-강도 += ABL:MASTER:기교 * 10
-강도 += TALENT:MASTER:능숙한손가락 * 50
-강도 += TALENT:MASTER:혀놀림 * 50
-CALL V_C쾌감(강도)
-CALL V_B쾌감(강도)
-RETURN 1
-
-@V_COM101_ABLE
-PRINTFORMLC [101]커널링구스
-가커맨드개행++
-RETURN 1
-
-@V_COM101
-#DIM DYNAMIC 강도
-가상조교시간++
-CALL 가체력감소(5)
-CALL 가기력감소(80)
-PRINTFORML %마스터는% %가타겟의% 음부를 혀로 핥기 시작했다...
-강도 += 10
-강도 += ABL:MASTER:기교 * 15
-강도 += TALENT:MASTER:혀놀림 * 50
-가윤활증가 += 100
-CALL V_C쾌감(강도)
-RETURN 1
-
-
-
-@V_COM103_ABLE
-;여기에 커맨드 이름을 넣으세요
-PRINTFORMLC [103]가슴애무
-가커맨드개행++
-RETURN 1
-
-@V_COM103
-#DIM DYNAMIC 강도
-가상조교시간++
-;감소량을 입력하세요
-CALL 가체력감소(10)
-CALL 가기력감소(50)
-;대사를 입력하세요
-PRINTFORML %마스터는% %가타겟의% 가슴을 애무하기 시작했다...
-;소스처리를 하세요
-강도 += 5
-강도 += ABL:MASTER:기교 * 10
-강도 += TALENT:MASTER:능숙한손가락 * 50
-;처리된 소스를 입력하세요
-CALL V_B쾌감(강도)
-RETURN 1
-
-@V_COM104_ABLE
-;여기에 커맨드 이름을 넣으세요
-IF TALENT:가타겟:처녀
-    PRINTFORMLC [104]V 애무
-ELSE
-    PRINTFORMLC [104]손가락 삽입
+@가감소량체크
+IF 가체력감소량 != 0
+    IF 가체력감소량 < 100
+        SETCOLOR 0xFFFF00
+    ELSEIF 가체력감소량 < 200
+        SETCOLOR 0xFF8000
+    ELSEIF 가체력감소량 < 300
+        SETCOLOR 0xFF0000
+    ELSEIF 가체력감소량 < 500
+        SETCOLOR 0x800000
+    ENDIF
+    PRINTFORM 체력 -{가체력감소량}  
 ENDIF
-가커맨드개행++
-RETURN 1
-
-@V_COM104
-#DIM DYNAMIC 강도
-가상조교시간++
-;감소량을 입력하세요
-CALL 가체력감소(10)
-CALL 가기력감소(50)
-;대사를 입력하세요
-PRINTFORML %마스터는% %가타겟의% 음부에 손가락을 넣었다 뺐다했다...
-;소스처리를 하세요
-강도 += 5
-강도 += ABL:MASTER:기교 * 15
-강도 += TALENT:MASTER:능숙한손가락 * 50
-;처리된 소스를 입력하세요
-CALL V_V쾌감(강도)
-CALL V_고통(강도/150)
-SIF TALENT:가타겟:처녀
-    CALL V_공포(강도/100)
-RETURN 1
-
-[SKIPSTART]
-;이러한 형식대로 추가하시면 됩니다
-@V_COM100_ABLE
-;여기에 커맨드 이름을 넣으세요
-PRINTFORMLC [100]애무한다
-가커맨드개행++
-RETURN 1
-
-@V_COM100
-#DIM DYNAMIC 강도
-가상조교시간++
-;감소량을 입력하세요
-CALL 가체력감소(10)
-CALL 가기력감소(50)
-;대사를 입력하세요
-PRINTFORML %마스터는% %가타겟의% 몸을 애무하기 시작했다...
-;소스처리를 하세요
-강도 += 5
-강도 += ABL:MASTER:기교 * 10
-강도 += TALENT:MASTER:능숙한손가락 * 50
-강도 += TALENT:MASTER:혀놀림 * 50
-;처리된 소스를 입력하세요
-CALL V_C쾌감(강도)
-RETURN 1
-[SKIPEND]
+IF 가기력감소량 != 0
+    IF 가기력감소량 < 100
+        SETCOLOR 0xFFFF00
+    ELSEIF 가기력감소량 < 200
+        SETCOLOR 0xFF8000
+    ELSEIF 가기력감소량 < 300
+        SETCOLOR 0xFFFF00
+    ELSEIF 가기력감소량 < 500
+        SETCOLOR 0x800000
+    ENDIF
+    PRINTFORM 기력 -{가기력감소량}
+ENDIF
+RESETCOLOR
+PRINTL
 
 
 
+@가상조교종료
+CALL V_증가초기화
+CALL 가상조교능력치변동
+가커맨드개행 = 0
+가타겟 = 0
+가상조교시간 = 0
+가체력 = 0
+가기력 = 0
+가자세 = 0
+가펠라치오 = 0
+가약물효과 = 0
 
+가쾌C = 0
+가쾌B = 0
+가쾌V = 0
+가쾌A = 0
+가쾌M = 0
+
+가윤활 = 0
+가습득 = 0
+가순종 = 0
+가욕정 = 0
+가굴복 = 0
+가치정 = 0
+가고통 = 0
+가공포 = 0
+가약물 = 0
+가선도 = 0
+가반감 = 0
+;----
+가쾌C증가 = 0
+가쾌B증가 = 0
+가쾌V증가 = 0
+가쾌A증가 = 0
+가쾌M증가 = 0
+
+가윤활증가 = 0
+가습득증가 = 0
+가순종증가 = 0
+가욕정증가 = 0
+가굴복증가 = 0
+가치정증가 = 0
+가고통증가 = 0
+가공포증가 = 0
+가약물증가 = 0
+가선도증가 = 0
+가반감증가 = 0
+가총쾌C증가 = 0
+가총쾌B증가 = 0
+가총쾌V증가 = 0
+가총쾌A증가 = 0
+가총쾌M증가 = 0
+
+가총윤활증가 = 0
+가총습득증가 = 0
+가총순종증가 = 0
+가총욕정증가 = 0
+가총굴복증가 = 0
+가총치정증가 = 0
+가총고통증가 = 0
+가총공포증가 = 0
+가총약물증가 = 0
+가총선도증가 = 0
+가총반감증가 = 0
+;----
+가체력감소량 = 0
+가기력감소량 = 0
+가보정 = 0
+가음보정 = 0
+
+@가상조교능력치변동
+;조교중 얻은 PALAM등을 바탕으로 ABLUP을 수행
+;일단은 자리만 잡아둔다
+
+
+
+@V_처녀상실(ARG,ARG:1)
+#DIMS DYNAMIC 처녀상실문구
+;ARG = 1-페니스, 2= 손가락, 3=기구
+;ARG:1 행위자
+IF TALENT:가타겟:처녀 == 1
+    TALENT:가타겟:처녀 = 0
+    CFLAG:가타겟:처녀상실기념일 = DAY
+    CFLAG:가타겟:처녀상실상대 = ARG:1
+    처녀상실문구 = 창관에서
+    IF ARG:1 == MASTER
+        처녀상실문구 += " 당신의 "
+    ELSE
+        처녀상실문구 += " 알지도 못하는 사람의 "
+    ENDIF
+    SELECTCASE ARG
+        CASE 1
+            처녀상실문구 += "페니스에 "
+        CASE 2
+            처녀상실문구 += "손가락에 "
+        CASE 3
+            처녀상실문구 += "장난감에 "
+    ENDSELECT
+    처녀상실문구 += "처녀를 빼앗겼다"
+    CSTR:가타겟:처녀상실이력 = %처녀상실문구%
+    PRINTFORML [처녀상실]
+    PRINTFORML %가타겟의% 음부에서 처녀의 증거인 붉은 피가 흘러나온다...
+    IF TALENT:가타겟:연인||TALENT:가타겟:연모||TALENT:가타겟:사모||TALENT:가타겟:애욕
+        CALL V_순종(500)
+        CALL V_공포(100)
+    ELSEIF TALENT:가타겟:정조 == 1
+        CALL V_반감(1000)
+        CALL V_공포(500)
+    ELSE
+        CALL V_반감(500)
+        CALL V_공포(300)
+    ENDIF
+    CALL V_굴복(300)
+    CALL V_치정(100)
+    CALL V_고통(1000)
+    CALL V_윤활(100)
+    가체력감소량 += 250
+    가기력감소량 += 500
+ENDIF
