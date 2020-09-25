@@ -30,6 +30,8 @@
 
 가아체력 = MAXBASE:MASTER:체력
 가아기력 = MAXBASE:MASTER:기력
+가아발기 = 0
+가아사정 = 0
 EXP:가타겟:매춘경험++
 DRAWLINE
 CALL 가상조교루틴(ARG)
@@ -71,6 +73,7 @@ IF RESULT == 1
     CALL 가감소량체크
     CALL 가체력감소
     CALL 가기력감소
+    CALL V_삽입중
     CALL V_소스처리
     CALL V_절정처리
     CALL V_경험처리
@@ -361,7 +364,7 @@ REND
 REPEAT 40 - (가아발기/250)
     PRINTFORM .
 REND
-PRINTFORM ]
+PRINTFORM ]({가아발기}/10000)
 PRINTL
 PRINTFORM 사정
 PRINTFORM [
@@ -371,7 +374,7 @@ REND
 REPEAT 40 - (가아사정/250)
     PRINTFORM .
 REND
-PRINTFORM ]
+PRINTFORM ]({가아사정}/10000)
 PRINTL
 
 RESETCOLOR
@@ -480,6 +483,8 @@ CALL 가상조교능력치변동
 가체력 = 0
 가기력 = 0
 가자세 = 0
+V_V삽입 = 0
+V_A삽입 = 0
 가펠라치오 = 0
 가약물효과 = 0
 
@@ -589,4 +594,118 @@ IF TALENT:가타겟:처녀 == 1
     CALL V_윤활(100)
     가체력감소량 += 250
     가기력감소량 += 500
+ENDIF
+
+@V_삽입중
+#DIM 증가량
+#DIM 사정재촉
+#DIM 반감량
+증가량 = 0
+사정재촉 = 0
+반감량 = 50
+IF CFLAG:가타겟:호감도 < 1000
+    반감량 += (1000 - CFLAG:가타겟:호감도)/5
+ENDIF
+IF CFLAG:가타겟:신뢰도 < 300
+    반감량 += (300 - CFLAG:가타겟:신뢰도)/10
+ENDIF
+
+IF V_V삽입 > 0
+    가체력감소량 = 25
+    가기력감소량 = 50
+    증가량 += 100
+    증가량 += (ABL:가타겟:V감각 * 25) + (ABL:가타겟:욕망 * 25) + (TALENT:가타겟:음호 * 50)
+    ;-------------
+    사정재촉 += 300
+    사정재촉 += ABL:가타겟:기교 * 60
+    사정재촉 += ABL:가타겟:V감각 * 25
+    사정재촉 += ABL:가타겟:욕망 * 25
+    사정재촉 += ABL:가타겟:질 * 25
+    사정재촉 += ABL:가타겟:정액중독 * 50
+    사정재촉 += TALENT:가타겟:음호 * 50
+    사정재촉 += (ABL:가타겟:허리 * 25)
+    CALL V_V쾌감(증가량)
+    IF V_V삽입 == 1
+        증가량 += (ABL:MASTER:기교 * 50) + (ABL:MASTER:허리 * 25)
+        CALL V_V쾌감(증가량/2)
+        CALL V_아나타봉사(사정재촉)
+    ELSEIF V_V삽입 == 2
+        ;뭘 넣어야하지
+    ENDIF
+    SIF 가윤활 < 2000
+        CALL V_고통(100+RAND:51)
+ENDIF
+IF V_A삽입 > 0
+    가체력감소량 = 25
+    가기력감소량 = 50
+    증가량 += 100
+    증가량 += (ABL:가타겟:A감각 * 25) + (ABL:가타겟:욕망 * 25) + (TALENT:가타겟:음호 * 50)
+    사정재촉 += 400
+    사정재촉 += ABL:가타겟:기교 * 60
+    사정재촉 += ABL:가타겟:A감각 * 25
+    사정재촉 += ABL:가타겟:욕망 * 25
+    사정재촉 += ABL:가타겟:애널 * 25
+    사정재촉 += ABL:가타겟:정액중독 * 50
+    사정재촉 += TALENT:가타겟:항문광 * 50
+    사정재촉 += (ABL:가타겟:허리 * 25)
+    CALL V_A쾌감(증가량)
+    IF V_A삽입 == 1
+        증가량 += (ABL:MASTER:기교 * 50) + (ABL:MASTER:허리 * 25)
+        CALL V_V쾌감(증가량/2)
+        CALL V_아나타봉사(사정재촉)
+    ELSEIF V_A삽입 == 2
+        ;모르겠다~~~
+    ENDIF
+    SIF 가윤활 < 2000
+        CALL V_고통(100+RAND:51)
+ENDIF
+IF 가펠라치오 > 0
+    가체력감소량 = 10
+    가기력감소량 = 25
+    사정재촉 += 400
+    사정재촉 += ABL:가타겟:기교 * 60
+    사정재촉 += ABL:가타겟:봉사정신 * 25
+    사정재촉 += ABL:가타겟:욕망 * 25
+    사정재촉 += ABL:가타겟:혀 * 25
+    사정재촉 += ABL:가타겟:정액중독 * 50
+    사정재촉 += TALENT:가타겟:혀놀림 * 50
+    SIF TALENT:가타겟:악취내성 <= -1
+        반감량 += (TALENT:가타겟:악취내성*-1)*50
+    IF 가펠라치오 == 1
+        CALL V_아나타봉사(사정재촉)
+    ELSEIF 가펠라치오 == 2
+        ;그럴일이 있긴 할까
+    ENDIF
+    CALL V_습득(사정재촉/50)
+    IF 반감량 <= 200
+        CALL V_굴복(사정재촉/25)
+        CALL V_순종(사정재촉/30)
+    ELSE
+        CALL V_굴복(사정재촉/50)
+        CALL V_순종(사정재촉/50)
+    ENDIF
+ENDIF
+CALL V_반감(반감량)
+
+@V_삽입처리(ARG)
+IF ARG == 0
+    V_V삽입 = 0
+    V_A삽입 = 0
+    가펠라치오 = 0
+    가자세 = 0
+ELSEIF ARG == 1||ARG == 2||ARG == 3
+    V_V삽입 = 1
+    V_A삽입 = 0
+    가펠라치오 = 0
+    가자세 = ARG
+ELSEIF ARG == 4||ARG == 5||ARG == 6
+    V_V삽입 = 0
+    V_A삽입 = 1
+    가펠라치오 = 0
+    가자세 = ARG
+ELSEIF ARG == 7
+    V_V삽입 = 0
+    V_A삽입 = 0
+    가펠라치오 = 1
+    가자세 = 0
 ENDIF
