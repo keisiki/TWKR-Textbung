@@ -1,9 +1,7 @@
 ﻿;========
 ;마개조 시작
 ;========
-@가상조교(ARG)
-;ARG = 상대
-;여기선 초기화만
+@가상조교초기화(ARG)
 가체력 = MAXBASE:ARG:체력
 가기력 = MAXBASE:ARG:기력
 가타겟 = ARG
@@ -49,6 +47,11 @@
 가상조교종료시간 = 120
 CFLAG:가타겟:오늘몸팜 = 1
 EXP:가타겟:매춘경험++
+
+@가상조교(ARG)
+;ARG = 상대
+;여기선 초기화만
+CALL 가상조교초기화(ARG)
 DRAWLINE
 CALL 가상조교루틴(ARG)
 RETURN 0
@@ -604,9 +607,9 @@ IF TALENT:가타겟:처녀 == 1
     CFLAG:가타겟:처녀상실기념일 = DAY
     CFLAG:가타겟:처녀상실상대 = ARG:1
     처녀상실문구 = 창관에서
-    IF ARG:1 == MASTER
+    IF ARG:1 == 1
         처녀상실문구 += " 당신의 "
-    ELSE
+    ELSEIF ARG:1 == 2
         처녀상실문구 += " 알지도 못하는 사람의 "
     ENDIF
     SELECTCASE ARG
@@ -763,143 +766,147 @@ ENDIF
 #DIM DYNAMIC 몸용량
 ;ARG- 1=아나타,2=모르는사람?일단은 이렇게 설정만
 
-SELECTCASE ABL:가타겟:질내사정중독
-	CASE 0 TO 2
-		중독보정 = 5
-	CASE 3 TO 5
-		중독보정 = 4
-	CASEELSE
-		중독보정 = 2
-ENDSELECT
+IF ARG == 1
+    SELECTCASE ABL:가타겟:질내사정중독
+        CASE 0 TO 2
+            중독보정 = 5
+        CASE 3 TO 5
+            중독보정 = 4
+        CASEELSE
+            중독보정 = 2
+    ENDSELECT
 
-가자궁정자 += 가자궁정자 / 중독보정
+    가자궁정자 += 가자궁정자 / 중독보정
 
-SIF TALENT:가타겟:유치 && !TALENT:가타겟:초경
-	가자궁정자 = 0
+    SIF TALENT:가타겟:유치 && !TALENT:가타겟:초경
+        가자궁정자 = 0
 
-IF !TALENT:MASTER:만능잉태
-	IF (TALENT:가타겟:오니 || TALENT:가타겟:흡혈귀)
-		임신필요치 = 10000 - 3000 * TALENT:MASTER:오니잉태
-		SIF CFLAG:가타겟:자식보정 >= 5
-			임신필요치 = 임신필요치 * MAX(60 - 2 * CFLAG:가타겟:자식보정, 10) / 50
-	ELSEIF TALENT:가타겟:텐구
-		임신필요치 = 5000 - 2000 * TALENT:MASTER:텐구잉태
-		SIF CFLAG:가타겟:자식보정 >= 5
-			임신필요치 = 임신필요치 * MAX(30 - 2 * CFLAG:가타겟:자식보정, 10) / 20
-	ELSEIF TALENT:가타겟:요정
-		임신필요치 = 4000 - 1500 * TALENT:MASTER:요정잉태
-		SIF CFLAG:가타겟:자식보정 >= 5
-			임신필요치 = 임신필요치 * MAX(30 - 2 * CFLAG:가타겟:자식보정, 10) / 20
-	ELSEIF TALENT:가타겟:신령
-		임신필요치 = 20000 - 15000 * TALENT:MASTER:신령잉태
-		SIF CFLAG:가타겟:자식보정 >= 5
-			임신필요치 = 임신필요치 * MAX(50 - 2 * CFLAG:가타겟:자식보정, 10) / 50
-	ELSEIF TALENT:가타겟:츠쿠모가미
-	;기본 필요치는 요정보다 높지만 도구사용경험에 의해 내린다
-		임신필요치 = MAX(5000 - EXP:MASTER:도구사용경험 * (1 + TALENT:MASTER:츠쿠모가미잉태), 2000)
-		SIF CFLAG:가타겟:자식보정 >= 5
-			임신필요치 = 임신필요치 * MAX(30 - 2 * CFLAG:가타겟:자식보정, 10) / 20
-	ELSEIF TALENT:가타겟:봉래인
-	;발원함에 의한 영향이 상대적으로 크다
-		임신필요치 = 200000
-		SIF TALENT:MASTER:봉래잉태
-			임신필요치 /= 10
-		SIF CFLAG:가타겟:자식보정 >= 5
-			임신필요치 = 임신필요치 * MAX(50 - 2 * CFLAG:가타겟:자식보정, 1) / 100
-	ELSEIF TALENT:가타겟:비생물
-		임신필요치 = 150000
-		SIF CFLAG:가타겟:자식보정 >= 5
-			임신필요치 = 임신필요치 * MAX(60 - 2 * CFLAG:가타겟:자식보정, 1) / 100
-	ELSE
-		임신필요치 = MAX(2000 - CFLAG:가타겟:자식보정 * 10, 500)
-	ENDIF
-ELSE
-	임신필요치 = MAX(2000 - CFLAG:가타겟:자식보정 * 12, 500)
-ENDIF
-임신필요치 /= 2
-SIF FLAG:포부 == 6
-	임신필요치 = 임신필요치 / 2
-SIF FLAG:포부 == 9
-	임신필요치 = 임신필요치 * 9 / 10
-SIF TALENT:가타겟:인간
-	임신필요치 /= 2
-SIF TALENT:가타겟:스침
-	임신필요치 /= 4
-SIF TALENT:MASTER:농후정액
-	임신필요치 /= 4
+    IF !TALENT:MASTER:만능잉태
+        IF (TALENT:가타겟:오니 || TALENT:가타겟:흡혈귀)
+            임신필요치 = 10000 - 3000 * TALENT:MASTER:오니잉태
+            SIF CFLAG:가타겟:자식보정 >= 5
+                임신필요치 = 임신필요치 * MAX(60 - 2 * CFLAG:가타겟:자식보정, 10) / 50
+        ELSEIF TALENT:가타겟:텐구
+            임신필요치 = 5000 - 2000 * TALENT:MASTER:텐구잉태
+            SIF CFLAG:가타겟:자식보정 >= 5
+                임신필요치 = 임신필요치 * MAX(30 - 2 * CFLAG:가타겟:자식보정, 10) / 20
+        ELSEIF TALENT:가타겟:요정
+            임신필요치 = 4000 - 1500 * TALENT:MASTER:요정잉태
+            SIF CFLAG:가타겟:자식보정 >= 5
+                임신필요치 = 임신필요치 * MAX(30 - 2 * CFLAG:가타겟:자식보정, 10) / 20
+        ELSEIF TALENT:가타겟:신령
+            임신필요치 = 20000 - 15000 * TALENT:MASTER:신령잉태
+            SIF CFLAG:가타겟:자식보정 >= 5
+                임신필요치 = 임신필요치 * MAX(50 - 2 * CFLAG:가타겟:자식보정, 10) / 50
+        ELSEIF TALENT:가타겟:츠쿠모가미
+        ;기본 필요치는 요정보다 높지만 도구사용경험에 의해 내린다
+            임신필요치 = MAX(5000 - EXP:MASTER:도구사용경험 * (1 + TALENT:MASTER:츠쿠모가미잉태), 2000)
+            SIF CFLAG:가타겟:자식보정 >= 5
+                임신필요치 = 임신필요치 * MAX(30 - 2 * CFLAG:가타겟:자식보정, 10) / 20
+        ELSEIF TALENT:가타겟:봉래인
+        ;발원함에 의한 영향이 상대적으로 크다
+            임신필요치 = 200000
+            SIF TALENT:MASTER:봉래잉태
+                임신필요치 /= 10
+            SIF CFLAG:가타겟:자식보정 >= 5
+                임신필요치 = 임신필요치 * MAX(50 - 2 * CFLAG:가타겟:자식보정, 1) / 100
+        ELSEIF TALENT:가타겟:비생물
+            임신필요치 = 150000
+            SIF CFLAG:가타겟:자식보정 >= 5
+                임신필요치 = 임신필요치 * MAX(60 - 2 * CFLAG:가타겟:자식보정, 1) / 100
+        ELSE
+            임신필요치 = MAX(2000 - CFLAG:가타겟:자식보정 * 10, 500)
+        ENDIF
+    ELSE
+        임신필요치 = MAX(2000 - CFLAG:가타겟:자식보정 * 12, 500)
+    ENDIF
+    임신필요치 /= 2
+    SIF FLAG:포부 == 6
+        임신필요치 = 임신필요치 / 2
+    SIF FLAG:포부 == 9
+        임신필요치 = 임신필요치 * 9 / 10
+    SIF TALENT:가타겟:인간
+        임신필요치 /= 2
+    SIF TALENT:가타겟:스침
+        임신필요치 /= 4
+    SIF TALENT:MASTER:농후정액
+        임신필요치 /= 4
 
-SELECTCASE TALENT:가타겟:체형
-	CASE -5
-		몸용량 = 300
-	CASE -4 TO -2
-		몸용량 = 600
-	CASE -1
-		몸용량 = 1000
-	CASE 0
-		몸용량 = 1200
-	CASE IS > 0
-		몸용량 = 1500
-ENDSELECT
-정액퍼센트 = 100 * 가자궁정자 / 몸용량
-IF MIN(정액퍼센트, 100) * ESTRUS_CYCLE(가타겟) / 100 > RAND:임신필요치||(무조건임신약 == 1&& 가자궁정자 > 0)
-    CFLAG:가타겟:임신경과일수 = 10
-	SIF FLAG:포부 == 6
-		FLAG:포부 = 9
-	SIF TCVAR:가타겟:강제배란
-		TCVAR:가타겟:강제배란 = 0
-	IF FLAG:1007
-		SETCOLOR C_CREAM
-		PRINTFORML 당신의 정자는 자신의 것인양 %CALLNAME:가타겟%의 자궁을 헤엄쳐 돌아, 무방비인 난자로 쇄도해 갔다…
-		IF !FLAG:그림표시
-			SETFONT "MS PGothic"
-			PRINTL 　　　　　　　　　　　　　　　　..__＿....-------....＿..
-			PRINTL 　　　　　　　　　　　　 .._..-‐'"⌒　　　　　　　　 ｀"'''ゝ､_..
-			PRINTL 　　　　　　　　　　_..‐''´　　　　　　　　　　　　　　　　　"ｰ 、..
-			PRINTL 　　　　　　　　 .:ノ'´　　. .　. 　 .　 . . .. .: . .　.　 ..　　　 　 　 `＼:.
-			PRINTL 　　　　　　　.:ノ′ 　 .　 . .: .:.: .:. .: . .: .: .:. . : .: .:.. : . .　. 　 　 　 ﾞゝ:.　　こ二ﾆ==-‐'´￣｀ヽ、_,
-			PRINTL 　　　　　 .:_／ 　 . ..:..:.:.::;:;;';:;';';.:　'"´　　　　'　　;.:.. : .　.　　　　 　 ＼:.
-			PRINTL 　　　　　.:/′ 　 .. ..:.:.:;:;';;';'.''´　　　　　 　 　 　 　 　 ;.:. . .　　 　 　 ヽ、:.
-			PRINTL 　　　　.:丿　.　.　. ..:.::;';':''　　　　　　　　　 　 　 　 　 　 :.:. : .　　　 　 ヽ::
-			PRINTL 　　　 .:丿　　　..　. ..::;'′　　　　　　　 　 　 　 　 　 　 　 ,:.:.. . .　 　 　 '、::
-			PRINTL 　　　 ::「　　　　.. . .:.;'　　　　　　　　　　　　　　　　　 　 　 :.:.　 . 　 　 .　i、::　　　こ二ﾆ==-‐'⌒丶、＿ノ
-			PRINTL 　　　::||　　　　. . ..:.;　　　　　　　　 　 　 　 　 　 　 　 　 　 ;.: . . .　　 ,::　!::
-			PRINTL 　　　::〕 　 　 　 . ..:;　　　　　　　　　　　　　　　　　　　　 　 :.:. . .　:';';にﾆ==-‐'´￣｀ヽ、_,
-			PRINTL 　　　::|!　　　　　..:.:;　　　　　　　　　　　　　　　　　　　　 　 ;.: :.　　 　｀: .!'::　　　　　　　　"
-			PRINTL 　　　::卜　　　　.. .:.:,　　　　　　　　　　　　　　　　　　　　　.:.:. . .. . 　 　 |::′　[][]/7
-			PRINTL 　　　 ::'、　　　 　 . .::,　　　　　　　　　　　　 　 　 　 　 　 ,:.: . .　　　　 │:: 　 　 //lニ◎
-			PRINTL 　　　 ::弋 　 　 　 .. . :.,　　　　　　　　　　　　　　　　 　 ,.:.: : .　　　 　 丿::　　　　　　// ﾟﾟ〃
-			PRINTL 　　　　 ::ヽ　　 　 　 . . .:...　　　 　 　 　 　 　 　 　 　 ,..: .: . ..　 　 　 _j′　　　　　　　　　´　ﾟ　｡
-			PRINTL 　　　　　':ヽ、　　　　　.　.: :': . ..　　 　 　 　 　 　 ,. .:.: . :　.. 　 　 　 /′　　　　　　　　　 　 　 　 °
-			PRINTL 　　　　　　':ヽ、　　 　 　 ..　. : .: ' : . ...,. .,... . : ' :. : .　.　　　 　 　 _／:'
-			PRINTL 　　　　　　　 ':ヾ 、　　　　　　 ..　:　. .: . . : .　:　.　　　　　　　 _／:'　　　　こ二ﾆ==-‐'⌒丶、＿ノ
-			PRINTL 　　　　　　　　　':ﾞゝ､　　　　　　　　　 .　 .　　　　　　　　　_ノ'´:'
-			PRINTL 　　　　　　　　　　　':ﾞﾞ'ゝ､_ 　　　　　　　　　　　　　　_..-‐'´:'
-			PRINTL 　　　　　　　　　　　　　　':ﾞﾞ'''ｰ-....＿＿____＿....-一"´:'
-			PRINTW 　　　　　　　　　　　　　　　　　　　　 ''￣｀''
-			SETFONT
-		ELSE
-			CALL PRINT_IMAGE_ANIMATION("受精", 0,12, FLAG:애니메이션, 0)
-			CALL PRINT_IMAGE("受精11")
-			WAIT
-		ENDIF
-		IF TALENT:가타겟:연모
-			PRINTFORMW %CALLNAME:가타겟%의 몸은 사랑하는 %CALLNAME:MASTER%의 유전자를 기뻐하며 받아들여 갔다…
-		ELSE
-			PRINTFORMW %CALLNAME:가타겟%의 몸은 본인의 의사와는 관계없이 %CALLNAME:MASTER%의 유전자를 받아들였다…
-		ENDIF
-		IF TALENT:가타겟:스침
-			FONTBOLD
-			PRINTFORMW %가타겟은%% 스침의 %CALLNAME:MASTER%에 임신되어 버렸다……
-			FONTREGULAR
-			FLAG:스침잉태수 ++
-		ENDIF
-	ENDIF
-	IF TALENT:가타겟:무지
-		CFLAG:가타겟:자각사정 = 1
-		;PRINTFORML Succeed2
-	ELSE
-		CFLAG:가타겟:무자각임신 = 1
-	ENDIF
+    SELECTCASE TALENT:가타겟:체형
+        CASE -5
+            몸용량 = 300
+        CASE -4 TO -2
+            몸용량 = 600
+        CASE -1
+            몸용량 = 1000
+        CASE 0
+            몸용량 = 1200
+        CASE IS > 0
+            몸용량 = 1500
+    ENDSELECT
+    정액퍼센트 = 100 * 가자궁정자 / 몸용량
+    IF MIN(정액퍼센트, 100) * ESTRUS_CYCLE(가타겟) / 100 > RAND:임신필요치||(무조건임신약 == 1&& 가자궁정자 > 0)
+        CFLAG:가타겟:임신경과일수 = 10
+        SIF FLAG:포부 == 6
+            FLAG:포부 = 9
+        SIF TCVAR:가타겟:강제배란
+            TCVAR:가타겟:강제배란 = 0
+        IF FLAG:1007
+            SETCOLOR C_CREAM
+            PRINTFORML 당신의 정자는 자신의 것인양 %CALLNAME:가타겟%의 자궁을 헤엄쳐 돌아, 무방비인 난자로 쇄도해 갔다…
+            IF !FLAG:그림표시
+                SETFONT "MS PGothic"
+                PRINTL 　　　　　　　　　　　　　　　　..__＿....-------....＿..
+                PRINTL 　　　　　　　　　　　　 .._..-‐'"⌒　　　　　　　　 ｀"'''ゝ､_..
+                PRINTL 　　　　　　　　　　_..‐''´　　　　　　　　　　　　　　　　　"ｰ 、..
+                PRINTL 　　　　　　　　 .:ノ'´　　. .　. 　 .　 . . .. .: . .　.　 ..　　　 　 　 `＼:.
+                PRINTL 　　　　　　　.:ノ′ 　 .　 . .: .:.: .:. .: . .: .: .:. . : .: .:.. : . .　. 　 　 　 ﾞゝ:.　　こ二ﾆ==-‐'´￣｀ヽ、_,
+                PRINTL 　　　　　 .:_／ 　 . ..:..:.:.::;:;;';:;';';.:　'"´　　　　'　　;.:.. : .　.　　　　 　 ＼:.
+                PRINTL 　　　　　.:/′ 　 .. ..:.:.:;:;';;';'.''´　　　　　 　 　 　 　 　 ;.:. . .　　 　 　 ヽ、:.
+                PRINTL 　　　　.:丿　.　.　. ..:.::;';':''　　　　　　　　　 　 　 　 　 　 :.:. : .　　　 　 ヽ::
+                PRINTL 　　　 .:丿　　　..　. ..::;'′　　　　　　　 　 　 　 　 　 　 　 ,:.:.. . .　 　 　 '、::
+                PRINTL 　　　 ::「　　　　.. . .:.;'　　　　　　　　　　　　　　　　　 　 　 :.:.　 . 　 　 .　i、::　　　こ二ﾆ==-‐'⌒丶、＿ノ
+                PRINTL 　　　::||　　　　. . ..:.;　　　　　　　　 　 　 　 　 　 　 　 　 　 ;.: . . .　　 ,::　!::
+                PRINTL 　　　::〕 　 　 　 . ..:;　　　　　　　　　　　　　　　　　　　　 　 :.:. . .　:';';にﾆ==-‐'´￣｀ヽ、_,
+                PRINTL 　　　::|!　　　　　..:.:;　　　　　　　　　　　　　　　　　　　　 　 ;.: :.　　 　｀: .!'::　　　　　　　　"
+                PRINTL 　　　::卜　　　　.. .:.:,　　　　　　　　　　　　　　　　　　　　　.:.:. . .. . 　 　 |::′　[][]/7
+                PRINTL 　　　 ::'、　　　 　 . .::,　　　　　　　　　　　　 　 　 　 　 　 ,:.: . .　　　　 │:: 　 　 //lニ◎
+                PRINTL 　　　 ::弋 　 　 　 .. . :.,　　　　　　　　　　　　　　　　 　 ,.:.: : .　　　 　 丿::　　　　　　// ﾟﾟ〃
+                PRINTL 　　　　 ::ヽ　　 　 　 . . .:...　　　 　 　 　 　 　 　 　 　 ,..: .: . ..　 　 　 _j′　　　　　　　　　´　ﾟ　｡
+                PRINTL 　　　　　':ヽ、　　　　　.　.: :': . ..　　 　 　 　 　 　 ,. .:.: . :　.. 　 　 　 /′　　　　　　　　　 　 　 　 °
+                PRINTL 　　　　　　':ヽ、　　 　 　 ..　. : .: ' : . ...,. .,... . : ' :. : .　.　　　 　 　 _／:'
+                PRINTL 　　　　　　　 ':ヾ 、　　　　　　 ..　:　. .: . . : .　:　.　　　　　　　 _／:'　　　　こ二ﾆ==-‐'⌒丶、＿ノ
+                PRINTL 　　　　　　　　　':ﾞゝ､　　　　　　　　　 .　 .　　　　　　　　　_ノ'´:'
+                PRINTL 　　　　　　　　　　　':ﾞﾞ'ゝ､_ 　　　　　　　　　　　　　　_..-‐'´:'
+                PRINTL 　　　　　　　　　　　　　　':ﾞﾞ'''ｰ-....＿＿____＿....-一"´:'
+                PRINTW 　　　　　　　　　　　　　　　　　　　　 ''￣｀''
+                SETFONT
+            ELSE
+                CALL PRINT_IMAGE_ANIMATION("受精", 0,12, FLAG:애니메이션, 0)
+                CALL PRINT_IMAGE("受精11")
+                WAIT
+            ENDIF
+            IF TALENT:가타겟:연모
+                PRINTFORMW %CALLNAME:가타겟%의 몸은 사랑하는 %CALLNAME:MASTER%의 유전자를 기뻐하며 받아들여 갔다…
+            ELSE
+                PRINTFORMW %CALLNAME:가타겟%의 몸은 본인의 의사와는 관계없이 %CALLNAME:MASTER%의 유전자를 받아들였다…
+            ENDIF
+            IF TALENT:가타겟:스침
+                FONTBOLD
+                PRINTFORMW %가타겟은%% 스침의 %CALLNAME:MASTER%에 임신되어 버렸다……
+                FONTREGULAR
+                FLAG:스침잉태수 ++
+            ENDIF
+        ENDIF
+        IF TALENT:가타겟:무지
+            CFLAG:가타겟:자각사정 = 1
+            ;PRINTFORML Succeed2
+        ELSE
+            CFLAG:가타겟:무자각임신 = 1
+        ENDIF
+    ENDIF
+ELSEIF ARG == 2
+
 ENDIF
 RESETCOLOR
 
