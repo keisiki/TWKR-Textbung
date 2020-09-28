@@ -601,7 +601,7 @@ V_A삽입 = 0
 @V_처녀상실(ARG,ARG:1)
 #DIMS DYNAMIC 처녀상실문구
 ;ARG = 1-페니스, 2= 손가락, 3=기구
-;ARG:1 행위자
+;ARG:1 행위자 1-당신 2-손님
 IF TALENT:가타겟:처녀 == 1
     TALENT:가타겟:처녀 = 0
     CFLAG:가타겟:처녀상실기념일 = DAY
@@ -845,12 +845,10 @@ IF ARG == 1
             몸용량 = 1500
     ENDSELECT
     정액퍼센트 = 100 * 가자궁정자 / 몸용량
-    IF MIN(정액퍼센트, 100) * ESTRUS_CYCLE(가타겟) / 100 > RAND:임신필요치||(무조건임신약 == 1&& 가자궁정자 > 0)
+    IF (MIN(정액퍼센트, 100) * ESTRUS_CYCLE(가타겟) / 100 > RAND:임신필요치||(무조건임신약 == 1&& 가자궁정자 > 0))&&!TALENT:ARG:임신&&!TALENT:ARG:손님의아이
         CFLAG:가타겟:임신경과일수 = 10
         SIF FLAG:포부 == 6
             FLAG:포부 = 9
-        SIF TCVAR:가타겟:강제배란
-            TCVAR:가타겟:강제배란 = 0
         IF FLAG:1007
             SETCOLOR C_CREAM
             PRINTFORML 당신의 정자는 자신의 것인양 %CALLNAME:가타겟%의 자궁을 헤엄쳐 돌아, 무방비인 난자로 쇄도해 갔다…
@@ -898,7 +896,7 @@ IF ARG == 1
                 FLAG:스침잉태수 ++
             ENDIF
         ENDIF
-        IF TALENT:가타겟:무지
+        IF !TALENT:가타겟:무지
             CFLAG:가타겟:자각사정 = 1
             ;PRINTFORML Succeed2
         ELSE
@@ -919,7 +917,6 @@ ELSEIF ARG == 2
 
     SIF TALENT:가타겟:유치 && !TALENT:가타겟:초경
         가자궁정자 = 0
-
     IF RAND:10 != 0
         ;90% 확률로 일반 손님의 정자
         IF (TALENT:가타겟:오니 || TALENT:가타겟:흡혈귀)
@@ -931,20 +928,20 @@ ELSEIF ARG == 2
         ELSEIF TALENT:가타겟:신령
             임신필요치 = 20000
         ELSEIF TALENT:가타겟:츠쿠모가미
-        ;기본 필요치는 요정보다 높지만 도구사용경험에 의해 내린다
-            임신필요치 = MAX(5000 - EXP:MASTER:도구사용경험 * (1 + TALENT:MASTER:츠쿠모가미잉태), 2000)
+            임신필요치 = 5000
         ELSEIF TALENT:가타겟:봉래인
             임신필요치 = 200000
             ;10%확률로 봉래임신 아저씨
             SIF RAND:10 == 0
                 임신필요치 /= 20
         ELSEIF TALENT:가타겟:비생물
-            임신필요치 = 150000
+            임신필요치 = 130000
         ELSE
-            임신필요치 = MAX(2000 - CFLAG:가타겟:자식보정 * 10, 500)
+            임신필요치 = RAND:1500 + 500
         ENDIF
     ELSE
-        임신필요치 = MAX(2000 - CFLAG:가타겟:자식보정 * 12, 500)
+        ;10%로 만능잉태 아저씨
+        임신필요치 = RAND:1000 + 500
     ENDIF
     임신필요치 /= 2
     SIF FLAG:포부 == 6
@@ -970,12 +967,167 @@ ELSEIF ARG == 2
         CASE IS > 0
             몸용량 = 1500
     ENDSELECT
+    정액퍼센트 = 100 * 가자궁정자 / 몸용량
+    IF (MIN(정액퍼센트, 100) * ESTRUS_CYCLE(가타겟) / 100 > RAND:임신필요치||(무조건임신약 == 1&& 가자궁정자 > 0))&&!TALENT:ARG:임신&&!TALENT:ARG:손님의아이
+        CFLAG:가타겟:손님아이임신경과 = 10
+        IF FLAG:1007
+            SETCOLOR C_CREAM
+            PRINTFORML 손님의 정자는 자신의 것인양 %CALLNAME:가타겟%의 자궁을 헤엄쳐 돌아, 무방비인 난자로 쇄도해 갔다…
+            IF !FLAG:그림표시
+                SETFONT "MS PGothic"
+                PRINTL 　　　　　　　　　　　　　　　　..__＿....-------....＿..
+                PRINTL 　　　　　　　　　　　　 .._..-‐'"⌒　　　　　　　　 ｀"'''ゝ､_..
+                PRINTL 　　　　　　　　　　_..‐''´　　　　　　　　　　　　　　　　　"ｰ 、..
+                PRINTL 　　　　　　　　 .:ノ'´　　. .　. 　 .　 . . .. .: . .　.　 ..　　　 　 　 `＼:.
+                PRINTL 　　　　　　　.:ノ′ 　 .　 . .: .:.: .:. .: . .: .: .:. . : .: .:.. : . .　. 　 　 　 ﾞゝ:.　　こ二ﾆ==-‐'´￣｀ヽ、_,
+                PRINTL 　　　　　 .:_／ 　 . ..:..:.:.::;:;;';:;';';.:　'"´　　　　'　　;.:.. : .　.　　　　 　 ＼:.
+                PRINTL 　　　　　.:/′ 　 .. ..:.:.:;:;';;';'.''´　　　　　 　 　 　 　 　 ;.:. . .　　 　 　 ヽ、:.
+                PRINTL 　　　　.:丿　.　.　. ..:.::;';':''　　　　　　　　　 　 　 　 　 　 :.:. : .　　　 　 ヽ::
+                PRINTL 　　　 .:丿　　　..　. ..::;'′　　　　　　　 　 　 　 　 　 　 　 ,:.:.. . .　 　 　 '、::
+                PRINTL 　　　 ::「　　　　.. . .:.;'　　　　　　　　　　　　　　　　　 　 　 :.:.　 . 　 　 .　i、::　　　こ二ﾆ==-‐'⌒丶、＿ノ
+                PRINTL 　　　::||　　　　. . ..:.;　　　　　　　　 　 　 　 　 　 　 　 　 　 ;.: . . .　　 ,::　!::
+                PRINTL 　　　::〕 　 　 　 . ..:;　　　　　　　　　　　　　　　　　　　　 　 :.:. . .　:';';にﾆ==-‐'´￣｀ヽ、_,
+                PRINTL 　　　::|!　　　　　..:.:;　　　　　　　　　　　　　　　　　　　　 　 ;.: :.　　 　｀: .!'::　　　　　　　　"
+                PRINTL 　　　::卜　　　　.. .:.:,　　　　　　　　　　　　　　　　　　　　　.:.:. . .. . 　 　 |::′　[][]/7
+                PRINTL 　　　 ::'、　　　 　 . .::,　　　　　　　　　　　　 　 　 　 　 　 ,:.: . .　　　　 │:: 　 　 //lニ◎
+                PRINTL 　　　 ::弋 　 　 　 .. . :.,　　　　　　　　　　　　　　　　 　 ,.:.: : .　　　 　 丿::　　　　　　// ﾟﾟ〃
+                PRINTL 　　　　 ::ヽ　　 　 　 . . .:...　　　 　 　 　 　 　 　 　 　 ,..: .: . ..　 　 　 _j′　　　　　　　　　´　ﾟ　｡
+                PRINTL 　　　　　':ヽ、　　　　　.　.: :': . ..　　 　 　 　 　 　 ,. .:.: . :　.. 　 　 　 /′　　　　　　　　　 　 　 　 °
+                PRINTL 　　　　　　':ヽ、　　 　 　 ..　. : .: ' : . ...,. .,... . : ' :. : .　.　　　 　 　 _／:'
+                PRINTL 　　　　　　　 ':ヾ 、　　　　　　 ..　:　. .: . . : .　:　.　　　　　　　 _／:'　　　　こ二ﾆ==-‐'⌒丶、＿ノ
+                PRINTL 　　　　　　　　　':ﾞゝ､　　　　　　　　　 .　 .　　　　　　　　　_ノ'´:'
+                PRINTL 　　　　　　　　　　　':ﾞﾞ'ゝ､_ 　　　　　　　　　　　　　　_..-‐'´:'
+                PRINTL 　　　　　　　　　　　　　　':ﾞﾞ'''ｰ-....＿＿____＿....-一"´:'
+                PRINTW 　　　　　　　　　　　　　　　　　　　　 ''￣｀''
+                SETFONT
+            ELSE
+                CALL PRINT_IMAGE_ANIMATION("受精", 0,12, FLAG:애니메이션, 0)
+                CALL PRINT_IMAGE("受精11")
+                WAIT
+            ENDIF
+            IF TALENT:가타겟:연모
+                PRINTFORMW %CALLNAME:가타겟%의 몸은 사랑하는 %CALLNAME:MASTER%의 유전자 대신 손님의 정자를 받아들여 갔다…
+            ELSE
+                PRINTFORMW %CALLNAME:가타겟%의 몸은 본인의 의사와는 관계없이 손님의 유전자를 받아들였다…
+            ENDIF
+            IF TALENT:가타겟:스침
+                FONTBOLD
+                PRINTFORMW %가타겟은%% 스침의 %CALLNAME:MASTER%에 팔려져 창관의 손님을 임신하게 되어 버렸다……
+                FONTREGULAR
+                FLAG:스침잉태수 ++
+            ENDIF
+        ENDIF
+    ENDIF
 ENDIF
 RESETCOLOR
 
-@모르는사람의아이
+@모르는사람의아이(ARG)
+IF CFLAG:ARG:손님아이임신경과 == 10
+    PRINTFORMW %CALLNAME:ARG%의 모습이 이상하다…
+	PRINTFORML %CALLNAME:ARG%는 창관 손님의 아이를 임신한 같다
+	PRINTFORMW %CALLNAME:ARG%는 [임신]했다.
+	TALENT:ARG:손님의아이 = 1
+    CFLAG:ARG:임신자각상태 = 1
+	CALL CHANGE_N_STATUS(ARG)
+ELSEIF CFLAG:ARG:손님아이임신경과 == 15
+    PRINTFORML %CALLNAME:ARG%의 배의 부푼 곳은 아직 눈에 띄지 않는다…
+	PRINTFORMW %CALLNAME:ARG%의 몸은 상당히 침착성 안정기에 접어든 것 같다…
+	IF GROUPMATCH(ARG, 4,10,11,36,43,56,58,65,75,87)
+		PRINTFORM %CALLNAME:ARG%는 몸의 부담을 피하기 (위해)때문에, 당분간
+		IF ARG == 10 || ARG == 11
+			PRINTFORM 트레이닝
+		ELSEIF ARG == 87
+			PRINTFORM 근행
+		ELSE
+			PRINTFORM  %GET_JOBNAME(ARG)%
+		ENDIF
+		PRINTFORML 를 쉬는 일로 했다…
+		CFLAG:ARG:출산휴가 = 1
+	ENDIF
+	BASE:ARG:체력 -= 100
+	MAXBASE:ARG:체력 -= 100
+	BASE:ARG:기력 -= 100
+	MAXBASE:ARG:기력 -= 100
+ELSEIF CFLAG:ARG:손님아이임신경과 == 20
+    PRINTFORML %CALLNAME:ARG%의 배의 부푼 곳이 뚜렷해졌다…
+	IF GROUPMATCH(ARG, 14,17,20,21,22,28,31,35,40,44,52,57,70,72,76,91,96)
+		PRINTFORM %CALLNAME:ARG%는 몸의 부담을 피하기 (위해)때문에, 당분간
+		IF GROUPMATCH(ARG, 96,91,35)
+			PRINTFORM 천계에서의 약속
+		ELSEIF GROUPMATCH(ARG, 76,57,31,22,21,20)
+			PRINTFORM %GET_JOBNAME(ARG)%\@ ARG == 76 || ARG == 31 ?  의 일 # \@
+ 		ELSEIF ARG == 17
+			PRINTFORM 인형극
+		ELSE
+			PRINTFORM 장사
+		ENDIF
+		PRINTFORML 를 쉬는 일로 했다…
+		CFLAG:ARG:출산휴가 = 1
+	ENDIF
+	BASE:ARG:체력 -= 200
+	MAXBASE:ARG:체력 -= 200
+	BASE:ARG:기력 -= 200
+	MAXBASE:ARG:기력 -= 200
+ELSEIF CFLAG:ARG:손님아이임신경과 == 30
+    IF TALENT:ARG:가슴사이즈 < 2
+		TALENT:ARG:가슴사이즈 += 1
+		PRINTFORMW %CALLNAME:ARG%의 가슴이 커졌다
+		CFLAG:ARG:가슴랭크업 = 1
+	ENDIF
+	IF !TALENT:ARG:모유체질
+		PRINTFORMW %CALLNAME:ARG%는 모유가 나오게 되었다
+		TALENT:ARG:모유체질 = 1
+	ENDIF
+	PRINTFORML 이미%CALLNAME:ARG%가 임신하고 있는 것은 멀리서도 분명하다…
+	IF GROUPMATCH(ARG, 1,11,23,25,26,34,37,43,44,52,55,60,67,68,79,85,87,97)
+		PRINTFORML %CALLNAME:ARG%는 엉뚱한 짓을 하지 않고, 당분간 휴양 하기로 결정했다…
+		CFLAG:ARG:출산휴가 = 1
+	ENDIF
+		
+	BASE:ARG:체력 -= 200
+	MAXBASE:ARG:체력 -= 200
+	BASE:ARG:기력 -= 200
+	MAXBASE:ARG:기력 -= 200	
+ELSEIF CFLAG:ARG:손님아이임신경과 == 36
+    PRINTFORMW %CALLNAME:ARG%의 출산이 가까운 시일내에 되었다.
+	PRINTFORMW 격렬한 행위는 피하는 것이 좋을 것 같다…
+	IF GROUPMATCH(ARG, 2,5,6,7,8,9,12,13,14,15,16,17,29,32,33,41,50,54,59,62,80,81,82)
+		PRINTFORMW 모체에 위험이 나올 가능성이 있기 때문이라고, %CALLNAME:ARG%를 출산까지 휴양 시키는 일로 했다…
+		CFLAG:ARG:출산휴가 = 1
+	ENDIF
+ELSEIF CFLAG:ARG:손님아이임신경과 > 50
+    ;출산
+    PRINTFORMW 새벽, %ARG는% 갑자기 시작된 진통에 괴로워 했다...
+    PRINTFORMW ...
+    PRINTFORMW %ARG는% 창관 손님의 아이를 무사히 출산했습니다
+    PRINTFORMW %CALLNAME:ARG%를 \@ RAND:2 == 0 ?   닮은 건강한 여자아이 # 닮은 건강한 남자아이 \@ 입니다
+    PRINTFORMW %ARG는% 퀭한 얼굴로 아이를 창관 주인에게 넘겼습니다...
+    TALENT:ARG:손님의아이 = 0
+    CFLAG:ARG:임신자각상태 = 0
+    CFLAG:ARG:손님아이임신경과 = 0
+    PRINTFORMW %ARG의% 가슴은 이내 말라버렸다..
+    PRINTFORMW %ARG는% [모유체질]을 잃었다
+    TALENT:ARG:모유체질 = 0    
+    IF CFLAG:ARG:가슴랭크업 == 1 && TALENT:ARG:가슴사이즈 > -2
+        PRINTFORMW 할 일을 잃은 %CALLNAME:ARG%의 가슴이 도로 작아졌다
+		TALENT:ARG:가슴사이즈 -= 1
+		CFLAG:ARG:가슴랭크업 = 0
+	ENDIF
+    EXP:ARG:출산경험++
+    BASE:ARG:체력 -= 500
+    CFLAG:ARG:철야 = 1
+    MAXBASE:ARG:체력 += 500
+    MAXBASE:ARG:기력 += 500
+ENDIF
 
+IF CFLAG:ARG:손님아이임신경과 > 0
+    CFLAG:ARG:손님아이임신경과++
+ENDIF
 
+@창녀일정하기(ARG)
+IF TALENT:ARG:창녀||TALENT:ARG:렌탈창녀
+    CFLAG:ARG:창관일 = RAND:4
+ENDIF
 
 @가상조교능력치변동
 #DIM DYNAMIC 요구량
