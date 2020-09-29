@@ -1,4 +1,6 @@
-﻿@뉴탄막전투(ARG,ARG:1)
+﻿
+
+@뉴탄막전투(ARG,ARG:1)
 ;ARG - 내 번호
 ;ARG:1 - 상대방 번호
 CALL 뉴탄막전투초기화(ARG,ARG:1)
@@ -16,6 +18,14 @@ T_내지성= CFLAG:T_나:지성
 T_내인내= CFLAG:T_나:인내
 T_내속도= CFLAG:T_나:속도
 T_내운= CFLAG:T_나:운
+T_내물리내성= CFLAG:T_나:물리내성
+T_내화염내성= CFLAG:T_나:화염내성
+T_내빙결내성= CFLAG:T_나:빙결내성
+T_내전격내성= CFLAG:T_나:전격내성
+T_내질풍내성= CFLAG:T_나:질풍내성
+T_내마력내성= CFLAG:T_나:마력내성
+T_내수격내성= CFLAG:T_나:수격내성
+T_내정신내성= CFLAG:T_나:정신내성
 ;---
 T_적체력 = BASE:T_적:체력+MIN(10*(CFLAG:(ARG:1):인내),1000)
 T_적최대체력 = T_적체력
@@ -24,6 +34,14 @@ T_적지성= CFLAG:T_적:지성
 T_적인내= CFLAG:T_적:인내
 T_적속도= CFLAG:T_적:속도
 T_적운= CFLAG:T_적:운
+T_적물리내성= CFLAG:T_적:물리내성
+T_적화염내성= CFLAG:T_적:화염내성
+T_적빙결내성= CFLAG:T_적:빙결내성
+T_적전격내성= CFLAG:T_적:전격내성
+T_적질풍내성= CFLAG:T_적:질풍내성
+T_적마력내성= CFLAG:T_적:마력내성
+T_적수격내성= CFLAG:T_적:수격내성
+T_적정신내성= CFLAG:T_적:정신내성
 CALL 공방세팅
 
 ;----
@@ -33,8 +51,8 @@ CALL 공방세팅
 ;----
 
 @공방세팅
-T_내공격력= T_내힘*20+ (T_내속도*5)+T_내공격력보정
-T_내방어력= T_내속도*5+ T_내인내*15+T_내방어력보정
+T_내공격력= (T_내힘*20)+ (T_내속도*5)+(T_내공격력보정)
+T_내방어력= (T_내속도*5)+ (T_내인내*15)+(T_내운)+(T_내방어력보정)
 SELECTCASE ABL:T_나:전투능력
     CASE 0
         TIMES T_내공격력, 1.0
@@ -64,8 +82,8 @@ SELECTCASE ABL:T_나:전투능력
         TIMES T_내공격력, 3.0
         TIMES T_내방어력, 3.0
 ENDSELECT
-T_적공격력= T_적힘*20 + (T_적속도*5)+T_적공격력보정
-T_적방어력= T_적속도*5+ T_적인내*15+T_적방어력보정
+T_적공격력= (T_적힘*20) + (T_적속도*5)+(T_적공격력보정)
+T_적방어력= (T_적속도*5)+ (T_적인내*15)+(T_적운*5)+(T_적방어력보정)
 IF 고로시 == 1
     TIMES 적공격력, 2.0
     TIMES 적방어력, 2.0
@@ -102,192 +120,279 @@ ENDSELECT
 
 
 @뉴탄막루틴
+$내턴루틴
 CALL 공방세팅
 CALL 뉴탄막상태창
+CALL 뉴탄막커맨드창
+T_턴주인 = T_나
+T_턴반대 = T_적
+$내턴입력
+INPUT
+IF RESULT == 100
+    ;공격
+    CALL T_COM공격한다
+    GOTO 내턴루틴
+ELSEIF RESULT == 101
+    ;스킬사용
+    CALL T_COM스킬사용
+    GOTO 내턴루틴
+ELSEIF RESULT == 102
+    ;아이템사용
+    GOTO 내턴루틴
+ELSEIF RESULT == 200
+    ;회피
+    GOTO 내턴루틴
+ELSEIF RESULT == 201
+    ;휴식
+    ;일단은 아무처리 안함
+ELSEIF RESULT == 999
+    ;항복
+    RETURN 1
+ELSE
+    GOTO 내턴입력
+ENDIF
+;--------
+;적턴
+;--------
+T_턴주인 = T_적
+T_턴반대 = T_나
+;-------
+CALL T_턴엔드
 PRINTW
+RESTART
+
+@T_턴엔드
+FOR LOCAL,1,1000
+    TRYCALLFORM T_SKILL{LOCAL}(T_턴주인,"턴엔드")
+NEXT
 
 
-@뉴탄막상태창
-#DIM DYNAMIC 내체력백분율
-#DIM DYNAMIC 적체력백분율
-내체력백분율 = (T_내체력 * 100)/MAXBASE:T_나:체력
-적체력백분율 = (T_적체력 * 100)/MAXBASE:T_적:체력
-
-DRAWLINE
-PRINTFORML {T_TIME}턴
-DRAWLINE
+@뉴탄막커맨드창
 ALIGNMENT CENTER
-PRINTFORML [%CALLNAME:T_적%]
-;화상을 넣을려면 이 사이에
-
-;
-PRINTFORM 체력
-IF 적체력백분율 >= 70
-    SETCOLOR 0x19FF19
-ELSEIF 적체력백분율 >= 50
-    SETCOLOR 0xFF8000
-ELSEIF 적체력백분율 >= 30
-    SETCOLOR 0xFFFF00
-ELSE
-    SETCOLOR 0xFF0000
-ENDIF
-PRINTFORM [
-REPEAT (적체력백분율)
-    PRINTFORM *
-REND
-REPEAT 100 - (적체력백분율)
-    PRINTFORM .
-REND
-PRINTFORML ]
-RESETCOLOR
-PRINTFORML  ({T_적체력}/{T_적최대체력})
+PRINTFORM [100] 공격 한다
+PRINT    
+PRINTFORM [101] 스킬 사용
+PRINT    
+PRINTFORM [102] 아이템 사용
 PRINTL
-CALL 상태이상표시(2)
+PRINTFORM [200] 회피에 집중
+PRINT    
+PRINTFORM [201] 휴식
 PRINTL
-PRINTFORM 힘:{T_적힘}
-PRINT  
-CALL 능력치평가(T_적힘)
-PRINT  
-PRINTFORM 지성:{T_적지성}
-PRINT  
-CALL 능력치평가(T_적지성)
-PRINT  
-PRINTFORM 인내:{T_적인내}
-PRINT  
-CALL 능력치평가(T_적인내)
-PRINT  
-PRINTFORM 속도:{T_적속도}
-PRINT  
-CALL 능력치평가(T_적속도)
-PRINT  
-PRINTFORM 운:{T_적운}
-PRINT  
-CALL 능력치평가(T_적운)
-PRINT  
-PRINTL
-PRINTFORM 공격력 : {T_적공격력}     
-PRINTFORM 방어력 : {T_적방어력}
-PRINTL
-DRAWLINE
-PRINTFORML [%CALLNAME:T_나%]
-;화상을 넣을려면 이 사이에
-
-;
-PRINTFORM 체력
-IF 내체력백분율 >= 70
-    SETCOLOR 0x19FF19
-ELSEIF 내체력백분율 >= 50
-    SETCOLOR 0xFF8000
-ELSEIF 내체력백분율 >= 30
-    SETCOLOR 0xFFFF00
-ELSE
-    SETCOLOR 0xFF0000
-ENDIF
-PRINTFORM [
-REPEAT (내체력백분율)
-    PRINTFORM *
-REND
-REPEAT 100 - (내체력백분율)
-    PRINTFORM .
-REND
-PRINTFORML ]
-RESETCOLOR
-PRINTFORML  ({T_내체력}/{T_내최대체력})
-PRINTL
-CALL 상태이상표시(1)
-PRINTL
-PRINTFORM 힘:{T_내힘}
-PRINT  
-CALL 능력치평가(T_내힘)
-PRINT  
-PRINTFORM 지성:{T_내지성}
-PRINT  
-CALL 능력치평가(T_내지성)
-PRINT  
-PRINTFORM 인내:{T_내인내}
-PRINT  
-CALL 능력치평가(T_내인내)
-PRINT  
-PRINTFORM 속도:{T_내속도}
-PRINT  
-CALL 능력치평가(T_내속도)
-PRINT  
-PRINTFORM 운:{T_내운}
-PRINT  
-CALL 능력치평가(T_내운)
-PRINT  
-PRINTL
-PRINTFORM 공격력 : {T_내공격력}     
-PRINTFORM 방어력 : {T_내방어력}
+PRINTFORM [999] 항복
 PRINTL
 DRAWLINE
 ALIGNMENT LEFT
 
-@상태이상표시(ARG)
-;ARG - 1=나 2=적
-;일단 자리만
 
-@능력치평가(ARG)
-;;0=고자, 10=요정급, 15=인간급 20=머요정급 25=소악마급 35=들요괴급 45=텐구급 65=오니급 80=신령급 90=월인급...100=몰라 무서워 시발
-IF ARG >= 95
-    SETCOLOR 0xFA58F4
-    PRINT SSS
-ELSEIF ARG >= 90
-    SETCOLOR 0xFA58F4
-    PRINT SS+
-ELSEIF ARG >= 85
-    SETCOLOR 0xFA58F4
-    PRINT SS
-ELSEIF ARG >= 80
-    SETCOLOR 0xFA58F4
-    PRINT SS-
-ELSEIF ARG >= 75
-    SETCOLOR 0xFA58F4
-    PRINT S+
-ELSEIF ARG >= 70
-    SETCOLOR 0xFF00FF
-    PRINT S
-ELSEIF ARG >= 65
-    SETCOLOR 0x8A0886
-    PRINT S-
-ELSEIF ARG >= 60
-    SETCOLOR 0x0000FF
-    PRINT A
-ELSEIF ARG >= 55
-    SETCOLOR 0x08088A
-    PRINT A-
-ELSEIF ARG >= 50
-    SETCOLOR 0xFA5858
-    PRINT B+
-ELSEIF ARG >= 45
-    SETCOLOR 0xFF0000
-    PRINT B
-ELSEIF ARG >= 40
-    SETCOLOR 0xF3F781
-    PRINT C+
-ELSEIF ARG >= 35
-    SETCOLOR 0xFFFF00
-    PRINT C
-ELSEIF ARG >= 30
-    SETCOLOR 0xAEB404
-    PRINT C-
-ELSEIF ARG >= 25
-    SETCOLOR 0x81DAF5
-    PRINT D+
-ELSEIF ARG >= 20
-    SETCOLOR 0x00BFFF
-    PRINT D
-ELSEIF ARG >= 15
-    SETCOLOR 0x086A87
-    PRINT D-
-ELSEIF ARG >= 10
-    SETCOLOR 0x00FF40
-    PRINT E
-ELSEIF ARG >= 0
-    SETCOLOR 0x848484
-    PRINT F
-ELSE
-    SETCOLOR 0x2E2E2E
-    PRINT F-
+@T_데미지(대상,데미지,속성)
+#DIM 대상
+#DIM 데미지
+#DIMS 속성
+IF 대상 == T_나
+    IF 속성 == "물리"
+        IF T_내물리내성 > 0
+            IF 데미지 >= T_내물리내성
+                데미지 -= T_내물리내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_내물리내성
+        ENDIF
+    ELSEIF 속성 == "화염"
+        IF T_내화염내성 > 0
+            IF 데미지 >= T_내화염내성
+                데미지 -= T_내화염내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_내화염내성
+        ENDIF
+    ELSEIF 속성 == "빙결"
+        IF T_내빙결내성 > 0
+            IF 데미지 >= T_내빙결내성
+                데미지 -= T_내빙결내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_내빙결내성
+        ENDIF
+    ELSEIF 속성 == "전격"
+        IF T_내전격내성 > 0
+            IF 데미지 >= T_내전격내성
+                데미지 -= T_내전격내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_내전격내성
+        ENDIF
+    ELSEIF 속성 == "질풍"
+        IF T_내질풍내성 > 0
+            IF 데미지 >= T_내질풍내성
+                데미지 -= T_내질풍내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_내질풍내성
+        ENDIF
+    ELSEIF 속성 == "수격"
+        IF T_내수격내성 > 0
+            IF 데미지 >= T_내수격내성
+                데미지 -= T_내수격내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_내수격내성
+        ENDIF
+    ELSEIF 속성 == "마력"
+        IF T_내마력내성 > 0
+            IF 데미지 >= T_내마력내성
+                데미지 -= T_내마력내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_내마력내성
+        ENDIF
+    ELSEIF 속성 == "정신"
+        IF T_내정신내성 > 0
+            IF 데미지 >= T_내정신내성
+                데미지 -= T_내정신내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_내정신내성
+        ENDIF
+    ELSEIF 속성 == "고정"
+        ;처리없음
+    ENDIF
+    IF T_내방어력 >= 0
+        데미지 -= T_내방어력
+    ELSE
+        데미지 += T_내방어력
+    ENDIF
+    IF RAND:(MIN(T_적운,90)+10) >= 9
+        PRINTFORML 급소에 맞았다!
+        데미지 += T_적운
+        TIMES 데미지 , 1.5
+    ENDIF
+    IF 데미지 > 0
+        T_내체력 -= 데미지
+        PRINTFORMW {데미지}만큼의 피해를 받았다!
+    ELSEIF 데미지 <= -100
+        PRINTFORMW 가볍게 피했다
+    ELSE
+        PRINTFORMW 피했다!
+    ENDIF
+ELSEIF 대상 == T_적
+    IF 속성 == "물리"
+        IF T_적물리내성 > 0
+            IF 데미지 >= T_적물리내성
+                데미지 -= T_적물리내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_적물리내성
+        ENDIF
+    ELSEIF 속성 == "화염"
+        IF T_적화염내성 > 0
+            IF 데미지 >= T_적화염내성
+                데미지 -= T_적화염내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_적화염내성
+        ENDIF
+    ELSEIF 속성 == "빙결"
+        IF T_적빙결내성 > 0
+            IF 데미지 >= T_적빙결내성
+                데미지 -= T_적빙결내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_적빙결내성
+        ENDIF
+    ELSEIF 속성 == "전격"
+        IF T_적전격내성 > 0
+            IF 데미지 >= T_적전격내성
+                데미지 -= T_적전격내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_적전격내성
+        ENDIF
+    ELSEIF 속성 == "질풍"
+        IF T_적질풍내성 > 0
+            IF 데미지 >= T_적질풍내성
+                데미지 -= T_적질풍내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_적질풍내성
+        ENDIF
+    ELSEIF 속성 == "수격"
+        IF T_적수격내성 > 0
+            IF 데미지 >= T_적수격내성
+                데미지 -= T_적수격내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_적수격내성
+        ENDIF
+    ELSEIF 속성 == "마력"
+        IF T_적마력내성 > 0
+            IF 데미지 >= T_적마력내성
+                데미지 -= T_적마력내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_적마력내성
+        ENDIF
+    ELSEIF 속성 == "정신"
+        IF T_적정신내성 > 0
+            IF 데미지 >= T_적정신내성
+                데미지 -= T_적정신내성
+            ELSE
+                데미지 = 0
+            ENDIF
+        ELSE
+            데미지 += T_적정신내성
+        ENDIF
+    ELSEIF 속성 == "고정"
+        ;처리없음
+    ENDIF
+    IF T_적방어력 >= 0
+        데미지 -= T_적방어력
+    ELSE
+        데미지 += T_적방어력
+    ENDIF
+    IF RAND:(MIN(T_내운,90)+10) >= 9
+        PRINTFORML 급소에 맞혔다!
+        데미지 += T_내운
+        TIMES 데미지 , 1.5
+    ENDIF
+    IF 데미지 > 0
+        T_적체력 -= 데미지
+        PRINTFORMW %T_적이% {데미지}만큼의 피해를 받았다!
+    ELSEIF 데미지 <= -100
+        PRINTFORMW 그러나 가볍게 피해버렸다...
+    ELSE
+        PRINTFORMW %T_적은% 아슬아슬하게 공격을 피했다!
+    ENDIF
 ENDIF
-RESETCOLOR
+
+
