@@ -1,7 +1,7 @@
 ﻿
 @T_시스템처리
 FOR LOCAL,1,1000
-    TRYCALLFORM T_SKILL{LOCAL}(T_턴주인,"시스템체크")
+    TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴주인,"시스템체크")
 NEXT
 
 @T_COM공격한다
@@ -13,23 +13,94 @@ RETURN 0
 
 @T_COM스킬사용
 #DIM DYNAMIC 표시카운터
+#DIM 스킬번호
 PRINTL 무엇을 쓸까?
 DRAWLINE
-FOR LOCAL,1,1000
-    TRYCALLFORM T_SKILL{LOCAL}(T_턴주인, "표시")
-    IF RESULT == 1
-        RESULT == 0
+FOR 스킬번호,1,1000
+    IF HAVE_T_SKILL(T_턴주인, 스킬번호)
+        ;스킬 소유, 스킬창에 이름 표시
+        IF CAN_T_SKILL(T_턴주인, 스킬번호)
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
+            SETCOLOR RESULT
+        ELSE
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전불가")
+            SETCOLOR RESULT
+        ENDIF
+        CALLFORM T_SKILL{스킬번호}_STR("스킬명")
+        PRINTFORM [{스킬번호}] %RESULTS%
+        RESETCOLOR
         PRINTL
+    ELSE
+        ;스킬 소유하고 있지 않음
     ENDIF
 NEXT
 PRINTL
 PRINTL [9999]돌아간다
-INPUT
-IF RESULT == 9999
-    RETURN 0
+WHILE 1
+    INPUT
+    IF RESULT == 9999
+        RETURN 0
+    ELSEIF HAVE_T_SKILL(T_턴주인, RESULT)
+        DRAWLINE
+        CALL DO_T_SKILL(T_턴주인, RESULT)
+    ELSE
+        PRINTL
+        PRINTW 없는 번호입니다.
+        CLEARLINE 1
+    ENDIF
+WEND
+
+;시전 대응
+@DO_T_SKILL(사용자, 스킬번호)
+#DIM 사용자
+#DIM 스킬번호
+;스킬의 시전시 처리, 대사만 넣으면 된다
+IF !CAN_T_SKILL(사용자, 스킬번호)
+    ;시전불가
+    PRINTL 사용할수 없다
 ELSE
-    DRAWLINE
-    TRYCALLFORM T_SKILL{RESULT}(T_턴주인, "시전")
+    ;시전성공
+    CALLFORM AFTER_T_SKILL{스킬번호}(사용자)
+ENDIF
+
+;그 스킬을 소유하고 있는지 여부
+;보유 대응
+@HAVE_T_SKILL(사용자, 스킬번호)
+#FUNCTION
+#DIM 사용자
+#DIM 스킬번호
+LOCAL = 스킬번호 + 500 ;TALENT.csv 내 스킬번호
+
+SIF TALENTNAME:LOCAL == ""
+    RETURNF 0
+
+SIF TALENT:사용자:LOCAL == 1
+    RETURNF 1
+SIF 탄막디버그 == 1
+    RETURNF 1
+
+RETURNF 0
+
+;지금 스킬을 시전할수 있는지
+;실행가부 대응
+@CAN_T_SKILL(사용자, 스킬번호)
+#FUNCTION
+#DIM 사용자
+#DIM 스킬번호
+
+IF HAVE_T_SKILL(사용자, 스킬번호)
+    ;이 스킬 소유중
+    CALLFORM ONGOING_T_SKILL{스킬번호}(사용자, "남은쿨타임")
+    IF RESULT == 0
+        ;쿨타임 0 시전가능
+        RETURNF 1
+    ELSE
+        ;아직 쿨타임이라 시전불가능
+        RETURNF 0
+    ENDIF
+ELSE
+    ;이스킬 없음, 시전불가
+    RETURNF 0
 ENDIF
 
 @ARG능력치(ARG,능력치)
@@ -114,78 +185,9 @@ RETURNF 결과값
 @ARG반대능력치(ARG,능력치)
 #FUNCTION
 #DIMS 능력치
-#DIM DYNAMIC 결과값
-IF ARG == T_적
-    IF 능력치 == "힘"
-        결과값 = T_내힘
-    ELSEIF 능력치 == "지성"
-        결과값 = T_내지성
-    ELSEIF 능력치 == "속도"
-        결과값 = T_내속도
-    ELSEIF 능력치 == "인내"
-        결과값 = T_내인내
-    ELSEIF 능력치 == "운"
-        결과값 = T_내운
-    ELSEIF 능력치 == "체력"
-        결과값 = T_내체력
-    ELSEIF 능력치 == "최대체력"
-        결과값 = T_내최대체력
-    ELSEIF 능력치 == "공격력"
-        결과값 = T_내공격력
-    ELSEIF 능력치 == "방어력"
-        결과값 = T_내방어력
-    ELSEIF 능력치 == "물리내성"
-        결과값 = T_내물리내성
-    ELSEIF 능력치 == "화염내성"
-        결과값 = T_내화염내성
-    ELSEIF 능력치 == "빙결내성"
-        결과값 = T_내빙결내성
-    ELSEIF 능력치 == "전격내성"
-        결과값 = T_내전격내성
-    ELSEIF 능력치 == "질풍내성"
-        결과값 = T_내질풍내성
-    ELSEIF 능력치 == "마력내성"
-        결과값 = T_내마력내성
-    ELSEIF 능력치 == "수격내성"
-        결과값 = T_내수격내성
-    ELSEIF 능력치 == "정신내성"
-        결과값 = T_내정신내성
-    ENDIF
-ELSEIF ARG == T_나
-    IF 능력치 == "힘"
-        결과값 = T_적힘
-    ELSEIF 능력치 == "지성"
-        결과값 = T_적지성
-    ELSEIF 능력치 == "속도"
-        결과값 = T_적속도
-    ELSEIF 능력치 == "인내"
-        결과값 = T_적인내
-    ELSEIF 능력치 == "운"
-        결과값 = T_적운
-    ELSEIF 능력치 == "체력"
-        결과값 = T_적체력
-    ELSEIF 능력치 == "최대체력"
-        결과값 = T_적최대체력
-    ELSEIF 능력치 == "공격력"
-        결과값 = T_적공격력
-    ELSEIF 능력치 == "방어력"
-        결과값 = T_적방어력
-    ELSEIF 능력치 == "물리내성"
-        결과값 = T_적물리내성
-    ELSEIF 능력치 == "화염내성"
-        결과값 = T_적화염내성
-    ELSEIF 능력치 == "빙결내성"
-        결과값 = T_적빙결내성
-    ELSEIF 능력치 == "전격내성"
-        결과값 = T_적전격내성
-    ELSEIF 능력치 == "질풍내성"
-        결과값 = T_적질풍내성
-    ELSEIF 능력치 == "마력내성"
-        결과값 = T_적마력내성
-    ELSEIF 능력치 == "수격내성"
-        결과값 = T_적수격내성
-    ELSEIF 능력치 == "정신내성"
-        결과값 = T_적정신내성
-    ENDIF
+
+IF ARG == T_나
+    RETURNF ARG능력치(T_적, 능력치)
+ELSEIF ARG == T_적
+    RETURNF ARG능력치(T_나, 능력치)
 ENDIF
-RETURNF 결과값
