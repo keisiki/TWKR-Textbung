@@ -1,161 +1,145 @@
 ﻿
-@T_SKILL2(ARG,인자)
-#DIMS 스킬명
+@T_SKILL2(ARGS)
+#FUNCTION
+;ARGS = 인자
 #DIM 스킬번호
 #DIM 쿨타임
 #DIM 지속시간
 #DIM 명중률
-#DIMS 인자
-#DIM 남은쿨타임
-#DIM 남은지속시간
 #DIM 피해량
-#DIM 타입
-#DIMS 속성
-;ARG = 사용자
 ;-------------------
 ;성능 입력
 ;쿨타임 0 = 한 턴에 몇 번이라도, 쿨타임 1 = 한 턴에 한번, 쿨타임 2= 두 턴에 한번
 ;-------------------
-스킬명 = 야부「나이트 버드」
-스킬번호 = 2
 쿨타임 = 5
 지속시간 = 0 
 명중률 = 33
-피해량 = 10 * ARG능력치(ARG,"지성")
-속성 = "마력"
-타입 = 공격형
+피해량 = 10 * ARG능력치(T_턴주인,"지성")
 ;-------------------
-IF 인자 == "사용가부"
-    ;지금 스킬을 시전할수 있는지
-    CALLFORM T_SKILL{스킬번호}(ARG, "소유")
-    IF RESULT == 1
-        ;이 스킬 소유중
-        CALLFORM T_SKILL{스킬번호}(ARG, "남은쿨타임")
-        IF RESULT == 0
-            ;쿨타임 0 시전가능
-            RETURN 1
-        ELSE
-            ;아직 쿨타임이라 시전불가능
-            RETURN 0
-        ENDIF
-    ELSE
-        ;이스킬 없음, 시전불가
-        RETURN 0
-    ENDIF
-ELSEIF 인자 == "소유"
-    ;그 스킬을 소유하고 있는지 여부
-    LOCAL = 스킬번호 + 500
-    IF TALENT:ARG:LOCAL == 1||탄막디버그 == 1
-        LOCAL = 0
-        RETURN 1
-    ELSE
-        LOCAL = 0
-        RETURN 0
-    ENDIF
-ELSEIF 인자 == "타입"
-    RETURN 타입
-ELSEIF 인자 == "남은쿨타임"
-    ;남은쿨타임을 반환, 건들일 없다
-    RETURN 남은쿨타임
-ELSEIF 인자 == "쿨타임"
+SELECTCASE ARGS
+CASE "피해량"
+    RETURNF 피해량
+CASE "쿨타임"
     ;쿨타임을 반환, 건들일 없다
-    RETURN 쿨타임
-ELSEIF 인자 == "턴엔드"
+    RETURNF 쿨타임
+CASE "명중률"
+    ;명중률을 반환함, 특정상황에서 명중률을 변동하고 싶으면 사용
+    RETURNF 명중률
+CASE "공격력"
+    ;피해량을 반환, 공격력을 참조하려면 사용
+    RETURNF 피해량
+CASE "지속시간"
+    RETURNF 지속시간
+ENDSELECT
+
+;문자열부
+@T_SKILL_STR2(ARGS)
+#FUNCTIONS
+#DIMS 스킬명
+#DIM 타입
+#DIMS 속성
+;-------------------
+;성능 입력
+;-------------------
+스킬명 = 야부「나이트 버드」
+타입 = 공격형
+속성 '= "마력"
+;-------------------
+SELECTCASE ARGS
+CASE "스킬명"
+    RETURNF 스킬명
+CASE "타입"
+    RETURNF 타입
+CASE "속성"
+    ;피해속성을 반환
+    RETURNF 속성
+ENDSELECT
+
+;표시할 때 다른 색깔을 쓰고 싶은 경우 변경
+@T_SKILL2_COLOR(사용자, ARGS)
+
+#DIM 사용자
+ARGS = 인자
+SELECTCASE ARGS
+CASE "색깔_시전가능"
+    ;시전가능, 흰색으로 빛남
+    RETURN 0xFFFFFF
+CASE "색깔_시전불가"
+    ;시전불가, 회색임
+    RETURN 0x585858
+ENDSELECT
+
+@ONGOING_T_SKILL2(사용자, ARGS)
+#DIM 사용자
+#DIM 남은지속시간
+#DIM 남은쿨타임
+
+SELECTCASE ARGS
+;스킬 발동시 남은 지속시간/쿨타임 처리 부분
+CASE "쿨타임설정"
+    남은쿨타임 = T_SKILL2("쿨타임")
+CASE "지속시간설정"
+    남은지속시간 = T_SKILL2("지속시간")
+CASE "턴엔드"
     ;매 턴이 지날때마다 지속시간과 쿨타임처리를 하는 부분
-    IF 남은쿨타임 > 0
-        남은쿨타임--
-    ENDIF
-    IF 남은지속시간 > 0
+    SIF 남은지속시간 > 0
         남은지속시간--
-    ENDIF
-ELSEIF 인자 == "지속시간"
+    SIF 남은쿨타임 > 0
+        남은쿨타임--
+CASE "남은지속시간"
     ;남은 지속시간 표시, 건들일 없다
     RETURN 남은지속시간
-ELSEIF 인자 == "표시"
-    ;스킬이 스킬창에서 어떻게 표시되는지, 어지간해선 건들일 없다, 스킬명에 특수기호를 넣으려는게 아니라면?
-    CALLFORM T_SKILL{스킬번호}(ARG, "소유")
-    IF RESULT == 1
-        ;스킬 소유, 스킬창에 이름 표시
-        CALLFORM T_SKILL{스킬번호}(ARG, "사용가부")
-        IF RESULT == 1
-            ;시전가능, 흰색으로 빛남
-            SETCOLOR 0xFFFFFF
-        ELSE
-            ;시전불가, 회색임
-            SETCOLOR 0x585858
-        ENDIF
-        PRINTFORM [{스킬번호}] %스킬명%
-        RESETCOLOR
-        RETURN 1
-    ELSE
-        ;스킬 소유하고 있지 않음
-        RETURN 0
-    ENDIF
-ELSEIF 인자 == "명중"
-    ;명중판정, 건들일은 없으나 빗나갔을때 처리를 넣으려면 이용
-    IF 명중률 >= RAND:100 + 1
-        ;명중
-        RETURN 1
-    ELSE
-        ;빗나감
-        RETURN 0
-    ENDIF
-ELSEIF 인자 == "명중률"
-    ;명중률을 반환함, 특정상황에서 명중률을 변동하고 싶으면 사용
-    RETURN 명중률
-ELSEIF 인자 == "공격력"
-    ;피해량을 반환, 공격력을 참조하려면 사용
-    RETURN 피해량
-ELSEIF 인자 == "속성"
-    ;피해속성을 반환
-    RETURN 속성
-
-;실질적으로 이 아래만 손 보면 된다
-ELSEIF 인자 == "시스템체크"
+CASE "남은쿨타임"
+    ;남은쿨타임을 반환, 건들일 없다
+    RETURN 남은쿨타임
+CASE "시스템체크"
     ;시스템 메시지에 따른 검사, 패시브 스킬등에 이용, 액티브는 딱히 쓸 일이 있나?
 
-ELSEIF 인자 == "지속효과발동"
+CASE "지속효과발동"
     ;지속적으로 효과가 발동하는 스킬의 경우, 여기에 효과를 입력
-    SIF 남은지속시간 <= 0
-        RETURN 0
-    ;이 아래에 효과 입력
+    IF 남은지속시간 > 0
 
-
-ELSEIF 인자 == "시전"
-    ;스킬의 시전시 처리, 대사만 넣으면 된다
-    CALLFORM T_SKILL{스킬번호}(ARG, "사용가부")
-    IF RESULT == 0
-        ;시전불가
-        PRINTL 사용할수 없다
-    ELSE
-        ;시전성공
-        CALLFORM T_SKILL{스킬번호}(ARG, "명중")
-        IF RESULT == 0
-            ;!감나빗!
-            SETCOLOR 0xFF4444
-            PRINTFORML 빗나감!
-            RESETCOLOR
-            ;----------------
-            ;대사는 이쪽
-            ;----------------
-            PRINTFORML 어둠의 기운이 %T_턴주인에게%서 퍼져나왔으나 이내 흩어져 버렸다...
-            ;----------------
-            ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
-            ;----------------
-            남은쿨타임 = 쿨타임
-        ELSE
-            ;명중!
-            ;----------------
-            ;대사는 이쪽
-            ;----------------
-            PRINTFORML 야부「나이트 버드」
-            PRINTFORML 깊은 어둠이 %T_턴반대와% %T_턴주인을% 감춘다...!
-            PRINTFORML 이윽고 보이지 않는 어둠속에서 날아온 탄이 %T_턴반대를% 덮쳤다!
-            ;----------------
-            ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
-            ;----------------
-            CALL T_데미지(T_턴반대, 피해량, 속성)
-            남은쿨타임 = 쿨타임
-        ENDIF
     ENDIF
+ENDSELECT
+
+@AFTER_T_SKILL2(사용자)
+#DIM 사용자
+#DIM 피해량
+#DIMS 속성
+
+;쿨타임은 미리 설정함
+CALL ONGOING_T_SKILL2(사용자, "쿨타임설정")
+
+;명중 대응
+IF T_SKILL2("명중률") >= RAND:100 + 1
+    ;명중!
+    ;----------------
+    ;대사는 이쪽
+    ;----------------
+    PRINTFORML 야부「나이트 버드」
+    PRINTFORML 깊은 어둠이 %T_턴반대와% %T_턴주인을% 감춘다...!
+    PRINTFORML 이윽고 보이지 않는 어둠속에서 날아온 탄이 %T_턴반대를% 덮쳤다!
+    ;----------------
+    ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+    ;----------------
+
+    피해량 = T_SKILL2("공격력")
+    속성 '= T_SKILL2_STR("속성")
+    CALL T_데미지(T_턴반대, 피해량, 속성)
+
+    CALL ONGOING_T_SKILL2(사용자, "지속시간설정")
+    RETURN 1
+ELSE
+    ;!감나빗!
+    SETCOLOR 0xFF4444
+    PRINTFORML 빗나감!
+    RESETCOLOR
+    ;----------------
+    ;대사는 이쪽
+    ;----------------
+    PRINTFORML 어둠의 기운이 %T_턴주인에게%서 퍼져나왔으나 이내 흩어져 버렸다...
+    ;----------------
+    ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+    ;----------------
+    RETURN 0
 ENDIF
