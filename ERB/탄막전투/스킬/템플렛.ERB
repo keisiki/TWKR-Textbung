@@ -1,6 +1,6 @@
 ﻿[SKIPSTART]
-@T_SKILL{스킬번호}(ARGS)
-#FUNCTION
+@T_SKILL{스킬번호}(ARG, ARGS)
+
 ;ARGS = 인자
 #DIM 스킬번호
 #DIM 쿨타임
@@ -22,7 +22,11 @@ CASE "쿨타임"
     RETURNF 쿨타임
 CASE "명중률"
     ;명중률을 반환함, 특정상황에서 명중률을 변동하고 싶으면 사용
-    RETURNF 명중률
+    IF 상태이상체크(ARG, "실명")&&RAND:2 == 0
+        RETURNF (명중률/2)
+    ELSE
+        RETURNF 명중률
+    ENDIF
 CASE "공격력"
     ;피해량을 반환, 공격력을 참조하려면 사용
     RETURNF 피해량
@@ -31,33 +35,32 @@ CASE "지속시간"
 ENDSELECT
 
 ;문자열부
-@T_SKILL_STR{스킬번호}(ARGS)
-#FUNCTIONS
+@T_SKILL{스킬번호}_STR(ARGS)
 #DIMS 스킬명
-#DIM 타입
+#DIMS 타입
 #DIMS 속성
+#DIM 스킬번호
 ;-------------------
 ;성능 입력
 ;-------------------
+스킬번호 = ;스킬번호넣기
 스킬명 = ;스킬의 이름을 넣으세요
 타입 =  ;공격형/방어형/회복형/상태이상형
 속성 = ;물리/화염/빙결/전격/질풍/정신/마력/수격/고정
 ;-------------------
 SELECTCASE ARGS
 CASE "스킬명"
-    RETURNF 스킬명
+    PRINTFORM [{스킬번호}] %스킬명%
 CASE "타입"
-    RETURNF 타입
+    RETURN 타입
 CASE "속성"
     ;피해속성을 반환
-    RETURNF 속성
+    RETURN 속성
 ENDSELECT
 
 ;표시할 때 다른 색깔을 쓰고 싶은 경우 변경
-@T_SKILL{스킬번호}_COLOR(사용자, ARGS)
-#DIM 사용자
-
-ARGS = 인자
+@T_SKILL{스킬번호}_COLOR(ARGS)
+;ARGS = 인자
 SELECTCASE ARGS
 CASE "색깔_시전가능"
     ;시전가능, 흰색으로 빛남
@@ -75,9 +78,9 @@ ENDSELECT
 SELECTCASE ARGS
 ;스킬 발동시 남은 지속시간/쿨타임 처리 부분
 CASE "쿨타임설정"
-    남은쿨타임 = T_SKILL{스킬번호}("쿨타임")
+    남은쿨타임 = T_SKILL{스킬번호}(사용자, "쿨타임")
 CASE "지속시간설정"
-    남은지속시간 = T_SKILL{스킬번호}("지속시간")
+    남은지속시간 = T_SKILL{스킬번호}(사용자,"지속시간")
 CASE "턴엔드"
     ;매 턴이 지날때마다 지속시간과 쿨타임처리를 하는 부분
     SIF 남은지속시간 > 0
@@ -109,7 +112,7 @@ ENDSELECT
 CALL ONGOING_T_SKILL{스킬번호}(사용자, "쿨타임설정")
 
 ;명중 대응
-IF T_SKILL{스킬번호}("명중률") >= RAND:100 + 1
+IF T_SKILL{스킬번호}(사용자, "명중률") >= RAND:100 + 1
     ;명중!
     ;----------------
     ;대사는 이쪽
@@ -119,7 +122,7 @@ IF T_SKILL{스킬번호}("명중률") >= RAND:100 + 1
     ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
     ;----------------
 
-    피해량 = T_SKILL{스킬번호}("공격력")
+    피해량 = T_SKILL{스킬번호}(사용자, "공격력")
     속성 '= T_SKILL{스킬번호}_STR("속성")
     CALL T_데미지(T_턴반대, 피해량, 속성)
 
