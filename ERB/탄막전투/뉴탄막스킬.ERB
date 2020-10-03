@@ -1,19 +1,61 @@
 ﻿
 @T_시스템처리
+;100 = 공격 명중
+;101 = 공격 빗나감
+;110 = 플레이어 스킬표 생성
+;120 = 플레이어 회피시도
+;121 = 적 회피 시도
 FOR LOCAL,1,1000
     TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴주인,"시스템체크")
 NEXT
 
 @T_COM공격한다
+#DIM DYNAMIC 보너스
 PRINTFORML %T_턴주인의% 공격이 %T_턴반대에게% 날아갔다!
+IF 상태이상체크(T_턴주인, "실명")&&RAND:2 == 0
+    T_시스템 = 101
+    CALL T_시스템처리
+    PRINTFORML 그러나 앞이 제대로 보이지 않아 빗맞추고 말았다...
+    RETURN 0
+ENDIF
 T_시스템 = 100
 CALL T_시스템처리
-CALL T_데미지(T_턴반대,T_내공격력,"물리")
+보너스 = RAND:100
+IF T_턴주인 == T_나
+    CALL T_데미지(T_턴반대,T_내공격력+보너스,"물리")
+ELSEIF T_턴주인 == T_적
+    CALL T_데미지(T_턴반대,T_적공격력+보너스,"물리")
+ENDIF
 RETURN 0
+
+@T_COM회피한다(ARG)
+IF ARG == T_나
+    PRINTFORML 공격을 피하기 위해 신경을 집중했다!  
+    T_시스템 = 120
+    CALL T_시스템처리
+    ;========
+    ;회피 판정
+    ;========
+    ;플레이어는 미니게임(화살표 방향 누르기)를 해야 버프를 받게해? 나중에 고려해본다
+    ;
+    CALL 버프부여(ARG, "회피", T_내방어력, 1)
+    RETURN 0
+ELSEIF ARG == T_적
+    
+    PRINTFORML %T_적은% 공격을 회피하려 하였다!
+    T_시스템 = 121
+    CALL T_시스템처리
+    CALL 버프부여(ARG, "회피", T_적방어력, 1)
+    T_적회피 = 1
+ENDIF
 
 @T_COM스킬사용
 #DIM DYNAMIC 표시카운터
 #DIM 스킬번호
+
+T_시스템 = 110
+CALL T_시스템처리
+
 PRINTL 무엇을 쓸까?
 DRAWLINE
 FOR 스킬번호,1,1000
@@ -37,7 +79,7 @@ FOR 스킬번호,1,1000
 NEXT
 PRINTL
 PRINTL [9999]돌아간다
-WHILE 1
+WHILE 1 ;$스킬입력루프
     INPUT
     LOCAL = RESULT
     IF LOCAL == 9999
@@ -47,6 +89,7 @@ WHILE 1
         CALL DO_T_SKILL(T_턴주인, LOCAL)
         RETURN RESULT
     ELSE
+        ;시전 불가시는 DO_T_SKILL에서 처리
         PRINTL
         PRINTW 없는 번호입니다.
         CLEARLINE 1
@@ -61,7 +104,7 @@ WEND
 CALL CAN_T_SKILL(사용자, 스킬번호)
 IF RESULT == 0
     ;시전불가
-    PRINTL 사용할수 없다
+    PRINTL 시전할수 없습니다
     RETURN 0
 ELSE
     ;시전성공
@@ -92,12 +135,16 @@ RETURNF 0
 @CAN_T_SKILL(사용자, 스킬번호)
 #DIM 사용자
 #DIM 스킬번호
+;식중함수는 CALLFORM 사용 불가 이기 때문에 수정
 
 IF HAVE_T_SKILL(사용자, 스킬번호)
     ;이 스킬 소유중
     CALLFORM ONGOING_T_SKILL{스킬번호}(사용자, "남은쿨타임")
     IF RESULT == 0
         ;쿨타임 0 시전가능
+        IF 상태이상체크(사용자, "침묵")
+            RETURN 0
+        ENDIF
         RETURN 1
     ELSE
         ;아직 쿨타임이라 시전불가능

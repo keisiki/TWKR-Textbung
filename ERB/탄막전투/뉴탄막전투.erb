@@ -48,6 +48,7 @@ CALL 공방세팅
 ;기타변수 초기화 
 ;----
 
+
 ;----
 
 @공방세팅
@@ -82,11 +83,11 @@ SELECTCASE ABL:T_나:전투능력
         TIMES T_내공격력, 3.0
         TIMES T_내방어력, 3.0
 ENDSELECT
-IF T_내취약 > 0
+IF 상태이상체크(T_나, "취약")
     TIMES T_내방어력, 0.5
 ENDIF
 T_적공격력= (T_적힘*20) + (T_적속도*5)+(T_적공격력보정)
-T_적방어력= (T_적속도*5)+ (T_적인내*15)+(T_적운*5)+(T_적방어력보정)
+T_적방어력= (T_적속도*5)+ (T_적인내*15)+(T_적운)+(T_적방어력보정)
 IF 고로시 == 1
     TIMES 적공격력, 2.0
     TIMES 적방어력, 2.0
@@ -120,22 +121,26 @@ SELECTCASE ABL:T_적:전투능력
         TIMES T_적공격력, 3.0
         TIMES T_적방어력, 3.0
 ENDSELECT
-IF T_적취약 > 0
+IF 상태이상체크(T_적, "취약") > 0
     TIMES T_적방어력, 0.5
 ENDIF
 
 
 @뉴탄막루틴
-CALL 상태이상감소처리
+$뉴탄막루틴시작
+
+;---------
+CALL 상태이상감소처리(T_나)
+CALL 버프감소처리(T_나)
 $내턴루틴
 CALL 공방세팅
 CALL 뉴탄막상태창
 ;-----------------
-IF T_내기절 > 0
+IF 상태이상체크(T_나, "기절")
     PRINTL 기절중이라 행동할 수 없다!
     GOTO 적턴시작
 ENDIF
-IF T_내혼란 > 0&&RAND:2 == 0
+IF 상태이상체크(T_나, "혼란")&&RAND:2 == 0
     PRINTL 혼란에 빠져 행동할수 없다!
     GOTO 적턴시작
 ENDIF
@@ -150,11 +155,17 @@ IF RESULT == 100
     CALL T_COM공격한다
 ELSEIF RESULT == 101
     ;스킬사용
-    CALL T_COM스킬사용
+    IF 상태이상체크(T_나, "침묵")
+        PRINTW 침묵중이라 스킬을 시전할수 없다!
+        GOTO 내턴입력
+    ELSE
+        CALL T_COM스킬사용
+    ENDIF
 ELSEIF RESULT == 102
     ;아이템사용
 ELSEIF RESULT == 200
     ;회피
+    CALL T_COM회피한다(T_나)
 ELSEIF RESULT == 201
     ;휴식
     ;일단은 아무처리 안함
@@ -170,6 +181,8 @@ ENDIF
 $적턴시작
 T_턴주인 = T_적
 T_턴반대 = T_나
+CALL 상태이상감소처리(T_적)
+CALL 버프감소처리(T_적)
 DRAWLINE
 PRINTL
 PRINTW 적턴 시작
@@ -177,24 +190,24 @@ PRINTL
 CALL 공방세팅
 CALL 뉴탄막상태창
 ;-------
-IF T_적기절 > 0
+IF 상태이상체크(T_적, "기절")
     PRINTFORML %T_적은% 기절중이라 행동할 수 없다!
     GOTO 턴종료위치
 ENDIF
-IF T_적혼란 > 0&&RAND:2 == 0
+IF 상태이상체크(T_적, "혼란")&&RAND:2 == 0
     PRINTFORML %T_적은% 혼란에 빠져 행동할수 없다!
     GOTO 턴종료위치
 ENDIF
 ;-------
 ;AI 활동영역
-
+CALL 사고패턴결정(T_적)
 PRINTL
 ;-------
 CALL T_턴엔드
 ;PRINTW
 
 $턴종료위치
-RESTART
+GOTO 뉴탄막루틴시작
 
 @T_턴엔드
 FOR LOCAL,1,1000
@@ -339,6 +352,7 @@ IF 대상 == T_나
     ELSE
         ;특수피해 처리용(독이나 출혈같은거)
         T_내체력 -= 데미지
+        PRINTL
         PRINTFORMW {데미지}만큼의 %속성% 피해를 받았다!
         RETURN 1
     ENDIF
@@ -476,6 +490,7 @@ ELSEIF 대상 == T_적
     ELSE
         ;특수피해 처리용(독이나 출혈같은거)
         T_적체력 -= 데미지
+        PRINTL
         PRINTFORMW %T_적은% {데미지}만큼의 %속성% 피해를 받았다!
         RETURN 1
     ENDIF
@@ -697,6 +712,9 @@ IF ARG:2 >= RAND:100 + 1
             T_내운감소 = ARG:3
             T_내운 -= ARG:1
             T_내운감소량 += ARG:1
+        ELSE
+            PRINTL 에러
+            PRINTL 인수가 이상함
         ENDIF
     ELSEIF ARG == T_적
         IF 능력치 == "힘"
@@ -730,102 +748,240 @@ ELSE
     RETURN 0
 ENDIF
 
-@상태이상감소처리
-SIF T_내기절 > 0
-    T_내기절--
-SIF T_내실명 > 0
-    T_내실명--
-SIF T_내침묵 > 0
-    T_내침묵--
-SIF T_내혼란 > 0
-    T_내혼란--
-SIF T_내취약 > 0
-    T_내취약--
-SIF T_내힘감소 > 0
-    T_내힘감소--
-SIF T_내지성감소 > 0
-    T_내지성감소--
-SIF T_내속도감소 > 0
-    T_내속도감소--
-SIF T_내인내감소 > 0
-    T_내인내감소--
-SIF T_내운감소 > 0
-    T_내운감소--
-SIF T_내힘감소 == 0
-    T_내힘 += T_내힘감소량
-    T_내힘감소량 = 0
-SIF T_내지성감소 == 0
-    T_내지성 += T_내지성감소량
-    T_내지성감소량 = 0
-SIF T_내속도감소 == 0
-    T_내속도 += T_내속도감소량
-    T_내속도감소량 = 0
-SIF T_내인내감소 == 0
-    T_내인내 += T_내인내감소량
-    T_내인내감소량 = 0
-SIF T_내운감소 == 0
-    T_내운 += T_내운감소량
-    T_내운감소량 = 0
-IF T_내독 > 0
-    T_내독--
-    CALL T_데미지(T_나,50,"고정")
-ENDIF
-IF T_내출혈 > 0
-    T_내출혈--
-    CALL T_데미지(T_나,(T_내최대체력/20),"고정")
-ENDIF
-IF T_내저주 > 0
-    T_내저주--
-    IF T_내저주 == 0
-        CALL T_데미지(T_나,T_내최대체력,"고정")
+@상태이상감소처리(ARG)
+IF ARG == T_나
+    SIF T_내기절 > 0
+        T_내기절--
+    SIF T_내실명 > 0
+        T_내실명--
+    SIF T_내침묵 > 0
+        T_내침묵--
+    SIF T_내혼란 > 0
+        T_내혼란--
+    SIF T_내취약 > 0
+        T_내취약--
+    IF T_내힘감소 > 0
+        T_내힘감소--
+        IF T_내힘감소 == 0
+            T_내힘 += T_내힘감소량
+            T_내힘감소량 = 0
+        ENDIF
+    ENDIF
+    IF T_내지성감소 > 0
+        T_내지성감소--
+        IF T_내지성감소 == 0
+            T_내지성 += T_내지성감소량
+            T_내지성감소량 = 0
+        ENDIF
+    ENDIF
+    IF T_내속도감소 > 0
+        T_내속도감소--
+        IF T_내속도감소 == 0
+            T_내속도 += T_내속도감소량
+            T_내속도감소량 = 0
+        ENDIF
+    ENDIF
+    IF T_내인내감소 > 0
+        T_내인내감소--
+        IF T_내인내감소 == 0
+            T_내인내 += T_내인내감소량
+            T_내인내감소량 = 0
+        ENDIF
+    ENDIF
+    IF T_내운감소 > 0
+        T_내운감소--
+        IF T_내운감소 == 0
+            T_내운 += T_내운감소량
+            T_내운감소량 = 0
+        ENDIF
+    ENDIF
+    IF T_내독 > 0
+        T_내독--
+        CALL T_데미지(T_나,50,"독")
+    ENDIF
+    IF T_내출혈 > 0
+        T_내출혈--
+        CALL T_데미지(T_나,(T_내최대체력/20),"출혈")
+    ENDIF
+    IF T_내저주 > 0
+        T_내저주--
+        IF T_내저주 == 0
+            CALL T_데미지(T_나,T_내최대체력,"저주")
+        ENDIF
+    ENDIF
+ELSEIF ARG == T_적
+    SIF T_적기절 > 0
+        T_적기절--
+    SIF T_적실명 > 0
+        T_적실명--
+    SIF T_적침묵 > 0
+        T_적침묵--
+    SIF T_적혼란 > 0
+        T_적혼란--
+    SIF T_적취약 > 0
+        T_적취약--
+    
+    IF T_적독 > 0
+        T_적독--
+        CALL T_데미지(T_적,50,"독")
+    ENDIF
+    IF T_적출혈 > 0
+        T_적출혈--
+        CALL T_데미지(T_적,(T_적최대체력/20),"출혈")
+    ENDIF
+    IF T_적저주 > 0
+        T_적저주--
+        IF T_적저주 == 0
+            CALL T_데미지(T_적,(T_적체력/2),"저주")
+        ENDIF
+    ENDIF
+    IF T_적힘감소 > 0
+        T_적힘감소--
+        IF T_적힘감소 == 0
+            T_적힘 += T_적힘감소량
+            T_적힘감소량 = 0
+        ENDIF
+    ENDIF
+    IF T_적지성감소 > 0
+        T_적지성감소--
+        IF T_적지성감소 == 0
+            T_적지성 += T_적지성감소량
+            T_적지성감소량 = 0
+        ENDIF
+    ENDIF
+    IF T_적속도감소 > 0
+        T_적속도감소--
+        IF T_적속도감소 == 0
+            T_적속도 += T_적속도감소량
+            T_적속도감소량 = 0
+        ENDIF
+    ENDIF
+    IF T_적인내감소 > 0
+        T_적인내감소--
+        IF T_적인내감소 == 0
+            T_적인내 += T_적인내감소량
+            T_적인내감소량 = 0
+        ENDIF
+    ENDIF
+    IF T_적운감소 > 0
+        T_적운감소--
+        IF T_적운감소 == 0
+            T_적운 += T_적운감소량
+            T_적운감소량 = 0
+        ENDIF
     ENDIF
 ENDIF
-SIF T_적기절 > 0
-    T_적기절--
-SIF T_적실명 > 0
-    T_적실명--
-SIF T_적침묵 > 0
-    T_적침묵--
-SIF T_적혼란 > 0
-    T_적혼란--
-SIF T_적취약 > 0
-    T_적취약--
-SIF T_적힘감소 > 0
-    T_적힘감소--
-SIF T_적지성감소 > 0
-    T_적지성감소--
-SIF T_적속도감소 > 0
-    T_적속도감소--
-SIF T_적인내감소 > 0
-    T_적인내감소--
-SIF T_적운감소 > 0
-    T_적운감소--
-IF T_적독 > 0
-    T_적독--
-    CALL T_데미지(T_적,50,"고정")
-ENDIF
-IF T_적출혈 > 0
-    T_적출혈--
-    CALL T_데미지(T_적,(T_적최대체력/20),"고정")
-ENDIF
-IF T_적저주 > 0
-    T_적저주--
-    IF T_적저주 == 0
-        CALL T_데미지(T_적,(T_적체력/2),"고정")
+
+@상태이상체크(ARG, ARGS)
+#FUNCTION
+;현재 걸린 상태이상의 지속시간을 반환, 0이 아닌경우 그 상태이상에 걸렸다고 판정할수 있다
+IF ARG == T_나
+    IF ARGS == "기절"
+        RETURNF T_내기절
+    ELSEIF ARGS == "실명"
+        RETURNF T_내실명
+    ELSEIF ARGS == "침묵"
+        RETURNF T_내침묵
+    ELSEIF ARGS == "취약"
+        RETURNF T_내취약
+    ELSEIF ARGS == "혼란"
+        RETURNF T_내혼란
+    ELSEIF ARGS == "힘감소"
+        RETURNF T_내힘감소
+    ELSEIF ARGS == "지성감소"
+        RETURNF T_내지성감소
+    ELSEIF ARGS == "속도감소"
+        RETURNF T_내속도감소
+    ELSEIF ARGS == "인내감소"
+        RETURNF T_내인내감소
+    ELSEIF ARGS == "운감소"
+        RETURNF T_내운감소
+    ELSEIF ARGS == "독"
+        RETURNF T_내독
+    ELSEIF ARGS == "출혈"
+        RETURNF T_내출혈
+    ELSEIF ARGS == "저주"
+        RETURNF T_내저주
+    ENDIF
+ELSEIF ARG == T_적
+    IF ARGS == "기절"
+        RETURNF T_적기절
+    ELSEIF ARGS == "실명"
+        RETURNF T_적실명
+    ELSEIF ARGS == "침묵"
+        RETURNF T_적침묵
+    ELSEIF ARGS == "취약"
+        RETURNF T_적취약
+    ELSEIF ARGS == "혼란"
+        RETURNF T_적혼란
+    ELSEIF ARGS == "힘감소"
+        RETURNF T_적힘감소
+    ELSEIF ARGS == "지성감소"
+        RETURNF T_적지성감소
+    ELSEIF ARGS == "속도감소"
+        RETURNF T_적속도감소
+    ELSEIF ARGS == "인내감소"
+        RETURNF T_적인내감소
+    ELSEIF ARGS == "운감소"
+        RETURNF T_적운감소
+    ELSEIF ARGS == "독"
+        RETURNF T_적독
+    ELSEIF ARGS == "출혈"
+        RETURNF T_적출혈
+    ELSEIF ARGS == "저주"
+        RETURNF T_적저주
     ENDIF
 ENDIF
-SIF T_적힘감소 == 0
-    T_적힘 += T_적힘감소량
-    T_적힘감소량 = 0
-SIF T_적지성감소 == 0
-    T_적지성 += T_적지성감소량
-    T_적지성감소량 = 0
-SIF T_적속도감소 == 0
-    T_적속도 += T_적속도감소량
-    T_적속도감소량 = 0
-SIF T_적인내감소 == 0
-    T_적인내 += T_적인내감소량
-    T_적인내감소량 = 0
-SIF T_적운감소 == 0
-    T_적운 += T_적운감소량
-    T_적운감소량 = 0
+
+
+@버프부여(ARG, 버프, ARG:1, ARG:2)
+#DIMS 버프
+;ARG = 대상
+;ARG:1 = 증가량
+;ARG:2 = 지속시간
+IF ARG == T_나
+    IF 버프 == "회피"
+        T_내회피 = ARG:2
+        T_내회피량 += ARG:1
+        T_내방어력보정 += T_내회피량
+    ENDIF
+ELSEIF ARG == T_적
+    IF 버프 == "회피"
+        T_적회피 = ARG:2
+        T_적회피량 += ARG:1
+        T_적방어력보정 += T_적회피량
+    ENDIF
+ENDIF
+
+
+@버프감소처리(ARG)
+IF ARG == T_나
+    IF 버프체크(T_나, "회피")
+        T_내회피--
+        IF T_내회피 == 0&&T_내회피량 > 0
+            T_내방어력보정 -= T_내회피량
+            T_내회피량 = 0
+        ENDIF
+    ENDIF
+ELSEIF ARG == T_적
+    IF 버프체크(T_적, "회피")
+        T_적회피--
+        IF T_적회피 == 0&&T_적회피량 > 0
+            T_적방어력보정 -= T_적회피량
+            T_적회피량 = 0
+        ENDIF
+    ENDIF
+ENDIF
+
+
+@버프체크(ARG,ARGS)
+#FUNCTION
+IF ARG == T_나
+    IF ARGS == "회피"
+        RETURNF T_내회피
+    ENDIF
+ELSEIF ARG == T_적
+    IF ARGS == "회피"
+        RETURNF T_적회피
+    ENDIF
+ENDIF
