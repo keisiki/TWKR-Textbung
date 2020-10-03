@@ -247,31 +247,27 @@ ALIGNMENT LEFT
 ;ARG = 공격받는 대상
 #DIM 데미지
 #DIMS 속성
-#DIM 속성내성ID ;TCVAR상 번호
+#DIMS 속성내성STR
+#DIM 속성내성값
 PRINTFORM 피해량 : {데미지}
 ;대상에 따라 달라지는 보정 처리
 IF ARG == MASTER
     SIF 고로시 == 1
         TIMES 데미지 , 1.5
 ENDIF
-속성내성ID = -1
 SELECTCASE 속성
-    CASE "물리"
-        속성내성ID = 790
-    CASE "화염"
-        속성내성ID = 791
-    CASE "빙결"
-        속성내성ID = 792
-    CASE "전격"
-        속성내성ID = 793
-    CASE "질풍"
-        속성내성ID = 794
-    CASE "수격"
-        속성내성ID = 795
-    CASE "마력"
-        속성내성ID = 796
-    CASE "정신"
-        속성내성ID = 797
+    CASE "물리", "화염", "빙결", "전격", "질풍", "수격", "마력", "정신"
+        속성내성STR '= @"%속성%내성"
+        속성내성값 = ARG능력치(ARG, 속성내성STR)
+
+        ;속성취약시 음수이므로 빼면 증가, 속성내성시 양수이므로 빼면 감소
+        데미지 = MAX((데미지 - 속성내성값), 0)
+        IF 속성내성값 > 0 ;속성내성으로 데미지 감소
+            PRINTFORM  -%속성%내성{속성내성값}
+        ELSEIF 속성내성값 < 0 ;속성 취약으로 데미지 증가
+            PRINTFORM  +%속성%취약{속성내성값 * -1}
+        ENDIF
+
     CASE "고정"
         ;처리없음
     CASEELSE
@@ -281,20 +277,6 @@ SELECTCASE 속성
         PRINTFORMW \@ ARG == MASTER ? # %ARG는% \@ {데미지}만큼의 %속성% 피해를 \@ ARG == TARGET ? 주었# 받았\@다!
         RETURN 1
 ENDSELECT
-IF 속성 != "고정"
-    IF TCVAR:ARG:속성내성ID > 0
-        IF 데미지 >= TCVAR:ARG:속성내성ID
-            데미지 -= TCVAR:ARG:속성내성ID
-        ELSE
-            데미지 = 0
-        ENDIF
-        PRINTFORM  -%속성%내성{TCVAR:ARG:속성내성ID}
-    ELSE
-        데미지 += TCVAR:ARG:속성내성ID
-        SIF TCVAR:ARG:속성내성ID < 0
-            PRINTFORM  +%속성%취약{TCVAR:ARG:속성내성ID * -1}
-    ENDIF
-ENDIF
 
 IF TCVAR:ARG:뉴탄막_방어력 >= 0
     데미지 -= TCVAR:ARG:뉴탄막_방어력
