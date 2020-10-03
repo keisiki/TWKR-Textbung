@@ -19,15 +19,16 @@ DRAWLINE
 FOR 스킬번호,1,1000
     IF HAVE_T_SKILL(T_턴주인, 스킬번호)
         ;스킬 소유, 스킬창에 이름 표시
-        IF CAN_T_SKILL(T_턴주인, 스킬번호)
+        CALL CAN_T_SKILL(T_턴주인, 스킬번호)
+        IF RESULT == 1
             CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
             SETCOLOR RESULT
         ELSE
             CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전불가")
             SETCOLOR RESULT
         ENDIF
-        CALLFORM T_SKILL{스킬번호}_STR("스킬명")
-        PRINTFORM [{스킬번호}] %RESULTS%
+        CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
+        PRINTFORMLC [{스킬번호}] %RESULTS%
         RESETCOLOR
         PRINTL
     ELSE
@@ -38,11 +39,12 @@ PRINTL
 PRINTL [9999]돌아간다
 WHILE 1
     INPUT
-    IF RESULT == 9999
+    LOCAL = RESULT
+    IF LOCAL == 9999
         RETURN 0
-    ELSEIF HAVE_T_SKILL(T_턴주인, RESULT)
+    ELSEIF HAVE_T_SKILL(T_턴주인, LOCAL)
         DRAWLINE
-        CALL DO_T_SKILL(T_턴주인, RESULT)
+        CALL DO_T_SKILL(T_턴주인, LOCAL)
     ELSE
         PRINTL
         PRINTW 없는 번호입니다.
@@ -55,7 +57,8 @@ WEND
 #DIM 사용자
 #DIM 스킬번호
 ;스킬의 시전시 처리, 대사만 넣으면 된다
-IF !CAN_T_SKILL(사용자, 스킬번호)
+CALL CAN_T_SKILL(사용자, 스킬번호)
+IF RESULT == 0
     ;시전불가
     PRINTL 사용할수 없다
 ELSE
@@ -84,7 +87,6 @@ RETURNF 0
 ;지금 스킬을 시전할수 있는지
 ;실행가부 대응
 @CAN_T_SKILL(사용자, 스킬번호)
-#FUNCTION
 #DIM 사용자
 #DIM 스킬번호
 
@@ -93,15 +95,16 @@ IF HAVE_T_SKILL(사용자, 스킬번호)
     CALLFORM ONGOING_T_SKILL{스킬번호}(사용자, "남은쿨타임")
     IF RESULT == 0
         ;쿨타임 0 시전가능
-        RETURNF 1
+        RETURN 1
     ELSE
         ;아직 쿨타임이라 시전불가능
-        RETURNF 0
+        RETURN 0
     ENDIF
 ELSE
     ;이스킬 없음, 시전불가
-    RETURNF 0
+    RETURN 0
 ENDIF
+
 
 @ARG능력치(ARG,능력치)
 #FUNCTION
