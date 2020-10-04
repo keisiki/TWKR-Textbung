@@ -5,13 +5,14 @@
 ;ARG:1 - 상대방 번호
 CALL 뉴탄막전투초기화(ARG,ARG:1)
 CALL 뉴탄막루틴(ARG, ARG:1)
+CALL T_승패처리(RESULT)
 
-SELECTCASE RESULT
-    CASE -2 ;ARG의 항복
-    CASE -1 ;ARG의 패배
-    CASE 0 ;무승부
-    CASE 1 ;ARG의 승리
-ENDSELECT
+;SELECTCASE RESULT
+;   CASE -2 ;ARG의 항복
+;    CASE -1 ;ARG의 패배
+;    CASE 0 ;무승부
+;    CASE 1 ;ARG의 승리
+;ENDSELECT
 
 @뉴탄막전투초기화(ARG,ARG:1)
 #DIM 대상
@@ -46,8 +47,9 @@ CALL 공방세팅(ARG, ARG:1)
 ;----
 ;기타변수 초기화 
 ;----
-
-
+항복불가 = 0
+항복함 = 0
+T_TIME = 0
 ;----
 
 @공방세팅(ARG, ARG:1)
@@ -158,7 +160,13 @@ IF 턴넘김 == 1
             ;일단은 아무처리 안함
         CASE 999
             ;항복
-            RETURN -2
+            CALL T_항복(MASTER)
+            IF RESULT == 0
+                ;항복 거절당함
+
+            ELSE
+                RETURN 2
+            ENDIF
         CASEELSE
     ENDSELECT
     WEND
@@ -168,10 +176,10 @@ ENDIF
 ;일단 체력만 기준으로 봄
 ;무승부 처리
 IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-    RETURN 0
+    RETURN 1
 ;대상1 승리
 ELSEIF TCVAR:대상2:T_체력 <= 0
-    RETURN 1
+    RETURN 0
 ENDIF
 ;-----------------
 ;--------
@@ -200,10 +208,10 @@ CALL T_턴엔드
 ;일단 체력만 기준으로 봄
 ;무승부 처리
 IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-    RETURN 0
+    RETURN 1
 ;대상2 승리
 ELSEIF TCVAR:대상1:T_체력 <= 0
-    RETURN -1
+    RETURN 2
 ENDIF
 
 GOTO 뉴탄막루틴시작
@@ -323,6 +331,30 @@ ELSEIF 데미지 <= -100
 ELSE
     PRINTFORMW \@ ARG == MASTER ? # %타겟은% 아슬아슬하게 탄을 \@ 피했다!
 ENDIF
+
+
+@T_회복(ARG,ARG:1)
+;ARG = 대상
+;ARG:1 = 회복량
+IF ARG:1 < 0
+    RETURN 0
+ENDIF
+IF TCVAR:ARG:T_체력 + ARG:1 > TCVAR:ARG:T_최대체력
+    SETCOLOR 0x00FF00
+    PRINTFORML %ARG는% 최대 체력까지 회복했다!
+    RESETCOLOR
+    PRINTFORML %ARG의% 체력 : {TCVAR:ARG:T_체력} -> {TCVAR:ARG:T_최대체력}
+    TCVAR:ARG:T_체력 = TCVAR:ARG:T_최대체력
+ELSE
+    SETCOLOR 0x00FF00
+    PRINTFORML %ARG는% {ARG:1}만큼의 체력을 회복했다!
+    RESETCOLOR
+    PRINTFORM %ARG의% 체력 : {TCVAR:ARG:T_체력} ->
+    TCVAR:ARG:T_체력 += ARG:1
+    PRINTFORML  {TCVAR:ARG:T_체력}
+ENDIF
+RETURN 1
+
 
 @크리티컬판정(ARG)
 #FUNCTION
