@@ -61,7 +61,7 @@ T_TIME = 0
 FOR LOCAL, 0, 2
     세팅대상 = ARG:LOCAL
     공격력 = (TCVAR:세팅대상:T_힘*20)+ (TCVAR:세팅대상:T_속도*5)+(TCVAR:세팅대상:T_공격력보정)
-    방어력 = (TCVAR:세팅대상:T_속도*5)+ (TCVAR:세팅대상:T_인내*15)+(TCVAR:세팅대상:T_운)+(TCVAR:세팅대상:T_방어력보정)
+    방어력 = (TCVAR:세팅대상:T_속도/2)+ (TCVAR:세팅대상:T_인내)+(TCVAR:세팅대상:T_운/4)+(TCVAR:세팅대상:T_방어력보정)
 
     SELECTCASE ABL:세팅대상:전투능력
         CASE 0
@@ -270,6 +270,8 @@ ALIGNMENT LEFT
 #DIMS 속성
 #DIMS 속성내성STR
 #DIM 속성내성값
+#DIM DYNAMIC 감소율
+;감소율은 XX%단위
 PRINTFORM 피해량 : {데미지}
 ;대상에 따라 달라지는 보정 처리
 IF ARG == MASTER
@@ -300,13 +302,20 @@ SELECTCASE 속성
 ENDSELECT
 
 IF TCVAR:ARG:T_방어력 >= 0
-    데미지 -= TCVAR:ARG:T_방어력
-    SIF TCVAR:ARG:T_방어력 > 0
-        PRINTFORM  -방어력{TCVAR:ARG:T_방어력}
+    ;데미지 -= TCVAR:ARG:T_방어력
+    ;SIF TCVAR:ARG:T_방어력 > 0
+    ;    PRINTFORM  -방어력{TCVAR:ARG:T_방어력}
+    ;데미지 = (데미지 * 100)/(100+TCVAR:ARG:T_방어력)
+
+    ; 감소율 = 100 - (100/100+방어력)인데 중간 과정에 소수가 들어가지 않게한 조치
+    감소율 = 100 - ((100000 / MAX((100 + TCVAR:ARG:T_방어력), 1))/10)
+    PRINTL
+    PRINTFORML 감소율 : {감소율}\% 
+    데미지 = (데미지 * (100-감소율))/100
 ELSE
-    데미지 += TCVAR:ARG:T_방어력
-    SIF TCVAR:ARG:T_방어력 < 0
-        PRINTFORM  +방어불가{TCVAR:ARG:T_방어력 * -1}
+    ;데미지 += TCVAR:ARG:T_방어력
+    ;SIF TCVAR:ARG:T_방어력 < 0
+    ;    PRINTFORM  +방어불가{TCVAR:ARG:T_방어력 * -1}
 ENDIF
 
 ;판정문장 출력 처리
