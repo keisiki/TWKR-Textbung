@@ -1,10 +1,11 @@
 ﻿
-@T_시스템처리
+@T_시스템처리(ARG)
 ;100 = 공격 명중
 ;101 = 공격 빗나감
 ;110 = 플레이어 스킬표 생성
 ;120 = 플레이어 회피시도
 ;121 = 적 회피 시도
+T_시스템 = ARG
 FOR LOCAL,1,1000
     TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴주인,"시스템체크")
 NEXT
@@ -13,16 +14,14 @@ NEXT
 #DIM DYNAMIC 보너스
 PRINTFORML %T_턴주인의% 공격이 %T_턴반대에게% 날아갔다!
 IF TCVAR:T_턴주인:T_실명&&RAND:2 == 0
-    T_시스템 = 101
-    CALL T_시스템처리
+    CALL T_시스템처리(101)
     PRINTFORML 그러나 앞이 제대로 보이지 않아 빗맞추고 말았다...
     RETURN 0
 ENDIF
-T_시스템 = 100
-CALL T_시스템처리
+CALL T_시스템처리(100)
 보너스 = RAND:100
 CALL T_데미지(T_턴반대,TCVAR:T_턴주인:T_공격력+보너스,"물리")
-RETURN 0
+RETURN 1
 
 @T_COM회피한다(ARG)
 ;ARG = 회피하는 대상
@@ -32,8 +31,7 @@ IF TCVAR:ARG:T_회피 == 1
 ENDIF
 IF ARG == MASTER
     PRINTFORML 공격을 피하기 위해 신경을 집중했다!  
-    T_시스템 = 120
-    CALL T_시스템처리
+    CALL T_시스템처리(120)
     ;========
     ;회피 판정
     ;========
@@ -43,19 +41,16 @@ IF ARG == MASTER
 ELSEIF ARG == TARGET
     
     PRINTFORML %타겟은% 공격을 회피하려 하였다!
-    T_시스템 = 121
-    CALL T_시스템처리
+    CALL T_시스템처리(121)
 ENDIF
 CALL 버프부여(ARG, "회피", TCVAR:ARG:T_방어력, 1)
 TCVAR:ARG:T_회피 = 1
 RETURN 0
 
 @T_COM스킬사용
-#DIM DYNAMIC 표시카운터
 #DIM 스킬번호
 
-T_시스템 = 110
-CALL T_시스템처리
+CALL T_시스템처리(110)
 
 PRINTL 무엇을 쓸까?
 DRAWLINE
@@ -89,9 +84,8 @@ WHILE 1 ;$스킬입력루프
         DRAWLINE
         CALL DO_T_SKILL(T_턴주인, LOCAL)
         ;시전할수 없을때엔 턴 넘김 없어야 합니다
-        IF RESULT == 1
-            RETURN RESULT
-        ENDIF
+        ;RESULT == 1일때만 턴 넘어감
+        RETURN RESULT
     ELSE
         ;시전 불가시는 DO_T_SKILL에서 처리
         PRINTL
@@ -163,7 +157,7 @@ ENDIF
 @ARG능력치(ARG,능력치)
 #FUNCTION
 #DIMS 능력치
-#DIM DYNAMIC 결과값
+#DIM 결과값
 SELECTCASE 능력치
     CASE "힘"
         결과값 = TCVAR:ARG:T_힘
@@ -199,6 +193,8 @@ SELECTCASE 능력치
         결과값 = TCVAR:ARG:T_수격내성
     CASE "정신내성"
         결과값 = TCVAR:ARG:T_정신내성
+    CASEELSE
+        THROW 상정하지 않은 능력치 %능력치%
 ENDSELECT
 
 RETURNF 결과값
