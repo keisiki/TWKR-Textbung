@@ -5,60 +5,157 @@
 ;=====================
 
 @범용사고패턴1(ARG)
-#DIM DYNAMIC 행동
 #DIM DYNAMIC 스킬번호
-#DIM DYNAMIC 카운터
-#DIMS DYNAMIC 스킬타입
+#DIM 스킬타입, 2 ;0: 선택된 스킬타입 bit값(이진수), 1:선택 과정에서 랜덤으로 결정한 값(십진수)
 ;ARG = 행동자
-
-행동 = RAND:3
-IF 행동 == 0
-    ;통상공격
-    CALL T_COM공격한다
-ELSEIF 행동 == 1&&!TCVAR:ARG:T_회피
-    ;회피행동
-    CALL T_COM회피한다(ARG)
-ELSEIF 행동 == 2
-    ;스킬시전
-    SELECTCASE RAND:5
+WHILE 1
+    SELECTCASE RAND:3
         CASE 0
-            ;공격형
-            스킬타입 '= "공격형"
+            ;통상공격
+            CALL T_COM공격한다
+            BREAK
         CASE 1
-            ;방어형
-            스킬타입 '= "방어형"
+            ;회피행동
+            IF !TCVAR:ARG:T_회피
+                CALL T_COM회피한다(ARG)
+                BREAK
+            ENDIF
         CASE 2
-            ;회복형
-            스킬타입 '= "회복형"
-        CASE 3
-            ;상태이상형
-            스킬타입 '= "상태이상형"
-        CASE 4
-            ;버프형
-            스킬타입 '= "버프형"
-    ENDSELECT
-    스킬타입 '= "공격형"
-    스킬번호 = RAND:100
-    FOR LOCAL, 1, 2000
-        TRYCALLFORM CAN_T_SKILL(ARG, 스킬번호)
-        IF RESULT == 1
-            CALLFORMF T_SKILL{스킬번호}_STR("타입")
-            IF RESULTS == 스킬타입
-                카운터++
-                IF 카운터 == 스킬번호
-                    CALL DO_T_SKILL(ARG, LOCAL)
-                    BREAK
-                ELSE
-                    CONTINUE
-                ENDIF
-            ELSE
+            ;스킬시전
+            VARSET 스킬타입
+            ;올랜덤은 타입 선정이 필요없지만 템플릿용으로 적어둠
+            ;공격형 = bit 1, 방어형 = bit 2, 회복형 = bit 3, 상태이상형 = bit 4, 버프형 = bit 5
+            스킬타입:1 = RAND:6
+            SELECTCASE 스킬타입:1
+                CASE 0
+                    ;모두
+                    스킬타입 = 공격형 + 방어형 + 회복형 + 상태이상형 + 버프형
+                CASE 1, 2, 3, 4, 5
+                    SETBIT 스킬타입, 스킬타입:1
+            ENDSELECT
+            CALL RANDOM_PICK_T_SKILL(ARG, 스킬타입)
+            ;LOCAL = 선택 가능한 스킬 수
+            LOCAL = VARSIZE(SKILL_ARRAY) - MATCH(SKILL_ARRAY, 0)
+            SIF RESULT == 0 && !LOCAL ;선택 가능한 스킬이 없음
                 CONTINUE
+            스킬번호 = RAND:LOCAL
+            CALL DO_T_SKILL(ARG, SKILL_ARRAY:스킬번호)
+            BREAK
+    ENDSELECT
+WEND
+RETURN 1
+
+;=====================
+;랜덤으로 픽업한 사용 가능한 스킬번호 배열을 생성 - SKILL_ARRAY
+;ARG = 시전자, ARG:1 = 값이 있으면 해당 값의 스킬타입인 스킬만 포함
+;=====================
+@RANDOM_PICK_T_SKILL(ARG, ARG:1=0)
+#DIM CANNOT_ARRAY, 2000
+#DIM 배열내위치
+#DIM 스킬번호
+;변수 초기화
+VARSET CANNOT_ARRAY
+VARSET SKILL_ARRAY
+배열내위치 = 0
+
+;맨 앞 부분 스킬들만 우선적으로 쌓이기에 문제가 될 소지 존자.
+FOR 스킬번호, 1, 2000
+    ;실장되지 않은 스킬은 통과
+    IF TALENTNAME:(스킬번호 + 500) == ""
+        CANNOT_ARRAY:스킬번호 = 1
+        CONTINUE
+    ;이미 선정된 스킬은 통과
+    ELSEIF MATCH(SKILL_ARRAY, 스킬번호)
+        CONTINUE
+    ENDIF
+
+    TRYCALLFORM CAN_T_SKILL(ARG, 스킬번호)
+    IF RESULT == 1 ;스킬 시전 가능
+        IF ARG:1 ;스킬타입 미리 선정시
+            CALLFORMF T_SKILL{스킬번호}("타입")
+            IF (RESULT & ARG:1)
+                SKILL_ARRAY:배열내위치 = 스킬번호
+                배열내위치 ++
+            ELSE
+                CANNOT_ARRAY:스킬번호 = 1
             ENDIF
         ELSE
-            CONTINUE
+            SKILL_ARRAY:배열내위치 = 스킬번호
+            배열내위치 ++
         ENDIF
-    NEXT
-ELSE
-    CALL T_COM공격한다
-ENDIF
+    ELSE
+        CANNOT_ARRAY:스킬번호 = 1
+    ENDIF
+
+    ;배열 수 한도 초과시 종료
+    SIF 배열내위치 == 99
+        RETURN 1
+NEXT
+
+;순서 상관없이 산출하는 수식, 시스템 리소스를 좀 더 먹을것
+;이쪽을 사용할 경우 본 함수의 FOR문을 주석처리하면 됨
+[SKIPSTART]
+WHILE 배열내위치 < 99
+    스킬번호 = 0
+    ;모두 시도시 강제종료
+    SIF MATCH(SKILL_ARRAY, 0) + MATCH(CANNOT_ARRAY, 1)) == VARSIZE(SKILL_ARRAY)
+        RETURN 0
+
+    SELECTCASE RAND:5
+        CASE 0 ;스킬번호 1 ~ 400
+        CASE 1 ;스킬번호 401~800
+            ;401번 이후 실장시 VARSET, CONTINUE 삭제 및 주석 해제
+            VARSET CANNOT_ARRAY, 1, 401, 801
+            CONTINUE
+            ;스킬번호 += 400
+        CASE 2 ;스킬번호 801~1200
+            ;801번 이후 실장시 VARSET, CONTINUE 삭제 및 주석 해제
+            VARSET CANNOT_ARRAY, 1, 801, 1201
+            CONTINUE
+            ;스킬번호 += 800
+        CASE 3 ;스킬번호 1201~1600
+            ;1201번 이후 실장시 VARSET, CONTINUE 삭제 및 주석 해제
+            VARSET CANNOT_ARRAY, 1, 1201, 1601
+            CONTINUE
+            ;스킬번호 += 1200
+        CASE 4 ;스킬번호 1601~1999
+            ;1601번 이후 실장시 VARSET, CONTINUE 삭제 및 주석 해제
+            VARSET CANNOT_ARRAY, 1, 1601, 2000
+            CONTINUE
+            ;스킬번호 += 1600
+    ENDSELECT
+
+    스킬번호 += RAND(1, 401)
+
+    ;실장되지 않은 스킬은 통과
+    IF TALENTNAME:(스킬번호 + 500) == ""
+        CANNOT_ARRAY:스킬번호 = 1
+        CONTINUE
+    ;이미 선정된 스킬은 통과
+    ELSEIF MATCH(SKILL_ARRAY, 스킬번호)
+        CONTINUE
+    ;이미 불가능이 증명된 스킬은 통과
+    ELSEIF CANNOT_ARRAY:스킬번호
+        CONTINUE
+    ENDIF
+
+    TRYCALLFORM CAN_T_SKILL(ARG, 스킬번호)
+    IF RESULT == 1 ;스킬 시전 가능
+        IF ARG:1 ;스킬타입 미리 선정시
+            CALLFORMF T_SKILL{스킬번호}("타입")
+            IF (RESULT & ARG:1)
+                SKILL_ARRAY:배열내위치 = 스킬번호
+                배열내위치 ++
+            ELSE
+                CANNOT_ARRAY:스킬번호 = 1
+            ENDIF
+        ELSE
+            SKILL_ARRAY:배열내위치 = 스킬번호
+            배열내위치 ++
+        ENDIF
+    ELSE
+        CANNOT_ARRAY:스킬번호 = 1
+    ENDIF
+WEND
 RETURN 1
+[SKIPEND]
