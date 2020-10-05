@@ -148,12 +148,34 @@ PRINTW
 QUIT
 
 
-@스킬강탈
+@스킬강탈(ARG)
+#DIM DYNAMIC 스킬번호
+#DIM DYNAMIC 다시뽑기카운터
+#DIMS DYNAMIC 스킬명
 ;승리시의 대상의 스킬을 하나 혹은 전부 가져오는 함수
 IF 고로시 == 1
-
+    FOR LOCAL, 500, T_스킬한계값
+        IF TALENT:ARG:LOCAL == 1
+            IF TALENT:MASTER:LOCAL == 1
+                CONTINUE
+            ELSE
+                TALENT:MASTER:LOCAL = 1
+                CALLFORMF T_SKILL{LOCAL}_STR("스킬명")
+                PRINTFORML %조사처리(스킬명,"을")% 획득했다
+            ENDIF
+        ENDIF
+    NEXT
 ELSE
-
+    $다시뽑기
+    CALL RANDOM_PICK_T_SKILL(ARG)
+    IF TALENT:MASTER:(SKILL_ARRAY:스킬번호) == 1&&다시뽑기카운터 < 10
+        다시뽑기카운터++
+        GOTO 다시뽑기
+    ELSE
+        TALENT:MASTER:(SKILL_ARRAY:스킬번호) = 1
+        CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
+        PRINTFORML %조사처리(스킬명,"을")% 획득했다
+    ENDIF
 ENDIF
 
 @T_항복(ARG)
@@ -168,10 +190,22 @@ IF 고로시 == 1
         ;나중에 추가할것 : 정말정말 못이길거 같을게 확실할경우 같은 특정 상황에서 항복 수락
         ;그런 경우엔 마스터가 [노예]소질을 얻는등의 일을 부여하거나 돈을 뺏기거나 하는 패널티를 부여한다
         ;지금은 일단 무조건 안돼게
+        CALL 시스템처리(1000)
+        IF RESULT == 1
+            ;강제 성공루트
+            PRINTFORML %마스터의% 말에 %T_턴반대는% 얼결에 받아들이고 말았다...
+            RETURN 1
+        ENDIF
         PRINTFORML %T_턴반대는% 들은 채도 안하고 있다...
         RETURN 0
-    ELSEIF ARG == TARGET
+    ELSEIF ARG == TARGET  
         PRINTFORML %T_턴반대는% 숨을 헐떡이며 항복 의사를 표했다...
+        CALL 시스템처리(1001)
+        IF RESULT == 1
+            ;강제 성공루트
+            PRINTFORMW %T_턴반대의% 말에 %마스터는% 얼결에 받아들이고 말았다...
+            RETURN 3
+        ENDIF
         $조건루프
         PRINTFORML 어쩔까?
         PRINTFORML [0] 받아들인다

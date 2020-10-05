@@ -5,6 +5,8 @@
 ;110 = 플레이어 스킬표 생성
 ;120 = 플레이어 회피시도
 ;121 = 적 회피 시도
+;1000 = 플레이어 항복 시도
+;1001 = 적 항복 시도
 T_시스템 = ARG
 FOR LOCAL,1,1000
     TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴주인,"시스템체크")
@@ -52,6 +54,7 @@ RETURN 0
 
 CALL T_시스템처리(110)
 
+$스킬표시
 PRINTL 무엇을 쓸까?
 DRAWLINE
 FOR 스킬번호,1,1000
@@ -74,12 +77,16 @@ FOR 스킬번호,1,1000
     ENDIF
 NEXT
 PRINTL
+PRINTL [9998]설명
 PRINTL [9999]돌아간다
 WHILE 1 ;$스킬입력루프
     INPUT
     LOCAL = RESULT
     IF LOCAL == 9999
         RETURN 0
+    ELSEIF LOCAL == 9998
+        CALL T_HELP
+        GOTO 스킬표시
     ELSEIF HAVE_T_SKILL(T_턴주인, LOCAL)
         DRAWLINE
         CALL DO_T_SKILL(T_턴주인, LOCAL)
@@ -94,6 +101,53 @@ WHILE 1 ;$스킬입력루프
     ENDIF
 WEND
 
+@T_HELP
+#DIM 스킬번호
+PRINTL 어떤 스킬의 설명을 볼까?
+DRAWLINE
+FOR 스킬번호,1,1000
+    IF HAVE_T_SKILL(T_턴주인, 스킬번호)
+        ;스킬 소유, 스킬창에 이름 표시
+        CALL CAN_T_SKILL(T_턴주인, 스킬번호)
+        IF RESULT == 1
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
+            SETCOLOR RESULT
+        ELSE
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전불가")
+            SETCOLOR RESULT
+        ENDIF
+        CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
+        PRINTFORMLC [{스킬번호}] %RESULTS%
+        RESETCOLOR
+        PRINTL
+    ELSE
+        ;스킬 소유하고 있지 않음
+    ENDIF
+NEXT
+PRINTL
+PRINTL [9999]돌아간다
+WHILE 1
+    INPUT
+    LOCAL = RESULT
+    IF LOCAL == 9999
+        RETURN 0
+    ELSEIF HAVE_T_SKILL(T_턴주인, LOCAL)
+        DRAWLINE
+        CALLFORM HELP_T_SKILL{LOCAL}
+        DRAWLINE
+        PRINTW
+        CLEARLINE 8
+    ELSE
+        ;시전 불가시는 DO_T_SKILL에서 처리
+        PRINTL
+        PRINTW 없는 번호입니다.
+        CLEARLINE 1
+    ENDIF
+    RESULT = 0
+WEND
+
+
+
 ;시전 대응
 @DO_T_SKILL(사용자, 스킬번호)
 #DIM 사용자
@@ -106,6 +160,15 @@ IF RESULT == 0
     RETURN 0
 ELSE
     ;시전성공
+    CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
+    IF 사용자 == MASTER
+        SETCOLOR 0xFFFFFF
+    ELSE
+        SETCOLOR 0xFF4444
+    ENDIF
+    PRINTFORML %RESULTS%
+    RESETCOLOR
+    ;이 아래의 대사 작성
     CALLFORM AFTER_T_SKILL{스킬번호}(사용자)
     RETURN 1
 ENDIF
