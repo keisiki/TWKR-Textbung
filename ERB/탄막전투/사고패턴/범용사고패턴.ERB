@@ -9,6 +9,10 @@
 #DIM 스킬타입, 2 ;0: 선택된 스킬타입 bit값(이진수), 1:선택 과정에서 랜덤으로 결정한 값(십진수)
 ;ARG = 행동자
 WHILE 1
+    IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/10)&&항복불가 == 0&&RAND:4 == 0
+        CALL T_항복(ARG)
+        BREAK
+    ENDIF
     SELECTCASE RAND:3
         CASE 0
             ;통상공격
@@ -24,8 +28,26 @@ WHILE 1
             ;스킬시전
             VARSET 스킬타입
             ;올랜덤은 타입 선정이 필요없지만 템플릿용으로 적어둠
-            ;공격형 = bit 1, 방어형 = bit 2, 회복형 = bit 3, 상태이상형 = bit 4, 버프형 = bit 5
+            ;공격형 = bit 1, 방어형 = bit 2, 회복형 = bit 3, 상태이상형 = bit 4, 버프형 = bit 5, 해주형 = BIT 6
             스킬타입:1 = RAND:6
+            IF TCVAR:ARG:T_저주 > 0&&TCVAR:ARG:T_저주 < 3&&RAND:3 == 0
+                CALL HAVE_T_TYPE(ARG, 해주형)
+                IF RESULT == 1
+                    스킬타입:1 = 6
+                ENDIF
+            ENDIF
+            IF TCVAR:ARG:T_출혈 > 0&&RAND:5 == 0
+                CALL HAVE_T_TYPE(ARG, 해주형)
+                IF RESULT == 1
+                    스킬타입:1 = 6
+                ENDIF
+            ENDIF
+            IF TCVAR:ARG:T_독 > 0&&RAND:10 == 0
+                CALL HAVE_T_TYPE(ARG, 해주형)
+                IF RESULT == 1
+                    스킬타입:1 = 6
+                ENDIF
+            ENDIF
             SELECTCASE 스킬타입:1
                 CASE 0
                     ;모두
@@ -46,6 +68,159 @@ WEND
 RETURN 1
 
 ;=====================
+;행동패턴 2, 호전적
+;물리 공격 위주의 AI
+;=====================
+
+@범용사고패턴2(ARG)
+#DIM DYNAMIC 스킬번호
+#DIM 스킬타입, 2 ;0: 선택된 스킬타입 bit값(이진수), 1:선택 과정에서 랜덤으로 결정한 값(십진수)
+#DIM DYNAMIC 공격점수
+#DIM DYNAMIC 회피점수
+#DIM DYNAMIC 행동
+#DIM DYNAMIC 해주시도
+;ARG = 행동자
+WHILE 1
+    IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/5)&&항복불가 == 0&&RAND:6 == 0
+        CALL T_항복(ARG)
+        BREAK
+    ENDIF
+    공격점수 = 150 + RAND:50
+    회피점수 = 75 + RAND:50
+    IF TCVAR:ARG:T_저주 > 0&&TCVAR:ARG:T_저주 < 3&&RAND:3 == 0
+        ;저주의 경우는 그나마 높은 확률로 해제 시도
+        CALL HAVE_T_TYPE(ARG, 해주형)
+        IF RESULT == 1
+            행동 = 2
+            해주시도 = 1
+        ENDIF
+    ENDIF
+    IF TCVAR:ARG:T_출혈 > 3&&RAND:5 == 0
+        ;출혈이 그 다음
+        CALL HAVE_T_TYPE(ARG, 해주형)
+        IF RESULT == 1
+            행동 = 2
+            해주시도 = 1
+        ENDIF
+    ENDIF
+    IF TCVAR:ARG:T_독 > 5&&RAND:10 == 0
+        ;독은 거의 해제 안함
+        CALL HAVE_T_TYPE(ARG, 해주형)
+        IF RESULT == 1
+            행동 = 2
+            해주시도 = 1
+        ENDIF
+    ENDIF
+    IF TCVAR:ARG:T_실명
+        공격점수 -= 30
+        회피점수 += 50
+    ENDIF
+    IF TCVAR:(사용자반대(ARG)):T_취약
+        공격점수 += 20
+        회피점수 -= 10
+    ENDIF
+    IF TCVAR:(사용자반대(ARG)):T_기절
+        공격점수 += 20
+        회피점수 -= 10
+    ENDIF
+    IF TCVAR:(사용자반대(ARG)):T_혼란
+        공격점수 += 10
+        회피점수 -= 5
+    ENDIF
+    $호전적패턴루프
+    IF 행동 != 2
+        IF 공격점수 >= 회피점수
+            CALL HAVE_T_TYPE(ARG, 공격형)
+            IF RESULT == 1
+                행동 = 2
+            ELSE
+                행동 = 0
+            ENDIF
+        ELSEIF 회피점수 > 공격점수
+            CALL HAVE_T_TYPE(ARG, 방어형)
+            IF RAND:3 == 0&&RESULT == 1
+                행동 = 2
+            ELSE
+                행동 = 1
+            ENDIF
+        ENDIF
+    ENDIF
+    ;======
+    SELECTCASE 행동
+        CASE 0
+            ;통상공격
+            CALL T_COM공격한다
+            BREAK
+        CASE 1
+            ;회피행동
+            IF !TCVAR:ARG:T_회피
+                CALL T_COM회피한다(ARG)
+                BREAK
+            ENDIF
+        CASE 2
+            ;스킬시전
+            VARSET 스킬타입
+            ;공격형 = bit 1, 방어형 = bit 2, 회복형 = bit 3, 상태이상형 = bit 4, 버프형 = bit 5
+            IF 공격점수 >= 회피점수
+                CALL HAVE_T_TYPE(ARG, 공격형)
+                IF RESULT == 1
+                    스킬타입:1 = 1
+                ELSE
+                    CALL HAVE_T_TYPE(ARG, 상태이상형)
+                    IF RESULT == 1
+                        스킬타입:1 = 4
+                    ELSE
+                        GOTO 호전적패턴루프
+                    ENDIF
+                ENDIF
+            ELSEIF 회피점수 > 공격점수
+                CALL HAVE_T_TYPE(ARG, 방어형)
+                IF RESULT == 1
+                    스킬타입:1 = 2
+                ELSE
+                    CALL HAVE_T_TYPE(ARG, 회복형)
+                    IF RESULT == 1
+                        스킬타입:1 = 3
+                    ELSE
+                        CALL HAVE_T_TYPE(ARG, 버프형)
+                        IF RESULT == 1
+                            스킬타입:1 = 5
+                        ELSE
+                            GOTO 호전적패턴루프
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ENDIF
+            IF 해주시도 == 1
+                스킬타입:1 = 6
+            ENDIF
+            SELECTCASE 스킬타입:1
+                CASE 0
+                    ;모두
+                    스킬타입 = 공격형 + 방어형 + 회복형 + 상태이상형 + 버프형
+                CASE 1, 2, 3, 4, 5, 6
+                    SETBIT 스킬타입, 스킬타입:1
+            ENDSELECT
+            CALL RANDOM_PICK_T_SKILL(ARG, 스킬타입)
+            ;LOCAL = 선택 가능한 스킬 수
+            LOCAL = VARSIZE("SKILL_ARRAY") - MATCH(SKILL_ARRAY, 0)
+            SIF RESULT == 0 && !LOCAL ;선택 가능한 스킬이 없음
+                CONTINUE
+            스킬번호 = RAND:LOCAL
+            CALL DO_T_SKILL(ARG, SKILL_ARRAY:스킬번호)
+            BREAK
+    ENDSELECT
+WEND
+RETURN 1
+
+
+
+;---------------------------------------------------------------
+;
+; 기반 함수들
+;
+;---------------------------------------------------------------
+;=====================
 ;랜덤으로 픽업한 사용 가능한 스킬번호 배열을 생성 - SKILL_ARRAY
 ;ARG = 시전자, ARG:1 = 값이 있으면 해당 값의 스킬타입인 스킬만 포함
 ;ARG:1의 스킬타입 중 하나 이상을 포함한 경우 픽업됨
@@ -60,7 +235,8 @@ VARSET SKILL_ARRAY
 배열내위치 = 0
 
 ;맨 앞 부분 스킬들만 우선적으로 쌓이기에 문제가 될 소지 존자.
-FOR 스킬번호, 1, 2000
+;FOR 스킬번호, 1, 2000
+FOR 스킬번호, 1, T_스킬한계값
     ;실장되지 않은 스킬은 통과
     IF TALENTNAME:(스킬번호 + 500) == ""
         CANNOT_ARRAY:스킬번호 = 1
@@ -160,3 +336,19 @@ WHILE 배열내위치 < 99
 WEND
 RETURN 1
 [SKIPEND]
+
+
+@HAVE_T_TYPE(ARG, 타입)
+#DIM 타입
+FOR 스킬번호, 1, T_스킬한계값
+    TRYCALLFORM CAN_T_SKILL(ARG, 스킬번호)
+    IF RESULT == 1 ;스킬 시전 가능
+        CALLFORMF T_SKILL{스킬번호}("타입")
+        IF (RESULT & 타입)
+            RETURN 1
+        ELSE
+            CANNOT_ARRAY:스킬번호 = 1
+        ENDIF
+    ENDIF
+NEXT
+RETURN 0
