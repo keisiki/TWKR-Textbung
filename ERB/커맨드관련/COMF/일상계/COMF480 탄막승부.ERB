@@ -3,7 +3,7 @@
 ;日常系コマンド、レベル1
 ;-------------------------------------------------
 @COM480
-
+#DIM DYNAMIC 고로시모드
 #DIM OPPONENT_REMAIN
 
 HANDICAP_FIXED = 0
@@ -15,30 +15,55 @@ IF TCVAR:TARGET:탄막승부불능
 ENDIF
 
 $INPUT_LOOP
-CALL DANMAKU_OPPONENT_STATUS(TARGET)
+;CALL DANMAKU_OPPONENT_STATUS(TARGET)
 ;--------------------------------------------------------------------------------
-PRINTFORML 뉴 탄막전투를 하시겠습니까?
-PRINTFORML [0]예
-PRINTFORML [1]아뇨
-INPUT
-IF RESULT == 0
-	CALL 뉴탄막전투(MASTER,TARGET,0)
-	RETURN -1
-ENDIF
+
+;PRINTFORML [0]예
+;PRINTFORML [1]아뇨
+PRINTFORML 탄막 놀이를 하시겠습니까?
+CALL ASK_M("역시 그만둔다", 1, "도전한다", 1, "놀이가 아니야", 1)
+SELECTCASE RESULT
+	CASE 0
+		RETURN -1
+	CASE 1
+		PRINTFORMW 탄막 놀이 개시!!
+		고로시모드 = 0
+	CASE 2
+		PRINTFORML 그럼 탄막 결투를 하시겠습니까?
+		CALL ASK_M("역시 그만둔다", 1, "응", 1)
+		SELECTCASE RESULT
+			CASE 0
+				RETURN -1
+			CASE 1
+				PRINTFORMW 탄막 전투 개시!!
+				고로시모드 = 1
+		ENDSELECT
+ENDSELECT
+TRYCALLFORM M_KOJO_MESSAGE_COM_K{TARGET}_DANMAKU("戦闘前", 0)
+CALL 뉴탄막전투(MASTER,TARGET,고로시모드)
+TCVAR:TARGET:탄막승부불능 = 1
+EXP:MASTER:전투경험 += 2
+EXP:전투경험 += 2
+
+TIME += 60
+DOWNBASE:기력 += 500
+DOWNBASE:MASTER:기력 += 1000
+DOWNBASE:체력 += 500
+DOWNBASE:MASTER:체력 += 1000
+
+RETURN 1
 ;--------------------------------------------------------------------------------
+[SKIPSTART]
 PRINTFORM %CALLNAME:TARGET%에게 탄막 승부를 신청합니까?
 SIF CFLAG:TARGET:탄막승부승리 == 1
 	PRINTFORM 　★승리함
 PRINTL 
-CALL ASK_M("역시 그만둔다", 1, "도전한다", 1, "룰 설명", 1)
+CALL ASK_M("역시 그만둔다", 1, "도전한다", 1)
 SELECTCASE RESULT
 	CASE 0
 		RETURN -1
 	CASE 1
 		
-	CASE 2
-		CALL SHOW_DANMAKU_RULE
-		GOTO INPUT_LOOP
 ENDSELECT
 
 ;台詞・選択肢は幽香口上内に記述、口上がない場合は賭けや勝利報酬は無し
@@ -75,6 +100,7 @@ TFLAG:신뢰도관리 = 3 - LOCAL
 EXP:MASTER:전투경험 += 2
 
 TIME += 60
+[SKIPEND]
 
 RETURN 1
 
