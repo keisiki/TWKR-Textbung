@@ -19,6 +19,7 @@ NEXT
 FLAG:발원내용 = ARG
 
 @GANKAKE_1(ARG)
+#FUNCTION
 #DIM 버프가능개소수
 #DIM 버프하는곳후보, 12
 #DIM 실제버프하는곳
@@ -29,7 +30,7 @@ VARSET 버프하는곳후보
 버프가능개소수 = 0
 실제버프하는곳 = 0
 
-IF TALENT:ARG:사모 || TALENT:ARG:애욕
+IF TALENT:ARG:사모 || TALENT:ARG:애욕 || TALENT:ARG:연모
 	IF TALENT:ARG:성적흥미 < 1
 		버프하는곳후보:버프가능개소수 = 23
 		버프가능개소수 ++
@@ -60,7 +61,7 @@ IF TALENT:ARG:사모 || TALENT:ARG:애욕
 	ENDIF
 ENDIF
 
-FOR LOCAL, 101,105
+FOR LOCAL,101,105
 	IF TALENT:ARG:LOCAL < 1
 		버프하는곳후보:버프가능개소수 = LOCAL
 		버프가능개소수 ++
@@ -71,27 +72,28 @@ IF TALENT:ARG:106 < 1
 	버프가능개소수 ++
 ENDIF
 
-IF !버프가능개소수
-	PRINTFORML 팬티 님에게도 %CALLNAME:ARG%는 더 이상 엣찌로 할 수  없는 것 같다……
-ELSE
-	실제버프하는곳 = 버프하는곳후보:(RAND:버프가능개소수)
-	TALENT:ARG:실제버프하는곳 ++
-	TCVAR:TARGET:발원함보정 = 실제버프하는곳
-	TFLAG:193 = 실제버프하는곳
-ENDIF
+SIF !버프가능개소수
+	RETURNF 버프가능개소수
+
+실제버프하는곳 = 버프하는곳후보:(RAND:버프가능개소수)
+TALENT:ARG:실제버프하는곳 ++
+TCVAR:TARGET:발원함보정 = 실제버프하는곳
+TFLAG:193 = 실제버프하는곳
+
+RETURNF 버프가능개소수
 
 @SHOW_CHALALIST
-FOR LOCAL, 1, CHARANUM
+FOR LOCAL,1,CHARANUM
 	SIF !CFLAG:LOCAL:출금 && !TALENT:LOCAL:스침
-		PRINTFORMLC [{LOCAL}] %CALLNAME:LOCAL, 15, LEFT%
+		PRINTFORMLC [{LOCAL}] %CALLNAME:LOCAL,15,LEFT%
 NEXT
 
-@IKENIE(ARG, ARG:1)
+@IKENIE(ARG,ARG:1)
 ;ARG 대상
 ;ARG:1 소원(1=반발 해제 2=감도 일시 상승 3=요술망치 4=시간정지들킴 해제 5=천벌)
 #DIM 총계
 #DIM 종류수
-#DIM 겹쳐
+#DIM 중복
 #DIM 바친매수
 #DIM 바치는매수
 #DIM 필요매수
@@ -99,9 +101,10 @@ VARSET LOCAL
 CALL CHECK_COLLECTION(ARG)
 총계 = RESULT:0
 종류수 = RESULT:1
-겹쳐 = 총계 - 종류수
+중복 = 총계 - 종류수
 바친매수 = 0
 바치는매수 = 0
+;KR판 오리지널 CASE 8,9,10,11,12,13 
 SELECTCASE ARG:1
 	CASE 1,8
 		필요매수 = 25
@@ -118,29 +121,22 @@ SELECTCASE ARG:1
 ENDSELECT
 
 PRINTL 머릿속에 목소리가 울린다…
-PRINTW ((그 바래 실현될 수 있었던 , 지를 바쳐라…))
+PRINTW ((그 소망을 이루고 싶다면, 공물을 바쳐라…))
 PRINTFORMW ((%CALLNAME:ARG%의 팬티를{필요매수}매 바쳐라……))
 PRINTFORM 현재%CALLNAME:ARG%의 팬티를
 IF !종류수
 	PRINTL 한 장도 가지고 있지 않다
 	RETURN -1
 ENDIF
-PRINTFORML 전부{총계}매{종류수}종, 겹치고 있는 것은{겹쳐}매 가지고 있다
+PRINTFORML 전부{총계}매{종류수}종, 겹치고 있는 것은{중복}매 가지고 있다
 IF 총계 < 필요매수
 	PRINTFORML 소망하고 있는 매수에{필요매수 - 총계}매 부족하다
 	RETURN -1
 ENDIF
 $LOOP
-PRINTL [0] 바치지 않는다
-IF 총계 >= 필요매수
-	IF 겹쳐 >= 필요매수
-		PRINTL [1] 바친다
-	ELSE
-		PRINTL [1] 겹치지 않은 것도 사용하게 되지만 바친다
-	ENDIF
-ENDIF
-INPUT
-IF RESULT == 1 && 총계 >= 필요매수
+;KR판 오리지날 수정. 일판 4.760 에서는 LOCALS 처리를 잘못해두었기에 이를 수정.
+CALL ASK_M("바치지 않는다",1,@"%LOCALS%",총계 >= 필요매수)
+IF RESULT == 1
 	FOR LOCAL, 0, MAXPANTS
 		IF CFLAG:ARG:(팬티관리 + LOCAL) > 1
 			바치는매수 = MIN(CFLAG:ARG:(팬티관리 + LOCAL) - 1, (필요매수 - 바친매수))
@@ -165,7 +161,6 @@ IF RESULT == 1 && 총계 >= 필요매수
 			MARK:ARG:반발각인 --
 			TFLAG:193 = 30
 		CASE 2
-			CALL GANKAKE_1(ARG)
 			FLAG:발원내용 = 999
 		CASE 3
 			CFLAG:MASTER:마력회수 = 1
@@ -184,7 +179,7 @@ IF RESULT == 1 && 총계 >= 필요매수
 			IF FLAG:자식기원 == TARGET
 				CFLAG:자식보정 ++
 			ELSE
-				FOR LOCAL, 1, CHARANUM
+				FOR LOCAL,1,CHARANUM
 					CFLAG:LOCAL:자식보정 = 0
 				NEXT
 				CFLAG:자식보정 ++
@@ -198,6 +193,7 @@ IF RESULT == 1 && 총계 >= 필요매수
 			ABL:ARG:새드끼 -= 1
 			JUEL:ARG:우월 = 0
 			EXP:ARG:가학쾌락경험 = MAX(EXP:ARG:가학쾌락경험 - 200, 0)
+		;KR판 오리지널 CASE 8,9,10,11,12,13 
 		CASE 8
 			CFLAG:ARG:약점잡음=0
 		CASE 9,10,11,12
@@ -206,19 +202,28 @@ IF RESULT == 1 && 총계 >= 필요매수
 			TALENT:ARG:M감도++
 		
 	ENDSELECT
-	PRINTFORML %마스터가% 비장의 콜렉션을 늘어놓아 빌면(자), 이 세상 되지 않는 불길이{필요매수}매의 팬티를 불타고 앙금 하나 남기지 않고 다 구웠다!
+	PRINTFORML %마스터가% 비장의 콜렉션을 늘어놓고 빌자, 이 세상 아닌 불꽃이{필요매수}매의 팬티를 타다 남은것 하나 남기지 않고 다 태워 버렸다!
+	FLAG:독신 += 필요매수
 	IF ARG:1 == 7
-		CALL COLORMESSAGE(@"%CALLNAME:ARG%의 새드끼이 내린", C_YELLOW, 2,1)
-		CALL COLORMESSAGE(@"%CALLNAME:ARG%의 가학쾌락경험이 내린", C_YELLOW, 2,1)
-		CALL COLORMESSAGE(@"%CALLNAME:ARG%의 우월의 주가 0이 된", C_YELLOW, 2,1)
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%의 새드끼가 내려갔다",C_YELLOW,2,1)
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%의 가학쾌락경험이 내려갔다",C_YELLOW,2,1)
+		CALL COLORMESSAGE(@"%CALLNAME:ARG%의 우월의 구슬이 0이 되었다",C_YELLOW,2,1)
 	ENDIF
 	IF ARG:1 == 6
-		PRINTFORML ((그 딸(아가씨)에게로의 정과 기원을 빠뜨리지 말것))
+		PRINTFORML ((그 아가씨에게로의 정과 기원을 빠뜨리지 말것))
 		PRINTFORMW ((자 그렇다면 머지않아 소원은 성취하자……))
+	ELSEIF ARG:1 == 2 && !GANKAKE_1(ARG)
+		PRINTW
+		PRINTW …
+		PRINTW ……
+		PRINTW ………
+		PRINTW …………
+		PRINTFORML 팬티님도 %ARG는% 더 이상 야하게 할 수 없을 것 같다……
+		RETURN -1
 	ELSE
-		PRINTW ((이놈의 소원은 성취 경배……))
+		PRINTW ((네 소원은 성취되었도다……))
 	ENDIF
-	PRINTFORML %마스터는% 팬티 모양에의 경신의 생각을 새로이 했다
+	PRINTFORML %마스터는% 팬티님에 대한 경신의 생각을 새로이 했다
 	RETURN 0
 ELSE
 	RETURN -1
@@ -227,14 +232,93 @@ ENDIF
 @PINK_WIND
 SETCOLOR 255,100,255
 FONTBOLD
-PRINTFORMW 환상향에 분홍색의 바람이 불었다!
-FOR LOCAL, 1, CHARANUM
+PRINTFORMW 환상향에 분홍빛 바람이 불었다!
+FOR LOCAL,1,CHARANUM
 	IF !RAND:15
-		PRINTFORML 분홍색의 바람을 받은 %CALLNAME:LOCAL%는 이상한 기분이 되었다…
+		PRINTFORML 분홍빛 바람을 받은 %조사처리(CALLNAME:LOCAL,"는")% 이상한 기분이 되었다…
 		CFLAG:LOCAL:욕구불만도 += LIMIT((10 + RAND:20 + RAND:20 + RAND:20) * ABL:LOCAL:욕망, 200,1000)
 	ENDIF
 NEXT
 RESETCOLOR
 FONTREGULAR
-PRINTW ((이놈의 소원은 성취 경배……))
-PRINTFORML %마스터는% 팬티 모양에의 경신의 생각을 새로이 했다
+PRINTW ((네 소원은 성취되었도다……))
+PRINTFORML %마스터는% 팬티님에 대한 경신의 생각을 새로이 했다
+
+@DOWSING_PANTS
+#DIM CHK_SLOT
+#DIM CHARA
+#DIM HIT
+PRINTFORMW %마스터는% 의뢰된 물건을 찾을 수 있기를 기도했다……
+PRINTL 
+HIT = 0
+FOR CHK_SLOT, 1, 6
+	SIF !GETBIT(CAN_DOWSING(), CHK_SLOT)
+		CONTINUE
+	CHARA = 0
+	SELECTCASE IRAI_SLOT_TO_TASKNAME(CHK_SLOT)
+	CASE "수색(인물)"
+		CHARA = IRAI_SLOT_TO_PERSON(CHK_SLOT)
+		;手持ち
+		CALL CHECK_COLLECTION(CHARA, 1)
+		IF RESULT
+			CALL DOWSING_PANTS_MESSAGE(CHARA, 1)
+			HIT = 1
+		ELSE
+			;コレクション
+			CALL CHECK_COLLECTION(CHARA, 0)
+			IF RESULT
+				CALL DOWSING_PANTS_MESSAGE(CHARA, 0)
+				HIT = 1
+			ENDIF
+		ENDIF
+	CASE "수색(장소)"
+		;自宅があるキャラを抽出
+		FOR CHARA, 1, CHARANUM
+			IF CFLAG:CHARA:자택위치 == GET_MAP_REPLACEMENT(IRAI_SLOT_TO_PLACE(CHK_SLOT))
+				;手持ち
+				CALL CHECK_COLLECTION(CHARA, 1)
+				IF RESULT
+					CALL DOWSING_PANTS_MESSAGE(CHARA, 1)
+					HIT = 1
+					BREAK
+				ELSE
+					;コレクション
+					CALL CHECK_COLLECTION(CHARA, 0)
+					IF RESULT
+						CALL DOWSING_PANTS_MESSAGE(CHARA, 0)
+						HIT = 1
+						BREAK
+					ENDIF
+				ENDIF
+			ENDIF
+		NEXT
+	CASEELSE
+		CONTINUE
+	ENDSELECT
+NEXT
+SIF !HIT
+	PRINTFORMW ……그러나 기도는 이루어지지 않았다
+
+@DOWSING_PANTS_MESSAGE(CHARA, HAND)
+#DIM CHARA
+#DIM HAND
+#DIM 종류
+#DIM 소유수
+CALL FISHER_YATES_SHAFFLE(MAXPANTS)
+SETCOLOR C_YELLOW
+FOR LOCAL, 0, MAXPANTS
+	종류 = SHAFFLE_ARRAY:LOCAL
+	IF !HAND
+		IF CFLAG:CHARA:(종류 + 팬티관리)
+			PRINTFORMW 이럴수가! 보관하고 있었던 %CALLNAME:CHARA%의 %조사처리(PANTSNAME(종류,CHARA),"가")% 빛나기 시작했다!
+			BREAK
+		ENDIF
+	ELSE
+		IF PANTS_TEMP:CHARA:종류
+			PRINTFORMW 이럴수가! 손에 들고 있었던 %CALLNAME:CHARA%의 %조사처리(PANTSNAME(종류,CHARA),"가")% 빛나기 시작했다!
+			BREAK
+		ENDIF
+	ENDIF
+NEXT
+RESETCOLOR
+
