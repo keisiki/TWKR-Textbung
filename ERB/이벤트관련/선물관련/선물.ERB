@@ -1,0 +1,505 @@
+﻿;-------------------------------------------------
+;贈り物を生成する関数
+;RESULT:0  GIFT_ID
+;RESULT:1  値段
+;RESULTS   名前
+;-------------------------------------------------
+@CREATE_GIFT(AREA)
+#DIM AREA
+#DIM MAIN
+#DIM ADJECT
+#DIM BASIC_PRICE
+#DIM MAGNIF_PRICE
+#DIMS GIFTNAME_MAIN
+#DIMS GIFTNAME_ADJECT
+VARSET RESULT
+
+CALL DRAW_GIFT_MAIN(AREA)
+MAIN = RESULT:0
+BASIC_PRICE = RESULT:1
+GIFTNAME_MAIN = %RESULTS:0%
+
+CALL DRAW_GIFT_ADJECT(AREA, RESULTS:1)
+ADJECT = RESULT:0
+MAGNIF_PRICE = RESULT:1
+GIFTNAME_ADJECT = %RESULTS:0%
+
+;値段の設定
+RESULT:1 = BASIC_PRICE * MAGNIF_PRICE / 100
+;半額セールとか値引き要素等
+SIF 0
+	TIMES RESULT:1, 0.50
+
+;名前の設定
+RESULTS = %GIFTNAME_ADJECT%%GIFTNAME_MAIN%
+;IDの設定
+RESULT:0 = ADJECT * 1000 + MAIN
+RETURN RESULT:0
+
+;-------------------------------------------------
+;贈り物본체を抽選する関数
+;-------------------------------------------------
+@DRAW_GIFT_MAIN(AREA)
+#DIM AREA
+#DIM CATEGORY_MAIN
+#DIM GIFT_MAIN
+#DIM 카테고리상한
+VARSET RESULT
+카테고리상한 = 52
+WHILE !RESULT
+	CATEGORY_MAIN = RAND:카테고리상한 + 1
+	GIFT_MAIN = CATEGORY_MAIN * 10 + RAND:10
+	CALL GIFTDATA_MAIN(GIFT_MAIN, AREA)
+WEND
+RETURN GIFT_MAIN
+
+;-------------------------------------------------
+;贈り物の형용사を抽選する関数
+;-------------------------------------------------
+@DRAW_GIFT_ADJECT(AREA, SENSE)
+#DIM AREA
+#DIM CATEGORY_ADJECT
+#DIM GIFT_ADJECT
+#DIMS SENSE
+#DIM 카테고리상한
+VARSET RESULT
+카테고리상한 = 13
+WHILE !RESULT
+	CATEGORY_ADJECT = RAND:카테고리상한 + 1
+	GIFT_ADJECT = CATEGORY_ADJECT * 100 + RAND:100
+	CALL GIFTDATA_ADJECT(GIFT_ADJECT, AREA, SENSE)
+WEND
+RETURN GIFT_ADJECT
+
+;-------------------------------------------------
+;贈り物を평가する関数
+;-------------------------------------------------
+@REVIEW_GIFT(CHARA, GIFT_ID)
+#DIM CHARA
+#DIM GIFT_ID
+#DIMS SENSE_CHARA_GOOD
+#DIMS SENSE_CHARA_BAD
+#DIMS SENSE_GIFT
+#DIM SENSE_GOOD
+#DIM SENSE_BAD
+#DIM MAGNIF_PRICE
+#DIM BASIC_PRICE
+
+;SENSE抽出
+SENSE_GIFT = 
+CALL GIFTDATA_ADJECT(GET_GIFTDATA(GIFT_ID, "형용사"))
+SENSE_GIFT += RESULTS:1
+MAGNIF_PRICE = RESULT:1
+
+CALL GIFTDATA_MAIN(GET_GIFTDATA(GIFT_ID, "본체"))
+SENSE_GIFT += RESULTS:1
+BASIC_PRICE = RESULT:1
+
+;정가を見て10,000以上なら고급、1,500未満なら싸구려
+IF BASIC_PRICE * MAGNIF_PRICE / 100 >= 10000
+	SENSE_GIFT += "고급/"
+ELSEIF BASIC_PRICE * MAGNIF_PRICE / 100 < 1500
+	SENSE_GIFT += "싸구려/"
+ENDIF
+
+
+;캐릭터の感性
+SENSE_CHARA_GOOD = %GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함")%
+SENSE_CHARA_BAD = %GET_STR(, "캐릭터데이터", CHARA, "감성：싫어함")%
+
+;共通設定：好き
+;［유치］は캐릭터が好き
+SIF TALENT:CHARA:유치
+	SENSE_CHARA_GOOD += "캐릭터/" * 3
+;［요정］は자연が好き
+SIF TALENT:CHARA:요정
+	SENSE_CHARA_GOOD += "자연/"
+;［츠쿠모가미］は츠쿠모가미と도구が好き
+SIF TALENT:CHARA:츠쿠모가미
+	SENSE_CHARA_GOOD += "츠쿠모가미/도구/"
+;요괴は요괴が好き
+SIF 요괴체커(CHARA)
+	SENSE_CHARA_GOOD += "요괴/"
+;CSVの전투능력があるなら스펠카드は好き
+SIF CSVABL(CHARA, GETNUM(ABL, "전투능력")) > 0
+	SENSE_CHARA_GOOD += "스펠카드/" * 3
+
+;共通設定：嫌い
+;조악はみんな嫌い
+SIF 1
+	SENSE_CHARA_BAD += "조악/" * 5
+;요괴は주술が嫌い
+IF 요괴체커(CHARA)
+	SENSE_CHARA_BAD += "주술/" * 3
+	;법구が好きでないなら법구は嫌い
+	SIF STRFIND(SENSE_CHARA_GOOD, "법구/") < 0
+		SENSE_CHARA_BAD += "법구/" * 3
+ENDIF
+;요괴ではなく요술が好きでないなら요술は嫌い
+IF !요괴체커(CHARA) && STRFIND(SENSE_CHARA_GOOD, "요술/") < 0
+	SENSE_CHARA_BAD += "요술/" * 3
+	;さらに뼈、피、독も同様
+	SIF STRFIND(SENSE_CHARA_GOOD, "뼈/") < 0
+		SENSE_CHARA_BAD += "뼈/" * 3
+	SIF STRFIND(SENSE_CHARA_GOOD, "피/") < 0
+		SENSE_CHARA_BAD += "피/" * 3
+	SIF STRFIND(SENSE_CHARA_GOOD, "독/") < 0
+		SENSE_CHARA_BAD += "독/" * 3
+ENDIF
+;술내성が下戸なら술は嫌い
+IF TALENT:CHARA:술내성 < -1
+	SENSE_CHARA_BAD += "술/" * 3
+ELSEIF TALENT:CHARA:술내성 < 0
+	SENSE_CHARA_BAD += "술/"
+ENDIF
+;CSVの전투능력がないなら스펠카드はちょっと…
+SIF CSVABL(CHARA, GETNUM(ABL, "전투능력")) <= 0
+	SENSE_CHARA_BAD += "스펠카드/"
+
+;평가득점
+SENSE_GOOD = 300 + 100 * STR_MULTI_COUNT(SENSE_CHARA_GOOD, SENSE_GIFT)
+
+;;무드による補正,※封印しました
+;IF BASE:CHARA:무드 >= MAXBASE:CHARA:무드
+;	TIMES SENSE_GOOD, 1.00
+;ELSEIF BASE:CHARA:무드 >= MAXBASE:CHARA:무드 / 2
+;	TIMES SENSE_GOOD, 0.80
+;ELSEIF BASE:CHARA:무드 >= MAXBASE:CHARA:무드 / 4
+;	TIMES SENSE_GOOD, 0.60
+;ELSE
+;	TIMES SENSE_GOOD, 0.40
+;ENDIF
+
+;;自宅地域による補正,※封印しました
+;SIF CFLAG:CHARA:데이트중  == CFLAG:CHARA:자택위치 / 100
+;	TIMES SENSE_GOOD, 0.80
+
+;祭日による補正
+SIF FESTIVAL() != ""
+	TIMES SENSE_GOOD, 1.25
+
+;평가減点
+SENSE_BAD = 300 + 100 * STR_MULTI_COUNT(SENSE_CHARA_BAD, SENSE_GIFT)
+
+;総評
+RESULT = SENSE_GOOD * 1000 / (SENSE_GOOD + SENSE_BAD)
+[IF_DEBUG]
+	PRINTFORML 좋아함：%SENSE_CHARA_GOOD%
+	PRINTFORML 싫어함：%SENSE_CHARA_BAD%
+	PRINTFORML 물건：%SENSE_GIFT%
+	PRINTFORML 득점：{SENSE_GOOD}
+	PRINTFORML 감점：{SENSE_BAD}
+	PRINTFORML 결과：{RESULT}
+	WAIT
+[ENDIF]
+RETURN RESULT
+;-------------------------------------------------
+;요괴かどうか判定する関数
+;COMMONのがいいかも
+;-------------------------------------------------
+@요괴체커(ARG)
+#FUNCTION
+SIF TALENT:ARG:인간
+	RETURNF 0
+SIF TALENT:ARG:신령
+	RETURNF 0
+SIF TALENT:ARG:요정
+	RETURNF 0
+SIF TALENT:ARG:봉래인
+	RETURNF 0
+RETURNF 1
+
+
+;-------------------------------------------------
+;一日の終わりに贈り物をお気に入りにするかの関数
+;-------------------------------------------------
+@GIFT_FAVORITE
+#DIM CHARA
+#DIM GIFT_ID
+#DIM GIFT_ADJECT
+#DIM GIFT_MAIN
+#DIM GIFT_SCORE, 3
+#DIMS GIFT_NAME
+#DIMS SENSE
+FOR CHARA, 1, CHARANUM
+	SIF !TCVAR:CHARA:오늘의선물
+		CONTINUE
+	
+	GIFT_ID = TCVAR:CHARA:오늘의선물
+	GIFT_ADJECT = GET_GIFTDATA(GIFT_ID, "형용사")
+	GIFT_MAIN = GET_GIFTDATA(GIFT_ID, "본체")
+	GIFT_SCORE:1 = GET_GIFTDATA(GIFT_ID, "득점")
+	
+	;贈り物データの参照
+	CALL GIFTDATA_ADJECT(GIFT_ADJECT)
+	LOCALS:1 = %RESULTS:0%
+	CALL GIFTDATA_MAIN(GIFT_MAIN)
+	SENSE = %RESULTS:1%
+	LOCALS:2 = %RESULTS:0%
+	GIFT_NAME = %LOCALS:1%%LOCALS:2%
+;	PRINTFORMW SCORE{GIFT_SCORE:1}
+	
+	
+	PRINTL 
+	PRINTFORM %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:MASTER%에게 받은 %GIFT_NAME%
+	IF GIFT_SCORE:1 >= 700
+		IF STRFIND(SENSE, "움켜쥠") >= 0
+			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 소중하게 움켜쥐고 잠들었다……。
+		ELSEIF STRFIND(SENSE, "품음") >= 0
+			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 생각하며 끌어안았다……。
+		ELSEIF STRFIND(SENSE, "몸에걸침") >= 0
+			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 시험삼아 몸에 걸치고, 거울 앞에서 얼굴을 붉혔다……。
+		ELSE
+			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 넋을 잃고 바라보다가 잠이 들었다……。
+		ENDIF
+		;現在の贈り物と比較してお気に入りにする
+		IF CFLAG:CHARA:받은선물
+			GIFT_SCORE:2 = GET_GIFTDATA(CFLAG:CHARA:받은선물, "득점")
+		ELSE
+			GIFT_SCORE:2 = 0
+		ENDIF
+		IF GIFT_SCORE:1 >= GIFT_SCORE:2
+			SIF CFLAG:CHARA:받은선물
+				CFLAG:CHARA:선물스톡 = CFLAG:CHARA:받은선물
+			CFLAG:CHARA:받은선물 = TCVAR:CHARA:오늘의선물
+			CALL COLORMESSAGE(@"%조사처리(GIFT_NAME,"는")% %CALLNAME:CHARA%의 마음에 들었다!", C_YELLOW, 2)
+		ENDIF
+	ELSEIF GIFT_SCORE:1 >= 400
+		IF STRFIND(SENSE, "움켜쥠") >= 0
+			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 선반 위에 놓았다……。
+		ELSEIF STRFIND(SENSE, "품음") >= 0
+			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 책상 위에 놓았다……。
+		ELSEIF STRFIND(SENSE, "몸에걸침") >= 0
+			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 옷장에 넣었다……。
+		ELSE
+			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 일단 보관했다……。
+		ENDIF
+	ELSE
+		PRINTFORMW %조사만처리(GIFT_NAME,"를")% 슬쩍 저당잡았다……。
+	ENDIF
+	PRINTL 
+NEXT
+
+;-------------------------------------------------
+;Look内で받은선물を表示する関数
+;-------------------------------------------------
+@LOOK_GIFT(CHARA)
+#DIM CHARA
+#DIM GIFT_NAME
+#DIM GIFT_SCORE
+;우후후中は表示しない
+SIF CFLAG:CHARA:우후후
+	RETURN
+
+;お気に入り
+IF CFLAG:CHARA:받은선물
+	PRINTL 
+	PRINT 【마음에 듦】
+	CALL COLORMESSAGE("★", C_YELLOW, 0)
+	CALL GIFTNAME(CFLAG:CHARA:받은선물)
+	PRINTFORM %RESULTS%
+	[IF_DEBUG]
+		CALL PRINT_GIFTDATA(CFLAG:CHARA:받은선물, CHARA)
+	[ENDIF]
+;お気に入りでない場合
+ELSEIF CFLAG:CHARA:선물스톡
+	GIFT_SCORE = GET_GIFTDATA(CFLAG:CHARA:선물스톡, "득점")
+	;400未満は휴대しない
+	IF GIFT_SCORE < 400
+		RETURN
+	ELSE
+		;평가득점が高いほど휴대しやすい
+		SIF FLAG:일일이벤트 * 10 > GIFT_SCORE
+			RETURN
+	ENDIF
+	PRINTL 
+	PRINT 【 휴대 】
+	CALL GIFTNAME(CFLAG:CHARA:선물스톡)
+	PRINTFORM %RESULTS%
+ENDIF
+
+;-------------------------------------------------
+;贈り物データを表示する関数
+;-------------------------------------------------
+@PRINT_GIFTDATA(GIFT_ID, CHARA)
+#DIM GIFT_ID
+#DIM CHARA
+#DIM 횟수
+#DIM GIFT_SOCRE
+#DIM 받은날
+#DIM 산장소
+#DIM GIFT_ADJECT
+#DIM GIFT_MAIN
+#DIMS GIFT_NAME
+#DIM MAGNIF_PRICE
+#DIM SELL_AREA_ADJECT
+#DIM BASIC_PRICE
+#DIM SELL_AREA_MAIN
+#DIMS SENSE
+
+횟수 = GET_GIFTDATA(GIFT_ID, "횟수")
+GIFT_SOCRE = GET_GIFTDATA(GIFT_ID, "득점")
+받은날 = GET_GIFTDATA(GIFT_ID, "날짜")
+산장소 = GET_GIFTDATA(GIFT_ID, "장소")
+GIFT_ADJECT = GET_GIFTDATA(GIFT_ID, "형용사")
+GIFT_MAIN = GET_GIFTDATA(GIFT_ID, "본체")
+CALL GIFTDATA_ADJECT(GIFT_ADJECT)
+MAGNIF_PRICE = RESULT:1
+SELL_AREA_ADJECT = RESULT:2
+LOCALS:1 = %RESULTS:0%
+SENSE = %RESULTS:1%
+CALL GIFTDATA_MAIN(GIFT_MAIN)
+BASIC_PRICE = RESULT:1
+SELL_AREA_MAIN = RESULT:2
+LOCALS:2 = %RESULTS:0%
+GIFT_NAME = %LOCALS:1%%LOCALS:2%
+SENSE += RESULTS:1
+
+[IF_DEBUG]
+	PRINTL 
+	CALL PRINT_DATE(받은날)
+	PRINTFORML %GET_MAPNAME(산장소)%에서 %CALLNAME:CHARA%에게 {횟수}번째로 사준 %GIFT_NAME%
+	PRINTFORML 정가는 {BASIC_PRICE} * {MAGNIF_PRICE}\% = \\{BASIC_PRICE * MAGNIF_PRICE / 100}
+	PRINTFORML 평가득점은　{GIFT_SOCRE }점
+	PRINTFORM 이 형용사를 파는 곳은
+	SIF GETBIT(SELL_AREA_ADJECT, 0)
+		PRINT 　신사
+	SIF GETBIT(SELL_AREA_ADJECT, 1)
+		PRINT 　절　
+	SIF GETBIT(SELL_AREA_ADJECT, 2)
+		PRINT 　마을
+	SIF GETBIT(SELL_AREA_ADJECT, 3)
+		PRINT 　호수
+	SIF GETBIT(SELL_AREA_ADJECT, 4)
+		PRINT 　죽림
+	SIF GETBIT(SELL_AREA_ADJECT, 5)
+		PRINT 　숲　
+	SIF GETBIT(SELL_AREA_ADJECT, 6)
+		PRINT 　명계
+	SIF GETBIT(SELL_AREA_ADJECT, 7)
+		PRINT 　산록
+	SIF GETBIT(SELL_AREA_ADJECT, 8)
+		PRINT 　산정
+	SIF GETBIT(SELL_AREA_ADJECT, 9)
+		PRINT 　지저
+	SIF GETBIT(SELL_AREA_ADJECT, 10)
+		PRINT 　달　
+	PRINTL 
+	PRINTFORM 이 본체를 파는 곳은　
+	SIF GETBIT(SELL_AREA_MAIN, 0)
+		PRINT 　신사
+	SIF GETBIT(SELL_AREA_MAIN, 1)
+		PRINT 　절　
+	SIF GETBIT(SELL_AREA_MAIN, 2)
+		PRINT 　마을
+	SIF GETBIT(SELL_AREA_MAIN, 3)
+		PRINT 　호수
+	SIF GETBIT(SELL_AREA_MAIN, 4)
+		PRINT 　죽림
+	SIF GETBIT(SELL_AREA_MAIN, 5)
+		PRINT 　숲　
+	SIF GETBIT(SELL_AREA_MAIN, 6)
+		PRINT 　명계
+	SIF GETBIT(SELL_AREA_MAIN, 7)
+		PRINT 　산록
+	SIF GETBIT(SELL_AREA_MAIN, 8)
+		PRINT 　산정
+	SIF GETBIT(SELL_AREA_MAIN, 9)
+		PRINT 　지저
+	SIF GETBIT(SELL_AREA_MAIN, 10)
+		PRINT 　달　
+	PRINTL 
+	IF STRFIND(SENSE, "움켜쥠") >= 0
+		PRINTFORML 움켜쥘 수 있는 것이다
+	ELSEIF STRFIND(SENSE, "품음") >= 0
+		PRINTFORML 껴안을 수 있는 것이다
+	ELSEIF STRFIND(SENSE, "몸에걸침") >= 0
+		PRINTFORML 몸에 걸치는 것이다
+	ELSE
+		PRINTFORML 바라보는 것이다
+	ENDIF
+	PRINTFORML SENSE：%SENSE%
+	RETURN
+[ENDIF]
+
+;-------------------------------------------------
+;贈り物データを抽出する関数
+;-------------------------------------------------
+@GET_GIFTDATA(GIFT_ID, ARGS)
+#FUNCTION
+#DIM GIFT_ID
+SELECTCASE ARGS
+CASE "횟수"
+	RETURNF GIFT_ID / 10000000000000000
+CASE "득점"
+	RETURNF GIFT_ID / 10000000000000 % 1000
+CASE "날짜"
+	RETURNF GIFT_ID / 1000000000 % 10000
+CASE "장소"
+	RETURNF GIFT_ID / 10000000 % 100
+CASE "형용사"
+	RETURNF GIFT_ID / 1000 % 10000
+CASE "본체"
+	RETURNF GIFT_ID % 1000
+ENDSELECT
+
+;-------------------------------------------------
+;贈り物の名前を出力する関数
+;FUNCTIONSにしたかったけどCALLできなくて泣く泣くこのカタチに…
+;-------------------------------------------------
+@GIFTNAME(GIFT_ID)
+#DIM GIFT_ID
+#DIM GIFT_ADJECT
+#DIM GIFT_MAIN
+GIFT_ADJECT = GET_GIFTDATA(GIFT_ID, "형용사")
+GIFT_MAIN = GET_GIFTDATA(GIFT_ID, "본체")
+
+CALL GIFTDATA_ADJECT(GIFT_ADJECT)
+LOCALS:1 = %RESULTS:0%
+CALL GIFTDATA_MAIN(GIFT_MAIN)
+LOCALS:2 = %RESULTS:0%
+
+RESULTS = %LOCALS:1%%LOCALS:2%
+RETURN
+
+;-------------------------------------------------
+;引数に地域を羅列するとそこのbitを入れて返す関数Ver.2.0
+;"전부"を入れると전부入れた数値(2^11-1)を返す
+;"以外"を入れると逆になる
+;COMMONに入れてもいいかもしれない（どこで使うか知らん）
+;-------------------------------------------------
+@AREA_SETBIT(ARGS)
+#FUNCTION
+VARSET RESULT
+SIF STRFIND(ARGS, "전부") >= 0
+	RETURNF 2047
+
+SIF STRFIND(ARGS, "신사") >= 0
+	SETBIT RESULT, 0
+SIF STRFIND(ARGS, "절") >= 0
+	SETBIT RESULT, 1
+SIF STRFIND(ARGS, "마을") >= 0
+	SETBIT RESULT, 2
+SIF STRFIND(ARGS, "호수") >= 0
+	SETBIT RESULT, 3
+SIF STRFIND(ARGS, "죽림") >= 0
+	SETBIT RESULT, 4
+SIF STRFIND(ARGS, "숲") >= 0
+	SETBIT RESULT, 5
+SIF STRFIND(ARGS, "명계") >= 0
+	SETBIT RESULT, 6
+SIF STRFIND(ARGS, "산록") >= 0
+	SETBIT RESULT, 7
+SIF STRFIND(ARGS, "산정") >= 0
+	SETBIT RESULT, 8
+SIF STRFIND(ARGS, "지저") >= 0
+	SETBIT RESULT, 9
+SIF STRFIND(ARGS, "달") >= 0
+	SETBIT RESULT, 10
+
+IF STRFIND(ARGS, "이외") >= 0
+	FOR LOCAL, 0, 11
+		INVERTBIT RESULT, LOCAL
+	NEXT
+ENDIF
+RETURNF RESULT

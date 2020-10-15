@@ -1,0 +1,236 @@
+﻿@COM626
+#DIM LPCOUNT
+#DIM 상품상한
+#DIM GIFT_LIST, 11
+#DIM GIFT_PRICE, 11
+#DIMS GIFT_NAME, 11
+#DIM BOUGHT_GIFT
+#DIM SCORE
+#DIM 생성완료
+#DIM 재로드수
+#DIM 호감도계수
+#DIM 받은횟수
+#DIM 건네준횟수
+
+;とりあえず５つ。11個以上のときは#DIMも修整する
+상품상한 = 5
+
+;ソース用の設定
+IF CFLAG:TARGET:호감도 < 100
+	호감도계수 = 0
+ELSEIF CFLAG:TARGET:호감도 < 500
+	호감도계수 = 1
+ELSEIF CFLAG:TARGET:호감도 < 1000
+	호감도계수 = 2
+ELSEIF CFLAG:TARGET:호감도 < 5000
+	호감도계수 = 3
+ELSEIF CFLAG:TARGET:호감도 < 10000
+	호감도계수 = 4
+ELSEIF CFLAG:TARGET:호감도 < 30000
+	호감도계수 = 5
+ELSE
+	호감도계수 = 6
+ENDIF
+
+PRINTL 
+DRAWLINE
+;店員に喋らせる場合（例文）
+IF 0
+	PRINTFORML 「어서오세요」
+ELSE
+	PRINTFORML %CALLNAME:TARGET%에게 뭔가 사주자……
+ENDIF
+DRAWLINE
+
+FOR LPCOUNT, 1, 상품상한 + 1
+	;品出し,通るたびにラインナップが変わるので注意
+	IF !생성완료
+		;地域制限を取っ払い全てのパターンを生成する場合
+		IF 0
+			CALL CREATE_GIFT(99)
+		ELSE
+			CALL CREATE_GIFT(CFLAG:MASTER:데이트중)
+		ENDIF
+		GIFT_LIST:LPCOUNT = RESULT:0
+		GIFT_PRICE:LPCOUNT = RESULT:1
+		GIFT_NAME:LPCOUNT = %RESULTS%
+	ENDIF
+	PRINTFORML [{LPCOUNT, 2}] - %GIFT_NAME:LPCOUNT, 36, LEFT%\\{GIFT_PRICE:LPCOUNT}
+NEXT
+
+DRAWLINE
+PRINTFORML 소지금:\\{MONEY}
+SIF 재로드수 == 8
+	SETCOLOR C_RED
+PRINTFORML [99] - 이외의 상품을 본다 (10분)
+RESETCOLOR
+PRINTFORML [ 0] - 역시 그만둔다
+INPUT
+
+;역시 그만둔다,キャンセルだとリロードできてしまうのでSOURCEまで回す
+IF RESULT == 0
+	TFLAG:194 = -1
+	;ウィンドウショッピングとして少量のソースを獲得
+	SOURCE:환락 = 500 + 300 * 호감도계수
+;商品リロード
+ELSEIF RESULT == 99
+	;ひやかしはお断り
+	IF 재로드수 >= 8
+		TFLAG:194 = -2
+		재로드수 = 0
+		;閉店ガラガラ（他の店も閉まるのは仕様）
+		SETBIT TFLAG:일일일회, 10
+	ELSE
+		생성완료 = 0
+		재로드수 ++
+		TIME += 10
+		RESTART
+	ENDIF
+;商品選択
+ELSEIF INRANGE(RESULT, 1, 상품상한 + 1)
+	;お金足りない
+	IF MONEY < GIFT_PRICE:RESULT
+		PRINTFORMW 돈이 부족하다……
+		생성완료 = 1
+		CLEARLINE 9 + 상품상한
+		RESTART
+	;商品購入
+	ELSE
+		BOUGHT_GIFT = RESULT
+		MONEY -= GIFT_PRICE:BOUGHT_GIFT
+		;받은횟수をチェック
+		IF !CFLAG:TARGET:선물스톡
+			받은횟수 = 1
+		ELSE
+			받은횟수 = GET_GIFTDATA(CFLAG:TARGET:선물스톡, "횟수") + 1
+		ENDIF
+		;건네준횟수をチェック
+		IF !CFLAG:MASTER:건네준선물
+			건네준횟수 = 1
+		ELSE
+			건네준횟수 = CFLAG:MASTER:건네준선물 / 1000
+		ENDIF
+		;批評する
+		CALL REVIEW_GIFT(TARGET, GIFT_LIST:BOUGHT_GIFT)
+		SCORE = RESULT
+		[IF_DEBUG]
+			PRINTFORML ◆디버그용◆
+			PRINTFORML 득점:{SCORE}
+			PRINTFORML 득점을 조작할 수 있습니다 (1～999)
+			INPUT
+			SIF INRANGE(RESULT, 1, 999)
+				SCORE = RESULT
+		[ENDIF]
+		;ストックにGIFT_IDを保存
+		CFLAG:TARGET:선물스톡 = 받은횟수 * 10000000000000000 + SCORE * 10000000000000 + DAY * 1000000000 + CFLAG:MASTER:데이트중 * 10000000 + GIFT_LIST:BOUGHT_GIFT
+		;TARGETはID,MASTERは渡したキャラを保存
+		TCVAR:TARGET:오늘의선물 = CFLAG:TARGET:선물스톡
+		TCVAR:MASTER:오늘의선물 = TARGET
+		;MASTERは건네준횟수と渡したキャラを保存
+		CFLAG:MASTER:건네준선물 = 건네준횟수 * 1000 + TARGET
+;		PRINTFORMW ID:{CFLAG:TARGET:선물스톡}
+		;ソースの계수
+		TFLAG:193 = SCORE / 100
+		
+		;ソースの獲得,일일일회限定でコストもかかるのでかなり大きめ（これでも時間効率はスキンシップと同等）
+		SOURCE:환락 = 800 + 1500 * TFLAG:193 + 800 * 호감도계수
+		SOURCE:수동 = 600 + 1500 * TFLAG:193 + 800 * ABL:순종
+		SOURCE:정복 = 600 + 800 * TFLAG:193 + 1500 * ABL:새드끼
+		;연인補正
+		SIF TALENT:TARGET:연인
+			TIMES SOURCE:환락, 2.00
+		;祭日補正,評価と二重になるけど
+		SIF FESTIVAL() != ""
+			TIMES SOURCE:환락, 2.00
+		;信頼度,大きめ
+		TFLAG:98 = (TFLAG:193 + 1) / 2 + 1
+		
+		;地の文用の分岐と기분修整
+		IF TFLAG:193 >= 7
+			SIF TALENT:TARGET:기분 < 0
+				CALL KIGEN_CHANGE(TARGET, 100, 1)
+			TFLAG:194 = 3
+		ELSEIF TFLAG:193 >= 4
+			TFLAG:194 = 2
+		ELSE
+			TFLAG:194 = 1
+		ENDIF
+		
+		;일일일회
+		SETBIT TFLAG:일일일회, 10
+	ENDIF
+ELSE
+	생성완료 = 1
+	RESTART
+ENDIF
+
+재로드수 = 0
+생성완료 = 0
+TIME += 30
+RETURN 1
+
+;-------------------------------------------------
+;実行可能判定
+;-------------------------------------------------
+;기념품점
+@COM_ABLE626
+;一括管理
+SIF GLOBAL_COMABLE(626)
+	RETURN RESULT
+;기념품점ではない場所
+SIF !GIFT_SHOP(CFLAG:MASTER:현재위치)
+	RETURN 0
+;데이트중でない
+SIF !FLAG:데이트상대
+	RETURN 0
+;TARGETが데이트상대ではない
+SIF TARGET != FLAG:데이트상대
+	RETURN 0
+;일일일회
+SIF GETBIT(TFLAG:일일일회, 10)
+	RETURN 0
+;수면중
+SIF CFLAG:수면
+	RETURN 0
+;시간정지중
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+@GIFT_SHOP(ARG)
+#FUNCTION
+;기념품점,（今の所は拠点内ではできない）
+;境内,社務所を作りたいところ
+SIF ARG == GET_MAP_REPLACEMENT(2)
+	RETURNF 1
+;境内,寺務所を作りたいところ
+SIF ARG == GET_MAP_REPLACEMENT(102)
+	RETURNF 1
+;集会所,土産物店を作りたいところ
+SIF ARG == GET_MAP_REPLACEMENT(219)
+	RETURNF 1
+;湖畔,正門の方がいいか？
+SIF ARG == GET_MAP_REPLACEMENT(343)
+	RETURNF 1
+;待合室,他にいいところが…
+SIF ARG == GET_MAP_REPLACEMENT(403)
+	RETURNF 1
+;香霖堂
+SIF ARG == GET_MAP_REPLACEMENT(502)
+	RETURNF 1
+;中有の道
+SIF ARG == GET_MAP_REPLACEMENT(601)
+	RETURNF 1
+;山道・沢へ続く道,休憩所の方がいいか？
+SIF ARG == GET_MAP_REPLACEMENT(702)
+	RETURNF 1
+;境内,社務所を
+SIF ARG == GET_MAP_REPLACEMENT(811)
+	RETURNF 1
+;大通り
+SIF ARG == GET_MAP_REPLACEMENT(931)
+	RETURNF 1
+;玉兎の街
+SIF ARG == GET_MAP_REPLACEMENT(1070)
+	RETURNF 1
+RETURNF 0

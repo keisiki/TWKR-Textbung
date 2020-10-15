@@ -1,0 +1,83 @@
+﻿;-------------------------------------------------
+;素材購入
+;日常系コマンド　レベル1
+;-------------------------------------------------
+@COM365
+#DIM PRICE
+;とりあえずデフォは\3000にしてみる
+PRICE = 3000
+
+PRINTFORML %CALLNAME:TARGET%에게서 \\{PRICE}으로 소재를 구매합니까?
+PRINTFORML (내용물은 채집 수준과 자택위치에 의존・채집경험추가）
+CALL ASK_M("산다",MONEY >= PRICE, "사지 않는다",1)
+SELECTCASE RESULT
+	CASE 0
+		CALL BUY_MATERIAL(TARGET, CFLAG:소재판매, PRICE)
+		TIME += 5
+		RETURN 1
+	CASE 1
+		RETURN -1
+ENDSELECT
+
+@BUY_MATERIAL(C_ID, SPOT, PRICE)
+#DIM C_ID		;キャラ
+#DIM SPOT		;対応채집位置
+#DIM PRICE		;価格
+#DIM 채집파워	;
+#DIM QTY, 3
+#DIM COLLECTED, 3
+
+SIF TCVAR:C_ID:소재구입완료
+	RETURN
+SIF !SPOT
+	RETURN
+SIF MONEY < PRICE
+	RETURN
+
+TCVAR:C_ID:소재구입완료 = 1
+채집파워 = 20 + TALENT:C_ID:채집Lv * 20 + TFLAG:행운보정 * 15
+SOURCE:C_ID:환락 += 500
+SOURCE:C_ID:달성 += 150
+SIF TALENT:C_ID:사모
+	채집파워 += 5
+SIF TALENT:C_ID:연모
+	채집파워 += 15
+
+FOR LOCAL,0,3
+	CALL Gathering_Drawing(SPOT, 채집파워)
+	COLLECTED:LOCAL = RESULT:0
+	QTY:LOCAL = RESULT:1
+	EXP:C_ID:채집경험 ++
+	;なんも見つからないと経験にボーナス
+	IF COLLECTED:LOCAL == 0
+		EXP:C_ID:채집경험 += 2
+	ELSE
+		LOCALS = %ITEMNAME:(COLLECTED:LOCAL)%
+		CALL GET_ITEM(LOCALS, QTY:LOCAL, 2)
+	ENDIF
+NEXT
+
+IF !COLLECTED:0 && !COLLECTED:1 && !COLLECTED:2
+	PRINTFORMW 오늘은 아무것도 발견하지 못한 것 같다
+	EXP:C_ID:채집경험 += 1
+ELSE
+	MONEY -= PRICE
+	PRINTFORMW 소재를 \\{PRICE}으로 구매했다
+ENDIF
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE365
+;実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(365)
+	RETURN RESULT
+;睡眠中
+SIF !SHIRAHU(TARGET)
+	RETURN 0
+SIF !CFLAG:소재판매
+	RETURN 0
+RETURN 1
