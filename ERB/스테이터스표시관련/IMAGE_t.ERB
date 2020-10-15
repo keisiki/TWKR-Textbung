@@ -16,7 +16,7 @@
 #DIMS 表示形式, 1000
 #DIMS 服装
 #DIMS 特殊服装
-#DIMS 特殊画像
+#DIMS 特殊画像, 1000
 #DIMS FaceType
 
 SIF !ターゲット
@@ -39,7 +39,7 @@ SAVE_RESULT = RESULT
 ;画像表示数に合わせてサイズ比を調整
 SIF MIN(FLAG:그림표시,ターゲット人数) * (デフォルトキャラ画像横幅 * キャラ画像表示サイズ比/100) > GETCONFIG("ウィンドウ幅")
 	;切捨て保護のため先に掛け算
-	キャラ画像表示サイズ比 =  100 * GETCONFIG("ウィンドウ幅") / MIN(FLAG:画像表示,ターゲット人数) / デフォルトキャラ画像横幅
+	キャラ画像表示サイズ比 =  100 * GETCONFIG("ウィンドウ幅") / MIN(FLAG:그림표시,ターゲット人数) / デフォルトキャラ画像横幅
 
 ;描画開始位置の決定
 IF FLAG:그림표시 != 1
@@ -124,18 +124,18 @@ FOR LOCAL, iPrintStart, FLAG:그림표시 + iPrintStart
 
 		服装 '= 服装 + 特殊服装
 
-		特殊画像 = %特殊画像(CHARA,服装)%
+		特殊画像:LOCAL = %特殊画像(CHARA,服装)%
 
-		FaceType = %GET_EX_FACETYPE(PREVCOM,CHARA, 服装, 表示形式:LOCAL,特殊画像)%
+		FaceType = %GET_EX_FACETYPE(PREVCOM,CHARA, 服装, 表示形式:LOCAL,特殊画像:LOCAL)%
 
-		リソース名 = %表示形式:LOCAL%_%服装%_%FaceType%_{CHARA}%特殊画像%
+		リソース名 = %表示形式:LOCAL%_%服装%_%FaceType%_{CHARA}%特殊画像:LOCAL%
 		リソース名 = %ChkBBresource(リソース名, CHARA)%
-		リソース名_マウスオーバー = %表示形式:LOCAL%_%服装%_%RESULTS:1%_{CHARA}%特殊画像%
+		リソース名_マウスオーバー = %表示形式:LOCAL%_%服装%_%RESULTS:1%_{CHARA}%特殊画像:LOCAL%
 		リソース名_マウスオーバー = %ChkBBresource(リソース名_マウスオーバー, CHARA)%
 
 		;リソースのチェック 見つからない場合は通常服装時のリソースに切り替え
 		IF !SPRITECREATED(リソース名)
-			リソース名 = %表示形式:LOCAL%_%服装%_%表情変化(CHARA)%_{CHARA}%特殊画像%
+			リソース名 = %表示形式:LOCAL%_%服装%_%表情変化(CHARA)%_{CHARA}%特殊画像:LOCAL%
 			;それでも見つからない場合は通常状態の通常顔に切り替え
 			SIF !SPRITECREATED(リソース名) && 裸表示(CHARA)
 			  リソース名 = %表示形式:LOCAL%_裸_通常_{CHARA}
@@ -167,8 +167,8 @@ FOR LOCAL, iPrintStart, FLAG:그림표시 + iPrintStart
 		ELSEIF BLUSH(CHARA)
 			IF TALENT:CHARA:스침
 				;モブ子表示用 今はまだない
-			ELSEIF SPRITECREATED(@"%表示形式:LOCAL%_%特殊照れ(CHARA, 特殊服装)%照れ_{CHARA}%特殊画像%")
-				リソース名 = %表示形式:LOCAL%_%特殊照れ(CHARA, 特殊服装)%照れ_{CHARA}%特殊画像%
+			ELSEIF SPRITECREATED(@"%表示形式:LOCAL%_%特殊照れ(CHARA, 特殊服装)%照れ_{CHARA}%特殊画像:LOCAL%")
+				リソース名 = %表示形式:LOCAL%_%特殊照れ(CHARA, 特殊服装)%照れ_{CHARA}%特殊画像:LOCAL%
 				CALL 画像セット(リソース名, 0, 0, キャラ画像表示サイズ比)
 			ELSE
 				CALL 画像セット("ダミー", 0, 0, キャラ画像表示サイズ比)
@@ -518,6 +518,8 @@ RETURNF 0
 @EXHALATION(ARG,表示形式)
 #FUNCTION
 #DIMS 表示形式
+SIF FLAG:시간정지
+	RETURNF 0
 IF  !SPRITECREATED(@"%表示形式%_裸_吐息_{ARG}") &&  !SPRITECREATED(@"%表示形式%_吐息_{ARG}")
 	RETURNF 0
 ELSEIF !裸表示(ARG) && !SPRITECREATED(@"特別拡張_{ARG}")
@@ -673,10 +675,22 @@ CASE [[アリス]]
 	;現在は画像が用意されてるだけ
 	SIF 0
 		LOCALS = _2
+CASE [[天子]]
+	;偶数日
+	SIF DAY:0 % 2 && FLAG:스탠딩종류
+		LOCALS = _1
+CASE [[ぬえ]]
+	;偶数日
+	SIF DAY:0 % 2 && FLAG:스탠딩종류
+		LOCALS = _1
 CASE [[慧音]]
 	;満月の日の夜
 	SIF DAY:3 == 15 && INRANGE(TIME:2, 5, 7)
 		LOCALS = _2
+CASE [[針妙丸]]
+	;小槌使用時
+	SIF (TALENT:71:체형 == 0 || TALENT:MASTER:체형 == -5) && FLAG:스탠딩종류
+		LOCALS = _大
 CASE [[ヘカーティア]]
 	;黄,月にいるとき（夢の世界および自室は赤）
 	IF INRANGE(CFLAG:ARG:현재위치, 1050, 1099)
@@ -722,7 +736,7 @@ CASE [[ナズーリン]], [[ぬえ]], [[エレン]], [[理香子]], [[明羅]], 
 CASE [[白蓮]], [[神子]], [[妹紅]], [[勇儀]], [[幽々子]], [[慧音]], [[レティ]], [[一輪]]
 	SIF 裸表示(ARG)
 		LOCALS = 裸
-CASE [[ムラサ]], [[星]], [[青娥]], [[依姫]], [[豊姫]], [[神綺]], [[夢子]]
+CASE [[ムラサ]], [[星]], [[青娥]], [[雷鼓]], [[依姫]], [[豊姫]], [[神綺]], [[夢子]]
 	SIF 裸表示(ARG)
 		LOCALS = 裸
 CASE [[ユキ]], [[鈴瑚]], [[サグメ]]
@@ -850,19 +864,23 @@ RETURN RESULT
 @PrintOnanismImage(C_ID)
 #DIM C_ID
 #DIMS ShownImage
-#DIM CONST 文字サイズ = 15
+#DIMS ShownImageBB
 
-ShownImage = 顔絵_裸_オナニー_{C_ID}
+SIF !FLAG:그림표시
+	RETURN RESULT
+
+ShownImage = \@CFLAG:C_ID:대체적용 && CFLAG:C_ID:별도얼굴있음 ? 別顔 # 顔絵\@_裸_オナニー_{C_ID}
 
 SIF !SPRITECREATED(ShownImage)
 	ShownImage = 顔絵_裸_発情_{C_ID}
 
-ShownImage = %ChkBBresource(ShownImage, C_ID)%
+ShownImageBB = %ChkBBresource(ShownImage, C_ID)%
 
-HTML_PRINT @"%画像表示単独HTML(ShownImage)%"
-FOR LOCAL:1,0,SPRITEHEIGHT(ShownImage)/文字サイズ
-	PRINTFORML 
-NEXT
+SIF SPRITECREATED(ShownImageBB)
+	ShownImage = %ShownImageBB%
+
+CALL 画像表示(ShownImage, 0, 0, 0, キャラ画像表示サイズ比, 1)
+
 ;=========================================================
 ;リソース名を"裸巨""服巨"に置換してスプライトを探す
 ;表示する前にこいつを噛ませることによって巨乳差分にできるなら置換する

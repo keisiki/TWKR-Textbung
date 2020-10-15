@@ -15,6 +15,7 @@ SIF STRCOUNT(CSTR:ARG:11,LOCALS)
 	RETURNF 1
 
 @EVENT_SHOOT
+#DIM PARTICIPANTS	;참가인원수
 VARSET LOCAL
 ;TCVAR:2 사정장소 플래그(1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수 12=A고문 13=V 꾸짖고)
 ;TCVAR:4 사정쾌감강도
@@ -31,7 +32,7 @@ FOR LOCAL,0,CHARANUM
 	SIF LOCAL > 0
 		CALL TARGET_EJAC_CHECK(LOCAL)
 	;더블 펠라등의 두 사람째보정에 사용한다
-	LOCAL:2 = 0
+	PARTICIPANTS = 0
 	FOR LOCAL:1,0,CHARANUM
 		IF LOCAL:1 == 0
 			LOCAL:3 = 0
@@ -41,8 +42,8 @@ FOR LOCAL,0,CHARANUM
 			LOCAL:3 = TARGET:(LOCAL:1)
 		ENDIF
 		SIF SAMEN_DIRECTION(LOCAL,LOCAL:3)
-			CALL EJAC_CHECK(LOCAL,LOCAL:3,LOCAL:2)
-		LOCAL:2 ++
+			CALL EJAC_CHECK(LOCAL,LOCAL:3,PARTICIPANTS)
+		PARTICIPANTS ++
 	NEXT
 NEXT
 ;사정 처리
@@ -118,7 +119,7 @@ SIF !GETBIT(TFLAG:일일일회,8) && NOWEX:PLAYER:사정
 	SETBIT TFLAG:일일일회,8
 
 
-@EJAC_CHECK(ARG,ARG:1,ARG:2)
+@EJAC_CHECK(ARG,PRIMARY,SECONDARY)
 #DIM 기교보정
 #DIM 게이지증가량
 #DIM 총계쾌락강도
@@ -127,9 +128,8 @@ SIF !GETBIT(TFLAG:일일일회,8) && NOWEX:PLAYER:사정
 #DIM 욕망보정
 #DIM 봉사정신보정
 #DIM 윤활보정
-;ARG 사정하는 사람
-;ARG:1 사정시키는 사람
-;ARG:2 W펠라등에 있어서의 두 사람째보정
+#DIM PRIMARY	;사정시키는 사람
+#DIM SECONDARY	;W펠라등에 있어서의 두 사람째보정
 ;-------------------------------------------------
 ;사정 게이지 체크
 ;-------------------------------------------------
@@ -137,22 +137,22 @@ SIF !GETBIT(TFLAG:일일일회,8) && NOWEX:PLAYER:사정
 ;CFLAG:101 사정장소 플래그(1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6= 
 
 ;기교(공통)
-LOCAL = ABL:(ARG:1):기교
+LOCAL = ABL:PRIMARY:기교
 기교보정 = 10 + GET_REVISION(LOCAL, 5 , 5)
 
 ;순종(공통)
 LOCAL = 0
-IF ARG:1 == MASTER
+IF PRIMARY == MASTER
 	LOCAL = 3
 ELSE
-	LOCAL = ABL:(ARG:1):순종
+	LOCAL = ABL:PRIMARY:순종
 ENDIF
 순종보정 = 10 + GET_REVISION(LOCAL, 3 , 5)
 
 ;봉사정신(봉사계)
 LOCAL = 0
-IF TCVAR:(ARG:1):108 && ARG == PLAYER
-	LOCAL = ABL:(ARG:1):봉사정신
+IF TCVAR:PRIMARY:108 && ARG == PLAYER
+	LOCAL = ABL:PRIMARY:봉사정신
 	봉사정신보정 = 10 + GET_REVISION(LOCAL, 10 , 5)
 ELSE
 	봉사정신보정 = 10
@@ -160,19 +160,19 @@ ENDIF
 
 ;욕망(성교계)
 욕망보정 = 10
-IF TCVAR:ARG:2 <= 2
+IF TCVAR:SECONDARY <= 2
 	LOCAL = 0
-	IF ARG:1 == MASTER
+	IF PRIMARY == MASTER
 		LOCAL = 3
 	ELSE
-		LOCAL = ABL:(ARG:1):욕망
+		LOCAL = ABL:PRIMARY:욕망
 	ENDIF
 	욕망보정 = 10 + GET_REVISION(LOCAL, 5 , 3)
 ENDIF
 
 ;윤활
 윤활보정 = 10
-IF TCVAR:ARG:2 <= 2 || TCVAR:ARG:2 == 6
+IF TCVAR:SECONDARY <= 2 || TCVAR:SECONDARY == 6
 	IF PALAM:윤활 < PALAMLV:2
 		윤활보정 = 2
 	ELSEIF PALAM:윤활 < PALAMLV:3
@@ -195,8 +195,8 @@ DEBUGPRINTFORML 욕망보정{욕망보정}
 DEBUGPRINTFORML 윤활보정{윤활보정}
 DEBUGPRINTFORML 봉사정신보정{봉사정신보정}
 DEBUGPRINTFORML P감도보정{P감도보정}
-DEBUGPRINTFORML 부위보정{부위보정(ARG, ARG:1, ARG:2)}
-총계쾌락강도 = TCVAR:ARG:4 * 기교보정 * 순종보정 * P감도보정 * 봉사정신보정 * 윤활보정 * 욕망보정 * 부위보정(ARG, ARG:1, ARG:2) / 10000000 * (ARG:2 + 1)
+DEBUGPRINTFORML 부위보정{부위보정(ARG, PRIMARY, SECONDARY)}
+총계쾌락강도 = TCVAR:ARG:4 * 기교보정 * 순종보정 * P감도보정 * 봉사정신보정 * 윤활보정 * 욕망보정 * 부위보정(ARG, PRIMARY, SECONDARY) / 10000000 * (SECONDARY + 1)
 
 SIF CFLAG:ARG:우후후 != 2
 	총계쾌락강도 = 총계쾌락강도 * (BASE:ARG:정력 + MAXBASE:ARG:정력) / (MAXBASE:ARG:정력 * 2)
@@ -238,110 +238,111 @@ BASE:ARG:사정 += 게이지증가량
 
 TCVAR:ARG:사정게이지증가량 = 게이지증가량
 
-@부위보정(ARG, ARG:1, ARG:2)
+@부위보정(ARG, PRIMARY, SECONDARY)
 ;-------------------------------------------------
 ;LOCAL 보정전의 쾌락강도
 ;ARG 사정하는 사람
-;ARG:1 사정시키는 사람
-;ARG:2 W펠라등에 있어서의 두 사람째보정
+;PRIMARY 사정시키는 사람
+;SECONDARY W펠라등에 있어서의 두 사람째보정
 ;-------------------------------------------------
 #FUNCTION
-
+#DIM PRIMARY
+#DIM SECONDARY
 LOCAL = 10
 ;연모
-SIF TALENT:(ARG:1):연모
+SIF TALENT:PRIMARY:연모
 	LOCAL += 2
 
-SELECTCASE TCVAR:ARG:2
+SELECTCASE TCVAR:SECONDARY
 	;질
 	CASE 1
 		;처녀
-		SIF EX:(ARG:1):처녀상실체크
+		SIF EX:PRIMARY:처녀상실체크
 			LOCAL += 8
-		SIF TALENT:(ARG:1):음호
+		SIF TALENT:PRIMARY:음호
 			LOCAL += 3
 		SIF !FLAG:70
-			LOCAL += ((ABL:(ARG:1):허리 + ABL:(ARG:1):질 * 2) / 2 - 3)
-		SIF NOWEX:(ARG:1):V절정
+			LOCAL += ((ABL:PRIMARY:허리 + ABL:PRIMARY:질 * 2) / 2 - 3)
+		SIF NOWEX:PRIMARY:V절정
 			LOCAL += 1
-		SIF 삽입불가(ARG:1) == -1 && ABL:(ARG:1):질 < 2
+		SIF 삽입불가(PRIMARY) == -1 && ABL:PRIMARY:질 < 2
 			LOCAL -= 2
-		SIF 삽입불가(ARG:1) == -2 && ABL:(ARG:1):질 < 3
+		SIF 삽입불가(PRIMARY) == -2 && ABL:PRIMARY:질 < 3
 			LOCAL -= 5
 	;애널
 	CASE 2
-		SIF !EXP:(ARG:1):A성교경험
+		SIF !EXP:PRIMARY:A성교경험
 			LOCAL += 8
-		SIF TALENT:(ARG:1):항문광
+		SIF TALENT:PRIMARY:항문광
 			LOCAL += 3
 		SIF !FLAG:70
-			LOCAL += ((ABL:(ARG:1):허리 + ABL:(ARG:1):애널 * 2) / 2 - 3)
-		SIF NOWEX:(ARG:1):A절정
+			LOCAL += ((ABL:PRIMARY:허리 + ABL:PRIMARY:애널 * 2) / 2 - 3)
+		SIF NOWEX:PRIMARY:A절정
 			LOCAL += 1
-		SIF 삽입불가(ARG:1) == -1 && ABL:(ARG:1):애널 < 2
+		SIF 삽입불가(PRIMARY) == -1 && ABL:PRIMARY:애널 < 2
 			LOCAL -= 2
-		SIF 삽입불가(ARG:1) == -2 && ABL:(ARG:1):애널 < 3
+		SIF 삽입불가(PRIMARY) == -2 && ABL:PRIMARY:애널 < 3
 			LOCAL -= 5
 	;수음
 	CASE 3
-		SIF TALENT:(ARG:1):능숙한손가락
+		SIF TALENT:PRIMARY:능숙한손가락
 			LOCAL += 2
 		SIF !FLAG:70 && !CFLAG:장난
-			LOCAL += (ABL:(ARG:1):손가락 - 2) / 2
+			LOCAL += (ABL:PRIMARY:손가락 - 2) / 2
 	;펠라티오
 	CASE 4
-		SIF TALENT:(ARG:1):혀놀림
+		SIF TALENT:PRIMARY:혀놀림
 			LOCAL += 2
-		SIF TALENT:(ARG:1):고양이혀
+		SIF TALENT:PRIMARY:고양이혀
 			LOCAL -= 2
-		SIF !FLAG:70 && !CFLAG:(ARG:1):장난
-			LOCAL += (ABL:(ARG:1):혀 - 2) / 2
+		SIF !FLAG:70 && !CFLAG:PRIMARY:장난
+			LOCAL += (ABL:PRIMARY:혀 - 2) / 2
 		;파이즈리 펠라
 		IF TFLAG:50 == 12
-			LOCAL += TALENT:(ARG:1):가슴사이즈
-			IF !FLAG:70 && !CFLAG:(ARG:1):장난
-				SELECTCASE ABL:(ARG:1):가슴
+			LOCAL += TALENT:PRIMARY:가슴사이즈
+			IF !FLAG:70 && !CFLAG:PRIMARY:장난
+				SELECTCASE ABL:PRIMARY:가슴
 					CASE 0 TO 1
-						LOCAL = LOCAL - 6 + ABL:(ARG:1):가슴
+						LOCAL = LOCAL - 6 + ABL:PRIMARY:가슴
 					CASE IS >= 2
-						LOCAL += (ABL:(ARG:1):가슴 - 2) / 2
+						LOCAL += (ABL:PRIMARY:가슴 - 2) / 2
 				ENDSELECT
 			ENDIF
 		ENDIF
 		;내친 김에 청소 플래그
-		IF ABL:(ARG:1):봉사정신 >= 2 && ABL:(ARG:1):기교 >= 2 && TEQUIP:(ARG:1):볼개그 == 0 && EXP:(ARG:1):정음경험 > 20
-			STAIN:ARG:2 = 2
-			IF TFLAG:50 == 9 && ARG:1 == MASTER_POSE(SET_M,SET_P,1)
+		IF ABL:PRIMARY:봉사정신 >= 2 && ABL:PRIMARY:기교 >= 2 && TEQUIP:PRIMARY:볼개그 == 0 && EXP:PRIMARY:정음경험 > 20
+			STAIN:SECONDARY = 2
+			IF TFLAG:50 == 9 && PRIMARY == MASTER_POSE(SET_M,SET_P,1)
 				TFLAG:8 |= 2
-			ELSEIF ARG:1 == TARGET
+			ELSEIF PRIMARY == TARGET
 				TFLAG:8 |= 1
 			ENDIF
 		ENDIF
 	;파이즈리
 	CASE 5
-		LOCAL += TALENT:(ARG:1):가슴사이즈
-		IF !FLAG:70 && !CFLAG:(ARG:1):장난
-			SELECTCASE ABL:(ARG:1):가슴
+		LOCAL += TALENT:PRIMARY:가슴사이즈
+		IF !FLAG:70 && !CFLAG:PRIMARY:장난
+			SELECTCASE ABL:PRIMARY:가슴
 				CASE 0 TO 1
-					LOCAL = LOCAL - 6 + ABL:(ARG:1):가슴
+					LOCAL = LOCAL - 6 + ABL:PRIMARY:가슴
 				CASE IS >= 2
-					LOCAL += (ABL:(ARG:1):가슴 - 2) / 2
+					LOCAL += (ABL:PRIMARY:가슴 - 2) / 2
 			ENDSELECT
 		ENDIF
 		;파이즈리 펠라
 		IF TFLAG:50 == 12
-			SIF TALENT:(ARG:1):혀놀림
+			SIF TALENT:PRIMARY:혀놀림
 				ARG += 2
-			SIF TALENT:(ARG:1):고양이혀
+			SIF TALENT:PRIMARY:고양이혀
 				ARG -= 2
-			LOCAL += (ABL:(ARG:1):혀 - 2) / 2
+			LOCAL += (ABL:PRIMARY:혀 - 2) / 2
 		ENDIF
 		;청소 플래그
-		IF ABL:(ARG:1):봉사정신 >= 2 && ABL:(ARG:1):기교 >= 2 && TEQUIP:(ARG:1):볼개그 == 0 && EXP:(ARG:1):정음경험 > 20
-			STAIN:ARG:2 = 2
-			IF ARG:1 == ASSI
+		IF ABL:PRIMARY:봉사정신 >= 2 && ABL:PRIMARY:기교 >= 2 && TEQUIP:PRIMARY:볼개그 == 0 && EXP:PRIMARY:정음경험 > 20
+			STAIN:SECONDARY = 2
+			IF PRIMARY == ASSI
 				TFLAG:8 |= 2
-			ELSEIF ARG:1 == TARGET
+			ELSEIF PRIMARY == TARGET
 				TFLAG:8 |= 1
 			ENDIF
 		ENDIF
@@ -349,18 +350,18 @@ SELECTCASE TCVAR:ARG:2
 	CASE 6
 	;풋잡
 	CASE 7
-		SIF TALENT:(ARG:1):새드
+		SIF TALENT:PRIMARY:새드
 			LOCAL += 2
 	;체표(거품춤)
 	CASE 8
 	;애널 봉사
 	CASE 9
-		SIF TALENT:(ARG:1):혀놀림
+		SIF TALENT:PRIMARY:혀놀림
 			LOCAL += 2
-		SIF TALENT:(ARG:1):고양이혀
+		SIF TALENT:PRIMARY:고양이혀
 			LOCAL -= 2
 		SIF !FLAG:70
-			LOCAL += (ABL:(ARG:1):혀 - 2) / 2
+			LOCAL += (ABL:PRIMARY:혀 - 2) / 2
 	;도구
 	CASE 10
 	;촉수
