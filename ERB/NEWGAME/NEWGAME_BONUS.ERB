@@ -1,0 +1,148 @@
+﻿;-----------------------------------------------------------
+;【뉴게임특전】
+;-----------------------------------------------------------
+@NEWGAME_BONUS_SELECT
+#DIMS buttonText, 10
+SETCOLOR 103,228,126
+PRINTFORML 【뉴 게임 특전】
+RESETCOLOR
+PRINTFORML 좋아하는 것을 선택해 주세요
+PRINTFORML TWKR에서는 실적보너스로 얻는 능력 중 하나를 선택할 수도 있습니다.
+buttonText:0 '= "￥10000"
+buttonText:1 '= "초기 호감도・신뢰도 업"
+buttonText:2 '= "초기TSP500"
+buttonText:3 '= "애욕을 독점하는 미라다의돌 밀레니엄"
+;KR판 오리지날 뉴 게임 특전. 추후 일판 보너스 추가시 배열 buttonText도 같이 만져야함. 일판 기본값 10
+buttonText:4 '= "【붉은실】"
+buttonText:5 '= "【절륜】"
+buttonText:6 '= "【수수께끼의매력】"
+buttonText:7 '= "【만능잉태】"
+buttonText:8 '= "【익스텐드】"
+buttonText:9 '= "【습득 빠름】"
+CALL ASK_BUTTONS(buttonText)
+SELECTCASE RESULT
+	CASE 0
+		뉴게임특전 '= "￥10000"
+	CASE 1
+		CALL NEWGAME_BONUS_CHARA
+		IF !RESULT
+			RESTART
+		ENDIF
+	CASE 2
+		뉴게임특전 '= "초기TSP500"
+	CASE 3
+		뉴게임특전 '= "애욕을 독점하는 미라다의돌 밀레니엄"
+	;KR판 오리지날 뉴게임특전
+	CASE 4 TO 9
+		CALL TWKR_NEWGMAE_BONUS(buttonText:RESULT)
+		IF !RESULT
+			RESTART
+		ENDIF
+ENDSELECT
+PRINTFORMW %뉴게임특전%을 선택합니다.
+RETURN
+
+;-----------------------------------------------------------
+;초기 호감도
+;-----------------------------------------------------------
+@NEWGAME_BONUS_CHARA
+PRINTFORML 캐릭터 한 명의 초기호감도를 500、신뢰도를 50으로 합니다
+PRINTFORML 대상을 골라주세요
+CALL ASK_CALLNAME
+IF RESULT == 999
+	RETURN 0
+ELSE
+	뉴게임특전 '= TOSTR(RESULT)
+	RETURN 1
+ENDIF
+
+;-----------------------------------------------------------
+;특전 적용
+;미지정의 경우는 소지금
+;-----------------------------------------------------------
+@NEWGAME_BONUS_APPLY
+SELECTCASE 뉴게임특전
+	CASE "없음"
+	CASE ""
+		MONEY += 10000
+	CASE "￥10000"
+		MONEY += 10000
+	CASE "초기TSP500"
+		MAXBASE:MASTER:TSP = 500
+		BASE:MASTER:TSP = MAXBASE:MASTER:TSP
+		MONEY:1 = 1800
+	CASE "애욕을 독점하는 미라다의돌 밀레니엄"
+		ITEM:미라다의돌 += 1
+	;KR판 오리지날
+	CASE "【붉은실】"
+		SETBIT FLAG:호감도보너스취득상황, 8
+		TALENT:MASTER:붉은실 = 1
+	CASE "【절륜】"
+		SETBIT FLAG:팬티보너스취득상황, 8
+		TALENT:MASTER:절륜 = 1
+	CASE "【수수께끼의매력】"
+		SETBIT FLAG:함락보너스취득상황, 3
+		TALENT:MASTER:수수께끼의매력 = 1
+	CASE "【만능잉태】"
+		SETBIT FLAG:잉태보너스취득상황, 1
+		TALENT:MASTER:만능잉태 = 1
+	CASE "【익스텐드】"
+		SETBIT FLAG:탄막승부보너스취득상황, 5
+		TALENT:MASTER:익스텐드 = 1
+	CASE "【습득 빠름】"
+		SETBIT FLAG:기술보너스취득상황, 6
+		TALENT:MASTER:습득속도 = 1
+
+	CASEELSE
+		CFLAG:TOINT(뉴게임특전):호감도 = 500
+		CFLAG:TOINT(뉴게임특전):신뢰도 = 50
+ENDSELECT
+
+;-----------------------------------------------------------
+;설정 표시용 텍스트화
+;-----------------------------------------------------------
+@NEWGAMEBONUS_TEXT
+#FUNCTIONS
+SELECTCASE 뉴게임특전
+	CASE ""
+		RETURNF "<font color='#67e47e'>" + "뉴 게임 특전을 선택할 수 있습니다" + "</font>"
+	CASE "￥10000"
+		RETURNF "\\10000을 가지고 시작합니다"
+	CASE "초기TSP500"
+		RETURNF "처음부터 어느정도 시간정지능력이 성장한 상태로 시작합니다"
+	CASE "애욕을 독점하는 미라다의돌 밀레니엄"
+		RETURNF "대상 캐릭터와 육체관계를 맺기 쉽게 하는 귀중한 아이템、미라다의돌을 가지고 시작합니다"
+	CASE "【붉은실】", "【절륜】", "【수수께끼의매력】", "【만능잉태】", "【익스텐드】", "【습득 빠름】"
+		RETURNF @"%뉴게임특전%을 가지고 시작합니다"
+	CASEELSE
+		RETURNF @"%CALLNAME:TOINT(뉴게임특전)%의 호감도와 신뢰도가 오른 상태로 시작합니다"
+ENDSELECT
+
+;KR판 오리지날 뉴게임 보너스
+;ARGS = buttonText:RESULT
+@TWKR_NEWGMAE_BONUS(ARGS)
+SELECTCASE ARGS
+	CASE "【붉은실】"
+		PRINTFORML 데이트 중 상대와의 상성을 올릴수 있는 특성입니다.
+	CASE "【절륜】"
+		PRINTFORML 사정시 체력, 기력이 감소하지 않고 사정량이 2배 증가합니다.
+	CASE "【수수께끼의매력】"
+		PRINTFORML 대부분의 커맨드에 보정이 붙으며 호감도 상승량이 증가합니다.
+	CASE "【만능잉태】"
+		PRINTFORML 어떤 종족이라도 임신시키기 쉬워집니다.
+	CASE "【익스텐드】"
+		PRINTFORML 탄막승부시 잔기가 1개 증가합니다.
+	CASE "【습득 빠름】"
+		PRINTFORML 기교 및 성기술 ABL이 쉽게 오릅니다.
+	CASEELSE
+		THROW 상정하지 않은 인자 %ARGS%
+ENDSELECT
+
+PRINTFORML 괜찮겠습니까?
+CALL ASK_YN
+IF !RESULT
+	뉴게임특전 '= ARGS
+	RETURN 1
+ELSE
+	RETURN 0
+ENDIF

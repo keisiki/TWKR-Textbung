@@ -1,0 +1,574 @@
+﻿;-----------------------------------------------------------
+;캐릭터 커스터마이즈
+;-----------------------------------------------------------
+@CUSTOM_TERMINAL(ARG, HIKITSUGI)
+#DIM HIKITSUGI
+CALL CUSTOM_INIT(ARG)
+CLEARLINE 1000
+;이름 버튼 표시
+DRAWLINE
+CALL CUSTOM_NAME_BUTTON(ARG)
+;BASE 버튼 표시
+DRAWLINE
+CALL CUSTOM_BASE_BUTTON(ARG)
+;능력・성기술표시
+CALL PRINT_STATE_ABL(ARG)
+PRINTL
+CALL COLORMESSAGE(@"　[2000] 능력의 설정",0x70C070,1)
+;소질표시
+CALL PRINT_STATE_TALENT(ARG)
+SETCOLOR 0x70C070
+PRINTL 　[3000] 소질의 설정
+RESETCOLOR
+;경험표시
+CALL PRINT_STATE_EXP(ARG)
+PRINTL
+CALL COLORMESSAGE(@"　[4000] 경험의 설정",0x70C070,1)
+IF HIKITSUGI
+	CALL COLORMESSAGE(@"　[5000] 인계 설정의 보존",0x70C070,1)
+ENDIF
+RESETCOLOR
+DRAWLINE
+PRINTL 　[9999] 설정 종료
+PRINTL
+INPUT
+SELECTCASE RESULT
+	CASE 9999
+		PRINTL 이걸로 정말 괜찮겠습니까?
+		CALL ASK_YN()
+		SIF !RESULT
+			RETURN 1
+	;NAME
+	CASE 0 TO 999
+		CALL CUSTOM_NAME(ARG, RESULT)
+	;BASE
+	CASE 1000 TO 1999
+		CALL CUSTOM_BASE(ARG, RESULT - 1000)
+	;ABL
+	CASE 2000
+		CALL CUSTOM_MENU("ABL", ARG)
+	;TALENT
+	CASE 3000
+		CALL CUSTOM_MENU("TALENT", ARG)
+	;EXP
+	CASE 4000
+		CALL CUSTOM_MENU("EXP", ARG)
+	CASE 5000
+		IF HIKITSUGI
+			CALL SAVE_CUSTOM_TALENT(ARG, "연인")
+		ENDIF
+ENDSELECT
+RESTART
+;-----------------------------------------------------------
+;배타 처리
+;-----------------------------------------------------------
+@CUSTOM_INIT(ARG)
+;ARG가 여자, 후타나리일 때의 배타
+IF TALENT:ARG:성별 & 1
+	ABL:ARG:호모끼 = 0
+	ABL:ARG:게이중독 = 0
+	EXP:ARG:게이경험 = 0
+	IF !(TALENT:ARG:2 & 2)
+		EXP:ARG:사정경험 = 0
+		EXP:ARG:삽입경험 = 0
+	ENDIF
+	SIF TALENT:ARG:성별 != 1
+		TALENT:ARG:구현 = 0
+;ARG가 남자일 때의 배타
+ELSE
+	ABL:ARG:V감각 = 0
+	ABL:ARG:레즈끼 = 0
+	ABL:ARG:레즈중독 = 0
+	EXP:ARG:레즈경험 = 0
+	EXP:ARG:분유경험 = 0
+	EXP:ARG:V경험 = 0
+	EXP:ARG:파이즈리경험 = 0
+	EXP:ARG:V성교경험 = 0
+	EXP:ARG:V확장경험 = 0
+	EXP:ARG:자궁구개발경험 = 0
+	TALENT:ARG:V감도 = 0
+	TALENT:ARG:처녀 = 0
+	TALENT:ARG:모유체질 = 0
+	TALENT:ARG:가슴사이즈 = -2
+	TALENT:ARG:걸레 = 0
+	TALENT:ARG:초경 = 0
+	TALENT:ARG:구현 = 0
+ENDIF
+;거시기
+IF TALENT:ARG:2 & 2
+	MAXBASE:ARG:정력 = 1000
+	BASE:ARG:정력 = 1000
+	MAXBASE:ARG:발기 = 1500
+	;실적보너스분
+	SIF ARG == MASTER && GETBIT(FLAG:702,8)
+		MAXBASE:MASTER:정력 += 100
+ELSE
+	TALENT:ARG:비동정 = 0
+	MAXBASE:ARG:정력 = 0
+	BASE:ARG:정력 = 0
+	MAXBASE:ARG:발기 = 0
+ENDIF
+;처녀라면 V계 경험 없음
+IF TALENT:ARG:처녀 == 1
+	ABL:ARG:V감각 = 0
+	EXP:ARG:V경험 = 0
+	EXP:ARG:V성교경험 = 0
+	EXP:ARG:V확장경험 = 0
+	EXP:ARG:자궁구개발경험 = 0
+	CSTR:ARG:처녀상실이력 = 
+	CFLAG:ARG:처녀상실기념일 = 0
+	CFLAG:ARG:처녀상실대상 = 0
+;비처녀는 V경험 1
+ELSEIF TALENT:ARG:2 & 1 && EXP:ARG:V경험 == 0
+	EXP:ARG:V경험 = 1
+ENDIF
+
+;퍼스트 키스
+IF !EXP:ARG:키스경험
+	TALENT:ARG:키스미경험 = 1
+ELSE
+	TALENT:ARG:키스미경험 = 0
+ENDIF
+
+
+;-----------------------------------------------------------
+;이름 변경 버튼
+;-----------------------------------------------------------
+@CUSTOM_NAME_BUTTON(ARG)
+#DIMS CONST colortext = "<font color='#70C070'>[변경]</font>"
+#DIMS html
+;이름
+html '= @"<button value='{0}'>" + HTML_SPACE(2) + @"이름: %NAME:ARG%"+ HTML_SPACE(2) + colortext + "</button>"
+html += HTML_SPACE(4)
+;통칭
+html += @"<button value='{1}'>" + @"통칭: %CALLNAME:ARG%"+ HTML_SPACE(2) + colortext + "</button>"
+HTML_PRINT html + "<br><br>"
+
+@CUSTOM_NAME(ARG, ARG:1)
+SELECTCASE ARG:1
+	CASE 0
+		PRINTL
+		PRINTFORML 현재의 이름은 %NAME:ARG% 입니다.
+		PRINTFORML 변경하시려면 새 이름을 입력해주세요. (공란으로 캔슬)
+		PRINTL
+		INPUTS
+		IF RESULTS != ""
+			NAME:ARG '= RESULTS
+			PRINTFORMW 변경했습니다. 현재의 이름은 %NAME:ARG% 입니다.
+		ENDIF
+	CASE 1
+		PRINTL
+		PRINTFORML 현재의 통칭은 %CALLNAME:ARG% 입니다.
+		PRINTFORML 변경하시려면 새 통칭을 입력해주세요. (공란으로 캔슬)
+		PRINTL
+		INPUTS
+		IF RESULTS != ""
+			CALLNAME:ARG '= RESULTS
+			PRINTFORMW 변경했습니다. 현재의 통칭은 %CALLNAME:ARG% 입니다.
+		ENDIF
+ENDSELECT
+
+;-----------------------------------------------------------
+;베이스 변경 버튼
+;-----------------------------------------------------------
+@CUSTOM_BASE_BUTTON(ARG)
+#DIM baseButtonVal = 1000
+PRINT  
+CALL BASE_BAR(ARG, "체력", 28, "초록")
+
+IF BASE:ARG:체력 > 1000
+	SETCOLOR 0x70C070
+	PRINTBUTTON "[－]", 0 + baseButtonVal
+ELSE
+	SETCOLOR 0x969696
+	PRINT [－]
+ENDIF
+IF BASE:ARG:체력 < 2500
+	SETCOLOR 0x70C070
+	PRINTBUTTON "[＋]", 1 + baseButtonVal
+ELSE
+	SETCOLOR 0x969696
+	PRINT [＋]
+ENDIF
+RESETCOLOR
+PRINTL
+PRINT  
+CALL BASE_BAR(ARG, "기력", 28, "파랑")
+IF BASE:ARG:기력 > 1000
+	SETCOLOR 0x70C070
+	PRINTBUTTON "[－]", 2 + baseButtonVal
+ELSE
+	SETCOLOR 0x969696
+	PRINT [－]
+ENDIF
+IF BASE:ARG:기력 < 2500
+	SETCOLOR 0x70C070
+	PRINTBUTTON "[＋]", 3 + baseButtonVal
+ELSE
+	SETCOLOR 0x969696
+	PRINT [＋]
+ENDIF
+RESETCOLOR
+PRINTL
+PRINTL
+
+;-----------------------------------------------------------
+;베이스 변경
+;ARG:0 캐릭터 등록번호
+;ARG:1 0=체력감소, 1=체력증가, 2=기력감소, 3=기력증가
+;-----------------------------------------------------------
+@CUSTOM_BASE(ARG, ARG:1)
+SELECTCASE ARG:1
+	CASE 0
+		MAXBASE:ARG:체력 -= 100
+	CASE 1
+		MAXBASE:ARG:체력 += 100
+	CASE 2
+		MAXBASE:ARG:기력 -= 100
+	CASE 3
+		MAXBASE:ARG:기력 += 100
+	CASE 4
+ENDSELECT
+MAXBASE:ARG:체력 = LIMIT(MAXBASE:ARG:체력, 1000, 2500)
+BASE:ARG:체력 = MAXBASE:ARG:체력
+MAXBASE:ARG:기력 = LIMIT(MAXBASE:ARG:기력, 1000, 2500)
+BASE:ARG:기력 = MAXBASE:ARG:기력
+
+;-----------------------------------------------------------
+;메뉴 호출
+;-----------------------------------------------------------
+@CUSTOM_MENU(ARGS, ARG)
+PRINTL
+PRINTL
+CALLFORM CUSTOM_%ARGS%_MENU(ARG)
+RESETCOLOR
+PRINTL
+PRINTL
+PRINTL   [9999] 돌아간다
+PRINTL
+INPUT
+SIF RESULT == 9999
+	RETURN
+CALLFORM CUSTOM_%ARGS%(RESULT, ARG)
+RESTART
+
+;-----------------------------------------------------------
+;능력 변경
+;-----------------------------------------------------------
+@CUSTOM_ABL_MENU(ARG)
+LOCAL:1 = 0
+FOR LOCAL,0,50
+	SIF CUSTOM_선택할수없는능력(LOCAL, ARG)
+		CONTINUE
+	PRINTFORM %ABLNAME:LOCAL,12%:{ABL:ARG:LOCAL,5,LEFT} 
+	IF ABL:ARG:LOCAL != 0
+		PRINTBUTTON "[－]", LOCAL * 2
+	ELSE
+		SETCOLOR 0x969696
+		PRINT [－]
+		RESETCOLOR
+	ENDIF
+	IF ABL:ARG:LOCAL != 2
+		PRINTBUTTON "[＋]", LOCAL * 2 + 1
+	ELSE
+		SETCOLOR 0x969696
+		PRINT [＋]
+		RESETCOLOR
+	ENDIF
+	LOCAL:1 ++
+	SIF LOCAL:1 % 3 == 0
+		PRINTL 
+NEXT
+
+;-----------------------------------------------------------
+;-----------------------------------------------------------
+@CUSTOM_ABL(ARG, ARG:1)
+	LOCAL = ARG / 2
+;예외 처리
+SIF CUSTOM_선택할수없는능력(LOCAL, ARG:1)
+	RETURN 0
+;증감 및 정상화
+;양수(+)
+IF (ARG) % 2
+	ABL:(ARG:1):LOCAL ++
+;음수(-)
+ELSE
+	ABL:(ARG:1):LOCAL --
+ENDIF
+ABL:(ARG:1):LOCAL = LIMIT(ABL:(ARG:1):LOCAL, 0, 2)
+RETURN 1
+
+;-----------------------------------------------------------
+;-----------------------------------------------------------
+@CUSTOM_선택할수없는능력(argAbl, ARG)
+#DIM argAbl
+#FUNCTION
+;개별 처리
+SELECTCASE ABLNAME:argAbl
+	;미사용
+	CASE ""
+		RETURNF 1
+	;시간정지
+	CASE "TSLv"
+		RETURNF 1
+	;동성애 관계
+	CASE "레즈끼", "레즈중독"
+		SIF !(TALENT:ARG:2 & 1)
+			RETURNF 1
+	CASE "호모끼", "게이중독"
+		SIF TALENT:ARG:2 & 1
+			RETURNF 1
+ENDSELECT
+;범용 처리
+SELECTCASE argAbl
+	;중독 관계
+	CASE 30 TO 39
+		RETURNF 1
+	;생활계
+	CASE 40 TO 49
+		RETURNF 1
+	;성기술
+	CASE 50 TO 59
+		RETURNF 1
+ENDSELECT
+RETURNF 0
+
+;-----------------------------------------------------------
+;소질 변경
+;-----------------------------------------------------------
+@CUSTOM_TALENT_MENU(ARG)
+VARSET LOCAL
+FOR LOCAL, 0, 157
+	IF CUSTOM_선택할수없는소질(LOCAL, ARG) == 1
+		CONTINUE
+	ELSEIF CUSTOM_선택할수없는소질(LOCAL, ARG) == 2
+		;표시는 시킨다
+		SETCOLOR 50, 50, 50
+		LOCALS = [{LOCAL,3}]%TALENTNAME:LOCAL%
+		GOTO SKIP
+	ENDIF
+	SETCOLOR 150, 150, 150
+	SELECTCASE TALENTNAME:LOCAL
+	;TALENT.CSV에 등록되지 않았다
+	CASE ""
+		CONTINUE
+	;온 오프형의 소질(TALENTNAME와 소질표시가 일치)
+	CASE GET_TALENTNAME(LOCAL,1)
+		SIF TALENT:ARG:LOCAL
+			SETCOLOR C_AQUA
+		LOCALS = [{LOCAL,3}]%TALENTNAME:LOCAL%
+	CASE "비동정"
+		SIF !TALENT:ARG:LOCAL
+			SETCOLOR C_AQUA
+		LOCALS = [{LOCAL,3}]동정
+	CASE "키스미경험"
+		SIF !TALENT:ARG:LOCAL
+			SETCOLOR C_AQUA
+		LOCALS = [{LOCAL,3}]%TALENTNAME:LOCAL%
+	;양적 소질
+	CASEELSE
+		LOCALS =  [{LOCAL,3}]%TALENTNAME:LOCAL%
+		IF STRLENS(GET_TALENTNAME(LOCAL, TALENT:ARG:LOCAL))
+			LOCALS:1 = 【%GET_TALENTNAME(LOCAL, TALENT:ARG:LOCAL)%】
+			SETCOLOR C_AQUA
+		ELSEIF TALENTNAME:LOCAL == "성별"
+			LOCALS:1 = 【여자】
+			SETCOLOR C_AQUA
+		ELSE
+			LOCALS:1 = 【－】
+		ENDIF
+		LOCALS += LOCALS:1
+	ENDSELECT
+	$SKIP
+	IF LOCAL:1 % 3 == 0
+		PRINTL 
+		PRINT   
+	ENDIF
+	IF CUSTOM_선택할수없는소질(LOCAL, ARG) == 2
+		PRINTPLAINFORM %LOCALS, 30, LEFT%
+	ELSE
+		PRINTFORM %LOCALS, 30, LEFT%
+	ENDIF
+	LOCAL:1 ++
+NEXT
+
+;-----------------------------------------------------------
+@CUSTOM_TALENT(inputed, chara)
+#DIM inputed
+#DIM chara
+SIF inputed < 0|| inputed > 500
+	RETURN 0
+SIF TALENTNAME:inputed == ""
+	RETURN 0
+SIF CUSTOM_선택할수없는소질(inputed, chara)
+	RETURN 0
+SELECTCASE TALENTNAME:inputed
+	;선 예외처리
+	CASE "성별"
+		IF TALENT:chara:성별 == 3
+			TALENT:chara:성별 = 1
+		ELSE
+			TALENT:chara:성별 ++
+		ENDIF
+	CASE "성별기호"
+		IF TALENT:chara:inputed == 3
+			TALENT:chara:inputed = -1
+		ELSE
+			TALENT:chara:inputed ++
+		ENDIF
+	CASE "체형" ;TODO 일판은 "성별기호"임. 아마도 오타
+		;체형이 「난쟁이(-5)」나 「거인(3)」인 경우를 독립처리
+		IF TALENT:chara:inputed == -5
+			TALENT:chara:inputed = -2
+		ELSEIF TALENT:chara:inputed == 5
+			TALENT:chara:inputed = -5
+		ELSEIF TALENT:chara:inputed == 2
+			TALENT:chara:inputed = 5
+		ELSE
+			TALENT:chara:inputed ++
+		ENDIF
+	CASE "비동정", "키스미경험"
+		TALENT:chara:inputed = !TALENT:chara:inputed
+	CASE "모유체질"
+		TALENT:chara:모유체질 = !TALENT:chara:모유체질
+		IF TALENT:chara:모유체질
+			MAXBASE:chara:모유 = 2000
+		ELSE
+			MAXBASE:chara:모유 = 0
+		ENDIF
+	;양적 소질
+	CASEELSE
+		;진위형 소질은 반전
+		IF TALENTNAME:inputed == GET_TALENTNAME(inputed,1)
+			TALENT:chara:inputed = !TALENT:chara:inputed
+		ELSE
+		;;구석까지 가면―1을 건다
+			IF STRLENS(GET_TALENTNAME(inputed,TALENT:chara:inputed + 1)) || TALENT:chara:inputed == -1
+				TALENT:chara:inputed ++
+			ELSE
+				TALENT:chara:inputed *= -1
+			ENDIF
+		ENDIF
+ENDSELECT
+
+;-----------------------------------------------------------
+@CUSTOM_선택할수없는소질(ARG, CHARA)
+#FUNCTION
+#DIM CHARA
+;RETURNF 2는 표시는 시키는 것
+SELECTCASE ARG
+	;정욕감지~, 보너스 소질 및 특수 함락, 종족, 잉태계
+	CASE IS >=157
+		RETURNF 1
+	;당신은 선택할 수 없는 1
+	CASE GETNUM(TALENT, "습득속도") TO GETNUM(TALENT, "바늘질"), GETNUM(TALENT, "약독내성"), GETNUM(TALENT, "즉각함락"), GETNUM(TALENT, "盲信"), GETNUM(TALENT, "소악마")
+		SIF CHARA == NO:MASTER
+			RETURNF 1
+	;당신은 선택할 수 없는 2
+	CASE GETNUM(TALENT, "매력") TO GETNUM(TALENT, "수수께끼의매력"), GETNUM(TALENT, "회복속도") TO GETNUM(TALENT, "이상한뿌리"), GETNUM(TALENT, "광기"), GETNUM(TALENT, "인기")
+		SIF CHARA == NO:MASTER
+			RETURNF 1
+	;당신은 선택하지 못하고, 여성기가 없으면 선택할 수 없다
+	CASE GETNUM(TALENT, "모유체질"), GETNUM(TALENT, "임신소망") 
+		SIF CHARA == NO:MASTER
+			RETURNF 1
+		SIF !GETBIT(TALENT:CHARA:성별, 0)
+			RETURNF 2
+	;여성기가 없으면 선택할 수 없다
+	CASE GETNUM(TALENT, "처녀"), GETNUM(TALENT, "걸레"), GETNUM(TALENT, "V감도")
+		SIF !GETBIT(TALENT:CHARA:성별, 0)
+			RETURNF 2
+	;남성기가 없으면 선택할 수 없다
+	CASE GETNUM(TALENT, "비동정")
+		SIF !GETBIT(TALENT:CHARA:성별, 1)
+			RETURNF 2
+	;남성기가 있으면 선택할 수 없다
+	CASE GETNUM(TALENT, "구현")
+		SIF GETBIT(TALENT:CHARA:성별, 1)
+			RETURNF 2
+	;당신 이외는 선택할 수 없다
+	CASE GETNUM(TALENT, "연령")
+		SIF CHARA != NO:MASTER
+			RETURNF 1
+	;전원 선택할 수 없는 1
+	CASE GETNUM(TALENT, "연모") TO GETNUM(TALENT, "崩壊"), GETNUM(TALENT, "기분"), GETNUM(TALENT, "용모"), GETNUM(TALENT, "약점"), GETNUM(TALENT, "조합지식"), GETNUM(TALENT, "조제Lv"), GETNUM(TALENT, "채집Lv"), GETNUM(TALENT, "낚시Lv"), GETNUM(TALENT, "벌채Lv")
+		RETURNF 1
+	;전원 선택할 수 없는 2
+	CASE GETNUM(TALENT, "자위중독") TO GETNUM(TALENT, "포르치오성감"), GETNUM(TALENT, "질투"), GETNUM(TALENT, "농후정액"), GETNUM(TALENT, "정애미각"), GETNUM(TALENT, "금단의지식"), GETNUM(TALENT, "절륜") TO GETNUM(TALENT, "모성")
+		RETURNF 1
+	;전원 고를 수 없지만 표시는 한다
+	CASE GETNUM(TALENT, "키스미경험")
+		RETURNF 2
+	;여성기가 있고 유아나 유치가 없으면 선택할 수 없다
+	CASE GETNUM(TALENT, "초경")
+		SIF !GETBIT(TALENT:CHARA:성별, 0)
+			RETURNF 2
+		SIF !TALENT:CHARA:애같음 && !TALENT:CHARA:유치
+			RETURNF 2
+ENDSELECT
+RETURNF 0
+
+;-----------------------------------------------------------
+;경험 변경
+;-----------------------------------------------------------
+@CUSTOM_EXP_MENU(ARG)
+VARSET LOCAL
+FOR LOCAL,0,100
+	SIF CUSTOM_선택할수없는경험(LOCAL, ARG)
+		CONTINUE
+	PRINTFORM   [{LOCAL,2}] - %EXPNAME:LOCAL,16%:{EXP:ARG:LOCAL,5,LEFT} 
+	LOCAL:1 ++
+	SIF LOCAL:1 % 3 == 0
+		PRINTL 
+NEXT
+
+;-----------------------------------------------------------
+@CUSTOM_EXP(argExp, argChara)
+#DIM argExp
+#DIM argChara
+SIF CUSTOM_선택할수없는경험(argExp, argChara)
+	RETURN 0
+PRINTFORM %조사처리(EXPNAME:argExp,"를")% 입력해주세요.    (0-30)  
+	PRINTBUTTON "[캔슬]",-1
+	PRINTL   [ 0]  [ 1]  [ 5]  [10]  [20]  [30]
+	PRINTL
+INPUT
+SIF RESULT < 0
+	RETURN 0
+EXP:argChara:argExp = RESULT
+EXP:argChara:argExp = LIMIT(EXP:argChara:argExp, 0, 30)
+RETURN 1
+
+;-----------------------------------------------------------
+@CUSTOM_선택할수없는경험(argExp, argChara)
+#FUNCTION
+#DIM argExp
+#DIM argChara
+SELECTCASE EXPNAME:argExp
+	CASE "", "항내사정경험", "질내사정경험"
+		RETURNF 1
+	;여성가기 앖다면 불가
+	CASE "레즈경험", "V경험", "V절정경험", "V성교경험", "V확장경험", "자궁구개발경험", "분유경험", "파이즈리경험"
+		SIF !(TALENT:argChara:성별 & 1)
+			RETURNF 1
+	;여성기가 있다면 불가
+	CASE "게이경험"
+		SIF TALENT:argChara:성별 & 1
+			RETURNF 1
+	;남성기가 없다면 불가
+	CASE "삽입경험", "사정경험"
+		SIF !(TALENT:argChara:성별 & 0)
+			RETURNF 1
+	;시간정지에서 오는 건 불가
+	CASE "시간경험", "무자각C경험", "무자각V경험", "무자각A경험", "무자각B경험", "무자각M경험", "무자각절정경험"
+		RETURNF 1
+ENDSELECT
+SELECTCASE argExp
+	;생활계
+	CASE 70 TO 89
+		RETURNF 1
+	;행위계는 조정이 귀찮다
+	CASE 100 TO 109
+		RETURNF 1
+ENDSELECT
+RETURNF 0

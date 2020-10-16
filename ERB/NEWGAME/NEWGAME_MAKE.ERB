@@ -1,0 +1,210 @@
+﻿;-----------------------------------------------------------
+;캐릭터메이킹
+;전 캐릭터 추가 후에 실시
+;-----------------------------------------------------------
+@NEWGAME_MAKE
+;공통 초기화
+CALL NEWGAME_MAKE_INIT
+;모드 선택
+CALL NEWGAME_MAKE_SELECT_MODE
+;스테이터스 설정
+
+;-----------------------------------------------------------
+;초기화
+;-----------------------------------------------------------
+@NEWGAME_MAKE_INIT
+;NO는 적당하게 설정
+NO:MASTER = 0
+;MASTER는 초기 성별=남자
+;성별(1=여성 2= 남성 3=후타나리)
+TALENT:MASTER:성별 = 2
+;기력, 체력
+MAXBASE:MASTER:체력 = 2000
+BASE:MASTER:체력 = MAXBASE:MASTER:0
+MAXBASE:MASTER:기력 = 2000
+BASE:MASTER:기력 = MAXBASE:MASTER:1
+;TSP
+MAXBASE:MASTER:TSP = 100
+BASE:MASTER:TSP = 100
+
+;-----------------------------------------------------------
+;모드 선택
+;-----------------------------------------------------------
+@NEWGAME_MAKE_SELECT_MODE
+CLEARLINE 10000
+PRINTL ★★모드를 선택해 주세요★★
+CALL ASK_CHOICES10("START","역극 모드")
+SELECTCASE RESULT
+	CASE 0
+		FLAG:게임모드 = 0
+		CALL NEWGAME_MAKE_ANATA
+	CASE 1
+		FLAG:게임모드 = 1
+		CALL NEWGAME_MAKE_NARIKIRI
+		SIF !RESULT
+			RESTART
+ENDSELECT
+
+;-----------------------------------------------------------
+;통상
+;-----------------------------------------------------------
+@NEWGAME_MAKE_ANATA
+PRINTW 게임 개시 전에 당신을 커스터마이즈할 수 있습니다.
+CALL CUSTOM_TERMINAL(MASTER)
+
+;-----------------------------------------------------------
+;역극
+;-----------------------------------------------------------
+@NEWGAME_MAKE_NARIKIRI
+#DIM nNo
+PRINTL 
+PRINTL 누가 되겠습니까?
+CALL ASK_CALLNAME
+IF RESULT == 999
+	RETURN 0
+ELSEIF !IS_NAMED(RESULT)
+	RESTART
+ENDIF
+nNo = RESULT
+PRINTFORMW %조사처리(CALLNAME:nNo,"으로")%서 게임을 개시합니다
+
+;역극 복사
+NAME:MASTER = %NAME:nNo%
+CALLNAME:MASTER = %CALLNAME:nNo%
+FOR LOCAL,0,200
+	TALENT:MASTER:LOCAL = TALENT:nNo:LOCAL
+NEXT
+FOR LOCAL,0,55
+	ABL:MASTER:LOCAL = ABL:nNo:LOCAL
+NEXT
+FOR LOCAL,0,14
+	MAXBASE:MASTER:LOCAL = MAXBASE:nNo:LOCAL
+	BASE:MASTER:LOCAL = MAXBASE:nNo:LOCAL
+NEXT
+FOR LOCAL,0,100
+	EXP:MASTER:LOCAL = EXP:nNo:LOCAL
+NEXT
+;체력기력 최저치 올림
+IF MAXBASE:MASTER:체력 < 2000
+	PRINTFORML 이 캐릭터는 체력이 낮습니다. 2000까지 올릴까요?
+	CALL ASK_YN("올린다","이대로")
+	SIF RESULT == 0
+		MAXBASE:MASTER:체력 = 2000
+ENDIF
+IF MAXBASE:MASTER:기력 < 2000
+	PRINTFORML 이 캐릭터는 기력이 낮습니다. 2000까지 올릴까요?
+	CALL ASK_YN("올린다","이대로")
+	SIF RESULT == 0
+		MAXBASE:MASTER:기력 = 2000
+ENDIF
+;TSP
+MAXBASE:MASTER:TSP = 100
+BASE:MASTER:TSP = 100
+;처녀
+IF !TALENT:MASTER:처녀
+	PRINTL 처녀가 되겠습니까?
+	CALL ASK_YN("네","아니오")
+	IF RESULT == 0
+		CALL SET_VIRGIN(MASTER)
+	ENDIF
+ENDIF
+
+;CFLAG:MASTER:초기위치 = CFLAG:nNo:초기위치
+FLAG:역극 = nNo
+CFLAG:nNo:출금 = 1
+CALL CUSTOM_INIT(MASTER)
+RETURN 1
+
+;FileName_SHOP_CUSTOM.ERB -------------------------- Rev1. 00
+;복장의 설정
+;CALL		USER
+;ARG		MASTER 캐릭터 NO
+;RETURN		VOID
+;COMMENT	
+;-----------------------------------------------------------
+@MASTER_CLOTHES_INIT
+IF FLAG:역극
+	CFLAG:MASTER:기본복장세트 = FLAG:역극 + 100
+ELSEIF TALENT:MASTER:성별 & 1
+	CFLAG:MASTER:기본복장세트 = 2
+ELSE
+	CFLAG:MASTER:기본복장세트 = 1
+ENDIF
+
+@MASTER_CLOTHES
+#DIMS choices, 100
+;리스트 작성
+VARSET choices
+FOR LOCAL, 0, 10
+	IF LOCAL >= 7
+		choices:LOCAL '= MASTER_CLOTHES_NAME(LOCAL+1)
+	ELSE
+		choices:LOCAL '= MASTER_CLOTHES_NAME(LOCAL)
+	ENDIF
+NEXT
+choices:99 '= MASTER_CLOTHES_NAME(99)
+;표시
+PRINTL
+PRINTL
+PRINTFORML 평상복을 선택해주세요.
+DRAWLINE
+CALL ASK_CHOICES(choices, 100)
+SELECTCASE RESULT
+	CASE 100
+		RETURN 0
+	CASE 0 TO 99
+		CALL MASTER_CLOTHES_SET(RESULT)
+		SIF RESULT
+			RETURN 1
+	CASE 99
+		CALL MASTER_CLOTHES_SET(99)
+			RETURN 1
+ENDSELECT
+RESTART
+
+@MASTER_CLOTHES_SET(ARG)
+SELECTCASE ARG
+	CASE 0
+		PRINTFORMW 너무 과격하잖아!
+		RETURN 0
+	CASE 1 TO 6
+		CFLAG:MASTER:기본복장세트 = RESULT
+	CASE 7 TO 9
+		CFLAG:MASTER:기본복장세트 = RESULT + 1
+	CASE 99
+		CALL MASTER_CLOTHES_INIT
+	CASEELSE
+		THROW 유효하지 않은 지정입니다。
+ENDSELECT
+PRINTFORMW 복장을 %조사처리(MASTER_CLOTHES_NAME(CFLAG:MASTER:기본복장세트),"으로")% 변경했습니다.
+RETURN 1
+
+@MASTER_CLOTHES_NAME(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+	CASE 0
+		RETURNF "전라"
+	CASE 1
+		RETURNF "남장 세트"
+	CASE 2
+		RETURNF "여장 세트"
+	CASE 3
+		RETURNF "집사 세트"
+	CASE 4
+		RETURNF "가정부 세트"
+	CASE 5
+		RETURNF "신관 세트"
+	CASE 6
+		RETURNF "작업복 세트"
+	CASE 7
+		THROW
+	CASE 8
+		RETURNF "도복 세트"
+	CASE 9
+		RETURNF "서생 세트"
+	CASE 10
+		RETURNF "여학생 세트"
+	CASEELSE
+		RETURNF CALLNAME:MASTER + "의 기본 의상"
+ENDSELECT
+THROW

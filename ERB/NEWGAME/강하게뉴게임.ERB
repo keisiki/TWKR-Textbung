@@ -1,0 +1,352 @@
+﻿;-----------------------------------------------------------
+;강하게 뉴게임
+;-----------------------------------------------------------
+@강하게뉴게임
+
+게임인계처리중 = 1
+FLAG:주회수 ++
+CALL BUFF_RESET
+CALL BITE_THE_DUST_BACKUP
+CALL BITE_THE_DUST_CLEAR
+CALL BITE_THE_DUST_RESTORE
+CALL BITE_THE_DUST_NEW
+CALL BITE_THE_DUST_SWEEP
+게임인계처리중 = 0
+CALL NEWGAME_VERUP
+RETURN 1
+
+
+;-----------------------------------------------------------
+;변수 백업
+;-----------------------------------------------------------
+@BITE_THE_DUST_BACKUP
+;역극
+IF FLAG:역극
+	전회의역극출금 = CFLAG:(FLAG:역극):출금
+ENDIF
+;주회 전의 성장분을 기록
+전회의체력 = MAXBASE:MASTER:체력
+전회의기력 = MAXBASE:MASTER:기력
+전회의정력 = MAXBASE:MASTER:정력
+
+전회의체력증가량 = MAX(0, MAXBASE:MASTER:체력 - CSVBASE(FLAG:역극, GETNUM(BASE, "체력")))
+전회의기력증가량 = MAX(0, MAXBASE:MASTER:기력 - CSVBASE(FLAG:역극, GETNUM(BASE, "기력")))
+전회의정력증가량 = MAX(0, MAXBASE:MASTER:정력 - 1000)
+
+;리셋 전의 캐릭터인원수를 LOCAL:6에 기록해 둔다.
+전회의캐릭터수 = CHARANUM
+
+FOR LOCAL,1,CHARANUM
+	전회의CFLAG:LOCAL = CFLAG:LOCAL:구상용이어받아테두리
+	IF TALENT:LOCAL:연인 || GETBIT(CFLAG:LOCAL:인계, 1)
+		SETBIT TFLAG:(LOCAL + 500), 1
+	ELSEIF TALENT:LOCAL:연모 || GETBIT(CFLAG:LOCAL:인계, 0)
+		SETBIT TFLAG:(LOCAL + 500), 0
+	ENDIF
+	SIF TALENT:LOCAL:자위중독 || GETBIT(CFLAG:LOCAL:인계, 2)
+		SETBIT TFLAG:(LOCAL + 500), 2
+	SIF TALENT:LOCAL:음호 || GETBIT(CFLAG:LOCAL:인계, 3)
+		SETBIT TFLAG:(LOCAL + 500), 3
+	SIF TALENT:LOCAL:항문광 || GETBIT(CFLAG:LOCAL:인계, 4)
+		SETBIT TFLAG:(LOCAL + 500), 4
+	SIF TALENT:LOCAL:음유 || GETBIT(CFLAG:LOCAL:인계, 5)
+		SETBIT TFLAG:(LOCAL + 500), 5
+	SIF TALENT:LOCAL:키스마 || GETBIT(CFLAG:LOCAL:인계, 6)
+		SETBIT TFLAG:(LOCAL + 500), 6
+	FOR LOCAL:1,0,40
+		전회의팬티:LOCAL:(LOCAL:1) = CFLAG:LOCAL:(LOCAL:1 + 100)
+	NEXT
+NEXT
+
+;-----------------------------------------------------------
+;변수 클리어
+;-----------------------------------------------------------
+@BITE_THE_DUST_CLEAR
+VARSET JUEL
+VARSET MOBGIRL_PLACE, 99
+CALL BITE_THE_DUST_CLEAR_FLAG
+;대본 리셋
+VARSET ITEM, 0, 101, 110
+CFLAG:MASTER:초대 = 0
+CFLAG:MASTER:육아인원수 = 0
+CFLAG:MASTER:아이인원수 = 0
+;당신의 기정사실 및[연인]을 클리어
+CLEARBIT CFLAG:MASTER:기정사실, 2
+TALENT:MASTER:연인 = 0
+;당신 이외 전원 리셋.
+;여기서 CHARANUM의 값이 바뀌므로 주의
+TARGET = 0
+ASSI = 0
+VARSET MOBGIRL_PLACE, 99
+PICKUPCHARA MASTER
+VARSET JUEL
+;당신リセット
+PRINTFORML %CALLNAME:MASTER%의 경험·능력도 리셋하겠습니까?
+CALL COLORMESSAGE(@"실적으로 취득한 소질 등도 취소되기 때문에 추천하지 않습니다", C_YELLOW,1)
+CALL ASK_YN
+IF !RESULT
+	FOR LOCAL,0, 100
+		ABL:MASTER:LOCAL = 0
+		EXP:MASTER:LOCAL = 0
+	NEXT
+	FOR LOCAL,100, 150
+		EXP:MASTER:LOCAL = 0
+	NEXT
+	PRINTFORMW 리셋 했습니다.
+ENDIF
+
+;-----------------------------------------------------------
+;FLAG 리셋
+;-----------------------------------------------------------
+@BITE_THE_DUST_CLEAR_FLAG
+FOR LOCAL,0, VARSIZE("FLAG")
+	;범위로부터 지정
+	SELECTCASE LOCAL
+		;팬티와 실적
+		CASE 700 TO 709
+			CONTINUE
+		;OPTION
+		CASE 4 TO 7
+			CONTINUE
+		CASE 1001 TO 1099
+			IF FLAGNAME:LOCAL != "출금인원수"
+				CONTINUE
+			ENDIF
+		CASE IS >= 1500
+			CONTINUE
+		CASEELSE
+			;명칭으로부터의 지정
+			SELECTCASE FLAGNAME:LOCAL
+				CASE "주회수", "역극"
+					CONTINUE
+				CASE "발원내용", "정력강화회수"
+					CONTINUE
+				CASE "중혼가능인원수", "연모특전", "연모특전2", "연인특전", "연인특전2"
+					CONTINUE
+				;누적 횟수
+				CASE "청소중독"
+					CONTINUE
+				;OPTION
+				CASE "생리주기가시화", "짐작모드", "C스키마자동사양"
+					CONTINUE
+			ENDSELECT
+	ENDSELECT
+	FLAG:LOCAL = 0
+NEXT
+
+;-----------------------------------------------------------
+;캐릭터 복귀
+;-----------------------------------------------------------
+@BITE_THE_DUST_RESTORE
+;리셋이전캐릭터 인원수로 FOR문을 돌린다
+FOR LOCAL, 1, 전회의캐릭터수
+	;CSV 파일의 존재 판정
+	IF !EXISTCSV(LOCAL)
+		CONTINUE
+	ENDIF
+	IF GETCHARA (LOCAL) == -1
+		ADDCHARA LOCAL
+	CALL KOJO_MULTIPLE(LOCAL)
+	ENDIF
+	;효율화 추구를 위해 인계 플래그와 동시에 돌린다
+	;파일 체크는 벌써 하고 있기 때문에 그 안에서 돌리면 끝나는 이야기였습니다(반성)
+	FOR LOCAL:1,0,40
+		;인계 플래그세트
+		IF LOCAL:1 < 7 && GETBIT(TFLAG:(LOCAL + 500), LOCAL:1)
+			SETBIT CFLAG:LOCAL:인계, LOCAL:1
+		ENDIF
+		;팬티콜렉션의 인계
+		CFLAG:LOCAL:(LOCAL:1 + 100) = 전회의팬티:LOCAL:(LOCAL:1)
+	NEXT
+		CFLAG:LOCAL:구상용이어받아테두리 = 전회의CFLAG:LOCAL
+	;키스미경험의 리셋
+	SIF EXP:LOCAL:키스경험 == 0
+		 TALENT:LOCAL:키스미경험 = 1
+NEXT
+;다 된 캐릭터의 출금을 체크
+IF 전회의역극출금
+	CFLAG:(FLAG:역극):출금 = 전회의역극출금
+	FLAG:출금인원수 ++
+ENDIF
+
+;-----------------------------------------------------------
+;유사 뉴게임
+;-----------------------------------------------------------
+@BITE_THE_DUST_NEW
+;Default 옵션
+CALL DEFAULT_OPTION
+CALL SET_CHARISMA("RESET")
+PBAND = 12
+
+;일자 1 일째
+DAY = 1
+DAY:2 = 1
+DAY:3 = 1
+FLAG:술벌레 = 1
+STR:16 = 낡은 오두막
+;MASTER 기상시간 세트(7시)
+VARSET TIME
+TIME:3 = 420
+;MASTER 수면중 플래그 ON
+CALL SET_SLEEP(1, MASTER, 0)
+CFLAG:MASTER:취침시간 = 0
+BASE:MASTER:체력 = MAXBASE:MASTER:체력
+BASE:MASTER:기력 = MAXBASE:MASTER:기력
+BASE:MASTER:정력 = MAXBASE:MASTER:정력
+IF !FLAG:역극
+	PRINTFORML %마스터를% 커스터마이즈하겠습니까?
+	CALL ASK_YN
+	IF !RESULT
+		CALL CUSTOM_TERMINAL(MASTER)
+	ELSE
+		CALL CUSTOM_INIT(MASTER)
+	ENDIF
+ENDIF
+;BASE 성장치의 가산 처리
+LOCAL = 0
+IF 전회의체력증가량 > 0 && (MAXBASE:MASTER:체력 != 전회의체력)
+	PRINTFORML "이전 세계"에서의 경험이 %CALLNAME:MASTER%의 힘이 되었다
+	PRINTFORML ……%CALLNAME:MASTER%의 체력이 {전회의체력증가량} 증가했다
+	MAXBASE:MASTER:체력 += 전회의체력증가량
+	BASE:MASTER:체력 = MAXBASE:MASTER:체력
+	LOCAL ++
+ENDIF
+IF 전회의기력증가량 > 0 && (MAXBASE:MASTER:기력 != 전회의기력)
+	SIF !LOCAL
+		PRINTFORML "이전 세계"에서의 경험이 %CALLNAME:MASTER%의 힘이 되었다
+	PRINTFORML ……%CALLNAME:MASTER%의 기력이 {전회의기력증가량} 증가했다
+	MAXBASE:MASTER:기력 += 전회의기력증가량
+	BASE:MASTER:기력 = MAXBASE:MASTER:기력
+	LOCAL ++
+ENDIF
+IF 전회의정력증가량 > 0 && (MAXBASE:MASTER:정력 != 전회의정력)
+	SIF !LOCAL
+		PRINTFORML "이전 세계"에서의 경험이 %CALLNAME:MASTER%의 힘이 되었다
+	PRINTFORML ……%CALLNAME:MASTER%의 정력이 {전회의정력증가량} 증가했다
+	MAXBASE:MASTER:정력 += 전회의정력증가량
+	BASE:MASTER:정력 = MAXBASE:MASTER:정력
+	LOCAL ++
+ENDIF
+SIF LOCAL
+	WAIT
+CALL SET_MAINHOME
+CALL NEWGAME_OPTION
+
+;초기 지점 설정
+FOR LOCAL, 0, CHARANUM
+	;개시 위치
+	CFLAG:LOCAL:현재위치 = CFLAG:LOCAL:초기위치
+	;복장
+	CALL SELECT_CLOTHES(LOCAL, "오늘의 의상")
+	CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_평상복")
+	CALL 속옷확인리셋(LOCAL)
+	;이것 아마 문제 안되겠지만 일단
+	CFLAG:LOCAL:파자마 = 0
+	CALL CLOTHES_SETTING_TRAIN(LOCAL)
+	CVARSET BASE, GETNUM(BASE, "술기운"), 0
+NEXT
+
+;-----------------------------------------------------------
+;변수의 청소
+;-----------------------------------------------------------
+@BITE_THE_DUST_SWEEP
+VARSET 전회의체력
+VARSET 전회의체력증가량
+VARSET 전회의기력
+VARSET 전회의기력증가량
+VARSET 전회의캐릭터수
+VARSET 전회의역극출금
+VARSET 전회의CFLAG
+VARSET 전회의팬티
+
+
+
+
+;-----------------------------------------------------------
+;동일 캐릭터 구상 둘 이상 확인
+;ARG=캐릭터번호
+;현재 동일 캐릭터 구상은 최대 4개까지 상정
+;-----------------------------------------------------------
+@KOJO_MULTIPLE(C_ID,KCOLOR)
+#DIM C_ID
+#DIM DYNAMIC KCOLOR
+#DIM DYNAMIC 구상카운트
+#DIM DYNAMIC 구상수
+#DIM DYNAMIC 구상실장수
+;동일 캐릭터 구상 둘 이상 확인
+FOR 구상카운트,0,5
+	IF 구상카운트
+		RESULT = 0
+		TRYCALLFORM M_KOJO_K{C_ID}_{구상카운트}
+		IF RESULT
+			IF KCOLOR && GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
+				TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{C_ID}
+			ELSEIF !GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
+				구상수 += 1
+				구상실장수 += 1
+				SETBIT CFLAG:C_ID:대사실장상황,구상카운트
+			ELSEIF GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
+				구상실장수 += 1
+			ENDIF
+		ENDIF
+	ELSE
+		TRYCALLFORM M_KOJO_K{C_ID}
+		IF RESULT
+			IF KCOLOR && GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
+				TRYCALLFORM M_KOJO_COLOR_K{C_ID}
+			ELSEIF !GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
+				구상수 += 1
+				구상실장수 += 1
+				SETBIT CFLAG:C_ID:대사실장상황,구상카운트
+			ELSEIF GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
+				구상실장수 += 1
+			ENDIF
+		ENDIF
+	ENDIF
+	SIF !RESULT
+		BREAK
+NEXT
+SIF KCOLOR
+	RETURN
+;구상 존재 판정
+IF 구상수
+	;신규 별인구상추가
+	IF 구상실장수 > 1
+		RESULTS:1 = 
+		;구상명의 보존 및 구현 현황 덮어쓰기
+		FOR 구상카운트,0,구상실장수 + 1
+			IF 구상카운트
+				RESULT = 0
+				TRYCALLFORM M_KOJO_K{C_ID}_{구상카운트}
+			ELSE
+				TRYCALLFORM M_KOJO_K{C_ID}
+			ENDIF
+			SIF !RESULT
+				BREAK
+			SIF RESULTS:1 == ""
+				RESULTS:1 = 초기
+			IF RESULT
+				LOCALS:(구상카운트 + 1) = %CALLNAME:C_ID%%RESULTS:1%구상
+				RESULT = 0
+			ENDIF
+		NEXT
+		PRINTFORML %CALLNAME:C_ID%에게는 복수의 구상이 존재합니다
+		PRINTFORML 변경하시겠습니까?
+		CALL ASK_YN
+		;구상선택
+		IF !RESULT
+			LOCALS:0 = 어떤 구상을 사용할까요?
+			CALL CHOICE(LOCALS:0, LOCALS:1, LOCALS:2, LOCALS:3, LOCALS:4)
+			CFLAG:C_ID:구상셀렉터 = RESULT
+			RETURN 2
+		ELSE
+			PRINTFORML 변경하지 않았습니다
+			RETURN 1
+		ENDIF
+	ELSE
+		RETURN 2
+	ENDIF
+ENDIF
+SIF 구상실장수
+	RETURN 1
+RETURN 0

@@ -1,0 +1,180 @@
+﻿;-----------------------------------------------------------
+;처음부터
+;-----------------------------------------------------------
+@NEWGAME
+게임시작처리중 = 1
+;본체버전을 기록
+SAVESTR:본체버전 = %eraTW_Version%
+;클래스 변수 초기화
+CALL MAKE_ALL_CLASS_LIST
+;Default 옵션
+CALL DEFAULT_OPTION
+;카리스마 초기화
+CALL SET_CHARISMA("NEW")
+PBAND = 12
+
+;일자 1 일째
+DAY = 1
+DAY:2 = 1
+DAY:3 = 1
+FLAG:술벌레 = 1
+
+;캐릭터 생성
+CALL ADD_ALL_CHARACTERS
+;MASTER생성
+CALL NEWGAME_MAKE
+;주거설정
+CALL SET_MAINHOME
+;옵션
+CALL NEWGAME_OPTION
+
+;캐릭터 설정
+FOR LOCAL,0,CHARANUM
+	;개시 위치
+	CFLAG:LOCAL:현재위치 = CFLAG:LOCAL:초기위치
+	;복장
+	CALL SELECT_CLOTHES(LOCAL, "오늘의 의상")
+	CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_평상복")
+	CALL CLOTHES_SETTING_TRAIN(LOCAL)
+	CALL 속옷확인리셋(LOCAL)
+	CVARSET BASE, GETNUM(BASE, "술기운"), 0
+NEXT
+;MASTER기상시간 세트(7시)
+TIME:3 = 420
+;MASTER수면중 플래그ON
+CALL SET_SLEEP(1,MASTER,0)
+게임시작처리중 = 0
+RETURN 0
+
+;FileName_SHOP_CUSTOM.ERB -------------------------- Rev1. 00
+;CALL		USER
+;ARG		NONE
+;RETURN		VOID
+;COMMENT	
+;캐릭터를 추가했을 때에 하나 하나 여기를 만질 필요가 없게
+;캐릭터수상한은 ERH 파일로 정의
+;-----------------------------------------------------------
+@ADD_ALL_CHARACTERS
+FOR LOCAL,CHARANUM,캐릭터수상한
+	SIF !EXISTCSV(LOCAL)
+		CONTINUE
+	ADDCHARA LOCAL
+	CALL SET_MINIMUM_EXP_ALL(LOCAL)
+	CALL KOJO_MULTIPLE(LOCAL)
+	IF !EXP:LOCAL:키스경험
+		TALENT:LOCAL:키스미경험 = 1
+	ENDIF
+NEXT
+
+
+;-----------------------------------------------------------
+;설정 변경
+;-----------------------------------------------------------
+@NEWGAME_OPTION
+#DIMS choices, 100
+;초기화
+;무능력자, 농민
+SETBIT FLAG:1000, 1
+SETBIT FLAG:1000, 2
+;TINKO
+SIF !TALENT:MASTER:형상
+	TALENT:MASTER:형상 = 3
+;복장
+SIF !CFLAG:MASTER:기본복장세트
+	CALL MASTER_CLOTHES_INIT
+;
+SIF !게임시작처리중
+	뉴게임특전 '= "없음"
+;선택지
+VARSET choices
+PRINTL
+PRINTL
+PRINTL 게임 개시 전에 각종 설정을 변경할 수 있습니다.
+DRAWLINE
+;당신설정
+SIF !FLAG:역극
+	choices:0 '= @"%마스터를% 커스터마이즈한다"
+SIF HAS_PENIS(MASTER)
+	choices:1 '= @"%CALLNAME:MASTER%의 남성기는 %TINKO_SIMPLE(MASTER)%이다"
+choices:2 '= @"%CALLNAME:MASTER%의 복장은 %MASTER_CLOTHES_NAME(CFLAG:MASTER:기본복장세트)%이다"
+IF FLAG:생활능력무
+	choices:3 '= @"%CALLNAME:MASTER%에겐 고백할만한 담력이 없다"
+ELSE
+	choices:3 '= @"%CALLNAME:MASTER%의 담력은 보통이다"
+ENDIF
+IF FLAG:지주
+	choices:4 '= @"%마스터는% %CALLNAME:(FLAG:지주)%의 밑에서 일하는 농민이다"
+ELSE
+	choices:4 '= @"%마스터는% 홀가분한 자유인이다"
+ENDIF
+choices:5 '= @"%마스터는% %GET_MAPNAME(MAIN_MAP)%의 %STR:(Default초기위치 + (MAIN_MAP ? 8000 # 0) )%에서 삽니다"
+;환상향
+choices:10 '= @"각 캐릭터의 처녀・비처녀를 변경할 수 있습니다"
+choices:11 '= @"각 캐릭터의 체형을 변경할 수 있습니다"
+;특전
+IF 게임시작처리중
+	choices:20 '= NEWGAMEBONUS_TEXT()
+ELSEIF 게임인계처리중
+	choices:20 '= 주회특전_표시()
+ENDIF
+
+CALL ASK_CHOICES(choices, 100, "종료하고 시작한다")
+SELECTCASE RESULT
+	CASE 0
+		IF !FLAG:역극
+			CALL CUSTOM_TERMINAL(MASTER)
+			CALL SET_MAINHOME
+		ENDIF
+	CASE 100
+		CALL VIRGIN_SET_APPLY
+		CALL SET_BODY_APPLY
+		CALL NEWGAME_BONUS_APPLY
+		CALL SET_APPLY_NOUMIN
+		;CALL 주회특전_적용
+		RETURN
+	CASE 1
+		MAIN_MAP = 0
+		SIF HAS_PENIS(MASTER)
+			CALL TINKO_DECIDE(MASTER)
+	CASE 2
+		CALL MASTER_CLOTHES
+	CASE 3
+		CALL KAISYONASI
+	CASE 4
+		CALL RESET_NOUMIN
+		CALL SET_NOUMIN
+	CASE 5
+		CALL SET_MAINHOME
+	CASE 10
+		CALL VIRGIN_SET
+	CASE 11
+		CALL BODY_SET
+	CASE 20
+		IF 게임시작처리중
+			CALL NEWGAME_BONUS_SELECT
+		ELSEIF 게임인계처리중
+			CALL 주회특전
+		ENDIF
+ENDSELECT
+RESTART
+
+;-----------------------------------------------------------
+;설정 변경
+;-----------------------------------------------------------
+@NEWGAME_VERUP
+;연인수정이 끝난 플래그를 세운다
+;KR판은 연인이 구버전 일판 기반 플래그이므로 주석처리
+; SETBIT FLAG:1000, 3
+; SETBIT FLAG:1000, 4
+CALL VERSION_UP
+PRINTW 게임 개시처리 종료
+SAVEDATA 99, "처음부터"
+PRINTL 자동으로 저장되었습니다.
+PRINTW 게임 업데이트 처리로 넘어가시겠습니까?
+CALL ASK_YN()
+IF !RESULT
+	CALL UPDATE
+ELSE
+	PRINTL 업데이트를 건너뛰었습니다.
+	PRINTW 기상 전의 SHOP 화면에서 업데이트 해주세요
+ENDIF

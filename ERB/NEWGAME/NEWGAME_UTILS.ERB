@@ -1,0 +1,108 @@
+﻿;-----------------------------------------------------------
+;캐릭터 선택용 함수
+;-----------------------------------------------------------
+;-----------------------------------------------------------
+;CALLNAME에 의한선택지
+;당신과 몹 이외의 모두를 리스트업
+;-----------------------------------------------------------
+@ASK_CALLNAME
+;생성
+FOR LOCAL, 0, CHARANUM
+	IF !IS_NAMED(LOCAL)
+		CONTINUE
+	ENDIF
+	PRINTFORMLC [{LOCAL, 3}] %CALLNAME:LOCAL%
+NEXT
+PRINTL
+DRAWLINE
+PRINTL [999] 그만둔다
+;입력 접수
+DO
+	INPUT
+	SIF RESULT == 999 || IS_NAMED(RESULT)
+		RETURN RESULT
+	CLEARLINE 1
+LOOP 1
+;-----------------------------------------------------------
+;몹과 당신과 출금 이외라면 1을 반환
+;-----------------------------------------------------------
+@IS_NAMED(ARG)
+#FUNCTION
+	IF ARG == MASTER || TALENT:ARG:스침 || CFLAG:ARG:출금
+		RETURNF 0
+	ENDIF
+RETURNF 1
+;-----------------------------------------------------------
+;10번까지의 선택지
+;-----------------------------------------------------------
+@ASK_CHOICES10(argChoices:0="", argChoices:1="", argChoices:2="", argChoices:3="", argChoices:4="", argChoices:5="", argChoices:6="", argChoices:7="", argChoices:8="", argChoices:9="")
+#DIMS argChoices, 10
+CALL ASK_CHOICES(argChoices)
+RETURN RESULT
+
+;-----------------------------------------------------------
+;참조도에서 수 무제한의 선택지
+;공란은 개행하지만 연속해서 개행하진 않음, 모두 공란이면 THROW
+;-----------------------------------------------------------
+@ASK_CHOICES(refChoices, argCanselNo=-1,argCanselText="캔슬")
+#DIMS REF refChoices, 0
+#DIM DYNAMIC argCanselNo
+#DIMS DYNAMIC argCanselText
+#DIMS html
+#DIM skip
+;생성
+VARSET skip
+VARSET html
+FOR LOCAL, 0, VARSIZE("refChoices")
+	;공란
+	IF refChoices:LOCAL == ""
+		;공란 개행은 연속되지 않는다
+		IF !skip
+			html += "<br>"
+		ENDIF
+		skip ++
+	;내용 있음
+	ELSE
+		html += HTML_SPACE(2) +HTML_BUTTON(refChoices:LOCAL, LOCAL, 3) + "<br>"
+		skip = 0
+	ENDIF
+NEXT
+SIF !skip
+	html += "<br>"
+SIF argCanselNo >= 0
+	html += HTML_SPACE(2) + HTML_BUTTON(argCanselText, argCanselNo, 3) + "<br>"
+SIF html == "<br>"
+	THROW 선택지가 모두 비었습니다.
+;표시
+HTML_PRINT "<p align='left'><nobr>"+ "<br>" + html + "<br>" + "</nobr></p>"
+;입력 접수
+DO
+	INPUT
+	SIF argCanselNo || (RESULT < VARSIZE("refChoices") && refChoices:RESULT != "")
+		RETURN RESULT
+	CLEARLINE 1
+LOOP 1
+;-----------------------------------------------------------
+;참조도에서 선택지를 버튼으로 나열한다
+;공란은 무시, 모두 공란이면 THROW
+;-----------------------------------------------------------
+@ASK_BUTTONS(refChoices)
+#DIMS REF refChoices, 0
+#DIMS DYNAMIC html
+;생성
+FOR LOCAL, 0, VARSIZE("refChoices")
+	IF refChoices:LOCAL != ""
+		html += HTML_SPACE(2) + HTML_BUTTON(refChoices:LOCAL, LOCAL)
+	ENDIF
+NEXT
+SIF html == ""
+	THROW 선택지가 모두 비었습니다.
+;표시
+HTML_PRINT "<p align='left'>" + html + "<br>" + "</p>"
+;입력 접수
+DO
+	INPUT
+	SIF RESULT < VARSIZE("refChoices") && refChoices:RESULT != ""
+		RETURN RESULT
+	CLEARLINE 1
+LOOP 1

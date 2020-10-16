@@ -1,0 +1,480 @@
+﻿;-----------------------------------------------------------
+;처녀설정
+;-----------------------------------------------------------
+;-----------------------------------------------------------
+;처녀설정 메뉴
+;-----------------------------------------------------------
+@VIRGIN_SET
+#DIMS choices, 11
+PRINTL 
+PRINTL 게임 개시 전에 각 캐릭터의 처녀·비처녀를 변경할 수 있습니다.
+PRINTL 일괄설정은 어느것이든 하나만 유효합니다
+DRAWLINE
+VARSET choices
+choices:0 '= "개별 설정"
+choices:1 '= "전원 섹스가 뭔지도 몰라"
+choices:2 '= "전원 처녀가 당연하잖아 멍텅구리아"
+choices:3 '= "환상소녀는 오래 사니까 경험이 풍부해"
+choices:4 '= "오히려 전원 걸레야"
+choices:5 '= "전원 처녀지만 허벌이야"
+SIF 전원의정조
+	choices:전원의정조 '= "<font color='#67e47e'>(유효)</font>" + choices:전원의정조
+SIF 전원의정조 ||SUMCARRAY(초기정조)
+	choices:10 '= "전원 초기 설정으로 되돌린다"
+
+CALL ASK_CHOICES(choices, 100, "완료")
+SELECTCASE RESULT
+	;시스템
+	CASE 0
+		CALL SET_VIRGINITY
+	CASE 10
+		CVARSET 초기정조
+		VARSET 전원의정조
+		PRINTW 전원 그대로의 상태에서 시작합니다
+	CASE 100
+		PRINTW 설정을 종료합니다.
+		RETURN
+	CASE IS == 전원의정조
+		전원의정조 = 0
+		PRINTW 전체 설정을 비활성화했습니다.
+	;정조
+	CASE 1
+		전원의정조 = RESULT
+		PRINTW 코토히메씨 여기예요
+		PRINTW 전원 처녀면서 무지 상태로 시작합니다。
+	CASE 2
+		전원의정조 = RESULT
+		PRINTW 이런 처녀 요리사를 봤나!
+		PRINTW 전원 처녀 상태로 시작합니다。
+	CASE 3
+		전원의정조 = RESULT
+		PRINTW 전원 비처녀 상태로 시작합니다。
+	CASE 4
+		전원의정조 = RESULT
+		PRINTW 전원 걸레 상태로 시작합니다。
+	CASE 5
+		PRINTFORMW 따지는 게 많은 놈이네.
+		전원의정조 = RESULT
+		PRINTW 전원 처녀면서 걸레 상태로 시작합니다。
+	CASEELSE
+		THROW 유효하지 않은 입력입니다。
+ENDSELECT
+RESTART
+
+;-----------------------------------------------------------
+;개별 설정
+;-----------------------------------------------------------
+@SET_VIRGINITY
+#DIM CHARA_ID
+FOR CHARA_ID, 0, CHARANUM
+	SIF !IS_NAMED(CHARA_ID)
+		CONTINUE
+	SIF TALENT:CHARA_ID:처녀
+		SETCOLOR C_PINK
+	SIF TALENT:CHARA_ID:걸레
+		SETCOLOR C_P_BLUE
+	LOCALS '= @"[{CHARA_ID, 3}] %SET_VIRGINITY_KEY(초기정조:CHARA_ID:0)%%CALLNAME:CHARA_ID%"
+	PRINTFORMLC %LOCALS%
+	RESETCOLOR
+NEXT
+PRINTL
+DRAWLINE
+PRINTL [999] 설정 종료
+DO
+	INPUT
+	CHARA_ID = RESULT
+	SELECTCASE CHARA_ID
+		CASE 999
+			PRINTW 개별 설정을 종료합니다.
+			RETURN
+		CASEELSE
+			IF !IS_NAMED(CHARA_ID)
+				CLEARLINE 1
+				CONTINUE
+			ENDIF
+			BREAK
+	ENDSELECT
+LOOP 1
+
+초기정조:CHARA_ID:0 ++
+SIF 초기정조:CHARA_ID:0 >= 6
+	초기정조:CHARA_ID:0 = 0
+
+SELECTCASE 초기정조:CHARA_ID:0
+	CASE 0
+		PRINTFORMW %CALLNAME:CHARA_ID%의 능력을 초기 설정으로 되돌립니다
+	CASE 1
+		PRINTFORMW %조사처리(CALLNAME:CHARA_ID, "를")% 처녀면서 무지로 만듭니다
+	CASE 2
+		PRINTFORMW %조사처리(CALLNAME:CHARA_ID, "를")% 처녀로 만듭니다
+	CASE 3
+		PRINTFORMW %조사처리(CALLNAME:CHARA_ID, "를")% 비처녀로 만듭니다
+	CASE 4
+		PRINTFORMW %조사처리(CALLNAME:CHARA_ID, "를")% 걸레로 만듭니다
+	CASE 5
+		PRINTFORMW %조사처리(CALLNAME:CHARA_ID, "를")% 처녀면서 걸레로 만듭니다
+	CASEELSE
+		THROW 정조설정이 부적절합니다
+ENDSELECT
+RESTART
+;-----------------------------------------------------------
+;設定略語
+;-----------------------------------------------------------
+@SET_VIRGINITY_KEY(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+	CASE 0
+		RETURNF ""
+	CASE 1
+		RETURNF "[무지]"
+	CASE 2
+		RETURNF "[처녀]"
+	CASE 3
+		RETURNF "[숙련]"
+	CASE 4
+		RETURNF "[걸레]"
+	CASE 5
+		RETURNF "[처녀빗치]"
+	CASEELSE
+		THROW 정조설정이 부적절합니다
+ENDSELECT
+;-----------------------------------------------------------
+;처녀設定適用
+;-----------------------------------------------------------
+@VIRGIN_SET_APPLY
+FOR LOCAL, 1, CHARANUM
+	IF 초기정조:LOCAL:0
+		CALL VIRGIN_SET_APPLY_PART(LOCAL, 초기정조:LOCAL:0)
+	ELSE
+		CALL VIRGIN_SET_APPLY_PART(LOCAL, 전원의정조)
+	ENDIF
+NEXT
+
+;-----------------------------------------------------------
+;-----------------------------------------------------------
+@VIRGIN_SET_APPLY_PART(ARG, ARG:1)
+SELECTCASE ARG:1
+	CASE 0
+	CASE 1
+		CALL SET_VIRGIN(ARG:1)
+		TALENT:ARG:무지 = 1
+	CASE 2
+		CALL SET_VIRGIN(ARG)
+	CASE 3
+		CALL SET_WELL_EXP(ARG)
+	CASE 4
+		CALL SET_YARIMAN(ARG)
+	CASE 5
+		CALL SET_VIRGIN(ARG)
+		SIF TALENT:ARG:성별기호 == 1
+			TALENT:ARG:성별기호 = 0
+		ABL:ARG:욕망 = 3
+		TALENT:ARG:걸레 = 1
+		TALENT:ARG:정조 = -1
+CASEELSE
+	THROW 정조설정이 부적절합니다
+ENDSELECT
+
+;-----------------------------------------------------------
+;체형 변경
+;-----------------------------------------------------------
+@BODY_SET
+#DIMS choices, 11
+PRINTL 
+PRINTL 게임 개시 전에 각 캐릭터의 체형 소질을 변경할 수 있습니다
+PRINTL 복수의 설정을 병용할 수도 있습니다
+DRAWLINE
+VARSET choices
+;ロリ
+choices:1 '= "전원 소녀같은 어린아이야"
+SIF 전원로리화
+	choices:1 '= "<font color='#67e47e'>(유효)</font>" + choices:1
+;小人
+choices:2 '= "전원 난쟁이야"
+SIF 전원난쟁이화
+	choices:2 '= "<font color='#67e47e'>(유효)</font>" + choices:2
+;동물귀
+choices:3 '= "전원 동물귀야"
+SIF 전원동물귀화
+	choices:3 '= "<font color='#67e47e'>(유효)</font>" + choices:3
+;ふたなり
+choices:4 '= "전원 자지가 나 있어"
+SIF 전원후타나리화
+	choices:4 '= "<font color='#67e47e'>(유효)</font>" + choices:4
+;リセット
+IF 전원로리화 || 전원난쟁이화 || 전원동물귀화 || 전원후타나리화
+	choices:10 '= "전원 초기 설정으로 되돌린다"
+ELSE
+	choices:10 '= "전원 로리면서 난쟁이고 동물귀면서 나 있어"
+ENDIF
+CALL ASK_CHOICES(choices, 100, "완료")
+SELECTCASE RESULT
+	CASE 10
+		IF 전원로리화 || 전원난쟁이화 || 전원동물귀화 || 전원후타나리화
+			전원로리화 = 0
+			전원난쟁이화 = 0
+			전원동물귀화 = 0
+			전원후타나리화 = 0
+			PRINTW 설정을 리셋했습니다.
+		ELSE
+			전원로리화 = 1
+			전원난쟁이화 = 1
+			전원동물귀화 = 1
+			전원후타나리화 = 1
+			PRINTW 전원 로리면서 난쟁이고 동물귀면서 난 듯이 만들었습니다.
+		ENDIF
+	CASE 100
+		PRINTW 설정을 종료합니다.
+		RETURN
+	CASE 1
+		IF 전원로리화
+			전원로리화 = 0
+		ELSE
+			전원로리화 = 1
+			IF TALENT:MASTER:형상 < 6
+				PRINTFORML 가끔은 로리콘도 좋더라!
+				PRINTFORML
+				PRINTW 전원 유녀로 만들었습니다.
+			ELSE
+				PRINTFORML 이 사악한 놈！
+				PRINTFORML
+				PRINTW 전원 유녀로 만들었습니다.
+			ENDIF
+		ENDIF
+	CASE 2
+		IF 전원난쟁이화
+			전원난쟁이화 = 0
+		ELSE
+			전원난쟁이화 = 1
+			IF TALENT:MASTER:형상 < 3
+				PRINTW 전원 난쟁이로 만들었습니다.
+			ELSE
+				PRINTFORML 이런 망할놈이!
+				PRINTFORML 
+				PRINTW 전원 난쟁이로 만들었습니다.
+			ENDIF
+		ENDIF
+	CASE 3
+		IF 전원동물귀화
+			전원동물귀화 = 0
+		ELSE
+			전원동물귀화 = 1
+			PRINTFORMW 전원 동물귀로 만들었습니다.
+		ENDIF
+	CASE 4
+		IF 전원후타나리화
+			전원후타나리화 = 0
+		ELSE
+			전원후타나리화 = 1
+			PRINTFORMW 전원 후타나리로 만들었습니다.
+		ENDIF
+ENDSELECT
+RESTART
+
+@SET_BODY_APPLY
+;로리 뒤에 난쟁이가 아니라면 난쟁이가 덮어쓴다
+IF 전원로리화
+	FOR LOCAL,1,CHARANUM
+		CALL SET_LOLI(LOCAL)
+	NEXT
+ENDIF
+IF 전원난쟁이화
+	FOR LOCAL,1,CHARANUM
+		TALENT:LOCAL:체형 = -5
+	NEXT
+ENDIF
+IF 전원동물귀화
+	FOR LOCAL,1,CHARANUM
+		TALENT:LOCAL:143 = 1
+	NEXT
+ENDIF
+IF 전원후타나리화
+	FOR LOCAL,1,CHARANUM
+		CALL SET_FUTANARI(LOCAL)
+	NEXT
+ENDIF
+
+;-----------------------------------------------------------
+;초기화
+;강하게뉴게임에서도 사용된다
+;CFLAG의 리셋는 인계에 지장이 있으므로 금지
+;-----------------------------------------------------------
+@RESET_CHARA(ARG)
+FOR LOCAL, 0, VARSIZE("TALENTNAME")
+	TALENT:ARG:LOCAL = CSVTALENT(ARG, LOCAL)
+NEXT
+FOR LOCAL, 0, VARSIZE("EXPNAME")
+	EXP:ARG:LOCAL = CSVEXP(ARG, LOCAL)
+NEXT
+FOR LOCAL, 0, VARSIZE("ABLNAME")
+	ABL:ARG:LOCAL = CSVABL(ARG, LOCAL)
+NEXT
+FOR LOCAL, 0, VARSIZE("EXPNAME")
+	EXP:ARG:LOCAL = CSVEXP(ARG, LOCAL)
+NEXT
+FOR LOCAL, 0, VARSIZE("BASENAME")
+	BASE:ARG:LOCAL = CSVBASE(ARG, LOCAL)
+	MAXBASE:ARG:LOCAL = BASE:ARG:LOCAL
+NEXT
+
+;-----------------------------------------------------------
+;처녀화
+;-----------------------------------------------------------
+@SET_VIRGIN(ARG)
+TALENT:ARG:처녀 = 1
+EXP:ARG:C경험 = 0
+EXP:ARG:B경험 = 0
+EXP:ARG:V경험 = 0
+EXP:ARG:A경험 = 0
+ABL:ARG:V감각 = 0
+ABL:ARG:A감각 = 0
+EXP:ARG:V성교경험 = 0
+EXP:ARG:V확장경험 = 0
+EXP:ARG:자궁구개발경험 = 0
+EXP:ARG:A성교경험 = 0
+EXP:ARG:A확장경험 = 0
+EXP:ARG:수음경험 = 0
+EXP:ARG:펠라티오경험 = 0
+EXP:ARG:파이즈리경험 = 0
+EXP:ARG:키스경험 = 0
+EXP:ARG:봉사쾌락경험 = 0
+EXP:ARG:애정경험 = 0
+EXP:ARG:고통쾌락경험 = 0
+EXP:ARG:가학쾌락경험 = 0
+EXP:ARG:노출쾌락경험 = 0
+EXP:ARG:긴박경험 = 0
+EXP:ARG:절정경험 = 0
+EXP:ARG:사정경험 = 0
+EXP:ARG:분유경험 = 0
+EXP:ARG:방뇨경험 = 0
+EXP:ARG:정액경험 = 0
+EXP:ARG:정음경험 = 0
+EXP:ARG:출산경험 = 0
+TALENT:ARG:키스미경험 = 1
+TALENT:ARG:걸레 = 0
+TALENT:ARG:성별기호 = CSVTALENT(ARG,81)
+TALENT:ARG:정조 = CSVTALENT(ARG,30)
+ABL:ARG:허리 = CSVABL(ARG, GETNUM(ABL, "허리"))
+ABL:ARG:욕망 = CSVABL(ARG, GETNUM(ABL, "욕망"))
+
+;-----------------------------------------------------------
+;경험 풍부
+;-----------------------------------------------------------
+@SET_WELL_EXP(ARG)
+TALENT:ARG:처녀 = 0
+SIF TALENT:ARG:성별기호 == 1
+	TALENT:ARG:성별기호 = 0
+EXP:ARG:V경험 = MAX(EXP:ARG:V경험, 50)
+ABL:ARG:V감각 = MAX(ABL:ARG:V감각, 2)
+ABL:ARG:허리 = MAX(ABL:ARG:허리, 2)
+EXP:ARG:V성교경험 = MAX(EXP:ARG:V경험, 50)
+EXP:ARG:V확장경험 = MAX(EXP:ARG:V확장경험, 3)
+EXP:ARG:정액경험 = MAX(EXP:ARG:정액경험, 10)
+
+;-----------------------------------------------------------
+;걸레
+;-----------------------------------------------------------
+@SET_YARIMAN(ARG)
+TALENT:ARG:처녀 = 0
+SIF TALENT:ARG:성별기호 == 1
+	TALENT:ARG:성별기호 = 0
+EXP:ARG:V경험 = MAX(EXP:ARG:V경험, 100)
+ABL:ARG:V감각 = MAX(ABL:ARG:V감각, 3)
+ABL:ARG:허리 = MAX(ABL:ARG:허리, 3)
+ABL:ARG:욕망 = 3
+EXP:ARG:V성교경험 = MAX(EXP:ARG:V경험, 100)
+EXP:ARG:V확장경험 = MAX(EXP:ARG:V확장경험, 3)
+EXP:ARG:정액경험 = MAX(EXP:ARG:정액경험, 50)
+TALENT:ARG:걸레 = 1
+TALENT:ARG:정조 = -1
+
+;-----------------------------------------------------------
+;로리
+;-----------------------------------------------------------
+@SET_LOLI(ARG)
+TALENT:ARG:가슴사이즈 = MAX(TALENT:ARG:가슴사이즈 - 2, -2)
+TALENT:ARG:체형 = -2
+
+;-----------------------------------------------------------
+;후타나리
+;-----------------------------------------------------------
+@SET_FUTANARI(ARG)
+TALENT:ARG:성별 = 3
+TALENT:ARG:형상 = 3
+MAXBASE:ARG:발기 = 1500
+MAXBASE:ARG:정력 = 1000
+
+;-------------------------------
+;KR판 구잔재/오리지날 데이터 저장
+;@VIRGIN_SET에서 호출하던 함수
+;ARG = 0 : 전원 섹스에 미쳐있음
+;나머지는 숨겨진 선택지였음.
+;-------------------------------
+@MAKE_HENTAI(ARG)
+FOR LOCAL, 1, CHARANUM
+	CFLAG:LOCAL:호감도 = 200
+	ABL:LOCAL:욕망 = MAX(30, ABL:LOCAL:욕망)
+	ABL:LOCAL:순종 = MAX(10, ABL:LOCAL:순종)
+	ABL:LOCAL:자위중독 = MAX(5, ABL:LOCAL:자위중독)
+	ABL:LOCAL:C감각 = MAX(3, ABL:LOCAL:C감각)
+	ABL:LOCAL:V감각 = MAX(3, ABL:LOCAL:V감각)
+	ABL:LOCAL:A감각 = MAX(3, ABL:LOCAL:A감각)
+	ABL:LOCAL:B감각 = MAX(3, ABL:LOCAL:B감각)
+	ABL:LOCAL:M감각 = MAX(3, ABL:LOCAL:M감각)
+	TALENT:LOCAL:자위중독 = 1
+	TALENT:LOCAL:도착적 = 1
+	TALENT:LOCAL:쾌감응답 = 1
+	TALENT:LOCAL:정조 = -1
+	TALENT:LOCAL:젖기쉬움 = 1
+	TALENT:LOCAL:성별기호 = -1
+	TALENT:LOCAL:악취내성 = 1
+NEXT
+
+IF ARG > 0
+	FOR LOCAL, 1, CHARANUM
+		CFLAG:LOCAL:호감도 = 500
+		TALENT:LOCAL:악취내성 = 2
+		ABL:LOCAL:욕망 = MAX(35, ABL:LOCAL:욕망)
+		ABL:LOCAL:순종 = MAX(15, ABL:LOCAL:순종)
+		ABL:LOCAL:자위중독 = MAX(10, ABL:LOCAL:자위중독)
+		MAXBASE:LOCAL:체력 = MAX(2250, MAXBASE:LOCAL:체력)
+		MAXBASE:LOCAL:기력 = MAX(1750, MAXBASE:LOCAL:기력)
+		MARK:LOCAL:쾌락각인 = 1
+		
+		BASE:LOCAL:체력 = MAXBASE:LOCAL:체력
+		BASE:LOCAL:기력 = MAXBASE:LOCAL:기력
+	NEXT
+ENDIF
+
+IF ARG > 1
+	FOR LOCAL, 1, CHARANUM
+		CFLAG:LOCAL:호감도 = 1000
+		TALENT:LOCAL:악취내성 = 3
+		ABL:LOCAL:욕망 = MAX(45, ABL:LOCAL:욕망)
+		ABL:LOCAL:순종 = MAX(25, ABL:LOCAL:순종)
+		ABL:LOCAL:자위중독 = MAX(20, ABL:LOCAL:자위중독)
+		MAXBASE:LOCAL:체력 = MAX(3500, MAXBASE:LOCAL:체력)
+		MAXBASE:LOCAL:기력 = MAX(2500, MAXBASE:LOCAL:기력)
+		TALENT:LOCAL:즉각함락 = 1
+		MARK:LOCAL:쾌락각인 = 2
+		
+		BASE:LOCAL:체력 = MAXBASE:LOCAL:체력
+		BASE:LOCAL:기력 = MAXBASE:LOCAL:기력
+	NEXT
+ENDIF
+
+IF ARG > 2
+	FOR LOCAL, 1, CHARANUM
+		ABL:LOCAL:욕망 = MAX(99, ABL:LOCAL:욕망)
+		TALENT:LOCAL:애욕 = 1
+		TALENT:LOCAL:섹프 = 1
+		CFLAG:LOCAL:호감도 = 3000
+		EXP:LOCAL:절정경험 = 500
+		MAXBASE:LOCAL:체력 = MAX(5000, MAXBASE:LOCAL:체력)
+		MAXBASE:LOCAL:기력 = MAX(3500, MAXBASE:LOCAL:기력)
+		MARK:LOCAL:쾌락각인 = 3
+		
+		BASE:LOCAL:체력 = MAXBASE:LOCAL:체력
+		BASE:LOCAL:기력 = MAXBASE:LOCAL:기력
+	NEXT
+ENDIF

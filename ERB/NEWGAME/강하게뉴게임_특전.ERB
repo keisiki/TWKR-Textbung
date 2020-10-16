@@ -1,0 +1,236 @@
+﻿;-----------------------------------------------------------
+;함락 캐릭터의 소질 변경
+;-----------------------------------------------------------
+@주회특전
+PRINTL
+PRINTL
+PRINTL ＊주회특전＊
+PRINTL 이전 연인이었던 적이 있는 캐릭터의 소질을 변경할 수 있습니다
+PRINTL 이전 연모를 취득했던 적이 있는 캐릭터의 일부 소질을 변경할 수 있습니다
+PRINTL
+PRINTL
+CALL 주회특전_캐릭터선택
+SELECTCASE RESULT
+	CASE 999
+		RETURN
+	;CASE 997
+	;	CALL SaveTalentSet
+	CASE 998
+		CALL LoadTalentSet
+	CASEELSE
+		IF GETBIT(CFLAG:RESULT:인계, 1)
+			CALL CUSTOM_TERMINAL(RESULT, 1)
+		ELSEIF GETBIT(CFLAG:RESULT:인계, 0)
+			CALL LIMITED_CUSTOM(RESULT)
+		ENDIF
+ENDSELECT
+RESTART
+
+;-----------------------------------------------------------
+;-----------------------------------------------------------
+@주회특전_캐릭터선택
+;생성
+LOCAL:1 = 0
+FOR LOCAL, 0, CHARANUM
+	IF !IS_NAMED(LOCAL)
+		CONTINUE
+	ENDIF
+	SIF SuccSetting:LOCAL
+		FONTBOLD
+	IF GETBIT(CFLAG:LOCAL:인계, 1)
+		SETCOLOR C_PINK
+		PRINTFORMLC [{LOCAL, 3}] %CALLNAME:LOCAL%
+		LOCAL:1 ++
+	ELSEIF GETBIT(CFLAG:LOCAL:인계, 0)
+		SETCOLOR C_YELLOW
+		PRINTFORMLC [{LOCAL, 3}] %CALLNAME:LOCAL%
+		LOCAL:1 ++
+	ENDIF
+NEXT
+RESETCOLOR
+FONTREGULAR
+;그 외 선택지
+PRINTL
+DRAWLINE
+;PRINTL [997] 인계설정 세이브
+PRINTL [998] 인계설정 일괄 로드
+DRAWLINE
+PRINTL [999] 설정 종료
+PRINTL
+;입력 접수
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 997
+		RETURN RESULT
+	CASE 998
+		SIF FLAG:인계설정저장완료
+			RETURN RESULT
+	CASE 999
+		RETURN RESULT
+	CASEELSE
+		SIF IS_NAMED(RESULT) && (GETBIT(CFLAG:RESULT:인계, 1) || GETBIT(CFLAG:RESULT:인계, 0))
+			RETURN RESULT
+	ENDSELECT
+	CLEARLINE 1
+LOOP 1
+
+;-----------------------------------------------------------
+;-----------------------------------------------------------
+@주회특전_적용
+FOR LOCAL,1,CHARANUM
+	SIF TCVAR:LOCAL:감도상승부위
+		TALENT:LOCAL:(TCVAR:LOCAL:감도상승부위) ++
+NEXT
+
+;-----------------------------------------------------------
+;표시명
+;-----------------------------------------------------------
+@주회특전_표시
+#FUNCTIONS
+FOR LOCAL, 1, CHARANUM
+	IF IS_NAMED(LOCAL) && (GETBIT(CFLAG:LOCAL:인계, 1) || GETBIT(CFLAG:LOCAL:인계, 0))
+		RETURNF "<font color='#FFCCFF'>" + "주회특전: 소질변경을 할 수 있는 캐릭터가 있습니다" + "</font>"
+	ENDIF
+NEXT
+RETURNF ""
+
+;-----------------------------------------------------------
+;저장
+;-----------------------------------------------------------
+@SaveTalentSet
+#DIM C_ID
+FOR C_ID,1,CHARANUM
+	FOR LOCAL, 0, 160
+		TalentSet:C_ID:LOCAL = TALENT:C_ID:LOCAL
+	NEXT
+NEXT
+FLAG:인계설정저장완료 = CHARANUM - 1
+PRINTFORMW 인계 설정을 저장했습니다
+;-----------------------------------------------------------
+@SAVE_CUSTOM_TALENT(C_ID, ARGS)
+#DIM C_ID
+LOCALS = 현재의 설정을 저장
+CALL ASK_M(@"현재의 설정을 저장",1, "보존한 설정을 리셋", SuccSetting:C_ID ,"캔슬",1)
+SELECTCASE RESULT
+	CASE 0
+		FOR LOCAL, 0, 160
+			TalentSet:C_ID:LOCAL = TALENT:C_ID:LOCAL
+		NEXT
+		SuccSetting:C_ID = 1
+		IF ARGS == "연인"
+			SuccBASE:C_ID:0 = BASE:C_ID:0
+			SuccBASE:C_ID:1 = BASE:C_ID:1
+			SuccSetting:C_ID = 2
+			FOR LOCAL,0,100
+				SuccABL:C_ID:LOCAL = ABL:C_ID:LOCAL
+				SuccEXP:C_ID:LOCAL = EXP:C_ID:LOCAL
+			NEXT
+		ENDIF
+		PRINTFORMW %CALLNAME:C_ID%의 설정을 저장했습니다.
+	CASE 1
+		VARSET TalentSet:C_ID:0, 0
+		SuccSetting:C_ID = 0
+		PRINTFORMW %CALLNAME:C_ID%의 설정을 리셋했습니다.
+	CASE 2
+ENDSELECT
+;-----------------------------------------------------------
+@LoadTalentSet
+#DIM C_ID
+;IF !FLAG:인계설정저장완료
+;	THROW 인계설정이 없습니다。
+;ENDIF
+FOR C_ID, 1, CHARANUM
+	SIF !SuccSetting:C_ID
+		CONTINUE
+	FOR LOCAL,0,160
+		TALENT:C_ID:LOCAL = TalentSet:C_ID:LOCAL
+	NEXT
+	IF SuccSetting:C_ID == 2
+		BASE:C_ID:0 = SuccBASE:C_ID:0
+		BASE:C_ID:1 = SuccBASE:C_ID:1
+		FOR LOCAL,0,100
+			ABL:C_ID:LOCAL = SuccABL:C_ID:LOCAL
+			EXP:C_ID:LOCAL = SuccEXP:C_ID:LOCAL
+		NEXT
+	ENDIF
+	PRINTFORML %CALLNAME:C_ID%의 인수 설정을 로드했습니다
+NEXT
+
+;-----------------------------------------------------------
+;주회시 연모특전으로부터의 커스터마이즈용
+;-----------------------------------------------------------
+@LIMITED_CUSTOM(ARG)
+#DIMS choices, 10
+#DIM part
+;표시
+PRINTL
+PRINTL
+PRINTFORML %NAME:ARG%
+PRINTFORML 현재 체형: %GET_TALENTNAME(100,TALENT:ARG:100)%\@ TALENT:ARG:100 == 0? 보통# \@
+PRINTFORML 현재 가슴사이즈: %GET_TALENTNAME(105,TALENT:ARG:105)%\@ TALENT:ARG:105 == 0? 평유# \@
+FOR LOCAL, 101, 107
+	IF LOCAL == 105
+		CONTINUE
+	ENDIF
+	PRINTFORM %TALENTNAME:LOCAL%：
+	SELECTCASE TALENT:ARG:LOCAL
+		CASE -1
+			PRINTFORM 둔감　
+		CASE 0
+			PRINTFORM 보통　
+		CASE 1
+			PRINTFORM 민감　
+	ENDSELECT
+NEXT
+PRINTFORML 
+DRAWLINE
+;선택지
+VARSET choices
+choices:0 '= "체형 변경", "가슴사이즈 변경", "감도 변경", "전 부위 민감","설정 저장"
+CALL ASK_CHOICES(choices, 100, "종료")
+SELECTCASE RESULT
+	CASE 100
+		RETURN
+	CASE 0
+		VARSET choices
+		choices:0 '= "난쟁이", "", "", "유아체형", "작은체형", "보통", "장신", "거구"
+		CALL ASK_CHOICES(choices, 100, "돌아간다")
+		SELECTCASE RESULT
+			CASE 0, 3 TO 7
+				TALENT:ARG:체형 = RESULT - 5
+		ENDSELECT
+	CASE 1
+		VARSET choices
+		choices:0 '= "절벽", "빈유", "평유", "거유", "폭유"
+		CALL ASK_CHOICES(choices, 100, "돌아간다")
+		SELECTCASE RESULT
+			CASE 0 TO 4
+				TALENT:ARG:가슴사이즈 = RESULT - 2
+		ENDSELECT
+	CASE 2
+		VARSET choices
+		FOR LOCAL, 1, 7
+			IF LOCAL == 5
+				CONTINUE
+			ENDIF
+			choices:LOCAL '= TALENTNAME:(LOCAL + 100)
+		NEXT
+		CALL ASK_CHOICES(choices, 100, "돌아간다")
+		part = RESULT + 100
+		SELECTCASE TALENTNAME:part
+			CASE "C감도", "V감도", "A감도", "B감도", "M감도"
+				CALL ASK_M("둔감",1,"보통",1,"민감",1)
+				TALENT:ARG:part = RESULT - 1
+		ENDSELECT
+	CASE 3
+		FOR LOCAL, 101, 107
+			IF LOCAL == 105
+				CONTINUE
+			ENDIF
+			TALENT:ARG:LOCAL = 1
+		NEXT
+	CASE 4
+		CALL SAVE_CUSTOM_TALENT(ARG, "연모")
+ENDSELECT
+RESTART
