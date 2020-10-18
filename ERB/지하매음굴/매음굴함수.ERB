@@ -1,0 +1,253 @@
+﻿@창녀일정하기(ARG)
+IF TALENT:ARG:창녀||TALENT:ARG:렌탈창녀
+    CFLAG:ARG:창관일 = RAND:4
+ENDIF
+
+@창녀목록(ARG)
+IF ARG == 1
+;구매용 창녀목록, 혹은 전체 목록
+    FOR LOCAL, 1, CHARANUM
+        SIF LOCAL == MASTER
+            CONTINUE
+        IF TALENT:LOCAL:창녀 == 1
+            PRINTFORM [{LOCAL}] %CALLNAME:LOCAL%
+            IF CFLAG:LOCAL:오늘몸팜 == 1
+                PRINTFORML  (휴식중)
+            ELSE
+                PRINTFORML
+            ENDIF
+        ENDIF
+    NEXT
+ELSEIF ARG == 2
+;개인실 업무중 혹은 오프중
+    FOR LOCAL, 1, CHARANUM
+        SIF LOCAL == MASTER
+            CONTINUE
+        IF (TALENT:LOCAL:창녀 == 1||TALENT:LOCAL:렌탈창녀 == 1)&&(CFLAG:LOCAL:창관일 == 0||CFLAG:LOCAL:창관일 == 1)
+            PRINTFORM [{LOCAL}] %CALLNAME:LOCAL%
+            IF CFLAG:LOCAL:오늘몸팜 == 1
+                PRINTFORML (휴식중)
+            ELSE
+                PRINTFORML
+            ENDIF
+        ENDIF
+    NEXT
+ELSEIF ARG == 3
+;스트리퍼
+    FOR LOCAL, 1, CHARANUM
+        SIF LOCAL == MASTER
+            CONTINUE
+        IF (TALENT:LOCAL:창녀 == 1||TALENT:LOCAL:렌탈창녀 == 1)&&(CFLAG:LOCAL:창관일 == 2)
+            PRINTFORM [{LOCAL}] %CALLNAME:LOCAL%
+            IF CFLAG:LOCAL:오늘몸팜 == 1
+                PRINTFORML (휴식중)
+            ELSE
+                PRINTFORML
+            ENDIF
+        ENDIF
+    NEXT
+ELSEIF ARG == 4
+;글로리홀
+    FOR LOCAL, 1, CHARANUM
+        SIF LOCAL == MASTER
+            CONTINUE
+        IF (TALENT:LOCAL:창녀 == 1||TALENT:LOCAL:렌탈창녀 == 1)&&(CFLAG:LOCAL:창관일 == 3)&&CFLAG:LOCAL:오늘몸팜 == 0
+            PRINTFORM [{LOCAL}] LOCAL 번 구멍
+            PRINTFORML
+        ENDIF
+    NEXT
+ENDIF
+
+@노예목록
+FOR LOCAL, 1, CHARANUM
+    SIF LOCAL == MASTER
+         CONTINUE
+    IF TALENT:LOCAL:당신의노예&&!TALENT:LOCAL:렌탈창녀&&!TALENT:LOCAL:창녀
+        PRINTFORML [{LOCAL}] %CALLNAME:LOCAL%
+    ENDIF
+NEXT
+
+@시간체크
+IF 시간흐름 >= 360
+    PRINTFORML 「죄송합니다만 슬슬 폐점할 시간이라서요」
+    PRINTFORML 「내일 다시 방문해 주십시오」
+    RETURN 1
+ELSE
+    RETURN 0
+ENDIF
+
+@V_DEBUG
+[IF_DEBUG]
+$V_DEBUGLOOP
+PRINTFORML 창관 디버그 창
+PRINTFORM [1000]창녀전락    
+PRINTFORM [1001]창녀탈출   
+PRINTFORM [1002]일 변경    
+PRINTFORML
+PRINTFORM [2000]소지금변동  
+PRINTFORM [2001]휴식제거    
+PRINTL
+PRINTFORML [9999]돌아간다
+INPUT
+IF RESULT == 9999
+    RETURN 1
+ELSEIF RESULT == 1000
+    CALL V_DEBUG_창녀전락(0)
+ELSEIF RESULT == 1001
+    CALL V_DEBUG_창녀전락(1)
+ELSEIF RESULT == 1002
+    CALL V_DEBUG_일변경
+ELSEIF RESULT == 2000
+    PRINTFORML 현재소지금 : {MONEY}
+    PRINTFORML 얼마로 바꿀까?(0 미만으로 취소)
+    INPUT
+    IF RESULT < 0
+        ;처리 X
+    ELSE
+        MONEY = RESULT
+    ENDIF
+ELSEIF RESULT == 2001
+    CALL V_DEBUG_휴식제거
+ENDIF
+GOTO V_DEBUGLOOP
+[ENDIF]
+RETURN 0
+
+@V_DEBUG_창녀전락(ARG)
+#DIM DYNAMIC 현재페이지
+DRAWLINE
+PRINTFORML 누구를?
+DRAWLINE
+IF ARG == 0
+    FOR LOCAL, 현재페이지*20 + 1, 현재페이지*20+21
+        SIF LOCAL == 0
+            CONTINUE
+        IF CFLAG:LOCAL:출금 == 0&&TALENT:LOCAL:사망 == 0
+            PRINTFORM [{LOCAL}] %NAME:LOCAL%
+            IF TALENT:LOCAL:창녀
+                PRINT   일반창녀
+            ELSEIF TALENT:LOCAL:렌탈창녀
+                PRINT   렌탈창녀
+            ELSEIF TALENT:LOCAL:당신의노예
+                PRINT   노예
+            ENDIF
+            PRINTL
+        ENDIF
+    NEXT
+ELSE
+    FOR LOCAL, 현재페이지*20 + 1, 현재페이지*20+21
+        SIF LOCAL == 0
+            CONTINUE
+        IF TALENT:LOCAL:창녀||TALENT:LOCAL:렌탈창녀
+            PRINTFORM [{LOCAL}] %NAME:LOCAL%
+            IF TALENT:LOCAL:창녀
+                PRINT   일반창녀
+            ELSEIF TALENT:LOCAL:렌탈창녀
+                PRINT   렌탈창녀
+            ENDIF
+            PRINTL
+        ENDIF
+    NEXT
+ENDIF
+PRINTFORML 현재 페이지 : {현재페이지}
+SIF 현재페이지 > 0
+    PRINTFORML [9997]이전장
+PRINTFORML [9998]다음장
+PRINTFORML [9999]역시 그만둔다
+INPUT
+IF RESULT == 9999
+    RETURN 1
+ELSEIF RESULT == 9998
+    현재페이지++
+ELSEIF RESULT == 9997
+    IF 현재페이지 > 0
+        현재페이지--
+    ENDIF
+ELSEIF RESULT <= CHARANUM&&RESULT >= 0
+    IF ARG == 0
+        TALENT:RESULT:창녀 = 1
+        TALENT:RESULT:렌탈창녀 = 0
+        RESTART
+    ELSEIF ARG == 1
+        TALENT:RESULT:창녀 = 0
+        TALENT:RESULT:렌탈창녀 = 0
+        RESTART
+    ENDIF
+ENDIF
+RESTART
+
+@V_DEBUG_일변경
+#DIM DYNAMIC 대상
+#DIM 개행카운터
+개행카운터 = 0
+DRAWLINE
+PRINTFORML 누구의?
+DRAWLINE
+CALL 창녀목록(1)
+PRINTFORML [9999]역시 그만둔다
+INPUT
+IF RESULT == 9999
+    RETURN 1
+ELSEIF RESULT <= CHARANUM&&RESULT >= 0
+    대상 = RESULT
+    IF TALENT:대상:창녀 == 0&&TALENT:대상:렌탈창녀 == 0
+        PRINTL 목록에 없습니다
+    ELSE
+        PRINTFORM 현재 %CALLNAME:대상%의 일은
+        SELECTCASE CFLAG:대상:창관일
+            CASE 0
+                PRINTL [자유행동]
+            CASE 1
+                PRINTL [개인실]
+            CASE 2
+                PRINTL [스트리퍼]
+            CASE 3
+                PRINTL [글로리홀]
+        ENDSELECT
+        PRINTFORML 입니다
+        PRINTFORML [0] 자유행동으로 변경 
+        PRINTFORML [1] 개인실로 변경 
+        PRINTFORML [2] 스트리퍼로 변경 
+        PRINTFORML [3] 글로리홀로 변경 
+        PRINTFORML [999] 그만둔다
+        INPUT
+        IF RESULT == 999
+            RESTART
+        ELSEIF RESULT <= 3&& RESULT >= 0
+            CFLAG:대상:창관일 == RESULT
+        ELSE
+            RESTART
+        ENDIF
+    ENDIF
+ENDIF
+
+@V_DEBUG_휴식제거
+#DIM DYNAMIC 대상
+#DIM 개행카운터
+개행카운터 = 0
+DRAWLINE
+PRINTFORML 누구의?
+DRAWLINE
+FOR LOCAL, 1, CHARANUM
+    IF (!TALENT:LOCAL:창녀&&!TALENT:LOCAL:렌탈창녀)
+        CONTINUE
+    ELSE
+        PRINTFORM [{LOCAL}] %NAME:LOCAL%
+        IF CFLAG:LOCAL:오늘몸팜
+            PRINT  휴게중
+        ENDIF
+        PRINTL
+    ENDIF
+NEXT
+PRINTFORML [9999]역시 그만둔다
+INPUT
+IF RESULT == 9999
+    RETURN 1
+ELSEIF RESULT <= CHARANUM&&RESULT >= 0
+    대상 = RESULT
+    IF TALENT:대상:창녀 == 0&&TALENT:대상:렌탈창녀 == 0
+        PRINTL 목록에 없습니다
+    ELSE
+        CFLAG:대상:오늘몸팜 = !CFLAG:대상:오늘몸팜
+    ENDIF
+ENDIF
