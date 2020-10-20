@@ -788,96 +788,23 @@ FOR LOCAL,1,CHARANUM
         CONTINUE
     IF TALENT:LOCAL:창녀 == 1||TALENT:LOCAL:렌탈창녀 == 1
         CALL 가상조교초기화(LOCAL)
-        ;여기에 묘사 및 처리를 한다
         IF CFLAG:LOCAL:창관일 == 0
-            ;자유롭게 일한다
-            SELECTCASE RAND:3
-                CASE 0
-                    PRINTFORML %CALLNAME:LOCAL%은 창관에서 모르는 사람과 관계를 가지고 있다...
-                    EXP:LOCAL:매춘경험++
-                    ;간단히 경험치를 올려둔다, 나중에 세분화 필요+처녀따기및 임신처리도
-                    IF TALENT:LOCAL:처녀 == 0
-                        EXP:LOCAL:V성교경험++
-                        EXP:LOCAL:V절정경험++
-                        SIF RAND:2 == 0
-                            가자궁정자 += RAND:15 * 1000
-                        CALL V_욕정(1000)
-                        CFLAG:LOCAL:보지붕괴 += RAND:3 + 1
-                    ELSE
-                        IF RAND:3 == 0
-                            CALL V_처녀상실(RAND:3+1,2)
-                            EXP:LOCAL:V성교경험++
-                            EXP:LOCAL:V절정경험++
-                            SIF RAND:2 == 0
-                                가자궁정자 += RAND:15 * 1000
-                            CALL V_욕정(500)
-                            CFLAG:LOCAL:보지붕괴 += RAND:2 + 1
-                        ELSE
-                            EXP:LOCAL:수음경험++
-                            CALL V_욕정(500)
-                        ENDIF
-                    ENDIF
-                    PRINTL
-                CASE 1
-                    PRINTFORML %CALLNAME:LOCAL%은 스트립바에서 음란하게 춤을 추었다...
-                    CALL V_욕정(500)
-                    CALL V_치정(250)
-                CASE 2
-                    PRINTFORML %CALLNAME:LOCAL%은 벽에 박힌채 얼굴도 모르는 사람들에게 능욕당했다...
-                    CALL V_욕정(500)
-                    CALL V_치정(250)
-            ENDSELECT
-        ELSEIF CFLAG:LOCAL:창관일 == 1
+            CFLAG:LOCAL:창관일 = RAND:3 + 1    
+        ENDIF
+
+        ;이 밑으로 묘사한다
+        IF CFLAG:LOCAL:창관일 == 1
             ;개인실에서 일한다
             PRINTFORML %CALLNAME:LOCAL%은 창관에서 모르는 사람과 관계를 가지고 있다...
-            EXP:LOCAL:매춘경험++
-            ;간단히 경험치를 올려둔다, 나중에 세분화 필요+처녀따기및 임신처리도
-            IF TALENT:LOCAL:처녀 == 0
-                EXP:LOCAL:V성교경험++
-                EXP:LOCAL:V절정경험++
-                SIF RAND:2 == 0
-                    가자궁정자 += RAND:15 * 1000
-                CALL V_욕정(1000)
-                CFLAG:LOCAL:보지붕괴 += RAND:3 + 1
-            ELSE
-                IF RAND:3 == 0
-                    CALL V_처녀상실(RAND:3+1,2)
-                    EXP:LOCAL:V성교경험++
-                    EXP:LOCAL:V절정경험++
-                    SIF RAND:2 == 0
-                        가자궁정자 += RAND:15 * 1000
-                    CFLAG:LOCAL:보지붕괴 += RAND:2 + 1
-                ELSE
-                    EXP:LOCAL:수음경험++
-                ENDIF
-                CALL V_욕정(500)
-            ENDIF
-            ;PRINTL
         ELSEIF CFLAG:LOCAL:창관일 == 2
             ;스트립쇼
             PRINTFORML %CALLNAME:LOCAL%은 스트립바에서 음란하게 춤을 추었다...
-            CALL V_욕정(500)
         ELSEIF CFLAG:LOCAL:창관일 == 3
             ;글로리홀
             PRINTFORML %CALLNAME:LOCAL%은 벽에 박힌채 얼굴도 모르는 사람들에게 능욕당했다...
-            IF TALENT:LOCAL:처녀 == 0
-                EXP:LOCAL:V성교경험++
-                EXP:LOCAL:V절정경험++
-                SIF RAND:2 == 0
-                    가자궁정자 += RAND:15 * 1000
-                CALL V_욕정(1000)
-                CFLAG:LOCAL:보지붕괴 += RAND:3 + 1
-            ELSE
-                CALL V_처녀상실(RAND:3+1,2)
-                EXP:LOCAL:V성교경험++
-                EXP:LOCAL:V절정경험++
-                SIF RAND:2 == 0
-                    가자궁정자 += RAND:15 * 1000
-                CFLAG:LOCAL:보지붕괴 += RAND:2 + 1
-                CALL V_욕정(500)
-            ENDIF
         ENDIF
         ;DRAWLINE
+        CALL 창녀의경과_소스처리(LOCAL)
         ;렌탈창녀는 계약기간 끝나서 해방
         SIF TALENT:LOCAL:렌탈창녀
             TALENT:LOCAL:렌탈창녀 = 0
@@ -895,6 +822,153 @@ FOR LOCAL,1,CHARANUM
             PRINTFORML %CALLNAME:LOCAL%는 [헐렁항문]를 얻었다
             TALENT:LOCAL:헐렁항문 = 1
         ENDIF
+        CFLAG:ARG:오늘몸팜 = 0
         DRAWLINE
     ENDIF
 NEXT
+
+@창녀의경과_소스처리(ARG)
+#DIM DYNAMIC V조교
+#DIM DYNAMIC A조교
+#DIM DYNAMIC B조교
+#DIM DYNAMIC C조교
+#DIM DYNAMIC M조교
+#DIM DYNAMIC 치정조교
+#DIM DYNAMIC 고통조교
+#DIM DYNAMIC 약물조교
+#DIM DYNAMIC 봉사조교
+#DIM DYNAMIC 총조교횟수
+#DIM DYNAMIC 평균강도
+EXP:LOCAL:매춘경험++
+SIF RAND:3 == 0&&TALENT:ARG:처녀
+    CALL V_처녀상실(RAND:3+1,2)
+    V조교 += RAND:5 + 2
+IF CFLAG:ARG:창관일 == 0
+    ;자유일, 이지만 보통 값을 변동시키기에
+    ;그러나 노파심에라도 값을 남겨둔다
+    SIF RAND:2 == 0
+        V조교 += RAND:10 + 1
+    SIF RAND:2 == 0
+        A조교 += RAND:10 + 1
+    SIF RAND:2 == 0
+        C조교 += RAND:10 + 1
+    SIF RAND:2 == 0
+        B조교 += RAND:10 + 1
+    SIF RAND:2 == 0
+        M조교 += RAND:10 + 1
+    SIF RAND:2 == 0
+        치정조교 += RAND:20 + 1
+    SIF RAND:2 == 0
+        고통조교 += RAND:5 + 1
+    SIF RAND:2 == 0
+        약물조교 += RAND:5 + 1
+    SIF RAND:2 == 0
+        봉사조교 += RAND:10 + 1
+ELSEIF CFLAG:ARG:창관일 == 1
+    ;개인실
+    SIF RAND:2 == 0
+        V조교 += RAND:15 + 1
+    SIF RAND:2 == 0
+        A조교 += RAND:15 + 1
+    SIF RAND:2 == 0
+        C조교 += RAND:15 + 1
+    SIF RAND:2 == 0
+        B조교 += RAND:15 + 1
+    SIF RAND:2 == 0
+        M조교 += RAND:15 + 1
+    SIF RAND:2 == 0
+        치정조교 += RAND:10 + 1
+    SIF RAND:3 == 0
+        고통조교 += RAND:15 + 1
+    SIF RAND:3 == 0
+        약물조교 += RAND:8 + 1
+    SIF RAND:2 == 0
+        봉사조교 += RAND:10 + 2
+ELSEIF CFLAG:ARG:창관일 == 2
+    ;스트립쇼
+    SIF RAND:2 == 0
+        V조교 += RAND:5 + 1
+    SIF RAND:2 == 0
+        A조교 += RAND:5 + 1
+    SIF RAND:2 == 0
+        C조교 += RAND:5 + 1
+    SIF RAND:2 == 0
+        B조교 += RAND:10 + 1
+    SIF RAND:2 == 0
+        M조교 += RAND:10 + 1
+    ;확정 발동
+    치정조교 += RAND:30 + 5
+    SIF RAND:4 == 0
+        고통조교 += RAND:3 + 1
+    SIF RAND:4 == 0
+        약물조교 += RAND:3 + 1
+    SIF RAND:4 == 0
+        봉사조교 += RAND:5 + 1
+ELSEIF CFLAG:ARG:창관일 == 3
+    ;글로리홀
+    SIF RAND:2 == 0
+        V조교 += RAND:30 + 1
+    SIF RAND:2 == 0
+        A조교 += RAND:30 + 1
+    SIF RAND:2 == 0
+        C조교 += RAND:3 + 1
+    SIF RAND:2 == 0
+        고통조교 += RAND:3 + 1
+ENDIF
+총조교횟수 = V조교+A조교+B조교+C조교+M조교+고통조교+치정조교+약물조교+봉사조교
+IF V조교 > 0
+    평균강도 = RAND:200 + 350
+    CALL V_V쾌감(평균강도 * V조교)
+    FOR LOCAL, 1, V조교
+        SIF RAND:3 == 0
+            CFLAG:ARG:보지붕괴++
+    NEXT
+ENDIF
+IF A조교 > 0
+    평균강도 = RAND:200 + 350
+    CALL V_A쾌감(평균강도 * A조교)
+    FOR LOCAL, 1, A조교
+        SIF RAND:3 == 0
+            CFLAG:ARG:항문붕괴++
+    NEXT
+ENDIF
+IF C조교 > 0
+    평균강도 = RAND:200 + 350
+    CALL V_C쾌감(평균강도 * C조교)
+ENDIF
+IF B조교 > 0
+    평균강도 = RAND:200 + 350
+    CALL V_B쾌감(평균강도 * B조교)
+ENDIF
+IF M조교 > 0
+    평균강도 = RAND:200 + 350
+    CALL V_M쾌감(평균강도 * M조교)
+ENDIF
+IF 고통조교 > 0
+    평균강도 = RAND:200 + 350
+    CALL V_고통(평균강도 * 고통조교)
+ENDIF
+IF 치정조교 > 0
+    평균강도 = RAND:200 + 350
+    CALL V_치정(평균강도 * 치정조교)
+ENDIF
+IF 약물조교 > 0
+    평균강도 = RAND:1000 + 2000
+    CALL V_약물(평균강도 * 약물조교)
+    SIF RAND:3 == 0
+        무조건임신약 = 1
+    IF RAND:3 == 0
+        ;미마약
+        CALL V_욕정(5000)
+    ENDIF
+ENDIF
+IF 봉사조교 > 0
+    평균강도 = RAND:200 + 300
+    CALL V_순종(평균강도 * 봉사조교)
+ENDIF
+IF 총조교횟수 > 0
+    평균강도 = RAND:100 + 200
+    CALL V_공포(평균강도 * 총조교횟수)
+    CALL V_순종((평균강도/20) * 총조교횟수)
+    CALL V_굴복((평균강도/20) * 총조교횟수)
+ENDIF
