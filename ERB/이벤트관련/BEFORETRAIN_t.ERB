@@ -116,7 +116,7 @@ ELSEIF PRIVATEROOM:(CFLAG:MASTER:초기위치 % 100) && CFLAG:MASTER:현재위�
 	동거사람 = PRIVATEROOM:(CFLAG:MASTER:초기위치 % 100)
 ENDIF
 
-IF TALENT:동거사람:연모 && INRANGE(TIME:3, CFLAG:동거사람:기상시간 - 180, CFLAG:동거사람:기상시간)
+IF TALENT:동거사람:연모 && INRANGE(TIME:3, CFLAG:동거사람:기상시간 - 180, CFLAG:동거사람:기상시간) && !FLAG:감방남은일수
 	기상방해확률 = 20
 	SIF DAY:2 == 2
 		기상방해확률 = 10
@@ -343,6 +343,7 @@ IF FLAG:일시체재
 	FLAG:일시체재 = 0
 ENDIF
 
+
 ;----------------------------------------------
 
 ;----------------------------------------------
@@ -451,7 +452,7 @@ IF TARGET
 	ENDIF
 	SIF 기상상황 == 0 || 기상장소 == -1
 		CALL MESSAGE_GOODMONING(기상상황, 기상장소)
-	SIF 기상상황 && 기상장소 != -1
+	SIF 기상상황 && 기상장소 != -1 && !FLAG:감방남은일수
 		CALL KOJO_MESSAGE_SEND("EVENT",2,TARGET, 기상상황, 기상장소)
 ENDIF
 IF FLAG:이상기상
@@ -559,51 +560,53 @@ ENDIF
 #DIM 기상상황
 #DIM 기상장소
 PRINTFORML
-SELECTCASE 기상상황
-CASE 0
-	;非同棲相手眠り
-	IF !기상장소
-		;とにかくやましい時のみ抜け出すよう変更
-		PRINTFORMW %마스터가% 눈을 뜨니 옆에서 %타겟이% 자고 있었다
-		IF CFLAG:TARGET:은밀중 || CFLAG:TARGET:장난
-			IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치
-				PRINTFORMW %마스터는% %타겟이% 일어났을 때 어떻게 할지 생각했다…
+IF !FLAG:감방남은일수
+	SELECTCASE 기상상황
+	CASE 0
+		;非同棲相手眠り
+		IF !기상장소
+			;とにかくやましい時のみ抜け出すよう変更
+			PRINTFORMW %마스터가% 눈을 뜨니 옆에서 %타겟이% 자고 있었다
+			IF CFLAG:TARGET:은밀중 || CFLAG:TARGET:장난
+				IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치
+					PRINTFORMW %마스터는% %타겟이% 일어났을 때 어떻게 할지 생각했다…
+				ELSE
+					PRINTFORMW %타겟이% 눈치채지 못하게 %마스터는% 천천히 방을 빠져 나갔다…
+				ENDIF
 			ELSE
-				PRINTFORMW %타겟이% 눈치채지 못하게 %마스터는% 천천히 방을 빠져 나갔다…
+				PRINTFORMW %마스터는% 조용하게 %CALLNAME:TARGET%의 옆을 빠져 나가 하루의 준비를 시작했다
 			ENDIF
 		ELSE
-			PRINTFORMW %마스터는% 조용하게 %CALLNAME:TARGET%의 옆을 빠져 나가 하루의 준비를 시작했다
+			;今のところ死に分岐
+			PRINTFORMW %마스터가% 눈을 뜨자 옆에서 %타겟이% 자고 있었다
+			PRINTFORMW 어째서 %타겟이% 방에 있는 것일까 라고 조금 놀라면서도\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가, 하루의 준비를 시작했다
 		ENDIF
-	ELSE
-		;今のところ死に分岐
-		PRINTFORMW %마스터가% 눈을 뜨자 옆에서 %타겟이% 자고 있었다
-		PRINTFORMW 어째서 %타겟이% 방에 있는 것일까 라고 조금 놀라면서도\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가, 하루의 준비를 시작했다
-	ENDIF
-CASE 1
-	;非同棲相手起き
-	IF 기상장소 == 0
-		;초대방수면かな…？ 연모付き確定？
-		PRINTFORMW %마스터가% 눈을 뜨자 %타겟과% 눈이 마주쳤다
-		PRINTFORMW 아침의 인사를 한 후, %CALLNAME:TARGET%의 근처를 빠져 나가 하루의 준비를 시작했다
-	ELSEIF 기상장소 == 1
-		;自室にキャラを連れ込んだ後で（あなたの수면時間の方が早い）寝た場合や勝手に部屋に入ってくる場合（三月精とか割と頻繁）
-		;自分で連れ込んだんじゃろがいっ！ って時は個人口上側で対処してください
-		PRINTFORMW %마스터가% 눈을 뜨자 %타겟과% 눈이 마주쳤다
-		PRINTFORMW 어째서 %타겟이% 방에 있는 것일까 라고 조금 놀라면서도\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가, 하루의 준비를 시작했다
-	ELSE
-		;ここはどこ、この子は誰状態 どうやったらこの分岐に来るかわからない…
-		PRINTFORMW 어째서 이런 곳에서 자고 있고, 어째서 %타겟이% 옆에 있는 것일까 하는 의문이 들면서도,\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가 하루의 준비를 시작했다
-	ENDIF
-CASE 2
-	;同棲相手起き
-	PRINTFORMW %마스터가% 눈을 뜨자  %타겟과% 눈이 마주쳤다
-	PRINTFORMW 잠시 동안 %타겟과% 아침의 인사를 주고 받고 나서\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가 하루의 준비를 시작했다
-CASE 3
-	;同棲相手眠り
-	PRINTFORMW %마스터가% 눈을 뜨자 옆에서 아직 %타겟이% 새근새근 자고 있었다
-	PRINTFORMW %마스터가% %타겟을% 깨우지 않도록 \@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가 하루의 준비를 시작했다
-ENDSELECT
-PRINTFORML
+	CASE 1
+		;非同棲相手起き
+		IF 기상장소 == 0
+			;초대방수면かな…？ 연모付き確定？
+			PRINTFORMW %마스터가% 눈을 뜨자 %타겟과% 눈이 마주쳤다
+			PRINTFORMW 아침의 인사를 한 후, %CALLNAME:TARGET%의 근처를 빠져 나가 하루의 준비를 시작했다
+		ELSEIF 기상장소 == 1
+			;自室にキャラを連れ込んだ後で（あなたの수면時間の方が早い）寝た場合や勝手に部屋に入ってくる場合（三月精とか割と頻繁）
+			;自分で連れ込んだんじゃろがいっ！ って時は個人口上側で対処してください
+			PRINTFORMW %마스터가% 눈을 뜨자 %타겟과% 눈이 마주쳤다
+			PRINTFORMW 어째서 %타겟이% 방에 있는 것일까 라고 조금 놀라면서도\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가, 하루의 준비를 시작했다
+		ELSE
+			;ここはどこ、この子は誰状態 どうやったらこの分岐に来るかわからない…
+			PRINTFORMW 어째서 이런 곳에서 자고 있고, 어째서 %타겟이% 옆에 있는 것일까 하는 의문이 들면서도,\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가 하루의 준비를 시작했다
+		ENDIF
+	CASE 2
+		;同棲相手起き
+		PRINTFORMW %마스터가% 눈을 뜨자  %타겟과% 눈이 마주쳤다
+		PRINTFORMW 잠시 동안 %타겟과% 아침의 인사를 주고 받고 나서\@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가 하루의 준비를 시작했다
+	CASE 3
+		;同棲相手眠り
+		PRINTFORMW %마스터가% 눈을 뜨자 옆에서 아직 %타겟이% 새근새근 자고 있었다
+		PRINTFORMW %마스터가% %타겟을% 깨우지 않도록 \@ BEDROOM(CFLAG:MASTER:현재위치) ? 이불 # 옆 \@을 빠져 나가 하루의 준비를 시작했다
+	ENDSELECT
+	PRINTFORML
+ENDIF
 RETURN 1
 
 ;----------------------------------------------
