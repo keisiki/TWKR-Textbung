@@ -1,6 +1,9 @@
 ﻿
 @T_시스템처리(ARG)
 ;기본적으로 홀수 = 적 짝수 = 플레이어
+
+;1 = 적 턴 시작
+;2 = 플레이어 턴 시작
 ;100 = 플레이어공격 명중
 ;101 = 적 공격 명중
 ;102 = 플레이어 공격 빗나감
@@ -11,14 +14,17 @@
 ;1000 = 플레이어 항복 시도
 ;1001 = 적 항복 시도
 T_시스템 = ARG
-FOR LOCAL,1,1000
+FOR LOCAL,0,1000
     T_시전자 = T_턴주인
     T_시전자반대 = T_턴반대
-    TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴주인,"시스템체크")
+    SIF HAVE_T_SKILL(T_턴주인,LOCAL)
+        TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴주인,"시스템체크")
     T_시전자 = T_턴반대
     T_시전자반대 = T_턴주인
-    TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴반대,"시스템체크")
+    SIF HAVE_T_SKILL(T_턴반대,LOCAL)
+        TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴반대,"시스템체크")
 NEXT
+T_시스템 = 0
 
 @T_COM공격한다
 #DIM DYNAMIC 보너스
@@ -73,9 +79,13 @@ CALL T_시스템처리(110)
 $스킬표시
 PRINTL 무엇을 쓸까?
 DRAWLINE
-FOR 스킬번호,1,1000
+FOR 스킬번호,1,T_스킬한계값
     IF HAVE_T_SKILL(T_턴주인, 스킬번호)
         ;스킬 소유, 스킬창에 이름 표시
+        CALLFORMF T_SKILL{스킬번호}("타입")
+        IF RESULT == 자동형
+            CONTINUE
+        ENDIF
         CALL CAN_T_SKILL(T_턴주인, 스킬번호)
         IF RESULT == 1
             CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
@@ -216,7 +226,7 @@ RETURNF 0
 
 IF HAVE_T_SKILL(사용자, 스킬번호)
     ;이 스킬 소유중
-    CALLFORM ONGOING_T_SKILL{스킬번호}(사용자, "남은쿨타임")
+    TRYCALLFORM ONGOING_T_SKILL{스킬번호}(사용자, "남은쿨타임")
     IF RESULT == 0
         ;쿨타임 0 시전가능
         IF TCVAR:사용자:T_침묵
