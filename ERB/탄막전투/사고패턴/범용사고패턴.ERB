@@ -510,6 +510,8 @@ RETURN 0
 #DIM TEMP, 2
 #DIM 배열내위치
 #DIM 스킬번호
+#DIM DYNAMIC 공격력1
+#DIM DYNAMIC 공격력2
 #DIMS 모드
 ;변수 초기화
 VARSET CANNOT_ARRAY
@@ -548,20 +550,68 @@ FOR 스킬번호, 1, T_스킬한계값
     ENDIF
     
     ;배열 수 한도 초과시 종료
-    SIF 배열내위치 == 99
-        RETURN 1
+    SIF 배열내위치 >= 99
+        CONTINUE
+        ;RETURN 1
 NEXT
-FOR I, 2, 100
+FOR LOCAL,0,100
+    SIF SKILL_ARRAY:(LOCAL) != 0
+        PRINTFORML [{SKILL_ARRAY:(LOCAL)}]
+NEXT
+DRAWLINE
+
+FOR I,1,100
+    FOR J,I,100
+        
+    NEXT
+NEXT
+[SKIPSTART]
+FOR I, 1, 100
     J = I
-    WHILE SKILL_ARRAY:J < SKILL_ARRAY:(J-1) && J > 1
-        TEMP:0 = SKILL_ARRAY:(J-1)
-        SKILL_ARRAY:(J-1) = SKILL_ARRAY:J
-        SKILL_ARRAY:J = TEMP:0
+    RESULT = 0
+    TRYCALLFORM CAN_T_SKILL(ARG, SKILL_ARRAY:J)
+    IF RESULT == 1 ;스킬 시전 가능
+        CALLFORMF T_SKILL{SKILL_ARRAY:J}("공격력")
+        공격력1 = RESULT
+    ENDIF
+    RESULT = 0
+    TRYCALLFORM CAN_T_SKILL(ARG, SKILL_ARRAY:(J-1))
+    IF RESULT == 1 ;스킬 시전 가능
+        CALLFORMF T_SKILL{SKILL_ARRAY:(J-1)}("공격력")
+        공격력2 = RESULT
+    ENDIF
+    ;IF 공격력1 > 0 || 공격력2 > 0
+        WHILE 공격력1 < 공격력2&&J > 1
+            TEMP:0 = SKILL_ARRAY:(J-1)
+            SKILL_ARRAY:(J-1) = SKILL_ARRAY:J
+            SKILL_ARRAY:J = TEMP:0
 
-        TEMP:1 = SKILL_ARRAY:(J-1)
-        SKILL_ARRAY:(J-1) = SKILL_ARRAY:J
-        SKILL_ARRAY:J = TEMP:1
+            ;TEMP:1 = SKILL_ARRAY:(J-1)
+            ;SKILL_ARRAY:(J-1) = SKILL_ARRAY:J
+            ;SKILL_ARRAY:J = TEMP:1
 
-        J -= 1
-    WEND
+            J -= 1
+            RESULT = 0
+            TRYCALLFORM CAN_T_SKILL(ARG, SKILL_ARRAY:J)
+            IF RESULT == 1 ;스킬 시전 가능
+                CALLFORMF T_SKILL{SKILL_ARRAY:J}("공격력")
+                공격력1 = RESULT
+            ELSE
+                공격력1 =  0
+            ENDIF
+            RESULT = 0
+            TRYCALLFORM CAN_T_SKILL(ARG, SKILL_ARRAY:(J-1))
+            IF RESULT == 1 ;스킬 시전 가능
+                CALLFORMF T_SKILL{SKILL_ARRAY:(J-1)}("공격력")
+                공격력2 = RESULT
+            ELSE
+                공격력2 =  0
+            ENDIF
+        WEND
+    ;ENDIF
 NEXT
+FOR LOCAL,0,100
+    SIF SKILL_ARRAY:(LOCAL) != 0
+        PRINTFORML [{SKILL_ARRAY:(LOCAL)}]
+NEXT
+[SKIPEND]
