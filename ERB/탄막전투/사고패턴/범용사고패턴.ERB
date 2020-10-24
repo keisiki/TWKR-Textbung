@@ -497,3 +497,71 @@ FOR 스킬번호, 1, T_스킬한계값
     ENDIF
 NEXT
 RETURN 0
+
+
+;=====================
+;타입에 따른 스킬 픽업 시스템, 공격력이 높은 순서대로 뽑던지 명중률이 높은 순서대로 뽑던지 - SKILL_ARRAY
+;ARG = 시전자, ARG:1 = 값이 있으면 해당 값의 스킬타입인 스킬만 포함, 모드 = 어떤 모드로 뽑을건지
+;ARG:1의 스킬타입 중 하나 이상을 포함한 경우 픽업됨
+;=====================
+
+@PICK_T_SKILL(ARG, ARG:1=0, 모드)
+#DIM CANNOT_ARRAY, 2000
+#DIM TEMP, 2
+#DIM 배열내위치
+#DIM 스킬번호
+#DIMS 모드
+;변수 초기화
+VARSET CANNOT_ARRAY
+VARSET SKILL_ARRAY
+VARSET TEMP
+배열내위치 = 0
+
+;맨 앞 부분 스킬들만 우선적으로 쌓이기에 문제가 될 소지 존자.
+;FOR 스킬번호, 1, 2000
+FOR 스킬번호, 1, T_스킬한계값
+    ;실장되지 않은 스킬은 통과
+    IF TALENTNAME:(스킬번호 + 500) == ""
+        CANNOT_ARRAY:스킬번호 = 1
+        CONTINUE
+    ;이미 선정된 스킬은 통과
+    ELSEIF MATCH(SKILL_ARRAY, 스킬번호)
+        CONTINUE
+    ENDIF
+
+    TRYCALLFORM CAN_T_SKILL(ARG, 스킬번호)
+    IF RESULT == 1 ;스킬 시전 가능
+        IF ARG:1 ;스킬타입 미리 선정시
+            CALLFORMF T_SKILL{스킬번호}("타입")
+            IF (RESULT & ARG:1)
+                SKILL_ARRAY:배열내위치 = 스킬번호
+                배열내위치 ++
+            ELSE
+                CANNOT_ARRAY:스킬번호 = 1
+            ENDIF
+        ELSE
+            SKILL_ARRAY:배열내위치 = 스킬번호
+            배열내위치 ++
+        ENDIF
+    ELSE
+        CANNOT_ARRAY:스킬번호 = 1
+    ENDIF
+    
+    ;배열 수 한도 초과시 종료
+    SIF 배열내위치 == 99
+        RETURN 1
+NEXT
+FOR I, 2, 100
+    J = I
+    WHILE SKILL_ARRAY:J < SKILL_ARRAY:(J-1) && J > 1
+        TEMP:0 = SKILL_ARRAY:(J-1)
+        SKILL_ARRAY:(J-1) = SKILL_ARRAY:J
+        SKILL_ARRAY:J = TEMP:0
+
+        TEMP:1 = SKILL_ARRAY:(J-1)
+        SKILL_ARRAY:(J-1) = SKILL_ARRAY:J
+        SKILL_ARRAY:J = TEMP:1
+
+        J -= 1
+    WEND
+NEXT
