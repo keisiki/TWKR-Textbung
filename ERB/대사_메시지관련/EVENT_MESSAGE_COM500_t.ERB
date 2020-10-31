@@ -288,33 +288,17 @@ CASE 131
 	PRINTL ┌─────────────┐
 	PRINTL ｜　　　　　　　　　　　　　｜
 	PRINTL ｜　　모리야부적　　　　　　｜
+	PRINTL ｜　   　　　　　　　　　　　｜
+	PRINTL ｜    　5장 모으면                　｜
+	PRINTL ｜　　   뽑기 1회 가능합니다　｜
 	PRINTL ｜　　　　　　　　　　　　　｜
-	PRINTL ｜　　5매 가지런히 하면(자)　　　　　｜
-	PRINTL ｜　　　복권을 1회 파합니다　｜
+	PRINTL ｜이익은 보증하기 어렵습니다 ｜
 	PRINTL ｜　　　　　　　　　　　　　｜
-	PRINTL ｜　이익은 보증하기 어렵습니다　｜
-	PRINTL ｜　　　　　　　　　　　　　｜
-	PRINTL ｜　　　　　　　　모리야신사　｜
+	PRINTL ｜　　　　　　　모리야신사　｜
 	PRINTL └─────────────┘
 	RETURN
-CASE 1
-	LOCALS = 우그이
-CASE 2
-	LOCALS = 아마고
-CASE 3
-	LOCALS = 산천어
-CASE 4
-	LOCALS = 이와나
-CASE 11
-	LOCALS = 술
-CASE 12
-	LOCALS = 빙어
-CASE 13
-	LOCALS = 니지마스
-CASE 14
-	LOCALS = 칠성장어
-CASE 15
-	LOCALS = 캄르치
+CASE 1 TO 20, 22 TO 60
+	LOCALS = %FISH_NAME(TFLAG:193)%
 CASE 21
 	LOCALS = 로터
 CASEELSE
@@ -322,10 +306,120 @@ CASEELSE
 ENDSELECT
 
 IF TFLAG:194 > 1000
-	PRINTFORML %CALLNAME:CHARA%가%LOCALS%를 낚시했다!
+	PRINTFORML %조사처리(CALLNAME:CHARA,"가")% %조사처리(LOCALS,"를")% 낚았다!
 ELSE
-	PRINTFORML %LOCALS%가 잡혔다!
+	PRINTFORML %조사처리(LOCALS,"가")% 잡혔다!
+	;ローター以降を弾いてサイズと漁獲数の処理
+	IF INRANGE(TFLAG:193, 1, 60) && TFLAG:193 != 21
+		;サイズの出力
+		LOCAL:1 = FISHING_SIZE(TFLAG:193)
+		PRINTFORML 　사이즈:{LOCAL:1}cm
+		;ここまでの最高サイズと比較して大きければ記録
+		IF LOCAL:1 > FISHSIZE_RECORD:(TFLAG:193)
+			SETCOLOR C_YELLOW
+			SIF FISH_EXP:(TFLAG:193)
+				PRINTFORML 　지금까지 잡은 %LOCALS% 중에서 가장 큰 사이즈다!
+			RESETCOLOR
+			FISHSIZE_RECORD:(TFLAG:193) = LOCAL:1
+		ENDIF
+		;漁獲数の加算
+		FISH_EXP:(TFLAG:193) ++
+	ENDIF
 ENDIF
+;説明を流す
+SELECTCASE TFLAG:193
+	CASE 1 TO 20, 22 TO 60
+		DRAWLINE
+		PRINTFORML %LOCALS%
+		CALL FISHING_EXPLANATION(TFLAG:193)
+	CASE 21 ;ローター
+
+	CASE IS > 61
+		DRAWLINE
+		PRINTFORML %LOCALS%
+		PRINTFORML 　　%ITEM_EXPLANATION(TFLAG:193)%
+ENDSELECT
+
+;-------------------------------------------------
+;626,기념품점
+;-------------------------------------------------
+@MESSAGE_COM626
+CALL GIFTNAME(TCVAR:TARGET:오늘의선물)
+SIF TFLAG:194 > 0
+	PRINTFORML %마스터는% %CALLNAME:TARGET%에게 %조사처리(RESULTS,"를")% 買ってあげた。
+
+SELECTCASE TFLAG:194
+;ひやかし
+CASE -2
+	;地域ごとに台詞を変える場合
+	IF 0
+	ELSE
+		PRINTFORMW 「ひやかしは御免だよっ！」
+		PRINTL 
+		PRINTFORML 長く居座りすぎたようだ…
+	ENDIF
+;やっぱりやめる（見送り）
+CASE -1
+	PRINTFORML %CALLNAME:MASTER%達はささやかなウィンドウショッピングを楽しんだ。
+;400点未満（BAD）
+CASE 1
+	SELECTCASE CFLAG:TARGET:성격경향
+	;気弱系
+	CASE 1
+		PRINTFORML %타겟은% 混乱して言葉に詰まっている…
+	;強気系
+	CASE 2
+		PRINTFORML %타겟은% 興味なさそうに贈り物をつまんだ…
+	;素直系
+	CASE 3
+		PRINTFORML %타겟은% 唖然として立ち尽くしている…
+	;真面目系
+	CASE 4
+		PRINTFORML %타겟은% 動揺した様子で感謝を告げた…
+	;その他
+	CASEELSE
+		PRINTFORML %타겟은% 苦笑いしている…
+	ENDSELECT
+;400点～699点（NOMAL）
+CASE 2
+	SELECTCASE CFLAG:TARGET:성격경향
+	;気弱系
+	CASE 1
+		PRINTFORML %타겟은% 照れながら贈り物をギュッと握りしめた…
+	;強気系
+	CASE 2
+		PRINTFORML %타겟은% ニヤついた様子で吟味している…
+	;素直系
+	CASE 3
+		PRINTFORML %타겟은% 嬉しそうにしている…
+	;真面目系
+	CASE 4
+		PRINTFORML %타겟은% 丁寧に受け取り感謝の言葉をくれた…
+	;その他
+	CASEELSE
+		PRINTFORML %타겟은% 笑って受け取ってくれた…
+	ENDSELECT
+;700点以上（GOOD）
+CASE 3
+	SELECTCASE CFLAG:TARGET:성격경향
+	;気弱系
+	CASE 1
+		PRINTFORML %타겟은% 顔を真赤にしてまじまじと贈り物を見つめた…
+	;強気系
+	CASE 2
+		PRINTFORML %타겟은% 満足した様子で頭を撫でてくれた…
+	;素直系
+	CASE 3
+		PRINTFORML %타겟은% 嬉しさのあまり抱きついてきた…
+	;真面目系
+	CASE 4
+		PRINTFORML %타겟은% 頬を染めながら感謝の気持ちを伝えた…
+	;その他
+	CASEELSE
+		PRINTFORML %타겟은% 満面の笑みで受け取ってくれた…
+	ENDSELECT
+ENDSELECT
+
 ;-------------------------------------------------
 ;660, 독서
 ;-------------------------------------------------
