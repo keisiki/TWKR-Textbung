@@ -178,7 +178,9 @@ RETURN 0
 ;-1 = 대상1의 패배
 ;0 = 무승부
 ;1 = 대상1의 승리
-
+T_턴주인 = 대상1
+T_턴반대 = 대상2
+CALL T_시스템처리(10)
 $뉴탄막루틴시작
 
 ;---------
@@ -485,18 +487,35 @@ ELSE
     RETURN 0
 ENDIF
 
-@능력치감소(ARG, 능력치, 감소량, 명중률, 지속시간)
+@능력치감소(ARG, 입력능력치, 감소량, 명중률, 지속시간)
 ;현재 능력치 = T_기본수치_ID, , 지속시간 = T_기본수치_ID + 20
 ;ARG = 상대
+#DIMS 입력능력치
 #DIM 능력치 ;기본수치번호 ;현재 TCVAR:700~709(T_기본수치_ID) 
 #DIM 감소량 ;현재 능력치보정ID = T_기본수치_ID + 10
 #DIM 명중률
 #DIM 지속시간
+IF 입력능력치 == "공격력"
+    능력치 = 702
+ELSEIF 입력능력치 == "방어력"
+    능력치 = 703
+ELSEIF 입력능력치 == "힘"
+    능력치 = 704
+ELSEIF 입력능력치 == "지성"
+    능력치 = 705
+ELSEIF 입력능력치 == "속도"
+    능력치 = 706
+ELSEIF 입력능력치 == "인내"
+    능력치 = 707
+ELSEIF 입력능력치 == "운"
+    능력치 = 708
+ENDIF
 
 IF 명중률 >= RAND:100 + 1
     IF INRANGE(능력치, T_기본수치_ID, (T_기본수치_ID + 9))
         ;감소량이 해당 능력치보다 커지는 것을 방지
-        감소량 = MIN(TCVAR:ARG:능력치, 감소량)
+        SIF 능력치 != 703
+            감소량 = MIN(TCVAR:ARG:능력치, 감소량)
         TCVAR:ARG:(T_특수지속시간 + (능력치 - T_기본수치_ID)) = 지속시간
         TCVAR:ARG:능력치 -= 감소량
         TCVAR:ARG:(능력치 + 10) += 감소량
@@ -534,8 +553,23 @@ FOR 상태이상번호, T_특수지속시간_ID, (T_특수지속시간_ID + 30) 
         ;TCVAR:720~729 = 기본수치보정(감소) 지속시간 ;
         CASE T_특수지속시간_ID TO (T_특수지속시간_ID + 9)
             IF TCVAR:ARG:상태이상번호 == 0
-                TCVAR:ARG:T_힘 += TCVAR:ARG:T_힘감소량
-                TCVAR:ARG:T_힘감소량 = 0
+                SELECTCASE 상태이상번호
+                    CASE 274
+                        TCVAR:ARG:T_힘 += TCVAR:ARG:T_힘감소량
+                        TCVAR:ARG:T_힘감소량 = 0
+                    CASE 275
+                        TCVAR:ARG:T_지성 += TCVAR:ARG:T_지성감소량
+                        TCVAR:ARG:T_지성감소량 = 0
+                    CASE 276
+                        TCVAR:ARG:T_속도 += TCVAR:ARG:T_속도감소량
+                        TCVAR:ARG:T_속도감소량 = 0
+                    CASE 277
+                        TCVAR:ARG:T_인내 += TCVAR:ARG:T_인내감소량
+                        TCVAR:ARG:T_인내감소량 = 0
+                    CASE 278
+                        TCVAR:ARG:T_운 += TCVAR:ARG:T_운감소량
+                        TCVAR:ARG:T_운감소량 = 0
+                ENDSELECT     
             ENDIF
         ;TCVAR:730~749 = 상태이상 지속시간
         CASE 735 ;T_독 ;DOT 고정데미지
@@ -560,7 +594,28 @@ SELECTCASE 버프
         TCVAR:ARG:T_회피량 += ARG:1
         TCVAR:ARG:T_회피 = ARG:2
         TCVAR:ARG:T_방어력보정 += TCVAR:ARG:T_회피량
+    CASE "힘증가"
+        TCVAR:ARG:T_힘증가량 += ARG:1
+        SIF TCVAR:ARG:T_힘증가 < ARG:2
+            TCVAR:ARG:T_힘증가 = ARG:2
+    CASE "지성증가"
+        TCVAR:ARG:T_지성증가량 += ARG:1
+        SIF TCVAR:ARG:T_지성증가 < ARG:2
+            TCVAR:ARG:T_지성증가 = ARG:2
+    CASE "속도증가"
+        TCVAR:ARG:T_속도증가량 += ARG:1
+        SIF TCVAR:ARG:T_속도증가 < ARG:2
+            TCVAR:ARG:T_속도증가 = ARG:2
+    CASE "인내증가"
+        TCVAR:ARG:T_인내증가량 += ARG:1
+        SIF TCVAR:ARG:T_인내증가 < ARG:2
+            TCVAR:ARG:T_인내증가 = ARG:2
+    CASE "운증가"
+        TCVAR:ARG:T_운증가량 += ARG:1
+        SIF TCVAR:ARG:T_운증가 < ARG:2
+            TCVAR:ARG:T_운증가 = ARG:2
 ENDSELECT
+CALL 공방세팅(MASTER,TARGET)
 
 @버프감소처리(ARG)
 #DIM 버프번호
@@ -577,6 +632,16 @@ FOR 버프번호, T_버프_ID, (T_버프_ID + 20)
         SELECTCASE 버프번호
             CASE 750 ;T_회피
                 TCVAR:ARG:T_방어력보정 -= 버프정도
+            CASE 751
+                TCVAR:ARG:T_힘증가량 -= 버프정도
+            CASE 752
+                TCVAR:ARG:T_지성증가량 -= 버프정도
+            CASE 753
+                TCVAR:ARG:T_속도증가량 -= 버프정도
+            CASE 754
+                TCVAR:ARG:T_인내증가량 -= 버프정도
+            CASE 755
+                TCVAR:ARG:T_운증가량 -= 버프정도
         ENDSELECT
         TCVAR:ARG:(버프번호 + 20) = 0
     ENDIF
