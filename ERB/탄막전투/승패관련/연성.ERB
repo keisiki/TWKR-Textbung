@@ -1,0 +1,173 @@
+﻿@연성시스템
+#DIM 대상
+$연성루프
+PRINTFORML 누구의 혼을 이용할까?
+DRAWLINE
+FOR LOCAL, 0, CHARANUM
+    IF 습득한혼:LOCAL >= 1
+        PRINTFORML [{LOCAL}] %CALLNAME:LOCAL%의 혼
+    ENDIF
+NEXT
+DRAWLINE
+PRINTFORML [9999] 돌아간다
+INPUT
+IF RESULT == 9999
+    RETURN 1
+ELSE
+    IF RESULT < 0||RESULT > 150
+        GOTO 연성루프
+    ELSE
+        IF 습득한혼:RESULT == 0
+            GOTO 연성루프
+        ELSE
+            ;가능
+            대상 = RESULT
+            PRINTFORML 무엇을 할까?
+            DRAWLINE
+            PRINTFORMLC [1] 스펠카드 연성
+            SIF TALENT:RESULT:사망 == 1
+                PRINTFORMLC [2] 환생
+            PRINTFORMLC [3] 흡수
+            PRINTL
+            ;PRINTFORMLC [4] 해방
+            ;PRINTFORMLC [5] 제물
+            PRINTFORMLC [6] 돌아간다
+            $연성입력루프
+            INPUT
+            SELECTCASE RESULT
+                CASE 1
+                    CALL 연성가능한스킬(대상)
+                CASE 2
+                    IF TALENT:대상:사망 == 1
+                        CALL 부활시키기(대상)
+                    ELSE
+                        GOTO 연성입력루프
+                    ENDIF
+                CASE 3
+                    CALL 영혼흡수(대상)
+                ;CASE 4
+
+                ;CASE 5
+
+                CASE 6
+                    GOTO 연성루프
+                CASEELSE
+                    GOTO 연성입력루프
+            ENDSELECT
+            
+        ENDIF
+    ENDIF
+ENDIF
+GOTO 연성루프
+
+@연성가능한스킬(ARG)
+#DIM DYNAMIC 궁극기배열, 3000
+#DIM DYNAMIC 배열포인터
+FOR LOCAL,0,T_스킬한계값
+    IF HAVE_T_SKILL(ARG,LOCAL) == 1&&HAVE_T_SKILL(MASTER,LOCAL) == 0
+        RESULT = 0
+        TRYCALLFORM IS_UTIMATE{LOCAL}()
+        IF RESULT == 1
+            궁극기배열:배열포인터 = LOCAL
+            CALLFORMF T_SKILL{LOCAL}_STR("스킬명")
+            PRINTFORML [{배열포인터}] %RESULTS%
+            배열포인터++
+        ENDIF
+    ENDIF
+NEXT
+PRINTFORML [9999] 돌아간다
+INPUT
+IF RESULT == 9999
+    RETURN 1
+ELSE
+    IF RESULT < 배열포인터&&RESULT >= 0
+        TALENT:MASTER:(500+(궁극기배열:RESULT)) = 1
+        습득한혼:ARG --
+    ENDIF
+ENDIF
+
+@부활시키기(ARG)
+#DIM DYNAMIC 소모코스트
+PRINTFORM %ARG를% 되살립니까?
+
+소모코스트 += ABL:ARG:레벨 + ABL:ARG:순종
+소모코스트 += (TALENT:ARG:연인 * 50) + (TALENT:ARG:연모 *10)
+소모코스트 += 100
+
+PRINTFORML (요구량 : {소모코스트})
+
+PRINTFORMLC [1] TSP로 지불
+PRINTFORMLC [2] 돈으로 지불
+PRINTFORMLC [9] 그만둔다
+PRINTL
+$환생입력루프
+INPUT
+IF RESULT == 9
+    RETURN 1
+ELSE
+    SELECTCASE RESULT
+        CASE 1
+            
+            IF BASE:MASTER:TSP * 10 < 소모코스트
+                PRINTFORMW TSP가 부족합니다 (현재의 TSP로 지불할수 있는 양 : {BASE:MASTER:TSP * 10})
+            ELSE
+                PRINTFORML {소모코스트/10} TSP 소모합니다, 지불합니까?
+                CALL ASK_YN
+                IF !RESULT
+                    BASE:MASTER:TSP -= 소모코스트/10
+                    TALENT:ARG:사망 = 0
+                    PRINTFORML %ARG의% 몸이 서서히 복원되기 시작한다...
+                    PRINTFORML %ARG의% 몸 조각의 세포로부터, 서서히 분열하기 시작한 그것은 어린 %ARG의% 모습으로 변해갔다...
+                    PRINTFORML 이윽고 익숙한 %ARG의% 모습으로 변해가는 그것에 혼을 집어넣자, 천천히 숨을 쉬기 시작한다
+                    PRINTFORML 
+                    PRINTFORML %ARG는% 부활했습니다
+                    CALL 노말라이제이션(ARG, 10)
+                    CALL 종속도상승(ARG, 25)
+                    습득한혼:ARG--
+                ELSE
+                    GOTO 환생입력루프
+                ENDIF
+            ENDIF
+        CASE 2
+            IF MONEY < 소모코스트
+                PRINTFORMW 돈이 부족합니다 (현재 소지금 : {MONEY})
+            ELSE
+                PRINTFORML {소모코스트}원 소모합니다, 지불합니까?
+                CALL ASK_YN
+                IF !RESULT
+                    MONEY -= 소모코스트
+                    TALENT:ARG:사망 = 0
+                    PRINTFORML 다른이의 시체를 사들여, 그 육신에 %ARG의% 혼을 집어넣었다...
+                    PRINTFORML 조교전의 힘인지, 점차 익숙한 %ARG의% 모습으로 변해가는 그것은 천천히 숨을 쉬기 시작하며 몸을 일으켰다
+                    PRINTFORML 
+                    PRINTFORML %ARG는% 부활했습니다
+                    CALL 노말라이제이션(ARG, 10)
+                    CALL 종속도상승(ARG, 25)
+                    습득한혼:ARG--
+                ELSE
+                    GOTO 환생입력루프
+                ENDIF
+            ENDIF
+        CASEELSE
+            GOTO 환생입력루프
+    ENDSELECT
+ENDIF
+
+@영혼흡수(ARG)
+#DIM DYNAMIC 획득경험치
+
+획득경험치 = 100
+획득경험치 += (ABL:ARG:레벨*10) + (ABL:ARG:전투능력 * 500) + (TALENT:ARG:연인 * 1000) +(TALENT:ARG:연모 * 500) + (TALENT:ARG:사모 * 100) + (TALENT:ARG:애욕 * 500)
+획득경험치 += (TALENT:ARG:임신 * 100) + (TALENT:ARG:손님의아이 * 100)
+획득경험치 += MIN(CFLAG:ARG:호감도,500) + MIN(CFLAG:ARG:신뢰도,500)
+
+PRINTFORML %ARG의% 혼을 흡수하여 {획득경험치}만큼의 경험치를 얻을수 있습니다
+PRINTFORML 진행합니까?
+CALL ASK_YN
+IF !RESULT
+    습득한혼:ARG--
+    CALL 경험치처리(MASTER,획득경험치)
+ELSE
+    RETURN 1
+ENDIF
+
