@@ -784,14 +784,48 @@ ENDSELECT
 
 
 
+@조용한창녀경과(ARG)
+조교말하지마 = 1
+SIF ARG == MASTER
+    RETURN 0
+IF TALENT:ARG:창녀 == 1||TALENT:ARG:렌탈창녀 == 1
+    CALL 가상조교초기화(ARG)
+    아저씨조교 = 1
+    IF CFLAG:ARG:창관일 == 0
+        CFLAG:ARG:창관일 = RAND:3 + 1    
+    ENDIF
 
-
+    CALL 창녀의경과_소스처리(ARG)
+    ;렌탈창녀는 계약기간 끝나서 해방
+    SIF TALENT:ARG:렌탈창녀
+        TALENT:ARG:렌탈창녀 = 0
+    CALL V_소스처리
+    CALL V_절정처리
+    CALL V_경험처리
+    CALL 아저씨조교종료
+    IF CFLAG:ARG:보지붕괴 >= 500&&!TALENT:ARG:헐렁보지 == 1
+        ;PRINTFORML %CALLNAME:ARG%의 보지는 손님들의 의해 망가져 너덜너덜하게 되었다...
+       ; PRINTFORML %CALLNAME:ARG%는 [헐렁보지]를 얻었다
+        TALENT:ARG:헐렁보지 = 1
+    ENDIF
+    IF CFLAG:ARG:항문붕괴 >= 500&&!TALENT:ARG:헐렁항문 == 1
+        ;PRINTFORML %CALLNAME:ARG%의 엉덩이는 손님들의 의해 망가져 너덜너덜하게 되었다...
+       ; PRINTFORML %CALLNAME:ARG%는 [헐렁항문]를 얻었다
+        TALENT:ARG:헐렁항문 = 1
+    ENDIF
+    CFLAG:ARG:오늘몸팜 = 0
+    아저씨조교 = 0
+    ; DRAWLINE
+    TCVAR:ARG:조용히해줘 = 1
+ENDIF
 
 @창녀의경과
 ;그날 대상이 어떻게 일을했는지 알려주는 함수
 ;호출위치는 BEFORETRAIN
 FOR LOCAL,1,CHARANUM
     SIF LOCAL == MASTER
+        CONTINUE
+    SIF TCVAR:LOCAL:조용히해줘 == 1
         CONTINUE
     IF TALENT:LOCAL:창녀 == 1||TALENT:LOCAL:렌탈창녀 == 1
         CALL 가상조교초기화(LOCAL)
@@ -832,10 +866,12 @@ FOR LOCAL,1,CHARANUM
             PRINTFORML %CALLNAME:LOCAL%는 [헐렁항문]를 얻었다
             TALENT:LOCAL:헐렁항문 = 1
         ENDIF
-        CFLAG:ARG:오늘몸팜 = 0
+        
         아저씨조교 = 0
         DRAWLINE
+        조교말하지마 = 0
     ENDIF
+    CFLAG:ARG:오늘몸팜 = 0
 NEXT
 
 @창녀의경과_소스처리(ARG)
@@ -1001,9 +1037,15 @@ IF 총조교횟수 > 0
     CALL V_순종((평균강도/20) * 총조교횟수)
     CALL V_굴복((평균강도/20) * 총조교횟수)
 ENDIF
-SIF 가자궁정자 > 0
+IF 가자궁정자 > 0
+    SIF 조교말하지마 == 0
     PRINTFORML 질 내에 받은 정액량 : {가자궁정자}
-SIF 가애널정자 > 0
+ENDIF
+IF 가애널정자 > 0
+    SIF 조교말하지마 == 0
     PRINTFORML 항문 안에 받은 정액량 : {가애널정자}
-SIF 가구내정자 > 0
+ENDIF
+IF 가구내정자 > 0
+    SIF 조교말하지마 == 0
     PRINTFORML 입 안에 받은 정액량 : {가구내정자}
+ENDIF
