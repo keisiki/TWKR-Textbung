@@ -1,143 +1,144 @@
 ﻿
 ;**** FlagManagement **********************************************************
-;本口上にて使用しているCFLAG・TCVAR等
-;TCVAR:350　挨拶判定
-;TCVAR:351　季節・天候話判定
-;TCVAR:360　その日の祟りカウンター回数
-;TCVAR:361　その日の祟りカウンターによる疑念判定（１回）
+;본말에서 사용하고 있는 CFLAG·TCVAR등
+;TCVAR:350 인사 판정
+;TCVAR:351 계절·날씨이야기 판정
+;TCVAR:352 데이트 회화 판정
+;TCVAR:360 그 날의 뒤탈 카운터 회수
+;TCVAR:361 그 날의 뒤탈 카운터에 의한 의념[疑念] 판정(1회)
 
-;CFLAG:1001　パンツ盗られた回数
-;CFALG:1002　邪神（？）崇拝バレ
-;CFLAG:1003　日中祟りカウンター30回（会話では20回）超えによる疑念回数
-;CFALG:1004　時姦バレ
-;CFLAG:1005　三粒の天滴を授けた
+;CFLAG:1001 팬츠 훔쳐진 회수
+;CFALG:1002 사신(?) 숭배 바레
+;CFLAG:1003 일중수카운터 30회(회화에서는 20회) 추월에 의한 의념[疑念] 회수
+;CFALG:1004시 간바레
+;CFLAG:1005세방울의천수을 하사했다
 
-;CFLAG:1301　時姦祟りカウンターを喰らわせた総回数
-;CFLAG:1302　睡姦祟りカウンターを喰らわせた総回数
-;CFLAG:1303　それ以外の祟りカウンターを(略
+;CFLAG:1301시 간수카운터를 먹인 총회수
+;CFLAG:1302수간수카운터를 먹인 총회수
+;CFLAG:1303 그 이외의 뒤탈 카운터를(약어
 ;******************************************************************************
 
 ;-----------------------------------------------------------
-;祟りカウンターの制御用関数（諏訪子専用）
-;ARG:0 ループ回数（接触が濃厚なほど回数を増す）
+;뒤탈 카운터의 제어용 함수(스와코 전용)
+;ARG:0 루프 회수(접촉이 농후할 정도 회수를 늘린다)
 ;-----------------------------------------------------------
 @K33_TATARI_COUNTER(ARG:0)
-#DIM 減少値
+#DIM 감소치
 
 IF TALENT:33:연모 || TALENT:33:애욕
-	減少値 = -35
+	감소치 = -35
 ELSEIF MARK:괘씸각인 == 3 || TALENT:섹프
-	減少値 = -50
+	감소치 = -50
 ELSEIF TALENT:사모
-	減少値 = -60
+	감소치 = -60
 ELSE
-	減少値 = -100
+	감소치 = -100
 ENDIF
 
 SELECTCASE MARK:33:쾌락각인
 	CASE 1
-		減少値 += 10
+		감소치 += 10
 	CASE 2
-		減少値 += 15
+		감소치 += 15
 	CASE 3
-		減少値 += 20
+		감소치 += 20
 ENDSELECT
 
 SELECTCASE MARK:33:시간각인
 	CASE 1
-		減少値 += 0
+		감소치 += 0
 	CASE 2
-		減少値 += 5
+		감소치 += 5
 	CASE 3
-		減少値 += 10
+		감소치 += 10
 ENDSELECT
 
 SELECTCASE MARK:33:반발각인
 	CASE 1
-		減少値 -= 20
+		감소치 -= 20
 	CASE 2
-		減少値 -= 40
+		감소치 -= 40
 	CASE 3
-		減少値 -= 60
+		감소치 -= 60
 ENDSELECT
 
 SIF TALENT:33:기분 == -1
-	減少値 -= 50
+	감소치 -= 50
 SIF CFLAG:33:빡침
-	減少値 -= 50
-;√累計回数の補正
+	감소치 -= 50
+;√누계 회수의 보정
 SIF CFLAG:33:1301 || CFLAG:33:1302 || CFLAG:33:1303
-	減少値 -= SQRT(CFLAG:33:1301 + CFLAG:33:1302 + CFLAG:33:1303)
+	감소치 -= SQRT(CFLAG:33:1301 + CFLAG:33:1302 + CFLAG:33:1303)
 
-;恋人の場合は、一律ゼロに補正／プラス値のときも補正
+;연인의 경우는, 일률 제로에 보정/플러스치 때도 보정
 SIF TALENT:33:연인
-	減少値 = 0
-SIF 減少値 > 0
-	減少値 = 0
+	감소치 = 0
+SIF 감소치 > 0
+	감소치 = 0
 
-IF 減少値 < 0
+IF 감소치 < 0
 	SELECTCASE TCVAR:33:360
 		CASE 0
-			;最初回の説明用テキスト（総祟りカウンターがゼロの時）
+			;최초회의 설명용 텍스트(총수카운터가 제로때)
 			IF !CFLAG:33:1301 && !CFLAG:33:1302
 				IF FLAG:70
-					PRINTFORMW 스와코는%CALLNAME:MASTER%의 능력의 전절의 부엌과도 움직이지 않는다.
-					PRINTFORMW 이 시간 정지의 능력을 가지고 하면, 어떠한 일도 마음 가는 대로……
+					PRINTFORMW 스와코는 %CALLNAME:MASTER%의 능력의 전에 흠칫도 움직이지 않는다.
+					PRINTFORMW 이 시간정지의 능력을 가지고 하면, 어떠한 일도 마음 가는 대로……
 				ELSE
 					PRINTFORMW 스와코는 완전하게 잠들고 있는 것 같다…
 				ENDIF
-				PRINTFORMW 똥 미소지으면서,%마스터는% 다른 소녀들에 그렇게 하도록(듯이), 스와코에게 손대려고――
+				PRINTFORMW 빙긋 웃으면서, %마스터는% 다른 소녀들에게 그렇게 하듯이, 스와코에 손대려고 해――
 				SETCOLOR 0x705B67
 				PRINTL 
 				PRINTFORML ――  원  
 				PRINTW 
 				SETCOLOR 0xC0A2C7
-				PRINTFORML 전신이 소름이 끼치는 감각에, 반사적으로――힘차게 손을 끌어당기고 있었다.
-				PRINTFORMW ……무심코 군침을 삼킨 것은 흥분으로부터 나오지 않고, 바싹바싹 마르고 있던 목을 적시기 (위해)때문에인가.
-				PRINTFORMW 스와코에게 불과에 접한 손가락끝이, 인자와 은은한 아픔을 발하고 있다.
-				PRINTFORMW 몸부림 한다. 손가락끝에 가져와진 정전기와 같이 사소한 아픔에는 아니고, 몸의 심지로부터 영향을 주는, 좀 더 본능적인 「외경심」에 대해서.
-				PRINTFORML 무엇인가가%CALLNAME:MASTER%의 몸에, , 라고 비집고 들어가 온 것 같은……
-				PRINTFORMW 그런, 형언할 수 없는 감각과 함께,%CALLNAME:MASTER%의 힘을 조금 약하게 할 수 있고 있는 것을 자각한다.
-				PRINTFORMW ……일여기에 이르러, 와 그녀의 본질이 무엇이었는지, 다시 생각한다.
-				PRINTFORMW 수 많은 신――과거의 왕국통수신의 수괴. 그 힘의 한 조각을, 지금 모습자리와 보게 된 것 같다.
-				PRINTFORMW ……눈앞의 소녀의 모양을 한 누군가를, 압도되지 않게 다시 재차 응시한다.
-				PRINTFORMW 이것은 애를 먹을 것 같다……라고%마스터는% 땀이 배인 손을 잡아 닫았다……
+				PRINTFORML 전신이 소름이 끼치는 감각에, 반사적으로――힘차게 손을 움츠리고 있었다.
+				PRINTFORMW …… 무심코 군침을 삼킨 것은 흥분으로부터 나오지 않고, 바싹바싹 마르고 있던 목을 적시기 (위해)때문인가.
+				PRINTFORMW 스와코에 조금 접한 손가락끝이, 지릿지릿 은은한 아픔을 발하고 있다.
+				PRINTFORMW 몸부림 한다. 손가락끝에 가져와진 정전기와 같이 사소한 아픔에는 아니고, 몸의 심지로부터 영향을 주는, 좀 더 본능적인 『외경심』에 대해서.
+				PRINTFORML 뭔가가 %CALLNAME:MASTER%의 몸에, 미끌, 라고 비집고 들어가 온 것 같은……
+				PRINTFORMW 그런, 이루 말할 수 없는 감각과 함께, %CALLNAME:MASTER%의 힘을 조금 약하게 되어지고 있는 것을 자각한다.
+				PRINTFORMW …… 일이 이 지경에 이르러, 탁 그녀의 본질이 무엇이었는가, 다시 생각한다.
+				PRINTFORMW 수 많은 신――과거의 왕국을 통괄한 재앙신의 수괴. 그 힘의 한 조각을, 지금 역력하게 보게 된 것 같다.
+				PRINTFORMW …… 눈앞의 소녀의 모양을 한 누군가를, 압도되지 않게 재차 다시 본다.
+				PRINTFORMW 이것은 뼈가 꺾일 것 같다…… 와 %마스터는% 땀이 배인 손을 잡았다……
 			ELSE
 				SETCOLOR 0x705B67
-				PRINTFORML 신체에 무엇인가가 비집고 들어가 오는 것 같은 오한이 했다…
+				PRINTFORML 신체에 뭔가가 비집고 들어가 오는 것 같은 오한이 했다…
 			ENDIF
 		CASE 1 TO 10
 			SETCOLOR 0x70224E
-			PRINTFORML 신체 중(안)에서 무엇인가가 꿈틀거리고 있는 것 같은 불쾌감이 있다…
+			PRINTFORML 신체 중(안)에서 뭔가가 꿈틀거리고 있는 것 같은 불쾌감이 있다…
 		CASE 11 TO 30
 			SETCOLOR 0xCC3D8E
 			PRINTFORML 신체중의 모공에 바늘을 발사해지는 것 같은 무서운 오한이 한다…
-			減少値 -= SQRT(TCVAR:33:360)
+			감소치 -= SQRT(TCVAR:33:360)
 		CASEELSE
 			SETCOLOR 0xCC0074
 			IF INROOM(CFLAG:MASTER:현재위치)
-				PRINTFORML 아！창에！창에！
+				PRINTFORML 아! 창에! 창에!
 			ELSE
-				PRINTFORML 차가운 돌의 촉감을 한 흰 뱀과 같은 물건에 휘감겨져 사지를 빼앗아지는 것 같은 격통이 몸을 책망한다…
+				PRINTFORML 차가운 돌의 촉감을 한 흰 뱀과 같은 것에 휘감겨져 사지를 빼앗아지는 것 같은 격통이 몸을 책망한다…
 			ENDIF
-			減少値 -= 2 * SQRT(TCVAR:33:360)
+			감소치 -= 2 * SQRT(TCVAR:33:360)
 	ENDSELECT
 	RESETCOLOR
-	CALL K33_TATARI_MAIN(ARG:0, 減少値)
+	CALL K33_TATARI_MAIN(ARG:0, 감소치)
 ENDIF
 
 ;-----------------------------------------------------------
-;祟りカウンターシステムの減算実行関数（諏訪子専用）
-;ARG:0 ループ回数（接触が濃厚なほど回数を増す、コマンド毎に指定）
-;ARG:1 減少値、負の値を入れる
+;뒤탈 카운터 시스템의 감산 실행 함수(스와코 전용)
+;ARG:0 루프 회수(접촉이 농후할 정도 회수를 늘리는, 커맨드마다 지정)
+;ARG:1 감소치, 부의 값을 입금시킨다
 ;-----------------------------------------------------------
 @K33_TATARI_MAIN(ARG:0, ARG:1)
-#DIM ループ回数
+#DIM NUM_LOOP
 
-ループ回数 = 0
+NUM_LOOP = 0
 
 $TATARI_LOOP
-;TSPを必ず削る
+;TSP를 반드시 깎는다
 CALL BUFF_BASE(MASTER, BASE_TSP, ARG:1, 0)
 
 SELECTCASE RAND:3
@@ -147,19 +148,19 @@ SELECTCASE RAND:3
 		CALL BUFF_BASE(MASTER, BASE_기력, ARG:1, 0)
 	CASEELSE
 		IF GETBIT(TALENT:MASTER:성별, 1)
-			CALL BUFF_BASE(MASTER, BASE_정력, (ARG:1 / 2) , 0)
+			CALL BUFF_BASE(MASTER, BASE_정력, (ARG:1 / 2), 0)
 		ELSE
 			CALL BUFF_BASE(MASTER, BASE_TSP, ARG:1, 0)
 		ENDIF
 ENDSELECT
-ループ回数 ++
-;周回数が指定された回数以下ならループ
-SIF ループ回数 < ARG:0
+NUM_LOOP ++
+;주회수가 지정된 회수 이하라면 루프
+SIF NUM_LOOP < ARG:0
 	GOTO TATARI_LOOP
 
-;本日の祟り回数に加算（ループ回数に関わらず１回のカウント）
+;오늘수회수에 가산(루프 회수에 관련되지 않고 1회의 카운트)
 TCVAR:33:360 ++
-;時姦、睡姦それぞれの祟り総カウントに加算
+;시간, 수간 각각의 수총카운트에 가산
 IF FLAG:70
 	CFLAG:33:1301 ++
 ELSEIF CFLAG:수면
@@ -169,15 +170,15 @@ ELSE
 ENDIF
 
 ;-----------------------------------------------------------
-;祟りカウンターによる時姦バレ判定関数（諏訪子専用）
-;調整のためにまとめておく
+;뒤탈 카운터에 의할 때 간 들키고 판정 함수(스와코 전용)
+;조정을 위해서(때문에) 모아 둔다
 ;-----------------------------------------------------------
 @K33_TATARI_BARE(ARG = 33)
 #FUNCTION
-;時姦祟りカウンター回数が一定数を超える
+;시간수카운터 회수가 일정수를 넘는다
 SIF CFLAG:ARG:1301 >= 500
 	RETURNF 1
-;祟りカウンターによる疑念回数が一定数を超える
+;뒤탈 카운터에 의한 의념[疑念] 회수가 일정수를 넘는다
 SIF CFLAG:ARG:1003 >= 15
 	RETURNF 1
 
@@ -185,28 +186,28 @@ RETURNF 0
 
 ;-----------------------------------------------------------------------------------------------
 ;@CHARA_INFO_KOJO_K33()
-;個人情報の「キャラ紹介」の文章を書き換える
-;これがあれば「CSTR」の20番以降(20～39)に文字列を書き込むだけで書き換わるはず
-;早苗口上より引用、改変
+;개인정보의 「캐릭터 소개」의 아야장을 고쳐 쓴다
+;이것이 있으면 「CSTR」의 20번 이후(20~39)에 캐릭터 라인을 기입하는 것만으로 써 교체될 것
+;사나에 말보다 인용, 개변
 ;-----------------------------------------------------------------------------------------------
 @CHARA_INFO_KOJO_K33()
 ;===============================================================================================
-;記述例
-;このコメントアウトを外すと「CSTR」の20番以降に文字列を書き込むだけで書き換わるようになる
-;FOR LOCAL,20,40
+;기술예
+;이 comment out를 제외하면 「CSTR」의 20번 이후에 캐릭터 라인을 기입하는 것만으로 써 교체되게 된다
+;FOR LOCAL, 20, 40
 ;	SIF CSTR:31:(LOCAL) != ""
 ;		PRINTFORML %CSTR:31:(LOCAL)%
 ;NEXT
 ;RETURN 1
-;…とまあ、こんな感じでCSTR20番以降を使えばいいはず
+;…(와)과 뭐, 이런 느낌으로 CSTR20차례 이후를 사용하면 좋을 것
 ;===============================================================================================
-;本口上は、書き換わる文章が多いのでCSTRへの保存をせずに直接書き込む
-;現時点で下の2行が書き込まれている
-;PRINTL □ キャラ紹介 □---------------------------------------------------------------------
+;본말은, 써 교체되는 아야장이 많기 때문에 CSTR에의 보존을 하지 않고 직접 기입한다
+;현시점에서 아래의 2행이 기입해지고 있다
+;PRINTL □ 캐릭터 소개 □---------------------------------------------------------------------
 ;PRINTL 
 
 ;##################################################################################
-;①「～土着神の頂点～　●種族：八百万の神　●能力：坤を創造する程度の能力」をプリント
+;①「~토착신의 정점~ ●종족:수 많은 신 ●능력:고를 창조하는 정도의 능력」을 프린트
 ;##################################################################################
 CALL M_KOJO_COLOR_K33
 PRINTFORML %CSVCSTR(33, 10)%
@@ -214,65 +215,328 @@ RESETCOLOR
 PRINTL 
 
 ;##################################################################################
-;②キャラ紹介文を書き込み
+;②캐릭터 소개문을 기입해
 ;##################################################################################
-;共通部
-PRINTFORML 요괴의 산 위에 있는 모리야 신사의 신의 일주
-PRINTFORML 공식상의 제신인 야사카 카나자에게 힘을 제공해, 신앙을 모으는 진정한 제신
+;공통부
+PRINTFORML 요괴의산 위에 있는 모리야신사의 신의 한 기둥
+PRINTFORML 공식상의 제신인 야사카 카나코에 힘을 제공해, 신앙을 모으는 진정한 제신
 IF TALENT:33:사모 || TALENT:33:섹프 || TALENT:33:연모 || TALENT:33:애욕
-	PRINTFORML 고의 왕국을 공포수를 가지고 통괄한 토착신의 정점이며,
-	PRINTFORML 고래부터 존숭 떠날 수 있고 있던 탈이 나고 신들을 통솔하는 존재
-	PRINTFORML 수 많은 신은 신앙의 힘에 의해 그 명맥을 유지하는 것이어,
-	PRINTFORML 외계에서는 신앙 획득이 어려워졌기 때문에, 신사마다 환상고우에 데려 올 수 있게 되었다
+	PRINTFORML 고의 왕국을 공포와 뒤탈을 가지고 통괄한 토착신의 정점이며, 
+	PRINTFORML 고래부터 존숭되고 있던 재앙신들을 통솔하는 존재
+	PRINTFORML 수 많은 신은 신앙의 힘에 의해 그 명맥을 유지하는 것이어, 
+	PRINTFORML 외계에서는 신앙 획득이 어려워졌기 때문에, 신사마다 환상향에 끌려 오는 일이 되었다
 ENDIF
 
-;時姦バレしている
+;시간 들키고 하고 있다
 IF CFLAG:33:1004
 	PRINTL 
-	PRINTFORML 수신으로서의 힘으로 시간 정지 능력을 가진다%CALLNAME:MASTER%(을)를 함정에 감째,
-	PRINTFORML 「협력자」로서 장중에 거두게 되었다…
+	PRINTFORML 재앙신으로서의 힘으로 시간정지 능력을 가지는 %마스터를% 함정에 빠뜨려, 
+	PRINTFORML 「협력자」로서 손바닥 안에 넣게 되었다…
 ELSEIF CFLAG:33:1003 >= 14 || K33_TATARI_BARE()
 	PRINTL 
-	PRINTFORML 무수에 새겨진 외관 없는 수의 자국에,
-	PRINTFORML %CALLNAME:MASTER%에의 의념은 거의 확신으로 변해있다…
+	PRINTFORML 무수에 새겨진 안보이는 뒤탈의 자국에, 
+	PRINTFORML %CALLNAME:MASTER%에의 의념[疑念]은 거의 확신으로 변해있다…
 ELSEIF CFLAG:33:1003 >= 10
 	PRINTL 
-	PRINTFORML 새겨진 외관 없는 수의 자국에,
-	PRINTFORML %CALLNAME:MASTER%에의 의념이 깊어지고 있다…
+	PRINTFORML 새겨진 안보이는 뒤탈의 자국에, 
+	PRINTFORML %CALLNAME:MASTER%에의 의념[疑念]이 깊어지고 있다…
 ELSEIF CFLAG:33:1003 >= 5
 	PRINTL 
-	PRINTFORML 기억이 없는 수의 자국에,
+	PRINTFORML 기억에 없는 뒤탈의 자국에, 
 	PRINTFORML %CALLNAME:MASTER%에의 의혹을 갖기 시작하고 있다…
 ENDIF
 
 SELECTCASE (CFLAG:33:1301 + CFLAG:33:1302 + CFLAG:33:1303)
 	CASE IS >= 500
 		PRINTL 
-		PRINTFORML 바치 당%CALLNAME:MASTER%에 철저하게 수를 밥등 나라고 있다
+		PRINTFORML 바치 적중인 %CALLNAME:MASTER%에 철저하게 뒤탈을 먹이고 있다
 	CASE IS >= 250
 		PRINTL 
-		PRINTFORML 불경인%CALLNAME:MASTER%(을)를 탈이 나고는 있다
+		PRINTFORML 불경인 %마스터를% 탈이 나고는 있다
 	CASE IS >= 100
 		PRINTL 
-		PRINTFORML %CALLNAME:MASTER%에 무의식 가운데에 수를 주고 있다
+		PRINTFORML %CALLNAME:MASTER%에 무의식 안에 뒤탈을 주고 있다
 ENDSELECT
 
-;邪神崇拝バレしている
+;사신 숭배 들키고 하고 있다
 IF CFLAG:33:1002
 	PRINTL 
-	PRINTFORML 재앙의 신을 숭배한다%CALLNAME:MASTER%(을)를 개종 시키려고,
+	PRINTFORML 사신을 숭배하는 %마스터를% 개종 시키려고, 
 	PRINTFORML 그 손 이 손으로 신토쿠를 어필 하고 있지만, 꽤 능숙하게 말하지 않는 것 같다…
 ENDIF
-;三粒の天滴を授けている
+;세방울의천수을 하사하고 있다
 IF CFLAG:33:1005
 	PRINTL 
-	PRINTFORML 이러니 저러니로 신앙심의 독실하다%CALLNAME:MASTER%(을)를 마음에 든 것 같아,
+	PRINTFORML 이러니 저러니로 신앙심의 독실한 %마스터를% 마음에 든 것 같아, 
 	PRINTFORML 그 힘의 단편을 빌려 주기까지 도달했다
 	CALL M_KOJO_COLOR_K33
-	PRINTFORML 　결코 끊어지는 일 없이 흙을 적셔, 그 대지에 풍양을 약속하는 「3알의 천적」
-	PRINTFORML 　튀는 개구리로부터 개구리를 낳는 윤회의 업, 개구리의 신 힘·와부 「농간의 두꺼비」
+	PRINTFORML 　결코 끊어지는 일 없이 흙을 적셔, 그 대지에 풍양을 약속하는 「세방울의천수」
+	PRINTFORML 　튀는 개클리로부터 개클리를 낳는 윤회의 업, 개클리의 신님의 력·와부 「농간의 두꺼비」
 	RESETCOLOR
-	PRINTFORML 수신을 독실하게 모시면, 큰 신토쿠를 얻을 수 있다――(이)란, 확실히 이 일을 말하는 것일까
+	PRINTFORML 재앙신을 독실하게 모시면, 큰 신토쿠를 얻을 수 있는――이란, 확실히 이 일을 말할 것이다
 ENDIF
 PRINTL 
 RETURN 1
+
+;-----------------------------------------------------------
+;삽입시 말출력용 함수(스와코 전용)
+;절정, 사정, 경험, 체위 따위의 시추에이션으로 자동적으로 출력
+;ARG:0…0질	1 애널
+;ARG:1…0 기본	1 삽입 계속
+;ARG:2…0 기본	1 승마	2 후키
+;A삽입 동시 클리 공격이라든지 미대응
+;-----------------------------------------------------------
+@INSERT_KOJO_K33(ARG:0, ARG:1, ARG:2)
+;V
+IF ARG:0 == 0
+	IF ARG:1 == 0
+		$INSERT_V
+		IF TALENT:연모 || TALENT:애욕 || TALENT:섹프
+			IF NOWEX:TARGET:V절정 && NOWEX:MASTER:사정
+				SIF ARG:2 == 1 && RAND:2 == 1
+					GOTO V_OFFENCE
+				PRINTDATAW
+					DATAFORM 「아%UNICODE(0x2764)% 또, 커진%UNICODE(0x2764)% 내, 내 %UNICODE(0x2764)%」
+					DATAFORM 「갈 것 같다? 좋아, 나도…… 함께, 군요 %UNICODE(0x2764)%」
+					DATAFORM 「%UNICODE(0x2764)%%UNICODE(0x2764)% 안돼 안됏, 이대로…… 아 응%UNICODE(0x2764)%」
+					DATAFORM 「팥고물%UNICODE(0x2764)% 좋아, 가득 기분 좋아져 주기 때문에…… 가득, 내 %UNICODE(0x2764)%」
+				ENDDATA
+			ELSEIF NOWEX:TARGET:V절정
+				PRINTDATAW 
+					DATAFORM 「부쩍부쩍 해 %UNICODE(0x2764)% 팥고물, 좀 더, 좀 더 %UNICODE(0x2764)%」
+					DATAFORM 「%CALLNAME:MASTER%의 굉장한 %UNICODE(0x2764)% 도…… 가 버려 %UNICODE(0x2764)%」
+					DATAFORM 「아…… 아%UNICODE(0x2764)% 이것 안돼에, 날아가 버린다, 날아가 버리기 때문%UNICODE(0x2764)%」
+					DATAFORM 「좋아, 좀 더, 깊고 %UNICODE(0x2764)% 부서져 버릴 정도로, 해 %UNICODE(0x2764)%」
+					DATAFORM 「아우……\@ ARG:2 == 1? 안돼에, 아래로부터 즈코바코 되어 져 버려 # 나카로 스쳐 기분이 좋아\@%UNICODE(0x2764)%」
+				ENDDATA
+			ELSEIF NOWEX:MASTER:사정
+				$V_OFFENCE
+				IF ARG:2 == 1
+					PRINTDATAW
+						DATAFORM 「갈 것 같다? 후훗, 좋아…… 내 버려라%UNICODE(0x2764)%」
+						DATAFORM 「이제(벌써) 나와 버려? 앙, 노력하지 않아도 괜찮은데 %UNICODE(0x2764)%」
+						DATAFORM 「사랑스러운 얼굴이 되어 버리고 있어? 후후…… 나의 (안)중 나오고, 라고 해 준다♪」
+						DATAFORM 「나카로 커지고 있어? 노력하는\@ TALENT:MASTER:성별 == 2? 남자의 #  \@아이는 사랑스럽다, %UNICODE(0x2764)%」
+						DATAFORM 「후후, 허리가 멈추어 버려, 자지만 움찔움찔 해 버리고 있어? 이봐요, 조─금만 움직여 주는%UNICODE(0x2764)%」
+						DATAFORM 「이제(벌써) 나와 버려? 좋아, 나의 나카로, 마음껏 져 버려라%UNICODE(0x2764)%」
+					ENDDATA
+				ELSE
+					PRINTDATAW
+						DATAFORM 「갈 것 같다? 후훗, 좋아…… 내 버려라%UNICODE(0x2764)%」
+						DATAFORM 「이제(벌써) 나와 버려? 앙, 노력하지 않아도 괜찮은데 %UNICODE(0x2764)%」
+						DATAFORM 「사랑스러운 얼굴이 되어 버리고 있어? 후후…… 나의 (안)중 나오고, 라고 해 준다♪」
+						DATAFORM 「나카로 커지고 있어? 노력하는\@ TALENT:MASTER:성별 == 2? 남자의 #  \@아이는 사랑스럽다, %UNICODE(0x2764)%」
+					ENDDATA
+				ENDIF
+			;통상 V
+			ELSE
+				PRINTDATAW 
+					DATAFORM 「팥고물%UNICODE(0x2764)% 어때? 나의 나카, 기분이 좋아? 후후―%UNICODE(0x2764)%」
+					DATAFORM 「응우……%CALLNAME:MASTER%의, 쭉쭉 끼어들어 온다…… 에헤헤」
+					DATAFORM 「읏, 우아…… 아%UNICODE(0x2764)% \@ ARG:2 == 2? 이 외모, 짐승같아 # 허리개인가, 굉장히, 추잡하기 때문에\@……%UNICODE(0x2764)%」
+					DATAFORM 「앗…… 나오거나 들어가거나 하고 있는 곳, 보여? 아읏, 흥분해 버려, 아이참……%UNICODE(0x2764)%」
+					DATAFORM 「\@ ARG:2 == 1? (이)나, 아래로부터 부쩍부쩍은…… 도, 히히 말하게 해 버리기 때문에 # 아, 야앗, 기분이 좋아\@%UNICODE(0x2764)%」
+				ENDDATA
+			ENDIF
+		;함락 없음
+		ELSE
+			IF NOWEX:TARGET:V절정 && NOWEX:MASTER:사정
+				PRINTFORMW 「아%UNICODE(0x2764)% 또, 커진%UNICODE(0x2764)% 내, 내 %UNICODE(0x2764)%」
+			ELSEIF NOWEX:TARGET:V절정
+				PRINTFORMW 
+			ELSEIF NOWEX:MASTER:사정
+				PRINTFORMW 「나카로 커지고 있어? 노력하는\@ TALENT:MASTER:성별 == 2? 남자의 #  \@아이는 사랑스럽다, %UNICODE(0x2764)%」
+			ELSE
+				PRINTFORMW 「읏, 우아…… 아%UNICODE(0x2764)% 허리개인가, 굉장히, 추잡하기 때문에……%UNICODE(0x2764)%」
+			ENDIF
+		ENDIF
+	;질내사정 후
+	ELSE
+		IF TALENT:연모 || TALENT:애욕 || TALENT:섹프
+			IF TCVAR:V에질내사정된플래그 && RAND:3 == 0
+				PRINTDATAW
+					DATAFORM 「아핫, 굉장해─…… 아직도 갈 수 있다―%UNICODE(0x2764)%」
+					DATAFORM 「팥고물%UNICODE(0x2764)% 냈는데, 아직 이렇게…… 후후─, 의지 나온%UNICODE(0x2764)%」
+					DATAFORM 「과연 %CALLNAME:MASTER%…… 녀 울리고구나♪아%UNICODE(0x2764)%」
+				ENDDATA
+			ELSE
+				GOTO INSERT_V
+			ENDIF
+		ELSE
+			IF TCVAR:V에질내사정된플래그 && RAND:3 == 0
+				PRINTFORMW 「아핫, 굉장해─…… 아직도 갈 수 있다―%UNICODE(0x2764)%」
+			ELSE
+				GOTO INSERT_V
+			ENDIF
+		ENDIF
+	ENDIF
+ELSE
+;A
+	IF ARG:1 == 0
+		$INSERT_A
+		IF TALENT:연모 || TALENT:애욕 || TALENT:섹프
+			IF NOWEX:TARGET:A절정 && NOWEX:MASTER:사정
+				SIF ARG:2 == 1 && RAND:2 == 1
+					GOTO A_OFFENCE
+				IF ABL:TARGET:애널 >=  2
+					PRINTDATAW
+						DATAFORM 「팥고물%UNICODE(0x2764)% 엉덩이 기분이 좋아, 좀 더, 좀 더……%UNICODE(0x2764)%」
+						DATAFORM 「갈 것 같다? 좋아, 나의 엉덩이에, 가득 내 %UNICODE(0x2764)%」
+						DATAFORM 「좀 더, 좀 더 안쪽까지 %UNICODE(0x2764)% 아, 으응%UNICODE(0x2764)%」
+						DATAFORM 「엉덩이의 구멍 중(안)에서 커지고 있는…… 도, 이 변태%UNICODE(0x2764)% ……(이)나%UNICODE(0x2764)%」
+					ENDDATA
+				ELSE
+					PRINTDATAW
+						DATAFORM 「우아……%UNICODE(0x2764)% 엉덩이로, 이렇게 되어 버리다니이…… 야%UNICODE(0x2764)%」
+						DATAFORM 「안돼에, 이런 것으로, 가서는…… 아%UNICODE(0x2764)%」
+						DATAFORM 「엉덩이의 구멍 중(안)에서 커지고 있는…… 도, 이 변태%UNICODE(0x2764)% ……(이)나%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					ENDDATA
+				ENDIF
+			ELSEIF NOWEX:TARGET:A절정
+				IF ABL:TARGET:애널 >=  2
+					;바이브 장비중 A삽입시… 양구멍 공격입니다
+					IF TEQUIP:TARGET:13
+						PRINTDATAW 
+							DATAFORM 「팥고물%UNICODE(0x2764)% 엉덩이도 보지도 기분이 좋아, 좀 더, 좀 더……%UNICODE(0x2764)%」
+							DATAFORM 「야아…… 양쪽 모두의 구멍 즈코바코 되어, 가 버려 %UNICODE(0x2764)%」
+							DATAFORM 「아%UNICODE(0x2764)% 팥고물%UNICODE(0x2764)% 이것, 너무 대단한…… 아%UNICODE(0x2764)%」
+							DATAFORM 「만나는%UNICODE(0x2764)% 기분 너무 좋아…… 의식, 톤야……%UNICODE(0x2764)%」
+						ENDDATA
+					ELSE
+						PRINTDATAW 
+							DATAFORM 「팥고물%UNICODE(0x2764)% 엉덩이 기분이 좋아, 좀 더, 좀 더……%UNICODE(0x2764)%」
+							DATAFORM 「야아…… 엉덩이의 구멍 즈코바코 되어, 가 버려 %UNICODE(0x2764)%」
+							DATAFORM 「야, 팥고물%UNICODE(0x2764)% 이쪽이…… 좋은, 일지도……%UNICODE(0x2764)%」
+							DATAFORM 「만나는%UNICODE(0x2764)% 엉덩이의 구멍, 기분 너무 좋아…… 도…… 안돼에……%UNICODE(0x2764)%」
+						ENDDATA
+					ENDIF
+				ELSE
+					IF TEQUIP:TARGET:13
+						PRINTDATAW 
+							DATAFORM 「아우…… 보지와 함께, 기분 좋아지는 것……%UNICODE(0x2764)%」
+							DATAFORM 「%UNICODE(0x2764)% 도…… 자기 마음대로해 주어 버려…… 아%UNICODE(0x2764)%」
+							DATAFORM 「팥고물%UNICODE(0x2764)% 이것 안돼, 돌아올 수 없고, 된다아…… 아%UNICODE(0x2764)%」
+						ENDDATA
+					ELSE
+						PRINTDATAW 
+							DATAFORM 「거짓말…… 엉덩이의 구멍, 움찔움찔 해…… 아, 아……%UNICODE(0x2764)%」
+							DATAFORM 「그렇게 쥬웁쥬웁 소리내지 말아요…… 야, 아……%UNICODE(0x2764)%」
+							DATAFORM 「응…… 야아…… 엉덩이의 구멍, 뜨거워……%UNICODE(0x2764)%」
+						ENDDATA
+					ENDIF
+				ENDIF
+			ELSEIF NOWEX:MASTER:사정
+				$A_OFFENCE
+				IF ARG:2 == 1
+					PRINTDATAW
+						DATAFORM 「갈 것 같다? 후후―%UNICODE(0x2764)% 엉덩이의 구멍에서 짜내 준다―%UNICODE(0x2764)%」
+						DATAFORM 「한심한 얼굴이 되어 버리고 있어? 헤헤, 엉덩이의 구멍에서 좀 더 기분 좋게 해 주는%UNICODE(0x2764)%」
+						DATAFORM 「아하……%CALLNAME:MASTER%태우고 있고니까? 이렇게 상태의 좋은 구멍이 되어 버린 것은……%UNICODE(0x2764)%」
+						DATAFORM 「이봐요, 좀 더 즈코바코 해%UNICODE(0x2764)% 이봐요 이봐요%UNICODE(0x2764)%」
+						DATAFORM 「후후, 허리가 멈추어 버려, 자지만 움찔움찔 해 버리고 있어? 이봐요, 조─금만 움직여 주는%UNICODE(0x2764)%」
+						DATAFORM 「이제(벌써) 나와 버려? 좋아, 나의 엉덩이로, 마음껏 져 버려라%UNICODE(0x2764)%」
+					ENDDATA
+				ELSE
+					IF ABL:TARGET:애널 >=  2
+						PRINTDATAW
+							DATAFORM 「갈 것 같다? 후후―%UNICODE(0x2764)% 엉덩이의 구멍에서 짜내 준다―%UNICODE(0x2764)%」
+							DATAFORM 「한심한 얼굴이 되어 버리고 있어? 헤헤, 엉덩이의 구멍에서 좀 더 기분 좋게 해 주는%UNICODE(0x2764)%」
+							DATAFORM 「아하……%CALLNAME:MASTER%태우고 있고니까? 이렇게 상태의 좋은 구멍이 되어 버린 것은……%UNICODE(0x2764)%」
+							DATAFORM 「이봐요, 좀 더 즈코바코 해%UNICODE(0x2764)% 이봐요 이봐요%UNICODE(0x2764)%」
+						ENDDATA
+					ELSE
+						PRINTDATAW
+							DATAFORM 「우아…… 엉덩이의 구멍 중(안)에서, 움찔움찔 하고 있는……%UNICODE(0x2764)%」
+							DATAFORM 「(이)나%UNICODE(0x2764)% 또…… 커졌다…… 에에%UNICODE(0x2764)%」
+							DATAFORM 「좋아%UNICODE(0x2764)% 엉덩이의 구멍에서…… 내 버려라%UNICODE(0x2764)%」
+						ENDDATA
+					ENDIF
+				ENDIF
+			;통상 A
+			ELSE
+				IF ABL:TARGET:애널 >=  2
+					;바이브 장비중 A삽입시
+					IF TEQUIP:TARGET:13
+						PRINTDATAW 
+							DATAFORM 「보지도, 엉덩이의 구멍도, 움찔움찔 해…… 아, 아……%UNICODE(0x2764)%」
+							DATAFORM 「%UNICODE(0x2764)% 도…… 자기 마음대로해 주어 버려…… 아%UNICODE(0x2764)%」
+							DATAFORM 「팥고물%UNICODE(0x2764)% 이것 안돼, 돌아올 수 없고, 된다아…… 아%UNICODE(0x2764)%」
+							DATAFORM 「안된…… 양구멍라고, 기분 좋게 여겨져 버린다아……%UNICODE(0x2764)%」
+							DATAFORM 「어느 쪽도, 부쩍부쩍 오는 것 %UNICODE(0x2764)% 아, 거기 안돼에, 비비지 말고 %UNICODE(0x2764)%」
+						ENDDATA
+					ELSE
+						PRINTDATAW 
+							DATAFORM 「엉덩이의 구멍…… 기분이 좋아? 후후…… 나도, 여자글자%UNICODE(0x2764)%」
+							DATAFORM 「정말…… 친숙해 지는 거네요……%UNICODE(0x2764)% 만나는……%UNICODE(0x2764)%」
+							DATAFORM 「이렇게 엣치한 구멍으로 해 주어 버려…… 팥고물%UNICODE(0x2764)%」
+							DATAFORM 「엉덩이, 뜨거운 것 %UNICODE(0x2764)% 찌릿찌릿 한다아……%UNICODE(0x2764)%」
+							DATAFORM 「주륵주륵, 는, 헤치고 들어가 오는 것이…… 버릇에 %UNICODE(0x2764)%」
+						ENDDATA
+					ENDIF
+				ELSE
+					IF TEQUIP:TARGET:13
+						PRINTDATAW 
+							DATAFORM 「아우…… 보지 쪽이…… 좋을까%UNICODE(0x2764)%」
+							DATAFORM 「%UNICODE(0x2764)% , 너무 격렬해 %UNICODE(0x2764)%」
+							DATAFORM 「팥고물%UNICODE(0x2764)% 어느 쪽인가에, 해 주세요%UNICODE(0x2764)%」
+							DATAFORM 「춋…… 너무 하는 것이 아닌 걸까나…… 아 아%UNICODE(0x2764)%」
+						ENDDATA
+					ELSE
+						PRINTDATAW 
+							DATAFORM 「우…… 뭐라고 할까…… 이, 오슬오슬 하는 느낌……%UNICODE(0x2764)%」
+							DATAFORM 「크고…… 조금 힘든…… 일까%UNICODE(0x2764)%」
+							DATAFORM 「나…… 조금, , 는……%UNICODE(0x2764)%」
+							DATAFORM 「주륵주륵, 는, 헤치고 들어가 오는 것이…… 버릇에 %UNICODE(0x2764)%」
+						ENDDATA
+					ENDIF
+				ENDIF
+			ENDIF
+		;함락 없음
+		ELSE
+			IF NOWEX:TARGET:A절정 && NOWEX:MASTER:사정
+				IF ABL:TARGET:애널 >=  2
+					PRINTFORMW 「팥고물%UNICODE(0x2764)% 엉덩이 기분이 좋아, 좀 더, 좀 더……%UNICODE(0x2764)%」
+				ELSE
+					PRINTFORMW 「우아……%UNICODE(0x2764)% 엉덩이로, 이렇게 되어 버리다니이…… 야%UNICODE(0x2764)%」
+				ENDIF
+			ELSEIF NOWEX:TARGET:A절정
+				IF ABL:TARGET:애널 >=  2
+					PRINTFORMW 「야, 팥고물%UNICODE(0x2764)% 이쪽이…… 좋은, 일지도……%UNICODE(0x2764)%」
+				ELSE
+					PRINTFORMW 「그렇게 쥬웁쥬웁 소리내지 말아요…… 야, 아……%UNICODE(0x2764)%」
+				ENDIF
+			ELSEIF NOWEX:MASTER:사정
+				IF ABL:TARGET:애널 >=  2
+					PRINTFORMW 「갈 것 같다? 후후―%UNICODE(0x2764)% 엉덩이의 구멍에서 짜내 준다―%UNICODE(0x2764)%」
+				ELSE
+					PRINTFORMW 「우아…… 엉덩이의 구멍 중(안)에서, 움찔움찔 하고 있는……%UNICODE(0x2764)%」
+				ENDIF
+			ELSE
+				IF ABL:TARGET:애널 >=  2
+					PRINTFORMW 「엉덩이, 뜨거운 것 %UNICODE(0x2764)% 찌릿찌릿 한다아……%UNICODE(0x2764)%」
+				ELSE
+					PRINTFORMW 「크고…… 조금 힘든…… 일까%UNICODE(0x2764)%」
+				ENDIF
+			ENDIF
+		ENDIF
+	;질내사정 후
+	ELSE
+		IF TALENT:연모 || TALENT:애욕 || TALENT:섹프
+			IF TCVAR:A에질내사정된플래그 && RAND:3 == 0
+				PRINTDATAW
+					DATAFORM 「후후─, 또, 엉덩이의 구멍에서 몹시 짜지고 싶다―%UNICODE(0x2764)%」
+					DATAFORM 「여기로 좋은 것인지―%UNICODE(0x2764)% 네? 『여기가 좋다』는? 완전히……%UNICODE(0x2764)%」
+					DATAFORM 「아우…… 도, 출렁출렁이 되어 버려 %UNICODE(0x2764)%」
+				ENDDATA
+			ELSE
+				GOTO INSERT_A
+			ENDIF
+		ELSE
+			IF TCVAR:A에질내사정된플래그 && RAND:3 == 0
+				PRINTFORMW 「아우…… 도, 출렁출렁이 되어 버려 %UNICODE(0x2764)%」
+			ELSE
+				GOTO INSERT_A
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
