@@ -85,7 +85,7 @@ ELSEIF RESULT == 1
                 SIF 촉수궁베팅금액 > MONEY
                     촉수궁베팅금액 = MONEY
                 PRINTFORML {촉수궁베팅금액}원, 배율 {(촉수궁베팅금액/10000 + 101)}퍼센트로 베팅합니까?
-                촉수궁배수 = 촉수궁베팅금액/10000 + 1
+                촉수궁배수 = 촉수궁베팅금액/100 + 1
                 CALL ASK_YN()
                 IF RESULT
                     RETURN 1
@@ -324,7 +324,9 @@ SIF 참여자:9 != 0
 ;------------------
 
 ;PHASE 3 런
-    ;0
+촉수궁나레이션:0 '= "자! 지금부터 촉수궁 레이스를 시작합니다!"
+촉수궁나레이션:1 '= "가장 먼저 완주하는 참가자를 선택한 사람들에게 상금이 주어집니다!"
+촉수궁나레이션:2 '= "과연 누가 먼저 완주할까?! 자! 출발!"
 FOR LOCAL:2,0,10000
     DRAWLINE
     PRINTL TV
@@ -344,11 +346,23 @@ FOR LOCAL:2,0,10000
         PRINTL
     NEXT
     FOR LOCAL:2,0,9
-        IF CP:(LOCAL:2):0 == 0
+        SIF 연속이벤트제한 >= 1
+            연속이벤트제한--
+        IF CP:(LOCAL:2):0 == 0||CP:(LOCAL:2):3 == 1||CP:(LOCAL:2):3 == 2
+            IF CP:(LOCAL:2):3 == 2
+                CP:(LOCAL:2):3 = 0
+            ENDIF
+            CONTINUE
+        ENDIF
+        IF BASE:(LOCAL:2):체력 <= 0
+            CP:(LOCAL:2):3 = 1
+            나레이션번호 = LOCAL:2
+            CALL 나레이션생성("번 참여자가 쓰러졌습니다!!","그래도 여기서 쓰러지면 촉수에 범해지는 건데!","그치만 쓰러진게 잘못이니까 어쩔수 없네요~ 다음에 더 힘내주세요?")
             CONTINUE
         ENDIF
         CALL 동서남북상태(LOCAL:2)
         방향임시변수 = RESULT
+        CP:(LOCAL:2):4 = 0
         IF (LASTCP:(LOCAL:2):2== 0&&GETBIT(RESULT,0) == 0)||(LASTCP:(LOCAL:2):2== 2&&GETBIT(RESULT,3) == 0)||(LASTCP:(LOCAL:2):2== 1&&GETBIT(RESULT,2) == 0)||(LASTCP:(LOCAL:2):2== 3&&GETBIT(RESULT,1) == 0)||LASTCP:(LOCAL:2):3 != 방향임시변수
             CALL 이동판단((LOCAL:2),RESULT)
             LASTCP:(LOCAL:2):2 = RESULT
@@ -374,17 +388,77 @@ FOR LOCAL:2,0,10000
             GOTO 촉수궁결과
         ENDIF
         ;PHASE 4 랜덤 이벤트
-
+        IF RAND:10 == 0&&연속이벤트제한 == 0
+            ;이벤트 발생
+            나레이션번호 = LOCAL:2
+            연속이벤트제한 = 120
+            SELECTCASE RAND:5
+                CASE 0
+                    ;촉수 후려치기
+                    CP:(LOCAL:2):4 = 1
+                    BASE:(LOCAL:2):체력 -= 50
+                    CALL 나레이션생성("번 참여자가 촉수에 얻어맞았네요!","이야...아프겠어요! 그래도 여기서 쓰러지면 촉수에 범해지는 거니까 힘내길!","...뭐어어...그래도 상관은 없지만~")
+                CASE 1
+                    ;흡착 촉수
+                    CP:(LOCAL:2):4 = 2
+                    EXP:(LOCAL:2):B경험++
+                    BASE:(LOCAL:2):체력 -= 25
+                    CALL 나레이션생성("번 참여자의 가슴에 쪽쪽이가 붙었어요!","쪽쪽쪽~ 아가처럼 빨아대는 귀여운 촉수에 힘이 쭉쭉 빠지겠죠? 그래도 여기서 쓰러지면 안돼요! 몇명이 당신을 보고 있는줄 알아요?","여기서 쓰러지면 화난 관중들한테 따먹힐지도~")
+                CASE 2
+                    ;촉수 강간
+                    CP:(LOCAL:2):4 = 3
+                    CP:(LOCAL:2):3 = 2
+                    BASE:(LOCAL:2):체력 -= 100
+                    IF TALENT:(LOCAL:2):처녀
+                        TALENT:(LOCAL:2):처녀 = 0
+                        CFLAG:(LOCAL:2):처녀상실기념일 = DAY
+                        CSTR:(LOCAL:2):처녀상실이력 '= "촉수궁에서 열심히 달리다 촉수들에게 무참히 빼앗겼다"
+                    ENDIF
+                    EXP:(LOCAL:2):V경험++
+                    EXP:(LOCAL:2):질내사정경험++
+                    CALL 나레이션생성("번 참여자에게...촉수가 달라붙었네요! 아! 범한다! 촉수가 범하고 있습니다!","아아! 놀라서 못 움직여요! 이대로 촉수가...안에 점액을 쌌습니다!","점액의 탈력 작용때문에 점점 힘이 빠질텐데...힘내서 완주해 주세요! 몇명이 당신을 응원하는지 아세요?")
+                CASE 3
+                    ;미약 향
+                    CP:(LOCAL:2):4 = 4
+                    BASE:(LOCAL:2):체력 -= 175
+                    SIF RAND:10 == 0&&ABL:(LOCAL:2):욕망 <= 10
+                        ABL:(LOCAL:2):욕망++
+                        CALL 나레이션생성("번 참여자한테 미약 안개가 깔립니다!","아아! 안돼요 안돼! 거기서 움찔움찔하면! 거기서 흥분하면 촉수들한테 큰일나요!","아이..참...그리 말해도...거기서 헐떡이고 있을 틈 없다니까!")
+                CASE 4
+                    IF RAND:5 == 0
+                        ;촉수 잡아먹기
+                        CP:(LOCAL:2):4 = 5
+                        CP:(LOCAL:2):3 = 2
+                        BASE:(LOCAL:2):체력 -= 250
+                        CALL 나레이션생성("번 참여자가 잡아먹혔습니다!!!","저녀석, 한번 물면 무지 아파서 땅바닥 구르는데! 아아...이래서야 완주는 무리인가요~~","그보다도 망가지지나 않을까 걱정이네요, 아으~ 아프겠다!")
+                    ENDIF
+            ENDSELECT
+        ENDIF
 
         ;
     NEXT
+    LOCAL:4 = 0
+    FOR LOCAL,0,9
+        IF CP:LOCAL:3 == 0||CP:LOCAL:3 == 2
+            LOCAL:4++
+        ENDIF
+    NEXT
+    IF LOCAL:4 == 0
+        DRAWLINE
+        PRINTFORML 앗! 모든 참여자가 쓰러져버렸습니다!
+        PRINTFORML 아쉽지만 이번 우승자는 없네요!
+        PRINTFORML 다음 기회에 다시 참여해 주세요!
+        DRAWLINE
+        GOTO 촉수궁종료
+    ENDIF
     ;PHASE 5 정경묘사
+    CALL 나레이션출력
     DRAWLINE
-    PRINTFORML
-    PRINTFORML
-    PRINTFORML
+    PRINTFORML %촉수궁나레이션:0%
+    PRINTFORML %촉수궁나레이션:1%
+    PRINTFORML %촉수궁나레이션:2%
     DRAWLINE
-    TWAIT 150,0
+    TWAIT 125,0
     CLEARLINE 28
 NEXT
 ;PHASE 6 결과 반환
@@ -392,13 +466,37 @@ $촉수궁결과
 PRINTFORML %CALLNAME:우승자%의 승리!
 IF 우승자 == 초이스
     MONEY += 촉수궁참여금 + (촉수궁참여금*촉수궁배수)/100
-    PRINTFORML 베팅에 성공하였으므로 {촉수궁참여금 + (촉수궁참여금*촉수궁배수)/100}원 받았다!
+    PRINTFORML 베팅에 성공하였으므로 {촉수궁참여금 + MAX((촉수궁참여금*촉수궁배수)/100, 100)}원 받았다!
 ENDIF
+$촉수궁종료
 FOR LOCAL,0,10
     IF CP:LOCAL:0 != 0
         CFLAG:(CP:LOCAL:0):오늘몸팜 = 1
     ENDIF
 NEXT
+
+@나레이션생성(ARGS,ARGS:1,ARGS:2)
+FOR LOCAL,0,19
+    IF 나레이션큐:LOCAL:0 == ""
+        나레이션큐:LOCAL:0 = {나레이션번호 + 1}%ARGS%
+        나레이션큐:LOCAL:1 = %ARGS:1%
+        나레이션큐:LOCAL:2 = %ARGS:2%
+        BREAK
+    ELSE
+        CONTINUE
+    ENDIF
+NEXT
+@나레이션출력
+IF 나레이션큐:1:0 != ""
+    촉수궁나레이션:0 = %나레이션큐:0:0%
+    촉수궁나레이션:1 = %나레이션큐:0:1%
+    촉수궁나레이션:2 = %나레이션큐:0:2%
+    FOR LOCAL,0,18
+        나레이션큐:LOCAL:0 = %나레이션큐:(LOCAL+1):0%
+        나레이션큐:LOCAL:1 = %나레이션큐:(LOCAL+1):1%
+        나레이션큐:LOCAL:2 = %나레이션큐:(LOCAL+1):2%
+    NEXT
+ENDIF
 
 @ANYONE_IN_THERE(ARG,ARG:1)
 #FUNCTION
@@ -553,6 +651,8 @@ ENDIF
 IF 겹치는인원 == 1
     SIF 빛나
         SETCOLOR 0X00FFFF
+    SIF CP:누구야:3 == 1
+        SETCOLOR 0X585858
     IF 누구야 <= 9
         PRINTFORM  {누구야+1}
     ELSE
