@@ -5,17 +5,81 @@
 
 게임인계처리중 = 1
 FLAG:주회수 ++
-CALL BUFF_RESET
-CALL BITE_THE_DUST_BACKUP
-CALL BITE_THE_DUST_CLEAR
-CALL BITE_THE_DUST_RESTORE
-CALL BITE_THE_DUST_NEW
-CALL BITE_THE_DUST_SWEEP
-게임인계처리중 = 0
-CALL NEWGAME_VERUP
-RETURN 1
-
-
+PRINTL 시험적인 기능을 이용하시겠습니까?( 연인 인계를 임시로 만들었지만 오류가능성이 있습니다)
+CALL ASK_YN()
+IF RESULT
+	;아니오
+	CALL BUFF_RESET
+	CALL BITE_THE_DUST_BACKUP
+	CALL BITE_THE_DUST_CLEAR
+	CALL BITE_THE_DUST_RESTORE
+	CALL BITE_THE_DUST_NEW
+	CALL BITE_THE_DUST_SWEEP
+	게임인계처리중 = 0
+	CALL NEWGAME_VERUP
+	RETURN 1
+ELSE
+	;예
+	VARSET 인계대상
+	CALL 인계대상선택
+	CALL BUFF_RESET
+	CALL BITE_THE_DUST_BACKUP
+	CALL BITE_THE_DUST_CLEAR_LEGECY
+	CALL BITE_THE_DUST_NEW
+	CALL BITE_THE_DUST_SWEEP
+	게임인계처리중 = 0
+	CALL NEWGAME_VERUP
+	RETURN 1
+ENDIF
+@인계대상선택
+#DIM DYNAMIC 인계한계
+#DIM DYNAMIC 선택수
+#DIM DYNAMIC 라인피드
+#DIM DYNAMIC 라인수
+인계한계 = MIN(FLAG:주회수,9) + 1
+$인계표
+라인피드 = 0
+라인수 = 0
+PRINTFORML 이번 회차에서 연인이었던 사람과 다음 세계로 함께 갈 수 있습니다
+DRAWLINE
+FOR LOCAL, 1, CHARANUM
+	IF TALENT:LOCAL:연인
+		IF 라인피드 == 6
+			라인수++
+			라인피드 = 0
+			PRINTL
+		ENDIF
+		IF 인계한계 <= 선택수&&인계대상:LOCAL == 0
+			SETCOLOR 0X585858
+		ELSEIF 인계대상:LOCAL == 1
+			SETCOLOR 0XFFFF00
+		ENDIF
+		PRINTFORMLC [{LOCAL}] %CALLNAME:LOCAL%
+		RESETCOLOR
+		라인피드++
+	ENDIF
+NEXT
+PRINTL
+DRAWLINE
+PRINTL [999] 이걸로 결정
+$인계입력
+INPUT
+IF RESULT == 999
+	RETURN 1
+ELSE
+	IF RESULT > 0&&RESULT <= CHARANUM&&TALENT:RESULT:연인&&인계한계 > 선택수
+		IF 인계대상:RESULT == 0
+			선택수++
+		ELSE
+			선택수--
+		ENDIF
+		인계대상:RESULT = !인계대상:RESULT
+		CLEARLINE 라인수 + 6
+		GOTO 인계표
+	ELSE
+		GOTO 인계입력
+	ENDIF
+ENDIF
 ;-----------------------------------------------------------
 ;변수 백업
 ;-----------------------------------------------------------
