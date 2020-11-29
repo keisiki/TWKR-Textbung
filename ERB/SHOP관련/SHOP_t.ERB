@@ -10,6 +10,22 @@
 ;첫 날에 돈 설정, 턴 끝날때에 보정을 하지만 첫날에는 지갑이 텅텅 빈 상태이므로 해둔다
 임시플래그1 = 0
 
+
+;기상 전화면 표시중 플래그
+TFLAG:100 = 0
+;---------------------
+;기상시간 자동 보정, 최저 수면 시간은 4시간
+LOCAL:1 = CFLAG:MASTER:취침시간 - DAY * 1440
+IF (TIME:3 >= LOCAL:1 && (TIME:3 - LOCAL:1) < 240) || (TIME:3 < 240 && (1440 + TIME:3 - LOCAL:1) < 240)
+	PRINTL 수면 시간이 너무 짧습니다. 적어도 4시간 이상은 자야 합니다
+	CALL 최저수면시간설정()
+	PRINTFORMW 기상시간을 (%시각표시(TIME:3)%)로 설정했습니다
+ENDIF
+;---------------------
+IF FLAG:물가 == 0
+	FLAG:물가 = 100
+ENDIF
+CALL 물가조정
 FOR LOCAL, 1, CHARANUM
 	;여기 껴들어서 처리
 	CALL 창녀일정하기(LOCAL)
@@ -37,17 +53,7 @@ ENDIF
 
 CALL 주민증발급
 
-;기상 전화면 표시중 플래그
-TFLAG:100 = 0
-;---------------------
-;기상시간 자동 보정, 최저 수면 시간은 4시간
-LOCAL:1 = CFLAG:MASTER:취침시간 - DAY * 1440
-IF (TIME:3 >= LOCAL:1 && (TIME:3 - LOCAL:1) < 240) || (TIME:3 < 240 && (1440 + TIME:3 - LOCAL:1) < 240)
-	PRINTL 수면 시간이 너무 짧습니다. 적어도 4시간 이상은 자야 합니다
-	CALL 최저수면시간설정()
-	PRINTFORMW 기상시간을 (%시각표시(TIME:3)%)로 설정했습니다
-ENDIF
-;---------------------
+
 DRAWLINE
 PRINTFORML {DAY}일째 (%GET_DAY()%) 소지금 :\\%TOSTR(MONEY,"#,###")%
 PRINTL
@@ -292,3 +298,31 @@ PRINTDATA
 ENDDATA
 PRINTFORML 
 
+@물가조정
+#DIM DYNAMIC 변동치
+IF RAND:2 == 0
+	변동치 = RAND:9 - 4
+	IF MONEY >= 300000
+		REPEAT MIN(MONEY/50000,10)
+			SIF RAND:2 == 0
+				변동치 = RAND:2
+		REND
+	ENDIF
+	IF FLAG:물가 + 변동치 <= 50
+		변동치 += 50 - FLAG:물가
+	ENDIF
+	IF FLAG:물가 + 변동치 >= 300
+		변동치 *= -1
+	ENDIF
+	FLAG:물가 += 변동치
+	
+	IF 변동치 == 0
+		PRINTFORML 오늘의 물가는 변동 없습니다 (원가의 {FLAG:물가}\%)
+	ELSEIF 변동치 > 0
+		PRINTFORML 오늘의 물가는 {변동치}\%p 상승했습니다 (원가의 {FLAG:물가}\%)
+	ELSEIF 변동치 < 0
+		PRINTFORML 오늘의 물가는 {변동치}\%p 하락했습니다 (원가의 {FLAG:물가}\%)
+	ENDIF
+ELSE
+	PRINTFORML 오늘의 물가는 변동 없습니다 (원가의 {FLAG:물가}\%)
+ENDIF
