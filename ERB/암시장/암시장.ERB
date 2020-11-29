@@ -1,0 +1,154 @@
+﻿@암시장
+PRINTFORML "어서와, 찾는건 뭐야?"
+$암시장루프
+DRAWLINE
+;PRINTFORML [100] - 구매
+;PRINTFORML [101] - 판매
+PRINTFORML [102] - 의뢰
+DRAWLINE
+PRINTFORML [900] - 돌아간다
+$LOOP
+INPUT
+IF RESULT == 900
+    RETURN 1
+ELSE
+    SELECTCASE RESULT
+        ;CASE 100
+        ;    CALL 암시장구매
+        ;CASE 101
+        ;    CALL 암시장판매
+        ;CASE 102
+        ;    CALL 암시장의뢰
+        CASEELSE
+            GOTO LOOP
+    ENDSELECT
+ENDIF
+GOTO 암시장루프
+
+@암시장구매
+
+@암시장판매
+
+@암시장의뢰
+PRINTFORML "뭘 의뢰할거야?"(소지금 : {MONEY})
+DRAWLINE
+PRINTFORML [100] - 소문을 퍼뜨려줘(\\5000)
+PRINTFORML [101] - 영원정의 약 저장고를 털어줘(\\100000)
+PRINTFORML [102] - 요즘 누가 괴롭혀서(\\10000)
+PRINTFORML [103] - 창관에서 한 명 데려와줘(\\250000)
+DRAWLINE
+PRINTFORML [900] - 돌아간다
+$LOOP
+INPUT
+IF RESULT == 900
+    RETURN 1
+ELSE
+    SELECTCASE RESULT
+        CASE 100
+            IF MONEY >= 5000
+                PRINTFORML "무슨 소문을 퍼뜨려줄까?"
+                PRINTFORML [1] - 나에 대한 미담!(전원의 호감/신뢰도 상승)
+                PRINTFORML [2] - 카리스마 폭락 예고!(물가 변동폭이 상승함)
+                PRINTFORML [9] - 돌아간다
+                $소문루프
+                INPUT
+                IF RESULT == 9
+
+                ELSE
+                    SELECTCASE RESULT
+                        CASE 1
+                            MONEY -= 5000
+                            PRINTFORML "오케이, 그쯤이야 쉽지"
+                            PRINTFORML "금방 퍼뜨려줄게"
+                            CALL 전원호감도상승(100,0)
+                            CALL 전원신뢰도상승(50,0)
+                        CASE 2
+                            MONEY -= 5000
+                            PRINTFORML "으으으음...알았어, 해 볼게"
+                            PRINTFORML "다만...이거 결과가 당신한테 좋게만 될거라곤 믿지마, 어찌될진 나도 몰라"
+                            FLAG:물가변동폭 += 10
+                        CASEELSE
+                            GOTO 소문루프
+                    ENDSELECT
+                ENDIF
+            ELSE
+                PRINTW "돈이 모자란걸?"
+                RESTART
+            ENDIF
+        CASE 101
+            IF MONEY >= 100000
+                MONEY -= 100000
+                PRINTFORML "음...약 저장소를...? 알았어, 오늘 밤 까지는 해결해 둘게"
+                PRINTFORML "칫...거긴 갔다간 몸에 이상한게 돋아날것만 같은데 말이지..."
+                FLAG:영원정폭발 = 1
+            ELSE
+                PRINTW "돈이 모자란걸?"
+                RESTART
+            ENDIF
+        CASE 102
+            IF MONEY >= 10000
+                PRINTFORML "알았어, 누굴 손봐줄까?"
+                FOR LOCAL:1, 1, CHARANUM
+                    IF CFLAG:(LOCAL:1):주도도 > 0&&TALENT:(LOCAL:1):사망 == 0
+                        PRINTFORML [{LOCAL:1}] %CALLNAME:(LOCAL:1)%
+                    ENDIF
+                NEXT
+                PRINTFORML [999] 취소
+                $혼내줘
+                INPUT
+                IF RESULT == 999
+                    RETURN 1
+                ELSE
+                    IF (RESULT > CHARANUM||RESULT < 0)
+                        GOTO 혼내줘
+                    ELSE
+                        SIF (CFLAG:RESULT:주도도 == 0||TALENT:RESULT:사망 == 1)
+                            GOTO 혼내줘
+                        MONEY -= 10000
+                        PRINTFORML "오케이, 지금 바로 갈게"
+                        PRINTFORMW ....
+                        PRINTFORML "...후우...힘들었지만, 어떻게든 했어...앞으론 덜 괴롭힐거야, 아마도"
+                        PRINTFORML "...해결 안되면 다음에 또 이용해줘?"
+                        CALL 노말라이제이션(RESULT, 20)
+                    ENDIF
+                ENDIF
+            ELSE
+                PRINTW "돈이 모자란걸?"
+                RESTART
+            ENDIF
+        CASE 103
+            IF MONEY >= 250000
+                PRINTFORML "...뭐어? 거기서 누굴 데려오라고...?"
+                PRINTFORML "...거기가 얼마나 무시무시한 곳인데 거길 가라고...하...정말이지..."
+                PRINTFORML "...알았어, 갈게, 간다고...그래서, 누굴 데려와?"
+                FOR LOCAL, 1, CHARANUM
+                    IF TALENT:LOCAL:창녀
+                        PRINTFORML [{LOCAL:1}] %CALLNAME:(LOCAL:1)%
+                    ENDIF
+                NEXT
+                PRINTFORML [999] 취소
+                $찾아줘
+                INPUT
+                IF RESULT == 999
+                    RETURN 1
+                ELSE
+                    IF (RESULT > CHARANUM||RESULT < 0)
+                        GOTO 찾아줘
+                    ELSE
+                        SIF !TALENT:RESULT:창녀
+                            GOTO 찾아줘
+                        MONEY -= 250000
+                        PRINTFORMW "알았어, 오늘 밤에 갔다 올게"
+                        PRINTFORMW "...하아...힘든 밤이 되겠네..."
+                        CFLAG:RESULT:구출작전 = 1
+                    ENDIF
+                ENDIF
+            ELSE
+                PRINTW "돈이 모자란걸?"
+                RESTART
+            ENDIF
+        CASEELSE
+            GOTO LOOP
+    ENDSELECT
+ENDIF
+RESTART
