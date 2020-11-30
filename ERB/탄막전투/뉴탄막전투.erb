@@ -36,34 +36,7 @@ T_대상1 = ARG
 T_대상2 = ARG:1 
 LOCAL = 0
 
-VARSET T_대상1_BUFF_공격력증가
-VARSET T_대상1_BUFF_방어력증가
-VARSET T_대상1_BUFF_힘증가
-VARSET T_대상1_BUFF_지성증가
-VARSET T_대상1_BUFF_속도증가
-VARSET T_대상1_BUFF_인내증가
-VARSET T_대상1_BUFF_운증가
-VARSET T_대상1_BUFF_공격력증가량
-VARSET T_대상1_BUFF_방어력증가량
-VARSET T_대상1_BUFF_힘증가량
-VARSET T_대상1_BUFF_지성증가량
-VARSET T_대상1_BUFF_속도증가량
-VARSET T_대상1_BUFF_인내증가량
-VARSET T_대상1_BUFF_운증가량
-VARSET T_대상2_BUFF_공격력증가
-VARSET T_대상2_BUFF_방어력증가
-VARSET T_대상2_BUFF_힘증가
-VARSET T_대상2_BUFF_지성증가
-VARSET T_대상2_BUFF_속도증가
-VARSET T_대상2_BUFF_인내증가
-VARSET T_대상2_BUFF_운증가
-VARSET T_대상2_BUFF_공격력증가량
-VARSET T_대상2_BUFF_방어력증가량
-VARSET T_대상2_BUFF_힘증가량
-VARSET T_대상2_BUFF_지성증가량
-VARSET T_대상2_BUFF_속도증가량
-VARSET T_대상2_BUFF_인내증가량
-VARSET T_대상2_BUFF_운증가량
+VARSET 통합버프
 
 FOR LOCAL, 1, 2000
     TRYCALLFORM ONGOING_T_SKILL{LOCAL}(MASTER,"초기화")
@@ -107,16 +80,27 @@ T_TIME = 0
 #DIM 세팅대상
 #DIM 공격력
 #DIM 방어력
-
+#DIM DYNAMIC 변동량, 5
+#DIM DYNAMIC 보정
 ;ARG = 대상1, ARG:1 = 대상2
 FOR LOCAL, 0, 2
     
     세팅대상 = ARG:LOCAL
-    TCVAR:세팅대상:T_힘 = TCVAR:세팅대상:T_힘증가 + CFLAG:세팅대상:힘
-    TCVAR:세팅대상:T_지성 = TCVAR:세팅대상:T_지성증가 + CFLAG:세팅대상:지성
-    TCVAR:세팅대상:T_속도 = TCVAR:세팅대상:T_속도증가 + CFLAG:세팅대상:속도
-    TCVAR:세팅대상:T_인내 = TCVAR:세팅대상:T_인내증가 + CFLAG:세팅대상:인내
-    TCVAR:세팅대상:T_운 = TCVAR:세팅대상:T_운증가 + CFLAG:세팅대상:운
+    
+    변동량:0 = TB_SUM_VALUE(ARG,TCV_힘)
+    변동량:1 = TB_SUM_VALUE(ARG,TCV_지성)
+    변동량:2 = TB_SUM_VALUE(ARG,TCV_인내)
+    변동량:3 = TB_SUM_VALUE(ARG,TCV_속도)
+    변동량:4 = TB_SUM_VALUE(ARG,TCV_운)
+    TCVAR:세팅대상:T_힘 = 변동량:0 + CFLAG:세팅대상:힘
+    TCVAR:세팅대상:T_지성 = 변동량:1 + CFLAG:세팅대상:지성
+    TCVAR:세팅대상:T_인내 = 변동량:2 + CFLAG:세팅대상:인내
+    TCVAR:세팅대상:T_속도 = 변동량:3 + CFLAG:세팅대상:속도
+    TCVAR:세팅대상:T_운 = 변동량:4 + CFLAG:세팅대상:운
+    보정 = TB_SUM_VALUE(세팅대상,TCV_증폭) - TB_SUM_VALUE(세팅대상,TCV_약화)
+    TCVAR:ARG:T_공격력보정 = 보정
+    보정 = TB_SUM_VALUE(세팅대상,TCV_회피) - TB_SUM_VALUE(세팅대상,TCV_취약)
+    TCVAR:ARG:T_방어력보정 = 보정
     공격력 = (TCVAR:세팅대상:T_힘*20)+ (TCVAR:세팅대상:T_속도*5)+ABL:세팅대상:레벨
     방어력 = (TCVAR:세팅대상:T_속도/4)+ (TCVAR:세팅대상:T_인내/2)+(TCVAR:세팅대상:T_운/5)+(ABL:세팅대상:레벨/2)
     SELECTCASE ABL:세팅대상:전투능력
@@ -184,10 +168,8 @@ FOR LOCAL, 0, 2
             TIMES 공격력, 4.5
             TIMES 방어력, 4.5
     ENDSELECT
-
-    IF TCVAR:세팅대상:T_취약
-        TIMES 방어력, 0.5
-    ENDIF
+    공격력 = 공격력 + ((공격력 * TCVAR:세팅대상:T_공격력보정)/100)
+    방어력 = 방어력 + ((방어력 * TCVAR:세팅대상:T_방어력보정)/100)
     ;MASTER나 TARGET일때의 추가처리
     ;차이가 필요하다면 SELECTCASE 전투능력을 여기 안으로 옮겨오면 됨
     IF 세팅대상 == MASTER
@@ -274,7 +256,7 @@ IF 턴넘김 == 1
             BREAK
         CASE 101
             ;스킬사용
-            IF TCVAR:대상1:T_침묵
+            IF TB_SUM_REMAIN(대상1,TCV_침묵)
                 PRINTW 침묵중이라 스킬을 시전할수 없다!
             ELSE
                 ;RETURN 0:시전실패 1:시전성공
@@ -427,17 +409,17 @@ GOTO 뉴탄막루틴시작
 T_턴주인 = ARG 
 T_턴반대 = ARG:1
 
-CALL 버프감소처리(ARG)
+;CALL 버프감소처리(ARG)
 
 CALL 공방세팅(ARG, ARG:1)
 
 
 ;상태이상에 따른 종료처리
-IF TCVAR:ARG:T_기절
+IF TB_SUM_REMAIN(ARG,TCV_기절)
     PRINTFORMW %ARG는% 기절중이라 행동할 수 없다!
     RETURN 0
 ENDIF
-IF TCVAR:ARG:T_혼란 &&RAND:2 == 0
+IF TB_SUM_REMAIN(ARG,TCV_혼란) &&RAND:2 == 0
     PRINTFORMW %ARG는% 혼란에 빠져 행동할수 없다!
     RETURN 0
 ENDIF
@@ -452,8 +434,7 @@ FOR LOCAL,1,1000
     T_시전자반대 = T_턴주인
     TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴반대,"턴엔드")
 NEXT
-CALL 상태이상감소처리(T_턴주인)
-CALL 상태이상감소처리(T_턴반대)
+CALL TB_MINUS
 
 T_TIME++
 
@@ -512,11 +493,6 @@ SELECTCASE 속성
 ENDSELECT
 
 IF TCVAR:ARG:T_방어력 >= 0
-    ;데미지 -= TCVAR:ARG:T_방어력
-    ;SIF TCVAR:ARG:T_방어력 > 0
-    ;    PRINTFORM  -방어력{TCVAR:ARG:T_방어력}
-    ;데미지 = (데미지 * 100)/(100+TCVAR:ARG:T_방어력)
-
     ; 감소율 = 100 - (100/100+방어력)인데 중간 과정에 소수가 들어가지 않게한 조치
     감소율 = 100 - ((100000 / MAX((100 + TCVAR:ARG:T_방어력), 1))/10)
     PRINTL
@@ -543,7 +519,7 @@ ELSEIF ARG == T_턴주인 && 크리티컬판정(TCVAR:T_턴반대:T_운)
 ENDIF
 
 IF 데미지 > 0
-    IF TCVAR:ARG:T_면역
+    IF TB_SUM_REMAIN(ARG,TCV_면역) 
         PRINTFORMW \@ ARG == TARGET ? %CALLNAME:ARG%에게 # \@ {데미지}만큼의 %속성% 피해를 \@ ARG == TARGET ? 주어# 받아\@야 했지만, 가볍게 흘려져버렸다!
     ELSE
         TCVAR:ARG:T_체력 -= 데미지
@@ -595,59 +571,8 @@ ENDIF
 ;@능력치세팅 -> 탄막전투/능력치표/능력치세팅.erb로 이관
 
 
-@상태이상부여(ARG, 상태이상, 명중률, 지속시간)
-;ARG = 상대
-#DIM 상태이상 ;TCVAR 내 지속시간번호 ;T_특수지속시간_ID = 720, 끝: 769
-#DIM 명중률
-#DIM 지속시간
-
-IF 명중률 >= RAND:100 + 1
-    SIF !INRANGE(상태이상, T_특수지속시간_ID, (T_특수지속시간_ID + 29)) ;버프 지속시간 제외
-        THROW 지속시간ID에 포함되지 않은 상태이상번호 {상태이상}
-    TCVAR:ARG:상태이상 = 지속시간
-    RETURN 1
-ELSE
-    RETURN 0
-ENDIF
-
-@능력치감소(ARG, 입력능력치, 감소량, 명중률, 지속시간)
-;현재 능력치 = T_기본수치_ID, , 지속시간 = T_기본수치_ID + 20
-;ARG = 상대
-#DIMS 입력능력치
-#DIM 능력치 ;기본수치번호 ;현재 TCVAR:700~709(T_기본수치_ID) 
-#DIM 감소량 ;현재 능력치보정ID = T_기본수치_ID + 10
-#DIM 명중률
-#DIM 지속시간
-IF 입력능력치 == "공격력"
-    능력치 = 702
-ELSEIF 입력능력치 == "방어력"
-    능력치 = 703
-ELSEIF 입력능력치 == "힘"
-    능력치 = 704
-ELSEIF 입력능력치 == "지성"
-    능력치 = 705
-ELSEIF 입력능력치 == "속도"
-    능력치 = 706
-ELSEIF 입력능력치 == "인내"
-    능력치 = 707
-ELSEIF 입력능력치 == "운"
-    능력치 = 708
-ENDIF
-
-IF 명중률 >= RAND:100 + 1
-    IF INRANGE(능력치, T_기본수치_ID, (T_기본수치_ID + 9))
-        ;감소량이 해당 능력치보다 커지는 것을 방지
-        SIF 능력치 != 703
-            감소량 = MIN(TCVAR:ARG:능력치, 감소량)
-        TCVAR:ARG:(T_특수지속시간 + (능력치 - T_기본수치_ID)) = 지속시간
-        TCVAR:ARG:능력치 -= 감소량
-        TCVAR:ARG:(능력치 + 10) += 감소량
-    ELSE
-        THROW 잘못된 능력치ID {능력치}
-    ENDIF
-ELSE
-    RETURN 0
-ENDIF
+;@능력치감소(ARG, 입력능력치, 감소량, 명중률, 지속시간)
+;삭제됨
 
 ;============================================
 ;현재 T_특수지속시간_ID = TCVAR:720~769
@@ -659,293 +584,16 @@ ENDIF
 ;기본수치보정량 = TCVAR:710~719
 ;버프보정량 = TCVAR:770~789
 ;============================================
-@상태이상감소처리(ARG)
-;ARG = 대상
-#DIM 상태이상번호
+;@상태이상감소처리(ARG)
+;삭제됨
 
-FOR 상태이상번호, T_특수지속시간_ID, (T_특수지속시간_ID + 30) ;버프 지속시간 제외
-    ;지속중이 아닌 경우 통과
-    IF TCVAR:ARG:상태이상번호 == 0
-        CONTINUE
-    ;지속시간 감소
-    ELSEIF TCVAR:ARG:상태이상번호 > 0
-        TCVAR:ARG:상태이상번호 --
-    ENDIF
+;@버프부여(ARG, 버프, ARG:1, ARG:2)
+;삭제됨
 
-    SELECTCASE 상태이상번호
-        ;TCVAR:720~729 = 기본수치보정(감소) 지속시간 ;
-        CASE T_특수지속시간_ID TO (T_특수지속시간_ID + 9)
-            IF TCVAR:ARG:상태이상번호 == 0
-                SELECTCASE 상태이상번호
-                    CASE 274
-                        TCVAR:ARG:T_힘 += TCVAR:ARG:T_힘감소량
-                        TCVAR:ARG:T_힘감소량 = 0
-                    CASE 275
-                        TCVAR:ARG:T_지성 += TCVAR:ARG:T_지성감소량
-                        TCVAR:ARG:T_지성감소량 = 0
-                    CASE 276
-                        TCVAR:ARG:T_속도 += TCVAR:ARG:T_속도감소량
-                        TCVAR:ARG:T_속도감소량 = 0
-                    CASE 277
-                        TCVAR:ARG:T_인내 += TCVAR:ARG:T_인내감소량
-                        TCVAR:ARG:T_인내감소량 = 0
-                    CASE 278
-                        TCVAR:ARG:T_운 += TCVAR:ARG:T_운감소량
-                        TCVAR:ARG:T_운감소량 = 0
-                ENDSELECT     
-            ENDIF
-        ;TCVAR:730~749 = 상태이상 지속시간
-        CASE 735 ;T_독 ;DOT 고정데미지
-            CALL T_데미지(ARG,50,"독")
-        CASE 736 ;T_출혈 ;DOT 퍼센트데미지
-            CALL T_데미지(ARG,(TCVAR:ARG:T_최대체력/20),"출혈")
-        CASE 737 ;T_저주 ;지연시간 데미지
-            SIF TCVAR:ARG:T_저주 == 0
-                CALL T_데미지(ARG,TCVAR:ARG:T_최대체력,"저주")
-    ENDSELECT
-    ;지속시간이 음수인 경우 방지
-    TCVAR:ARG:상태이상번호 = MAX(TCVAR:ARG:상태이상번호, 0)
-NEXT
-
-@버프부여(ARG, 버프, ARG:1, ARG:2)
-#DIMS 버프
-#DIM DYNAMIC 실패여부
-;ARG = 대상
-;ARG:1 = 증가량
-;ARG:2 = 지속시간
-
-IF ARG == T_대상1
-    SELECTCASE 버프
-        CASE "회피"
-            TCVAR:ARG:T_회피량 += ARG:1
-            TCVAR:ARG:T_회피 = ARG:2
-            TCVAR:ARG:T_방어력보정 += TCVAR:ARG:T_회피량
-        CASE "면역"
-            TCVAR:ARG:T_면역 = ARG:2
-        CASE "힘증가"
-            FOR LOCAL, 0, 49
-                IF T_대상1_BUFF_힘증가:LOCAL == 0
-                    T_대상1_BUFF_힘증가:LOCAL = ARG:2
-                    T_대상1_BUFF_힘증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-        CASE "지성증가"
-            FOR LOCAL, 0, 49
-                IF T_대상1_BUFF_지성증가:LOCAL == 0
-                    T_대상1_BUFF_지성증가:LOCAL = ARG:2
-                    T_대상1_BUFF_지성증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-        CASE "속도증가"
-            FOR LOCAL, 0, 49
-                IF T_대상1_BUFF_속도증가:LOCAL == 0
-                    T_대상1_BUFF_속도증가:LOCAL = ARG:2
-                    T_대상1_BUFF_속도증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-        CASE "인내증가"
-            FOR LOCAL, 0, 49
-                IF T_대상1_BUFF_인내증가:LOCAL == 0
-                    T_대상1_BUFF_인내증가:LOCAL = ARG:2
-                    T_대상1_BUFF_인내증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-        CASE "운증가"
-            FOR LOCAL, 0, 49
-                IF T_대상1_BUFF_운증가:LOCAL == 0
-                    T_대상1_BUFF_운증가:LOCAL = ARG:2
-                    T_대상1_BUFF_운증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-    ENDSELECT
-    ; 캐스팅 실패
-    실패여부 = 2
-ELSE
-    SELECTCASE 버프
-        CASE "회피"
-            TCVAR:ARG:T_회피량 += ARG:1
-            TCVAR:ARG:T_회피 = ARG:2
-            TCVAR:ARG:T_방어력보정 += TCVAR:ARG:T_회피량
-        CASE "면역"
-            TCVAR:ARG:T_면역 = ARG:2
-        CASE "힘증가"
-            FOR LOCAL, 0, 49
-                IF T_대상2_BUFF_힘증가:LOCAL == 0
-                    T_대상2_BUFF_힘증가:LOCAL = ARG:2
-                    T_대상2_BUFF_힘증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-        CASE "지성증가"
-            FOR LOCAL, 0, 49
-                IF T_대상2_BUFF_지성증가:LOCAL == 0
-                    T_대상2_BUFF_지성증가:LOCAL = ARG:2
-                    T_대상2_BUFF_지성증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-        CASE "속도증가"
-            FOR LOCAL, 0, 49
-                IF T_대상2_BUFF_속도증가:LOCAL == 0
-                    T_대상2_BUFF_속도증가:LOCAL = ARG:2
-                    T_대상2_BUFF_속도증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-        CASE "인내증가"
-            FOR LOCAL, 0, 49
-                IF T_대상2_BUFF_인내증가:LOCAL == 0
-                    T_대상2_BUFF_인내증가:LOCAL = ARG:2
-                    T_대상2_BUFF_인내증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-        CASE "운증가"
-            FOR LOCAL, 0, 49
-                IF T_대상2_BUFF_운증가:LOCAL == 0
-                    T_대상2_BUFF_운증가:LOCAL = ARG:2
-                    T_대상2_BUFF_운증가량:LOCAL = ARG:1
-                    실패여부 = 1
-                    GOTO 버프적용종료
-                ENDIF
-            NEXT
-    ENDSELECT
-    ; 캐스팅 실패
-    실패여부 = 2
-ENDIF
-$버프적용종료
-CALL 버프효과처리(ARG)
-CALL 공방세팅(MASTER,TARGET)
-RETURN 실패여부
-
-@버프효과처리(ARG)
-#DIM DYNAMIC 힘
-#DIM DYNAMIC 지성
-#DIM DYNAMIC 속도
-#DIM DYNAMIC 인내
-#DIM DYNAMIC 운
-IF ARG == T_대상1
-    FOR LOCAL, 0, 49
-        힘 += T_대상1_BUFF_힘증가량:LOCAL
-        지성 += T_대상1_BUFF_지성증가량:LOCAL
-        속도 += T_대상1_BUFF_속도증가량:LOCAL
-        인내 += T_대상1_BUFF_인내증가량:LOCAL
-        운 += T_대상1_BUFF_운증가량:LOCAL
-    NEXT
-ELSE
-    FOR LOCAL, 0, 49
-        힘 += T_대상2_BUFF_힘증가량:LOCAL
-        지성 += T_대상2_BUFF_지성증가량:LOCAL
-        속도 += T_대상2_BUFF_속도증가량:LOCAL
-        인내 += T_대상2_BUFF_인내증가량:LOCAL
-        운 += T_대상2_BUFF_운증가량:LOCAL
-    NEXT
-ENDIF
-TCVAR:ARG:T_힘증가 = 힘
-TCVAR:ARG:T_지성증가 = 지성
-TCVAR:ARG:T_속도증가 = 속도
-TCVAR:ARG:T_인내증가 = 인내
-TCVAR:ARG:T_운증가 = 운
-
-@버프감소처리(ARG)
-#DIM 버프번호
-#DIM 버프정도
-
-FOR LOCAL, 0, 49
-    IF T_대상1_BUFF_힘증가:LOCAL > 0
-        T_대상1_BUFF_힘증가:LOCAL --
-        IF T_대상1_BUFF_힘증가:LOCAL == 0
-            T_대상1_BUFF_힘증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-    IF T_대상1_BUFF_지성증가:LOCAL > 0
-        T_대상1_BUFF_지성증가:LOCAL --
-        IF T_대상1_BUFF_지성증가:LOCAL == 0
-            T_대상1_BUFF_지성증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-    IF T_대상1_BUFF_속도증가:LOCAL > 0
-        T_대상1_BUFF_속도증가:LOCAL --
-        IF T_대상1_BUFF_속도증가:LOCAL == 0
-            T_대상1_BUFF_속도증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-    IF T_대상1_BUFF_인내증가:LOCAL > 0
-        T_대상1_BUFF_인내증가:LOCAL --
-        IF T_대상1_BUFF_인내증가:LOCAL == 0
-            T_대상1_BUFF_인내증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-    IF T_대상1_BUFF_운증가:LOCAL > 0
-        T_대상1_BUFF_운증가:LOCAL --
-        IF T_대상1_BUFF_운증가:LOCAL == 0
-            T_대상1_BUFF_운증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-    IF T_대상2_BUFF_힘증가:LOCAL > 0
-        T_대상2_BUFF_힘증가:LOCAL --
-        IF T_대상2_BUFF_힘증가:LOCAL == 0
-            T_대상2_BUFF_힘증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-    IF T_대상2_BUFF_지성증가:LOCAL > 0
-        T_대상2_BUFF_지성증가:LOCAL --
-        IF T_대상2_BUFF_지성증가:LOCAL == 0
-            T_대상2_BUFF_지성증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-    IF T_대상2_BUFF_속도증가:LOCAL > 0
-        T_대상2_BUFF_속도증가:LOCAL --
-        IF T_대상2_BUFF_속도증가:LOCAL == 0
-            T_대상2_BUFF_속도증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-    IF T_대상2_BUFF_인내증가:LOCAL > 0
-        T_대상2_BUFF_인내증가:LOCAL --
-        IF T_대상2_BUFF_인내증가:LOCAL == 0
-            T_대상2_BUFF_인내증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-    IF T_대상2_BUFF_운증가:LOCAL > 0
-        T_대상2_BUFF_운증가:LOCAL --
-        IF T_대상2_BUFF_운증가:LOCAL == 0
-            T_대상2_BUFF_운증가량:LOCAL = 0
-        ENDIF
-    ENDIF
-NEXT
-
-
-
-
-FOR 버프번호, T_버프_ID, (T_버프_ID + 20)
-    버프정도 = TCVAR:ARG:(버프번호 + 20)
-    ;버프중이 아니라면 통과
-    SIF !TCVAR:ARG:버프번호
-        CONTINUE
-
-    TCVAR:ARG:버프번호 --
-    IF TCVAR:ARG:버프번호 == 0 && 버프정도 > 0
-        SELECTCASE 버프번호
-            CASE 750 ;T_회피
-                TCVAR:ARG:T_방어력보정 -= 버프정도
-        ENDSELECT
-        TCVAR:ARG:(버프번호 + 20) = 0
-    ENDIF
-NEXT
+;@버프효과처리(ARG)
+;삭제됨
+;@버프감소처리(ARG)
+;삭제됨
 
 
 @사용자반대(ARG)
@@ -971,65 +619,26 @@ ENDIF
 #DIMS 상태이상
 IF 상태이상 == "모두"
     IF ARG:1 == 0
-        TCVAR:ARG:T_저주 = 0
-        TCVAR:ARG:T_출혈 = 0
-        TCVAR:ARG:T_독 = 0
-        TCVAR:ARG:T_기절 = 0
-        TCVAR:ARG:T_침묵 = 0
-        TCVAR:ARG:T_혼란 = 0
-        TCVAR:ARG:T_실명 = 0
-        TCVAR:ARG:T_취약 = 0
+        CALL TB_TYPERESET(ARG,-1,-1)
     ELSE
-        FOR LOCAL, 0,ARG:1
-            IF TCVAR:ARG:T_저주
-                TCVAR:ARG:T_저주 = 0
-            ELSEIF TCVAR:ARG:T_출혈
-                TCVAR:ARG:T_출혈 = 0
-            ELSEIF TCVAR:ARG:T_독
-                TCVAR:ARG:T_독 = 0
-            ELSEIF TCVAR:ARG:T_기절
-                TCVAR:ARG:T_기절 = 0
-            ELSEIF TCVAR:ARG:T_침묵
-                TCVAR:ARG:T_침묵 = 0
-            ELSEIF TCVAR:ARG:T_혼란
-                TCVAR:ARG:T_혼란 = 0
-            ELSEIF TCVAR:ARG:T_실명
-                TCVAR:ARG:T_실명 = 0
-            ELSEIF TCVAR:ARG:T_취약
-                TCVAR:ARG:T_취약 = 0
-            ENDIF
-        NEXT
+        CALL TB_TYPERESET(ARG,-1,ARG:1)
     ENDIF
 ELSEIF 상태이상 == "출혈"
-    IF TCVAR:ARG:T_출혈
-        TCVAR:ARG:T_출혈 = 0
-    ENDIF
+    CALL TB_TYPERESET(ARG,TCV_출혈,ARG:1)
 ELSEIF 상태이상 == "실명"
-    IF TCVAR:ARG:T_실명
-        TCVAR:ARG:T_실명 = 0
-    ENDIF
+    CALL TB_TYPERESET(ARG,TCV_실명,ARG:1)
 ELSEIF 상태이상 == "기절"
-    IF TCVAR:ARG:T_기절
-        TCVAR:ARG:T_기절 = 0
-    ENDIF
+    CALL TB_TYPERESET(ARG,TCV_기절,ARG:1)
 ELSEIF 상태이상 == "침묵"
-    IF TCVAR:ARG:T_침묵
-        TCVAR:ARG:T_침묵 = 0
-    ENDIF
+    CALL TB_TYPERESET(ARG,TCV_침묵,ARG:1)
 ELSEIF 상태이상 == "혼란"
-    IF TCVAR:ARG:T_혼란
-        TCVAR:ARG:T_혼란 = 0
-    ENDIF
+    CALL TB_TYPERESET(ARG,TCV_혼란,ARG:1)
 ELSEIF 상태이상 == "취약"
-    IF TCVAR:ARG:T_취약
-        TCVAR:ARG:T_취약 = 0
-    ENDIF
+    CALL TB_TYPERESET(ARG,TCV_취약,ARG:1)
 ELSEIF 상태이상 == "독"
-    IF TCVAR:ARG:T_독
-        TCVAR:ARG:T_독 = 0
-    ENDIF
+    CALL TB_TYPERESET(ARG,TCV_독,ARG:1)
 ELSEIF 상태이상 == "저주"
-    IF TCVAR:ARG:T_저주
-        TCVAR:ARG:T_저주 = 0
-    ENDIF
+    CALL TB_TYPERESET(ARG,TCV_저주,ARG:1)
 ENDIF
+
+
