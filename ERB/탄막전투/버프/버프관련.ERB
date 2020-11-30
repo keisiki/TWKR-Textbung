@@ -15,6 +15,9 @@ FOR LOCAL, 0, TB버프한계
         BREAK
     ENDIF
 NEXT
+CALL TB_SIMPLER(MASTER)
+CALL TB_SIMPLER(TARGET)
+CALL 공방세팅(MASTER,TARGET)
 
 @TB_RESET(ARG = -1)
 ;ARG번 버프를 해제하거나 모든 버프를 해제
@@ -47,9 +50,9 @@ FOR LOCAL, 0, TB버프한계
         IF T_버프:TB내용:LOCAL == TCV_독
             CALL T_데미지((T_버프:TB대상:LOCAL),50,"독")
         ELSEIF T_버프:TB내용:LOCAL == TCV_출혈
-            CALL T_데미지((T_버프:TB대상:LOCAL),(TCVAR:(T_버프:TB대상):LOCAL:T_최대체력/20),"출혈")
+            CALL T_데미지((T_버프:TB대상:LOCAL),(TCVAR:(T_버프:TB대상:LOCAL):T_최대체력/20),"출혈")
         ELSEIF T_버프:TB내용:LOCAL == TCV_저주
-            SIF TCVAR:ARG:T_저주 == 0
+            SIF TB_SUM_REMAIN((T_버프:TB대상:LOCAL),TCV_저주) == 0
                 CALL T_데미지((T_버프:TB대상:LOCAL),TCVAR:(T_버프:TB대상:LOCAL):T_최대체력,"저주")
         ENDIF
     ENDIF
@@ -146,3 +149,62 @@ TCVAR:ARG:T_운 = 변동량:4 + CFLAG:ARG:운
 TCVAR:ARG:T_공격력보정 = 보정
 보정 = TB_SUM_VALUE(ARG,TCV_회피) - TB_SUM_VALUE(ARG,TCV_취약)
 TCVAR:ARG:T_방어력보정 = 보정
+
+@TB_TYPERESET(ARG,TYPE,NUM)
+;ARG의 특정 타입 버프를 해제
+#DIM DYNAMIC TYPE
+#DIM DYNAMIC NUM
+#DIM DYNAMIC NUM2
+IF TYPE == -2
+    IF NUM == -1
+        FOR LOCAL, 0, TB버프한계
+            IF T_버프:TB대상:LOCAL == ARG
+                CALLF TB_RESET(LOCAL)
+            ENDIF
+        NEXT
+    ELSE
+        FOR LOCAL, 0, TB버프한계
+            IF T_버프:TB대상:LOCAL == ARG
+                CALLF TB_RESET(LOCAL)
+                NUM2 ++
+            ENDIF
+            IF NUM2 >= NUM
+                BREAK
+            ENDIF
+        NEXT
+    ENDIF
+ELSEIF TYPE == -1
+    ;디버프만 해제
+    IF NUM == -1
+        FOR LOCAL, 0, TB버프한계
+            IF T_버프:TB대상:LOCAL == ARG
+                IF T_버프:TB내용:LOCAL == TCV_기절||T_버프:TB내용:LOCAL == TCV_침묵||T_버프:TB내용:LOCAL == TCV_실명||T_버프:TB내용:LOCAL == TCV_혼란||T_버프:TB내용:LOCAL == TCV_독||T_버프:TB내용:LOCAL == TCV_취약||T_버프:TB내용:LOCAL == TCV_출혈||T_버프:TB내용:LOCAL == TCV_저주
+                    CALLF TB_RESET(LOCAL)
+                ENDIF
+            ENDIF
+        NEXT
+    ELSE
+        FOR LOCAL, 0, TB버프한계
+            IF T_버프:TB대상:LOCAL == ARG
+                IF T_버프:TB내용:LOCAL == TCV_기절||T_버프:TB내용:LOCAL == TCV_침묵||T_버프:TB내용:LOCAL == TCV_실명||T_버프:TB내용:LOCAL == TCV_혼란||T_버프:TB내용:LOCAL == TCV_독||T_버프:TB내용:LOCAL == TCV_취약||T_버프:TB내용:LOCAL == TCV_출혈||T_버프:TB내용:LOCAL == TCV_저주
+                    CALLF TB_RESET(LOCAL)
+                    NUM2 ++
+                ENDIF
+            ENDIF
+            IF NUM2 >= NUM
+                BREAK
+            ENDIF
+        NEXT
+    ENDIF
+ELSE
+    FOR LOCAL, 0, TB버프한계
+        IF T_버프:TB대상:LOCAL == ARG&&T_버프:TB내용:LOCAL == TYPE
+            CALLF TB_RESET(LOCAL)
+            NUM2 ++
+        ENDIF
+        IF NUM2 >= NUM
+            BREAK
+        ENDIF
+    NEXT
+ENDIF
+RETURN 1

@@ -32,7 +32,7 @@ T_시스템 = 0
 @T_COM공격한다
 #DIM DYNAMIC 보너스
 PRINTFORML %T_턴주인의% 공격이 %T_턴반대에게% 날아갔다!
-IF TCVAR:T_턴주인:T_실명&&RAND:2 == 0
+IF TB_SUM_REMAIN(T_턴주인,TCV_실명)&&RAND:2 == 0
     IF T_턴주인 == MASTER
         CALL T_시스템처리(102)
     ELSE
@@ -52,10 +52,6 @@ RETURN 1
 
 @T_COM회피한다(ARG)
 ;ARG = 회피하는 대상
-IF TCVAR:ARG:T_회피 == 1
-    PRINTFORML 이미 회피중이다
-    RETURN 0
-ENDIF
 IF ARG == MASTER
     PRINTFORML 공격을 피하기 위해 신경을 집중했다!  
     CALL T_시스템처리(120)
@@ -71,11 +67,10 @@ ELSEIF ARG == TARGET
     CALL T_시스템처리(121)
 ENDIF
 IF TALENT:ARG:그레이즈능숙함
-    CALL 버프부여(ARG, "회피", TCVAR:ARG:T_방어력 + 100, 1)
+    CALL 통합버프(ARG, TCV_회피, -1,TCVAR:ARG:T_방어력 + 100, 1)
 ELSE
-    CALL 버프부여(ARG, "회피", TCVAR:ARG:T_방어력, 1)
+    CALL 통합버프(ARG, TCV_회피,-1,TCVAR:ARG:T_방어력, 1)
 ENDIF
-TCVAR:ARG:T_회피 = 1
 RETURN 0
 
 @T_COM스킬사용
@@ -250,7 +245,7 @@ IF HAVE_T_SKILL(사용자, 스킬번호)
     TRYCALLFORM ONGOING_T_SKILL{스킬번호}(사용자, "남은쿨타임")
     IF RESULT == 0
         ;쿨타임 0 시전가능
-        IF TCVAR:사용자:T_침묵
+        IF TB_SUM_REMAIN(사용자,TCV_침묵)
             RETURN 0
         ENDIF
         CALLFORMF T_SKILL{스킬번호}("HP코스트")
