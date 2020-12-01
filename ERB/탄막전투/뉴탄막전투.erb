@@ -219,6 +219,7 @@ IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
 ELSEIF TCVAR:대상2:T_체력 <= 0
     RETURN 0
 ENDIF
+CALL TB_MINUS_WHO(대상2)
 턴넘김 = RESULT
 IF 턴넘김 == 1
     CALL T_시스템처리(2)
@@ -343,6 +344,7 @@ PRINTL
 PRINTW 적턴 시작
 PRINTL
 CALL T_턴처리(대상2, 대상1)
+CALL TB_MINUS_WHO(대상1)
 턴넘김 = RESULT ;AI가 기절/혼란중인 경우 T_턴처리에서 처리됨
 IF 턴넘김 == 1
     CALL T_시스템처리(1)
@@ -457,7 +459,7 @@ FOR LOCAL,1,1000
     T_시전자반대 = T_턴주인
     TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴반대,"턴엔드")
 NEXT
-CALL TB_MINUS
+
 
 T_TIME++
 
@@ -530,15 +532,35 @@ ENDIF
 ;판정문장 출력 처리
 PRINTL
 ;일반적인 공격
+LOCAL:1 = 0
 IF ARG == T_턴반대 && 크리티컬판정(TCVAR:T_턴주인:T_운)
     PRINTFORML 급소에 \@ ARG == MASTER ? 맞았# 맞혔\@다!
     데미지 += TCVAR:T_턴주인:T_운/2
     TIMES 데미지 , 1.5
+    LOCAL = TCVAR:T_턴반대:T_운/2
+    TIMES LOCAL , 1.5
+    IF 데미지 == LOCAL
+        IF T_턴주인 == MASTER
+            LOCAL:1 == 1
+        ELSE
+            LOCAL:1 == 2
+        ENDIF
+    ENDIF
+
 ;상태이상 등으로 인한 데미지
 ELSEIF ARG == T_턴주인 && 크리티컬판정(TCVAR:T_턴반대:T_운)
     PRINTFORML 급소에 \@ ARG == MASTER ? 맞았# 맞혔\@다!
     데미지 += TCVAR:T_턴반대:T_운/2
     TIMES 데미지 , 1.5
+    LOCAL = TCVAR:T_턴반대:T_운/2
+    TIMES LOCAL , 1.5
+    IF 데미지 == LOCAL
+        IF T_턴반대 == MASTER
+            LOCAL:1 == 1
+        ELSE
+            LOCAL:1 == 2
+        ENDIF
+    ENDIF
 ENDIF
 
 IF 데미지 > 0
@@ -552,6 +574,11 @@ ELSEIF 데미지 <= -100
     PRINTFORMW \@ ARG == TARGET ? %타겟은% 가볍게 피해버렸다... # 가볍게 피했다 \@
 ELSE
     PRINTFORMW \@ ARG == MASTER ? # %타겟은% 아슬아슬하게 탄을 \@ 피했다!
+ENDIF
+IF LOCAL:1 == 1
+    CALL T_시스템(220)
+ELSEIF LOCAL:1 == 2
+    CALL T_시스템(221)
 ENDIF
 
 
