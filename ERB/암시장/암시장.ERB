@@ -1,8 +1,18 @@
-﻿@암시장
+﻿@암시장조건
+#FUNCTION
+
+RETURNF 1
+
+IF ABL:MASTER:교양 < 2||ABL:MASTER:전투능력 < 3
+    RETURNF 1
+ENDIF
+RETURNF 0
+
+@암시장
 PRINTFORML "어서와, 찾는건 뭐야?"
 $암시장루프
 DRAWLINE
-;PRINTFORML [100] - 구매
+PRINTFORML [100] - 구매
 ;PRINTFORML [101] - 판매
 PRINTFORML [102] - 의뢰
 DRAWLINE
@@ -13,8 +23,8 @@ IF RESULT == 900
     RETURN 1
 ELSE
     SELECTCASE RESULT
-        ;CASE 100
-        ;    CALL 암시장구매
+        CASE 100
+            CALL 암시장구매
         ;CASE 101
         ;    CALL 암시장판매
         CASE 102
@@ -25,9 +35,143 @@ ELSE
 ENDIF
 GOTO 암시장루프
 
-@암시장구매
+;물건 리스트 정하는 식
+;1~30 식재
+;31~50 음란한 물건
+;51~70 약물류
+;71~90 밀주
+;91~100 무기
 
+;1000,고기,1000
+;1001,간,5000
+;1002,뼈,1500
+;1003,영혼조각,50000
+;1004,요정의날개,2500
+;1005,머리카락,500
+;1006,뿔,1250
+;1007,토끼귀,3000
+;1008,날개,7000
+;1009,마력의파편,3500
+;1010,맥주,5000
+;1011,위스키,10000
+;1012,브랜디,12000
+;1013,와인,15000
+;1014,보드카,14500
+;1015,스피리터스,15500
+;1016,벌꿀주,17000
+;1017,고량주,14000
+;1018,소주,7000
+;1019,발포주,1500
+;1020,대마,5000,;떨 한대 할래?
+;1021,양귀비,5000
+;1022,환각버섯,3500
+;1023,필로폰,10000
+;1024,엑스터시,15000
+;1025,해어진부적,2500
+;1026,녹슨봉마침,4500
+;1027,불발된탄막,8000
+;1028,낡은불제봉,10000
+;1039,온전한영격찰,20000
+@암시장구매
+#DIM DYNAMIC 구매품
+#DIM DYNAMIC 구매개수
+PRINTFORML "뭘 사고 싶어?"
+DRAWLINE
+FOR LOCAL, 0, 30
+    PRINTFORMLC [{LOCAL}] %ITEMNAME:(LOCAL+1000)%
+    PRINTFORMLC (\\{((ITEMPRICE:(LOCAL+1000)*암시장물가)/100)})
+    LOCAL:1 ++
+    IF LOCAL:1 % 4 == 0&&LOCAL:1 != 0
+        PRINTL
+    ENDIF
+NEXT
+PRINTL
+DRAWLINE
+PRINTFORML [999]돌아간다
+$LOOP
+INPUT
+IF RESULT == 999
+    RETURN 1
+ELSE
+    IF RESULT < 0||RESULT > 29
+        GOTO LOOP
+    ELSE
+        구매품 = RESULT + 1000
+        IF MONEY < ((ITEMPRICE:(RESULT+1000)*암시장물가)/100)
+            PRINTW 돈이 부족하다...
+        ELSE
+            PRINTFORML 몇개나?(0 이하 입력으로 취소)
+            INPUT
+            IF RESULT <= 0
+                RESTART
+            ELSE
+                구매개수 = RESULT
+                IF MONEY < ((ITEMPRICE:구매품*암시장물가)/100)*구매개수
+                    FOR LOCAL,0,구매개수
+                        IF MONEY >= ((ITEMPRICE:구매품*암시장물가)/100)*(구매개수-LOCAL)
+                            BREAK
+                        ENDIF
+                    NEXT
+                    MONEY -= ((ITEMPRICE:구매품*암시장물가)/100)*(구매개수-LOCAL)
+                    ITEM:구매품 += (구매개수-LOCAL)
+                    PRINTFORML %조사처리(ITEMNAME:구매품,"을")% {(구매개수-LOCAL)}개 얻었다
+                ELSE
+                    MONEY -= ((ITEMPRICE:구매품*암시장물가)/100)*구매개수
+                    ITEM:구매품 += 구매개수
+                    PRINTFORML %조사처리(ITEMNAME:구매품,"을")% {구매개수}개 얻었다
+                ENDIF
+                
+            ENDIF
+        ENDIF
+    ENDIF
+ENDIF
+RESTART
 @암시장판매
+#DIM DYNAMIC 판매품
+#DIM DYNAMIC 판매개수
+#DIM DYNAMIC 판매물가
+판매물가 = 암시장물가 / 2
+PRINTFORML "뭘 팔고 싶어?"
+DRAWLINE
+FOR LOCAL, 0, 30
+    IF ITEM:(LOCAL+1000) > 0
+        PRINTFORMLC [{LOCAL}] %ITEMNAME:(LOCAL+1000)% * {ITEM:(LOCAL+1000)}
+        PRINTFORMLC (\\{((ITEMPRICE:(LOCAL+1000)*판매물가)/100)})
+        LOCAL:1 ++
+        IF LOCAL:1 % 4 == 0&&LOCAL:1 != 0
+            PRINTL
+        ENDIF
+    ENDIF
+NEXT
+PRINTL
+PRINTL
+DRAWLINE
+PRINTFORML [999]돌아간다
+$LOOP
+INPUT
+IF RESULT == 999
+    RETURN 1
+ELSE
+    IF RESULT < 0||RESULT > 29
+        GOTO LOOP
+    ELSE
+        판매품 = RESULT + 1000
+        IF ITEM:판매품 == 0||판매품 < 1000||판매품 > 1029
+        ELSE
+            PRINTFORML 몇개나?(0 이하 입력으로 취소)
+            INPUT
+            IF RESULT <= 0
+                RESTART
+            ELSE
+                판매개수 = RESULT
+                MONEY += ((ITEMPRICE:판매품*판매물가)/100)*판매개수
+                ITEM:판매품 -= 판매개수
+                PRINTFORML %조사처리(ITEMNAME:판매품,"을")% {판매개수}개 팔아, {((ITEMPRICE:판매품*판매물가)/100)*판매개수}원 받았다
+            ENDIF
+        ENDIF
+    ENDIF
+ENDIF
+RESTART
 
 @암시장의뢰
 PRINTFORML "뭘 의뢰할거야?"(소지금 : {MONEY})
@@ -152,3 +296,14 @@ ELSE
     ENDSELECT
 ENDIF
 RESTART
+
+@암시장물가책정
+IF 암시장물가 == 0
+    암시장물가 = 100
+ENDIF
+암시장물가 += (RAND:31 - 15)
+IF 암시장물가 < 50
+    암시장물가 = 50
+ELSEIF 암시장물가 > 1000
+    암시장물가 = 1000
+ENDIF
