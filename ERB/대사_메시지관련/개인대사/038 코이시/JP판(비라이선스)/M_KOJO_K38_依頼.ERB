@@ -1,0 +1,1371 @@
+﻿@M_KOJO_JP판_IRAIEXIST_K38(IRAI_NO)
+#DIM  IRAI_NO   ;抑制させる一般依頼ナンバー
+;動きを抑制させたい場合は、”RETURN 0”に変更すること
+SELECTCASE IRAI_NO
+	;청소を손伝って（発生条件：TARGETがメインマップ在住）
+	CASE 1
+		RETURN 1
+	;꽃에 물을 줘（発生条件：TARGETがMASTER侵入可能の自宅住まいかつ、メインマップ在住かつ、친밀２以上）
+	CASE 2
+		RETURN 0
+	;いっしょにあそぼ（発生条件：TARGETがTALENT:유치持ち）
+	CASE 3
+		RETURN 1
+	;요리上손になりたい（発生条件：TARGETの요리기능がMASTER未満かつ、MASTERの요리기능が２以上かつ、친밀が３以上）
+	CASE 4
+		RETURN 1
+	;特訓につきあって（発生条件：TARGETの전투능력がMASTER以下かつ、친밀が２以上かつ人里以外）
+	CASE 5
+		RETURN 1
+	;誰か教えて！（発生条件：TARGETの교양がMASTER以下）
+	CASE 6
+		RETURN 1
+	;대청소が終わらない（発生条件：TARGETがメインマップ在住かつ、冬の15日から31日までかつ、친밀が３以上）
+	CASE 7
+		RETURN 1
+	;손紙を届けて（発生条件：TARGETの신뢰도が30以上かつ、TARGETに아야通相손が設定されている（FUNC_IRAI.ERBの965目以降に存在）
+	CASE 8
+		RETURN 1
+	;누군가의 유실물（発生条件：TARGETの신뢰도が30以上）
+	CASE 9
+		RETURN 1
+	;どうしてもみつからない(そのまま落ちてる)（発生条件：TARGETの신뢰도が30以上）
+	CASE 10
+		RETURN 1
+	;どうしてもみつからない(誰かが拾ってる)（発生条件：TARGETの신뢰도が30以上）
+	CASE 11
+		RETURN 1
+	;懲らしめて！（発生条件：TARGETのCSVに전투능력が１以上ある場合）
+	CASE 12
+		RETURN 1
+	;맛있는물고기が食べたいなぁ（発生条件：와카사기히메以外）
+	CASE 13
+		RETURN 1
+	;現状無し
+	CASEELSE
+		RETURN 1
+ENDSELECT
+
+
+;==================================================
+;依頼구상・各依頼で共通の구상
+;==================================================
+@M_KOJO_JP판_IRAI_K38(ROLE, SCENE, IRAI_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  IRAI_ID  ;依頼自体のID
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+#DIM  CHK_ID   ;依頼IDだけ抜き出したもの
+#DIMS IRAI_NAME;의뢰명
+CHK_ID    = IRAI_ID % 1000
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+IRAI_NAME = STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+RESULT = 0
+IF CHK_ID > 100
+	TRYCALLFORM M_KOJO_JP판_IRAI_%IRAI_NAME%_K38(ROLE, SCENE, CLIENT_ID)
+ELSE
+	TRYCALLFORM M_KOJO_JP판_IRAI_{CHK_ID}_K38(ROLE, SCENE, CLIENT_ID)
+ENDIF
+SIF RESULT
+	RETURN 1
+;--------------------------------------------------
+;ここにあるのは各依頼で共通の구상です
+;依頼ごとの구상を表示した場合は共通の구상は表示されません
+;【】で囲ってあるのは구상前後の地の아야や発生する処理です
+;WAITをするか等の目安にしてください（L,WはそれぞれPRINTFORML,PRINTFORMWの略）
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+;●依頼を持ちかけられる時
+;【W どうやら［彼女］は［당신］に頼み事があるようだ】
+;【◆구상】
+;【依頼データ表示】
+;【INPUT（受託するかY/N）】
+	IF TALENT:38:연모
+		PRINTFORMW 「もしもーし、恋焦がれる%CALLNAME:MASTER%にお願いがあるの～」
+	ELSEIF TALENT:38:사모
+		PRINTFORMW 「もしもーし、いま%CALLNAME:MASTER%にお願いがあるのー」
+	ELSE
+		PRINTFORMW 「もしもーし、お願いがあるんだけどー」
+	ENDIF
+CASE "의뢰비수탁시"
+;●内容だけ見て受託しなかった時
+;【L ［당신］は丁重にお断りした】
+;【◆구상】
+;【W ［彼女］は残念そうな顔をしている】
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「えー……もう、残念」
+	CASE 2
+		PRINTFORMW 「そうなの？ 残念だなぁ」
+	CASEELSE
+		PRINTFORMW 「そう？ それじゃ別の人に頼んじゃおっと」
+	ENDSELECT
+CASE "의뢰 수탁시"
+;●依頼を受託した時
+;【W ［당신］は［彼女］の依頼を受けた】
+;【◆구상】
+	PRINTFORMW 「やったー！ それじゃお願いしまーす！」
+CASE "의뢰 확인시"
+;●[366]で의뢰내용を依頼人に確認した時
+;【◆구상】
+;【依頼データ表示】
+;【INPUT（破棄するかY/N）】
+	PRINTFORML 「それでねそれでね、お願いしたいことなんだけどー……」
+CASE "의뢰 파기시"
+;●受託した依頼を破棄する時
+;【◆구상】
+;【W 依頼を破棄しました。】
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「えー……もう、残念」
+	CASE 2
+		PRINTFORMW 「そうなの？ 残念だなぁ」
+	CASEELSE
+		PRINTFORMW 「そう？ それじゃ別の人に頼んじゃおっと」
+	ENDSELECT
+CASE "의뢰실행 직전"
+;●[367]で依頼を実行する時、実行処理の前に呼び出される
+;※依頼によって状況が大きく異なるので共通구상は非推奨
+;【◆구상】
+;【実行時の地の아야・ソース等】
+;【▼下の구상に続く】
+	IF ROLE == "CLIENT"
+	;（共通）CLIENT：의뢰 실행の対象と依頼主（구상主）が同一の場合（主に特訓系ですが一緒に捜索等をした場合も含まれます）
+		
+	ELSEIF ROLE == "TARGET"
+	;（共通）TARGET：구상主が의뢰 실행の対象である場合（主に配達系ですが捜索等をした際、TARGETにしていた場合も含まれます）
+		
+	ENDIF
+CASE "의뢰실행 직후"
+;●[367]で依頼を実行する時、実行処理の後に呼び出される
+;※依頼によって状況が大きく異なるので共通구상は非推奨
+;【▲上の구상から続き】
+;【◆구상】
+;【달성時・CLIENT：▼下の구상に続く】
+;【달성時・TARGET：忘れずに［依頼主］に報告しよう】
+	IF ROLE == "CLIENT"
+	;（共通）CLIENT：의뢰 실행の対象と依頼主（구상主）が同一の場合（主に特訓系ですが一緒に捜索等をした場合も含まれます）
+		SELECTCASE CFLAG:CLIENT_ID:의뢰상황
+		CASE 2
+		;実行後未解決
+			
+		CASE 3
+		;実行後달성
+			
+		CASE 6
+		;実行後失敗（現在「06_誰か教えて！」のみ）
+			
+		ENDSELECT
+	ELSEIF ROLE == "TARGET"
+	;（共通）TARGET：구상主が의뢰 실행の対象である場合（主に配達系ですが捜索等をした際、TARGETにしていた場合も含まれます）
+		SELECTCASE CFLAG:CLIENT_ID:의뢰상황
+		CASE 2
+		;実行後未解決
+			
+		CASE 3
+		;実行後달성
+			
+		CASE 6
+		;実行後失敗（現在「06_誰か教えて！」のみ）
+			
+		ENDSELECT
+	ENDIF
+CASE "성공 보고시"
+;●報告時（成功）
+;【의뢰 실행と報告が同時の時：▲上の구상から続き】
+;【◆구상】
+;【ソースの入손・아이템等の報酬獲得】
+	IF TALENT:38:연모
+		PRINTFORMW 「ありがとー、%CALLNAME:MASTER%！ さっすがだね♪」
+	ELSEIF TALENT:38:사모
+		PRINTFORMW 「やったー！ ありがとー♪」
+	ELSE
+		PRINTFORMW 「やったね！」
+	ENDIF
+CASE "실패 보고시"
+;○直接失敗報告は現在「06_誰か教えて！」のみ
+;●報告忘れ・期限切れになった際、遭遇時の最後に呼び出される
+;（遭遇時）【挨拶等】→【기분の良し悪し】→【정욕감지】→【祭日イベント】→【◆ココ！】（尚、依頼失敗判定があるとデートのお誘いは発生しません）
+;【◆구상】
+;○기분の変化や追加のペナルティ等は구상側で処理してください
+	SELECTCASE RAND:3
+	CASE 1
+		;たまに忘れる
+		PRINTFORMW 「あれ？ そんなことあったかなぁ……？」
+		PRINTFORMW 「無意識の内に何か頼んでたのかしら？」
+	CASE 2
+		PRINTFORMW 「もー%CALLNAME:MASTER%！ 折角頼んだのにー」
+	CASEELSE
+		PRINTFORMW 「むー……%CALLNAME:MASTER%の馬鹿」
+	ENDSELECT
+	TALENT:38:기분 = MIN(TALENT:38:기분, 0)
+CASE "의뢰 보고 불필요"
+;○一般依頼では現在「02_꽃에 물을 줘」「09_누군가의 유실물」のみ
+;●起床時、報告不要依頼を달성していた場合に呼ばれる구상
+;（起床時）【起床メッセージ】→【X時間寝た等】→【◆ココ！】→【운세 뽑기・補充等】→【一日開始】
+;○地の아야はありません
+;○구상主がその場にいなくても表示されます（MASTERが寝る時のイベント구상と同じタイプ）
+	
+ENDSELECT
+RETURN 1
+
+;==================================================
+;依頼구상・一般依頼01：청소を손伝って
+;==================================================
+@M_KOJO_JP판_IRAI_1_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+;まだ（住み込み以外で）自室ないけど
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	PRINTFORMW 「お姉ちゃんが청소しなさいって……だから、손伝ってほしいなー」
+	RETURN 1
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	
+	RETURN 0
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+;○この依頼は依頼主がTARGETです
+	IF YOGORE:(GET_CHARAHOME(TARGET)) < 1000
+	;先に청소してしまっていた場合
+	;【◆구상】
+	;【W ［彼女］の部屋は十分にきれいだ】
+	;【▼そのまま下の구상へ】
+		PRINTFORMW 「あれ、思いのほかきれいなような…？」
+		PRINTFORMW 「無意識の内に청소でもしたのかな…私」
+		RETURN 1
+	ELSE
+	;一緒に청소する場合
+	;【◆구상】
+	;【W ［당신］は［彼女］と協力して部屋の청소を行なった】
+	;【▼そのまま下の구상へ】
+		PRINTFORMDL 코이시の部屋はあちこちに物が散乱しており、ペットがいそいそと広い部屋を청소している
+		PRINTW 
+		SELECTCASE RAND:4
+		CASE 1
+			PRINTFORMW 「じゃあ、わたしがあっちの方をするからこっちお願いね～」
+		CASE 2
+			PRINTFORMW 「もしもーし、今당신の後ろにいるの～」
+			PRINTFORMW 「……え？ 遊んでないで청소しなさいって？」
+			PRINTFORMW 「はーい」
+		CASE 3
+			PRINTFORMW 「うーん、我が事ながらすさまじい散らかしっぷり……ある意味才能だったり？」
+			PRINTFORMW 「え？ そんな才能はいらない？」
+		CASEELSE
+			PRINTFORMW 「えーっと、希望の面はいるとして……あ、こっちも捨てたくないなー…」
+			PRINTFORMW 「あれ？ 全然片付かないや」
+		ENDSELECT
+		RETURN 1
+	ENDIF
+CASE "의뢰실행 직후"
+;○この依頼は必ず実行後달성します
+;【▲上の구상から続き】
+;【◆구상】
+;【▼そのまま下の구상へ】
+	
+	RETURN 0
+CASE "성공 보고시"
+;報酬：低級素材
+;【▲上の구상から続き】
+;【◆구상】
+;【報酬獲得】
+	PRINTFORMW 「うんうん、これでOKだね！」
+	RETURN 1
+CASE "실패 보고시"
+	
+	RETURN 0
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+;
+;;==================================================
+;;依頼구상・一般依頼02：꽃에 물을 줘
+;;==================================================
+;@M_KOJO_JP판_IRAI_2_K38(ROLE, SCENE, CLIENT_ID)
+;#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+;#DIMS SCENE    ;セリフの表示されるタイミング
+;#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;;--------------------------------------------------
+;;RETURN 0 の部分は共通の구상が表示されます
+;;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;;--------------------------------------------------
+;SELECTCASE SCENE
+;CASE "의뢰 제시시"
+;	
+;	RETURN 0
+;CASE "의뢰비수탁시"
+;	
+;	RETURN 0
+;CASE "의뢰 수탁시"
+;	
+;	RETURN 0
+;CASE "의뢰 확인시"
+;	
+;	RETURN 0
+;CASE "의뢰 파기시"
+;	
+;	RETURN 0
+;CASE "의뢰실행 직전"
+;;【◆구상】
+;;【W ［당신］は［依頼主］の家の鉢植えや植木に水をあげた】
+;;【▼そのまま下の구상へ】
+;	IF ROLE == "CLIENT"
+;	;水やりした時、依頼主である구상主がTARGETの場合
+;		
+;		RETURN 0
+;	ELSEIF ROLE == "TARGET"
+;	;水やりした時、依頼主ではない구상主がTARGETの場合
+;		
+;		RETURN 0
+;	ENDIF
+;CASE "의뢰실행 직후"
+;;○この依頼は必ず実行後달성します
+;;【▲上の구상から続き】
+;;【◆구상】
+;	IF ROLE == "CLIENT"
+;	;水やりした時、依頼主である구상主がTARGETの場合
+;	;この場合はそのまま下の구상へ続きます
+;		
+;		RETURN 0
+;	ELSEIF ROLE == "TARGET"
+;	;水やりした時、依頼主ではない구상主がTARGETの場合
+;		
+;		RETURN 0
+;	ENDIF
+;CASE "성공 보고시"
+;;報酬：\500
+;	
+;	RETURN 0
+;CASE "실패 보고시"
+;	
+;	RETURN 0
+;CASE "의뢰 보고 불필요"
+;	
+;	RETURN 0
+;ENDSELECT
+;
+;;==================================================
+;;依頼구상・一般依頼03：いっしょにあそぼ
+;;※この依頼は[유치]を持っているキャラのみ発生します
+;;==================================================
+;@M_KOJO_JP판_IRAI_3_K38(ROLE, SCENE, CLIENT_ID)
+;#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+;#DIMS SCENE    ;セリフの表示されるタイミング
+;#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;;--------------------------------------------------
+;;RETURN 0 の部分は共通の구상が表示されます
+;;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	PRINTFORMW 「ねーねー、一緒に遊ばない？」
+	RETURN 1
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	
+	RETURN 0
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+;○この依頼は依頼主がTARGETです
+;【◆구상】
+;【W ［당신］は［彼女］と遊んだ】
+;【▼そのまま下の구상へ】
+	PRINTFORMDL 코이시は楽しそうにはしゃいでいる
+	PRINTW 
+	SELECTCASE RAND:4
+	CASE 1
+		PRINTFORMW 「あははは、たーのしー♪」
+	CASE 2
+		PRINTFORMW 「もしもーし、今당신と楽しく遊んでいるのー♪」
+	CASE 3
+		PRINTFORMW 「きゃーきゃー♪ 悪い人に捕まっちゃったー♪」
+	CASEELSE
+		PRINTFORMW 「そーれ！ あははははは、変な顔ー♪」
+	ENDSELECT
+	RETURN 1
+	
+CASE "의뢰실행 직후"
+;○この依頼は必ず実行後달성します
+;【▲上の구상から続き】
+;【◆구상】
+;【▼そのまま下の구상へ】
+	PRINTFORMW 「ふー、満足満足♪」
+	RETURN 1
+
+CASE "성공 보고시"
+;報酬：호감도と신뢰도のみ（기분が良くなる）
+;【▲上の구상から続き】
+;【◆구상】
+	PRINTFORMW 「あー、楽しかった♪」
+	RETURN 1
+;CASE "실패 보고시"
+;	
+;	RETURN 0
+;;CASE "의뢰 보고 불필요"
+;;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+
+;==================================================
+;依頼구상・一般依頼04：요리上손になりたい
+;==================================================
+@M_KOJO_JP판_IRAI_4_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「今度お姉ちゃんに요리を振마이いたいと思って♪」
+	CASE 2
+		PRINTFORMW 「ねぇ%CALLNAME:MASTER%、요리教えてほしいなー♪」
+	CASEELSE
+		PRINTFORMW 「私も요리覚えようかなって」
+	ENDSELECT
+	RETURN 1
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「えへへ～♪ お요리♪ お요리～♪ 楽しみだな～♪」
+	CASE 2
+		PRINTFORMW 「やったー♪」
+	CASEELSE
+		PRINTFORMW 「ほんと？ えへへ～、嬉しいな～♪」
+	ENDSELECT
+	RETURN 1
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+;○この依頼は依頼主がTARGETです
+;【◆구상】
+;【L ［당신］は［彼女］と一緒に요리をした】
+;【W ［요리名］を作ります】
+;【▼そのまま下の구상へ】
+	PRINTFORMW 「さぁ、恋焦がれるような요리を作って見せるわ！」
+	RETURN 1
+CASE "의뢰실행 직후"
+;○この依頼は必ず実行後달성します
+;【▲上の구상から続き】
+;【◆구상】
+;【▼そのまま下の구상へ】
+	SELECTCASE RAND:4
+	CASE 1
+		PRINTFORMW 「あ、これ砂糖じゃなくてお塩だった」
+	CASE 2
+		PRINTFORMW 「あれれ～？ なんか入れた覚えのないものが入ってるような…」
+	CASE 3
+		PRINTFORMW 「おぉ…フライパンが炎上した」
+	CASEELSE
+		PRINTFORML 「野菜を切るのって、정원師の亡霊みたいな感じでいいのかな？」
+		PRINTFORMDW ……見ててハラハラする……
+	ENDSELECT
+	RETURN 1
+CASE "성공 보고시"
+;報酬：\500
+;【▲上の구상から続き】
+;【◆구상】
+;【報酬獲得】
+;【L できた요리は二人でいっしょに頂いた】
+;【식사効果（요리採点）】
+	;요리구상のコピペ
+	IF ABL:38:요리기능 >= 3
+		SELECTCASE RAND:4
+		CASE 1
+			PRINTFORML 「えへへ♪ かんせーい♪」
+			PRINTFORML 「うんうん、おいしそ～♪」
+		CASE 2
+			PRINTFORML 「うんうん、うまく出来たわ」
+			PRINTFORML 「どう？ 美味しい？」
+		CASE 3
+			PRINTFORML 「えへへ♪ 私、頑張ったよ？」
+			PRINTFORML 「ほめてほめて～♪」
+		CASEELSE
+			PRINTFORML 「うん、完成だね♪」
+			PRINTFORML 「無意識でもちゃんと上達するもんだねー」
+		ENDSELECT
+	ELSE
+		SELECTCASE RAND:4
+		CASE 1
+			PRINTFORML 「疲れた～……」
+			PRINTFORML 「요리ってこんなに大変なんだねー……」
+		CASE 2
+			PRINTFORML 「ん～？」
+			PRINTFORML 「なんか…イ마이チ」
+		CASE 3
+			PRINTFORML 「うん、できた！」
+			PRINTFORML 「……なんかよく覚えてないけど！」
+		CASEELSE
+			PRINTFORML 「あれ？ これで完成？」
+			PRINTFORML 「もっと刺激的で陰惨な調味料とか入れてみない？」
+		ENDSELECT
+	ENDIF
+	WAIT
+	RETURN 1
+CASE "실패 보고시"
+	
+	RETURN 0
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+
+;==================================================
+;依頼구상・一般依頼05：特訓につきあって
+;==================================================
+@M_KOJO_JP판_IRAI_5_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「ねぇねぇ、一緒に弾幕ごっこしよーよ♪」
+	CASE 2
+		PRINTFORMW 「ねぇ%CALLNAME:MASTER%、練習相손になってほしいなー♪」
+	CASEELSE
+		PRINTFORMW 「ねぇ%CALLNAME:MASTER%、一緒に弾幕ごっこしない？」
+	ENDSELECT
+	RETURN 1
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「やったー♪ 楽しく遊びましょ♪」
+	CASE 2
+		PRINTFORMW 「そう来なくっちゃ♪ 손加減しないよー♪」
+	CASEELSE
+		PRINTFORMW 「やったね♪ 大丈夫、痛くしないから♪」
+	ENDSELECT
+	RETURN 1
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+;○この依頼は依頼主がTARGETです
+;【◆구상】
+;【W ［당신］は［彼女］と弾幕ごっこの特訓をした】
+;【▼そのまま下の구상へ】
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「そ～れ！ 無意識『弾幕のロールシャッハ』！！」
+	CASE 2
+		PRINTFORMW 「かわせるかなぁ～？ 反応『妖怪ポリフラフ』！！」
+	CASEELSE
+		PRINTFORMW 「いくよ！ 『サブタレイニアンローズ』！！」
+	ENDSELECT
+	RETURN 1
+CASE "의뢰실행 직후"
+;○この依頼は必ず実行後달성します
+;【▲上の구상から続き】
+;【◆구상】
+;【▼そのまま下の구상へ】
+	
+	RETURN 0
+CASE "성공 보고시"
+;報酬：\500
+;【▲上の구상から続き】
+;【◆구상】
+;【報酬獲得】
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「はぁー♪ 楽しかった♪」
+	CASE 2
+		PRINTFORMW 「えへへ♪ つきあってくれてありがと、%CALLNAME:MASTER%♪」
+	CASEELSE
+		PRINTFORMW 「んー！ いい運動したー♪」
+	ENDSELECT
+	RETURN 1
+CASE "실패 보고시"
+	
+	RETURN 0
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+
+;==================================================
+;依頼구상・一般依頼06：誰か教えて！
+;==================================================
+@M_KOJO_JP판_IRAI_6_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「ねぇねぇ、聞きたいことがあるんだけどねー」
+	CASE 2
+		PRINTFORMW 「ちょっと忘れちゃったんだけど、%CALLNAME:MASTER%は知ってる？」
+	CASEELSE
+		PRINTFORMW 「えっとねー、%CALLNAME:MASTER%に教えてほしいことがあるんだけどー」
+	ENDSELECT
+	RETURN 1
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	
+	RETURN 0
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+	IF IS_LIBRARY(CFLAG:MASTER:현재위치) && TARGET == CLIENT_ID
+	;［しらべもの］と［教えてあげる］が重なっている場合
+	;【◆구상】
+	;【L ［당신］は［彼女］の疑問に答えるために［現在地］を訪れた】
+	;【L ここなら役に立つ資料が見つかりそうだ】
+	;【INPUT（しらべもの/教えてあげる）】
+	;【しらべもの＞［당신］と［彼女］は［現在地］で調べ物をした】
+	;【▼そのまま下の구상へ】
+	;【教えてあげる＞［教えてあげる］へジャンプ】
+		
+		RETURN 0
+	ELSEIF IS_LIBRARY(CFLAG:MASTER:현재위치)
+	;［しらべもの］をした時、依頼主ではない구상主がTARGETの場合
+	;【◆구상】
+	;【［당신］は［現在地］で調べ物をした】
+	;【▼そのまま下の구상へ】
+		
+		RETURN 0
+	ELSE
+	;［教えてあげる］時（依頼主がTARGET）
+	;【◆구상】
+	;【L ［당신］は［彼女］の疑問に答えた】
+	;【成功：［彼女］の疑問は氷解した！】
+	;【失敗：［彼女］は納得できなかったようだ……】
+	;【▼そのまま下の구상へ】
+		
+		RETURN 0
+	ENDIF
+CASE "의뢰실행 직후"
+	;【▲上の구상から続き】
+	;【◆구상】
+	SELECTCASE CFLAG:CLIENT_ID:의뢰상황
+	CASE 2
+	;［しらべもの］をした時
+		IF ROLE == "CLIENT"
+		;一緒に［しらべもの］をした時
+			
+			RETURN 0
+		ELSEIF ROLE == "TARGET"
+		;依頼主ではない구상主の前で［しらべもの］をした時
+			
+			RETURN 0
+		ENDIF
+	CASE 3
+	;成功した時
+	;【▼そのまま下の구상へ】
+		SELECTCASE RAND:3
+		CASE 1
+			PRINTFORMW 「ほほう、なるほどなるほど…そういうことだったのね！」
+		CASE 2
+			PRINTFORMW 「なるほど、完全に理解したわ！」
+		CASEELSE
+			PRINTFORMW 「わかった！ ばっちりだよ～♪」
+		ENDSELECT
+		RETURN 1
+	CASE 6
+	;失敗した時
+	;【▼そのまま실패 보고시の구상へ】
+		SELECTCASE RAND:3
+		CASE 1
+			PRINTFORML 「はへー……」
+			PRINTFORMW 코이시は全然わかんないといった表情で%CALLNAME:MASTER%の話を聞いている
+		CASE 2
+			PRINTFORMW 「……なるほど！ ……なるほ、ど？」
+		CASEELSE
+			PRINTFORMW 「うーん……わかんない！」
+		ENDSELECT
+		RETURN 1
+	ENDSELECT
+CASE "성공 보고시"
+;報酬：\500
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「ありがとう！ %CALLNAME:MASTER%のおかげでバッチリだわ！」
+	CASE 2
+		PRINTFORMW 「ありがと、%CALLNAME:MASTER%ってば意外と物知りなのねー♪」
+	CASEELSE
+		PRINTFORMW 「ありがとう♪ %CALLNAME:MASTER%が教え上손で助かったわ♪」
+	ENDSELECT
+	RETURN 1
+CASE "실패 보고시"
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「うーん……ごめん、よくわかんないや……」
+	CASE 2
+		PRINTFORMW 「%CALLNAME:MASTER%ってさ、教えるのへたっぴだったりする？」
+	CASEELSE
+		PRINTFORMW 「ねぇねぇ、もしかして%CALLNAME:MASTER%も知らないんじゃないの？」
+	ENDSELECT
+	RETURN 1
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+
+;==================================================
+;依頼구상・一般依頼07：대청소が終わらない
+;==================================================
+@M_KOJO_JP판_IRAI_7_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	PRINTFORMW 「たすけてー！ 今は대청소でいろいろと大変なのー！」
+	RETURN 1
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	
+	RETURN 0
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+;○この依頼は依頼主がTARGETです
+	IF YOGORE:(GET_CHARAHOME(TARGET)) < 1000
+	;先に청소してしまっていた場合
+	;【◆구상】
+	;【W ［彼女］の部屋は十分にきれいだ】
+	;【▼そのまま下の구상へ】
+		PRINTFORMW 「あれ、思いのほかきれいなような…？」
+		PRINTFORMW 「無意識の内に청소でもしたのかな…私」
+		RETURN 1
+	ELSE
+	;一緒に청소する場合
+	;【◆구상】
+	;【W ［당신］は［彼女］と協力して徹底的に部屋を청소した】
+	;【▼そのまま下の구상へ】
+		PRINTFORMDL 코이시の部屋はあちこちに物が散乱しており、ペットがいそいそと広い部屋を청소している
+		PRINTW 
+		SELECTCASE RAND:4
+		CASE 1
+			PRINTFORMW 「じゃあ、わたしがあっちの方をするからこっちお願いね～」
+		CASE 2
+			PRINTFORMW 「もしもーし、今당신の後ろにいるの～」
+			PRINTFORMW 「……え？ 遊んでないで청소しなさいって？」
+			PRINTFORMW 「はーい」
+		CASE 3
+			PRINTFORMW 「うーん、我が事ながらすさまじい散らかしっぷり……ある意味才能だったり？」
+			PRINTFORMW 「え？ そんな才能はいらない？」
+		CASEELSE
+			PRINTFORMW 「えーっと、希望の面はいるとして……あ、こっちも捨てたくないなー…」
+			PRINTFORMW 「あれ？ 全然片付かないや」
+		ENDSELECT
+		RETURN 1
+	ENDIF
+CASE "의뢰실행 직후"
+;○この依頼は必ず実行後달성します
+;【▲上の구상から続き】
+;【◆구상】
+;【▼そのまま下の구상へ】
+	
+	RETURN 0
+CASE "성공 보고시"
+;報酬：\1500
+;【▲上の구상から続き】
+;【◆구상】
+;【報酬獲得】
+	PRINTFORMW 「うんうん、これでOKだね！」
+	PRINTFORMW 「本当にありがとう、助かったわ♪」
+	RETURN 1
+CASE "실패 보고시"
+	
+	RETURN 0
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+;
+;;==================================================
+;;依頼구상・一般依頼08：손紙を届けて
+;;※この依頼はキャラによっては発生しません
+;;==================================================
+;@M_KOJO_JP판_IRAI_8_K38(ROLE, SCENE, CLIENT_ID)
+;#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+;#DIMS SCENE    ;セリフの表示されるタイミング
+;#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;;--------------------------------------------------
+;;RETURN 0 の部分は共通の구상が表示されます
+;;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;;--------------------------------------------------
+;SELECTCASE SCENE
+;CASE "의뢰 제시시"
+;	
+;	RETURN 0
+;CASE "의뢰비수탁시"
+;	
+;	RETURN 0
+;CASE "의뢰 수탁시"
+;	
+;	RETURN 0
+;CASE "의뢰 확인시"
+;	
+;	RETURN 0
+;CASE "의뢰 파기시"
+;	
+;	RETURN 0
+;CASE "의뢰실행 직전"
+;;○この依頼では손紙を渡される側の구상です
+;;【◆구상】
+;;【W ［당신］は［彼女］に預かっていた손紙を渡した】
+;;【▼そのまま下の구상へ】
+;	
+;	RETURN 0
+;CASE "의뢰실행 직후"
+;;○この依頼は必ず実行後달성します
+;;【▲上の구상から続き】
+;;【◆구상】
+;	
+;	RETURN 0
+;CASE "성공 보고시"
+;;報酬：素材4つ
+;	
+;	RETURN 0
+;CASE "실패 보고시"
+;	
+;	RETURN 0
+;;CASE "의뢰 보고 불필요"
+;;＜この依頼にはありません＞
+;;	RETURN 0
+;ENDSELECT
+
+;==================================================
+;依頼구상・一般依頼09：누군가의 유실물
+;==================================================
+@M_KOJO_JP판_IRAI_9_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	PRINTFORMW 「ねぇねぇ%CALLNAME:MASTER%、こんなのひろってたんだけど…」
+	RETURN 1
+CASE "의뢰비수탁시"
+	PRINTFORMW 「え～！ …うーん、じゃあ私のにしちゃおっかなー」
+	RETURN 1
+CASE "의뢰 수탁시"
+	PRINTFORMW 「ありがとう！ それじゃ、お願いね♪」
+	RETURN 1
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	PRINTFORMW 「え～！ …うーん、じゃあ私のにしちゃおっかなー」
+	RETURN 1
+CASE "의뢰실행 직전"
+;○この依頼では落とし物を渡される側の구상です
+;【◆구상】
+;【W ［당신］は［彼女］に預かっていた落とし物を返した】
+;【▼そのまま下の구상へ】
+	IF TALENT:38:사모 || TALENT:38:연모
+		PRINTFORMW 「あっ！ %CALLNAME:MASTER%が届けてくれたんだね♪ ありがとう♪」
+	ELSE
+		PRINTFORMW 「あっ！ それ私が無意識の内になくしちゃってたやつだ！」
+	ENDIF
+	RETURN 1
+CASE "의뢰실행 직후"
+;○この依頼は必ず実行後달성します
+;【▲上の구상から続き】
+;【◆구상】
+	
+	RETURN 0
+CASE "성공 보고시"
+;報酬：上級素材
+	PRINTFORMW 「見つかった？ うんうん、良かった良かった♪」
+	RETURN 1
+CASE "실패 보고시"
+	PRINTFORMW 「ん～？ それじゃ～しょうがないねー」
+	RETURN 1
+CASE "의뢰 보고 불필요"
+	
+	RETURN 0
+ENDSELECT
+
+;==================================================
+;依頼구상・一般依頼10：どうしてもみつからない（場所探しパターン）
+;==================================================
+@M_KOJO_JP판_IRAI_10_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	
+	RETURN 0
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	
+	RETURN 0
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+;【◆구상】
+;【W あたりを探していた［당신］はついに探していた落とし物を発見した】
+;【▼そのまま下の구상へ】
+	IF ROLE == "CLIENT"
+	;依頼主である구상主と一緒に発見した場合
+		PRINTFORMW 「あった、見つけたわ♪」
+		RETURN 1
+	ELSEIF ROLE == "TARGET"
+	;発見した時、依頼主ではない구상主がTARGETの場合
+		
+		RETURN 0
+	ENDIF
+CASE "의뢰실행 직후"
+;○この依頼は必ず実行後달성します
+;【▲上の구상から続き】
+;【◆구상】
+	IF ROLE == "CLIENT"
+	;依頼主である구상主と一緒に発見した場合
+		PRINTFORMW 「うんうん、良かった良かった！ 無意識の内に落としちゃったのかなぁ……」
+		RETURN 1
+	ELSEIF ROLE == "TARGET"
+	;発見した時、依頼主ではない구상主がTARGETの場合
+		
+		RETURN 0
+	ENDIF
+CASE "성공 보고시"
+;報酬：上級素材2つ
+	
+	RETURN 0
+CASE "실패 보고시"
+	
+	RETURN 0
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+
+;==================================================
+;依頼구상・一般依頼11：どうしてもみつからない（人物探しパターン）
+;==================================================
+@M_KOJO_JP판_IRAI_11_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	
+	RETURN 0
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	
+	RETURN 0
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+;○この依頼では失くしもの持っていた側の구상です
+;【◆구상】
+;【W 聞き込みを続けていた［당신］はついに探していた落とし物を発見した】
+;【▼そのまま下の구상へ】
+	PRINTFORML 「およよ？ どしたの？」
+	RETURN 1
+CASE "의뢰실행 직후"
+;○この依頼は必ず実行後달성します
+;【▲上の구상から続き】
+;【◆구상】
+	SELECTCASE RAND:3
+	CASE 1
+		PRINTFORMW 「え～！ 私が拾ったものなんだけどなー」
+	CASE 2
+		PRINTFORMW 「そっかー、持ち主がいたんだね～…残念」
+	CASEELSE
+		PRINTFORMW 「無意識の内に拾ってたの。返すねー♪」
+	ENDSELECT
+	RETURN 1
+CASE "성공 보고시"
+;報酬：\3200
+	
+	RETURN 0
+CASE "실패 보고시"
+	
+	RETURN 0
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+
+;==================================================
+;依頼구상・一般依頼12：懲らしめて！
+;==================================================
+@M_KOJO_JP판_IRAI_12_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	IF TALENT:38:연모 || TALENT:38:사모
+		SELECTCASE RAND:4
+		CASE 1
+			PRINTFORMW 「うーん、やられてしまったわー……」
+		CASE 2
+			PRINTFORMW 「お願いしたいことがあるんだけど、%CALLNAME:MASTER%、聞いてくれる？」
+		CASE 3
+			PRINTFORMW 「この間コテンパンにやられちゃってねー……」
+		CASEELSE
+			PRINTFORMW 「うーん、ちょっと気は引けるんだけどー」
+		ENDSELECT
+	ELSE
+		PRINTFORMW 「ねぇねぇ%CALLNAME:MASTER%、少し協力してくださらない？」
+	ENDIF
+	RETURN 1
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	IF TALENT:38:연모 || TALENT:38:사모
+		SELECTCASE RAND:4
+		CASE 1
+			PRINTFORMW 「お願いねー」
+		CASE 2
+			PRINTFORMW 「えへへ、ありがとう」
+		CASE 3
+			PRINTFORMW 「フレーフレー、がんばれー♪」
+		CASEELSE
+			PRINTFORMW 「怪我しないようにねー」
+		ENDSELECT
+	ELSE
+		PRINTFORMW 「恋焦がれるような陰惨な結末を待ってるよ～♪」
+	ENDIF
+	RETURN 1
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+;○この依頼では討伐される側の구상です
+	IF CANNOT_DANMAKU() == 1
+	;屋内のとき（勝負できない）
+	;【◆구상】
+	;【W 屋外で挑もう…】
+		
+		RETURN 0
+	ELSEIF CANNOT_DANMAKU() == 2
+	;仕事中（勝負できない）
+	;【◆구상】
+	;【W お取り込み中だ…】
+		
+		RETURN 0
+	ELSEIF CANNOT_DANMAKU() == 3
+	;당신が疲労中（勝負できない）
+	;【◆구상】
+	;【W 今は疲れている…】
+		
+		RETURN 0
+	ELSEIF CANNOT_DANMAKU() == 4
+	;구상主が疲労竜（勝負できない）
+	;【◆구상】
+	;【W 今挑むのはフェアじゃない…】
+		
+		RETURN 0
+	ELSEIF CANNOT_DANMAKU() == 5
+	;既に今日一度탄막승부をしている（勝負できない）
+	;【◆구상】
+	;【W 今日はもう挑めない…】
+		
+		RETURN 0
+	ELSE
+	;【◆구상】
+	;【W 勝負開始！！】
+	;【以降はそのまま弾幕구상が呼ばれます】
+		IF TALENT:38:연모 || TALENT:38:사모
+			PRINTFORML 「えぇ！？ なんでなんで～！！？」
+			PRINTFORMW 「も～！！ %CALLNAME:MASTER%の馬鹿ぁ～！！」
+		ELSE
+			PRINTFORML 「あははは♪ ＯＫ、受けて立つよ♪」
+			PRINTFORMW 「貴方には恨みはないけど、ここで野垂れ死ぬ未来をあげるわ」
+			PRINTFORMW 「大丈夫大丈夫、死体は猫に運ばせるから。一生私の家で暮らせるよ！」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;【▼そのまま下の구상へ】
+CASE "의뢰실행 직후"
+;○この依頼では討伐される側の구상です
+	IF CFLAG:CLIENT_ID:의뢰상황 == 2
+		IF CANNOT_DANMAKU() == 0
+			;패배자
+			;【▲上の구상から続き】
+			;【L ［彼女］の討伐に失敗した……】
+			;【W ……こうなったら後日出直すしかない】
+			;【◆구상】
+			PRINTFORMW 「もしもーし、今貴方の屍を越えて未来に向かおうとしているの♪」
+			RETURN 1
+		ELSE
+			;挑めなかった場合
+			;【▲上の구상から続き】
+			;【◆구상】
+			RETURN 0
+		ENDIF
+	ELSEIF CFLAG:CLIENT_ID:의뢰상황 == 3
+	;勝利
+	;【▲上の구상から続き】
+	;【W ［彼女］を懲らしめた！】
+	;【◆구상】
+		IF TALENT:38:연모 || TALENT:38:사모
+			PRINTFORML 「えぇ！？ なんでなんで～！！？」
+			PRINTFORMW 「も～！！ %CALLNAME:MASTER%の馬鹿ぁ～！！」
+		ELSE
+			PRINTFORML 「あははは♪ ＯＫ、受けて立つよ♪」
+			PRINTFORMW 「貴方には恨みはないけど、ここで野垂れ死ぬ未来をあげるわ」
+			PRINTFORMW 「大丈夫大丈夫、死体は猫に運ばせるから。一生私の家で暮らせるよ！」
+		ENDIF
+		RETURN 1
+	ENDIF
+CASE "성공 보고시"
+;報酬：賞金（時価）
+	IF TALENT:38:연모 || TALENT:38:사모
+		PRINTFORMW 「さすが%CALLNAME:MASTER%♪ 大好き%UNICODE(0x2764)%」
+	ELSE
+		PRINTFORMW 「おー！ %CALLNAME:MASTER%ってば中々強いんだねー」
+	ENDIF
+	RETURN 1
+CASE "실패 보고시"
+	
+	RETURN 0
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+
+;==================================================
+;依頼구상・一般依頼13：맛있는물고기が食べたいなぁ
+;==================================================
+@M_KOJO_JP판_IRAI_13_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	PRINTFORMW 「ねぇ%CALLNAME:MASTER%、美味しい물고기が食べたい気分なの♪」
+	RETURN 1
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	
+	RETURN 0
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+;○この依頼は依頼主がTARGETです
+;【◆구상】
+;【L ［당신］は［彼女］に맛있는물고기を渡した】
+;【L 何だか生きる希望がわいてきたよ。】
+;【▼そのまま下の구상へ】
+	PRINTFORMW 「おぉ～…これ%CALLNAME:MASTER%が釣ったの？」
+	PRINTFORMW 「意外な特技を持ってるんだねー」
+	RETURN 1
+CASE "의뢰실행 직후"
+;○この依頼は必ず実行後달성します
+;【▲上の구상から続き】
+;【◆구상】
+;【▼そのまま下の구상へ】
+	PRINTFORML 「えへへ、ありがとう♪」
+	RETURN 1
+CASE "성공 보고시"
+;報酬：백미３個
+	PRINTFORMW 「はーい、こちら답례になりまーす♪」
+	RETURN 1
+CASE "실패 보고시"
+	
+	RETURN 0
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
+
+;==================================================
+;依頼구상・固有依頼101：
+;固有依頼の仕様はキャラによって異なりますが依頼番号は101～で共通です
+;"의뢰명"部分に의뢰명を入れて下さい
+;==================================================
+@M_KOJO_JP판_IRAI_의뢰명_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	
+	RETURN 0
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	
+	RETURN 0
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+	
+	RETURN 0
+CASE "의뢰실행 직후"
+	
+	RETURN 0
+CASE "성공 보고시"
+;報酬：
+	
+	RETURN 0
+CASE "실패 보고시"
+	
+	RETURN 0
+CASE "의뢰 보고 불필요"
+	
+	RETURN 0
+ENDSELECT
+
+;＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+;依頼구상テンプレのテンプレ
+;==================================================
+;依頼구상・一般依頼Y：
+;==================================================
+@M_KOJO_JP판_IRAI_Y_K38(ROLE, SCENE, CLIENT_ID)
+#DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
+#DIMS SCENE    ;セリフの表示されるタイミング
+#DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
+;--------------------------------------------------
+;RETURN 0 の部分は共通の구상が表示されます
+;依頼ごとの구상を表示する部分は RETURN 0 を RETURN 1 にしてください
+;--------------------------------------------------
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	
+	RETURN 0
+CASE "의뢰비수탁시"
+	
+	RETURN 0
+CASE "의뢰 수탁시"
+	
+	RETURN 0
+CASE "의뢰 확인시"
+	
+	RETURN 0
+CASE "의뢰 파기시"
+	
+	RETURN 0
+CASE "의뢰실행 직전"
+	
+	RETURN 0
+CASE "의뢰실행 직후"
+	
+	RETURN 0
+CASE "성공 보고시"
+;報酬：
+	
+	RETURN 0
+CASE "실패 보고시"
+	
+	RETURN 0
+;CASE "의뢰 보고 불필요"
+;＜この依頼にはありません＞
+;	RETURN 0
+ENDSELECT
