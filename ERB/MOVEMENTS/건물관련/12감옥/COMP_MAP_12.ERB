@@ -1,0 +1,110 @@
+﻿;감옥 맵관련 짧은 파일 일괄 처리용.
+;GETMAP_12.ERB
+@GETMAP_12(ARG)
+CALL GETMAP_BASIC(ARG)
+
+;MAP_COMM_12.ERB
+@MAP_PLACENAME_12(ARG)
+#FUNCTIONS
+
+IF GET_MAPID(ARG) == MAIN_MAP
+	SELECTCASE ARG
+		CASE 1201 TO (MAXROOM - 1)
+			RETURNF STR:(ARG + 8000)
+        ;방 초대시(?)
+        CASE 1298
+            RETURNF OMANEKI_PLACE()
+		CASE 1299
+			RETURNF "스키마 공간"
+		CASEELSE
+			RETURNF "불명"
+	ENDSELECT
+ELSE
+	RETURNF "불명"
+ENDIF
+
+@MAP_VIEWING_12(AA)
+#DIMS REF AA, 0
+IF !TFLAG:맵변환
+	TFLAG:맵변환 = 1
+ENDIF
+CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
+PRINTFORML 
+TRYCALLFORM MAP_PRISON_{TFLAG:맵변환}(AA)
+
+@MAP_CAN_MOVE_12(ARG, ARG:1)
+#FUNCTION
+RETURNF 1
+
+@MAP소개_12
+;とりあえず5行
+PRINTFORML 남자로 태어난 죄(?)를 지으면 가는 곳이다.
+PRINTFORML 
+PRINTFORML 
+PRINTFORML 
+PRINTFORML 
+
+;PLACE_12.ERB
+@KICKOUT_12()
+#FUNCTION
+SELECTCASE CHK_INHOME(CFLAG:MASTER:현재위치)
+    CASE 1201 TO 1203, 1207 TO 1209
+        RETURNF 1210
+	CASE 1204 TO 1206, 1212, 1213
+		RETURNF 1211
+    ;위에서 처리 못했으면 귀찮으니 걍 아나타 감방으로 보냄
+    CASEELSE
+        RETURNF 1201
+ENDSELECT
+;RETURNF 101
+
+@BATHCHECK_12(ARG)
+#FUNCTION
+SELECTCASE CHK_INHOME(CFLAG:MASTER:현재위치)
+    ;샤워실이 미실장이므로 임시로 아나타 감방으로 처리
+	CASE 1201
+		RETURNF 1
+ENDSELECT
+RETURNF 0
+
+@BATHROOM_12(ARG)
+#FUNCTION
+;샤워실이 미실장이므로 임시로 아나타 감방으로 처리
+RETURNF 1201
+
+@MAP_UNIQUEMESSAGE_12
+;장소별 특수 정경묘사 필요시 가필
+;예시로 출구만 써둠. 출구가 출력될 지 의문이긴 한데...
+SELECTCASE CFLAG:MASTER:현재위치
+    CASE 1212
+        PRINTL 간수가 부릅뜬 눈으로 지켜보고 있다...
+        RETURN 1
+ENDSELECT
+RETURN 0
+
+;-----------------------------------------
+;자택이 아닐때 대체 장소 ID를 돌려주는 함수
+;ARG, 대상ID
+;RETURNF, 대체가 끝난 대상ID
+;-----------------------------------------
+@MAP_SEARCH_REPLACEMENT_12(ARG)
+#FUNCTION
+;이걸 쓸 수 있을지는 모르겠지만 일단 만들어봄
+;교도소장 방 제외 무조건 출구로 처리
+SELECTCASE ARG
+	CASE 1201 TO 1212
+        RETURNF 1212
+    CASE 1213
+        RETURNF 1213
+ENDSELECT
+RETURNF 0
+
+
+@MAP13_AREANAME(PLACE_ID)
+#FUNCTIONS
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM PLACE_ID
+IF MAIN_MAP == 12
+	RETURNF "교도소"
+ENDIF
