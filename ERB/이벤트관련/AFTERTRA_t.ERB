@@ -6,12 +6,20 @@
 #DIM 변동치
 #DIM 만나지않은날짜
 #DIM YANUSHI
+#DIM DYNAMIC 감옥루프
 IF FLAG:감방남은일수
-	;감방에 갇힌 상태면 여기서 인터럽트해버려
-	CALL 지하감옥
+	감옥루프 = 6
 ENDIF
 
+$감옥뺑뺑이
 PRINTL 하루가 끝났습니다
+IF FLAG:감방남은일수
+	FLAG:감방남은일수--
+	IF FLAG:감방남은일수 == 0
+		CALL 석방
+		감옥루프 = 0
+	ENDIF
+ENDIF
 PRINTFORML 
 ;SIF STRLENS(TSTR:1)
 ;	CALL SELL_VIDEO
@@ -254,6 +262,35 @@ CALL YASAI
 CALL BOOKLEND
 
 CALL 주조
+
+IF 감옥루프
+	감옥루프--
+	DAY++
+	;아가씨의 몸 주기의 진행
+	;=================================
+	FOR LOCAL,0,CHARANUM
+		;키스경험이 0이라면[키스미경험]을 취득(미설정캐릭터에게로의 대책이라고 생각된다)
+		SIF EXP:LOCAL:키스경험 == 0 && TALENT:LOCAL:키스미경험 == 0
+			TALENT:LOCAL:키스미경험 = 1
+		;여성기 부재(성별의 bit0가 0) 혹은[애같음][유치]로[초경]미취득 이라면 주기를 설정하지 않는다
+		IF ((TALENT:LOCAL:150 || TALENT:LOCAL:151) && !TALENT:LOCAL:초경) || !GETBIT(TALENT:LOCAL:성별, 0)
+			CFLAG:LOCAL:900 = 0
+			CONTINUE
+		ENDIF
+		;주기가 미설정의 경우 여기서 결정
+		SIF (CFLAG:LOCAL:900 == 0 || CFLAG:LOCAL:900 > 11)
+			CFLAG:LOCAL:900 = RAND:10
+		;주기가  1진행된다
+		CFLAG:LOCAL:900 += 1
+		;아직 10 일주기(11이상으로 1의 위인 만큼 한다)
+		SIF CFLAG:LOCAL:900 > 10
+			CFLAG:LOCAL:900 %= 10
+		SIF TALENT:LOCAL:임신 > 0
+			TALENT:LOCAL:임신 += 1
+	NEXT
+	;=================================
+	GOTO 감옥뺑뺑이
+ENDIF
 
 CALL MOENY_HENDOU
 
