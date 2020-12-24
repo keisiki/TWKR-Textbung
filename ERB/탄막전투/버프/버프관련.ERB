@@ -15,8 +15,8 @@ FOR LOCAL, 0, TB버프한계
         BREAK
     ENDIF
 NEXT
-CALL TB_SIMPLER(MASTER)
-CALL TB_SIMPLER(TARGET)
+;CALL TB_SIMPLER(MASTER)
+;CALL TB_SIMPLER(TARGET)
 ;CALL TB_효과처리(대상)
 CALL 공방세팅(MASTER,TARGET)
 
@@ -41,6 +41,24 @@ ELSE
     T_버프:TB값:ARG = 0
     T_버프:TB남은시간:ARG = 0
 ENDIF
+RETURNF 1
+
+@TB_RESET_WHO(ARG)
+;ARG의 버프 해제
+#FUNCTION
+IF ARG < -1||ARG > CHARANUM
+    RETURNF -1
+ENDIF
+
+FOR LOCAL,0,TB버프한계
+    IF T_버프:TB대상:LOCAL == ARG
+        T_버프:TB대상:LOCAL = 0
+        T_버프:TB내용:LOCAL = 0
+        T_버프:TBID:LOCAL = 0
+        T_버프:TB값:LOCAL = 0
+        T_버프:TB남은시간:LOCAL = 0
+    ENDIF
+NEXT
 RETURNF 1
 
 @TB_MINUS
@@ -111,6 +129,7 @@ FOR LOCAL, 0, TB버프한계
             혼란시간 += T_버프:TB남은시간:LOCAL
         ELSEIF T_버프:TB내용:LOCAL == TCV_면역
             면역시간 += T_버프:TB남은시간:LOCAL
+            PRINTFORML 면역:{면역시간}
         ENDIF
     ENDIF
 NEXT
@@ -263,3 +282,17 @@ FOR LOCAL, 0, TB버프한계
         ENDIF
     ENDIF
 NEXT
+
+@TB_ADD_ID(ARG,ARG:1,ARG:2,ARG:3,ARG:4)
+;ARG의 ARG:1번 스킬로 생긴 ARG:2 타입 버프를 ARG:3만큼 값 증가 및 ARG:4만큼 지속시간 증가
+FOR LOCAL,0,TB버프한계
+    IF T_버프:TB대상:LOCAL == ARG&&T_버프:TBID:LOCAL == ARG:1&&T_버프:TB내용:LOCAL == ARG:2
+        T_버프:TB값:LOCAL += ARG:3
+        T_버프:TB남은시간:LOCAL += ARG:4
+        LOCAL:1 = 1
+        BREAK
+    ENDIF
+NEXT
+IF LOCAL:1 == 0
+    CALL 통합버프(ARG,ARG:2,ARG:1,ARG:3,ARG:4)
+ENDIF
