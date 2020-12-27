@@ -301,7 +301,7 @@ SELECTCASE ARG
         RESETCOLOR
         CALL 종속도상승(ARG, 5)
         CALL T_패자처리(TARGET,MASTER)
-        CALL 스킬강탈
+        CALL 스킬강탈(TARGET)
         CALL 경험치처리(MASTER, 마스터획득경험치)
         CALL 경험치처리(TARGET, 타겟획득경험치/4)
         SIF CFLAG:TARGET:탄막승부승리 == 0
@@ -491,22 +491,20 @@ QUIT
 
 
 @스킬강탈(ARG)
-#DIM DYNAMIC 스킬번호
-#DIM DYNAMIC 다시뽑기카운터
-#DIMS DYNAMIC 스킬명
+#DIM DYNAMIC 스킬개수
 ;승리시의 대상의 스킬을 하나 혹은 전부 가져오는 함수
 IF 고로시 == 1
-    FOR LOCAL, 500, T_스킬한계값
-        IF TALENT:ARG:LOCAL == 1
-            IF TALENT:MASTER:LOCAL == 1
+    FOR LOCAL, 0, T_스킬한계값
+        IF HAVE_T_SKILL(TARGET,LOCAL) == 1
+            IF TALENT:MASTER:(LOCAL+500) == 1
                 CONTINUE
             ELSE
                 RESULT = 0
                 TRYCALLFORM IS_UTIMATE{LOCAL}()
                 IF RESULT == 0
-                    TALENT:MASTER:LOCAL = 1
+                    TALENT:MASTER:(LOCAL+500) = 1
                     CALLFORMF T_SKILL{LOCAL}_STR("스킬명")
-                    PRINTFORML %조사처리(스킬명,"을")% 획득했다
+                    PRINTFORML %조사처리(RESULTS,"을")% 획득했다
                 ELSE
                     CONTINUE
                 ENDIF
@@ -514,25 +512,54 @@ IF 고로시 == 1
         ENDIF
     NEXT
 ELSE
-    $다시뽑기
-    CALL RANDOM_PICK_T_SKILL(ARG)
-    IF TALENT:MASTER:(SKILL_ARRAY:스킬번호) == 1&&다시뽑기카운터 < 20
-        다시뽑기카운터++
-        GOTO 다시뽑기
+
+    CALL 강탈할스킬(ARG)
+    스킬개수 = RESULT
+    LOCAL = 0
+    IF RESULT > 0
+        LOCAL = RAND:(RESULT)
+        TALENT:MASTER:(SKILL_ARRAY:LOCAL + 500) = 1
+        CALLFORMF T_SKILL{(SKILL_ARRAY:LOCAL)}_STR("스킬명")
+        PRINTFORML %조사처리(RESULTS,"을")% 획득했다
     ELSE
-        RESULT = 0
-        TRYCALLFORM IS_UTIMATE{LOCAL}()
-        IF RESULT == 0
-            TALENT:MASTER:(SKILL_ARRAY:스킬번호) = 1
-            IF HAVE_T_SKILL(TARGET,스킬번호) == 1
-                CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
-                PRINTFORML %조사처리(스킬명,"을")% 획득했다
-            ENDIF
-        ELSE
-            
-        ENDIF
+    
     ENDIF
 ENDIF
+PRINTW 지금!!!!!
+@강탈할스킬(ARG)
+#DIM CANNOT_ARRAY, 2000
+#DIM 배열내위치
+#DIM 스킬번호
+;변수 초기화
+VARSET CANNOT_ARRAY
+VARSET SKILL_ARRAY
+배열내위치 = 0
+
+;맨 앞 부분 스킬들만 우선적으로 쌓이기에 문제가 될 소지 존자.
+;FOR 스킬번호, 1, 2000
+FOR 스킬번호, 1, T_스킬한계값
+    ;실장되지 않은 스킬은 통과
+    IF TALENTNAME:(스킬번호 + 500) == ""
+        CANNOT_ARRAY:스킬번호 = 1
+        CONTINUE
+    ;이미 선정된 스킬은 통과
+    ELSEIF MATCH(SKILL_ARRAY, 스킬번호)
+        CONTINUE
+    ENDIF
+    IF TALENT:MASTER:(스킬번호 + 500)||!HAVE_T_SKILL(ARG,스킬번호)
+        CONTINUE
+    ENDIF
+    RESULT = 0
+    TRYCALLFORM IS_UTIMATE{스킬번호}()
+    IF RESULT == 0
+        SKILL_ARRAY:배열내위치 = 스킬번호
+        배열내위치 ++
+    ENDIF
+    ;배열 수 한도 초과시 종료
+    SIF 배열내위치 == 149
+        RETURN 배열내위치
+NEXT
+RETURN 배열내위치
 
 @T_항복(ARG)
 #DIM DYNAMIC 검사용변수
