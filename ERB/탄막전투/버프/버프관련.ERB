@@ -61,6 +61,26 @@ FOR LOCAL,0,TB버프한계
 NEXT
 RETURNF 1
 
+@TB_RESET_ID(ARG,TYPE,S_ID)
+;ARG의 버프 해제
+#FUNCTION
+#DIM DYNAMIC TYPE
+#DIM DYNAMIC S_ID
+IF ARG < -1||ARG > CHARANUM
+    RETURNF -1
+ENDIF
+
+FOR LOCAL,0,TB버프한계
+    IF T_버프:TB대상:LOCAL == ARG&&T_버프:TB내용:LOCAL == TYPE&&T_버프:TBID:LOCAL == S_ID
+        T_버프:TB대상:LOCAL = 0
+        T_버프:TB내용:LOCAL = 0
+        T_버프:TBID:LOCAL = 0
+        T_버프:TB값:LOCAL = 0
+        T_버프:TB남은시간:LOCAL = 0
+    ENDIF
+NEXT
+RETURNF 1
+
 @TB_MINUS
 ;턴 종료시 모든 버프의 지속시간을 1 내리는 함수
 FOR LOCAL, 0, TB버프한계
@@ -80,31 +100,34 @@ FOR LOCAL, 0, TB버프한계
     ENDIF
 NEXT
 
-@TB_MINUS_ID(대상,S_ID,NUM)
+@TB_MINUS_ID(대상,S_ID,NUM,TYPE = -1)
 #DIM DYNAMIC 대상
 #DIM DYNAMIC NUM
 #DIM DYNAMIC S_ID
+#DIM DYNAMIC TYPE
 FOR LOCAL, 0, TB버프한계
     IF T_버프:TB남은시간:LOCAL != 0
         IF T_버프:TB대상:LOCAL == 대상&&T_버프:TBID:LOCAL == S_ID
-            T_버프:TB값:LOCAL --
-            IF T_버프:TB값:LOCAL < 0
-                T_버프:TB값:LOCAL = 0
-            ENDIF
-            IF T_버프:TB값:LOCAL == 0
-                CALLF TB_RESET(LOCAL)
-            ENDIF
-            NUM--
-            IF T_버프:TB내용:LOCAL == TCV_독
-                CALL T_데미지((T_버프:TB대상:LOCAL),50,"독")
-            ELSEIF T_버프:TB내용:LOCAL == TCV_출혈
-                CALL T_데미지((T_버프:TB대상:LOCAL),(TCVAR:(T_버프:TB대상:LOCAL):T_최대체력/20),"출혈")
-            ELSEIF T_버프:TB내용:LOCAL == TCV_저주
-                SIF TB_SUM_REMAIN((T_버프:TB대상:LOCAL),TCV_저주) == 0
-                    CALL T_데미지((T_버프:TB대상:LOCAL),TCVAR:(T_버프:TB대상:LOCAL):T_최대체력,"저주")
-            ENDIF
-            IF NUM <= 0
-                RETURN 1
+            IF TYPE == -1||TYPE == T_버프:TB내용:LOCAL
+                T_버프:TB값:LOCAL --
+                IF T_버프:TB값:LOCAL < 0
+                    T_버프:TB값:LOCAL = 0
+                ENDIF
+                IF T_버프:TB값:LOCAL == 0
+                    CALLF TB_RESET(LOCAL)
+                ENDIF
+                NUM--
+                IF T_버프:TB내용:LOCAL == TCV_독
+                    CALL T_데미지((T_버프:TB대상:LOCAL),50,"독")
+                ELSEIF T_버프:TB내용:LOCAL == TCV_출혈
+                    CALL T_데미지((T_버프:TB대상:LOCAL),(TCVAR:(T_버프:TB대상:LOCAL):T_최대체력/20),"출혈")
+                ELSEIF T_버프:TB내용:LOCAL == TCV_저주
+                    SIF TB_SUM_REMAIN((T_버프:TB대상:LOCAL),TCV_저주) == 0
+                        CALL T_데미지((T_버프:TB대상:LOCAL),TCVAR:(T_버프:TB대상:LOCAL):T_최대체력,"저주")
+                ENDIF
+                IF NUM <= 0
+                    RETURN 1
+                ENDIF
             ENDIF
         ENDIF
     ENDIF
