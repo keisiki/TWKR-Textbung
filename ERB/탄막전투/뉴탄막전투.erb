@@ -509,10 +509,10 @@ ALIGNMENT LEFT
 
 @T_데미지(ARG,데미지,속성)
 ;ARG = 공격받는 대상
-#DIM 데미지
-#DIMS 속성
-#DIMS 속성내성STR
-#DIM 속성내성값
+#DIM DYNAMIC 데미지
+#DIMS DYNAMIC 속성
+#DIMS DYNAMIC 속성내성STR
+#DIM DYNAMIC 속성내성값
 #DIM DYNAMIC 감소율
 #DIM DYNAMIC 원래데미지
 ;감소율은 XX%단위
@@ -538,10 +538,15 @@ SELECTCASE 속성
     CASE "고정"
         ;처리없음
     CASEELSE
-        ;특수피해 처리용(독이나 출혈같은거)
-        TCVAR:ARG:T_체력 -= 데미지
+        ;특수피해 처리용(독이나 출혈같은거)    
         PRINTL
-        PRINTFORMW \@ ARG == MASTER ? # %ARG는% \@ {데미지}만큼의 %속성% 피해를 \@ ARG == TARGET ? 주었# 받았\@다!
+        IF TB_SUM_REMAIN(ARG,TCV_면역) 
+            PRINTFORMW \@ ARG == MASTER ? # %ARG는% \@ {데미지}만큼의 %속성% 피해를 받아야 했지만, 가볍게 흘려버렸다!
+        ELSE
+            PRINTFORMW \@ ARG == MASTER ? # %ARG는% \@ {데미지}만큼의 %속성% 피해를 받았다!
+            TCVAR:ARG:T_체력 -= 데미지
+        ENDIF
+        PRINTL
         RETURN 1
 ENDSELECT
 
@@ -591,6 +596,12 @@ ELSEIF ARG == T_턴주인 && 크리티컬판정(TCVAR:T_턴반대:T_운)
     ENDIF
 ENDIF
 
+
+IF T_턴주인 == MASTER
+    CALL T_시스템처리(106,데미지,원래데미지,ARG)
+ELSE
+    CALL T_시스템처리(107,데미지,원래데미지,ARG)
+ENDIF
 IF 데미지 > 0
     IF TB_SUM_REMAIN(ARG,TCV_면역) 
         PRINTFORMW \@ ARG == TARGET ? %CALLNAME:ARG%에게 # \@ {데미지}만큼의 %속성% 피해를 \@ ARG == TARGET ? 주어# 받아\@야 했지만, 가볍게 흘려져버렸다!
@@ -603,15 +614,16 @@ ELSEIF 데미지 <= -100
 ELSE
     PRINTFORMW \@ ARG == MASTER ? # %타겟은% 아슬아슬하게 탄을 \@ 피했다!
 ENDIF
+PRINTL
 IF LOCAL:1 == 1
     CALL T_시스템처리(220)
 ELSEIF LOCAL:1 == 2
     CALL T_시스템처리(221)
 ENDIF
 IF T_턴주인 == MASTER
-    CALL T_시스템처리(104,데미지,원래데미지)
+    CALL T_시스템처리(104,데미지,원래데미지,ARG)
 ELSE
-    CALL T_시스템처리(105,데미지,원래데미지)
+    CALL T_시스템처리(105,데미지,원래데미지,ARG)
 ENDIF
 RETURN 데미지
 
