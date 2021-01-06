@@ -1,0 +1,157 @@
+﻿@메모라이즈
+#DIM DYNAMIC 페이지
+#DIM DYNAMIC 카운터
+#DIM DYNAMIC 입력
+[IF_DEBUG]
+    탄막디버그 = 1
+[ENDIF]
+$메모라이즈초기루프
+DRAWLINE
+PRINTFORML
+PRINTFORML 어떤 스킬을 메모라이즈 할까? (현재 메모라이즈 수 : {NUM_MEMORIZED()}/50)
+PRINTFORML
+DRAWLINE
+카운터 = 1
+LOCAL:1 = 0
+LOCAL:2 = 0
+REPEAT 25
+    $LOOP
+    IF 카운터 >= T_스킬한계값
+        SETCOLOR 0x808080
+        PRINTFORM [{카운터}] 
+        IF 카운터 < 1000
+            PRINT  
+            IF 카운터 < 100
+                PRINT  
+                IF 카운터 < 10
+                    PRINT  
+                ENDIF
+            ENDIF
+        ENDIF 
+        PRINTFORML - --------------------------------------------------
+        RESETCOLOR
+        카운터++
+        LOCAL:2 = 1
+    ELSEIF TALENTNAME:(500+카운터) == ""
+        카운터++
+        GOTO LOOP
+    ELSE
+        IF 페이지 > 0
+            IF LOCAL:1 < 페이지*25
+                LOCAL:1++
+                카운터++
+                GOTO LOOP
+            ENDIF
+        ENDIF
+        IF HAVE_T_SKILL(MASTER,카운터)
+            IF IS_MEMORIZED(카운터)
+                SETCOLOR 0xFF7F00
+            ENDIF
+            PRINTFORM [{카운터}] 
+            IF 카운터 < 1000
+                PRINT  
+                IF 카운터 < 100
+                    PRINT  
+                    IF 카운터 < 10
+                        PRINT  
+                    ENDIF
+                ENDIF
+            ENDIF 
+            PRINTFORML - %스펠이름(카운터)%
+            RESETCOLOR
+        ELSE
+            SETCOLOR 0x808080
+            PRINTFORM [{카운터}] 
+            IF 카운터 < 1000
+                PRINT  
+                IF 카운터 < 100
+                    PRINT  
+                    IF 카운터 < 10
+                        PRINT  
+                    ENDIF
+                ENDIF
+            ENDIF 
+            PRINTFORML - --------------------------------------------------
+            RESETCOLOR
+        ENDIF
+        카운터++
+    ENDIF
+REND
+IF 페이지 == 0
+    SETCOLOR 0x808080
+ELSE
+    RESETCOLOR
+ENDIF
+PRINTLC [9997] - 이전 페이지
+RESETCOLOR
+
+PRINTLC [9998] - 종료
+
+IF LOCAL:2 == 1
+    SETCOLOR 0x808080
+ELSE
+    RESETCOLOR
+ENDIF
+PRINTLC [9999] - 다음 페이지
+RESETCOLOR
+INPUT
+입력 = RESULT
+IF 입력 == 9998
+    탄막디버그 = 0
+    RETURN 1
+ELSEIF 입력 == 9997&&페이지 > 0
+    페이지 = MAX(0,페이지-1)
+ELSEIF 입력 == 9999&&LOCAL:2 == 0
+    페이지++
+ELSE
+    IF 입력 > T_스킬한계값
+
+    ELSEIF HAVE_T_SKILL(MASTER,입력)
+        IF IS_MEMORIZED(입력)
+            CALL UNMEMORIZESPELL(입력)
+        ELSE
+            CALL MEMORIZESPELL(입력)
+        ENDIF
+    ENDIF
+ENDIF
+CLEARLINE 32
+GOTO 메모라이즈초기루프
+
+@스펠이름(ARG)
+#FUNCTIONS
+CALLFORMF T_SKILL{ARG}_STR("스킬명")
+RETURNF RESULTS
+
+@IS_MEMORIZED(ARG)
+#FUNCTION
+FOR LOCAL,0,50
+    IF T_메모라이즈:LOCAL == ARG
+        RETURNF 1
+    ENDIF
+NEXT
+RETURNF 0
+
+@MEMORIZESPELL(ARG)
+FOR LOCAL,0,50
+    IF T_메모라이즈:LOCAL == 0
+        T_메모라이즈:LOCAL = ARG
+        BREAK
+    ENDIF
+NEXT
+
+@UNMEMORIZESPELL(ARG)
+FOR LOCAL,0,50
+    IF T_메모라이즈:LOCAL == ARG
+        T_메모라이즈:LOCAL = 0
+    ENDIF
+NEXT
+
+@NUM_MEMORIZED
+#FUNCTION
+LOCAL:1=0
+FOR LOCAL,0,50
+    IF T_메모라이즈:LOCAL != 0
+        LOCAL:1 ++
+    ENDIF
+NEXT
+RETURNF LOCAL:1

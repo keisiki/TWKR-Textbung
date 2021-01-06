@@ -38,12 +38,18 @@ T_시스템:9 = ARG:9
 FOR LOCAL,0,1000
     T_시전자 = T_턴주인
     T_시전자반대 = T_턴반대
-    SIF HAVE_T_SKILL(T_턴주인,LOCAL)
-        TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴주인,"시스템체크")
+    IF HAVE_T_SKILL(T_턴주인,LOCAL)
+        IF T_턴주인 != MASTER||(IS_MEMORIZED(LOCAL)&&T_턴주인 == MASTER)
+            TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴주인,"시스템체크")
+        ENDIF
+    ENDIF
     T_시전자 = T_턴반대
     T_시전자반대 = T_턴주인
-    SIF HAVE_T_SKILL(T_턴반대,LOCAL)
-        TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴반대,"시스템체크")
+    IF HAVE_T_SKILL(T_턴반대,LOCAL)
+        IF T_턴반대 != MASTER||(IS_MEMORIZED(LOCAL)&&T_턴반대 == MASTER)
+            TRYCALLFORM ONGOING_T_SKILL{LOCAL}(T_턴반대,"시스템체크")
+        ENDIF
+    ENDIF
 NEXT
 T_시전자 = 대피소:0
 T_시전자반대 = 대피소:1
@@ -104,7 +110,8 @@ $스킬표시
 PRINTL 무엇을 쓸까?
 DRAWLINE
 FOR 스킬번호,1,T_스킬한계값
-    IF HAVE_T_SKILL(T_턴주인, 스킬번호)
+    ;IF HAVE_T_SKILL(T_턴주인, 스킬번호)
+    IF IS_MEMORIZED(스킬번호)
         ;스킬 소유, 스킬창에 이름 표시
         CALLFORMF T_SKILL{스킬번호}("타입")
         IF RESULT == 자동형
@@ -149,7 +156,8 @@ WHILE 1 ;$스킬입력루프
     ELSEIF LOCAL == 9998
         CALL T_HELP
         GOTO 스킬표시
-    ELSEIF HAVE_T_SKILL(T_턴주인, LOCAL)
+    ;ELSEIF HAVE_T_SKILL(T_턴주인, LOCAL)
+    ELSEIF IS_MEMORIZED(LOCAL)
         DRAWLINE
         CALL DO_T_SKILL(T_턴주인, LOCAL)
         ;시전할수 없을때엔 턴 넘김 없어야 합니다
@@ -198,7 +206,7 @@ WHILE 1
         CALLFORM HELP_T_SKILL{LOCAL}
         DRAWLINE
         PRINTW
-        CLEARLINE 9
+        CLEARLINE 11
     ELSE
         ;시전 불가시는 DO_T_SKILL에서 처리
         PRINTL
@@ -262,6 +270,11 @@ RETURNF 0
 
 IF HAVE_T_SKILL(사용자, 스킬번호)
     ;이 스킬 소유중
+    IF 사용자 == MASTER
+        IF !IS_MEMORIZED(스킬번호)
+            RETURN 0
+        ENDIF
+    ENDIF
     TRYCALLFORM ONGOING_T_SKILL{스킬번호}(사용자, "남은쿨타임")
     IF RESULT == 0
         ;쿨타임 0 시전가능
