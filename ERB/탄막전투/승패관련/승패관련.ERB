@@ -306,6 +306,7 @@ SELECTCASE ARG
         CALL 경험치처리(TARGET, 타겟획득경험치/4)
         SIF CFLAG:TARGET:탄막승부승리 == 0
 	        CFLAG:TARGET:탄막승부승리 = 1
+        RETURN 0
     CASE 1
         ;무승부
         PRINTFORML 무승부!
@@ -314,6 +315,7 @@ SELECTCASE ARG
         타겟획득경험치 = 50
         CALL 경험치처리(MASTER, 마스터획득경험치)
         CALL 경험치처리(TARGET, 타겟획득경험치)
+        RETURN 1
     CASE 2
         IF 마스터획득경험치 > ABL:MASTER:레벨 * 100
             마스터획득경험치 = ABL:MASTER:레벨 * 100
@@ -329,6 +331,7 @@ SELECTCASE ARG
         
         CALL 경험치처리(TARGET, 타겟획득경험치)
         CALL 경험치처리(MASTER, 마스터획득경험치/4)
+        RETURN 2
 ENDSELECT
 RESETCOLOR
 
@@ -462,13 +465,26 @@ CALL 전리품
 IF TALENT:TARGET:봉래인 == 0
     TALENT:TARGET:사망 = 1
     IF TALENT:TARGET:사망경험 == 0
+        TALENT:TARGET:사망경험++
         CALL 세상의위협
+    ELSE
+        TALENT:TARGET:사망경험++
     ENDIF
-    TALENT:TARGET:사망경험++
     CFLAG:TARGET:출금 = 1
     CFLAG:TARGET:현재위치 = SUKIMA()
     PRINTFORMW ★☆★%타겟은% 사라졌습니다★☆★
     습득한혼:TARGET++
+    FOR LOCAL,1,CHARANUM
+        IF RELATION:TARGET:LOCAL > 100&&TARGET != LOCAL
+            RELATION:MASTER:LOCAL -= 5
+            PRINTFORML 아무래도 %타겟과% 친한 %CALLNAME:LOCAL%에게 미움살것 같다...
+            IF RELATION:MASTER:LOCAL <= 40
+                RELATION:MASTER:LOCAL = 40
+            ENDIF
+        ENDIF
+    NEXT
+    TARGET = 0
+    CALL 연전
 ELSE
     PRINTFORML ..만 봉래인인 %타겟은% 죽지 않고 다시 재생했다...
     PRINTFORMW 하지만 지쳐서 더는 움직일수 없는 모양이다
@@ -493,6 +509,43 @@ PRINTFORMW ★☆★%마스터는% 사라졌습니다★☆★
 PRINTW
 QUIT
 
+@연전
+LOCAL:1 = 0
+FOR LOCAL, 1,CHARANUM
+    IF CFLAG:LOCAL:현재위치 >= CFLAG:MASTER:현재위치 - 2&&CFLAG:LOCAL:현재위치 <= CFLAG:MASTER:현재위치 + 2
+        IF CFLAG:LOCAL:수면 == 0&&TALENT:LOCAL:당신의노예 == 0&&TALENT:LOCAL:사망 == 0&&TALENT:LOCAL:창녀 == 0&&TALENT:LOCAL:렌탈창녀 == 0&&TCVAR:LOCAL:탄막승부불능 == 0&&싸움이야(LOCAL) == 0
+            다들모여:(LOCAL:1) = LOCAL
+            IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+                PRINTFORML %마스터의% 행패에 보다못한 %조사처리(CALLNAME:LOCAL,"가")% 뛰쳐들었다!
+            ELSE
+                PRINTFORML 소란에 %조사처리(CALLNAME:LOCAL,"이")% 뛰쳐왔다!
+                CFLAG:LOCAL:현재위치 = CFLAG:MASTER:현재위치
+            ENDIF
+            RELATION:MASTER:LOCAL -= 10
+            LOCAL:1 ++
+        ENDIF
+        IF LOCAL:1 >= 5
+            BREAK
+        ENDIF
+    ENDIF
+NEXT
+DRAWLINE
+FOR LOCAL, 0, 5
+    IF 다들모여:LOCAL != 0
+        TARGET = 다들모여:LOCAL
+        PRINTFORML %타겟이% 덤벼들었다!
+        CALL 뉴탄막전투(MASTER,TARGET,1)
+    ENDIF
+NEXT
+
+@싸움이야(ARG)
+#FUNCTION
+FOR LOCAL,0,10
+    IF 다들모여:LOCAL == ARG
+        RETURNF 1
+    ENDIF
+NEXT
+RETURNF 0
 
 @스킬강탈(ARG)
 #DIM DYNAMIC 스킬개수
@@ -782,10 +835,13 @@ FOR LOCAL,1,CHARANUM
     LOCAL:1 += TALENT:LOCAL:사망경험
 NEXT
 DRAWLINE
-PRINTFORMC 처치수 : {LOCAL:1}
-PRINTFORMC 쓰러뜨린 수 : {고로시수}
+ALIGNMENT CENTER
+PRINTFORM 처치수 : {LOCAL:1}               
+PRINTFORM 쓰러뜨린 수 : {고로시수 - 1}
+PRINTL
 PRINTFORML %CALLNAME:MASTER%의 행보에 모두들 긴장하기 시작했다...!
 PRINTFORML
+ALIGNMENT LEFT
 DRAWLINE
 SELECTCASE 사망자수()
     CASE IS > 100
