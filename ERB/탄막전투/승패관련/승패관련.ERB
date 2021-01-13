@@ -520,33 +520,39 @@ PRINTW
 QUIT
 
 @연전
+#DIM 연전플래그
 LOCAL:1 = 0
-FOR LOCAL, 1,CHARANUM
-    IF CFLAG:LOCAL:현재위치 >= CFLAG:MASTER:현재위치 - 2&&CFLAG:LOCAL:현재위치 <= CFLAG:MASTER:현재위치 + 2
-        IF CFLAG:LOCAL:수면 == 0&&TALENT:LOCAL:당신의노예 == 0&&TALENT:LOCAL:사망 == 0&&TALENT:LOCAL:창녀 == 0&&TALENT:LOCAL:렌탈창녀 == 0&&TCVAR:LOCAL:탄막승부불능 == 0&&싸움이야(LOCAL) == 0
-            다들모여:(LOCAL:1) = LOCAL
-            IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
-                PRINTFORML %마스터의% 행패에 보다못한 %조사처리(CALLNAME:LOCAL,"가")% 뛰쳐들었다!
-            ELSE
-                PRINTFORML 소란에 %조사처리(CALLNAME:LOCAL,"이")% 뛰쳐왔다!
-                CFLAG:LOCAL:현재위치 = CFLAG:MASTER:현재위치
+IF 연전플래그 == 0
+    FOR LOCAL, 1,CHARANUM
+        IF CFLAG:LOCAL:현재위치 >= CFLAG:MASTER:현재위치 - 2&&CFLAG:LOCAL:현재위치 <= CFLAG:MASTER:현재위치 + 2
+            IF CFLAG:LOCAL:수면 == 0&&TALENT:LOCAL:당신의노예 == 0&&TALENT:LOCAL:사망 == 0&&TALENT:LOCAL:창녀 == 0&&TALENT:LOCAL:렌탈창녀 == 0&&TCVAR:LOCAL:탄막승부불능 == 0&&싸움이야(LOCAL) == 0
+                다들모여:(LOCAL:1) = LOCAL
+                IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+                    PRINTFORML %마스터의% 행패에 보다못한 %조사처리(CALLNAME:LOCAL,"가")% 뛰쳐들었다!
+                ELSE
+                    PRINTFORML 소란에 %조사처리(CALLNAME:LOCAL,"이")% 뛰쳐왔다!
+                    CFLAG:LOCAL:현재위치 = CFLAG:MASTER:현재위치
+                ENDIF
+                RELATION:MASTER:LOCAL -= 10
+                LOCAL:1 ++
             ENDIF
-            RELATION:MASTER:LOCAL -= 10
-            LOCAL:1 ++
+            IF LOCAL:1 >= 5
+                BREAK
+            ENDIF
         ENDIF
-        IF LOCAL:1 >= 5
-            BREAK
+    NEXT
+    연전플래그 = 1
+    DRAWLINE
+    FOR LOCAL, 0, 5
+        IF 다들모여:LOCAL != 0
+            TARGET = 다들모여:LOCAL
+            다들모여:LOCAL = 0
+            PRINTFORML %타겟이% 덤벼들었다!
+            CALL 뉴탄막전투(MASTER,TARGET,1)
         ENDIF
-    ENDIF
-NEXT
-DRAWLINE
-FOR LOCAL, 0, 5
-    IF 다들모여:LOCAL != 0
-        TARGET = 다들모여:LOCAL
-        PRINTFORML %타겟이% 덤벼들었다!
-        CALL 뉴탄막전투(MASTER,TARGET,1)
-    ENDIF
-NEXT
+    NEXT
+    연전플래그 = 0
+ENDIF
 
 @싸움이야(ARG)
 #FUNCTION
@@ -833,21 +839,27 @@ ENDSELECT
 
 @사망자수
 #FUNCTION
-
+LOCAL = 0
+LOCAL:1 = 0
 FOR LOCAL,1,CHARANUM
-    LOCAL:1 += TALENT:LOCAL:사망경험
+    IF TALENT:LOCAL:사망경험
+        LOCAL:1 ++
+    ENDIF
 NEXT
 LOCAL:1 += 고로시수/4
 RETURNF LOCAL:1
 
 @세상의위협
+LOCAL:1 = 0
 FOR LOCAL,1,CHARANUM
-    LOCAL:1 += TALENT:LOCAL:사망경험
+    IF TALENT:LOCAL:사망경험
+        LOCAL:1 ++
+    ENDIF
 NEXT
 DRAWLINE
 ALIGNMENT CENTER
 PRINTFORM 처치수 : {LOCAL:1}               
-PRINTFORM 쓰러뜨린 수 : {고로시수 - 1}
+PRINTFORM 쓰러뜨린 수 : {고로시수}
 PRINTL
 PRINTFORML %CALLNAME:MASTER%의 행보에 모두들 긴장하기 시작했다...!
 PRINTFORML
