@@ -1,0 +1,338 @@
+﻿@요리재료표시함수(ARG)
+IF ARG <= 0
+    RETURN -1
+ENDIF
+IF ITEM:ARG <= 0
+    SETCOLOR 0x808080
+ENDIF
+IF ARG < 1000
+    IF ARG < 100
+        IF ARG < 10
+            PRINTFORMLC [000{ARG}] %ITEMNAME:ARG% x{ITEM:ARG}
+        ELSE
+            PRINTFORMLC [00{ARG}] %ITEMNAME:ARG% x{ITEM:ARG}
+        ENDIF
+    ELSE
+        PRINTFORMLC [0{ARG}] %ITEMNAME:ARG% x{ITEM:ARG}
+    ENDIF
+ELSE
+    PRINTFORMLC [{ARG}] %ITEMNAME:ARG% x{ITEM:ARG}
+ENDIF
+
+RESETCOLOR
+RETURN 1
+
+@요리하기
+#DIM 표시되는재료, 100
+VARSET 표시되는재료
+표시되는재료:0 = GETNUM(ITEM,"잡곡")
+표시되는재료:1 = GETNUM(ITEM,"묵은쌀")
+표시되는재료:2 = GETNUM(ITEM,"백미")
+표시되는재료:3 = GETNUM(ITEM,"고기")
+표시되는재료:4 = GETNUM(ITEM,"물고기")
+표시되는재료:5 = GETNUM(ITEM,"맛있는물고기")
+표시되는재료:6 = GETNUM(ITEM,"보통버섯")
+표시되는재료:7 = GETNUM(ITEM,"간")
+표시되는재료:8 = GETNUM(ITEM,"당근")
+표시되는재료:9 = GETNUM(ITEM,"순무")
+표시되는재료:9 = GETNUM(ITEM,"죽순")
+PRINTFORML 어떤 메인 재료를 사용할까?
+DRAWLINE
+LOCAL:1 = 0
+FOR LOCAL, 0, 100
+    CALL 요리재료표시함수(표시되는재료:LOCAL)
+    IF RESULT == 1
+        LOCAL:1++
+    ENDIF
+    IF LOCAL:1 == 4
+        PRINTL
+        LOCAL:1 = 0
+    ENDIF
+NEXT
+PRINTL
+RESETCOLOR
+DRAWLINE
+PRINTL [9999] 돌아간다
+
+$LOOP
+INPUT
+IF RESULT == 9999
+    RETURN -1
+ELSE
+    FOR LOCAL, 0, 100
+        IF RESULT == 표시되는재료:LOCAL&&RESULT != 0
+            IF ITEM:RESULT > 0
+                GOTO MAKE
+            ELSE
+                GOTO LOOP
+            ENDIF
+        ENDIF
+    NEXT
+    GOTO LOOP
+    $MAKE
+    주재료 = RESULT
+    CALL 요리법선택
+    주재료요리법 = RESULT
+    CALL 서브재료선택
+    CALL 양념선택
+    CALL MAKECOOK
+ENDIF
+
+@요리법선택
+PRINTL 어떻게 요리할까...?
+DRAWLINE
+PRINTL [001] 굽기
+PRINTL [002] 삶기
+PRINTL [003] 튀기기
+PRINTL [004] 끓이기
+PRINTL [005] 찌기
+PRINTL [006] 조리기
+PRINTL [007] 볶기
+PRINTL [008] 그대로
+DRAWLINE
+$LOOP
+INPUT
+IF RESULT > 8||RESULT < 1
+    GOTO LOOP
+ELSE
+    RETURN RESULT
+ENDIF
+
+
+@서브재료선택
+#DIM DYNAMIC 첨가횟수
+#DIM 표시되는재료, 100
+VARSET 표시되는재료
+표시되는재료:0 = GETNUM(ITEM,"가지")
+표시되는재료:1 = GETNUM(ITEM,"파")
+표시되는재료:2 = GETNUM(ITEM,"순무")
+표시되는재료:3 = GETNUM(ITEM,"당근")
+표시되는재료:4 = GETNUM(ITEM,"고기")
+표시되는재료:5 = GETNUM(ITEM,"약초")
+표시되는재료:6 = GETNUM(ITEM,"고려인삼")
+표시되는재료:7 = GETNUM(ITEM,"간")
+표시되는재료:8 = GETNUM(ITEM,"양배추")
+표시되는재료:9 = GETNUM(ITEM,"참마")
+표시되는재료:9 = GETNUM(ITEM,"오이")
+표시되는재료:9 = GETNUM(ITEM,"토마토")
+$LOOP
+IF 첨가횟수 >= 9
+    RETURN 0
+ENDIF
+PRINTL
+DRAWLINE
+PRINTL 추가로 뭘 넣을까?
+DRAWLINE
+LOCAL:1 = 0
+FOR LOCAL, 0, 100
+    CALL 요리재료표시함수(표시되는재료:LOCAL)
+    IF RESULT == 1
+        LOCAL:1++
+    ENDIF
+    IF LOCAL:1 == 4
+        PRINTL
+        LOCAL:1 = 0
+    ENDIF
+NEXT
+PRINTL
+RESETCOLOR
+DRAWLINE
+PRINTL [9999] 이대로 끝
+$LOOP1
+INPUT
+IF RESULT == 9999
+    RETURN 0
+ELSE
+    FOR LOCAL, 0, 100
+         IF RESULT == 표시되는재료:LOCAL&&RESULT != 0
+            IF ITEM:RESULT > 0
+                GOTO MAKE
+            ELSE
+                GOTO LOOP1
+            ENDIF
+        ENDIF
+    NEXT
+    GOTO LOOP1
+    $MAKE
+    부재료:첨가횟수 = RESULT
+    CALL 요리법선택
+    부재료요리법:첨가횟수 = RESULT
+    첨가횟수++
+ENDIF
+GOTO LOOP
+
+@양념선택
+#DIM DYNAMIC 첨가횟수
+#DIM 표시되는재료, 100
+VARSET 표시되는재료
+표시되는재료:0 = GETNUM(ITEM,"벌꿀")
+표시되는재료:1 = GETNUM(ITEM,"소주")
+표시되는재료:2 = GETNUM(ITEM,"맥주")
+표시되는재료:3 = GETNUM(ITEM,"와인")
+
+$LOOP
+PRINTL 무슨 양념?
+DRAWLINE
+PRINTL 기본 양념
+DRAWLINE
+PRINTLC [0001] 소금
+PRINTLC [0002] 후추
+PRINTLC [0003] 설탕
+PRINTLC [0004] 식초
+PRINTL
+PRINTLC [0005] 된장
+PRINTLC [0006] 기름
+PRINTLC [0007] 간장
+PRINTLC [0008] 고춧가루
+PRINTL
+PRINTLC [0009] 젓갈
+PRINTL
+DRAWLINE
+PRINTL 고급 양념
+DRAWLINE
+LOCAL:1 = 0
+FOR LOCAL, 0, 100
+    CALL 요리재료표시함수(표시되는재료:LOCAL)
+    IF RESULT == 1
+        LOCAL:1++
+    ENDIF
+    IF LOCAL:1 == 4
+        PRINTL
+        LOCAL:1 = 0
+    ENDIF
+NEXT
+PRINTL
+DRAWLINE
+PRINTL [9999] 이대로 끝
+$LOOP1
+INPUT
+IF RESULT == 9999
+    RETURN 0
+ELSE
+    IF RESULT > 0&&RESULT < 10
+        GOTO MAKE
+    ENDIF
+    FOR LOCAL, 0, 100
+         IF RESULT == 표시되는재료:LOCAL&&RESULT != 0
+            IF ITEM:RESULT > 0
+                GOTO MAKE
+            ELSE
+                GOTO LOOP1
+            ENDIF
+        ENDIF
+    NEXT
+    GOTO LOOP1
+    $MAKE
+    양념:첨가횟수 = RESULT
+    첨가횟수++
+ENDIF
+GOTO LOOP
+
+
+@MAKECOOK
+#DIM DYNAMIC 레시피있음
+PRINTL
+PRINTL
+PRINTL
+DRAWLINE
+PRINTL 조리중
+DRAWLINE
+;===============
+; PHASE 1 - 레시피를 읽어와 일치하는게 있는지 확인, 없다면 그대로 창작요리- 이름 책정
+;===============
+FOR LOCAL,0,1000
+    TRYCALLFORM 요리레시피{LOCAL}
+    IF RESULT == 1
+        TRYCALLFORM 요리명{LOCAL}
+        요리이름 = RESULTS
+        레시피있음 = 1
+        BREAK
+    ENDIF
+NEXT
+IF 레시피있음 == 0
+
+    PRINTL 이 요리의 이름은?
+    PRINTL [0] 자동 지정
+    PRINTL [1] 내가 짓겠어!
+    INPUT
+    IF RESULT == 0
+        CALL 요리명책정
+    ELSE
+        PRINT 요리의 이름을 입력해주세요:
+        INPUTS
+    ENDIF
+    요리이름 = RESULTS
+ENDIF
+;===============
+; PHASE 2 - 영양정보 확인
+;===============
+VARSET 요리영양소
+CALL 영양소표(주재료)
+CALL 영양소올리기(RESULT:0,RESULT:1,RESULT:2,RESULT:3,RESULT:4)
+FOR LOCAL,0 ,10
+    CALL 영양소표(부재료:LOCAL)
+    CALL 영양소올리기(RESULT:0,RESULT:1,RESULT:2,RESULT:3,RESULT:4)
+NEXT
+FOR LOCAL,0 ,10
+    CALL 영양소표(양념:LOCAL)
+    CALL 영양소올리기(RESULT:0,RESULT:1,RESULT:2,RESULT:3,RESULT:4)
+NEXT
+
+;===============
+; PHASE 3 - 맛 책정
+;===============
+
+
+
+@요리명책정
+#DIMS DYNAMIC 이름버퍼
+IF 부재료:0 != 0
+    
+ENDIF
+
+
+@재료첨가여부(ARGS,ARG,ARG:1 = 0)
+#FUNCTION
+;대상 재료를 넣었는지 안 넣었는지
+IF ARGS == "모두"
+    IF 주재료 == ARG&&(ARG:1 == 0 || ARG:1 == 주재료요리법)
+        RETURNF 1
+    ELSE
+        FOR LOCAL, 0, 10
+            IF 부재료:LOCAL == ARG&&(ARG:1 == 0 || ARG:1 == 부재료요리법:LOCAL)
+                RETURNF 1
+            ENDIF
+            IF 양념:LOCAL == ARG
+                RETURNF 1
+            ENDIF
+        NEXT
+    ENDIF
+    RETURNF 0
+ELSEIF ARGS == "주재료"
+    IF 주재료 == ARG&&(ARG:1 == 0 || ARG:1 == 주재료요리법)
+        RETURNF 1
+    ELSE
+        RETURNF 0
+    ENDIF
+ELSEIF ARGS == "부재료"
+    FOR LOCAL, 0, 10
+        IF 부재료:LOCAL == ARG&&(ARG:1 == 0 || ARG:1 == 부재료요리법:LOCAL)
+            RETURNF 1
+        ENDIF
+    NEXT
+    RETURNF 0
+ELSEIF ARGS == "양념"
+    FOR LOCAL, 0, 10
+        IF 양념:LOCAL == ARG
+            RETURNF 1
+        ENDIF
+    NEXT
+    RETURNF 0
+ENDIF
+
+@영양소올리기(ARG:0,ARG:1,ARG:2,ARG:3,ARG:4)
+요리영양소:0 += ARG:0
+요리영양소:1 += ARG:1
+요리영양소:2 += ARG:2
+요리영양소:3 += ARG:3
+요리영양소:4 += ARG:4
