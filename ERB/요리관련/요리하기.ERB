@@ -25,6 +25,11 @@ RETURN 1
 @요리하기
 #DIM 표시되는재료, 100
 VARSET 표시되는재료
+VARSET 주재료
+VARSET 주재료요리법
+VARSET 부재료
+VARSET 부재료요리법
+VARSET 양념
 표시되는재료:0 = GETNUM(ITEM,"잡곡")
 표시되는재료:1 = GETNUM(ITEM,"묵은쌀")
 표시되는재료:2 = GETNUM(ITEM,"백미")
@@ -238,19 +243,64 @@ DRAWLINE
 PRINTL 조리중
 DRAWLINE
 ;===============
+; PHASE 0 - 재료를 삭제
+;===============
+ITEM:(주재료) --
+SIF 부재료:0 != 0
+    ITEM:(부재료:0) --
+SIF 부재료:1 != 0
+    ITEM:(부재료:1) --
+SIF 부재료:2 != 0
+    ITEM:(부재료:2) --
+SIF 부재료:3 != 0
+    ITEM:(부재료:3) --
+SIF 부재료:4 != 0
+    ITEM:(부재료:4) --
+SIF 부재료:5 != 0
+    ITEM:(부재료:5) --
+SIF 부재료:6 != 0
+    ITEM:(부재료:6) --
+SIF 부재료:7 != 0
+    ITEM:(부재료:7) --
+SIF 부재료:8 != 0
+    ITEM:(부재료:8) --
+SIF 부재료:9 != 0
+    ITEM:(부재료:9) --
+SIF 양념:0 > 10
+    ITEM:(양념:0) --
+SIF 양념:1 > 10
+    ITEM:(양념:1) --
+SIF 양념:2 > 10
+    ITEM:(양념:2) --
+SIF 양념:3 > 10
+    ITEM:(양념:3) --
+SIF 양념:4 > 10
+    ITEM:(양념:4) --
+SIF 양념:5 > 10
+    ITEM:(양념:5) --
+SIF 양념:6 > 10
+    ITEM:(양념:6) --
+SIF 양념:7 > 10
+    ITEM:(양념:7) --
+SIF 양념:8 > 10
+    ITEM:(양념:8) --
+SIF 양념:9 > 10
+    ITEM:(양념:9) --
+;===============
 ; PHASE 1 - 레시피를 읽어와 일치하는게 있는지 확인, 없다면 그대로 창작요리- 이름 책정
 ;===============
+VARSET 요리이름
 FOR LOCAL,0,1000
     TRYCALLFORM 요리레시피{LOCAL}
     IF RESULT == 1
         TRYCALLFORM 요리명{LOCAL}
-        요리이름 = RESULTS
-        레시피있음 = 1
+        요리이름 = %RESULTS%
+        PRINTFORML %조사처리(RESULTS,"을")% 만들었다!
+        레시피있음 = LOCAL
         BREAK
     ENDIF
 NEXT
 IF 레시피있음 == 0
-
     PRINTL 이 요리의 이름은?
     PRINTL [0] 자동 지정
     PRINTL [1] 내가 짓겠어!
@@ -261,7 +311,7 @@ IF 레시피있음 == 0
         PRINT 요리의 이름을 입력해주세요:
         INPUTS
     ENDIF
-    요리이름 = RESULTS
+    요리이름 = %RESULTS%
 ENDIF
 ;===============
 ; PHASE 2 - 영양정보 확인
@@ -279,17 +329,83 @@ FOR LOCAL,0 ,10
 NEXT
 
 ;===============
-; PHASE 3 - 맛 책정
+; PHASE 3 - 맛 책정 안되있으면 자동으로
 ;===============
-
-
+IF 레시피있음 == 0
+    $맛책정
+    DISHTASTE += "주식/"
+    DISHTASTE += 요리이름 + "/"
+    IF 재료첨가여부("주재료",GETNUM(ITEM,"잡곡"))
+        DISHTASTE += "야취/"
+    ENDIF
+    IF 재료첨가여부("주재료",GETNUM(ITEM,"토마토"))
+        DISHTASTE += "토마토/"
+    ENDIF
+    IF 재료첨가여부("양념",8)
+        DISHTASTE += "스파이스/"
+    ENDIF
+    IF 재료첨가여부("주재료",GETNUM(ITEM,"잡곡"))||재료첨가여부("주재료",GETNUM(ITEM,"묵은쌀"))||재료첨가여부("주재료",GETNUM(ITEM,"백미"))
+        DISHTASTE += "쌀/"
+    ENDIF
+    IF 재료첨가여부("주재료",GETNUM(ITEM,"고기"))||재료첨가여부("주재료",GETNUM(ITEM,"간"))
+        DISHTASTE += "고기 요리/"
+    ENDIF
+    IF 재료첨가여부("주재료",GETNUM(ITEM,"물고기"),Y_그대로)||재료첨가여부("주재료",GETNUM(ITEM,"맛있는물고기"),Y_그대로)
+        DISHTASTE += "품위있는/"
+        DISHTASTE += "심플/"
+    ENDIF
+    IF 주재료요리법 == Y_튀기기
+        DISHTASTE += "튀김요리/"
+        DISHTASTE += "기름/"
+    ENDIF
+    IF 주재료요리법 == Y_볶기
+        DISHTASTE += "기름/"
+    ENDIF
+    IF 주재료요리법 == Y_찌기||주재료요리법 == Y_끓이기||주재료요리법 == Y_조리기
+        DISHTASTE += "농후/"
+    ENDIF
+    IF 주재료요리법 == Y_끓이기
+        DISHTASTE += "국물/"
+    ENDIF
+    IF 주재료요리법 == Y_삶기
+        DISHTASTE += "물기/"
+    ENDIF
+    IF 요리법포함여부(Y_그대로)&&!요리법포함여부(Y_볶기)&&!요리법포함여부(Y_튀기기)
+        DISHTASTE += "산뜻한/"
+    ENDIF
+    DISHTASTE += "수수께끼 요리/"
+ELSE
+    CALLFORM 요리맛책정{레시피있음}
+    IF RESULTS == ""
+        GOTO 맛책정
+    ENDIF
+    DISHTASTE = RESULTS
+ENDIF
+DISHNAME = %요리이름%
+DISHTYPE = 2
+DISHQUALITY = 3
 
 @요리명책정
 #DIMS DYNAMIC 이름버퍼
-IF 부재료:0 != 0
-    
-ENDIF
+;일단 가라로
 
+이름버퍼 += "수수께끼의 요리"
+VARSET RESULTS
+RESULTS = %이름버퍼%
+RETURN
+
+@요리법포함여부(ARG)
+#FUNCTION
+IF 주재료요리법 == ARG
+    RETURNF 1
+ELSE
+    FOR LOCAL,0,10
+        IF 부재료요리법:LOCAL == ARG
+            RETURNF 1
+        ENDIF
+    NEXT
+ENDIF
+RETURNF 0
 
 @재료첨가여부(ARGS,ARG,ARG:1 = 0)
 #FUNCTION
