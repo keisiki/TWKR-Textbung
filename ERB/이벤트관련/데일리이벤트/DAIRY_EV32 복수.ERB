@@ -1,0 +1,120 @@
+﻿@DAIRY_CONDITION_EV32
+
+VARSET 복수자명단
+CALL DAIRY_EV32(2)
+IF 명중판정(95)||ABL:MASTER:레벨 >= 50
+	RETURN -1
+ENDIF
+LOCAL:2 = 0
+FOR LOCAL,1,CHARANUM
+	FOR LOCAL:1,1,CHARANUM
+		IF RELATION:LOCAL:(LOCAL:1) >= 100&&TALENT:(LOCAL:1):사망 == 1&&TALENT:LOCAL:사망 != 1&&CFLAG:LOCAL:출금 != 1&&복수자명단중복체크(LOCAL)
+			복수자명단:(LOCAL:2) = LOCAL
+		ENDIF
+	NEXT
+NEXT
+IF 명중판정(30)
+	RETURN -1
+ENDIF
+SIF LOCAL:2 <= 0
+	RETURN -1
+CALL DAIRY_EV32(복수자명단:(LOCAL:2))
+RETURN 1
+
+@복수자명단중복체크(ARG)
+#FUNCTION
+FOR LOCAL,0,500
+	IF 복수자명단:LOCAL == LOCAL
+		RETURNF 0
+	ENDIF
+NEXT
+RETURNF 1
+
+@DAIRY_EV32(ARG)
+PRINTFORMW 한밤중...누군가의 목소리에 잠에서 깨어났다
+PRINTFORMW 눈 앞에 있던건...지인의 복수를 위해 찾아온 %ARG가% 있었다!
+PRINTFORMW %ARG는% 문답무용으로 %마스터를% 공격하기 시작했다!
+
+후처리인터셉트 = 1
+TARGET = ARG
+CALL 뉴탄막전투(MASTER,TARGET,1)
+DRAWLINE
+SELECTCASE 후처리인터셉트승패여부
+	CASE 0
+		;타겟 패배
+		PRINTFORML %타겟은% 바닥에 쓰러져 지친숨을 헐떡이고 있다...
+		PRINTFORML 어쩔까?
+		PRINTFORML [0] 범한다
+		PRINTFORML [1] 내쫓는다
+		INPUT
+		IF RESULT
+			PRINTFORML 쓰러진 %타겟을% 걷어차 밖으로 내다 버렸다...
+		ELSE
+			PRINTFORML ......
+			PRINTFORML ...
+			PRINTFORML ..
+			PRINTFORML 저항조차 하지 못하는 %타겟을% 무자비하게 범해주었다
+			IF TALENT:MASTER:성별 != 0
+				IF TALENT:MASTER:비동정 != 0
+					IF TALENT:TARGET:처녀
+						PRINTFORML %타겟의% 순결했던 보지에선 붉은 피와 정액이 흘러내렸다
+						CSTR:TARGET:처녀상실이력 = "복수를 위해 " + %CALLNAME:MASTER% + "의 집에 찾아갔을때, 역으로 당하고 비참하게 범해지며 빼앗겼다"
+					ELSE
+						PRINTFORML %타겟의% 보지에선 정액이 뚝뚝 떨어지고 있었다...
+					ENDIF
+					LOCAL = RAND:7 + 1
+					PRINTFORML {LOCAL}번이나 무자비하게 범해 하반신의 감각이 없어진 %타겟은% 심각한 굴복감을 느낀뒤 밖으로 쫓겨났다...
+					EX:TARGET:자궁내정액 += (RAND:10 * 200) * LOCAL
+					EXP:TARGET:V절정경험 += RAND:LOCAL
+					EXP:TARGET:V경험 += LOCAL + RAND:LOCAL
+					EXP:TARGET:이상경험 ++
+					EXP:MASTER:질내사정경험 += LOCAL
+					EXP:MASTER:사정경험 += LOCAL
+					EXP:TARGET:정액경험 += LOCAL
+					EXP:MASTER:C절정경험 += LOCAL
+					CFLAG:TARGET:처녀상실기념일 = DAY
+				ELSE
+					PRINTFORML %타겟의% 몸을 수십차례나 핥고, 문질러 대며 여체탐구를 해나갔다
+					PRINTFORML %타겟은% 무척이나 수치스러운지 고개를 푹 숙이며 끝나기 만을 초조히 기다렸다
+					PRINTFORML 온 몸을 마구 능욕당한 %타겟은% 그 후 엉덩이를 걷어차이며 집 밖으로 쫓겨나 버렸다...
+					LOCAL = RAND:20 + 1
+					EXP:TARGET:C절정경험 += RAND:LOCAL
+					EXP:TARGET:C경험 += LOCAL + RAND:LOCAL
+					EXP:TARGET:B절정경험 += RAND:LOCAL
+					EXP:TARGET:B경험 += LOCAL + RAND:LOCAL
+					EXP:TARGET:이상경험 ++
+				ENDIF
+			ELSE
+				PRINTFORML %타겟의% 몸을 핥고, 문질러 범해댔다
+				PRINTFORML 수치심과 공포심에 발버둥치는 %타겟을% 짓누르며 마음껏 성욕을 푼 뒤, 너덜너덜해진 %타겟을% 걷어차 밖으로 내다 버렸다
+				PRINTFORML ...%타겟은% 감각이 없어진 하반신을 붙들고 치욕에 눈물을 삼키며 멀리 떠나갔다...
+				LOCAL = RAND:20 + 1
+				EXP:TARGET:C절정경험 += RAND:LOCAL
+				EXP:TARGET:C경험 += LOCAL + RAND:LOCAL
+				EXP:TARGET:B절정경험 += RAND:LOCAL
+				EXP:TARGET:B경험 += LOCAL + RAND:LOCAL
+				EXP:TARGET:이상경험 ++
+			ENDIF
+		ENDIF
+		BASE:MASTER:정력 --
+		CALL 종속도상승(TARGET,40)
+	CASE 1
+		;무승부
+		PRINTFORML %타겟은% 지속된 전투에 지친건지 다음을 기약하며 도망가버렸다...
+		CFLAG:MASTER:철야 = 1
+	CASE 2
+		;마스터 패배
+		PRINTFORML %타겟은% 바닥에 쓰러진 %마스터를% 꼴 좋다는듯이 바라보았다
+		IF RAND:5 == 0
+			PRINTFORML %마스터의% 만행으로 죽은 사람들을 생각하며, %타겟은% 마무리 일격을 날렸다
+			PRINTFORMW ......
+			PRINTFORMW ...
+			PRINTFORMW .
+			PRINTFORMW ★☆★%마스터는% 사라졌습니다★☆★
+			QUIT
+		ELSE
+			PRINTFORML 그러나 이내 새벽녘이 밝아오며 바깥에 사람들의 인기척이 나기에 다음을 기약하며 떠나갈 수 밖에 없었다...
+			CFLAG:MASTER:철야 = 1
+		ENDIF 
+ENDSELECT
+후처리인터셉트승패여부 = 0
