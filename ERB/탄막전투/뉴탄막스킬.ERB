@@ -19,6 +19,8 @@
 ;121 = 적 회피 시도
 ;200 = 플레이어 체력 0
 ;201 = 적 체력 0
+;202 = 플레이어 도주시도
+;203 = 적 도주시도
 ;220 = 플레이어 운 데미지 관통
 ;221 = 적 운 데미지 관통
 ;1000 = 플레이어 항복 시도
@@ -101,6 +103,63 @@ IF TALENT:ARG:그레이즈능숙함
 ENDIF
 CALL 통합버프(ARG, TCV_회피,-1,회피량, 1)
 RETURN 0
+
+
+;리턴값 0-실패 1-성공
+@T_COM도망간다(ARG)
+#DIM DYNAMIC 도주판정값
+#DIM DYNAMIC 도주저지값
+
+도주판정값 = RAND:(MAX(ARG능력치(ARG,"속도") + ARG능력치(ARG,"운") + 1, 1)) + RAND:10 + 5
+도주저지값 = RAND:(MAX(ARG반대능력치(ARG,"속도") + ARG반대능력치(ARG,"운") + 1, 1))
+
+IF 도주판정값 >= 2* 도주저지값
+    PRINTFORML %ARG는% 냅다 도망가버렸다!
+    PRINTFORML %조사처리(CALLNAME:사용자반대(ARG),"는")% 그저 바라볼 수 밖에 없었다...
+    IF ARG == T_대상1
+        도망감 = 1
+    ELSE
+        도망감 = 2
+    ENDIF
+    RETURN 1
+ELSEIF 도주판정값 >= 도주저지값
+    PRINTFORML %ARG는% 필사적으로 도망가기 시작했다!
+    IF 명중판정(50+MIN(ARG능력치(ARG,"속도")/10,25))
+        PRINTFORML 저 멀리 사라지는 %ARG를% %조사처리(CALLNAME:사용자반대(ARG),"는")% 그저 바라볼 수 밖에 없었다...
+        IF ARG == T_대상1
+            도망감 = 1
+        ELSE
+            도망감 = 2
+        ENDIF
+        RETURN 1
+    ELSE
+        IF ARG == MASTER
+            PRINTFORML 그러나 금새 뒤쫓아온 %CALLNAME:사용자반대(ARG)%에게 붙잡히고 말았다!
+            RETURN 0
+        ELSE
+            PRINTFORML 뒤쫓을까?
+            PRINTFORML [1] 예
+            PRINTFORML [2] 아니오
+            INPUT
+            IF RESULT == 1
+                PRINTFORML 필사적으로 뒤쫓아간 %마스터는% 도망가던 %ARG를% 따라잡는데 성공했다!
+                RETURN 0
+            ELSE
+                PRINTFORML 저 멀리 사라지는 %ARG를% %조사처리(CALLNAME:사용자반대(ARG),"는")% 그저 바라만 보고 있었다...
+                IF ARG == T_대상1
+                    도망감 = 1
+                ELSE
+                    도망감 = 2
+                ENDIF
+                RETURN 1
+            ENDIF
+        ENDIF
+    ENDIF
+ELSE
+    PRINTFORML %ARG는% 필사적으로 도망가기 시작했다!
+    PRINTFORML 그러나 %조사처리(CALLNAME:사용자반대(ARG),"의")% 속도가 너무 빨라 금새 따라잡히고 말았다!
+    RETURN 0
+ENDIF
 
 @T_COM스킬사용
 #DIM 스킬번호
