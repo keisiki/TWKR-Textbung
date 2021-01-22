@@ -1,73 +1,76 @@
 ﻿@SYUGO
-#DIM 集合, 캐릭터수상한, 3 ;集合:X:Y
-                               ;Y=0：キャラ登録番号
-                               ;  1：設定、移動可否(1p0:이동不可,1p3:이동対象)
-                               ;  2：移動コスト
-#DIM 人数                      ;同一マップにいる人数、移動できないキャラも表示され、人数に加算されている
-#DIM 入力値                    ;RESULT取得用
-CALL SYUGOS_GETDATA(人数, 集合)
-IF 人数 == 0
-	PRINTW 집합 시킬 사람이 없다.
+#DIM 집합, 캐릭터수상한, 3      ;집합:X:Y
+                               ;Y=0：캐릭터 등록 번호
+                               ;  1：설정, 이동 여부(1p0: 이동 불가, 1p3: 이동 대상)
+                               ;  2：이동코스트
+#DIM 인원수                    ;동일 맵에 있는 인원수, 이동할 수 없는 캐릭터도 표시되어 인원수에 가산되어 있다
+#DIM 입력값                    ;RESULT 취득용
+CALL SYUGOS_GETDATA(인원수, 집합)
+IF 인원수 == 0
+	PRINTW 아무도 없다
 	RETURN
 ENDIF
 IF CFLAG:MASTER:현재위치 == 54
-	PRINTFORMW 여기에서는 무리다.
+	PRINTFORMW 여기서는 무리다
 	RETURN
 ENDIF
 
-;全員分のコスト計算を先に行う（たぶん全員集合の頻度が多いので）
-CALL SYUGOS_COST(人数, 集合)
+;전원분의 코스트 계산을 먼저 한다(아마 전원 집합의 빈도가 많기 때문에)
+CALL SYUGOS_COST(인원수, 집합)
 
-PRINTL 누구를 이동 시키겠습니까？
+PRINTL 누구를 이동 시키겠습니까?
 DO
-	CALL SYUGOS_DISPDATA(人数, 集合)
-	PRINTBUTTON "[444:전체 선택]", 444
-	PRINTBUTTON "[555:초기화]", 555
-	PRINTBUTTON "[666:실행]", 666
+	CALL SYUGOS_DISPDATA(인원수, 집합)
+	PRINTBUTTON "[444:전원 설정]", 444
+	PRINTBUTTON "[555:전원 해제]", 555
+	PRINTBUTTON "[666:실행 개시]", 666
 	PRINTFORML 
 	PRINTBUTTON "[999:취소]", 999
 	INPUT
-	入力値 = RESULT
-	SELECTCASE 入力値
-	;個人選択
-	CASE 0 TO 人数 - 1
-		SIF !GETBIT(集合:入力値:1, 0)
-			INVERTBIT 集合:入力値:1, 3
-	;全体設定
+	입력값 = RESULT
+	SELECTCASE 입력값
+	;개인 선택
+	CASE 0 TO 인원수 - 1
+		SIF !GETBIT(집합:입력값:1, 0)
+			INVERTBIT 집합:입력값:1, 3
+	;전체 설정
 	CASE 444
-		FOR LOCAL, 0, 人数
-			SIF GETBIT(集合:LOCAL:1, 0)
+		FOR LOCAL, 0, 인원수
+			SIF GETBIT(집합:LOCAL:1, 0)
 				CONTINUE
-			SETBIT 集合:LOCAL:1, 3
+			SETBIT 집합:LOCAL:1, 3
 		NEXT
-	;全体解除
+	;전원 해제
 	CASE 555
-		FOR LOCAL, 0, 人数
-			CLEARBIT 集合:LOCAL:1, 3
+		FOR LOCAL, 0, 인원수
+			CLEARBIT 집합:LOCAL:1, 3
 		NEXT
-	;実行処理
+	;실행 처리
 	CASE 666
 		IF TFLAG:운반
-			PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:(TFLAG:운반)%를 내렸다.
+			PRINTFORMW %마스터는% %조사처리(CALLNAME:(TFLAG:운반),"를")% 내렸다
 			TFLAG:운반 = 0
 		ENDIF
-		FOR LOCAL, 0, 人数
-			SIF !GETBIT(集合:LOCAL:1, 3)
+		FOR LOCAL, 0, 인원수
+			SIF !GETBIT(집합:LOCAL:1, 3)
 				CONTINUE
 			
-			;往路消費
+			;가는 길 소비
 			SIF TALENT:MASTER:체형 < -4
-				BASE:MASTER:TSP -= (15 * 集合:LOCAL:2)
-			BASE:MASTER:TSP -= (5 * 集合:LOCAL:2)
+				BASE:MASTER:TSP -= (15 * 집합:LOCAL:2)
+			BASE:MASTER:TSP -= (5 * 집합:LOCAL:2)
 			SIF BASE:MASTER:TSP <= 0
 				BREAK
-			;復路消費
+			;돌아오는 길 소비
 			SIF TALENT:MASTER:체형 < -4
-				BASE:MASTER:TSP -= (15 * 集合:LOCAL:2)
-			BASE:MASTER:TSP -= (5 * 集合:LOCAL:2)
-			BASE:MASTER:TSP -= (3 * 集合:LOCAL:2)
-			CFLAG:(集合:LOCAL:0):현재위치 = CFLAG:MASTER:현재위치
-			PRINTFORMW %CALLNAME:(集合:LOCAL:0)%を%NAME_FROM_PLACE(CFLAG:MASTER:현재위치)%를 옮겼다.
+				BASE:MASTER:TSP -= (15 * 집합:LOCAL:2)
+			BASE:MASTER:TSP -= (5 * 집합:LOCAL:2)
+			BASE:MASTER:TSP -= (3 * 집합:LOCAL:2)
+			CFLAG:(집합:LOCAL:0):현재위치 = CFLAG:MASTER:현재위치
+			;자유 행동의 중단
+			Activity_Duration:(집합:LOCAL:0) = 0
+			Activity_Type:(집합:LOCAL:0) = 0
+			PRINTFORMW %조사처리(CALLNAME:(집합:LOCAL:0),"를")% %조사처리(NAME_FROM_PLACE(CFLAG:MASTER:현재위치),"로")% 업고 와서 내렸다
 			SIF BASE:MASTER:TSP <= 0
 				BREAK
 		NEXT
@@ -75,17 +78,17 @@ DO
 	CASE 999
 		RETURN
 	ENDSELECT
-	CLEARLINE 人数 + 3
+	CLEARLINE 인원수 + 3
 LOOP 1
 
 
 
-@SYUGOS_GETDATA(人数, 集合)
-#DIM REF 集合, , 
-#DIM REF 人数
+@SYUGOS_GETDATA(인원수, 집합)
+#DIM REF 집합, , 
+#DIM REF 인원수
 #DIM C_ID
-VARSET 集合
-VARSET 人数
+VARSET 집합
+VARSET 인원수
 FOR LOCAL, 1, CHARANUM
 	SIF AT_HOME(LOCAL) == 0
 		CONTINUE
@@ -93,51 +96,57 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	SIF CFLAG:LOCAL:현재위치 == MAXROOM && CFLAG:LOCAL:수면
 		CONTINUE
-	集合:人数:0 = LOCAL
-	C_ID = 集合:人数:0
-	;選択否
+	집합:인원수:0 = LOCAL
+	C_ID = 집합:인원수:0
+	;선택 여부
 	IF CFLAG:C_ID:현재위치 == CFLAG:MASTER:현재위치
-		SETBIT 集合:人数:1, 0
+		SETBIT 집합:인원수:1, 0
 	ELSEIF CFLAG:C_ID:수면
-		SETBIT 集合:人数:1, 0
+		SETBIT 집합:인원수:1, 0
 	ELSEIF !MAP_CAN_MOVE(CFLAG:C_ID:현재위치)
-		SETBIT 集合:人数:1, 0
+		SETBIT 집합:인원수:1, 0
 	ELSEIF BATHCHECK(CFLAG:C_ID:현재위치) || IN_TOILET(CFLAG:C_ID:현재위치)
-		SETBIT 集合:人数:1, 0
+		SETBIT 집합:인원수:1, 0
 	ELSEIF CFLAG:C_ID:현재위치 == MAXROOM || CFLAG:C_ID:현재위치 == OMANEKIBEYA()
-		SETBIT 集合:人数:1, 0
+		SETBIT 집합:인원수:1, 0
 	ELSEIF CFLAG:C_ID:행동 == 5
-		SETBIT 集合:人数:1, 0
+		SETBIT 집합:인원수:1, 0
 	ENDIF
-	人数 ++
+	인원수 ++
 NEXT
 
 
 
-@SYUGOS_DISPDATA(人数,集合)
-#DIM REF 集合,,
-#DIM 人数
+@SYUGOS_DISPDATA(인원수,집합)
+#DIM REF 집합,,
+#DIM 인원수
 #DIM C_ID
-FOR LOCAL, 0, 人数
-	C_ID = 集合:LOCAL:0
+FOR LOCAL, 0, 인원수
+	C_ID = 집합:LOCAL:0
 	LOCALS = {LOCAL}
 	LOCALS = [%LOCALS,3,RIGHT%] - %CALLNAME:C_ID,15,LEFT%
 	IF CFLAG:C_ID:현재위치 == CFLAG:MASTER:초기위치
-		LOCALS = %LOCALS%%CALLNAME:MASTER% 개인 실
+		LOCALS = %LOCALS%%CALLNAME:MASTER%의 방
 	ELSE
 		LOCALS = %LOCALS%%NAME_FROM_PLACE(CFLAG:C_ID:현재위치)%
 	ENDIF
 	IF !MAP_CAN_MOVE(CFLAG:C_ID:현재위치)
-		LOCALS = %LOCALS%%" "*(48-STRLENS(LOCALS))% 진입 불가
+		LOCALS = %LOCALS%%" "*(48-STRLENS(LOCALS))% 침입 불가
 	ELSEIF CFLAG:C_ID:수면
 		LOCALS = %LOCALS%%" "*(48-STRLENS(LOCALS))% 취침 중
-	ELSEIF 集合:LOCAL:2 > 0
-		LOCALS = %LOCALS%%" "*(48-STRLENS(LOCALS))% 이동 거리 {集合:LOCAL:2}
+	ELSEIF CFLAG:C_ID:행동 == 5
+		IF CFLAG:C_ID:현재위치 == TFLAG:연회장 && TIME_PROGRESS(TIME:1) && (CFLAG:C_ID:직종 == 49 || CFLAG:C_ID:직종 == 51)
+			LOCALS = %LOCALS%%" "*(48-STRLENS(LOCALS))% 연회 중
+		ELSE
+			LOCALS = %LOCALS%%" "*(48-STRLENS(LOCALS))% 일하는 중
+		ENDIF
+	ELSEIF 집합:LOCAL:2 > 0
+		LOCALS = %LOCALS%%" "*(48-STRLENS(LOCALS))% 이동 거리 {집합:LOCAL:2}
 	ENDIF
-	IF GETBIT(集合:LOCAL:1, 0)
+	IF GETBIT(집합:LOCAL:1, 0)
 		SETCOLOR C_GRAY
 		PRINTPLAINFORM %LOCALS%
-	ELSEIF GETBIT(集合:LOCAL:1, 3)
+	ELSEIF GETBIT(집합:LOCAL:1, 3)
 		SETCOLOR C_AQUA
 		PRINTFORM %LOCALS%
 	ELSE
@@ -148,108 +157,103 @@ FOR LOCAL, 0, 人数
 NEXT
 
 
-;全キャラを対象に移動コストの算出を行う
-;呼び出し元で全キャラループやってるんならコスト算出側で更に全キャラループやるよりも
-;算出済みの地点を記憶しておいた方が早いのでは？
-@SYUGOS_COST(人数, 集合)
-#DIM 人数
-#DIM REF 集合,,
-#DIM LIST_ID                 ;参照しているLISTのID
-#DIM DYNAMIC DONE_CNT        ;算出済み地点の数
-#DIM DYNAMIC DONE_PLACE, 100 ;算出済み地点のPLACE_ID
-#DIM DYNAMIC DONE_COST,  100 ;算出済み地点のコスト
-#DIM TEMP_PLACE              ;参照用の一時変数
-FOR LIST_ID, 0, 人数
-	;NG処理は先にやっておきましょう
-	IF GETBIT(集合:LIST_ID:1, 0)
-		集合:LIST_ID:2 = -1
+;모든 캐릭터를 대상으로 이동 비용을 산출한다
+;불러오기 전에 모든 캐릭터 루프를 한다면 코스트 산출 측에서 더 모든 캐릭터 루프를 하는 것보다
+;산출 끝난 지점을 기억해 두는 편이 빠른 것이 아닐까?
+@SYUGOS_COST(인원수, 집합)
+#DIM 인원수
+#DIM REF 집합,,
+#DIM LIST_ID                 ;참조하고 있는 LIST의 ID
+#DIM DYNAMIC DONE_CNT        ;산출 끝난 지점의 수
+#DIM DYNAMIC DONE_PLACE, 100 ;산출 끝난 지점의 PLACE_ID
+#DIM DYNAMIC DONE_COST,  100 ;산출 끝난 지점의 코스트
+#DIM TEMP_PLACE              ;참조용 일시변수
+FOR LIST_ID, 0, 인원수
+	;NG처리는 먼저 해 둔다
+	IF GETBIT(집합:LIST_ID:1, 0)
+		집합:LIST_ID:2 = -1
 		CONTINUE
 	ENDIF
 	
-	TEMP_PLACE = FINDELEMENT(DONE_PLACE, CFLAG:(集合:LIST_ID:0):현재위치, 0, DONE_CNT)
-	;算出済み
+	TEMP_PLACE = FINDELEMENT(DONE_PLACE, CFLAG:(집합:LIST_ID:0):현재위치, 0, DONE_CNT)
+	;산출 끝남
 	IF TEMP_PLACE >= 0
-		集合:LIST_ID:2 = DONE_COST:TEMP_PLACE
-	;算出まだ
+		집합:LIST_ID:2 = DONE_COST:TEMP_PLACE
+	;산출 아직
 	ELSE
-		CALL CALC_SYUGOS_COST(集合, LIST_ID)
-		DONE_PLACE:DONE_CNT   = CFLAG:(集合:LIST_ID:0):현재위치
-		DONE_COST:DONE_CNT    = 集合:LIST_ID:2
+		CALL CALC_SYUGOS_COST(집합, LIST_ID)
+		DONE_PLACE:DONE_CNT   = CFLAG:(집합:LIST_ID:0):현재위치
+		DONE_COST:DONE_CNT    = 집합:LIST_ID:2
 		DONE_CNT ++
 	ENDIF
 NEXT
 
 
 
-;集合コストの算出
-;F関数化したかったがSKIPMOVE使ってるから断念、残念
-@CALC_SYUGOS_COST(集合, 対象)
+;집합 코스트 산출
+;F함수화하고 싶었지만 SKIPMOVE를 사용하고 있어서 포기, 유감
+@CALC_SYUGOS_COST(집합, 대상)
 #LOCALSIZE 1
 #LOCALSSIZE 1
-#DIM REF 集合,,
-#DIM 対象
-#DIM 移動コスト
-#DIM 暫定目的地
-#DIM 最終目的地
-#DIM TEMP_現在位置
+#DIM REF 집합,,
+#DIM 대상
+#DIM 이동코스트
+#DIM 잠정목적지
+#DIM 최종목적지
+#DIM TEMP_현재위치
 #DIM C_ID
-C_ID = 集合:対象:0
-TEMP_現在位置 = CFLAG:MASTER:현재위치
-最終目的地 = CFLAG:C_ID:현재위치
-暫定目的地 = 最終目的地
+C_ID = 집합:대상:0
+TEMP_현재위치 = CFLAG:MASTER:현재위치
+최종목적지 = CFLAG:C_ID:현재위치
+잠정목적지 = 최종목적지
 [IF_DEBUG]
-PRINTFORML %CALLNAME:C_ID% 이동 비용을 계산
+PRINTFORML %CALLNAME:C_ID%의 이동코스트 계산
 [ENDIF]
-IF CAN_MOVE(TEMP_現在位置, 暫定目的地) & 1
-	移動コスト = 1
+IF CAN_MOVE(TEMP_현재위치, 잠정목적지) & 1
+	이동코스트 = 1
 ELSE
-	FOR 移動コスト, 1, 20
-		WHILE !(CAN_MOVE(TEMP_現在位置, 暫定目的地) & 1)
-			TRYCALLFORM SKIP_MOVE_{MAIN_MAP}(暫定目的地, TEMP_現在位置)
-			SIF !暫定目的地
-				THROW 暫定目的地が異常です
+	FOR 이동코스트, 1, 20
+		WHILE !(CAN_MOVE(TEMP_현재위치, 잠정목적지) & 1)
+			TRYCALLFORM SKIP_MOVE_{MAIN_MAP}(잠정목적지, TEMP_현재위치)
+			SIF !잠정목적지
+				THROW 잠정목적지가 이상합니다
 			[IF_DEBUG]
-			PRINTFORML {TEMP_現在位置}から{暫定目的地}に直接行けないから{RESULT}を目指すよ	
+			PRINTFORML {TEMP_현재위치}에서 {잠정목적지}로 직접 갈 수 없으니까 {RESULT}를 목표로 한다	
 			[ENDIF]
-			暫定目的地 = RESULT
+			잠정목적지 = RESULT
 		WEND
-		SIF CAN_MOVE(暫定目的地, 最終目的地) & 1
+		SIF CAN_MOVE(잠정목적지, 최종목적지) & 1
 			BREAK
-		TEMP_現在位置 = 暫定目的地
-		暫定目的地 = 最終目的地
+		TEMP_현재위치 = 잠정목적지
+		잠정목적지 = 최종목적지
 	NEXT
 ENDIF
-集合:対象:2 = 移動コスト
+집합:대상:2 = 이동코스트
 [IF_DEBUG]
-PRINTFORML %CALLNAME:C_ID%の移動コストは{移動コスト}
+PRINTFORML %CALLNAME:C_ID%의 이동코스트는 {이동코스트}
 [ENDIF]
 
 @AssembleForMeal
-#DIM 集合, 캐릭터수상한, 3 ;集合:X:Y
-#DIM 人数                      ;同一マップにいる人数、移動できないキャラも表示され、人数に加算されている
-#DIM 入力値                    ;RESULT取得用
+#DIM 집합, 캐릭터수상한, 3      ;집합:X:Y
+#DIM 인원수                    ;동일 맵에 있는 인원수, 이동할 수 없는 캐릭터도 표시되어 인원수에 가산되어 있다
+#DIM 입력값                    ;RESULT 취득용
 #DIM C_ID
 SIF CFLAG:MASTER:현재위치 == OMANEKIBEYA()
 	RETURN
 SIF !AT_HOME(MASTER)
 	RETURN
-	
-PRINTFORML 다른 사람들도 식사에 초대할까?
-PRINTFORML
-PRINTL [1] - 초대한다
-PRINTL [0] - 초대하지 않는다
-INPUT
-SIF !RESULT
+SIF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치
 	RETURN
-	
-CALL SYUGOS_GETDATA(人数, 集合)
-CALL SYUGOS_COST(人数, 集合)
-FOR LOCAL, 0, 人数
-	C_ID = 集合:LOCAL:0
-	SIF GETBIT(集合:LOCAL:1, 0)
+SIF PRIVATEROOM:(CFLAG:MASTER:현재위치 % 100)
+	RETURN
+CALL SYUGOS_GETDATA(인원수, 집합)
+CALL SYUGOS_COST(인원수, 집합)
+FOR LOCAL, 0, 인원수
+	C_ID = 집합:LOCAL:0
+	SIF GETBIT(집합:LOCAL:1, 0)
 		CONTINUE
-	;移動回数が多いと除外
-	SIF 集合:LOCAL:2 > 4
+	;이동 횟수가 많으면 제외
+	SIF 집합:LOCAL:2 > 3
 		CONTINUE
 	SIF CFLAG:C_ID:빡침
 		CONTINUE
@@ -261,7 +265,7 @@ FOR LOCAL, 0, 人数
 			CONTINUE
 	ENDIF
 	CFLAG:C_ID:현재위치 = CFLAG:MASTER:현재위치
-	PRINTFORML 초대를 받은 %CALLNAME:C_ID%가 식사에 참여했다.
+	PRINTFORML 식사 낌새를 냄새로 알아차리고 %조사처리(CALLNAME:C_ID,"가")% 찾아왔다
 NEXT
 CALL TARGETSET_CHACK
 PRINTFORMW 
