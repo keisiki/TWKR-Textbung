@@ -1,0 +1,152 @@
+﻿@CM_LOAN
+PRINTFORML 안경 쓴 메이드 요정
+PRINTFORML   ...핫! 어..어떤걸 도와드릴까요? 
+CALL ASK_M("대출한다",1,@"상환한다",CM_대출금 > 0,"돌아간다",1)
+SELECTCASE RESULT
+    CASE 0
+        CALL CM_LOAN_대출
+    CASE 1
+        CALL CM_LOAN_상환
+    CASE 2
+        CALL CM_LOAN_대출
+ENDSELECT
+WAIT
+PRINTL
+RETURN
+
+@CM_LOAN_상환
+PRINTFORML 안경 쓴 메이드 요정
+PRINTFORML   상환 말씀이십니까? 
+PRINTFORML   그러니까...현재 남은 대출금은 {CM_대출금} 카리스마에...
+PRINTFORML   {CM_상환일 - DAY}일만큼 기한이 남았네요
+PRINTFORML 얼마나 상환할까? (0이하 입력으로 취소)
+INPUT
+IF RESULT <= 0
+    RETURN
+ELSE
+    LOCAL = RESULT
+    IF LOCAL >= MONEY:2
+        LOCAL = MONEY:2
+    ENDIF
+    IF LOCAL >= CM_대출금
+        LOCAL = CM_대출금
+    ENDIF
+    CM_대출금 -= LOCAL
+    MONEY:2 -= LOCAL
+    PRINTFORML 안경 쓴 메이드 요정
+    PRINTFORML   네- {LOCAL} 카리스마 받았습니다
+    IF CM_대출금 <= 0
+        PRINTFORML   어머나, 이제 대출금이 없네요, 축하드려요
+        CALL CM_LOAN_RESET
+    ELSE
+        PRINTFORML   남은 금액도 꼭 갚을수 있길 바래요~
+    ENDIF
+ENDIF
+
+
+@CM_LOAN_대출
+#DIM 대출금
+PRINTFORML 안경 쓴 메이드 요정
+PRINTFORML   대출 말씀이십니까? 
+PRINTFORML   에- 지금으로썬 {CM_LOAN_평가()} 카리스마 정도 가능하다고 하네요
+IF CM_LOAN_평가() <= 0
+    PRINTFORMW   어라... 이러면 못 빌리는건가? 그렇다고 하네요, 죄송합니다아-
+    RETURN
+ELSE
+    PRINTFORML   얼마나 대출하실래요? (10이하 입력으로 취소)
+ENDIF
+INPUT
+IF RESULT <= 10
+    RETURN
+ELSE
+    LOCAL = 0
+    LOCAL = RESULT
+    IF LOCAL > CM_LOAN_평가()
+        LOCAL = CM_LOAN_평가()
+    ENDIF
+    PRINTFORML   {LOCAL} 카리스마 입니까?
+    PRINTFORML   에- 그러니까, 대출을 하시면 매 7일마다 10\%의 이자가 붙으며 채무자는 최초 대출시로부터 28일 내에 상환을 마쳐야 한다
+    PRINTFORML   이미 대출을 한 상태로 추가적으로 대출을 할 경우에도 상환일은 변동되지 않으며-
+    PRINTFORML   상환일에 상환을 실패할 경우 손실된 카리스마 가치의 2배의 보상금을 지불하거나 지하실로 보낸다- 이렇다는데, 동의하시면 싸인해 주세요~
+    PRINTL
+    PRINTFORML {LOCAL} 카리스마 만큼 빌립니까?
+    CALL ASK_YN()
+    IF RESULT
+        RETURN
+    ELSE
+        CM_대출금 += LOCAL
+        MONEY:2 += LOCAL
+        IF CM_대출일 == 0
+            CM_대출일 = DAY
+            CM_상환일 = DAY + 28
+        ENDIF
+    ENDIF
+ENDIF
+@CM_LOAN_평가
+#FUNCTION
+#DIM DYNAMIC CM대출가능금
+
+CM대출가능금 = MIN(MONEY/5000 , 10000)
+CM대출가능금 = MAX(CM대출가능금 - CM_대출금,0)
+
+RETURNF CM대출가능금
+
+
+@CM_LOAN_RESET
+CM_대출금 = 0
+CM_대출일 = 0
+CM_상환일 = 0
+
+@CM_이자
+IF CM_대출금 > 0
+    SELECTCASE DAY - CM_대출일
+        CASE 7,14,21,28
+            CM_대출금 += MAX(CM_대출금/10,1)
+            IF DAY - CM_대출일 == 28
+                CALL CM_독촉
+            ENDIF
+        CASEELSE
+            RETURN
+    ENDSELECT
+ENDIF
+
+@CM_독촉
+PRINTFORML 안경 쓴 메이드 요정
+PRINTFORML   에- 저기, 오늘은 카리스마 대출이 끝나는 날인데요
+IF MONEY:2 >= CM_대출금
+    PRINTFORML   그러면 환수해 가도록 하겠습니다아
+    MONEY:2 -= CM_대출금
+    CALL CM_LOAN_RESET
+ELSE
+    PRINTFORML   그런데 카리스마가 모자라 보이시네요
+    PRINTFORML   오늘의 카리스마 가격은 1 카리스마당 {CHARISMA_NOW()}원이니까...
+    PRINTFORML   차액으로 {CHARISMA_NOW() * (CM_대출금 - MONEY:2)}원 내셔야 합니다
+    IF MONEY >= CHARISMA_NOW() * (CM_대출금 - MONEY:2)
+        PRINTFORML   그러면 징수하겠습니다아
+        MONEY -= CHARISMA_NOW() * (CM_대출금 - MONEY:2)
+        MONEY:2 = 0
+        CALL CM_LOAN_RESET
+    ELSE
+        PRINTFORMW   ...그것 마저도 없어요? 그러면 저택용 식량이 되는수밖에요
+        PRINTFORMW   유감이에요
+        PRINTFORMW   ...
+        PRINTFORML   
+        PRINTFORMW   ...
+        PRINTFORML   
+        PRINTFORMW   ...
+        PRINTFORML   
+        PRINTFORML   
+        PRINTFORML   
+        PRINTFORML   
+        PRINTFORMW 홍마관 지하에 끌려간 %마스터는% 그대로 공중에 매달렸다
+        PRINTFORMW 전극을 입에 물린채 강한 전류로 기절한 %마스터의% 목에 서슬퍼런 칼날이 닿는다
+        PRINTFORMW 의식을 잃어가는 머리가 마지막으로 본 것은 무심하게 해체당하고 있는 자신이었던 '것' 이었다
+        PRINTFORMW ....
+        PRINTFORMW ...
+        PRINTFORMW ..
+        PRINTFORML 
+        PRINTFORML 
+        PRINTFORMW ★★★%마스터는% 사라졌습니다★★★
+        QUIT
+    ENDIF
+ENDIF
