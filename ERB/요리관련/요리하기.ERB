@@ -5,19 +5,7 @@ ENDIF
 IF ITEM:ARG <= 0
     SETCOLOR 0x808080
 ENDIF
-IF ARG < 1000
-    IF ARG < 100
-        IF ARG < 10
-            PRINTFORMLC [000{ARG}] %ITEMNAME:ARG% x{ITEM:ARG - 사용된재료:ARG}
-        ELSE
-            PRINTFORMLC [00{ARG}] %ITEMNAME:ARG% x{ITEM:ARG - 사용된재료:ARG}
-        ENDIF
-    ELSE
-        PRINTFORMLC [0{ARG}] %ITEMNAME:ARG% x{ITEM:ARG - 사용된재료:ARG}
-    ENDIF
-ELSE
-    PRINTFORMLC [{ARG}] %ITEMNAME:ARG% x{ITEM:ARG - 사용된재료:ARG}
-ENDIF
+PRINTFORMLC [{ARG, 4}] %ITEMNAME:ARG% x{ITEM:ARG - 사용된재료:ARG}
 
 RESETCOLOR
 RETURN 1
@@ -25,12 +13,13 @@ RETURN 1
 @요리하기
 #DIM 표시되는재료, 100
 VARSET 사용된재료
-VARSET 표시되는재료
+VARSET 표시되는재료, -1 ;표시되는재료 배열의 공란은 -1로 처리
 VARSET 주재료
 VARSET 주재료요리법
 VARSET 부재료
 VARSET 부재료요리법
 VARSET 양념
+
 표시되는재료:0 = GETNUM(ITEM,"잡곡")
 표시되는재료:1 = GETNUM(ITEM,"묵은쌀")
 표시되는재료:2 = GETNUM(ITEM,"백미")
@@ -43,12 +32,19 @@ VARSET 양념
 표시되는재료:9 = GETNUM(ITEM,"순무")
 표시되는재료:10 = GETNUM(ITEM,"죽순")
 표시되는재료:11 = GETNUM(ITEM,"아이스크림")
+
 PRINTFORML 어떤 메인 재료를 사용할까?
-DRAWLINE
-PRINTL 기본 재료
-DRAWLINE
-PRINTLC [0001] 밀가루
-PRINTL
+;DRAWLINE
+;PRINTL 기본 재료
+;DRAWLINE
+;PRINTLC [0001] 국수
+;PRINTLC [0002] 빵
+;PRINTLC [0003] 육수
+;PRINTL
+;PRINTLC [0004] 밀가루
+;PRINTLC [0005] 계란
+;PRINTLC [0006] 
+;PRINTL
 DRAWLINE
 LOCAL:1 = 0
 FOR LOCAL, 0, 100
@@ -66,33 +62,29 @@ RESETCOLOR
 DRAWLINE
 PRINTL [9999] 돌아간다
 
-$LOOP
-INPUT
-IF RESULT == 9999
-    RETURN -1
-ELSE
+WHILE 1
+    INPUT
+    IF RESULT == 9999 ;돌아간다
+        RETURN -1
+    ELSEIF RESULT == 0 ;선택 대상 없음. 로터를 고른다면 또 모를까.
+        CONTINUE
+    ENDIF
+
     FOR LOCAL, 0, 100
-        IF RESULT > 0&&RESULT < 2
-            GOTO MAKE
-        ENDIF
-        IF RESULT == 표시되는재료:LOCAL&&RESULT != 0
-            IF ITEM:RESULT > 0
-                GOTO MAKE
-            ELSE
-                GOTO LOOP
-            ENDIF
+        IF 표시되는재료:LOCAL == -1 ; 표시되는재료 배열 공란 발견시
+            RETURN 0
+        ELSEIF RESULT == 표시되는재료:LOCAL && ITEM:RESULT > 0 && INRANGE(RESULT,1,10)
+            사용된재료:RESULT ++
+            주재료 = RESULT
+            CALL 요리법선택
+            주재료요리법 = RESULT
+            CALL 서브재료선택
+            CALL 양념선택
+            CALL MAKECOOK
+            RETURN 1
         ENDIF
     NEXT
-    GOTO LOOP
-    $MAKE
-    사용된재료:RESULT ++
-    주재료 = RESULT
-    CALL 요리법선택
-    주재료요리법 = RESULT
-    CALL 서브재료선택
-    CALL 양념선택
-    CALL MAKECOOK
-ENDIF
+WEND
 
 @요리법선택
 PRINTL 어떻게 요리할까...?
@@ -106,14 +98,14 @@ PRINTL [006] 조리기
 PRINTL [007] 볶기
 PRINTL [008] 그대로
 DRAWLINE
-$LOOP
-INPUT
-IF RESULT > 8||RESULT < 1
-    GOTO LOOP
-ELSE
-    RETURN RESULT
-ENDIF
-
+WHILE 1
+    INPUT
+    IF INRANGE(RESULT, 1, 8)
+        RETURN RESULT
+    ELSE
+        PRINTW 잘못된 입력입니다.
+    ENDIF
+WEND
 
 @서브재료선택
 #DIM DYNAMIC 첨가횟수
@@ -262,46 +254,12 @@ DRAWLINE
 ; PHASE 0 - 재료를 삭제
 ;===============
 ITEM:(주재료) --
-SIF 부재료:0 != 0
-    ITEM:(부재료:0) --
-SIF 부재료:1 != 0
-    ITEM:(부재료:1) --
-SIF 부재료:2 != 0
-    ITEM:(부재료:2) --
-SIF 부재료:3 != 0
-    ITEM:(부재료:3) --
-SIF 부재료:4 != 0
-    ITEM:(부재료:4) --
-SIF 부재료:5 != 0
-    ITEM:(부재료:5) --
-SIF 부재료:6 != 0
-    ITEM:(부재료:6) --
-SIF 부재료:7 != 0
-    ITEM:(부재료:7) --
-SIF 부재료:8 != 0
-    ITEM:(부재료:8) --
-SIF 부재료:9 != 0
-    ITEM:(부재료:9) --
-SIF 양념:0 > 10
-    ITEM:(양념:0) --
-SIF 양념:1 > 10
-    ITEM:(양념:1) --
-SIF 양념:2 > 10
-    ITEM:(양념:2) --
-SIF 양념:3 > 10
-    ITEM:(양념:3) --
-SIF 양념:4 > 10
-    ITEM:(양념:4) --
-SIF 양념:5 > 10
-    ITEM:(양념:5) --
-SIF 양념:6 > 10
-    ITEM:(양념:6) --
-SIF 양념:7 > 10
-    ITEM:(양념:7) --
-SIF 양념:8 > 10
-    ITEM:(양념:8) --
-SIF 양념:9 > 10
-    ITEM:(양념:9) --
+FOR LOCAL, 0 ,10
+    SIF 부재료:LOCAL
+        ITEM:(부재료:LOCAL) --
+    SIF 양념:LOCAL > 10
+        ITEM:(양념:LOCAL) --
+NEXT
 ;===============
 ; PHASE 1 - 레시피를 읽어와 일치하는게 있는지 확인, 없다면 그대로 창작요리- 이름 책정
 ;===============
