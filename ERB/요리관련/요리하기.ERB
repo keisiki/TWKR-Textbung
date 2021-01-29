@@ -15,9 +15,9 @@ RETURN 1
 LOCAL = 0
 PRINT 기본 
 IF ARGS == "주재료"||ARGS == "부재료"
-    PRINTL 재료
+    PRINTL 재료 (1000\)
 ELSEIF ARGS == "양념"
-    PRINTL 양념
+    PRINTL 양념 (500\)
 ENDIF
 DRAWLINE
 IF ARGS == "주재료"
@@ -123,6 +123,14 @@ WHILE 1
         IF 표시되는재료:LOCAL == -1 ; 표시되는재료 배열 공란 발견시
             CONTINUE
         ELSEIF (RESULT == 표시되는재료:LOCAL && ITEM:RESULT > 0 )|| INRANGE(RESULT,1,기본제공품)
+            IF INRANGE(RESULT,1,기본제공품)
+                기본제공품사용료 += 1000
+                IF MONEY < 기본제공품사용료
+                    PRINTFORMW 돈이 부족합니다
+                    기본제공품사용료 -= 1000
+                    CONTINUE
+                ENDIF
+            ENDIF
             사용된재료:RESULT ++
             주재료 = RESULT
             CALL 요리법선택
@@ -208,6 +216,14 @@ ELSE
     FOR LOCAL, 0, 100
         IF (RESULT == 표시되는재료:LOCAL && RESULT != 0 )|| INRANGE(RESULT,1,기본제공품)
             IF ITEM:RESULT > 0|| INRANGE(RESULT,1,기본제공품)
+                IF INRANGE(RESULT,1,기본제공품)
+                    기본제공품사용료 += 1000
+                    IF MONEY < 기본제공품사용료
+                        PRINTFORMW 돈이 부족합니다
+                        기본제공품사용료 -= 1000
+                        GOTO LOOP
+                    ENDIF
+                ENDIF
                 GOTO MAKE
             ELSE
                 GOTO LOOP1
@@ -265,6 +281,12 @@ IF RESULT == 9999
     RETURN 0
 ELSE
     IF RESULT > 0&&RESULT <= 기본제공품
+        기본제공품사용료 += 500
+        IF MONEY < 기본제공품사용료
+            PRINTFORMW 돈이 부족합니다
+            기본제공품사용료 -= 500
+            GOTO LOOP
+        ENDIF
         GOTO MAKE
     ENDIF
     FOR LOCAL, 0, 100
@@ -296,11 +318,17 @@ DRAWLINE
 ;===============
 ; PHASE 0 - 재료를 삭제
 ;===============
-ITEM:(주재료) --
+IF 기본제공품사용료
+    MONEY = MAX(MONEY - 기본제공품사용료,0)
+    PRINTFORML 재료 구입비로 {기본제공품사용료}\ 냈다
+ENDIF
+IF !INRANGE(주재료,1,기본제공재료)
+    ITEM:(주재료) --
+ENDIF
 FOR LOCAL, 0 ,10
-    SIF 부재료:LOCAL
+    SIF 부재료:LOCAL&&!INRANGE(부재료:LOCAL,1,기본제공재료)
         ITEM:(부재료:LOCAL) --
-    SIF 양념:LOCAL > 10
+    SIF 양념:LOCAL > 10&&!INRANGE(양념:LOCAL,1,기본제공재료)
         ITEM:(양념:LOCAL) --
 NEXT
 ;===============
@@ -318,17 +346,10 @@ FOR LOCAL,0,1000
     ENDIF
 NEXT
 IF 레시피있음 == 0
-    PRINTL 이 요리의 이름은?
-    PRINTL [0] 자동 지정
-    PRINTL [1] 내가 짓겠어!
-    INPUT
-    IF RESULT == 0
-        CALL 요리명책정
-    ELSE
-        PRINT 요리의 이름을 입력해주세요:
-        INPUTS
-    ENDIF
+    PRINT 요리의 이름을 입력해주세요:
+    INPUTS 
     요리이름 = %RESULTS%
+    PRINTL
 ENDIF
 ;===============
 ; PHASE 2 - 영양정보 확인
@@ -350,13 +371,43 @@ NEXT
 ;===============
 IF 레시피있음 == 0
     $맛책정
-    DISHTASTE += "주식/"
+    PRINTFORML 이 요리는...
+    PRINTFORML [0] 주식
+    PRINTFORML [1] 경식
+    PRINTFORML [2] 디저트
+    INPUT
+    SELECTCASE RESULT
+        CASE 0
+            DISHTASTE += "주식/"
+        CASE 1
+            DISHTASTE += "경식/"
+        CASE 2
+            DISHTASTE += "디저트/"
+        CASEELSE
+            DISHTASTE += "주식/"
+    ENDSELECT
+    
     DISHTASTE += 요리이름 + "/"
     CALL 음식맛책정("주재료",주재료,주재료요리법)
     FOR LOCAL,0,9
         CALL 음식맛책정("부재료",부재료:LOCAL,부재료요리법:LOCAL)
         CALL 음식맛책정("양념",양념:LOCAL,0)
     NEXT
+    LOCAL:1 = 0
+    IF 주재료
+        LOCAL:1++
+    ENDIF
+    FOR LOCAL,0,9
+        IF 부재료:LOCAL
+            LOCAL:1 ++
+        ENDIF
+        IF 양념:LOCAL
+            LOCAL:1 ++
+        ENDIF
+    NEXT
+    IF LOCAL:1 <= 5
+        DISHTASTE += "심플/"
+    ENDIF
 ELSE
     CALLFORM 요리맛책정{레시피있음}
     IF RESULTS == ""
@@ -375,26 +426,7 @@ PRINTFORML 요리의 맛 : %DISHTASTE%
 EXP:MASTER:요리경험 += 2
 SIF TARGET
     EXP:TARGET:요리경험 += 2
-@요리명책정
-#DIMS DYNAMIC 이름버퍼
-;일단 가라로
 
-
-IF 주재료 == GETNUM(ITEM,"고기")
-    이름버퍼 += "고기 요리"
-ELSEIF 주재료 == GETNUM(ITEM,"물고기")||주재료 == GETNUM(ITEM,"맛있는물고기")
-    이름버퍼 += "물고기 요리"
-ELSEIF (주재료 == GETNUM(ITEM,"잡곡")||주재료 == GETNUM(ITEM,"묵은쌀")||주재료 == GETNUM(ITEM,"백미"))&&주재료요리법 == Y_찌기
-    이름버퍼 += "밥"
-ENDIF
-
-
-IF 이름버퍼 == ""
-    이름버퍼 += "수수께끼 요리"
-ENDIF
-VARSET RESULTS
-RESULTS = %이름버퍼%
-RETURN
 
 @요리법포함여부(ARG)
 #FUNCTION
