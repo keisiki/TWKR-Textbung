@@ -1,20 +1,22 @@
 ﻿@DAIRY_CONDITION_EV34
-#DIM DYNAMIC 랜덤캐릭터배열,500
 IF 명중판정(90)
 	RETURN -1
 ENDIF
 IF FLAG:감방남은일수
 	RETURN -1
 ENDIF
+CALL DAIRY_EV34
 RETURN 1
 
 
-@DAIRY_EV34(ARG)
-IF 연속이벤트방지:34
+@DAIRY_EV34
+IF 연속이벤트방지:34 > 0
 	연속이벤트방지:34 -= 1
+	SIF 연속이벤트방지:34 <= 0
+		연속이벤트방지:34 = 0
 	RETURN 1
 ENDIF
-연속이벤트방지:34 = 5
+연속이벤트방지:34 = 3
 PRINTFORML ***바스락 바스락***
 PRINTFORML 
 PRINTFORML 의문에 소리에 %마스터는% 눈을 떴다
@@ -47,29 +49,8 @@ IF RESULT == 0
 		RESETCOLOR
 	ELSE
 		PRINTFORML ...! 도둑을 찾았다!
-		IF 명중판정(50 + (ABL:MASTER:전투능력 * 5))
-			PRINTFORML 놀란 도둑은 황급히 도망쳐버렸다...
-		ELSE
-			PRINTFORML 도둑은 재빨리 %마스터의% 명치에 주먹을 날려 기절시킨뒤, 돈을 챙겨 유유히 달아났다...
-			SELECTCASE RAND:2
-				CASE 0
-					SETCOLOR 0XFF0000
-					IF MONEY >= 100000
-						PRINTFORML 100000\ 을 도둑맞아 버렸다...
-					ELSE
-						PRINTFORML {MONEY}\ 을 도둑맞아 버렸다...
-					ENDIF
-				CASE 1
-					SETCOLOR 0XFF0000
-					IF MONEY:2 >= 500
-						PRINTFORML 500카리스마를 도둑맞아 버렸다...
-					ELSE
-						PRINTFORML {MONEY:2}카리스마를 도둑맞아 버렸다...
-					ENDIF
-			ENDSELECT
-			RESETCOLOR
-			CFLAG:MASTER:철야 = 1
-		ENDIF
+		CALL 도둑생성
+		CALL 도둑잡기
 	ENDIF
 ELSE
 	PRINTFORML %마스터는% 아마 바람이겠거니 하고 다시 잠을 청했다
@@ -98,3 +79,98 @@ ELSE
 		RESETCOLOR
 	ENDIF
 ENDIF
+
+@도둑생성
+ADDCHARA 134
+TARGET = CHARANUM -1
+CALLNAME:TARGET = 도둑
+NAME:TARGET = 도둑
+BASE:TARGET:체력 = (100 * RAND:20) + 1500
+ABL:TARGET:전투능력 = RAND:7 + 2
+ABL:TARGET:레벨 = RAND:30 + 15 + (ABL:MASTER:레벨/5)
+CFLAG:TARGET:힘 = RAND:30 + 15 + (CFLAG:MASTER:힘/5)
+CFLAG:TARGET:지성 = RAND:30 + 15 + (CFLAG:MASTER:지성/5)
+CFLAG:TARGET:속도 = RAND:30 + 15 + (CFLAG:MASTER:속도/5)
+CFLAG:TARGET:인내 = RAND:30 + 15 + (CFLAG:MASTER:인내/5)
+CFLAG:TARGET:운 = RAND:30 + 15 + (CFLAG:MASTER:운/5)
+TALENT:TARGET:정화 = 1
+TALENT:TARGET:전투스타일 = 2
+SIF RAND:5 == 0
+	TALENT:TARGET:그레이즈능숙함 = 1
+
+@도둑잡기
+후처리인터셉트 = 1
+CALL 뉴탄막전투(MASTER,TARGET,1)
+DRAWLINE
+SELECTCASE 후처리인터셉트승패여부
+	CASE 0
+		;타겟 패배
+		PRINTFORML %타겟은% 바닥에 쓰러져 지친숨을 헐떡이고 있다...
+		PRINTFORML 어쩔까?
+		PRINTFORML [0] 범한다
+		PRINTFORML [1] 내쫓는다
+		INPUT
+		IF RESULT
+			PRINTFORML 쓰러진 %타겟을% 걷어차 밖으로 내다 버렸다...
+		ELSE
+			PRINTFORML ......
+			PRINTFORML ...
+			PRINTFORML ..
+			PRINTFORML 저항조차 하지 못하는 %타겟을% 무자비하게 범해주었다
+			IF TALENT:MASTER:성별 != 0
+				IF TALENT:MASTER:비동정 != 0
+					IF RAND:3 == 0
+						PRINTFORML %타겟의% 순결했던 보지에선 붉은 피와 정액이 흘러내렸다
+					ELSE
+						PRINTFORML %타겟의% 보지에선 정액이 뚝뚝 떨어지고 있었다...
+					ENDIF
+					LOCAL = RAND:7 + 1
+					PRINTFORML {LOCAL}번이나 무자비하게 범해 하반신의 감각이 없어진 %타겟은% 심각한 굴복감을 느낀뒤 밖으로 쫓겨났다...
+					EXP:MASTER:질내사정경험 += LOCAL
+					EXP:MASTER:사정경험 += LOCAL
+					EXP:MASTER:C절정경험 += LOCAL
+				ELSE
+					PRINTFORML %타겟의% 몸을 수십차례나 핥고, 문질러 대며 여체탐구를 해나갔다
+					PRINTFORML %타겟은% 무척이나 수치스러운지 고개를 푹 숙이며 끝나기 만을 초조히 기다렸다
+					PRINTFORML 온 몸을 마구 능욕당한 %타겟은% 그 후 엉덩이를 걷어차이며 집 밖으로 쫓겨나 버렸다...
+					LOCAL = RAND:20 + 1
+				ENDIF
+			ELSE
+				PRINTFORML %타겟의% 몸을 핥고, 문질러 범해댔다
+				PRINTFORML 수치심과 공포심에 발버둥치는 %타겟을% 짓누르며 마음껏 성욕을 푼 뒤, 너덜너덜해진 %타겟을% 걷어차 밖으로 내다 버렸다
+				PRINTFORML ...%타겟은% 감각이 없어진 하반신을 붙들고 치욕에 눈물을 삼키며 멀리 떠나갔다...
+				LOCAL = RAND:20 + 1
+			ENDIF
+		ENDIF
+		BASE:MASTER:정력 --
+	CASE 1
+		;무승부
+		PRINTFORML %타겟은% 지속된 전투에 지친건지 다음을 기약하며 도망가버렸다...
+		CFLAG:MASTER:철야 = 1
+	CASE 2
+		;마스터 패배
+		PRINTFORML %타겟은% 바닥에 쓰러진 %마스터를% 꼴 좋다는듯이 바라보았다
+		PRINTFORML %타겟은% 금품을 챙겨 저 멀리 달아나버렸다...
+		CFLAG:MASTER:철야 = 1
+		SELECTCASE RAND:2
+			CASE 0
+				SETCOLOR 0XFF0000
+				IF MONEY >= 100000
+					PRINTFORML 100000\ 을 도둑맞아 버렸다...
+				ELSE
+					PRINTFORML {MONEY}\ 을 도둑맞아 버렸다...
+				ENDIF
+			CASE 1
+				SETCOLOR 0XFF0000
+				IF MONEY:2 >= 500
+					PRINTFORML 500카리스마를 도둑맞아 버렸다...
+				ELSE
+					PRINTFORML {MONEY:2}카리스마를 도둑맞아 버렸다...
+				ENDIF
+		ENDSELECT
+		RESETCOLOR
+ENDSELECT
+후처리인터셉트승패여부 = 0
+DELCHARA TARGET
+TARGET = 0
+DRAWLINE
