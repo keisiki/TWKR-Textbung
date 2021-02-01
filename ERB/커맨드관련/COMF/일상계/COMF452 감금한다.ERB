@@ -1,0 +1,107 @@
+﻿
+@COM452
+#DIM DYNAMIC 허락도
+#DIM DYNAMIC 거부도
+DRAWLINE
+IF !CFLAG:감금됨
+	PRINTFORML %마스터는% %CALLNAME:TARGET%에게 이러저러한 핑계를 대며 지하 징벌방에 가두겠다고 전했다!
+
+	허락도 += MIN(CFLAG:신뢰도/100, 50)
+	거부도 += 10 + RAND:5
+	SETCOLOR 0XFF3399
+	IF TALENT:마조
+		PRINTFORML %타겟은% 감금된다는 말에 약간의 두근거림을 느꼈다...
+		허락도 += 10
+	ENDIF
+	IF TALENT:약점
+		PRINTFORML %타겟은% 전에 잡힌 약점 때문에 더더욱 반항하기 힘든 모양이다...
+		허락도 += 15
+	ENDIF
+	IF TALENT:감정결여
+		PRINTFORML %타겟은% 갇히는것에 대해 그다지 생각이 없는 모양이다...
+		허락도 += 50
+	ENDIF
+
+	RESETCOLOR
+	SETCOLOR 0XFF1111
+	IF TALENT:자존심 == 2
+		PRINTFORML %타겟은% 자존심때문인지 억지로 갇히는것에 불만을 느꼈다...
+		거부도 += 10
+	ENDIF
+	IF TALENT:담력 == -1
+		PRINTFORML %타겟은% 그런 흉흉한 방에 갇히고 싶지 않다고 생각하고있다...
+		거부도 += 5
+	ENDIF
+	IF TALENT:태도 == 1
+		PRINTFORML %타겟은% %마스터의% 말을 듣는게 내키지 않는다...
+		거부도 += 10
+	ENDIF
+	RESETCOLOR
+
+	IF 허락도 >= 2*거부도
+		PRINTFORML %타겟은% 힘없이 고개를 끄덕였다...
+		CALL 종속도상승(TARGET,5)
+		CALL 타겟감금
+		CALL 감금후집으로
+	ELSEIF 허락도 >= 거부도
+		PRINTFORML %타겟은% 무어라 항의하려 했지만 끝내 대답하지 못했다...
+		CALL 타겟감금
+		CALL 감금후집으로
+	ELSEIF 허락도 < 거부도&&2*허락도 >= 거부도
+		PRINTFORML %타겟은% 작은 목소리로 싫다고 말해왔다
+		PRINTFORML 어떻게 설득해도 들어줄 기미가 없기에 할 수없이 포기하는 수 밖에 없었다...
+	ELSE
+		PRINTFORML %타겟은% 완강히 거절했다...
+		PRINTFORML 아무리 노예라 해도 그런곳에 들어가고 싶지는 않은 모양이다
+		CALL 노말라이제이션(TARGET,5)
+	ENDIF
+ELSE
+	PRINTFORMW %마스터는% %CALLNAME:TARGET%에게 이제 슬슬 풀어주겠다고 전했다...
+	PRINTFORMW ★★★%타겟은% 이제 자유입니다★★★
+	CALL 타겟감금해제
+ENDIF
+
+TIME += 10
+RETURN 1
+
+@감금후집으로
+IF CFLAG:TARGET:현재위치 !=1445
+	PRINTFORML 지금 보낼까?
+	CALL ASK_YN
+	IF RESULT
+		RETURN
+	ELSE
+		CFLAG:TARGET:현재위치 =1445
+	ENDIF
+ENDIF
+
+@타겟감금
+CFLAG:TARGET:원초기위치 = CFLAG:TARGET:초기위치
+CFLAG:TARGET:원저택거주 = CFLAG:TARGET:저택에거주
+CFLAG:TARGET:신사거주=1445
+CFLAG:TARGET:초기위치 =1445
+CFLAG:TARGET:저택에거주=1445
+CFLAG:TARGET:감금됨 = 1
+
+@타겟감금해제
+SIF CFLAG:TARGET:원초기위치
+	CFLAG:TARGET:초기위치 = CFLAG:TARGET:원초기위치
+SIF CFLAG:TARGET:원저택거주/100 == 14
+	CFLAG:TARGET:저택에거주 = CFLAG:TARGET:원저택거주
+CFLAG:TARGET:신사거주 =  CFLAG:TARGET:원저택거주
+CFLAG:TARGET:감금됨 = 0
+
+
+@COM_ABLE452
+IF MAIN_MAP != 14
+	RETURN 0
+ENDIF
+IF !TARGET
+	RETURN 0
+ENDIF
+IF !TALENT:TARGET:당신의노예
+	RETURN 0
+ENDIF
+SIF FLAG:USERCOM시작 == 0
+	RETURN 0
+RETURN 1
