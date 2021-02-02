@@ -1,0 +1,65 @@
+﻿@COM762
+#DIM DYNAMIC 베팅대상
+#DIM DYNAMIC 촉수궁베팅금액
+DRAWLINE
+PRINTFORML 바 한 켠에 놓은 TV에서 출발선에 선 소녀들이 보인다...
+PRINTFORML 한편 누가 우승할 지 베팅이 시작되고 있는 모양이다
+PRINTFORML 참여하시겠습니까?
+PRINTFORML [1] 참여한다
+PRINTFORML [2] 관전만
+PRINTFORML [9] 돌아간다
+$경마장초기입력
+INPUT
+IF RESULT == 9
+    RETURN -1
+ELSEIF RESULT == 1
+    PRINTFORML 누구에게 돈을 걸까?
+    CALL 창녀목록(0)
+    PRINTFORML [999]돌아간다
+    $베팅대상선정
+    INPUT
+    IF RESULT == 999
+        RESTART
+    ELSE
+        
+        IF (TALENT:RESULT:창녀 == 1||TALENT:RESULT:렌탈창녀 == 1)&&(CFLAG:RESULT:창관일 == 5)&&CFLAG:RESULT:오늘몸팜 == 0
+            베팅대상 = RESULT
+            PRINTFORML 얼마나? (소지금 : {MONEY})(0이하의 수로 취소, 소지금 이상의 돈으로 올인)
+            INPUT
+            촉수궁베팅금액 = RESULT
+            IF 촉수궁베팅금액 <= 0
+                RESTART
+            ELSE
+                SIF 촉수궁베팅금액 > MONEY
+                    촉수궁베팅금액 = MONEY
+                MONEY -= 촉수궁베팅금액
+                PRINTFORML {촉수궁베팅금액}원, 배율 50퍼센트로 베팅합니까?
+                촉수궁배수 = 50
+                CALL ASK_YN()
+                IF RESULT
+                    RETURN -1
+                ENDIF
+            ENDIF
+            CALL 촉수궁(베팅대상)
+        ELSE
+            GOTO 베팅대상선정
+        ENDIF
+    ENDIF
+ELSEIF RESULT == 2
+    CALL 촉수궁(0)
+ELSE
+    GOTO 경마장초기입력
+ENDIF
+DOWNBASE:MASTER:기력 += 100
+TIME += 30
+
+@COM_ABLE762
+SIF FLAG:USERCOM시작 == 0
+	RETURN 0
+IF !매음굴지역판정(CFLAG:MASTER:현재위치)
+    RETURN 0
+ENDIF
+IF CFLAG:MASTER:현재위치 != 1560
+    RETURN 0
+ENDIF
+RETURN 1
