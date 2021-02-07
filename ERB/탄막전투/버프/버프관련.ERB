@@ -15,9 +15,6 @@ FOR LOCAL, 0, TB버프한계
         BREAK
     ENDIF
 NEXT
-;CALL TB_SIMPLER(MASTER)
-;CALL TB_SIMPLER(TARGET)
-;CALL TB_효과처리(대상)
 CALL 공방세팅(MASTER,TARGET)
 
 @TB_RESET(ARG = -1)
@@ -133,45 +130,35 @@ FOR LOCAL, 0, TB버프한계
     ENDIF
 NEXT
 
-@TB_SIMPLER(ARG)
-;ARG의 버프중, 겹치는걸 하나로 뭉치는 함수
-#DIM DYNAMIC 기절시간
-#DIM DYNAMIC 침묵시간
-#DIM DYNAMIC 실명시간
-#DIM DYNAMIC 혼란시간
-#DIM DYNAMIC 면역시간
+@TB_MINUS_TYPE(대상,S_ID,NUM,TYPE)
+#DIM DYNAMIC 대상
+#DIM DYNAMIC NUM
+#DIM DYNAMIC NUMBUFFER
+#DIM DYNAMIC S_ID
+#DIM DYNAMIC TYPE
 FOR LOCAL, 0, TB버프한계
-    IF T_버프:TB대상:LOCAL == ARG&&T_버프:TB남은시간:LOCAL > 0
-        IF T_버프:TB내용:LOCAL == TCV_기절
-            기절시간 += T_버프:TB남은시간:LOCAL
-        ELSEIF T_버프:TB내용:LOCAL == TCV_침묵
-            침묵시간 += T_버프:TB남은시간:LOCAL
-        ELSEIF T_버프:TB내용:LOCAL == TCV_실명
-            실명시간 += T_버프:TB남은시간:LOCAL
-        ELSEIF T_버프:TB내용:LOCAL == TCV_혼란
-            혼란시간 += T_버프:TB남은시간:LOCAL
-        ELSEIF T_버프:TB내용:LOCAL == TCV_면역
-            면역시간 += T_버프:TB남은시간:LOCAL
-            PRINTFORML 면역:{면역시간}
+    IF T_버프:TB남은시간:LOCAL != 0
+        IF T_버프:TB대상:LOCAL == 대상&&(T_버프:TBID:LOCAL == S_ID||S_ID == -1)
+            IF TYPE == T_버프:TB내용:LOCAL
+                NUMBUFFER = NUM - T_버프:TB값:LOCAL
+                T_버프:TB값:LOCAL -= NUM
+                NUM = 0
+                IF T_버프:TB값:LOCAL < 0
+                    ;T_버프:TB값:LOCAL < NUM
+                    NUM += NUMBUFFER 
+                    T_버프:TB값:LOCAL = 0
+                ENDIF
+                IF T_버프:TB값:LOCAL == 0
+                    CALLF TB_RESET(LOCAL)
+                ENDIF
+                IF NUM <= 0
+                    RETURN 0
+                ENDIF
+            ENDIF
         ENDIF
     ENDIF
 NEXT
-FOR LOCAL, 0, TB버프한계
-    IF T_버프:TB대상:LOCAL == ARG&&T_버프:TB남은시간:LOCAL > 0
-        SIF T_버프:TB내용:LOCAL == TCV_기절||T_버프:TB내용:LOCAL == TCV_침묵||T_버프:TB내용:LOCAL == TCV_실명||T_버프:TB내용:LOCAL == TCV_혼란||T_버프:TB내용:LOCAL == TCV_면역
-            CALLF TB_RESET(LOCAL)
-    ENDIF
-NEXT
-SIF 기절시간 > 0
-    CALL 통합버프(ARG,TCV_기절,1,기절시간)
-SIF 침묵시간 > 0
-    CALL 통합버프(ARG,TCV_침묵,1,침묵시간)
-SIF 실명시간 > 0
-    CALL 통합버프(ARG,TCV_실명,1,실명시간)
-SIF 혼란시간 > 0
-    CALL 통합버프(ARG,TCV_혼란,1,혼란시간)
-SIF 면역시간 > 0
-    CALL 통합버프(ARG,TCV_면역,1,면역시간)
+RETURN NUM
 
 @TB_SUM_VALUE(대상, 상태이상,S_ID = -1)
 ;특정 상태이상의 값의 총 합을 구하는 함수
@@ -205,26 +192,6 @@ FOR LOCAL, 0,TB버프한계
 NEXT
 RETURNF 출력
 
-
-@TB_효과처리(ARG)
-;ARG의 버프중, 능력치 변동을 일으키는 모든 값을 더해서 반영해줌
-#DIM DYNAMIC 변동량, 5
-#DIM DYNAMIC 보정
-;힘지인속운
-변동량:0 = TB_SUM_VALUE(ARG,TCV_힘)
-변동량:1 = TB_SUM_VALUE(ARG,TCV_지성)
-변동량:2 = TB_SUM_VALUE(ARG,TCV_인내)
-변동량:3 = TB_SUM_VALUE(ARG,TCV_속도)
-변동량:4 = TB_SUM_VALUE(ARG,TCV_운)
-TCVAR:ARG:T_힘 = 변동량:0 + CFLAG:ARG:힘
-TCVAR:ARG:T_지성 = 변동량:1 + CFLAG:ARG:지성
-TCVAR:ARG:T_인내 = 변동량:2 + CFLAG:ARG:인내
-TCVAR:ARG:T_속도 = 변동량:3 + CFLAG:ARG:속도
-TCVAR:ARG:T_운 = 변동량:4 + CFLAG:ARG:운
-보정 = TB_SUM_VALUE(ARG,TCV_증폭) - TB_SUM_VALUE(ARG,TCV_약화)
-TCVAR:ARG:T_공격력보정 = 보정
-보정 = TB_SUM_VALUE(ARG,TCV_회피) - TB_SUM_VALUE(ARG,TCV_취약)
-TCVAR:ARG:T_방어력보정 = 보정
 
 @TB_TYPERESET(ARG,TYPE,NUM)
 ;ARG의 특정 타입 버프를 해제
