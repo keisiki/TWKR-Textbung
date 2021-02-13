@@ -18,6 +18,32 @@ WHILE 1
             BREAK
         ENDIF
     ENDIF
+    ;스킬시전
+    VARSET 스킬타입
+    ;올랜덤은 타입 선정이 필요없지만 템플릿용으로 적어둠
+    ;공격형 = bit 1, 방어형 = bit 2, 회복형 = bit 3, 상태이상형 = bit 4, 버프형 = bit 5, 해주형 = BIT 6
+    IF (TB_SUM_REMAIN(ARG,TCV_저주) > 0&&RAND:2 == 0)||(TB_SUM_REMAIN(ARG,TCV_출혈) > 0&&RAND:5 == 0)||(TB_SUM_REMAIN(ARG,TCV_독) > 0&&RAND:10 == 0)
+        CALL HAVE_T_TYPE(ARG, 해주형)
+        IF RESULT == 1
+            스킬타입:1 = 6
+            SELECTCASE 스킬타입:1
+                CASE 0
+                    ;모두
+                    스킬타입 = 공격형 + 방어형 + 회복형 + 상태이상형 + 버프형
+                CASE 1, 2, 3, 4, 5, 6
+                    SETBIT 스킬타입, 스킬타입:1
+            ENDSELECT
+            CALL RANDOM_PICK_T_SKILL(ARG, 스킬타입)
+            ;LOCAL = 선택 가능한 스킬 수
+            LOCAL = VARSIZE("SKILL_ARRAY") - MATCH(SKILL_ARRAY, 0)
+            SIF RESULT == 0 && !LOCAL ;선택 가능한 스킬이 없음
+                CONTINUE
+            스킬번호 = RAND:LOCAL
+            CALL DO_T_SKILL(ARG, SKILL_ARRAY:스킬번호)
+            BREAK
+        ENDIF
+    ENDIF
+    
     SELECTCASE RAND:10
         CASE 0 TO 4
             ;통상공격
@@ -35,24 +61,6 @@ WHILE 1
             ;올랜덤은 타입 선정이 필요없지만 템플릿용으로 적어둠
             ;공격형 = bit 1, 방어형 = bit 2, 회복형 = bit 3, 상태이상형 = bit 4, 버프형 = bit 5, 해주형 = BIT 6
             스킬타입:1 = RAND:6
-            IF TB_SUM_REMAIN(ARG,TCV_저주) > 0&&TB_SUM_REMAIN(ARG,TCV_저주) < 3&&RAND:3 == 0
-                CALL HAVE_T_TYPE(ARG, 해주형)
-                IF RESULT == 1
-                    스킬타입:1 = 6
-                ENDIF
-            ENDIF
-            IF TB_SUM_REMAIN(ARG,TCV_출혈) > 0&&RAND:5 == 0
-                CALL HAVE_T_TYPE(ARG, 해주형)
-                IF RESULT == 1
-                    스킬타입:1 = 6
-                ENDIF
-            ENDIF
-            IF TB_SUM_REMAIN(ARG,TCV_독) > 0&&RAND:10 == 0
-                CALL HAVE_T_TYPE(ARG, 해주형)
-                IF RESULT == 1
-                    스킬타입:1 = 6
-                ENDIF
-            ENDIF
             SELECTCASE 스킬타입:1
                 CASE 0
                     ;모두
@@ -97,7 +105,7 @@ WHILE 1
     ENDIF
     공격점수 = 150 + RAND:50
     회피점수 = 55 + RAND:50
-    IF TB_SUM_REMAIN(ARG,TCV_저주) > 0&&TB_SUM_REMAIN(ARG,TCV_저주) < 3&&RAND:3 == 0
+    IF TB_SUM_REMAIN(ARG,TCV_저주) > 0&&RAND:2 == 0
         ;저주의 경우는 그나마 높은 확률로 해제 시도
         CALL HAVE_T_TYPE(ARG, 해주형)
         IF RESULT == 1
@@ -957,7 +965,7 @@ RETURN 1
 @HAVE_T_TYPE(ARG, 타입)
 #DIM 타입
 #DIM 스킬번호
-FOR 스킬번호, 1, T_스킬한계값
+FOR 스킬번호, 0, T_스킬한계값
     TRYCALLFORM CAN_T_SKILL(ARG, 스킬번호)
     IF RESULT == 1 ;스킬 시전 가능
         CALLFORMF T_SKILL{스킬번호}("타입")
