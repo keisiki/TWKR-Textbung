@@ -156,10 +156,14 @@ ENDIF
 @영혼흡수(ARG)
 #DIM DYNAMIC 획득경험치
 
-획득경험치 = 100
-획득경험치 += (ABL:ARG:레벨*10) + (ABL:ARG:전투능력 * 500) + (TALENT:ARG:연인 * 1000) +(TALENT:ARG:연모 * 500) + (TALENT:ARG:사모 * 100) + (TALENT:ARG:애욕 * 500)
+획득경험치 = 50
+획득경험치 += (ABL:ARG:레벨*5) + (ABL:ARG:전투능력 * 250) + (TALENT:ARG:연인 * 800) +(TALENT:ARG:연모 * 300) + (TALENT:ARG:사모 * 100) + (TALENT:ARG:애욕 * 200)
 획득경험치 += (TALENT:ARG:임신 * 100) + (TALENT:ARG:손님의아이 * 100)
 획득경험치 += MIN(CFLAG:ARG:호감도,500) + MIN(CFLAG:ARG:신뢰도,500)
+IF GROUPMATCH(ARG,5,6,7,13,14,18,19,111,118)
+    ;요정은 경험치 감소
+    획득경험치 /= 5
+ENDIF
 
 PRINTFORML %ARG의% 혼을 흡수하여 {획득경험치}만큼의 경험치를 얻을수 있습니다
 PRINTFORML 진행합니까?
@@ -178,3 +182,35 @@ FOR LOCAL,0,T_스킬한계값
         PRINTFORML {LOCAL}번 스킬, %RESULTS%
     ENDIF
 NEXT
+
+@파편합치기()
+#DIM 대상
+$연성루프
+PRINTFORML 누구의 혼을 만들까?
+DRAWLINE
+FOR LOCAL, 0, CHARANUM
+    IF 습득한혼의파편:LOCAL >= 1
+        PRINTFORML [{LOCAL}] %CALLNAME:LOCAL%의 혼의 파편
+    ENDIF
+NEXT
+DRAWLINE
+PRINTFORML [9999] 돌아간다
+INPUT
+IF RESULT == 9999
+    RETURN 1
+ELSE
+    IF RESULT < 0||RESULT > 150
+        GOTO 연성루프
+    ELSE
+        IF 습득한혼의파편:RESULT < 3
+            PRINTFORML 혼의 파편 3개가 모여야 혼 1개를 만들수 있습니다
+            GOTO 연성루프
+        ELSE
+            ;가능
+            습득한혼의파편:RESULT -= 3
+            습득한혼:RESULT++
+            PRINTFORMW 흐릿한 영혼의 조각을 모아, %CALLNAME:RESULT%의 혼을 합성해냈습니다
+        ENDIF
+    ENDIF
+ENDIF
+GOTO 연성루프
