@@ -27,8 +27,8 @@
 쿨타임 = 15;스킬의 쿨타임을 넣으세요
 지속시간 = 8;스킬의 효과가 지속되는 시간을 넣으세요
 명중률 = 100; 몇% 확률로 명중하는지 쓰세요
-피해량 = 0;얼마만큼의 데미지를 주는지 쓰세요, 스텟을 참고해도 좋습니다
-타입 = 버프형+방어형;공격형/방어형/회복형/상태이상형/버프형/해주형/자동형 ;ERH 변수입니다.
+피해량 = 160*ARG능력치(T_시전자,"지성")+600;얼마만큼의 데미지를 주는지 쓰세요, 스텟을 참고해도 좋습니다
+타입 = 공격형+방어형;공격형/방어형/회복형/상태이상형/버프형/해주형/자동형 ;ERH 변수입니다.
 HP코스트 = 0;시전시 소모하는 체력의 양입니다
 TSP코스트 = 2000;시전시 소모하는 TSP의 양입니다, 아나타가 아니면 소모하지 않습니다
 ;여러 타입을 한꺼번에 입력하고자 하는 경우:
@@ -123,11 +123,39 @@ CASE "초기화"
 VARSET 남은지속시간
 CASE "시스템체크"
     ;시스템 메시지에 따른 검사, 패시브 스킬등에 이용, 액티브는 딱히 쓸 일이 있나?
-
 CASE "지속효과발동"
     ;지속적으로 효과가 발동하는 스킬의 경우, 여기에 효과를 입력
-    IF 남은지속시간:사용자 > 0
-
+    IF 남은지속시간:사용자 == 0
+        IF TB_SUM_VALUE(사용자,TCV_보호,245)
+            CALL PRINT_SPELLNAME(245)
+            PRINTFORML 보호막이 폭발하며 주위에 막대한 피해를 입힌다!
+            CALL T_데미지(T_시전자반대,피해량,속성)
+            CALLF TB_RESET_ID(T_시전자,TCV_보호,245)
+        ENDIF
+    ENDIF
+    IF 남은지속시간:사용자 > 0&&TB_SUM_REMAIN(T_시전자반대,TCV_증폭)
+        IF TB_SUM_VALUE(사용자,TCV_보호,245)
+            CALL PRINT_SPELLNAME(245)
+            PRINTFORML 결계가 발동했다!
+            CALL T_데미지(T_시전자반대,피해량,속성)
+            ;CALLF TB_RESET_ID(T_시전자,TCV_보호,245)
+        ENDIF
+    ENDIF
+    IF 남은지속시간:사용자 > 0&&TB_SUM_REMAIN(T_시전자반대,TCV_회피)
+        IF TB_SUM_VALUE(사용자,TCV_보호,245)
+            CALL PRINT_SPELLNAME(245)
+            PRINTFORML 결계가 발동했다!
+            CALL T_데미지(T_시전자반대,피해량,속성)
+            ;CALLF TB_RESET_ID(T_시전자,TCV_보호,245)
+        ENDIF
+    ENDIF
+    IF 남은지속시간:사용자 > 0&&TB_SUM_REMAIN(T_시전자반대,TCV_속도)
+        IF TB_SUM_VALUE(사용자,TCV_보호,245)
+            CALL PRINT_SPELLNAME(245)
+            PRINTFORML 결계가 발동했다!
+            CALL T_데미지(T_시전자반대,피해량,속성)
+            ;CALLF TB_RESET_ID(T_시전자,TCV_보호,245)
+        ENDIF
     ENDIF
 ENDSELECT
 
@@ -158,14 +186,15 @@ IF 명중판정(명중률)
     ;----------------
     ;대사는 이쪽
     ;----------------
-    PRINTFORML 
+    PRINTFORML %T_시전자의% 주위에 무수한 결계가 씌워진다!
     ;----------------
     ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
     ;----------------
 
     피해량 = T_SKILL245("공격력")
     속성 '= T_SKILL245_STR("속성")
-    CALL T_데미지(T_턴반대, 피해량, 속성)
+    ;CALL T_데미지(T_턴반대, 피해량, 속성)
+    CALL 통합버프(T_시전자,TCV_보호,245,ARG능력치(T_시전자,"지성")*100,T_SKILL245("지속시간")+1)
     CALL ONGOING_T_SKILL245(사용자, "지속시간설정")
     RETURN 1
 ELSE
@@ -176,7 +205,7 @@ ELSE
     ;----------------
     ;대사는 이쪽
     ;----------------
-    PRINTFORML 
+    PRINTFORML 무언가 힘을 집중한거 같지만 아무일도 없었다...
     ;----------------
     ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
     ;----------------
@@ -186,14 +215,14 @@ ENDIF
 @HELP_T_SKILL245
 ;스킬의 설명을 출력하는 함수
 ;적당히 8줄 이하의 설명을 써두자
+PRINTFORML 유카리의 스펠카드
 PRINTFORML
+PRINTFORML 자신의 주위를 무수한 결계로 가려버린다
 PRINTFORML
+PRINTFORML 결계는 일정시간후 폭발해 큰 피해를 입힌다
+PRINTFORML 결계 안에서 빠르게 움직이려 한 경우에도 같을것이다
 PRINTFORML
-PRINTFORML
-PRINTFORML
-PRINTFORML
-PRINTFORML
-PRINTFORML
+PRINTFORML 그러므로 해법은 빠르게 결계를 부수는 것 뿐이다
 
 @IS_UTIMATE245
 ;TRYCALLFORM으로 호출되어 이 스킬의 습득을 억제하는 함수
