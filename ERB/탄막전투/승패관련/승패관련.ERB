@@ -363,7 +363,7 @@ ENDSELECT
 RESETCOLOR
 
 @T_패자처리(ARG,ARG:1)
-#DIM DYNAMIC 검사용변수
+
 ;ARG = 패배자
 ;ARG:1 = 승리자
 IF 항복함 > 0
@@ -412,25 +412,27 @@ ELSE
                         ENDIF
                     ELSEIF RESULT == 1
                         ;우후후모드 온, 억지로 범하고 있는 플래그를 찾을수 있다면 넣겠는데 못찾겠음
+                        TRYCALLFORM T_KOJO_{TARGET}(TK_존재판정,TK_패배강간직전)
+                        IF RESULT == 1
+                            TRYCALLFORM T_KOJO_{TARGET}(TK_패배강간직전)
+                            IF RESULT == 1
+                                BREAK
+                            ENDIF
+                        ENDIF
+                        TRYCALLFORM T_KOJO_{TARGET}(TK_존재판정,TK_패배강간시작)
+                        IF RESULT == 1
+                            TRYCALLFORM T_KOJO_{TARGET}(TK_패배강간시작)
+                            IF RESULT == 1
+                                BREAK
+                            ENDIF
+                        ENDIF
                         CFLAG:ARG:우후후 = 1
                         CFLAG:ARG:대주고말았다 = 1
                         TCVAR:ARG:패배강간 = 1
                         BREAK
                     ELSEIF RESULT == 2&&!TALENT:ARG:당신의노예
                         ;노예화
-                        PRINTFORML %ARG는% 잠시 머뭇거리더니 고개를 끄덕였다...
-                        CALL 종속도상승(ARG, 200)
-                        PRINTFORML %ARG는% %마스터의% [노예]가 되었습니다
-                        TALENT:ARG:당신의노예 = 1
-                        TALENT:ARG:주인 = 0
-                        FOR LOCAL, 1, CHARANUM
-                            ;주인이 몇 명 있는가 검사
-                            SIF TALENT:LOCAL:주인 == 1
-                                검사용변수++
-                        NEXT
-                        ;한명도 없으면 노예상태는 탈출
-                        SIF 검사용변수 == 0
-                            TALENT:MASTER:노예 = 0
+                        CALL ARG노예화(ARG)
                         BREAK
                     ELSEIF RESULT == 999
                         GOTO 타겟쓰러짐조건루프
@@ -439,9 +441,19 @@ ELSE
                 RETURN 1
             ELSEIF RESULT == 2
                 ;대사처리 좀더 해야한다
-                PRINTFORML 쓰러진 %타겟에게% 마지막 일격을 날렸다!
-                PRINTFORML %타겟은% 죽었다...
-                CALL T_타겟고로시
+                TRYCALLFORM T_KOJO_{TARGET}(TK_존재판정,TK_처형직전)
+                IF RESULT == 1
+                    TRYCALLFORM T_KOJO_{TARGET}(TK_처형직전)
+                    IF RESULT == 1
+                        RETURN 1
+                    ELSE
+                        CALL T_타겟고로시
+                    ENDIF
+                ELSE
+                    PRINTFORML 쓰러진 %타겟에게% 마지막 일격을 날렸다!
+                    PRINTFORML %타겟은% 죽었다...
+                    CALL T_타겟고로시
+                ENDIF
                 RETURN 1
             ELSE
                 GOTO 타겟쓰러짐입력루프
@@ -1019,3 +1031,19 @@ FOR LOCAL,1,CHARANUM
     SIF TALENT:LOCAL:사망 == 0
         CALL 경험치처리(LOCAL,ARG)
 NEXT
+
+@ARG노예화(ARG)
+#DIM DYNAMIC 검사용변수
+PRINTFORML %ARG는% 잠시 머뭇거리더니 고개를 끄덕였다...
+CALL 종속도상승(ARG, 200)
+PRINTFORML %ARG는% %마스터의% [노예]가 되었습니다
+TALENT:ARG:당신의노예 = 1
+TALENT:ARG:주인 = 0
+FOR LOCAL, 1, CHARANUM
+    ;주인이 몇 명 있는가 검사
+    SIF TALENT:LOCAL:주인 == 1
+        검사용변수++
+NEXT
+;한명도 없으면 노예상태는 탈출
+SIF 검사용변수 == 0
+    TALENT:MASTER:노예 = 0
