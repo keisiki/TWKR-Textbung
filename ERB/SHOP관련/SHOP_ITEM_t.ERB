@@ -147,42 +147,47 @@ CASE 67
 ;		MAXBASE:(LOCAL:1):2 = 0
 ;		MAXBASE:(LOCAL:1):정력 = 0
 ;	ENDSELECT
-;CASE 73
-;	PRINTFORML 【푸른 캔디】를 구입하겠습니까?
-;	CALL ASK_YN
-;	SIF RESULT
-;		RESTART
-;	PRINTL 누구에게 사용하겠습니까?
-;	FOR LOCAL:1, 0, CHARANUM
-;		SIF TALENT:(LOCAL:1):성별 == 2
-;			CONTINUE
-;		SIF TALENT:(LOCAL:1):모유체질
-;			CONTINUE
-;		SIF CFLAG:(LOCAL:1):출금
-;			CONTINUE
-;		PRINTFORML [{LOCAL:1, 3}] - %CALLNAME:(LOCAL:1)% 
-;	NEXT
-;	PRINTFORML 
-;	PRINTL [999] - 돌아간다
-;	DO
-;		INPUT
-;		LOCAL:1 = RESULT
-;		SELECTCASE LOCAL:1
-;		CASE 999
-;			BREAK
-;		CASE 0 TO CHARANUM - 1
-;			SIF TALENT:(LOCAL:1):성별 == 2
-;				BREAK
-;			SIF TALENT:(LOCAL:1):모유체질
-;				BREAK
-;			SIF CFLAG:(LOCAL:1):출금
-;				BREAK
-;			PRINTFORMW %CALLNAME:(LOCAL:1)%는 [모유체질]을 얻었습니다
-;			MONEY -=물가적용(ITEMPRICE:LOCAL)
-;			TALENT:(LOCAL:1):모유체질 = 1
-;			BREAK
-;		ENDSELECT
-;	LOOP 1
+CASE 73
+	PRINTFORML 【황색 캔디】를 구입하겠습니까?
+	CALL ASK_YN
+	SIF RESULT
+		RESTART
+	PRINTL 누구에게 사용하겠습니까?
+	FOR LOCAL:1, 0, CHARANUM
+		SIF TALENT:(LOCAL:1):성별 == 2
+			CONTINUE
+		SIF CFLAG:(LOCAL:1):출금||TALENT:(LOCAL:1):사망
+			CONTINUE
+		PRINTFORML [{LOCAL:1, 3}] - %CALLNAME:(LOCAL:1)% 
+	NEXT
+	PRINTFORML 
+	PRINTL [999] - 돌아간다
+	DO
+		INPUT
+		LOCAL:1 = RESULT
+		SELECTCASE LOCAL:1
+		CASE 999
+			BREAK
+		CASE 0 TO CHARANUM - 1
+			SIF TALENT:(LOCAL:1):성별 == 2
+				CONTINUE
+			SIF CFLAG:(LOCAL:1):출금||TALENT:(LOCAL:1):사망
+				CONTINUE
+			IF TALENT:(LOCAL:1):불임
+				PRINTFORMW %CALLNAME:(LOCAL:1)%는 [불임]을 잃었습니다
+			ELSE
+				PRINTFORMW %CALLNAME:(LOCAL:1)%는 [불임]을 얻었습니다
+				IF TALENT:(LOCAL:1):임신||TALENT:(LOCAL:1):손님의아이
+					PRINTFORMW %CALLNAME:(LOCAL:1)%는 유산했습니다
+					TALENT:(LOCAL:1):임신 = 0
+					TALENT:(LOCAL:1):손님의아이 = 0
+				ENDIF
+			ENDIF
+			MONEY -=물가적용(ITEMPRICE:LOCAL)
+			TALENT:(LOCAL:1):불임 = !TALENT:(LOCAL:1):불임
+			BREAK
+		ENDSELECT
+	LOOP 1
 ;CASE 74
 ;	PRINTFORML 【붉은 캔디】를 구입하겠습니까?
 ;	CALL ASK_YN
@@ -353,7 +358,7 @@ FOR LOCAL, LOOP_LO, LOOP_HI
 	;SIF LOCAL == 48
 	;	CONTINUE
 	;증류주와 약주를 제외해 둔다
-	SIF GROUPMATCH(LOCAL, 55, 58, 59, 71, 72, 73, 74, 75, 76, 77, 78)
+	SIF GROUPMATCH(LOCAL, 55, 58, 59, 71, 72, 74, 75, 76, 77, 78)
 		CONTINUE
 	SIF GROUPMATCH( ITEMSTOCK(LOCAL), 1, 4 )
 		CONTINUE
@@ -720,9 +725,9 @@ FOR LOCAL, 0, 100
 				CASE "약의재료(소)"
 					SIF FINDCHARA(TALENT:성별, 3) == -1
 						ITEMSALES:LOCAL = -2
-				CASE "푸른 캔디"
+				CASE "황색 캔디"
 				;몸이 성장하는 캔디. 모유체질이 되는, 코멘트 아웃 상태
-				
+					ITEMSALES:LOCAL = 1
 				CASE "붉은 캔디"
 				;몸이 젊어지는 캔디. 처녀막이 재생한다
 				;전원이 처녀로♂당신의 경우는 빠져버린다(남자는 TALENT:처녀 == 0)지만
