@@ -1,0 +1,73 @@
+﻿@영양실조
+#DIM DYNAMIC 기력감소량
+#DIM DYNAMIC 요구칼로리
+요구칼로리 = 330
+;리얼리티버젼
+PRINTL
+IF (FLAG:체내탄수화물*4)+(FLAG:체내지방*8) < 요구칼로리
+    ;열량 부족
+    PRINTFORML 적게 먹어서인지 허기가 진다...
+    기력감소량 += 50
+ELSE
+    FOR LOCAL,0,FLAG:체내탄수화물
+        IF LOCAL * 4 >= 요구칼로리
+            FLAG:체내탄수화물 -= LOCAL
+            요구칼로리 = 0
+            BREAK
+        ENDIF
+    NEXT
+    IF 요구칼로리
+        요구칼로리 -= 4* FLAG:체내탄수화물
+        FOR LOCAL,0,FLAG:체내지방
+            IF LOCAL * 8 >= 요구칼로리
+                FLAG:체내지방 -= LOCAL
+                요구칼로리 = 0
+                BREAK
+            ENDIF
+        NEXT
+    ENDIF
+ENDIF
+IF FLAG:체내단백질 < 65
+    ;단백질 부족
+    PRINTFORML 단백질이 부족한 모양이다...
+    기력감소량 += 25
+ELSE
+    FLAG:체내단백질 -= 65
+ENDIF
+IF FLAG:체내비타민 < 30
+    ;비타민 부족
+    PRINTFORML 비타민을 부족하게 먹어서 몸이 힘들다...
+    기력감소량 += 25
+    FLAG:체내비타민 -= 30
+ENDIF
+IF FLAG:체내나트륨 < 100
+    ;나트륨 부족
+    PRINTFORML 소금이 땡긴다...
+    기력감소량 += 25
+    FLAG:체내나트륨 -= 100
+ENDIF
+;이월되는 영양소의 양 감소
+FLAG:체내탄수화물 /= 10
+FLAG:체내단백질 /= 10
+FLAG:체내지방 /= 10
+FLAG:체내비타민 /= 10
+FLAG:체내나트륨 /= 10
+
+;기력감소
+IF 기력감소량
+    IF MAXBASE:MASTER:기력 > 424
+        PRINTFORML %마스터의% 건강이 악화되는 기분이다
+        MAXBASE:MASTER:기력 -= 기력감소량
+        FLAG:굶어서감소기력 += 기력감소량
+    ELSE
+        PRINTFORML %마스터의% 몸은 쇠약해졌다...
+        CFLAG:MASTER:철야 = 1
+    ENDIF
+ELSE
+    IF FLAG:굶어서감소기력 >= 25
+        FLAG:오늘밥 = 0
+        PRINTFORML 밥을 먹으니 건강이 조금 개선되는 느낌이다!
+        FLAG:굶어서감소기력 -= 25
+        MAXBASE:MASTER:기력 += 25
+    ENDIF
+ENDIF
