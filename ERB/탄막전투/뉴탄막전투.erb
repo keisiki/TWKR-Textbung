@@ -52,6 +52,10 @@ VARSET T_시전자반대
 VARSET SKILL_ARRAY
 VARSET 소지스킬타입
 VARSET 무조건항복
+VARSET 데미지스택_대상
+VARSET 데미지스택_속성
+VARSET 데미지스택_존재
+VARSET 데미지스택_피해
 
 FOR LOCAL, 1, 2000
     T_시전자 = T_대상1
@@ -564,6 +568,41 @@ PRINTL
 DRAWLINE
 ALIGNMENT LEFT
 
+@T_데미지스택(ARG,데미지,속성)
+;ARG = 공격받는 대상
+#DIM DYNAMIC 데미지
+#DIMS DYNAMIC 속성
+FOR LOCAL,0,24
+    IF 데미지스택_존재:LOCAL == 0
+        데미지스택_존재:LOCAL = 1
+        데미지스택_대상:LOCAL = ARG
+        데미지스택_피해:LOCAL = 데미지
+        데미지스택_속성:LOCAL = %속성%
+        RETURN 1
+    ENDIF
+NEXT
+RETURN -1
+
+@데미지스택호출
+#DIM DYNAMIC 대상
+#DIM DYNAMIC 데미지
+#DIMS DYNAMIC 속성
+스택처리중 = 1
+FOR LOCAL,0,24
+    IF 데미지스택_존재:LOCAL == 1
+        데미지스택_존재:LOCAL = 0
+        대상 = 데미지스택_대상:LOCAL
+        데미지 = 데미지스택_피해:LOCAL
+        속성 = %데미지스택_속성:LOCAL%
+        DRAWLINE
+        PRINTFORML 피해 스택 : {LOCAL+1}
+        SETCOLOR 0XFFFF00
+        CALL T_데미지(대상,데미지,속성)
+        RESETCOLOR
+        DRAWLINE
+    ENDIF
+NEXT
+스택처리중 = 0
 
 @T_데미지(ARG,데미지,속성)
 ;ARG = 공격받는 대상
@@ -670,8 +709,8 @@ ELSEIF ARG == T_턴주인 && 크리티컬판정(TCVAR:T_턴반대:T_운)
     TIMES 데미지 , 1.5
     LOCAL = TCVAR:T_턴반대:T_운
     TIMES LOCAL , 1.5
-    IF 데미지 == LOCAL
-        IF T_턴반대 == MASTER
+    IF 데미지 == LOCAL&&스택처리중 == 0
+        IF ARG != MASTER
             LOCAL:1 == 1
         ELSE
             LOCAL:1 == 2
@@ -680,7 +719,7 @@ ELSEIF ARG == T_턴주인 && 크리티컬판정(TCVAR:T_턴반대:T_운)
 ENDIF
 
 
-IF T_턴주인 == MASTER
+IF ARG != MASTER
     CALL T_시스템처리(106,데미지,원래데미지,ARG)
 ELSE
     CALL T_시스템처리(107,데미지,원래데미지,ARG)
@@ -712,11 +751,13 @@ IF LOCAL:1 == 1
 ELSEIF LOCAL:1 == 2
     CALL T_시스템처리(221)
 ENDIF
-IF T_턴주인 == MASTER
+IF ARG != MASTER
     CALL T_시스템처리(104,데미지,원래데미지,ARG)
 ELSE
     CALL T_시스템처리(105,데미지,원래데미지,ARG)
 ENDIF
+SIF 스택처리중 == 0
+    CALL 데미지스택호출
 RETURN 데미지
 
 @T_회복(ARG,ARG:1)
