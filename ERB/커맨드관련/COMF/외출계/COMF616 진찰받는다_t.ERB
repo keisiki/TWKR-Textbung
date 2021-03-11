@@ -19,6 +19,7 @@ SIF TALENT:MASTER:청소중독
 ;PRINTL [10] 자지의 고민
 ;V 이거 왜 없었지
 PRINTL [6] 너무 혈기왕성해져버려서…
+PRINTL [7] 건강보험
 SIF FLAG:충치
 	PRINTL [11] 충치가 생겨서…
 IF CHECK_부상(MASTER,"힘")||CHECK_부상(MASTER,"지성")||CHECK_부상(MASTER,"인내")||CHECK_부상(MASTER,"속도")||CHECK_부상(MASTER,"운")||CHECK_부상(MASTER,"물리내성")||CHECK_부상(MASTER,"화염내성")||CHECK_부상(MASTER,"빙결내성")||CHECK_부상(MASTER,"전격내성")||CHECK_부상(MASTER,"질풍내성")||CHECK_부상(MASTER,"마력내성")||CHECK_부상(MASTER,"수격내성")||CHECK_부상(MASTER,"정신내성")
@@ -29,26 +30,27 @@ PRINTL [100] 그만둔다
 INPUT
 IF RESULT == 0
 	CALL REMEDY(RAND:3)
-	PRINTL 치료비로 \3000 청구되었습니다
-	IF MONEY < 3000
+		PRINTFORML 치료비로 \{건보적용(3000)} 청구되었습니다
+	IF MONEY < 건보적용(3000)
 		DOWNBASE:MASTER:체력 -= 100
 		DOWNBASE:MASTER:기력 -= 200
 		TIME += 180
 		TFLAG:193 = 1
 	ELSE
-		MONEY -= 3000
+		MONEY -= 건보적용(3000)
 	ENDIF
 ELSEIF RESULT == 1
 	;에이린의 사모 연모로 양화
 	CALL REMEDY(RAND:2 + 3 + TALENT:(NO:72):3 * 2 + TALENT:(NO:72):8)
-	PRINTL 치료비로 \3000 청구되었습니다
-	IF MONEY < 3000
+	
+	PRINTFORML 치료비로 \{건보적용(3000)} 청구되었습니다
+	IF MONEY < 건보적용(3000)
 		DOWNBASE:MASTER:체력 -= 100
 		DOWNBASE:MASTER:기력 -= 200
 		TIME += 180
 		TFLAG:193 = 1
 	ELSE
-		MONEY -= 3000
+		MONEY -= 건보적용(3000)
 	ENDIF
 ELSEIF RESULT == 3
 	PRINTL 「이런 건 어떨까」
@@ -94,8 +96,8 @@ ELSEIF RESULT == 4 && TALENT:MASTER:청소중독
 		FLAG:850 ++
 	ELSE
 		PRINTL 「또 그걸 재발시켰다고?」
-		PRINTFORML 「정말이지… 이번에는 ￥{FLAG:850 * 10000} 받을게」
-		IF MONEY < FLAG:850 * 10000
+		PRINTFORML 「정말이지… 이번에는 ￥{건보적용(FLAG:850 * 10000)} 받을게」
+		IF MONEY < 건보적용(FLAG:850 * 10000)
 			PRINTL 「치료비가 부족한가 보네」
 			PRINTL 「돈이 모이면 다시 와」
 		ELSE
@@ -106,7 +108,7 @@ ELSEIF RESULT == 4 && TALENT:MASTER:청소중독
 			PRINTL 「또 재발시키는 일이 있으면 더 많이 지불하도록 할거니깐」
 			PRINTFORMW %CALLNAME:MASTER%의 [청소중독]이 나았다
 			TALENT:MASTER:청소중독 = 0
-			MONEY -= FLAG:850 * 10000
+			MONEY -= 건보적용(FLAG:850 * 10000)
 			FLAG:850 ++
 		ENDIF
 	ENDIF
@@ -126,8 +128,8 @@ ELSEIF RESULT == 6
 				PRINTFORMW %CALLNAME:MASTER%의 [농후정액]이 나았다
 				TALENT:MASTER:농후정액 = 0
 			ENDIF
-			PRINTL 치료비로 \10000 청구되었습니다
-			MONEY -= 10000
+			PRINTL 치료비로 \{건보적용(10000)} 청구되었습니다
+			MONEY -= 건보적용(10000)
 		ELSE
 			PRINTFORMDW 에이린에게 바쁘니까 다음에라며 가볍게 다루어져 버렸다…
 			TALENT:72:기분--
@@ -141,24 +143,37 @@ ELSEIF RESULT == 6
 		BASE:MASTER:체력 = MIN(MAXBASE:MASTER:체력, BASE:MASTER:체력 - 400)
 		TALENT:72:기분 = 1
 	ENDIF
+ELSEIF RESULT == 7
+	IF FLAG:건강보험
+		PRINTFORML 「이미 계약하고 있잖니」
+		GOTO LOOP
+	ENDIF
+	PRINTFORML 「건강보험, 가입하면 치료비를 감면해줘」
+	PRINTFORML 「월 50000 원이야. 싸지?」
+	CALL ASK_M("부탁한다", MONEY >= 50000,"그만둔다", 1)
+	SIF RESULT
+		GOTO LOOP
+	PRINTFORMW 건강보험을 계약했다
+	MONEY -= 50000
+	FLAG:건강보험 = 1
 ;ELSEIF RESULT == 10
 ;	CALL PENIS_CHANGE
 ELSEIF RESULT == 11
 	PRINTFORML 「충치? 어디어디...아...{FLAG:충치}개나 썩었잖아...」
 	PRINTL 「빨리 치료하지 않으면 안되겠네, 견적은...」
-	PRINTFORML 「대충 {FLAG:충치 * 1000}원 정돈데...할꺼야?」
+	PRINTFORML 「대충 {건보적용(FLAG:충치 * 1000)}원 정돈데...할꺼야?」
 	PRINTFORML [0] 치료한다
 	PRINTFORML [1] 나중에
 	INPUT
 	IF RESULT == 0
-		IF MONEY < FLAG:충치 * 1000
+		IF MONEY < 건보적용(FLAG:충치 * 1000)
 			PRINTL 「...치료비가 부족한가 보네」
 			PRINTL 「근데 이거 치료 안하면 안될텐데? 저쪽에서 빌려서라도 치료하는게 어때?」
 			PRINTFORML [0] 치료한다
 			PRINTFORML [1] 나중에
 			INPUT
 			IF RESULT == 0
-				CALL 채무생성((FLAG:충치 * 1000 )- MONEY, (((FLAG:충치 * 1000)-MONEY)/1000 )+ 1)
+				CALL 채무생성(건보적용(FLAG:충치 * 1000 )- MONEY, ((건보적용(FLAG:충치 * 1000)-MONEY)/1000 )+ 1)
 				PRINTFORML 「그래, 그럼 거기 누워, 조금 아플지도 모르지만...」
 				PRINTW …
 				PRINTW ……
@@ -172,7 +187,7 @@ ELSEIF RESULT == 11
 				GOTO LOOP
 			ENDIF
 		ELSE
-			MONEY -= FLAG:충치 * 1000
+			MONEY -= 건보적용(FLAG:충치 * 1000)
 			PRINTFORML 「그래, 그럼 거기 누워, 조금 아플지도 모르지만...」
 			PRINTW …
 			PRINTW ……
@@ -188,7 +203,7 @@ ELSEIF RESULT == 11
 		GOTO LOOP
 	ENDIF
 ELSEIF RESULT == 12&&(CHECK_부상(MASTER,"힘")||CHECK_부상(MASTER,"지성")||CHECK_부상(MASTER,"인내")||CHECK_부상(MASTER,"속도")||CHECK_부상(MASTER,"운")||CHECK_부상(MASTER,"물리내성")||CHECK_부상(MASTER,"화염내성")||CHECK_부상(MASTER,"빙결내성")||CHECK_부상(MASTER,"전격내성")||CHECK_부상(MASTER,"질풍내성")||CHECK_부상(MASTER,"마력내성")||CHECK_부상(MASTER,"수격내성")||CHECK_부상(MASTER,"정신내성"))
-	IF MONEY >= 10000
+	IF MONEY >= 건보적용(10000)
 		PRINTFORML 어떤 부상을 치료할까?
 		IF CHECK_부상(MASTER,"힘")
 			PRINTFORML [0] 힘
@@ -264,7 +279,7 @@ ELSEIF RESULT == 12&&(CHECK_부상(MASTER,"힘")||CHECK_부상(MASTER,"지성")|
 			ELSE
 				GOTO 부상치료루프
 			ENDIF
-			MONEY -= 10000
+			MONEY -= 건보적용(10000)
 			PRINTFORML 「응, 대충 이정도면 되려나」
 			PRINTFORML 「앞으론 다치지 않게 조심해?」
 		ENDIF
@@ -374,3 +389,12 @@ SIF FLAG:70
 	RETURN 0
 RETURN 1
 
+@건보적용(ARG)
+#FUNCTION
+#DIM DYNAMIC 최종가격
+IF FLAG:건강보험
+	최종가격 = ARG / 10
+ELSE
+	최종가격 = ARG
+ENDIF
+RETURNF 최종가격
