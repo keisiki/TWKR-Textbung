@@ -1,0 +1,143 @@
+﻿;--------------------------------------------------
+;	맵내 이동 처리 확장 패치 부속
+;	달 MAP용 함수
+;--------------------------------------------------
+@MAP_PLACENAME_10(ARG)
+#FUNCTIONS
+
+IF GET_MAPID(ARG) == MAIN_MAP
+	SELECTCASE ARG
+		CASE 1033, 1063
+			IF CFLAG:MASTER:초기위치 == ARG
+				RETURNF "당신 방"
+			ELSE
+				RETURNF "빈 방"
+			ENDIF
+		CASE 1007
+			IF CFLAG:MASTER:초기위치 == ARG
+				RETURNF "당신 집"
+			ELSE
+				RETURNF "빈 집"
+			ENDIF
+		CASE 1 TO (MAXROOM - 1)
+			RETURNF STR:(ARG + 8000)
+		CASE 1098
+			RETURNF OMANEKI_PLACE()
+		CASE 1099
+			RETURNF "스키마 공간"
+		CASE MAXROOM
+			RETURNF "꿈의 저편"
+		CASEELSE
+			RETURNF "불명"
+	ENDSELECT
+ELSE
+	RETURNF "불명"
+ENDIF
+
+@MAP_VIEWING_10(AA)
+#DIMS REF AA, 0
+IF !TFLAG:맵변환
+	SELECTCASE CFLAG:MASTER:현재위치
+		CASE 1020 TO 1049
+			TFLAG:맵변환 = 2
+		CASE 1050 TO 1059
+			TFLAG:맵변환 = 3
+		CASE 1060 TO 1072
+			TFLAG:맵변환 = 4
+		CASEELSE
+			TFLAG:맵변환 = 1
+	ENDSELECT
+ENDIF
+CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
+PRINTFORML 
+TRYCALLFORM MAP_TUKI_{TFLAG:맵변환}(AA)
+
+@MAP_CAN_MOVE_10(ARG, ARG:1)
+#FUNCTION
+SELECTCASE ARG
+	;사구메의 집,원룸의 설정 그 자체
+	CASE 1005, 1006
+		;제외
+		SIF GROUPMATCH(ARG:1, [[요리히메]], [[토요히메]], [[사구메]], [[에이린]])
+			RETURNF 1
+		;안으로부터는 움직일 수 있다
+		SIF INRANGE(CFLAG:(ARG:1):현재위치, 1005, 1006)
+			RETURNF 1
+		;당신
+		IF ARG:1 == MASTER
+			;동행이 연모 상태라면 들어갈 수 있다 (집주인이 수펴 중에도 가능)
+			IF CFLAG:[[사구메]]:동행 || TALENT:[[사구메]]:연모
+				RETURNF 1
+			;집주인이 있어 깨어 있다
+			ELSEIF INRANGE(CFLAG:[[사구메]]:현재위치, 1005, 1006)
+				SIF !CFLAG:[[사구메]]:수면 && !CFLAG:[[사구메]]:동침중 && !TCVAR:[[사구메]]:만취 && !CFLAG:[[사구메]]:쇠약
+					RETURNF 1
+			;집주인 이외의 누군가가 있다. 이 인물은 자고 있어도 된다.
+			ELSEIF IN_ROOM_NUMBER(1005) || IN_ROOM_NUMBER(1006)
+				RETURNF 1
+			ELSE
+				TFLAG:이동불능메시지 = 999
+				RETURNF 0
+			ENDIF
+		;부하
+		ELSEIF GROUPMATCH(ARG:1, [[레이센]], [[세이란]], [[링고]], [[우동게]])
+			;집주인 이외의 누군가가 있다. 이 인물은 자고 있어도 된다.
+			IF IN_ROOM_NUMBER(1005) || IN_ROOM_NUMBER(1006)
+				RETURNF 1
+			ELSE
+				RETURNF 0
+			ENDIF
+		;그 외
+		ELSE
+			RETURNF 0
+		ENDIF
+	;도레미 집은 입구에서 가까운 탓에 사람들이 많이 온다. 그래서 출입을 제한한다.
+	CASE 1050
+		;제외
+		SIF GROUPMATCH(ARG:1, [[도레미]], [[스미레코]], [[사구메]])
+			RETURNF 1
+		;안으로부터는 나올 수 있다
+		SIF INRANGE(CFLAG:(ARG:1):현재위치, 1050, 1059)
+			RETURNF 1
+		;당신은 관계 없음
+		SIF ARG:1 == MASTER
+			RETURNF 1
+		;집주인이 있어 깨어 있다
+		IF INRANGE(CFLAG:[[도레미]]:현재위치, 1050, 1059)
+			SIF !CFLAG:[[도레미]]:수면 && !CFLAG:[[도레미]]:동침중 && !TCVAR:[[도레미]]:만취 && !CFLAG:[[도레미]]:쇠약
+				RETURNF 1
+		ENDIF
+		RETURNF 0
+	;보물창고
+	CASE 1031
+		;제외
+		SIF GROUPMATCH(ARG:1, [[요리히메]], [[토요히메]], [[사구메]], [[에이린]], [[청아]])
+			RETURNF 1
+		;당신
+		IF ARG:1 == MASTER
+			;신뢰도1000이상
+			IF CFLAG:[[요리히메]]:신뢰도 >= 1000 || CFLAG:[[토요히메]]:신뢰도 >= 1000
+				RETURNF 1
+			ELSE
+				TFLAG:이동불능메시지 = 999
+				RETURNF 0
+			ENDIF
+		;그 외
+		ELSE
+			RETURNF 0
+		ENDIF
+ENDSELECT
+RETURNF 1
+
+
+@MAP_CANNOT_WORD_10(ARG)
+SELECTCASE TFLAG:이동불능메시지
+ENDSELECT
+
+@MAP소개_10
+;일단 5줄
+PRINTFORML 괴안통로 ~ 달의 수도, 면월정, 도레미 집, 순호 저택 총 4개의 MAP으로 구성되어 있다.
+PRINTFORML 달의 수도에는 주택가와 상가들이 있다. 수도 교외 ~ 월면은 텃밭 재배나 전투 훈련 등 옥외 작업이 가능.
+PRINTFORML 3개의 주택 MAP은 도레미 집, 순호 저택, 면월정 순으로 대규모가 되고, 청소도 그에 비례해 힘들어진다.
+PRINTFORML 생활에 필요한 설비는 어느 곳이나 갖추어져 있으므로 좋아하는 거점에 살자. 다만 어느 개인실 후보라도 요구 신뢰도는 높여라.
+PRINTFORML 여담이지만 도레미 집의 형태는 바쿠의 머리를 참고하고 있다.
