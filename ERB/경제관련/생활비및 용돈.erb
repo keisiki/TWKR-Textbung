@@ -1,0 +1,128 @@
+﻿@부양의무
+#DIM DYNAMIC 부양의무자
+#DIM DYNAMIC 포커스
+#DIM DYNAMIC 생활비 ; 대상에게 주는 돈
+#DIM DYNAMIC 용돈 ; 마스터가 받는 돈
+CALL 소득수준결정
+IF DAY < 10
+    RETURN
+ENDIF
+FOR LOCAL, 1, CHARANUM
+    IF TALENT:LOCAL:연인||CFLAG:LOCAL:육아인원수
+        부양의무자:LOCAL = 1
+    ENDIF
+    IF FLAG:더부살이캐릭터 == LOCAL
+        부양의무자:LOCAL = 1
+    ENDIF
+    IF CFLAG:LOCAL:저택에거주
+        부양의무자:LOCAL = 1
+    ENDIF
+NEXT
+
+FOR LOCAL, 0, CHARANUM
+    ;부양의무자:LOCAL
+    포커스 = 부양의무자:LOCAL
+    SELECTCASE 소득수준:포커스
+        CASE M_거지
+			생활비 += 50000
+            IF CFLAG:포커스:육아인원수
+                IF TALENT:포커스:섹프&&!TALENT:포커스:연인&&FLAG:더부살이캐릭터 != 포커스&&!CFLAG:LOCAL:저택에거주
+                    생활비 -= 50000
+                ENDIF
+                생활비 += (15000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+            ENDIF
+		CASE M_저소득층
+			생활비 += 40000
+            IF CFLAG:포커스:육아인원수
+                IF TALENT:포커스:섹프&&!TALENT:포커스:연인&&FLAG:더부살이캐릭터 != 포커스&&!CFLAG:LOCAL:저택에거주
+                    생활비 -= 40000
+                    생활비 += (15000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ELSE
+                    생활비 += (14000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ENDIF
+            ENDIF
+		CASE M_차상위
+			생활비 += 30000
+            IF CFLAG:포커스:육아인원수
+                IF TALENT:포커스:섹프&&!TALENT:포커스:연인&&FLAG:더부살이캐릭터 != 포커스&&!CFLAG:LOCAL:저택에거주
+                    생활비 -= 30000
+                    생활비 += (14000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ELSE
+                    생활비 += (13000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ENDIF
+            ENDIF
+		CASE M_중하위
+			생활비 += 25000
+            IF CFLAG:포커스:육아인원수
+                IF TALENT:포커스:섹프&&!TALENT:포커스:연인&&FLAG:더부살이캐릭터 != 포커스&&!CFLAG:LOCAL:저택에거주
+                    생활비 -= 25000
+                    생활비 += (13000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ELSE
+                    생활비 += (12000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ENDIF
+            ENDIF
+		CASE M_일반
+			생활비 += 15000
+            IF CFLAG:포커스:육아인원수
+                IF TALENT:포커스:섹프&&!TALENT:포커스:연인&&FLAG:더부살이캐릭터 != 포커스&&!CFLAG:LOCAL:저택에거주
+                    생활비 -= 15000
+                    생활비 += (12000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ELSE
+                    생활비 += (11000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ENDIF
+            ENDIF
+		CASE M_부유층
+			용돈 += 10000
+            IF CFLAG:포커스:육아인원수
+                IF TALENT:포커스:섹프&&!TALENT:포커스:연인&&FLAG:더부살이캐릭터 != 포커스&&!CFLAG:LOCAL:저택에거주
+                    용돈 -= 10000
+                    생활비 += (11000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ELSE
+                    생활비 += (10000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ENDIF
+            ENDIF
+		CASE M_부자
+			용돈 += 15000
+            IF CFLAG:포커스:육아인원수
+                IF TALENT:포커스:섹프&&!TALENT:포커스:연인&&FLAG:더부살이캐릭터 != 포커스&&!CFLAG:LOCAL:저택에거주
+                    용돈 -= 15000
+                    생활비 += (10000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ELSE
+                    생활비 += (9000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ENDIF
+            ENDIF
+		CASE M_갑부
+			용돈 += 20000
+            IF CFLAG:포커스:육아인원수
+                IF TALENT:포커스:섹프&&!TALENT:포커스:연인&&FLAG:더부살이캐릭터 != 포커스&&!CFLAG:LOCAL:저택에거주
+                    용돈 -= 20000
+                    생활비 += (9000 * CFLAG:포커스:육아인원수)/ (1 + FLAG:생활능력무)
+                ELSE
+                    ;면제
+                ENDIF
+            ENDIF
+		CASEELSE
+			생활비 += 30000
+    ENDSELECT
+NEXT
+IF DAY:2 == 4
+    TIMES 용돈 , 1.5
+    TIMES 생활비 , 1.5
+ENDIF
+
+PRINTFORML 이번 달 치 생활비를 입금했다...
+IF 용돈
+    PRINTFORML 받은 용돈 : {용돈}\
+    MONEY += 용돈
+ENDIF
+IF 생활비
+    PRINTFORML 지불할 생활비 : {생활비}\
+    IF MONEY < 생활비
+        PRINTFORML 그러나 돈이 부족하므로 있는 만큼만 지불합니다
+        MONEY = 0
+    ELSE
+        PRINTFORML
+        MONEY -= 생활비 
+    ENDIF
+ENDIF
+PRINTFORML 
