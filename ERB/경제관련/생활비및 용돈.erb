@@ -7,23 +7,35 @@ CALL 소득수준결정
 IF DAY < 10
     RETURN
 ENDIF
+VARSET 부양의무자, -1
 FOR LOCAL, 1, CHARANUM
     IF TALENT:LOCAL:연인||CFLAG:LOCAL:육아인원수
-        부양의무자:LOCAL = 1
+        부양의무자:(LOCAL:1) = LOCAL
+        LOCAL:1 ++
+        CONTINUE
     ENDIF
     IF FLAG:더부살이캐릭터 == LOCAL
-        부양의무자:LOCAL = 1
+        부양의무자:(LOCAL:1) = LOCAL
+        LOCAL:1 ++
+        CONTINUE
     ENDIF
     IF CFLAG:LOCAL:저택에거주
-        부양의무자:LOCAL = 1
+        부양의무자:(LOCAL:1) = LOCAL
+        LOCAL:1 ++
+        CONTINUE
     ENDIF
     IF CFLAG:LOCAL:감금됨
-        부양의무자:LOCAL = 1
+        부양의무자:(LOCAL:1) = LOCAL
+        LOCAL:1 ++
+        CONTINUE
     ENDIF
 NEXT
 
 FOR LOCAL, 0, CHARANUM
     ;부양의무자:LOCAL
+    IF 부양의무자:LOCAL == -1||부양의무자:LOCAL == 0
+        CONTINUE
+    ENDIF
     포커스 = 부양의무자:LOCAL
     IF !CFLAG:포커스:감금됨
         SELECTCASE 소득수준:포커스
@@ -121,19 +133,28 @@ IF DAY:2 == 4
     TIMES 생활비 , 1.5
 ENDIF
 
-PRINTFORML 이번 달 치 생활비를 입금했다...
-IF 용돈
-    PRINTFORML 받은 용돈 : {용돈}￦
-    MONEY += 용돈
-ENDIF
-IF 생활비
-    PRINTFORML 지불할 생활비 : {생활비}￦
-    IF MONEY < 생활비
-        PRINTFORML 그러나 돈이 부족하므로 있는 만큼만 지불합니다
-        MONEY = 0
-    ELSE
-        PRINTFORML
-        MONEY -= 생활비 
+IF 용돈||생활비
+    PRINTFORML 이번 달 치 생활비를 입금했다...
+    IF 용돈
+        PRINTFORML 받은 용돈 : {용돈}￦
+        MONEY += 용돈
     ENDIF
+    IF 생활비
+        PRINTFORML 지불할 생활비 : {생활비}￦
+        IF MONEY < 생활비
+            PRINTFORML 그러나 돈이 부족하므로 있는 만큼만 지불합니다
+            MONEY = 0
+        ELSE
+            PRINTFORML
+            MONEY -= 생활비 
+        ENDIF
+    ENDIF
+    [IF_DEBUG]
+        FOR LOCAL,0,299
+            IF 부양의무자:LOCAL != -1
+                PRINTFORM [%CALLNAME:(부양의무자:LOCAL)%],
+            ENDIF
+        NEXT
+    [ENDIF]
+    PRINTFORML 
 ENDIF
-PRINTFORML 
