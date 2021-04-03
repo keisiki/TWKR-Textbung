@@ -1,17 +1,31 @@
 ﻿@요리하기
 VARSET 사용된재료
-
+VARSET 요리이름
 VARSET 주재료
 VARSET 주재료요리법
 VARSET 부재료
 VARSET 부재료요리법
 VARSET 양념
 VARSET 첨가물
+VARSET 요리종류
 기본제공품사용료 = 0
 $LOOP
 DRAWLINE
 ;주재료
-PRINTFORML [주재료]
+PRINTFORM [주재료]
+PRINTFORM 　　　　　　　　　
+PRINTBUTTON "[요리명]",101
+PRINTFORM :%요리이름%
+PRINTFORM 　　　　　　　　　
+PRINTBUTTON "[요리종류]",102
+IF 요리종류 == 0
+    PRINTFORM : 주식
+ELSEIF 요리종류 == 1
+    PRINTFORM : 경식
+ELSEIF 요리종류 == 2
+    PRINTFORM : 디저트
+ENDIF
+PRINTL
 PRINTFORML [100] %사용된재료표시(주재료요리법,주재료),20,LEFT%
 DRAWLINE
 PRINTFORM [부재료]
@@ -71,6 +85,14 @@ PRINTFORML [999] 취소
 INPUT
 IF RESULT == 100
     CALL 주재료선택
+ELSEIF RESULT == 101
+    CALL 요리이름결정
+ELSEIF RESULT == 102
+    요리종류++
+    IF 요리종류 >= 3
+        요리종류 = 0
+    ENDIF
+    CLEARLINE 18
 ELSEIF RESULT / 100 == 2
     CALL 서브재료선택(RESULT % 200)
 ELSEIF RESULT / 100 == 3
@@ -84,6 +106,15 @@ ELSEIF RESULT == 999
     RETURN -1
 ENDIF
 GOTO LOOP
+
+@요리이름결정
+PRINT 요리의 이름을 입력해주세요:
+INPUTS
+요리이름 = %RESULTS%
+IF 요리이름 == ""
+    요리이름 = 수수께끼 요리
+ENDIF
+PRINTL
 
 @사용된재료표시(조리법,재료)
 #FUNCTIONS
@@ -570,7 +601,6 @@ NEXT
 ;===============
 ; PHASE 1 - 레시피를 읽어와 일치하는게 있는지 확인, 없다면 그대로 창작요리- 이름 책정
 ;===============
-VARSET 요리이름
 FOR LOCAL,0,1000
     TRYCALLFORM 요리레시피{LOCAL}
     IF RESULT == 1
@@ -581,15 +611,10 @@ FOR LOCAL,0,1000
         BREAK
     ENDIF
 NEXT
-IF 레시피있음 == 0
-    PRINT 요리의 이름을 입력해주세요:
-    INPUTS 
-    요리이름 = %RESULTS%
-    IF 요리이름 == ""
-        요리이름 = 수수께끼 요리
-    ENDIF
-    PRINTL
+IF 요리이름 == ""
+    요리이름 = 수수께끼 요리
 ENDIF
+
 ;===============
 ; PHASE 2 - 영양정보 확인
 ;===============
@@ -610,12 +635,7 @@ NEXT
 ;===============
 IF 레시피있음 == 0
     $맛책정
-    PRINTFORML 이 요리는...
-    PRINTFORML [0] 주식
-    PRINTFORML [1] 경식
-    PRINTFORML [2] 디저트
-    INPUT
-    SELECTCASE RESULT
+    SELECTCASE 요리종류
         CASE 0
             DISHTASTE += "주식/"
         CASE 1
