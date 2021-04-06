@@ -1,0 +1,130 @@
+﻿
+@TSC_6
+MONEY -= MIN(100000,MONEY/5)
+SELECTCASE TARGET
+	CASE [[아큐]]
+		PRINTFORML 아큐로 부터 심도 있는 교습을 들었다...
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORML 역사에 대해 더 잘 알게 되었다
+				CALL AddEXP("학습경험" , MASTER, 3)
+			CASE 1
+				PRINTFORML 예법에 대해 잘 알게 되었다
+				CALL AddEXP("화술경험" , MASTER, 3)
+			CASE 2
+				PRINTFORML 환상향 요괴 상식에 대해 알게 되었다
+				CALL AddEXP("학습경험" , MASTER, 3)
+		ENDSELECT
+	CASE [[케이네]]
+		PRINTFORML 한층 더 열정적인 수업을 들을 수 있었다...
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORML 환상향의 역사에 대해 잘 알게 되었다
+				CALL AddEXP("학습경험" , MASTER, 3)
+			CASE 1
+				PRINTFORML 산수에 능해진 기분이다
+				CALL AddEXP("학습경험" , MASTER, 3)
+			CASE 2
+				PRINTFORML 마을 내의 경제등등을 배웠다
+				CALL AddEXP("학습경험" , MASTER, 3)
+			CASE 3
+				PRINTFORML 즐거운 체육 수업이었다...
+				CALL AddEXP("전투경험" , MASTER, 3)
+			CASE 4
+				PRINTFORML 기초적인 호신술을 가르쳐졌다
+				CALL AddEXP("전투경험" , MASTER, 3)
+		ENDSELECT
+	CASEELSE
+		PRINTFORML %타겟의% 열정적인 수업에 지식이 늘었다...
+		SELECTCASE RAND:2
+			CASE 0
+				CALL AddEXP("학습경험" , MASTER, 3)
+			CASE 1
+				CALL AddEXP("전투경험" , MASTER, 3)
+		ENDSELECT
+ENDSELECT
+TIME += 90
+DOWNBASE:MASTER:체력 = 300
+DOWNBASE:MASTER:기력 = 600
+DOWNBASE:TARGET:체력 = 300
+DOWNBASE:TARGET:기력 = 600
+EXP:MASTER:학습경험 += 5
+SIF ITEM:103 && !RAND:2
+	EXP:MASTER:학습경험 += 5
+SOURCE:환락 = 200
+TFLAG:무드상승억제 = 1
+;신뢰
+TFLAG:98 = 3
+SIF ABL:MASTER:교양 > 2
+	TFLAG:98 ++ 
+IF ABL:MASTER:교양 > ABL:교양
+	TFLAG:98 ++ 
+	EXP:학습경험 += 2
+ENDIF
+SIF ABL:MASTER:교양 < ABL:교양 - 2
+	EXP:MASTER:학습경험 += 5
+;ABL:순종을 본다
+IF ABL:순종 <= 1
+	SOURCE:환락 += (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 3
+	SOURCE:환락 += 200 + (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 5
+	SOURCE:환락 += 500 + (ABL:순종 * 60)
+ELSEIF ABL:순종 <= 8
+	SOURCE:환락 += 750 + (ABL:순종 * 75)
+ELSEIF ABL:순종 <= 11
+	SOURCE:환락 += 1000 + (ABL:순종 * 75)
+ELSE
+	SOURCE:환락 += 2000 + (ABL:순종 * 30)
+ENDIF
+
+;호감 도를 본다
+IF CFLAG:2 <= 500
+	SOURCE:환락 += CFLAG:2
+ELSEIF CFLAG:2 <= 5000
+	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+ELSE
+	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+ENDIF
+SIF SOURCE:환락 < 0
+	SOURCE:환락 = 0
+EXP:학습경험 += 3
+SIF CFLAG:동행
+	CFLAG:동행 += 90
+IF FLAG:훈련강화
+	CALL AddEXP("학습경험" , MASTER, 3)
+ENDIF
+RETURN 1
+
+@TSC_NAME6
+#DIMS DYNAMIC 커맨드이름
+SELECTCASE TARGET
+	CASE [[아큐]]
+		커맨드이름 = 아큐의 특별 교습
+	CASE [[케이네]]
+		커맨드이름 = 서당 특별 과외
+	CASEELSE
+		커맨드이름 = 특별 과외
+ENDSELECT
+
+RESULTS = %커맨드이름%
+
+@TSC_ABLE6
+IF MONEY < 50000
+	RETURN 0
+ENDIF
+IF !GROUPMATCH(CFLAG:MASTER:현재위치,CFLAG:[[아큐]]:현재위치,CFLAG:[[케이네]]:현재위치,CFLAG:[[유메미]]:현재위치)
+    RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 2
+
+
+
