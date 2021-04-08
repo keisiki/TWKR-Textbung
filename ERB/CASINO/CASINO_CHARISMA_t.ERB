@@ -11,24 +11,27 @@
 #DIM Y_RATE
 #DIM Y_MAX
 #DIM Y_PRICE
+#DIM 수수료계수
 C_RATE = CHARISMA_NOW()
 ;Y_RATE는 C_RATE의 것1/100이지만 정밀도의 관계로 사용하지 않는다
 ;Y_RATE = FUNC_CASINO("TRADE") / 100
 ;C구입 거래에 사용하는 카리스마 입력의 상한
 C_MAX = MIN(CM_LIMIT - MONEY:2, MONEY / C_RATE)
-
+수수료계수 = 카리스마수수료()
 PRINTFORML 메이드 요정
 PRINTFORML 　어서 오십시오
-PRINTFORML 　이쪽에서는 ￥과 카리스마의 교환을 받고 있습니다
+PRINTFORML 　이쪽에서는 ￦과 카리스마의 교환을 받고 있습니다
 IF C_RATE < 100
 	PRINTFORML 　죄송합니다
 	PRINTFORML 　지금, 카리스마의 구입을 이용하실 수 없습니다.
 ENDIF
-PRINTFORML 당신의 보유￥　　　　　　{MONEY}
+PRINTFORML 당신의 보유￦　　　　　　{MONEY}
 PRINTFORML 당신의 보유 카리스마　　　{MONEY:2} / {CM_LIMIT}
-PRINTFORMW 현재의 ￥/카리스마 환율 　\\{C_RATE}
+PRINTFORML 카지노 현금 보유고 　\\{FLAG:홍마관자산*10000 + FLAG:홍마관자산2}
+PRINTFORML 현재의 ￦/카리스마 공시가 　\\{C_RATE}
+PRINTFORML 현재의 카리스마 환전 수수료    {수수료계수}％
 DRAWLINE
-CALL ASK_M(@"카리스마 구입", C_RATE > 100 && C_MAX > 0, @"카리스마 매각", FLAG:회원랭크,"대출",1,"그만둔다", 1)
+CALL ASK_M(@"카리스마 구입", C_RATE > 105 && C_MAX > 0, @"카리스마 매각", 1,"대출",1,"그만둔다", 1)
 SELECTCASE RESULT
 	CASE 0
 		IF CM_LIMIT <= MONEY:2
@@ -49,6 +52,12 @@ SELECTCASE RESULT
 		IF INRANGE(RESULT, 1, C_MAX)
 			C_PRICE = RESULT
 			Y_PRICE = C_PRICE * C_RATE
+			FLAG:홍마관자산2 += Y_PRICE
+			IF FLAG:홍마관자산2 / 10000 > 0
+				LOCAL = FLAG:홍마관자산2 / 10000
+				FLAG:홍마관자산 += LOCAL
+				FLAG:홍마관자산2 -= LOCAL * 10000
+			ENDIF
 			CALL CASINO_MONEY("￥", -Y_PRICE)
 			CALL CASINO_MONEY("카리스마", C_PRICE)
 			PRINTFORML 메이드 요정
@@ -421,7 +430,8 @@ RETURNF CHARISMA_RATE:NOW_PERIOD()
 #DIM 수수료
 #DIM 정산액
 #DIM 환율
-
+#DIM DYNAMIC 공제
+#DIM DYNAMIC 공제2
 환율 = CHARISMA_NOW()
 
 IF FLAG:신문구독
@@ -435,7 +445,7 @@ IF FLAG:신문구독
 	NEXT
 ENDIF
 PRINTFORML 매각하는 카리스마량을 입력해 주세요
-PRINTFORML 수수료는 {CM_COMMISSION}\%입니다
+PRINTFORML 수수료는 {카리스마수수료()}\%입니다
 PRINTFORML [{MONEY:2}] - 모두 매각
 PRINTFORML [0] - 그만둔다
 INPUT
@@ -447,12 +457,14 @@ ELSEIF !RESULT
 ENDIF
 매각카리스마 = RESULT
 매각액 = 매각카리스마 * 환율
-수수료 = 매각액 * CM_COMMISSION / 100
+수수료 = 매각액 * 카리스마수수료() / 100
 
 정산액 = 매각액 - 수수료
-PRINTFORML 매각 환율：￥{CHARISMA_NOW()} × 매각액：{매각카리스마} = ￥{매각액}
-PRINTFORML 수수료：￥{수수료}
-PRINTFORML 정산액　￥{정산액}
+공제 = 정산액 / 10000
+공제2 = 정산액 - 공제
+PRINTFORML 매각 환율：￦{CHARISMA_NOW()} × 매각액：{매각카리스마} = ￦{매각액}
+PRINTFORML 수수료：￦{수수료}
+PRINTFORML 정산액　￦{정산액}
 
 PRINTFORML 괜찮겠습니까?
 CALL ASK_YN
@@ -461,6 +473,12 @@ SIF RESULT
 
 MONEY += 정산액
 MONEY:2 -= 매각카리스마
+FLAG:홍마관자산 -= 공제
+IF 공제2
+	FLAG:홍마관자산 --
+	FLAG:홍마관자산2 = 10000
+	FLAG:홍마관자산2 -= 공제2
+ENDIF
 
 @SHOW_CHARISMA_GUARD
 IF FLAG:신문구독
@@ -496,3 +514,98 @@ ENDIF
 PRINTFORML 붕붕마루 신문의 일면에 레밀리아의 하단 가드 모습이 게재되었습니다!
 PRINTFORML 그 영향으로 카리스마가 대폭락하고 있습니다!
 RESETCOLOR
+
+
+@카리스마수수료
+#FUNCTION
+#DIM CONST 적정수위 = 50000
+#DIM DYNAMIC 수수료
+
+
+수수료 = CM_COMMISSION
+IF FLAG:홍마관자산 >= 적정수위
+	SELECTCASE FLAG:홍마관자산 - 적정수위
+		CASE IS > 50000 ; 10억 이상
+			수수료 -= 14
+		CASE IS > 30000 ; 8억 이상
+			수수료 -= 13
+		CASE IS > 25000 ; 7.5억이상
+			수수료 -= 12
+		CASE IS > 20000 ; 7억 이상
+			수수료 -= 11
+		CASE IS > 15000 ; 6.5억
+			수수료 -= 10
+		CASE IS > 10000 ; 6억
+			수수료 -= 9
+		CASE IS > 8000
+			수수료 -= 8
+		CASE IS > 6000
+			수수료 -= 7
+		CASE IS > 4000
+			수수료 -= 6
+		CASE IS > 3000
+			수수료 -= 5
+		CASE IS > 2500
+			수수료 -= 4
+		CASE IS > 2000
+			수수료 -= 3
+		CASE IS > 1500
+			수수료 -= 2
+		CASE IS > 1000
+			수수료 -= 1
+	ENDSELECT
+ELSE
+	SELECTCASE 적정수위 - FLAG:홍마관자산
+		CASE IS > 50000 ;0.0억
+			수수료 += 46
+		CASE IS > 48000 ;0.2억 96% 손실
+			수수료 += 42
+		CASE IS > 46000 ;0.4억
+			수수료 += 38
+		CASE IS > 44000 ;0.6억
+			수수료 += 34
+		CASE IS > 42000 ;0.8억
+			수수료 += 30
+		CASE IS > 40000 ;1.0억 80% 손실
+			수수료 += 27
+		CASE IS > 37000 ;1.3억
+			수수료 += 24
+		CASE IS > 34000 ;1.6억
+			수수료 += 21
+		CASE IS > 31000 ;1.9억
+			수수료 += 19
+		CASE IS > 28000 ;2.2억
+			수수료 += 17
+		CASE IS > 25000 ;2.5억 50% 손실
+			수수료 += 15
+		CASE IS > 21000 ;2.9억
+			수수료 += 13
+		CASE IS > 17000 ;3.3억
+			수수료 += 11
+		CASE IS > 13000 ;3.7억
+			수수료 += 9
+		CASE IS > 9000 ;4.1억
+			수수료 += 7
+		CASE IS > 5000 ;4.5억 10% 손실
+			수수료 += 5
+		CASE IS > 1000 ;4.9억
+			수수료 += 3
+	ENDSELECT
+ENDIF
+RETURNF 수수료
+
+
+@카지노소유금자동변동
+#DIM DYNAMIC 변동치
+
+변동치 = RAND:2000 - 1000
+
+IF FLAG:홍마관자산 <= 0
+	변동치 += FLAG:홍마관자산 * -1
+ENDIF
+IF FLAG:홍마관자산 + 변동치 <= 0
+	변동치 += 100 + RAND:150
+	변동치 *= -1
+ENDIF
+
+FLAG:홍마관자산 += 변동치
