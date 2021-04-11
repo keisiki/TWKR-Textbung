@@ -1,4 +1,5 @@
 ﻿@조교전서비스
+#DIM DYNAMIC 대상
 $LOOP
 VARSET LOCAL
 DRAWLINE
@@ -8,7 +9,8 @@ PRINTFORML [000] 체력 업(5p)
 PRINTFORML [001] 기력 업(5p)
 PRINTFORML [002] 메로메로(5p)
 PRINTFORML [003] 권능:지배(5p)
-PRINTFORML [004] 스탯 초기화(10p)
+PRINTFORML [004] 권능:애정(20p)
+PRINTFORML [005] 스탯 초기화(10p)
 PRINTFORML [999] 돌아간다
 INPUT
 DRAWLINE
@@ -50,8 +52,8 @@ ELSEIF RESULT == 2
             GOTO LOOP
         ELSE
             IF INRANGE(RESULT,1,CHARANUM)
-                CFLAG:RESULT:호감도 += 500
-                PRINTFORML %CALLNAME:RESULT%의 호감도가 500 상승했습니다
+                CFLAG:RESULT:호감도 += 300
+                PRINTFORML %CALLNAME:RESULT%의 호감도가 300 상승했습니다
             ELSE
                 GOTO LOOP
             ENDIF
@@ -93,6 +95,63 @@ ELSEIF RESULT == 3
         조교포인트 -= 5
     ENDIF
 ELSEIF RESULT == 4
+    IF 조교포인트 < 20
+        PRINTFORML 조교포인트가 부족합니다
+    ELSE
+        PRINTL 누구를?
+        DRAWLINE
+        FOR LOCAL,1,CHARANUM
+            PRINTFORMLC [{LOCAL,3}] %CALLNAME:LOCAL,10% 호:{CFLAG:LOCAL:호감도} / 신:{CFLAG:LOCAL:신뢰도}
+            LOCAL:1++
+            IF LOCAL:1 == 3
+                PRINTL
+            ENDIF
+        NEXT
+        PRINTL
+        PRINTL [999] 돌아간다
+        INPUT
+        IF RESULT == 999
+            GOTO LOOP
+        ELSE
+            
+            IF INRANGE(RESULT,1,CHARANUM)
+                대상 = RESULT
+                IF TALENT:대상:사모 == 0&&TALENT:대상:섹프 == 0&&TALENT:대상:애욕 == 0
+                    PRINTFORML %CALLNAME:대상%의 당신을 향한 연정이 상승했습니다
+                    TALENT:대상:사모 = 1
+                    PRINTFORML [사모]를 취득했습니다
+                ELSEIF TALENT:대상:연모 == 0&&TALENT:대상:섹프 == 0&&TALENT:대상:애욕 == 0
+                    PRINTFORML %CALLNAME:대상%의 당신을 향한 연정이 상승했습니다
+                    TALENT:대상:연모 = 1
+                    PRINTFORML [연모]를 취득했습니다
+                ELSEIF TALENT:대상:섹프
+                    PRINTFORML %CALLNAME:대상%의 당신을 향한 연정이 상승했습니다
+                    TALENT:대상:사모 = 1
+                    PRINTFORML [사모]를 취득했습니다
+                ELSEIF TALENT:대상:애욕
+                    PRINTFORML %CALLNAME:대상%에 대한 과도한 에너지 주입 때문에, 부작용이 발생했습니다...
+                    TALENT:대상:애욕 = 0
+                    TALENT:대상:섹프 = 0
+                    TALENT:대상:연모 = 1
+                    PRINTFORML [애욕],[섹프]를 잃고 [연모]를 취득했습니다
+                    MARK:대상:반발각인 = 3
+                    MARK:대상:반발취득이력 = 3
+                    MARK:대상:쾌락각인 = 0
+                ENDIF
+                PRINTFORML 그러나 억지로 정신을 개조한 부작용으로, 부정적인 효과가 발동합니다...
+                TALENT:대상:붕괴 = 1
+                TALENT:대상:감금된날 = 10
+                TALENT:대상:불임 = 1
+                CALL 주도도상승(대상,25)
+                CFLAG:대상:호감도 -= 500
+                CFLAG:대상:신뢰도 -= 500
+            ELSE
+                GOTO LOOP
+            ENDIF
+        ENDIF
+        조교포인트 -= 20
+    ENDIF
+ELSEIF RESULT == 5
     IF 조교포인트 < 10
         PRINTFORML 조교포인트가 부족합니다
     ELSE
