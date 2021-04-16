@@ -1,0 +1,1290 @@
+﻿;===========================================================
+; era 명련사OverDrive!!Ver1.0+수정 패치 Ver1용
+; 안녕- 쿄코쨩 대사 Version 0.1.0
+;-------------------------------------------------
+; Copyright
+;  본말의 수정에 대해
+;   【오자·탈자 수정】【분기 조건·erb 구문에 관한 수정】【본체 Ver·Rev 변경 대응】【플래그의 관리·수정】
+;  
+;  본말의 가필·개변에 대해
+;   【미기입 부위 가필】【랜덤 분기 가필】【기입필 부위 가필】【기입필 부위 삭제】【기입필 부위 코멘트 아웃】
+;  
+;  본말에 대한 정비 금지 시한에 대해
+;   【미설정】
+;  
+;  본말에 대한 그외단서
+;   1.  Copyright와 양식에 따르고 있는 한, 수정이나 가필, 개변, 신규의 말에 파생시키는 행위에 대해,
+;      AT92G4(이하 필자로 한다)에 일절의 이치를 넣을 필요는 없다.
+;   2.  모든 수정, 가필, 개변에 대해, 필자가 개변자의 핸들을 병기 한 다음,
+;      취사 선택이나 개변을 더해 수중에 넣어 가는 일을 허가하고 있는 것으로 간주한다.
+;   
+; PS 인의 사람
+; 오리지날 작자와 연락이 되지 않는 경우, 상기 Copyright에 따라 가필 개변을 실시해 주세요
+; 또 본체 처리·타말처리등에 간섭하는 이상 처리가 있는 경우로 오리지날 작자에 의한 수정이
+; 행해지지 않는·혹은 곤란한 경우, Copyright에 상관없이 한 마음에 의한 수정을 허가합니다
+; 그 때는 원처리를 삭제하지 않고 코멘트 아웃 해 수정 처리를 삽입해 주세요
+;
+;-------------------------------------------------
+; 갱신 이력
+;  11/11/10: 버전 0.1. 0릴리스
+;  
+;-------------------------------------------------
+; 기초 정보 메모
+;  이름:카소다니 쿄코, 통칭:쿄코
+;  체력:1700, 기력:1500, 법력:1800, 일량:2100
+;  능력
+;   순종 1, 봉사정신 5, 청소기능 5, 화술기능 1, 전투능력 1, 요리기능 3
+;  경험
+;   청소경험 20, 회화경험 10, 요리경험 10
+;  소질
+;   [처녀](여성)[키스미경험]
+;   [솔직함][눈에띄고싶어함][수치심 없음][고통에 강하다]
+;   [습득 빠름][자위하기쉬움]
+;   [작은 체형][A둔감][B민감][동물귀]
+;  궁합
+;   별(200), 뱌쿠렌(150)
+;  플래그
+;   복장     CFLAG:7   = 108
+;   지위     CFLAG:310 = 170(나즈린>쿄코>코가사)
+;   개시 위치 CFLAG:311 = 99(평일은 초기위치[1]산문, 정주시켰을 경우는 초기위치[20]쿄코의 방(원 창고))
+;   직장     CFLAG:326 = [1]산문
+;   미각기호 CFLAG:322 = 0b01010010(기호:담백한 맛, 내성:단맛, 신맛)
+;  
+;-------------------------------------------------
+; 함수 메모 void=의미가 있는 반환값이 없는, int=정수를 돌려주는, str=캐릭터라인을 돌려준다
+;  식중함수
+;   int  K88_KYOKO_GET_VARSION()
+;   str  K88_KYOKO_HEART()
+;   int  K88_KYOKO_TRYENDURE(ARG = -1)
+;   int  K88_KYOKO_DIFF_BODYSIZE(ARG = -1, ARG:1 = -1)
+;   int  K88_KYOKO_RELATION(ARG)
+;   str  K88_KYOKO_CALLNAME(ARG = -1)
+;  함수
+;   void K88_KYOKO_UPDATE
+;   void K88_KYOKO_INPUT_CALLNAME
+;  
+;-------------------------------------------------
+; 변수 메모
+;  MASTERNAME:88 통칭(임의로 CSTR:20으로 동기 할 때는 CALLF K88_KYOKO_CALLNAME(MASTER))
+;  CFLAG 1100~1999
+;   1100 = 말버전
+;   1101 = 잡다한 플래그(0b1 = 통칭, )
+;  CSTR 20~30(말전용 영역이 명기되어 있지 않기 때문에, 본체 버전 업으로 호환성 상실의 염려있어)
+;   20 = 기억한 통칭
+;  TCVAR 350~399
+;   350 = 시간대 마다의 인사 플래그(0b1 = 아침, 0b10 = 낮, 0b100 = 밤)
+;   351 = 만난 회수
+;   352 = 요점 보충 항목(0b1 = 연인 한편 무시했다, 0b10 = 화나게 한, 0b100 = 기호가 아닌 요리 먹은, 
+;                        0b1000 = 타인과 네쵸비치는 것 본, 이후 미정)
+;   353 = 통칭 바꾼 플래그
+;   354 = 그 날 밀어 넘어뜨려진 회수
+;  
+;-------------------------------------------------
+; 말내용 메모
+;  기입중
+;   방에서 만남, 회화, 스킨십, 머리를 어루만지는, 키스한다
+;  기입필(잠정 포함한다)
+;   에크, 청소, 전투훈련, 공부, 요리, 이동시 스치듯 지나쳐, 식사계, 식사를 배달시키는, 식사를 대접하는, 일을 돕는, 차를넣는, 
+;   데이트 돌아오는 길 키스, 업무 중, 목욕탕에서 만남, 덮치기, 침상에 잠입해, 동침 하는, 안녕, 휴업(휴가), MASTER가 덮치기, 
+;   
+;  상황
+;   분기 뒷전으로 묻고 우선
+;  
+;===========================================================
+
+;-------------------------------------------------
+; 말존재 판정
+;-------------------------------------------------
+@M_KOJO_K88(ARG)
+;RESULTS = _ONKYO_
+RETURN 1
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"UPDATE 판정"
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+@M_KOJO_UPDATE_K88
+;말 독자적인 UPDATE용
+;ENCOUNTER 전용에 독자 분기 플래그를 가르쳤을 경우등에 부디
+;UPDATE 판정으로 CFLAG를 사용하는 경우, 캐릭터 번호의 지정이 필요하게 됩니다
+IF FIRSTTIME("U88-1", 0,88) && CFLAG:88:안면
+	PRINTFORML 통칭이 바뀌고 말았을 때의 구제 조치입니다
+	PRINTFORML 통칭이 바뀌지 않은 분이라면 번거롭게 만듭니다. 죄송합니다
+	MASTERNAME:88 = 
+	CALL K88_KYOKO_INPUT_CALLNAME
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+; "ENCOUNTER"계 이벤트(엑스트라 구문)
+;  초대면, 인사의 타이밍
+;  TALENT의 변경은 여기서 부디.
+;-------------------------------------------------
+@M_KOJO_ENCOUNTER_K88
+SELECTCASE TIME:2
+	CASE 1,2
+		PRINTFORMW 「안녕하세요―!」
+	CASE 3,4
+		PRINTFORMW 「안녕하세요―！」
+	CASEELSE
+		; 오자가 아니야 일부러야 우사이지만
+		PRINTFORMW 「안녕하세요!!1!」
+ENDSELECT
+PRINTFORML 귀를 막고 싶어질 만큼 큰소리와 함께
+PRINTFORMW 흙먼지를 피울 것만 같은 기세로 큰 빗자루를 든 처진 귀의 소녀가 이쪽으로 달려온다
+PRINTFORMW 「당신이 %K88_KYOKO_CALLNAME(55)%가 말하던 새  입문자구나. 이름을 가르쳐줄 수 있을까?」
+SIF FIRSTTIME("U88-1")
+	PRINTL  
+CALL K88_KYOKO_INPUT_CALLNAME
+PRINTFORMW 「%MASTERNAME:88%구나. 기억했어!」
+PRINTFORML 인사를 마치고 서로 질문을 주고받는다
+PRINTFORMW 거센 탄막 같은 질문으로 보아 무턱대고 방방 뛰는 소녀 같다
+SETBIT TCVAR:350, (TIME:2 - 1)
+CFLAG:1100 = K88_KYOKO_GET_VARSION()
+RETURN 1
+
+;===========================================================
+; "SP_EVENT"계 이벤트
+;===========================================================
+; 데이트 오는 길에 First KISS(합의도 붙는다)
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_SPEVENT_K88_1(ARG, ARG:1)
+;지문 표시
+;CALL SPEVENT_MESSAGE_1(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	PRINTFORMW 조금만 더 가면 명련사 문이 나올 지점에서 앞서 가던 쿄코가 갑자기 멈춰 섰다
+	PRINTFORML 왜 그러냐고 물었지만 대꾸가 없기에 %마스터가% 의아해서 다가가니
+	PRINTFORMW 깜짝 놀랄 새도 없이 쿄코는 \@ K88_KYOKO_DIFF_BODYSIZE(TARGET, MASTER) >= 0 ? 발돋움해 # 허리를 굽혀 \@ %CALLNAME:MASTER%에게 키스했다
+	PRINTFORMW ……당연히 생각할 겨를도 없이 입술이 빼앗겨서 놀란 나머지 시간의 감각마저 잃고 말았다
+	PRINTFORML 얼떨떨해진 %CALLNAME:MASTER%에게 쿄코는 왜 그래? 하고 방금 건넨 말을 따라하고,
+	PRINTFORMW 얼굴이 빨갛게 물들었다 싶더니 이번엔 꺄― 꺄― 외쳐대며 명련사로 날아가버렸다
+	PRINTW 
+	PRINTFORML %마스터는% 침착함을 되찾은 뒤 새빨개져서 명련사로 도망쳐 들어간 쿄코를 서둘러 쫓아갔다
+	PRINTFORMW ……좀 더 무드가 있었으면 좋았을걸 하는 생각과 함께
+ENDIF
+RETURN 1
+
+;==================================================
+;데이트 오는 길에 고백(연인이 붙는다)
+;---------------------------------------
+; 말 주인은 TARGET
+;==================================================
+@M_KOJO_SPEVENT_K88_2(ARG, ARG:1)
+;지문 표시
+CALL SPEVENT_MESSAGE_2(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	; 고백 내용
+	; 이 고백 내용 표시 후에 받을지 어떨지의 선택분이 표시됩니다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 0
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	; 고백 성공
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	; 고백 실패
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+
+ENDIF
+RETURN 1
+
+;===========================================================
+; "EVENT"계 이벤트
+;===========================================================
+; 방에서 만남
+;=================================================
+@M_KOJO_EVENT_K88_1(ARG, ARG:1)
+;말 주인은 TARGET
+LOCAL = 1
+IF LOCAL
+	; 호환 처리 호출
+	SIF !TCVAR:351
+		CALL K88_KYOKO_UPDATE
+	; 나눠쓰기가 힘들어서 어느 쪽이 들어온 경우에도 뭉쳐둠
+	; 내부에서는 ARG로 분기할 가능성도 있다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG
+		; 업무중(아직 가득)
+		IF CFLAG:행동 == 5 && BASE:일량 > MAXBASE:일량 / 2
+			PRINTFORML 쿄코는 리듬을 타며 불경을 외우면서 청소 중이다
+			PRINTFORMW 일이 끝나려면 좀 더 시간이 필요한 것처럼 보인다
+			TCVAR:351++
+		; 업무중(이제 곧 끝난다)
+		ELSEIF CFLAG:행동 == 5 && BASE:일량 > 0
+			PRINTFORML 쿄코는 콧노래를 부르면서 청소  중이다
+			PRINTFORMW 일은 조금 더 하면 끝날 것 같다
+			TCVAR:351++
+		; 그 이외
+		ELSE
+			;아직 아침 인사하지 않았음
+			IF TIME:2 <= 2 && TCVAR:오늘만났는지 == 1
+				IF TALENT:연모 && RAND:2
+					PRINTFORML 「안녕하세요―
+					PRINTFORMW  안녕하세요―!」
+					PRINTFORML 기운찬 인사와 함께 강아지가 재롱 부리는 것처럼 쿄코가 달려들었다
+					PRINTFORMW 안녕 멍멍이라고 이름이나 붙여 볼까? 마음속으로
+					TCVAR:오늘만났는지 = 2
+				ELSE
+					PRINTFORML 「안녕하세요―!」
+					PRINTFORML 오오, 안녕 안녕
+					PRINTFORMW 오늘도 아침부터 기운이 팔팔한 모양이다
+					TCVAR:오늘만났는지 = 2
+				ENDIF
+			; 아직 낮 인사 안 했음
+			ELSEIF TIME:2 > 2 && TIME:2 <= 4 && TCVAR:오늘만났는지 <= 2
+				IF TALENT:연모 && RAND:2
+					PRINTFORMW 「안녕합쇼―!」
+					PRINTFORML ……그 인사는 좀 아니다 싶어서 충고했더니
+					PRINTFORMW 참배하러 왔던 마을 사람이 그렇게 말하길래 흉내를 낸 거라고 한다
+					PRINTFORMW 네 이놈 순진한 애한테 뭔 인삿말을 불어넣은 거야
+					IF TCVAR:오늘만났는지 == 2
+						TCVAR:오늘만났는지 = 4
+					ELSE
+						TCVAR:오늘만났는지 = 3
+					ENDIF
+				ELSE
+					PRINTFORML 「안녕하세요!!」
+					PRINTFORMW 오늘도 절에 모두의 웃음을 부르는 듯한 인사가 울린다
+					IF TCVAR:오늘만났는지 == 2
+						TCVAR:오늘만났는지 = 4
+					ELSE
+						TCVAR:오늘만났는지 = 3
+					ENDIF
+				ENDIF
+			; 아직 밤 인사 안 했음
+			ELSEIF TIME:2 > 4 && TCVAR:오늘만났는지 <= 4
+				IF TALENT:연모 && RAND:2
+					PRINTFORML 「안녕하세요!」
+					SIF TCVAR:오늘만났는지 == 4
+						PRINTFORML 「오늘은 아침 인사부터 저녁 인사까지 컴플리트했네!」
+					PRINTFORMW 생글생글 웃는 쿄코의 모습에 그만 넋 잃으며 바라보고 말았다.
+					TCVAR:오늘만났는지 = 5
+				ELSE
+					PRINTFORML 「안녕하세아우우―!」
+					PRINTFORML 인사 도중에 들린 울음소리를 의리 있게 반사해주는 건 좋은데
+					PRINTFORML 메아리와 인사는 안 섞는 편이 낫다고 본다
+					PRINTFORMW 물론 메아리 요괴의 정체성을 빼앗을 수는 없으니 말로 할 수는 없다
+					TCVAR:오늘만났는지 = 5
+				ENDIF
+			; 이미 인사가 끝난 상태
+			ELSE
+				IF TCVAR:351 > 8
+					PRINTFORML 「왠지 오늘은 자주 보네」
+					IF ARG == 2
+						PRINTFORML 쿄코는 갸우뚱거리고 있지만, 그 원인은 쿄코가 돌아다니고 있기 때문이 않을까?
+					ELSE
+						PRINTFORML (혹시 따라다닌 걸까?)
+						PRINTFORML 왠지 쿄코는 \@ TALENT:연모 ? 기쁜 듯한 # 복잡한\@ 표정을 짓고 있다
+					ENDIF
+				ELSEIF TCVAR:351 > 4
+					; <공사중> 뭔가 떠오르면 나중에 다시 쓸게
+					PRINTFORML ＼Google!/
+				ELSEIF TCVAR:351 > 2
+					; <공사중> 뭔가 떠오르면 나중에 다시 쓸게
+					PRINTFORML ＼Excite!/
+				ELSE
+					; <공사중> 뭔가 떠오르면 나중에 다시 쓸게
+					PRINTFORML ＼YAHOO!/
+				ENDIF
+			ENDIF
+			TCVAR:351++
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 아침에 일어 났을 때(안녕 말)
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_2(ARG, ARG:1)
+;--------------------------------------------------
+;기입 체크(=0, 비표시, 1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	; 호환 처리 호출
+	SIF !TCVAR:351
+		CALL K88_KYOKO_UPDATE
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;비동거(同棲) 한편 상대가 먼저 일어나고 있다
+;기입 체크(=0, 비표시, 1, 표시)
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		;-------------------------------------------------
+		;TARGET 방에 MASTER가 들어가 있다(연모시 동침중취침시만?
+		;기입 체크(=0, 비표시, 1, 표시)
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;MASTER 방에 TARGET가 들어 오고 있다(연모 없음에서도 들어 올 가능성 있어
+		;기입 체크(=0, 비표시, 1, 표시)
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;동거(同棲) 한편 상대가 일어나고 있다
+	;기입 체크(=0, 비표시, 1, 표시)
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;동거(同棲) 한편 상대가 자고 있다
+	;기입 체크(=0, 비표시, 1, 표시)
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;MASTER가 일어나고 있어, 상대가 일어났다
+	;동침 때 TARGET 기상은 이쪽(TARGET 쇠약 or 동침중TARGET 피곤함 패배 후 그대로 MASTER가 계속 일어난 다음 상대가 기상했을 경우 한정
+	;기입 체크(=0, 비표시, 1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		;-------------------------------------------------
+		;비동거(同棲)
+		;기입 체크(=0, 비표시, 1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			PRINTFORML 「하움……, 안녕하세여―……」
+			PRINTFORML 쿄코는 졸린 듯이 작은 하품을 손으로 가리며 인사했다
+			PRINTFORMW 잠이 덜 깬 것일까? %마스터를% 잘 인식하지 못한 눈치다
+			SETBIT TCVAR:350, (TIME:2 - 1)
+			TCVAR:351++
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;동거(同棲) 안
+		;기입 체크(=0, 비표시, 1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORML 「하움……, 안녕하세여―……」
+			PRINTFORML 아직 졸린 듯이 작게 하품하면서 인사하는 쿄코의 머리를 벅벅 쓰다듬어주었다
+			PRINTFORML 「꺄악, 뭐하는 거예요!」
+			PRINTFORMW 부루퉁한 표정과 맞바꿔서 쿄코는 눈을 또렷하게 뜬 모양이다
+			SETBIT TCVAR:350, (TIME:2 - 1)
+			TCVAR:351++
+			RETURN 1
+		ENDIF
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 밤에 잘 때(휴업(휴가) 말)
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_3(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;자기 방에 돌아간다(정시가 되어 잔다)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「안녕히 주무세요,%MASTERNAME:88%」
+		PRINTFORMW 휴업(휴가)를 주고 받아\@ FLAG:더부살이캐릭터 == 8 ?  방으로 돌아가는 # 산에 돌아가는 \@쿄코를 전송했다
+		RETURN 1
+	ENDIF
+	
+	;졸린 듯이 하고 있다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 「저기 그러니까 있으니―……」
+		PRINTFORML 졸린것인가 라는 질문에 꾸벅꾸벅 고개를 저으면서 알아들을 수 없는 말로 대답한다
+		PRINTFORMW 누가 어떻게 봐도 졸린 것을 무리하게 참고 있는 듯한 느낌이 새어나오고 있다
+		RETURN 1
+	ENDIF
+	
+	;수면중(일어나지 않기 때문에 회화 라기 보다는 잠꼬대? )
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;장난중
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 4
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;쇠약중
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 5
+		IF TALENT:연모 && FLAG:더부살이캐릭터 == 8
+			PRINTFORML 「이젠 안 돼-누군가 옮겨 주지 않을까―？」
+			PRINTFORMW 쿄코는 %마스터를% 힐끔힐끔 보고 있다
+			PRINTFORMW 알기 쉬운 태도에 쓴웃음을 지으면서도 가벼운 쿄코를 안아 방까지 옮겨 넣었다
+		ELSE
+			PRINTFORML 「이젠 안 돼……무리……」
+			PRINTFORMW 흔들흔들\@ FLAG:더부살이캐릭터 == 8 ?  방 # 산 \@에 날아 가는 쿄코를 봐, 정말로 괜찮은 것인가 하고 걱정으로 되었다
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;MASTER가 다운(방까지 옮겨진다)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 6
+		PRINTFORMW 「응%MASTERNAME:88%,……는 자 버렸네」
+		PRINTFORML 대답이 없는 것을 보니 %마스터는% 깊이 잠들어 버리고 있었다
+		PRINTFORMW 「어, 어쩔 수 없네요」
+		PRINTFORML 과연은 약하다고 해도 요괴인걸까
+		PRINTFORMW 쿄코는\@ K88_KYOKO_DIFF_BODYSIZE(TARGET, MASTER) < 0 ?  체격차이를 아랑곳 하지 않고 # \@%마스터를% 껴안으면서 방까지 날아 옮겼다.
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 이동시 엇갈림
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_4(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;멈춰 섰다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;가볍게 인사 해 통과했다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		; 연모
+		IF TALENT:연모
+			; 업무중이라면 대사 추가
+			PRINTFORML 「\@ CFLAG:행동 == 5 ?  업무중이니까 # \@또 다음에―！」
+			PRINTFORMW 서두르고 있기 때문에 회화하고 있을 틈은 없었지만 건강하고 상태도 최상이다
+		; 타
+		ELSE
+			PRINTFORML 「수고 하셨습니다!」
+			PRINTFORMW 콧노래를 하고 있는 쿄코에 인사 해 지나가면 잘가 라는 말을 들을 수 있다
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;무시해 통과했다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 3
+		; 연인이라고 다음에 해명 하는 이벤트를 삽입한다
+		IF TALENT:연인
+			PRINTFORML 서두르고 있었으므로 그만 쿄코를 무시해 버렸다
+			PRINTFORML 물끄러미 뒤를 되돌아 보면 눈물을 흘리며 귀를 늘어뜨려 낙담하고 있는 모습이 보였다
+			PRINTFORMW ……다음에 시간이 생기면 해명 해 둘까
+			SETBIT TCVAR:352, 0
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 다른 사람 개입으로 무드 변화
+;---------------------------------------
+; 말 주인은 TARGET
+; ARG = 개입자 캐릭터 No.
+;=================================================
+@M_KOJO_EVENT_K88_5(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 정사를 목격했다
+;---------------------------------------
+; 말 주인은 TARGET
+; ARG에 정사 상대
+;=================================================
+@M_KOJO_EVENT_K88_6(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	;정사를 목격했다(친해져도:저)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;질 수 없어 참가(친해져도:고)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;어색한 듯이 떠난다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 3
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;MASTER에 이끌려 참가
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 4
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 정사를 볼 수 있었다
+;---------------------------------------
+; 말 주인은 TARGET
+; ARG에 목격자
+;=================================================
+@M_KOJO_EVENT_K88_7(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	;정사를 볼 수 있었다(목격자의 친해져도:저)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;목격자가 질 수 없어 참가(목격자의 친해져도:고)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;목격자가 떠난다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 3
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;MASTER에 이끌려 목격자도 참가
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 4
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 목격한 정사를 캐묻는다
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_8(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	;MASTER만 캐묻고
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;두 사람 모두 설교
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 약점을 잡았다
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_9(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	LOCAL:1 = 0
+	IF LOCAL:1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; (MASTER를) 덮치기
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_10(ARG, ARG:1)
+#LOCALSIZE 2
+LOCAL = 1
+IF LOCAL
+	;MASTER를 덮치기(개시시)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		IF NO:MASTER == 0 && !TCVAR:354
+			PRINTFORML 평상시엔 밝은 성격이나 큰 소리등의 탓으로 성적 매력이 얇은 쿄코가 묘하게 요염하게 보인다
+			PRINTFORML 그 매력에 압도되고 있는 동안, 겉으로는 상상도 할 수 없는 힘으로 밀어 넘어졌다
+			PRINTFORMW 「응 %MASTERNAME:88%……, 해%K88_KYOKO_HEART()%」
+			TCVAR:354++
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;달랠 수 있었다(종료시)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		SELECTCASE K88_KYOKO_TRYENDURE(TARGET)
+			; 확률 100이라면 또 곧바로 밀어 넘어뜨려지지요……
+			CASE 100
+				PRINTFORML 「 아직 시작도 하지 않았잖아ㅡ」
+				PRINTFORMW 쿄코는 불만인듯 하다
+			CASE IS > 50
+				PRINTFORML 「저기, 좀 더 하지 않을래?」
+				PRINTFORMW 어째서인지 쿄코는 아직 부족한 것 같다
+			CASE IS > 10
+				PRINTFORML 「으응~, 좋아!」
+				PRINTFORML 쿄코는 조금 괴로워한 후 생긋 %CALLNAME:MASTER%에게 웃어준다.
+				PRINTFORMW 아무래도 대개 만족해 준 것 같다
+			CASEELSE
+				PRINTFORML 「에헤헤 , 대만족일까!」
+				PRINTFORML 밀어 넘어뜨려졌을 때의 요염함이 깨끗이 없어져 버려, 쿄코는 평소의 덜렁이로 돌아오고 있다
+				PRINTFORMW 기쁜 것 같기도 아쉬운 것 같기도 뭐라고 말하기 어려운 미묘한 기분이 %마스터를% 덮쳤다
+		ENDSELECT
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 목욕탕에서 만남
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_11(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	; 내쫓아졌다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 목욕탕에 들어가면 몸을 씻고 있던 쿄코와 시선이 마주친다
+		PRINTFORML 서로 말없이 폭풍 전야의 고요가 당분간 계속되다가......
+		PRINTFORMW 고막의 찢어질 것 같은 큰 소리에 내쫓기는 처지가 되었다
+		RETURN 1
+	ENDIF
+	
+	;시선이 마주쳤다(내쫓아지지 않다)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 「함께 욕실 들어가고 싶은거야? 별로 상관없어」
+		PRINTFORMW 간단히 승낙되어 버려 조금 맥이 빠졌다.
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 침상에 잠입해
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_12(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;침상에 침입
+	; 연모 붙이지 않으면 절에 정착하지 않기 때문에 있을 수 없어?
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;침상에 침입(상대가 연모)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG:1 == 2
+		PRINTFORML 냄새에 민감한 쿄코를 일으키지 않게 살금살금 걷는 걸음으로 침대에 소리없이 다가온다
+		PRINTFORML 「그냥……, 이것도……수행이야……」
+		PRINTFORMW 가끔 흘리는 잠꼬대는……이해하기 어렵다
+		RETURN 1
+	ENDIF
+	
+	;침상에 침입(상대가 연모·쇠약)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG:1 == 3
+		PRINTFORML 녹초가 되어 있을 것이다 쿄코는, %CALLNAME:MASTER%의 침입에도 눈치채지 못하고 코ㅡ자고 있다
+		PRINTFORMW 가끔귀가 실룩거리는 것에 놀라서 쿄코의 잠자는 얼굴을 잠깐 관찰했다
+		RETURN 1
+	ENDIF
+	
+	;내쫓아진다
+	; 연모 붙이지 않으면 절에 정착하지 않기 때문에 있을 수 없어? 화내고 있으면(자) 내쫓아질까?
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 4
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;내쫓아진다(쇠약)
+	; 연모 붙이지 않으면 절에 정착하지 않기 때문에 있을 수 없어? 화내고 있으면(자) 내쫓아질까?
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG:1 == 5
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 업무 중(현재, 본체만의 경우별·뱌쿠렌·쿄코 마셔 유효)
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_13(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	; 일개시(직장에 이동한다)
+	; 이동 개시는 자기 방 같게 하지 않을 때 무심코  것이 아닐까……
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		IF TALENT:연모 || TALENT:연인
+			PRINTFORML 「그럼 아침 근무에 갔다 올게요」
+			PRINTFORMW 방에 남겨지는 것은 조금 외롭지만, 어쩔 수 없지
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	; 업무중
+	; 말로부터 개입할 수 있게 되면(자) 진심 낸다
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	; 일종료
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 식사계
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_14(ARG, ARG:1)
+LOCAL = 0
+IF LOCAL
+	;가지고 있던 음식을 먹을 수 있었다
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		IF CFLAG:TARGET:미각기호 & TCVAR:MASTER:308
+			PRINTFORML 「어라? 맛있잖아」
+			PRINTFORMW 몰래 집어먹은 것으로 칭찬받아도 곤란한데
+		ELSE
+			PRINTFORML 「…… 뭐야 이거―！」
+			PRINTFORML  \@ TCVAR:MASTER:308 & 8 ?  엄청 매운의 # 고추냉이 수북함의 \@요리를 먹은 쿄코는 꺄- 꺄- 비명을 지르며 돌아다니고 있다
+			PRINTFORMW 울면서 졸라도 요리를 잘 보지 않고 집어먹는 것이 나쁘다고 밖에 할 수 없다
+		ENDIF
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; MASTER가 덮치기
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_15(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;MASTER가 덮치기(우후후 개시시)
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「야ㅡ응%K88_KYOKO_HEART()%」
+		PRINTFORMW 너무 유아틱한 말 자체에는 성적 매력은 없지만 쿄코의 표정은 평상시에는 볼 수 없었던 여자 그 자체다
+		RETURN 1
+	ENDIF
+	
+	;둘이서 만날 기회 종료(우후후 종료시)
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;=================================================
+; 동침한다
+;---------------------------------------
+; 말 주인은 TARGET
+;=================================================
+@M_KOJO_EVENT_K88_16(ARG, ARG:1)
+LOCAL = 1
+IF LOCAL
+	;동침을 시작했다(개시시)
+	; 뭐, 사양상 연모 다음에 있을 것
+	LOCAL:1 = 0
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「나는 그렇게 어린애가 아니예요―」
+		PRINTFORMW 뺨을 부풀리면서 말해도 설득력은 없지만 웃으면서 옆에 누웠다
+		RETURN 1
+	ENDIF
+	
+	;동침을 종료했다(종료시)
+	; 뭐, 사양상 연모 다음에 있을 것
+	LOCAL:1 = 1
+	IF LOCAL:1 && ARG == 2
+		IF !CFLAG:수면
+			PRINTFORML 「이, 이제 말해버린다?」
+			PRINTFORML 마치 강아지 같은 쿄코의 눈에 흔들리면서도 뿌리치고,
+			;2018/08/08 TIME:2의 상세화에 대응하고 있지 않았던 부분의 수정
+			;PRINTFORMW \@ TIME:2 == 3 ?  또 내일 # 또 다음에 \@빠져 나갔다
+			PRINTFORM 
+			IF TIME:0 >= 1140 || TIME:0 <= 240
+				PRINTFORM 또 내일
+			ELSE
+				PRINTFORM 또 다음에
+			ENDIF
+			PRINTFORMW 빠져 나갔다
+		ELSE
+			PRINTFORML 자고 있는 쿄코의 근처를 빠져 나가면 그 표정이 쓸쓸한 표정으로 변했다
+			PRINTFORMW 일어나 버린 게 아니고, 근처의 따스함이 없어졌기 때문인것 같다.
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외
+	PRINTFORML  
+ENDIF
+RETURN 1
+;========================================================
+; 말내부 버전 취득(식중함수)
+;-------------------------------------------------
+; 말의 버전 업으로 플래그의 변경등을 행하기 위한 내부 버전 취득
+;========================================================
+@K88_KYOKO_GET_VARSION()
+#FUNCTION
+RETURNF 100
+
+;========================================================
+; 하트 출력(식중함수)
+;-------------------------------------------------
+; Unicode 문자의 가운데점의 하트를 돌려준다
+;========================================================
+@K88_KYOKO_HEART()
+#FUNCTIONS
+RETURNF UNICODE(0x2665)
+
+;========================================================
+; 덮치기율 취득(식중함수)
+;-------------------------------------------------
+; 뭐말측만으로 끝내려고 생각하면(자) LOCAL를 외부 참조하러 가는지,
+; 새롭게 계산하는 함수를 만드는지, 본체에 손을 넣을까의 3방법으로,
+; LOCAL 외부 참조는 오니 일 하고 싶지 않고 본체에 손은 넣고 싶지 않고,
+; 결국 그것이 이 모습이다.
+; 물론 본체로 변경되면(자) 여기도 변경해야 한다('A`)
+;-------------------------------------------------
+; 인수
+;  ARG   = 비교 대상 캐릭터의 등록 번호(생략시 내부에서 TARGET를 세트)
+;-------------------------------------------------
+; 반환값
+;  수치(0~100) 덮치기율. 단위는%
+;========================================================
+@K88_KYOKO_TRYENDURE(ARG = -1)
+#FUNCTION
+#LOCALSIZE 2
+VARSET LOCAL, 0
+SIF ARG == -1
+	ARG = TARGET
+SIF ARG < 0 || ARG > CHARANUM
+	RETURNF 0
+; 절대로 코피페
+;소질에 의해 판정 변화
+LOCAL = 100
+SIF TALENT:ARG:처녀
+	LOCAL = LOCAL / 2
+SIF TALENT:ARG:연모
+	LOCAL = LOCAL + 30
+SIF TALENT:ARG:담력 < 0 || TALENT:ARG:응답 < 0 || TALENT:ARG:무관심 || TALENT:ARG:수치심 < 0
+	LOCAL = LOCAL - 30
+SIF TALENT:ARG:성적흥미 > 0 || TALENT:ARG:수치심 > 0
+	LOCAL = LOCAL + 20
+SIF TALENT:ARG:자제심 || TALENT:ARG:성적흥미 < 0
+	LOCAL = LOCAL - ((LOCAL / 10) * 2)
+SIF TALENT:ARG:정조 < 0 || TALENT:ARG:소악마
+	LOCAL = LOCAL + ((LOCAL / 10) * 2)
+SIF TALENT:ARG:정조 > 0 || TALENT:ARG:일선을넘지않음
+	LOCAL = LOCAL / 2
+
+SIF TALENT:ARG:음란
+	LOCAL = 300
+SIF TALENT:ARG:성별기호 == 3 || MARK:ARG:반발각인 == 3
+	LOCAL = 0
+
+;체력에 의존해 덮치기율 감소
+LOCAL:1 = MAXBASE:ARG:체력 - BASE:ARG:체력
+IF LOCAL:1 < 500
+	;Do Notting
+ELSEIF LOCAL:1 < 1000
+	LOCAL = LOCAL / 2
+ELSEIF LOCAL:1 < 1500
+	LOCAL = LOCAL / 3
+ELSE
+	LOCAL = 10
+ENDIF
+
+;이성에 의존해 덮치기율 감소
+IF BASE:ARG:이성 > 800
+	LOCAL = LOCAL / 3
+ELSEIF BASE:ARG:이성 > 600
+	LOCAL = LOCAL / 2
+ELSE
+	;Do Notting
+ENDIF
+
+;범위 넘지 않게 보정
+SIF LOCAL < 0
+	LOCAL = 0
+SIF LOCAL > 300
+	LOCAL = 300
+
+; 확률을 돌려준다(원래 식은 SIF RAND:300 + 1 <= LOCAL)
+RETURNF LOCAL / 300
+
+;========================================================
+; 체격차이 취득(식중함수)
+;-------------------------------------------------
+; 대상과의 체격차이를 봐 대응하는 수치를 돌려준다
+; 별로 식중함수로 할 필요는 없는 것이지만 자주(잘) 사용하는 처리이고
+;-------------------------------------------------
+; 인수
+;  ARG   = 비교 대상 캐릭터의 등록 번호(생략시 내부에서 TARGET를 세트)
+;  ARG:1 = 비교원캐릭터의 등록 번호(생략시 내부에서 MASTER를 세트)
+;-------------------------------------------------
+; 반환값
+;  수치(-6~+6) 참고용: [난쟁이(-3)][유아 체형(-2)][작은 체형(-1)][(0)][장신(1)][거구(2)][거인(3)]
+;   최소는 비교 원래가 난쟁이 체형 또한 비교 대상이 거인. 최대는 최소의 역이 된다.
+;========================================================
+@K88_KYOKO_DIFF_BODYSIZE(ARG = -1, ARG:1 = -1)
+#FUNCTION
+SIF ARG == -1
+	ARG = TARGET
+SIF ARG:1 == -1
+	ARG:1 = MASTER
+SIF ARG < 0 || ARG > CHARANUM || ARG:1 < 0 || ARG:1 > CHARANUM
+	RETURNF 0
+RETURNF TALENT:(ARG:1):체형 - TALENT:ARG:체형
+
+;========================================================
+; 관계 취득(식중함수)
+;-------------------------------------------------
+; 대상과의 관계를 봐 대응하는 수치를 돌려준다
+;-------------------------------------------------
+; 인수
+;  ARG = 캐릭터의 등록 번호
+;-------------------------------------------------
+; 반환값
+;  수치(-1 = 적대시, 0 = 무관계, 1 = 우호적, 2 = 손윗사람, 3 = 존경)
+;========================================================
+@K88_KYOKO_RELATION(ARG)
+#FUNCTION
+SIF ARG < 0 || ARG > CHARANUM
+	RETURNF 0
+SELECTCASE CALLNAME:ARG
+	; 존경(별, 뱌쿠렌)
+	CASE "별" ,"뱌쿠렌"
+		RETURNF 3
+	; 손윗사람(쥐, 이치린, 무라사, 누에, 너구리)
+	CASE "나즈린", "이치린", "무라사", "누에", "마미조"
+		RETURNF 2
+	; 우호(코가사)
+	CASE "코가사"
+		RETURNF 1
+	CASEELSE
+		IF FLAG:역극 == ARG
+			RETURNF -2
+		ELSE
+			RETURNF 0
+		ENDIF
+ENDSELECT
+
+RETURNF 0
+
+;========================================================
+; 이름 표시(식중함수)
+;-------------------------------------------------
+; 대상과의 관계를 봐 이름을 표시
+;-------------------------------------------------
+; 인수
+;  ARG = 캐릭터의 등록 번호(생략시 내부에서 MASTER를 세트)
+;-------------------------------------------------
+; 반환값
+;  캐릭터라인(대상 캐릭터에게로의 호칭)
+;========================================================
+@K88_KYOKO_CALLNAME(ARG = -1)
+#FUNCTIONS
+#LOCALSSIZE 1
+VARSET LOCALS, ""
+SIF ARG == -1
+	ARG = MASTER
+SIF ARG < 0 || ARG > CHARANUM
+	RETURNF "범위외의인수"
+LOCALS = \@ ARG == MASTER ?  %CSTR:20% # %CALLNAME:ARG% \@
+SELECTCASE K88_KYOKO_RELATION(ARG)
+	; 존경(모양 짓고)
+	CASE 3
+		LOCALS += "님"
+	; 손윗사람(씨 짓고)
+	CASE 2
+		LOCALS += "씨"
+	; 우호(짓고)
+	CASE 1
+		LOCALS += ""
+	; 적대시(경칭 생략)
+	CASE -1
+	; 주인(변경을 더하지 않는다)
+	CASE -2
+	; 그 외
+	CASEELSE
+		LOCALS += ""
+ENDSELECT
+; 여기에서 주인 전용 처리
+IF ARG == MASTER
+	; CSTR:20으로 MASTERNAME:88의 동기
+	MASTERNAME:88 = %LOCALS%
+	; 특정 플레이시만 통칭을 바꾸고 싶으면 여기 이하에 조건식을 추가
+ENDIF
+RETURNF LOCALS
+
+;========================================================
+; 말호환 처리
+;-------------------------------------------------
+; 버전 업으로 플래그의 이동등을 실시할 때에 사용하는 함수
+; 하루에 최초로 만났을 때에 불린다
+; 우선 함수의 양식만 만들어 두지만 사용할 필요가 없는 것을 빈다
+;========================================================
+@K88_KYOKO_UPDATE
+WHILE CFLAG:1100 < K88_KYOKO_GET_VARSION()
+	SELECTCASE CFLAG:1100
+		; 초기 버전
+		CASE IS < 100
+			; 통칭이 하늘이라면 세트
+			IF !STRLENS(CSTR:20)
+				CSTR:20 = %CALLNAME:MASTER%
+				CALLF K88_KYOKO_CALLNAME(MASTER)
+			ENDIF
+			CFLAG:1100 = 100
+		; 여기에 호환 처리를 쓴다
+;		CASE 조건
+;			처리
+;		;CASE 조건
+;			처리
+		; 무한루프 예방
+		CASEELSE
+			CFLAG:1100 = K88_KYOKO_GET_VARSION()
+	ENDSELECT
+WEND
+RETURN 1
+
+;========================================================
+; 통칭 입력
+;-------------------------------------------------
+; 정규 표현 사용하고 있어 동작 속도 괜찮은 것인가는? C#에 들어라
+; 이스케이프투성이로 (뜻)이유 모르는데-누군가 어떻게든 해 주지 않을까―(치랏치락
+;========================================================
+@K88_KYOKO_INPUT_CALLNAME
+#LOCALSSIZE 1
+PRINTFORML 통칭을 입력해 주세요(직접 입력하는지, 버튼으로 선택해 주세요)
+IF NAME:MASTER != "당신"
+	LOCALS = %NAME:MASTER%
+ELSE
+	LOCALS = %CALLNAME:MASTER%
+ENDIF
+PRINTBUTTON @"[이름(%LOCALS%)을 자칭하는]", @"%LOCALS%"
+[SKIPSTART]
+; 의식의 통칭들이다
+SIF ABL:친밀 > 4
+	PRINTBUTTON "[\@ TALENT:MASTER:성별 == 2 ?  형 # 자 \@씨라고 부르면 좋은]", @"\@ TALENT:MASTER:성별 == 2 ?  형 # 자 \@씨"
+SIF ABL:친밀 > 7
+	PRINTBUTTON "[\@ TALENT:MASTER:성별 == 2 ?  형 # 자 \@님이라고 부르면 좋은]", @"\@ TALENT:MASTER:성별 == 2 ?  형 # 자 \@님"
+SIF ABL:순종 > 7 && ABL:봉사정신 > 7
+	PRINTBUTTON "[주인님이라고 부르면 좋은]", "주인님"
+SIF TALENT:연인 && TALENT:연모
+	PRINTBUTTON "[서방님이라고 부르면 좋은]", "서방님"
+[SKIPEND]
+
+$INPUT_LOOP_KYO0
+INPUTS
+; 줄머리행 꼬리의 공백 문자 삭제
+LOCALS = %RESULTS%
+REPLACE LOCALS, "\(\^\\s\+\|\\s\+\$)", ""
+; 2 문자 미만
+IF STRLENS(LOCALS) < 2
+	SIF STRLENS(RESULTS)
+		CLEARLINE 1
+	REUSELASTLINE 「소리가 작아!」
+	GOTO INPUT_LOOP_KYO0
+; 10 문자(전각 5 문자) 넘었다
+ELSEIF STRLENS(LOCALS) > 10
+	CLEARLINE 1
+	REUSELASTLINE 「조금 길지 않아? 짧게 하자」
+	GOTO INPUT_LOOP_KYO0
+; 오토나시쿄코
+ELSEIF STRCOUNT(LOCALS, "\(오토나시\|치쿠사\)\+\\s\*쿄코")
+	PRINTFORML 「관리인?」
+; 소우이치 츠카사씨
+ELSEIF STRCOUNT(LOCALS, "\(오토나시\)\+\\s\*소우이치 츠카사")
+	PRINTFORML 「소우이치 츠카사씨!」
+; 고다이유작
+ELSEIF STRCOUNT(LOCALS, "\(고다이\)\+\\s\*유작")
+	PRINTFORML 「나는 좀 더 결단력이 있는 편이 좋아요」
+; 동성 동명
+ELSEIF FLAG:역극 != 88 && STRCOUNT(LOCALS, "\(카소다니\)\*\\s\*쿄코")
+	CLEARLINE 1
+	REUSELASTLINE 「동성 동명이야? 까다롭기 때문에 다른 통칭으로 했으면 좋아요」
+	GOTO INPUT_LOOP_KYO0
+; 뱌쿠렌이 주인은 아니고, 뱌쿠렌이라고 하는 프레이즈가 포함되어 있다. 혹은
+; ☆하지만 주인은 아니고, 토라마루 혹은 별이라고 하는 프레이즈가 포함되어 있다
+ELSEIF (FLAG:역극 != 55 && STRCOUNT(LOCALS, "히지리\*\\s\*뱌쿠렌")) || (FLAG:역극 != 87 && STRCOUNT(LOCALS, "\(토라마루\)\*\\s\*쇼\$"))
+	CLEARLINE 1
+	REUSELASTLINE 「바보 취급 하는 거야?아무리 그래도 틀릴리가 없지」
+	GOTO INPUT_LOOP_KYO0
+; 묘렌사세는 곧
+; 응 그렇네요 타타라 승고로라든지 가르치는 사람도 있을지도 모르는 걸
+ELSEIF (FLAG:역극 != 39 && LOCALS == "나즈린") || (FLAG:역극 != 40 && STRCOUNT(LOCALS, "\(타타라\)\*\\s\*코가사")) || (FLAG:역극 != 85 && STRCOUNT(LOCALS, "\(쿠모이\)\*\\s\*이치린")) || (FLAG:역극 != 86 && STRCOUNT(LOCALS, "\(\(무라사\)*\\s\*미나미츠\|무라사\)"))
+	CLEARLINE 1
+	REUSELASTLINE 「싸우고 있는거야?」
+	GOTO INPUT_LOOP_KYO0
+ELSEIF (FLAG:역극 != 41 && STRCOUNT(LOCALS, "\(호쥬\)\*\\s\*누에")) || (FLAG:역극 != 69 && STRCOUNT(LOCALS, "\(후타츠이와\)\*\\s\*마미조"))
+	CLEARLINE 1
+	REUSELASTLINE 「둔갑했을... 리는 없는 거겠지?」
+	GOTO INPUT_LOOP_KYO0
+; 도교 세력은 곧
+ELSEIF (FLAG:역극 != 89 && STRCOUNT(LOCALS, "\(미야코\)\*\\s\*요시카")) || (FLAG:역극 != 90 && STRCOUNT(LOCALS, "\^곽\*\\s\*청아")) || (FLAG:역극 != 91 && STRCOUNT(LOCALS, "\(소가\)\*\\s\*토지코")) || (FLAG:역극 != 92 && STRCOUNT(LOCALS, "\(모노노베노\)\*\\s\*후토")) || (FLAG:역극 != 56 && STRCOUNT(LOCALS, "\(\(토요사토미미\)\*\\s\*미코\|성덕태자\)"))
+	CLEARLINE 1
+	REUSELASTLINE 
+	GOTO INPUT_LOOP_KYO0
+; 하쿠레이 레이무라고 하는 프레이즈가 포함되어 있다. 혹은
+; 코치야 사나에라고 하는 프레이즈가 포함되어 있다
+ELSEIF STRCOUNT(LOCALS, "\(하쿠레이\)\*\\s\*레이무") || STRCOUNT(LOCALS, "\(코치야\)\*\\s\*사나에")
+	PRINTFORML 「어? 무녀였어요? 그렇게는 안보였어요」
+; 키리사메 마리사라고 하는 프레이즈가 포함되어 있다.
+ELSEIF STRCOUNT(LOCALS, "\(키리사메\)\*\\s\*마리사")
+	PRINTFORML 「아아, 그 텐션 낮았던 인간. 인사는 좀 더 큰 소리로 하지 않으면」
+; 콘파쿠 요우무가라고 하는 프레이즈가 포함되어 있다.
+ELSEIF STRCOUNT(LOCALS, "\(콘파쿠\)\*\\s\*요우무")
+	PRINTFORML 「칼날 휘두르는 것은 그만두었어?」
+ENDIF
+; 직접 입력이라면 안된다고 생각했는지? 연주하군!
+IF FIRSTTIME("U88-1") && ABL:친밀 < 4 && STRCOUNT(LOCALS, "\(\(\(형(오빠)\|에게 있고\)\|\(언니(누나)\|응\)\)\(씨\|\)\)\$")
+	CLEARLINE 1
+	REUSELASTLINE 「메아리 요괴라도 말하는 것을 선택할 권리는 있어요」
+	GOTO INPUT_LOOP_KYO0
+ELSEIF FIRSTTIME("U88-1") && ABL:친밀 < 7 && STRCOUNT(LOCALS, "\(\(\(형(오빠)\|에게 있고\)\|\(언니(누나)\|응\)\)\(모양\|님\)\)\$")
+	CLEARLINE 1
+	REUSELASTLINE 「메아리 요괴라도 말하는 것을 선택할 권리는 있어요」
+	GOTO INPUT_LOOP_KYO0
+ELSEIF FIRSTTIME("U88-1") && (ABL:순종 < 7 || ABL:봉사정신 < 7) && STRCOUNT(LOCALS, "\(\(\|\)\(주인\|주인\)\(모양\|님\)\)$")
+	CLEARLINE 1
+	REUSELASTLINE 「메아리 요괴라도 말하는 것을 선택할 권리는 있어요」
+	GOTO INPUT_LOOP_KYO0
+ELSEIF FIRSTTIME("U88-1") && (!TALENT:연인 || !TALENT:연모) && STRCOUNT(LOCALS, "\(\(남편\|남편\)\(모양\|님\)\)\$")
+	CLEARLINE 1
+	REUSELASTLINE 「메아리 요괴라도 말하는 것을 선택할 권리는 있어요」
+	GOTO INPUT_LOOP_KYO0
+ENDIF
+CSTR:20 = %LOCALS%
+; CSTR:20으로 MASTERNAME:88을 동기
+CALLF K88_KYOKO_CALLNAME(MASTER)
+RETURN 1

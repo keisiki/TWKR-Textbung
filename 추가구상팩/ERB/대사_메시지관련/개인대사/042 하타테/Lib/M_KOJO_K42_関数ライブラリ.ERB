@@ -1,0 +1,229 @@
+﻿;
+;### 関数 ###################################
+;以下の関数は「映姫様口上」内の「M_KOJO_K30_関数・お説教ライブラリ」を拝借したものです
+;はたて口上作者が作成したものではないのでご注意ください
+;同ライブラリの利用に関しては、映姫様口上の作者様のライセンスに準じます
+
+;拝借ここから
+;==================================================
+
+;==================================================
+
+;==================================================
+;MASTERの연인がその場に居るかどうか返す式中関数
+;これは力技でなんとか実装できたっぽいので、使わなくても問題ない気がする（小町口上作者）
+;でも絶対こっちのがスマート
+;=-1 小町が연인 =0 元から연인なし =1 その場に居ない =2 연인と同席
+@K42_FIND_LOVER()
+#FUNCTION
+SIF TALENT:MASTER:연인 == 0
+	RETURNF 0
+SIF TALENT:연인
+	RETURNF -1
+LOCAL = TALENT:MASTER:연인
+SIF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+	RETURNF 2
+RETURNF 1
+;==================================================
+
+
+;==================================================
+;同部屋のキャラを拾う式中関数。探す順位は[연인]持ち→知り合い→TARGET内ランダム
+;アリス口上の関数お借りして平文化した映姫口上の関数を拝借しました。つまり丸パクり
+;丸コピする以外の技術がないので先人たちの知恵に感謝をし続けるしかない
+@K42_FIND_AROUND()
+#FUNCTION
+#DIM 知り合い, 6 = 29, 65, 51, 49, 38, 1
+#DIM 총인원
+#DIM 抽選
+#LOCALSIZE 200
+;はたての知り合いは6人,文>椛>にとり>>>古明地姉妹>霊夢の順に(勝手に)設定
+;一応理由としては
+;文→原作でしっかり絡みがある
+;椛→原作で名前を言っている、文と比べて邪険にされていない、身内と言及している
+;にとり→名前は出てないけど河童の技術力は称賛してるし、ガラケー修理したのがにとりだといいなあという勝手な願望
+;古明地姉妹→サトリ（種）に対してまったく嫌悪感抱いてないどころか心を読んでとかはたてちゃん大天使
+;霊夢→文が興味を持つのも分かると言っていた（ような覚えがある）
+VARSET LOCAL
+抽選 = 0
+총인원 = GET_TARGETNUM() 
+;部屋に一人なら当然0
+SIF 총인원 == 1
+	RETURNF 0
+;[연인]持ちがいたら優先してIDを返す
+SIF K42_FIND_LOVER() == 2
+	RETURNF TALENT:MASTER:연인
+;지인 우선도 순으로 계획을 알아보고 MASTER와 같으면 아이디를 반환한다
+FOR COUNT, 0, 6
+	SIF CFLAG:(知り合い:COUNT):현재위치 == CFLAG:MASTER:현재위치
+		RETURNF 知り合い:COUNT
+NEXT
+;知り合いがいなければ同室のTARGET_ID全部を拾う
+FOR COUNT,1, 총인원 + 1
+	;地獄の断頭台withジェロニモ状態を防ぐため口上主はスキップ
+	SIF TARGET:COUNT == TARGET:0
+		CONTINUE
+	;MASTERとはたてちゃんの현재위치にいなければスキップ
+	SIF (CFLAG:(TARGET:COUNT):현재위치 != CFLAG:MASTER:현재위치) || (CFLAG:(TARGET:COUNT):현재위치 != CFLAG:42:현재위치)
+		CONTINUE
+	;配列のカウントは別で取りながら代入
+	LOCAL:抽選 = TARGET:COUNT
+	抽選 ++
+NEXT
+;抽選してIDを決定
+RETURNF LOCAL:(RAND(抽選))
+;==================================================
+
+
+;==================================================
+;酔っぱらい度を数字で返す式中関数
+;=0 素面 =1 ほろ酔い =2 酔いどれ 3=ぐでぐで
+@K42_DRUNK()
+#FUNCTION
+SIF BASE:42:술기운 <= 2
+	RETURNF 0
+SELECTCASE BASE:42:술기운
+	;ぐでぐで
+	CASE IS > (MAXBASE:42:술기운 / 10) * 8
+		RETURNF 3
+	;酔いどれ
+	CASE IS > (MAXBASE:42:술기운 / 10) * 5
+		RETURNF 2
+	;ほろ酔い
+	CASE IS <= (MAXBASE:42:술기운 / 10) * 5
+		RETURNF 1
+ENDSELECT
+;==================================================
+;이름을 알려주는 이벤트(함수)
+;K39ひねくれナズー口上様より拝借
+;==================================================
+
+@NAME_SET_K42
+PRINTL 이름을 입력해 주세요(직접 입력하거나, 버튼으로 선택해주세요)
+IF NAME:MASTER != "당신"
+	LOCALS = %NAME:MASTER%
+ELSE
+	LOCALS = %CALLNAME:MASTER%
+ENDIF
+PRINTBUTTON @"[이름(%LOCALS%)을 대다]", @"%LOCALS%"
+PRINTL 　
+;名前を入力するループ
+$INPUT_LOOP_ONAMAE
+INPUTS
+; 行頭行尾の空白文字削除
+LOCALS = %RESULTS%
+REPLACE LOCALS, "\(\^\\s\+\|\\s\+\$)", ""
+;10文字以上は受け付けない
+IF STRLENS(LOCALS) > 10
+	CLEARLINE 1
+	REUSELASTLINE 「저기、그거 진짜 네 이름이야？　거짓말한 거 아냐？ 너무 길잖아」
+	GOTO INPUT_LOOP_ONAMAE
+;空白は受け付けない
+ELSEIF RESULTS == ""
+	PRINTL 이름을 입력해 주세요
+	GOTO INPUT_LOOP_ONAMAE
+ELSE
+	; 동성명
+	IF FLAG:역극 != 42 && STRCOUNT(LOCALS, "\(히메카이도\)\*\\s\*하타테")
+		CLEARLINE 1
+		REUSELASTLINE 「어、설마 똑같은 이름？　그럴리가 없지」
+		GOTO INPUT_LOOP_ONAMAE
+	; うんそうだね多々良勝五郎とか教える人もいるかもしれないもんね
+	ELSEIF (FLAG:역극 != 29 && STRCOUNT(LOCALS, "\(샤메이마루\)\*\\s\*아야")) || (FLAG:역극 != 51 && STRCOUNT(LOCALS, "\(카와시로\)\*\\s\*니토리")) || (FLAG:역극 != 65 && STRCOUNT(LOCALS, "\(이누바시리\)\*\\s\*모미지"))
+		CLEARLINE 1
+		REUSELASTLINE 「어、너 인간인줄 알았는데 실은 요괴였던 거야？　그럴리가 없지」
+		GOTO INPUT_LOOP_ONAMAE
+	; 직접 입력하면 될 줄 알았나? 튕길 테다！
+	ELSEIF FIRSTTIME("U42-1") && ABL:친밀 < 4 && STRCOUNT(LOCALS, "\(お\(\(오빠\|오라버니\)\|\(언니\|ねえ\)\)\(さん\|ちゃん\)\)\$")
+		CLEARLINE 1
+		REUSELASTLINE 「그럴리가 없잖아」
+		GOTO INPUT_LOOP_ONAMAE
+	ELSEIF FIRSTTIME("U42-1") && ABL:친밀 < 7 && STRCOUNT(LOCALS, "\(お\(\(오빠\|오라버니\)\|\(姉\|ねえ\)\)\(님\|님\)\)\$")
+		CLEARLINE 1
+		REUSELASTLINE 「뭐？」
+		GOTO INPUT_LOOP_ONAMAE
+	ELSEIF FIRSTTIME("U42-1") && (ABL:순종 < 7 || ABL:봉사정신 < 7) && STRCOUNT(LOCALS, "\(\(御\|ご\)\(주인\|주인\)\(님\|님\)\)$")
+		CLEARLINE 1
+		REUSELASTLINE 「뭐? 그 발상, 징그러워」
+		GOTO INPUT_LOOP_ONAMAE
+	ELSEIF  FIRSTTIME("U42-1") && (!TALENT:연인 || !TALENT:연모) && STRCOUNT(LOCALS, "\(\(남편\|남편\)\(님\|님\)\)\$")
+		CLEARLINE 1
+		REUSELASTLINE 「뭐? 그 발상, 징그러워」
+		GOTO INPUT_LOOP_ONAMAE
+	ELSE
+		PRINTFORML 「%RESULTS%…(이)네」
+	ENDIF
+	PRINTL [0] 네
+	PRINTL [1] 아니요
+	;入力した名前を確定するループ
+	$INPUT_LOOP_KAKUTEI_1
+	INPUT
+	IF RESULT == 0
+		;あなたの名前を%MASTERNAME:42%に格納
+		MASTERNAME:42 = %RESULTS%
+		;K42NAME = %RESULTS%/에러가 나와서 봉인
+		PRINTFORML 
+	ELSEIF RESULT == 1
+		PRINTL 이름을 입력해 주세요
+		GOTO INPUT_LOOP_ONAMAE
+	ELSE
+		PRINTL 이름을 입력해 주세요
+		GOTO INPUT_LOOP_ONAMAE
+	ENDIF
+ENDIF
+;拝借ここまで
+
+;==================================================
+;ここから一応自作関数
+;==================================================
+;본체 함수를 가공하여 자작 함수로
+;==================================================
+;발기상태를 숫자로 반환하는 식중 함수
+;=0 通常 =1 むっくり =2 ビンビン =3 Erection!!
+@K42_BOKKI()
+#FUNCTION
+#DIM CHARA
+IF BASE:CHARA:발기 == MAXBASE:CHARA:발기
+	RETURNF 3
+ELSEIF BASE:CHARA:발기 >= 1000
+	RETURNF 2
+ELSEIF BASE:CHARA:발기 >= 500
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+
+;==================================================
+;会えなかった日を算出する関数
+;==================================================
+@K42_AENAI
+#DIM SAIGO
+SAIGO = CFLAG:1003
+IF (TALENT:연모 || TALENT:연인) && SAIGO > 6
+	PRINTFORML 「드디어 만났어」
+	PRINTFORML 하타테는 %CALLNAME:MASTER%의 모습을 발견하자 그녀는 조심스럽게 목밑에 살며시 안겨왔다
+	PRINTW 
+	PRINTFORML 「{SAIGO}일만인걸。계속 못봐서 서운했어」
+	PRINTFORML 항상 밝고 활기찬 하타테의 목소리는 들어 본 적이 없을 정도로 연약했다
+	PRINTW 
+ENDIF
+RETURN 0
+;==================================================
+;交際を始めてからの日数を表示する関数
+;==================================================
+@K42_KOUSAI
+#DIM KOIBIT
+KOIBIT = DAY:0 - CFLAG:1004
+IF KOIBIT % 124 == 0 && KOIBIT
+	PRINTFORML 「오늘로 우리가 사귄 지 {KOIBIT / 124}년이 되어가네」
+	SIF CFLAG:MASTER:초기위치 == CFLAG:42:초기위치
+		PRINTW 「한 지붕 아래서 살거나」
+	SIF EXP:출산경험 > 0
+		PRINTW 「가족이 늘거나」
+	PRINTFORML 「여러가지 일들이 있었지」
+	SIF TALENT:처녀 == 1
+		PRINTW 아、그런데도 아직 내 처음은 안받아줬네。어떻게 된거야？？」
+	PRINTFORML 「앞으로도 잘 부탁해、%MASTERNAME:42%。」
+	PRINTW 
+ENDIF
+RETURN 0
