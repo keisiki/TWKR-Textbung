@@ -196,7 +196,7 @@ ENDIF
 ;비로 쇠약 상태는 되지 않는다
 IF OUTROOF(CFLAG:ARG:현재위치) && (AT_HOME(ARG) || ARG == MASTER || FLAG:데이트상대 == ARG)
 	;당신이 접 이식 우산을 가지고 있지 않은 경우
-	IF ARG == MASTER && !ITEM:접는우산
+	IF ARG == MASTER && !ITEM:접는우산 && !ITEM:캇파제판초
 		SELECTCASE TIME:5
 			;비·안개비
 			CASE 4, 6
@@ -218,22 +218,49 @@ IF OUTROOF(CFLAG:ARG:현재위치) && (AT_HOME(ARG) || ARG == MASTER || FLAG:데
 		ENDSELECT
 	;당신이 접 이식 우산 을 가지고 있는과 체력 대신에 우산내구도가 줄어든다
 	ELSEIF ARG == MASTER
-		SELECTCASE TIME:5
-			;안개비, 안개눈
-			CASE 6, 12
-				우산대미지 = 1
-			;진눈깨비
-			CASE 13
-				우산대미지 = 5
-			;우·설·가루눈
-			CASE 4, 6, 8, 10, 12
-				우산대미지 = 2
-			;큰 비·눈보라
-			CASE 5, 9
-				우산대미지 = 50
-			CASEELSE
-				우산대미지 = 0
-		ENDSELECT
+		IF ITEM:캇파제판초
+			SELECTCASE TIME:5
+				;안개비, 안개눈
+				CASE 6, 12
+					우산대미지 = 1
+				;진눈깨비
+				CASE 13
+					우산대미지 = 5
+				;우·설·가루눈
+				CASE 4, 6, 8, 10, 12
+					우산대미지 = 2
+				;큰 비·눈보라
+				CASE 5, 9
+					우산대미지 = 50
+				CASEELSE
+					우산대미지 = 0
+			ENDSELECT
+			FLAG:판초내구도 += 우산대미지 * Lapse
+			IF FLAG:판초내구도 > 15000
+				ITEM:캇파제판초 = 0
+				FLAG:판초내구도 = 0
+				PRINTW 판초에서 물이 샌다!
+			ELSEIF FLAG:판초내구도 > 12000 && 우산대미지
+				SIF Lapse && !TFLAG:195 && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면
+					PRINTW 판초가 망가질 것 같다…
+			ENDIF
+		ELSE
+			SELECTCASE TIME:5
+				;안개비, 안개눈
+				CASE 6, 12
+					우산대미지 = 1
+				;진눈깨비
+				CASE 13
+					우산대미지 = 5
+				;우·설·가루눈
+				CASE 4, 6, 8, 10, 12
+					우산대미지 = 2
+				;큰 비·눈보라
+				CASE 5, 9
+					우산대미지 = 50
+				CASEELSE
+					우산대미지 = 0
+			ENDSELECT
 			FLAG:우산내구도 += 우산대미지 * Lapse
 			IF FLAG:우산내구도 > 10000
 				ITEM:접는우산 = 0
@@ -247,6 +274,7 @@ IF OUTROOF(CFLAG:ARG:현재위치) && (AT_HOME(ARG) || ARG == MASTER || FLAG:데
 				SIF Lapse && !TFLAG:195 && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면
 					PRINTW 우산이 망가질 것 같다…
 			ENDIF
+		ENDIF
 	ENDIF	
 	SIF (CFLAG:ARG:우후후 == 2 && BASE:ARG:기력 > 500) || CFLAG:ARG:우후후 != 2
 		BASE:ARG:체력 = MAX(BASE:ARG:체력 + 날씨에의한영향(ARG, CFLAG:ARG:현재위치) * Lapse, 500)
@@ -262,7 +290,7 @@ VARSET LOCAL
 ;옥외, 우산 장비 이루어, 한우산을씀 하지 않는다
 IF OUTROOF(ARG:1) && EQUIP:ARG:액세서리!= 6 && !TEQUIP:ARG:한우산을씀
 	;당신은 우산을 가지고 있으면 제외
-	SIF ARG == MASTER && ITEM:접는우산
+	SIF ARG == MASTER && (ITEM:접는우산 || ITEM:캇파제판초)
 		RETURNF 0
 	SELECTCASE TIME:5
 		;여름의 맑음

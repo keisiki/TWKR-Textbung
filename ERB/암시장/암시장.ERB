@@ -82,12 +82,18 @@ RETURN 1
 PRINTFORML "뭘 사고 싶어?"
 DRAWLINE
 LOCAL:1 = 0
-FOR LOCAL, 0, 31
-    PRINTFORMLC [{LOCAL}] %ITEMNAME:(LOCAL+1000)%
-    PRINTFORMLC (\\{((ITEMPRICE:(LOCAL+1000)*암시장물가)/100)})
-    LOCAL:1 ++
-    IF LOCAL:1 % 4 == 0&&LOCAL:1 != 0
-        PRINTL
+FOR LOCAL, 0, 50
+    IF ITEMNAME:(LOCAL+1000) != ""
+        IF LOCAL == 31&&ITEM:캇파제판초 == 1
+            SETCOLOR 0x808080
+        ENDIF
+        PRINTFORMLC [{LOCAL}] %ITEMNAME:(LOCAL+1000)%
+        PRINTFORMLC (\\{((ITEMPRICE:(LOCAL+1000)*암시장물가)/100)})
+        LOCAL:1 ++
+        IF LOCAL:1 % 4 == 0&&LOCAL:1 != 0
+            PRINTL
+        ENDIF
+        RESETCOLOR
     ENDIF
 NEXT
 PRINTL
@@ -98,34 +104,43 @@ INPUT
 IF RESULT == 999
     RETURN 1
 ELSE
-    IF RESULT < 0||RESULT > 29
+    IF RESULT < 0||RESULT > 32
         GOTO LOOP
     ELSE
-        구매품 = RESULT + 1000
-        IF MONEY < ((ITEMPRICE:(RESULT+1000)*암시장물가)/100)
-            PRINTW 돈이 부족하다...
+        IF RESULT == 31&&ITEM:캇파제판초 == 1
+            GOTO LOOP
         ELSE
-            PRINTFORML 몇개나?(0 이하 입력으로 취소)
-            INPUT
-            IF RESULT <= 0
-                RESTART
+            구매품 = RESULT + 1000
+            IF MONEY < ((ITEMPRICE:(RESULT+1000)*암시장물가)/100)
+                PRINTW 돈이 부족하다...
             ELSE
-                구매개수 = RESULT
-                IF MONEY < ((ITEMPRICE:구매품*암시장물가)/100)*구매개수
-                    FOR LOCAL,0,구매개수
-                        IF MONEY >= ((ITEMPRICE:구매품*암시장물가)/100)*(구매개수-LOCAL)
-                            BREAK
+                IF RESULT != 31
+                    PRINTFORML 몇개나?(0 이하 입력으로 취소)
+                    INPUT
+                    IF RESULT <= 0
+                        RESTART
+                    ELSE
+                        구매개수 = RESULT
+                        IF MONEY < ((ITEMPRICE:구매품*암시장물가)/100)*구매개수
+                            FOR LOCAL,0,구매개수
+                                IF MONEY >= ((ITEMPRICE:구매품*암시장물가)/100)*(구매개수-LOCAL)
+                                    BREAK
+                                ENDIF
+                            NEXT
+                            MONEY -= ((ITEMPRICE:구매품*암시장물가)/100)*(구매개수-LOCAL)
+                            ITEM:구매품 += (구매개수-LOCAL)
+                            PRINTFORML %조사처리(ITEMNAME:구매품,"을")% {(구매개수-LOCAL)}개 얻었다
+                        ELSE
+                            MONEY -= ((ITEMPRICE:구매품*암시장물가)/100)*구매개수
+                            ITEM:구매품 += 구매개수
+                            PRINTFORML %조사처리(ITEMNAME:구매품,"을")% {구매개수}개 얻었다
                         ENDIF
-                    NEXT
-                    MONEY -= ((ITEMPRICE:구매품*암시장물가)/100)*(구매개수-LOCAL)
-                    ITEM:구매품 += (구매개수-LOCAL)
-                    PRINTFORML %조사처리(ITEMNAME:구매품,"을")% {(구매개수-LOCAL)}개 얻었다
+                        
+                    ENDIF
                 ELSE
-                    MONEY -= ((ITEMPRICE:구매품*암시장물가)/100)*구매개수
-                    ITEM:구매품 += 구매개수
-                    PRINTFORML %조사처리(ITEMNAME:구매품,"을")% {구매개수}개 얻었다
+                    ITEM:구매품 += 1
+                    PRINTFORML %조사처리(ITEMNAME:구매품,"을")% 얻었다
                 ENDIF
-                
             ENDIF
         ENDIF
     ENDIF
