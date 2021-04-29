@@ -1474,6 +1474,9 @@ CASE 4
 	IF C_ID == MASTER&&!FLAG:식사강제플래그
 		CALL 영양정보
 	ENDIF
+	IF FLAG:직장정보
+		CALL 직업상태표시
+	ENDIF
 CASEELSE
 	THROW 이상한PAGE {PAGE}
 ENDSELECT
@@ -2171,7 +2174,7 @@ ENDIF
 
 @영양정보
 DRAWLINE
-PRINTFORML 현재 몸 상태
+PRINTFORML ㅁ 현재 몸 상태
 DRAWLINE
 PRINTFORML 칼로리는 탄수화물과 지방의 합에 계수를 곱한것입니다
 PRINTFORML 각 영양소중 하나라도 부족하게 된다면 영양실조가 됩니다
@@ -2184,3 +2187,33 @@ PRINTFORML 단백질　 : {FLAG:체내단백질,5}/65
 PRINTFORML 나트륨 　: {FLAG:체내나트륨,5}/100
 PRINTFORML 비타민 　: {FLAG:체내비타민,5}/30
 DRAWLINE
+
+@직업상태표시
+#DIM DYNAMIC 급여 ; 만원단위
+#DIM DYNAMIC 요구일량 ; 한달 단위로 요구
+DRAWLINE
+PRINTFORML ㅁ 직업 정보
+DRAWLINE
+CALL 직장상세(FLAG:직장정보)
+급여 = RESULT:1
+요구일량 = RESULT:2
+PRINTFORM 직장 : %STR:(5000+FLAG:직장지역)%, 
+IF MAIN_MAP == FLAG:직장지역
+	PRINTFORML %STR:(8000+FLAG:직장위치1)%
+ELSE
+	PRINTFORML %STR:(6000+(FLAG:직장위치2 / 10))%
+ENDIF
+PRINTFORML 급여 : {급여}만원
+PRINTFORML 진행도 : {FLAG:직장일량} / {요구일량} (마감일까지 {31 - DAY:3}일)
+PRINTFORML 주말 제외 하루 평균 {요구일량/20} 만큼 일해야합니다
+IF FLAG:직장실패
+	SETCOLOR 0XFF2222
+	PRINT 실패 횟수 :
+	FOR LOCAL, 0, FLAG:직장실패
+		PRINT X
+	NEXT
+	PRINTL
+	RESETCOLOR
+ENDIF
+DRAWLINE
+PRINTL
