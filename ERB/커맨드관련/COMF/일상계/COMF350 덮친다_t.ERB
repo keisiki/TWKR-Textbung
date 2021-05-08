@@ -100,7 +100,10 @@ ELSE
 				$OK
 				SIF BASE:C_ID:무드 < 300
 					BASE:C_ID:무드 = 300
-				CFLAG:C_ID:우후후 = 1
+				CFLAG:C_ID:우후후 = 2
+				IF C_ID == TARGET
+					CFLAG:C_ID:우후후 = 1
+				ENDIF
 				IF INROOM(CFLAG:MASTER:현재위치) == 2
 					CALL DATUI_SHOES(LOCAL,0)
 					CALL DATUI_SHOES(MASTER,0)
@@ -199,7 +202,7 @@ IF !FLAG:70
 	SIF TCVAR:마음대로해
 		RETURN 0
 	;데이트중
-	SIF (CHK_DATENOW(CFLAG:MASTER:데이트중) && CFLAG:현재위치 != 혼숙여관 && CFLAG:현재위치 != 러브호텔 && CFLAG:현재위치 != OMANEKIBEYA()) && !특수우후후조건(TARGET)
+	SIF !야스가능위치()
 		RETURN 0
 	;SIF MONEY < 3000 && (CFLAG:현재위치 == 혼숙여관 || CFLAG:현재위치 == 러브호텔)
 		;RETURN 0
@@ -208,6 +211,43 @@ ENDIF
 SIF BASE:MASTER:기력 <= 0
 	RETURN 0
 RETURN 1
+
+@전원노출광판정
+#FUNCTION
+#DIM NUM_TARGET
+NUM_TARGET = GET_TARGETNUM()
+FOR LOCAL, 1, NUM_TARGET + 1
+	;전캐릭터에게 합의가 없으면 안 돼
+	IF EYEWITNESS() == 2
+		IF ABL:(TARGET:LOCAL):노출벽 <= 3
+			RETURNF 0
+		ENDIF
+	ELSE
+		IF ABL:(TARGET:LOCAL):노출벽 <= 1&&!TALENT:(TARGET:LOCAL):연모&&CFLAG:(TARGET:LOCAL):욕구불만도 <= 900
+			RETURNF 0
+		ENDIF
+	ENDIF
+NEXT
+RETURNF 1
+
+@야스가능위치
+#FUNCTION
+IF CHK_DATENOW(CFLAG:MASTER:데이트중)
+	IF CFLAG:현재위치 == 혼숙여관 
+		RETURNF 1
+	ELSEIF CFLAG:현재위치 == 러브호텔
+		RETURNF 1
+	ELSEIF CFLAG:현재위치 == OMANEKIBEYA()
+		RETURNF 1
+	ELSEIF !전원노출광판정()
+		RETURNF 1
+	ELSEIF 특수우후후조건(TARGET)
+		RETURNF 1
+	ENDIF
+ELSE
+	RETURNF 1
+ENDIF
+RETURNF 0
 
 ;명째가 있을지 어떨지 돌려주는 식중함수
 ;보고 있는 캐릭터가 있으면(자) 1, 모브라면 2
