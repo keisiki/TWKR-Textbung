@@ -348,6 +348,35 @@ SELECTCASE ARG
             후처리인터셉트승패여부 = 0
             RETURN 0
         ENDIF
+        IF !고로시
+            PRINTL
+            FOR LOCAL,1,CHARANUM
+                SIF CFLAG:LOCAL:현재위치 != CFLAG:MASTER:현재위치
+                    CONTINUE
+                SIF CFLAG:LOCAL:행동 != 5
+                    CONTINUE
+                SIF LOCAL == 타겟대피소
+                    CONTINUE
+                IF GROUPMATCH(CFLAG:LOCAL:직종, 40, 41, 42, 43, 44, 47, 48, 50)
+                    PRINTFORML 「시끄러워！」
+                    CALL THROW_STONE(LOCAL)
+                ELSEIF CFLAG:LOCAL:직종 == ENKAI_SANKA && !ACCOMPANY_ABLE(LOCAL)
+                    IF ABL:MASTER:전투능력 + TALENT:LOCAL:기분 >= ABL:LOCAL:전투능력
+                        PRINTFORML %조사처리(CALLNAME:LOCAL,"는")% %TEXTR("황홀해한다/눈을 반짝였다/당신의 탄막을 칭찬했다")%
+                        LOCAL:1 = MAX(RAND:(ABL:LOCAL:전투능력 + 1), 1)
+                        MONEY:2 += LOCAL:1
+                        PRINTPLAIN *짤랑*
+                        CALL COLORMESSAGE(@"{LOCAL:1}카리스마가 종이에 싸여 날아왔다！",C_YELLOW,1)
+                        IF !RAND:5
+                            TALENT:LOCAL:기분 = 1
+                        ENDIF
+                    ELSE
+                        PRINTFORML 「%TEXTR("시끄러워！/꺼져！/존나못해！")%」
+                        CALL THROW_STONE(LOCAL)
+                    ENDIF
+                ENDIF
+            NEXT
+        ENDIF
         CALL 종속도상승(ARG, 5)
         CALL T_패자처리(TARGET,MASTER)
         CALL 스킬강탈(타겟대피소)
