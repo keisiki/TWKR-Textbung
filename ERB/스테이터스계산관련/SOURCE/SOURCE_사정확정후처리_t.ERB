@@ -171,73 +171,8 @@ NEXT
 #DIM 욕구불만해소계수
 #DIM 중독보너스
 #DIM 모브코용
-#DIM AblBonus
-#DIM DecrementAmount
 
-; 기술에 따른 사정량 배율
-; 하단에도 같은 케이스문이 있는데, 개발 편의를 위해 걍 여기서 한번 더 돌리는거야!
-; 방중술보다 먼저 처리되게 설계되어있어. 생명력(?) 소진 알고리즘이 방중술로 인해서 고장나는 버그가 있어서야!
-; By Subroutineuser
-AblBonus = BASE:SENDER:정력 / 50
-DEBUGPRINTFORML "-SAMEN_SHOOT2.AblBonus: " + {AblBonus} + " (BEFORE HANDLE)"
-; 만약 사정자가 절륜 소질을 가지고 있다면 25% 추가
-IF TALENT:SENDER:절륜
-	AblBonus += 25
-ENDIF
-;1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수
-SELECTCASE TCVAR:SENDER:사정한개소플래그
-	CASE 1
-		AblBonus += ((ABL:SENDER:허리 + ABL:RECEIVER:질) * 2) + ((ABL:RECEIVER:기교 + ABL:SENDER:기교) / 2)
-	CASE 2
-		AblBonus += ((ABL:SENDER:허리 + ABL:RECEIVER:애널) * 2) + ((ABL:RECEIVER:기교 + ABL:SENDER:기교) / 2)
-	CASE 3
-		AblBonus += ((ABL:RECEIVER:손가락) + (ABL:RECEIVER:기교)) * 2
-	CASE 4
-		AblBonus += (ABL:RECEIVER:혀 * 2) + ABL:RECEIVER:기교
-	CASE 5
-		AblBonus += ABL:RECEIVER:기교
-	CASE 6
-		AblBonus += (ABL:RECEIVER:허리 * 2) + ABL:RECEIVER:기교
-	CASE 7
-		AblBonus += ABL:RECEIVER:기교
-ENDSELECT
-AblBonus = MAX(20, AblBonus)
-NOWEX:SENDER:사정량 += (NOWEX:SENDER:사정량 * AblBonus) / 100
-IF BASE:SENDER:정력 == 0
-	SETCOLOR 150, 50, 50
-	; 네 정력이 아니라 생명을 짜내고 있는데?
-	IF BASE:SENDER:기력 > 0
-		DecrementAmount = MAX(0, (NOWEX:SENDER:사정량 * 125) / 100)
-		BASE:SENDER:기력 -= DecrementAmount
-		PRINTFORML 이미 한계에 도달했다...! (기력 -{DecrementAmount})
-	ELSE
-		DecrementAmount = NOWEX:SENDER:사정량
-		BASE:SENDER:체력 -= DecrementAmount
-		PRINTFORML 더 이상 견딜 수가 없다...! (체력 -{NOWEX:SENDER:사정량})
-	ENDIF	
-	RESETCOLOR
-ENDIF
-BASE:SENDER:정력 = MAX(0, BASE:SENDER:정력 - NOWEX:SENDER:사정량)
-DEBUGPRINTFORML "-SAMEN_SHOOT2.AblBonus: " + {AblBonus} + " (AFTER HANDLE)"
-; End
-;;방중술 및 채양/채음 처리
-IF TALENT:SENDER:방중술
-	MAXBASE:SENDER:기력++
-	MAXBASE:RECEIVER:기력++
-	BASE:SENDER:기력 = LIMIT(BASE:SENDER:기력 + 100, 0, MAXBASE:SENDER:기력)
-	BASE:RECEIVER:기력 = LIMIT(BASE:RECEIVER:기력 + 100, 0, MAXBASE:RECEIVER:기력)
-ENDIF
-IF GETBIT(TALENT:SENDER:179,0)&&GETBIT(TALENT:SENDER:179,2)
-	MAXBASE:SENDER:체력++
-	MAXBASE:SENDER:체력++
-	BASE:SENDER:체력 = LIMIT(BASE:SENDER:체력 + 100, 0, MAXBASE:SENDER:체력)
-	BASE:RECEIVER:체력 = LIMIT(BASE:RECEIVER:체력 - 20, 0, MAXBASE:RECEIVER:체력)
-ELSEIF GETBIT(TALENT:SENDER:179,1)&&GETBIT(TALENT:SENDER:179,3)
-	MAXBASE:RECEIVER:체력++
-	MAXBASE:RECEIVER:체력++
-	BASE:SENDER:체력 = LIMIT(BASE:SENDER:체력 - 20, 0, MAXBASE:SENDER:체력)
-	BASE:RECEIVER:체력 = LIMIT(BASE:RECEIVER:체력 + 100, 0, MAXBASE:RECEIVER:체력)
-ENDIF
+CALL TWKR_ORIG_SAMEN(RECEIVER, SENDER)
 	
 중독보너스 = 0
 IF SENDER == MASTER && CFLAG:RECEIVER:우후후 == 2
@@ -306,6 +241,7 @@ SELECTCASE TCVAR:SENDER:사정한개소플래그
 		욕구불만해소계수 = 1000 / MIN(100 + ABL:RECEIVER:질내사정중독 * 10,200)
 		CFLAG:RECEIVER:욕구불만도 -= SQRT(NOWEX:RECEIVER:질내정액) * 욕구불만해소계수
 		CFLAG:RECEIVER:누계질내정액 += NOWEX:RECEIVER:질내정액
+		CALL POISONBODY(RECEIVER, SENDER, 1)
 		;SIF !TCVAR:RECEIVER:피임약
 		;PRINTFORML %CALLNAME:SENDER%が%CALLNAME:RECEIVER%に{NOWEX:RECEIVER:질내정액}出した
 		CALL SAMEN_SHOOT3(NOWEX:RECEIVER:질내정액 , SENDER, RECEIVER)
@@ -704,3 +640,81 @@ IF TFLAG:포이즌바디 && SENDER == MASTER
 		게이지증가 *= 2
 ENDIF
 TCVAR:RECEIVER:포이즌게이지 += 게이지증가
+
+
+
+;===========================================
+;KR판 오리지날 기능 중 길이가 긴 부분을 따로 함수화
+;===========================================
+@TWKR_ORIG_SAMEN(RECEIVER, SENDER)
+#DIM RECEIVER
+#DIM SENDER
+#DIM AblBonus
+#DIM DecrementAmount
+#DIM AbsorbCouple = -1, -1
+
+; 기술에 따른 사정량 배율
+; 하단에도 같은 케이스문이 있는데, 개발 편의를 위해 걍 여기서 한번 더 돌리는거야!
+; 방중술보다 먼저 처리되게 설계되어있어. 생명력(?) 소진 알고리즘이 방중술로 인해서 고장나는 버그가 있어서야!
+; By Subroutineuser
+AblBonus = BASE:SENDER:정력 / 50
+DEBUGPRINTFORML "-SAMEN_SHOOT2.AblBonus: " + {AblBonus} + " (BEFORE HANDLE)"
+; 만약 사정자가 절륜 소질을 가지고 있다면 25% 추가
+IF TALENT:SENDER:절륜
+	AblBonus += 25
+ENDIF
+;1=질내 2=애널 3=수음 4=펠라티오 5=파이즈리 6=가랑이 7=풋잡 8=체표 9=애널 봉사 10=도구 11=촉수
+SELECTCASE TCVAR:SENDER:사정한개소플래그
+	CASE 1
+		AblBonus += ((ABL:SENDER:허리 + ABL:RECEIVER:질) * 2) + ((ABL:RECEIVER:기교 + ABL:SENDER:기교) / 2)
+	CASE 2
+		AblBonus += ((ABL:SENDER:허리 + ABL:RECEIVER:애널) * 2) + ((ABL:RECEIVER:기교 + ABL:SENDER:기교) / 2)
+	CASE 3
+		AblBonus += ((ABL:RECEIVER:손가락) + (ABL:RECEIVER:기교)) * 2
+	CASE 4
+		AblBonus += (ABL:RECEIVER:혀 * 2) + ABL:RECEIVER:기교
+	CASE 5
+		AblBonus += ABL:RECEIVER:기교
+	CASE 6
+		AblBonus += (ABL:RECEIVER:허리 * 2) + ABL:RECEIVER:기교
+	CASE 7
+		AblBonus += ABL:RECEIVER:기교
+ENDSELECT
+AblBonus = MAX(20, AblBonus)
+NOWEX:SENDER:사정량 += (NOWEX:SENDER:사정량 * AblBonus) / 100
+IF BASE:SENDER:정력 == 0
+	SETCOLOR 150, 50, 50
+	; 네 정력이 아니라 생명을 짜내고 있는데?
+	IF BASE:SENDER:기력 > 0
+		DecrementAmount = MAX(0, (NOWEX:SENDER:사정량 * 125) / 100)
+		BASE:SENDER:기력 -= DecrementAmount
+		PRINTFORML 이미 한계에 도달했다...! (기력 -{DecrementAmount})
+	ELSE
+		DecrementAmount = NOWEX:SENDER:사정량
+		BASE:SENDER:체력 -= DecrementAmount
+		PRINTFORML 더 이상 견딜 수가 없다...! (체력 -{NOWEX:SENDER:사정량})
+	ENDIF	
+	RESETCOLOR
+ENDIF
+BASE:SENDER:정력 = MAX(0, BASE:SENDER:정력 - NOWEX:SENDER:사정량)
+DEBUGPRINTFORML "-SAMEN_SHOOT2.AblBonus: " + {AblBonus} + " (AFTER HANDLE)"
+; End
+;;방중술 및 채양/채음 처리
+IF TALENT:SENDER:방중술
+	MAXBASE:SENDER:기력++
+	MAXBASE:RECEIVER:기력++
+	BASE:SENDER:기력 = LIMIT(BASE:SENDER:기력 + 100, 0, MAXBASE:SENDER:기력)
+	BASE:RECEIVER:기력 = LIMIT(BASE:RECEIVER:기력 + 100, 0, MAXBASE:RECEIVER:기력)
+ENDIF
+IF GETBIT(TALENT:SENDER:179, 0) || GETBIT(TALENT:SENDER:179, 1)
+	IF GETBIT(TALENT:SENDER:179,0)&&GETBIT(TALENT:SENDER:179,2) ;채음보양
+		AbsorbCouple:0 = SENDER, RECEIVER
+	ELSEIF GETBIT(TALENT:SENDER:179,1)&&GETBIT(TALENT:SENDER:179,3) ;채양보음
+		AbsorbCouple:0 = RECEIVER, SENDER
+	ELSE
+		THROW 잘못된 채음보양/채양보음 값 {TALENT:SENDER:179}
+	ENDIF
+	MAXBASE:(AbsorbCouple:0):체력 += 2
+	BASE:(AbsorbCouple:0):체력 = LIMIT(BASE:(AbsorbCouple:0):체력 + 100, 0, MAXBASE:(AbsorbCouple:0):체력)
+	BASE:(AbsorbCouple:1):체력 = LIMIT(BASE:(AbsorbCouple:1):체력 - 20, 0, MAXBASE:(AbsorbCouple:1):체력)
+ENDIF
