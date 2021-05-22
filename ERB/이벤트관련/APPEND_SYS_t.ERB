@@ -1,4 +1,4 @@
-﻿;FileName_APPEND_SYS.ERB --------------------------- Rev1. 00
+﻿;FileName_APPEND_SYS.ERB --------------------------- Rev1.00
 ;era 명련사_시스템 변경계 이벤트 통괄
 ;CALL		USER
 ;ARG		VOID
@@ -34,9 +34,11 @@
 #DIM C_ID
 VARSET LOCAL
 인원수 = 0
-FOR LOCAL, 1, CHARANUM
+FOR LOCAL,1,CHARANUM
 	;이미 살고 있는 멤버는 제외한다
 	SIF CFLAG:LOCAL:신사거주 > 0
+		CONTINUE
+	SIF TALENT:LOCAL:스침
 		CONTINUE
 	IF TALENT:LOCAL:연모 && EXP:LOCAL:애정경험 >= 200 
 		인원수 ++
@@ -44,19 +46,24 @@ FOR LOCAL, 1, CHARANUM
 		LOCALS = %CALLNAME:LOCAL%
 	ENDIF
 NEXT
-SIF !인원수
+SIF !인원수 || (DAY:3 != 1)
 	RETURN
 PRINTL
 DRAWLINE
-PRINTFORML 아침, 눈을 뜬 %CALLNAME:MASTER% 앞으로 내방자가 나타났다
+PRINTFORML 아침, 잠에서 일어난 %CALLNAME:MASTER%의 앞에 내방자가 나타났다
 
-PRINTFORML %LOCALS%\@ 인원수 > 1 ?  들은 # %조사만처리(LOCALS,"은")% \@ %CALLNAME:MASTER%에게 %GET_MAPNAME(MAIN_MAP)%에서 살고 싶다고 고했다
+PRINTFORML %LOCALS%\@ 인원수 > 1 ? 들은 # %조사만처리(LOCALS,"는")% \@ %CALLNAME:MASTER%에게 %GET_MAPNAME(MAIN_MAP)%에 살고 싶다고 말했다
 PRINTL
-PRINTFORML %NAME_FROM_PLACE(SUMIKOMI_ROOM)%을 개장하면, 한사람 정도 살 수 있을 것이다
-PRINTFORMW %CALLNAME:거점_주인%들은 제대로 설명하면 환영해 줄 것 같다
-PRINTFORML %마스터는%…
+IF SUMIKOMI_ROOM == 1303
+	PRINTFORML %조사처리(NAME_FROM_PLACE(SUMIKOMI_ROOM),"를")% 정리하면, 두 사람 정도는 같이 살 수 있을 것이다
+	PRINTFORML %마스터는%…
+ELSE
+	PRINTFORML %조사처리(NAME_FROM_PLACE(SUMIKOMI_ROOM),"를")% 개장하면, 한 사람 정도는 살 수 있을 것이다
+	PRINTFORMW %CALLNAME:거점_주인%들은 제대로 설명하면 환영해 줄 것 같다
+	PRINTFORML %마스터는%…
+ENDIF
 C_ID = 1
-FOR LOCAL, 1, CHARANUM
+FOR LOCAL,1,CHARANUM
 	;이미 살고 있는 멤버는 제외한다
 	SIF CFLAG:LOCAL:신사거주 > 0
 		CONTINUE
@@ -69,21 +76,21 @@ PRINTFORML [999] - 인정하지 않는다
 $INPUT_LOOP
 INPUT
 IF RESULT == 999
-	PRINTFORMW %마스터가% 고개를 저으면 %LOCALS%\@ 인원수 > 1 ? 들은 # %조사만처리(LOCALS,"은")% \@ 유감스럽게 숙여 %CALLNAME:MASTER%의 방을 뒤로 했다…
+	PRINTFORMW %마스터가% 고개를 가로젓자 %LOCALS%\@ 인원수 > 1 ? 들은 # %조사만처리(LOCALS,"는")% \@ 아쉽다는 듯이 고개를 숙이고 %CALLNAME:MASTER%의 방을 뒤로 했다…
 	;이 방식이라면 한사람 밖에 말을 부를 수 없지만 좋은 방법은 없는 것인가
 	;우선 다수의 경우에 각각의 캐릭터의 말을 호출할 수 있도록(듯이) 해 본다, 다만 실제로 할 수 있을지 어떨지는 테스트 되어 있지 않기 때문에 자신은 없다
 	IF 인원수 > 1
-		FOR LOCAL, 1, CHARANUM
+		FOR LOCAL,1,CHARANUM
 			;이미 살고 있는 멤버는 제외한다
 			SIF CFLAG:LOCAL:신사거주 > 0
 				CONTINUE
 			IF TALENT:LOCAL:연모 && EXP:LOCAL:애정경험 >= 200
-				CALL KOJO_MESSAGE_SEND("EVENT", 19, LOCAL, 2,0)
+				CALL KOJO_MESSAGE_SEND("EVENT",19,LOCAL,2,0)
 				PRINTL 
 			ENDIF
 		NEXT
 	ELSE
-		CALL KOJO_MESSAGE_SEND("EVENT", 19, C_ID, 2,0)
+		CALL KOJO_MESSAGE_SEND("EVENT",19,C_ID,2,0)
 	ENDIF
 	RETURN 0
 ELSEIF RESULT >= CHARANUM
@@ -93,15 +100,23 @@ ELSEIF !LOCAL:RESULT
 	CLEARLINE 1
 	GOTO INPUT_LOOP
 ENDIF
-PRINTFORML %CALLNAME:RESULT%의 손을 잡아, %CALLNAME:거점_주인%에 부탁해 보는 일을 고하면 %조사처리(CALLNAME:RESULT,"는")% 기쁜듯이 미소짓고 있다
-PRINTFORMW 그 다리로 %CALLNAME:거점_주인%의 원래로 간절히 부탁하러 가면 기분 좋게 승낙해 주었다…
+
+IF SUMIKOMI_ROOM == 1303
+	PRINTFORML %CALLNAME:RESULT%의 손을 잡고, 같이 지내고 싶다고 말하자 %조사처리(CALLNAME:RESULT,"는")% 기쁜듯이 미소짓고 있다
+	PRINTFORMW %마스터는% %조사처리(CALLNAME:RESULT,"와")% 같이 방을 정리하며, 앞으로의 계획에 대해 이야기했다…
+	PRINTL
+	PRINTFORMW - %조사처리(CALLNAME:RESULT,"와")% %GET_MAPNAME(MAIN_MAP)%에서 동거가 시작되었습니다 -
+ELSE
+	PRINTFORML %CALLNAME:RESULT%의 손을 잡고, %CALLNAME:거점_주인%에게 부탁해보겠다고 말하자 %조사처리(CALLNAME:RESULT,"는")% 기쁜듯이 미소짓고 있다
+	PRINTFORMW 그대로 %CALLNAME:거점_주인%에게 부탁하러 가자 흔쾌히 승낙해 주었다…
+	PRINTL
+	PRINTFORMW - %조사처리(CALLNAME:RESULT,"가")% 새로 %GET_MAPNAME(MAIN_MAP)%의 동료로 참가했습니다 -
+ENDIF
 PRINTL
-PRINTFORMW - %조사처리(CALLNAME:RESULT,"가")% 새롭게 %GET_MAPNAME(MAIN_MAP)%의 동료로서 더해졌습니다 -
-PRINTL
-FLAG:더부살이캐릭터 = RESULT
+FLAG:더부살이캐릭터= RESULT
 CFLAG:(FLAG:더부살이캐릭터):311 = SUMIKOMI_ROOM
 CFLAG:(FLAG:더부살이캐릭터):신사거주 = SUMIKOMI_ROOM
-STR:16 = %CALLNAME:RESULT%의 오두막
-CALL KOJO_MESSAGE_SEND("EVENT", 19, RESULT, 1,0)
+
+CALL KOJO_MESSAGE_SEND("EVENT",19,RESULT,1,0)
 
 CALL ROOMSETTING
