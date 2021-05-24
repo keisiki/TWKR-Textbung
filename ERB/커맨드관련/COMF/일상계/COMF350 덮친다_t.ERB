@@ -113,7 +113,7 @@ ELSE
 	NEXT
 ENDIF
 
-IF TFLAG:밀어넘어뜨릴수없다
+IF TFLAG:밀어넘어뜨릴수없다&&!레이프모드가능()
 	FOR LOCAL,1, NUM_TARGET + 1
 		CALL ENDUFUFU(TARGET:LOCAL)
 	NEXT
@@ -135,6 +135,28 @@ ELSE
 	CFLAG:MASTER:우후후 = 1
 	SIF !FLAG:70
 		TIME += 1
+	IF TFLAG:밀어넘어뜨릴수없다&&레이프모드가능()
+		PRINTFORML 아무도 안 보고 있다! %타겟은% 저항할 수 없을것이다!
+		PRINTFORML [0] 범해버린다!
+		PRINTFORML [1] 아무리 그래도 그건
+		INPUT
+		IF RESULT
+			PRINTFORML %마스터는% 단념하기로 했다...
+		ELSE
+			FOR LOCAL,0,GET_TARGETNUM()
+				SIF BASE:(TARGET:LOCAL):무드 < 50
+					BASE:(TARGET:LOCAL):무드 = 50
+				CFLAG:(TARGET:LOCAL):우후후 = 1
+				TCVAR:(TARGET:LOCAL):억지로 = 1
+				IF INROOM(CFLAG:MASTER:현재위치) == 2
+					CALL DATUI_SHOES((TARGET:LOCAL),0)
+					CALL DATUI_SHOES((TARGET:LOCAL),0)
+				ENDIF
+			NEXT
+			TFLAG:밀어넘어뜨릴수없다 = 0
+			TFLAG:레이프중 = 1
+		ENDIF
+	ENDIF
 ENDIF
 ;経過時間表示用に개시시간を取っておく
 IF !UFUFU_START_TIME
@@ -265,3 +287,67 @@ SIF DATE_HITOGOMI()
 	RETURNF 2
 
 RETURNF 0
+
+
+@레이프수치(시전자,상대방)
+#FUNCTION
+#DIM DYNAMIC 시전자
+#DIM DYNAMIC 상대방
+#DIM DYNAMIC 레이프력
+#DIM DYNAMIC 레이프저항력
+
+레이프력 = 1
+레이프력 += (TALENT:시전자:체형 - TALENT:상대방:체형) * 2
+레이프력 += TALENT:시전자:담력
+레이프력 += TALENT:시전자:용모
+레이프력 += MAX(ABL:시전자:전투능력 - ABL:상대방:전투능력, -5)
+레이프력 += MIN(MAX((ABL:시전자:레벨 - ABL:상대방:레벨)/10, -5),4)
+레이프력 += MIN(MAX((CFLAG:시전자:힘 - CFLAG:상대방:힘)/5, -5),4)
+레이프력 += MIN(MAX((CFLAG:시전자:속도 - CFLAG:상대방:속도)/5, -5),4)
+레이프력 += TALENT:상대방:임신
+레이프력 += TALENT:상대방:무지
+레이프력 += TALENT:상대방:사모
+레이프력 += TALENT:상대방:연모
+레이프력 += MIN(ABL:상대방:친밀/2,2)
+레이프력 += MIN(((BASE:상대방:술기운 * 100)/MAXBASE:상대방:술기운)/10 - 1,3)
+
+IF TALENT:시전자:연령 == 0&&TALENT:상대방:연령 != 0
+	레이프력 += 1
+ENDIF
+
+레이프저항력 = 4
+레이프저항력 += TALENT:상대방:성적흥미 * -1
+레이프저항력 += MARK:상대방:반발각인
+레이프저항력 += TALENT:상대방:통각 * -1
+레이프저항력 += TALENT:상대방:정조 * -2
+레이프저항력 += TALENT:상대방:저항 * 3
+레이프저항력 += MIN(((BASE:시전자:술기운 * 100)/MAXBASE:시전자:술기운)/10 - 1,3)
+
+IF TALENT:상대방:성별기호 == 3 || (TALENT:시전자:성별 == 1 && TALENT:상대방:성별기호 == 3) || ((TALENT:시전자:성별 == 0 || TALENT:시전자:성별 == 2) && TALENT:상대방:성별기호 == 2)
+	레이프저항력 += 3
+ENDIF
+IF TALENT:상대방:처녀 == 1
+	레이프저항력 += 2
+ENDIF
+IF TALENT:시전자:비동정 == 0
+	레이프저항력 += 1
+ENDIF
+
+RETURNF (레이프력 - 레이프저항력)
+
+
+;여러명 레이프도 가능해야하겠지만 굉장히 복잡스러워질것 같으므로(이미 몸 허락한 애들도 같이 레이프 상황인걸 배제하는 코드등) 일단 여러명일땐 불가능하게
+@레이프모드가능
+#FUNCTION
+IF EYEWITNESS() == 2
+	RETURNF 0
+ENDIF
+IF GET_TARGETNUM() > 1
+	RETURNF 0
+ENDIF
+FOR LOCAL,0,GET_TARGETNUM()
+	IF 레이프수치(MASTER,TARGET:LOCAL) <= 0
+		RETURNF 0
+	ENDIF 
+NEXT
+RETURNF 1
