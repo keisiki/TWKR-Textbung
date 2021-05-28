@@ -1282,50 +1282,73 @@ SIF 검사용변수 == 0
 #DIM C_ID
 VARSET 집합
 VARSET 인원수
-FOR LOCAL, 1, CHARANUM
-	SIF AT_HOME(LOCAL) == 0
-		CONTINUE
-    SIF CFLAG:LOCAL:수면||TALENT:LOCAL:당신의노예||TALENT:LOCAL:사망||(TALENT:LOCAL:창녀||TALENT:LOCAL:렌탈창녀)||TCVAR:LOCAL:탄막승부불능||싸움이야(LOCAL)
-        CONTINUE
-	SIF TALENT:MASTER:위치짐작 == 0 && CFLAG:MASTER:현재위치 != CFLAG:LOCAL:현재위치 && CAN_MOVE(CFLAG:MASTER:현재위치, CFLAG:LOCAL:현재위치) == 0
-		CONTINUE
-	SIF CFLAG:LOCAL:현재위치 == MAXROOM && CFLAG:LOCAL:수면
-		CONTINUE
-	집합:인원수:0 = LOCAL
-	C_ID = 집합:인원수:0
-	;선택 여부
-    IF CFLAG:C_ID:현재위치 > MAXROOM
-		SETBIT 집합:인원수:1, 0
-	ENDIF
-	인원수 ++
-NEXT
-[IF_DEBUG]
-    FOR LOCAL,0,인원수
-        PRINTFORML [%CALLNAME:(집합:LOCAL:0)%]
+IF !TFLAG:외출중
+    FOR LOCAL, 1, CHARANUM
+        SIF AT_HOME(LOCAL) == 0
+            CONTINUE
+        SIF CFLAG:LOCAL:수면||TALENT:LOCAL:당신의노예||TALENT:LOCAL:사망||(TALENT:LOCAL:창녀||TALENT:LOCAL:렌탈창녀)||TCVAR:LOCAL:탄막승부불능||싸움이야(LOCAL)
+            CONTINUE
+        SIF TALENT:MASTER:위치짐작 == 0 && CFLAG:MASTER:현재위치 != CFLAG:LOCAL:현재위치 && CAN_MOVE(CFLAG:MASTER:현재위치, CFLAG:LOCAL:현재위치) == 0
+            CONTINUE
+        SIF CFLAG:LOCAL:현재위치 == MAXROOM && CFLAG:LOCAL:수면
+            CONTINUE
+        집합:인원수:0 = LOCAL
+        C_ID = 집합:인원수:0
+        ;선택 여부
+        IF CFLAG:C_ID:현재위치 > MAXROOM
+            SETBIT 집합:인원수:1, 0
+        ENDIF
+        인원수 ++
     NEXT
-[ENDIF]
-CALL SYUGOS_COST(인원수, 집합)
-LOCAL:1 = 0
-FOR LOCAL,0,인원수
-    IF 집합:LOCAL:0 == MASTER||TALENT:(집합:LOCAL:0):사망
-        CONTINUE
-    ENDIF
-    IF 집합:LOCAL:2 < 2
-        IF 집합:LOCAL:0 == RANDOM_CHARANUM
+    [IF_DEBUG]
+        FOR LOCAL,0,인원수
+            PRINTFORML [%CALLNAME:(집합:LOCAL:0)%]
+        NEXT
+    [ENDIF]
+    CALL SYUGOS_COST(인원수, 집합)
+    LOCAL:1 = 0
+    FOR LOCAL,0,인원수
+        IF 집합:LOCAL:0 == MASTER||TALENT:(집합:LOCAL:0):사망
             CONTINUE
         ENDIF
-        다들모여:(LOCAL:1) = 집합:LOCAL:0
-        IF CFLAG:(집합:LOCAL:0):현재위치 == CFLAG:MASTER:현재위치
-            PRINTFORML %마스터의% 행패에 보다못한 %조사처리(CALLNAME:(집합:LOCAL:0),"가")% 뛰쳐들었다!
-        ELSE
-            PRINTFORML 소란에 %조사처리(CALLNAME:(집합:LOCAL:0),"이")% 뛰쳐왔다!
-            CFLAG:(집합:LOCAL:0):현재위치 = CFLAG:MASTER:현재위치
+        IF 집합:LOCAL:2 < 2
+            IF 집합:LOCAL:0 == RANDOM_CHARANUM
+                CONTINUE
+            ENDIF
+            다들모여:(LOCAL:1) = 집합:LOCAL:0
+            IF CFLAG:(집합:LOCAL:0):현재위치 == CFLAG:MASTER:현재위치
+                PRINTFORML %마스터의% 행패에 보다못한 %조사처리(CALLNAME:(집합:LOCAL:0),"가")% 뛰쳐들었다!
+            ELSE
+                PRINTFORML 소란에 %조사처리(CALLNAME:(집합:LOCAL:0),"이")% 뛰쳐왔다!
+                CFLAG:(집합:LOCAL:0):현재위치 = CFLAG:MASTER:현재위치
+            ENDIF
+            SIF RELATION:MASTER:(집합:LOCAL:0) > -90
+                RELATION:MASTER:(집합:LOCAL:0) -= 10
+            LOCAL:1 ++
         ENDIF
-        SIF RELATION:MASTER:(집합:LOCAL:0) > 10
-            RELATION:MASTER:(집합:LOCAL:0) -= 10
-        LOCAL:1 ++
-    ENDIF
-    IF LOCAL:1 > 5
-        BREAK
-    ENDIF
-NEXT
+        IF LOCAL:1 > 5
+            BREAK
+        ENDIF
+    NEXT
+ELSE
+    FOR LOCAL, 1,CHARANUM
+        IF CFLAG:LOCAL:현재위치 >= CFLAG:MASTER:현재위치 - 10&&CFLAG:LOCAL:현재위치 <= CFLAG:MASTER:현재위치 + 10
+            ;외출처일때
+            IF CFLAG:LOCAL:수면 == 0&&TALENT:LOCAL:당신의노예 == 0&&TALENT:LOCAL:사망 == 0&&TALENT:LOCAL:창녀 == 0&&TALENT:LOCAL:렌탈창녀 == 0&&TCVAR:LOCAL:탄막승부불능 == 0&&싸움이야(LOCAL) == 0
+                다들모여:(LOCAL:1) = LOCAL
+                IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
+                    PRINTFORML %마스터의% 행패에 보다못한 %조사처리(CALLNAME:LOCAL,"가")% 뛰쳐들었다!
+                ELSE
+                    PRINTFORML 소란에 %조사처리(CALLNAME:LOCAL,"이")% 뛰쳐왔다!
+                    CFLAG:LOCAL:현재위치 = CFLAG:MASTER:현재위치
+                ENDIF
+                SIF RELATION:MASTER:LOCAL > -90
+                    RELATION:MASTER:LOCAL -= 10
+                LOCAL:1 ++
+            ENDIF
+            IF LOCAL:1 >= 5
+                BREAK
+            ENDIF
+        ENDIF
+    NEXT
+ENDIF
