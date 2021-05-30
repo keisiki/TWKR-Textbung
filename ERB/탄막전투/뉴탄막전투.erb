@@ -91,6 +91,7 @@ REPEAT 2
     TCVAR:대상:T_마력내성 = CFLAG:대상:마력내성
     TCVAR:대상:T_수격내성 = CFLAG:대상:수격내성
     TCVAR:대상:T_정신내성 = CFLAG:대상:정신내성
+    TCVAR:대상:T_관통내성 = CFLAG:대상:관통내성
 REND
 CALL 공방세팅(ARG, ARG:1)
 
@@ -242,10 +243,11 @@ FOR LOCAL, 0, 2
     TCVAR:세팅대상:T_마력내성 = CFLAG:세팅대상:마력내성 + TB_SUM_VALUE(세팅대상,TCV_마력내성) - TCVAR:세팅대상:부상_마력내성
     TCVAR:세팅대상:T_수격내성 = CFLAG:세팅대상:수격내성 + TB_SUM_VALUE(세팅대상,TCV_수격내성) - TCVAR:세팅대상:부상_수격내성
     TCVAR:세팅대상:T_정신내성 = CFLAG:세팅대상:정신내성 + TB_SUM_VALUE(세팅대상,TCV_정신내성) - TCVAR:세팅대상:부상_정신내성
+    ;관통내성은 딱히 없다
 NEXT
 
-TCVAR:ARG:T_적중률 = 75 + MIN(10,MAX(0,TCVAR:(ARG):T_속도 - TCVAR:(ARG:1):T_속도) / 10) + MIN(5,MAX(0,TCVAR:(ARG):T_운 - TCVAR:(ARG:1):T_운) / 10)
-TCVAR:(ARG:1):T_적중률 = 75 + MIN(10,MAX(0,TCVAR:(ARG:1):T_속도 - TCVAR:(ARG):T_속도) / 10) + MIN(5,MAX(0,TCVAR:(ARG:1):T_운 - TCVAR:(ARG):T_운) / 10)
+TCVAR:ARG:T_적중률 = 75 + MIN(11,MAX(0,TCVAR:(ARG):T_속도 - TCVAR:(ARG:1):T_속도) / 10) + MIN(4,MAX(0,TCVAR:(ARG):T_운 - TCVAR:(ARG:1):T_운) / 10)
+TCVAR:(ARG:1):T_적중률 = 75 + MIN(11,MAX(0,TCVAR:(ARG:1):T_속도 - TCVAR:(ARG):T_속도) / 10) + MIN(4,MAX(0,TCVAR:(ARG:1):T_운 - TCVAR:(ARG):T_운) / 10)
 
 TCVAR:ARG:T_적중률 += TB_SUM_VALUE(ARG,TCV_적중)
 TCVAR:(ARG:1):T_적중률 += TB_SUM_VALUE(ARG:1,TCV_적중)
@@ -646,6 +648,7 @@ NEXT
 #DIM DYNAMIC 감소율
 #DIM DYNAMIC 원래데미지
 #DIM DYNAMIC 공격자
+#DIM DYNAMIC 완전방어여부
 ;감소율은 XX%단위
 원래데미지 = 데미지
 공격자 = 사용자반대(ARG)
@@ -716,6 +719,9 @@ IF TCVAR:ARG:T_방어력 >= 0
     PRINTL
     PRINTFORML 감소율 : {감소율}\% 
     데미지 = (데미지 * (100-감소율))/100
+    IF 데미지 <= 0
+        완전방어여부 = 1
+    ENDIF
 ELSE
     ;데미지 += TCVAR:ARG:T_방어력
     ;SIF TCVAR:ARG:T_방어력 < 0
@@ -728,9 +734,9 @@ PRINTL
 LOCAL:1 = 0
 IF ARG == T_턴반대 && 크리티컬판정(TCVAR:T_턴주인:T_운)
     PRINTFORML 급소에 \@ ARG == MASTER ? 맞았# 맞혔\@다!
-    데미지 += TCVAR:T_턴주인:T_운/2
+    데미지 += MAX(TCVAR:T_턴주인:T_운/2 - (완전방어여부 * ARG능력치(ARG, "관통내성")) , 0)
     TIMES 데미지 , 1.5
-    LOCAL = TCVAR:T_턴반대:T_운/2
+    LOCAL = MAX(TCVAR:T_턴주인:T_운/2 - (완전방어여부 * ARG능력치(ARG, "관통내성")) , 0)
     TIMES LOCAL , 1.5
     IF 데미지 == LOCAL
         IF T_턴주인 == MASTER
@@ -824,9 +830,10 @@ RETURN 1
 @크리티컬판정(ARG)
 #FUNCTION
 #DIM DYNAMIC 크리티컬
+#DIM DYNAMIC 크리티컬판정조절
 크리티컬 = MIN(ARG, 300)
-
-IF 크리티컬 >= RAND:300 + 1
+크리티컬판정조절 = 350
+IF 크리티컬 >= RAND:크리티컬판정조절 + 1
     ;명중
     RETURNF 1
 ELSE
