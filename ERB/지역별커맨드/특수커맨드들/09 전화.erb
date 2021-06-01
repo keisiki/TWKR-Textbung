@@ -1,0 +1,125 @@
+﻿
+@TSC_9
+#DIM DYNAMIC 주문내용
+IF FLAG:전화
+	PRINTFORML 어디에 전화를 걸까?
+	PRINTFORML [0] 음식점
+	;SIF MAIN_MAP != 4
+	;	PRINTFORML [1] 영원정
+	SIF !TALENT:[[레밀리아]]:사망 && !TALENT:[[사쿠야]]:사망 && MAIN_MAP != 3
+		PRINTFORML [2] 홍마관 서비스
+	PRINTFORML [99] 그만둔다
+	INPUT
+	IF RESULT == 99
+		RETURN -1
+	ELSE
+		IF RESULT == 0
+			CALL 지역별메뉴판("마을_일품요리집")
+			PRINTFORML [9999] 돌아간다
+			$LOOP
+			INPUT
+			주문내용 = RESULT
+			IF 주문내용 == 9999
+				RETURN -1
+			ENDIF
+			IF 주문메뉴표:주문내용 == 0
+				GOTO LOOP
+			ENDIF
+			CALL 주문정보생성(주문내용)
+			IF 주문정보:1 > MONEY
+				PRINTW 돈이 부족하다...
+				RESTART
+			ENDIF
+			MONEY -= 주문정보:1
+			CALL 주문요리생성
+			PRINTFORMW %조사처리(주문명,"가")% 배달되었다...
+			TIME += 30
+		ELSEIF RESULT == 1 && 0
+			;일하러 가버리는 문제를 해결해야 한다
+			IF 전화가능("영원정")
+				PRINTFORML 집으로 영원정 사람을 불렀다...
+				IF CFLAG:[[우동게]]:수면
+					CFLAG:[[우동게]]:현재위치 = CFLAG:MASTER:현재위치
+				ELSE
+					CFLAG:[[에이린]]:현재위치 = CFLAG:MASTER:현재위치
+				ENDIF
+				TIME += 5
+			ELSE
+				PRINTFORMW ...안 받는다
+			ENDIF
+		ELSEIF RESULT == 2
+			IF 전화가능("홍마관서비스")
+				CALL COM630
+			ELSE
+				PRINTFORMW ...안 받는다
+			ENDIF
+		ENDIF
+	ENDIF
+	RETURN 1
+ELSE
+	PRINTFORML 전화를 쓰려면 요금을 내야 한다...
+	PRINTFORML 내겠습니까? (5000원)
+	CALL ASK_YN
+	IF RESULT
+		RETURN -1
+	ELSE
+		IF MONEY > 5000
+			MONEY -= 5000
+			FLAG:전화 = 1
+			PRINTFORMW 전화를 개통했습니다
+		ELSE
+			PRINTFORMW 돈이 부족하다...
+			RETURN -1
+		ENDIF
+	ENDIF
+ENDIF
+		
+@TSC_NAME9
+#DIMS DYNAMIC 커맨드이름
+커맨드이름 = 전화한다
+RESULTS = %커맨드이름%
+
+@TSC_ABLE9
+
+IF !ITEM:전화 || CFLAG:MASTER:현재위치 != CFLAG:MASTER:초기위치
+    RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 2
+
+
+
+@전화가능(ARGS)
+#FUNCTION
+IF ARGS == "홍마관서비스"
+	SIF TALENT:[[레밀리아]]:사망 ||TALENT:[[레밀리아]]:창녀||TALENT:[[레밀리아]]:렌탈창녀
+		RETURNF -1
+	SIF TALENT:[[사쿠야]]:사망 ||TALENT:[[사쿠야]]:창녀||TALENT:[[사쿠야]]:렌탈창녀
+		RETURNF -1
+	SIF (CFLAG:[[사쿠야]]:수면) || CFLAG:[[사쿠야]]:취침시간 <= TIME + 30
+		RETURNF -1
+	SIF (CFLAG:[[사쿠야]]:현재위치 != SUKIMA())
+		RETURNF -1
+	SIF MAIN_MAP == 3
+		RETURNF -1
+	RETURNF 1
+ELSEIF ARGS == "영원정"
+	SIF TALENT:[[에이린]]:사망||TALENT:[[에이린]]:창녀||TALENT:[[에이린]]:렌탈창녀
+		RETURNF -1
+	SIF TALENT:[[우동게]]:사망||TALENT:[[우동게]]:창녀||TALENT:[[우동게]]:렌탈창녀
+		RETURNF -1
+	SIF (CFLAG:[[에이린]]:수면&&CFLAG:[[우동게]]:수면) || (CFLAG:[[우동게]]:취침시간 <= TIME + 30 && CFLAG:[[에이린]]:취침시간 <= TIME + 30)
+		RETURNF -1
+	SIF (CFLAG:[[에이린]]:현재위치 != SUKIMA()&&CFLAG:[[우동게]]:현재위치 != SUKIMA())
+		RETURNF -1
+	SIF MAIN_MAP == 4
+		RETURNF -1
+	RETURNF 1
+ENDIF
