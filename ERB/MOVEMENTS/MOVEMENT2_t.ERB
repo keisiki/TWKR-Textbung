@@ -21,85 +21,89 @@ RETURNF TIME + DAY * 1440 - ARG
 @KITAKU(ARG)
 #DIMS 귀가이유
 IF !TCVAR:ARG:패배강간
-	IF TIME < 420 && TIME > 180
-		귀가이유 = 날도 밝아오니
-	ELSEIF TIME < 1140 && TIME > 900
-		귀가이유 = 해도 졌으니
+	IF TCVAR:ARG:귀가지연
+		TCVAR:ARG:귀가지연--
 	ELSE
-		귀가이유 = 밤도 벌써 깊어졌으니
-	ENDIF
+		IF TIME < 420 && TIME > 180
+			귀가이유 = 날도 밝아오니
+		ELSEIF TIME < 1140 && TIME > 900
+			귀가이유 = 해도 졌으니
+		ELSE
+			귀가이유 = 밤도 벌써 깊어졌으니
+		ENDIF
 
-	IF CFLAG:(ARG):현재위치 == CFLAG:MASTER:현재위치 && !CFLAG:MASTER:수면
-		CALL OneNightStay(ARG)
-		SIF CFLAG:ARG:신사거주
-			RETURN
-		IF 수면시간(ARG)
-			PRINTFORMW %ARG는% 잠자리에 들었다.
-		;데이트중
-		ELSEIF CHK_DATENOW(CFLAG:(ARG):데이트중)
-			PRINTFORMW %귀가이유% %ARG와%의 데이트는 여기까지다.
-			;자택에 있을 때, 초대방에 있을 때는 우후후 하고 있지 않을 때
-			IF (CFLAG:(ARG):현재위치 == CFLAG:(ARG):자택위치 || (CFLAG:(ARG):현재위치 == OMANEKIBEYA() && !CFLAG:(ARG):우후후))
-				CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,3,0)
-			;통상의 데이트중
-			ELSE
-				;お誘い
-				IF (TALENT:ARG:연모 || TALENT:ARG:섹프 == 2) && CFLAG:ARG:욕구불만도 >= (700 + TALENT:ARG:수치심 * 150) && !CFLAG:ARG:신사거주 && !TCVAR:ARG:연속숙박금지 && CFLAG:(ARG):현재위치 != OMANEKIBEYA() && CFLAG:ARG:자택위치
-					PRINTFORML %ARG로%부터 방에 오지 않겠냐고 권유받았다.
-					CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,4,0)
-					CALL ASK_YN("간다","그만둔다")
-					IF !RESULT
-						PRINTFORML %CALLNAME:ARG%에게 권유받은 대로, %마스터는% %CALLNAME:ARG%의 방으로 향했다……
-						CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,5,0)
-						PRINTFORMW +{TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)}분
-						TIME += TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)
-						CALL OMANEKI_ENTER(ARG)
-						CALL TARGETSET_CHACK
+		IF CFLAG:(ARG):현재위치 == CFLAG:MASTER:현재위치 && !CFLAG:MASTER:수면
+			CALL OneNightStay(ARG)
+			SIF CFLAG:ARG:신사거주
+				RETURN
+			IF 수면시간(ARG)
+				PRINTFORMW %ARG는% 잠자리에 들었다.
+			;데이트중
+			ELSEIF CHK_DATENOW(CFLAG:(ARG):데이트중)
+				PRINTFORMW %귀가이유% %ARG와%의 데이트는 여기까지다.
+				;자택에 있을 때, 초대방에 있을 때는 우후후 하고 있지 않을 때
+				IF (CFLAG:(ARG):현재위치 == CFLAG:(ARG):자택위치 || (CFLAG:(ARG):현재위치 == OMANEKIBEYA() && !CFLAG:(ARG):우후후))
+					CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,3,0)
+				;통상의 데이트중
+				ELSE
+					;お誘い
+					IF (TALENT:ARG:연모 || TALENT:ARG:섹프 == 2) && CFLAG:ARG:욕구불만도 >= (700 + TALENT:ARG:수치심 * 150) && !CFLAG:ARG:신사거주 && !TCVAR:ARG:연속숙박금지 && CFLAG:(ARG):현재위치 != OMANEKIBEYA() && CFLAG:ARG:자택위치
+						PRINTFORML %ARG로%부터 방에 오지 않겠냐고 권유받았다.
+						CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,4,0)
+						CALL ASK_YN("간다","그만둔다")
+						IF !RESULT
+							PRINTFORML %CALLNAME:ARG%에게 권유받은 대로, %마스터는% %CALLNAME:ARG%의 방으로 향했다……
+							CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,5,0)
+							PRINTFORMW +{TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)}분
+							TIME += TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)
+							CALL OMANEKI_ENTER(ARG)
+							CALL TARGETSET_CHACK
+						ELSE
+							PRINTFORMW %ARG는% 섭섭해 보인다……
+							CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,6,0)
+							SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+								CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
+						ENDIF
 					ELSE
-						PRINTFORMW %ARG는% 섭섭해 보인다……
-						CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,6,0)
+						CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,2,0)
 						SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
 							CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
 					ENDIF
-				ELSE
-					CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,2,0)
-					SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
-						CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
 				ENDIF
+			;신사내에 있을까 자택에서도 초대방도 아닌 장소
+			ELSEIF AT_HOME(ARG) || (CFLAG:(ARG):현재위치 != CFLAG:(ARG):자택위치 && CFLAG:(ARG):현재위치 != OMANEKIBEYA()) && CFLAG:ARG:행동 != 5
+				CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,1,0)
+					PRINTFORMW %귀가이유% %ARG는% 돌아갔습니다.
+				CALL SET_TOGETHER(0,ARG,1)
+				SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+					CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
 			ENDIF
-		;신사내에 있을까 자택에서도 초대방도 아닌 장소
-		ELSEIF AT_HOME(ARG) || (CFLAG:(ARG):현재위치 != CFLAG:(ARG):자택위치 && CFLAG:(ARG):현재위치 != OMANEKIBEYA()) && CFLAG:ARG:행동 != 5
-			CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,1,0)
-				PRINTFORMW %귀가이유% %ARG는% 돌아갔습니다.
-			CALL SET_TOGETHER(0,ARG,1)
-			SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
-				CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
+			IF CFLAG:(ARG):우후후 > 0 || CHK_DATENOW(CFLAG:(ARG):데이트중)
+				FOR LOCAL,1,CHARANUM
+					;초대중은 계속
+					SIF CFLAG:MASTER:초대 != LOCAL && CFLAG:LOCAL:우후후
+						CALL ENDUFUFU(LOCAL)
+					;데이트는 사라진다
+					CFLAG:LOCAL:데이트중 = MAIN_MAP
+					FLAG:데이트상대 = 0
+					TFLAG:데이트전호감도 = 0
+				NEXT
+				;불러 우후후 안은 계속
+				SIF !CFLAG:MASTER:초대
+					CFLAG:MASTER:우후후 = 0
+				CFLAG:MASTER:동행 = 0
+			ENDIF
 		ENDIF
-		IF CFLAG:(ARG):우후후 > 0 || CHK_DATENOW(CFLAG:(ARG):데이트중)
-			FOR LOCAL,1,CHARANUM
-				;초대중은 계속
-				SIF CFLAG:MASTER:초대 != LOCAL && CFLAG:LOCAL:우후후
-					CALL ENDUFUFU(LOCAL)
-				;데이트는 사라진다
-				CFLAG:LOCAL:데이트중 = MAIN_MAP
-				FLAG:데이트상대 = 0
-				TFLAG:데이트전호감도 = 0
-			NEXT
-			;불러 우후후 안은 계속
-			SIF !CFLAG:MASTER:초대
-				CFLAG:MASTER:우후후 = 0
-			CFLAG:MASTER:동행 = 0
-		ENDIF
-	ENDIF
-	CFLAG:ARG:동행 = 0
+		CFLAG:ARG:동행 = 0
 
-	IF !TCVAR:ARG:휴식안 && !CFLAG:ARG:초대
-		;활동시간외는 자택이 있으면 잘 때까지 자택에 있다
-		IF CFLAG:ARG:자택위치 && !IN_HOME(CFLAG:ARG:자택위치) && !수면시간(ARG)
-			CFLAG:ARG:현재위치 = CFLAG:ARG:자택위치
-		;자택이 없는가 자면(자) 사라진다
-		ELSE
-			CFLAG:ARG:현재위치 = SUKIMA()
+		IF !TCVAR:ARG:휴식안 && !CFLAG:ARG:초대
+			;활동시간외는 자택이 있으면 잘 때까지 자택에 있다
+			IF CFLAG:ARG:자택위치 && !IN_HOME(CFLAG:ARG:자택위치) && !수면시간(ARG)
+				CFLAG:ARG:현재위치 = CFLAG:ARG:자택위치
+			;자택이 없는가 자면(자) 사라진다
+			ELSE
+				CFLAG:ARG:현재위치 = SUKIMA()
+			ENDIF
 		ENDIF
 	ENDIF
 ENDIF
