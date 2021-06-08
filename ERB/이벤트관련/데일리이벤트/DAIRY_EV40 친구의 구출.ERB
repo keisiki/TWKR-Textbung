@@ -1,0 +1,206 @@
+﻿@DAIRY_CONDITION_EV40
+FOR LOCAL,0,CHARANUM
+	IF CFLAG:LOCAL:감금됨 && CFLAG:LOCAL:감금된날 >= 7
+		LOCAL:1++
+	ENDIF
+NEXT
+IF LOCAL:1 == 0
+	RETURN -1
+ENDIF
+SIF RAND:100 > 10
+	RETURN -1
+CALL DAIRY_EV40
+RETURN 1
+
+@DAIRY_EV40
+#DIM DYNAMIC 대상
+#DIM DYNAMIC 구출자
+#DIM DYNAMIC 구출력
+
+대상 = RAND:20
+LOCAL:1 = 0
+FOR LOCAL:2, 0, 5
+	FOR LOCAL,0,CHARANUM
+		IF CFLAG:LOCAL:감금됨&&CFLAG:LOCAL:감금된날 >= 7
+			LOCAL:1++
+			IF LOCAL:1 == 대상
+				대상 = LOCAL
+				GOTO 본체
+			ENDIF
+		ENDIF
+	NEXT
+NEXT
+
+$본체
+IF LOCAL > CHARANUM
+	RETURN -1
+ENDIF
+IF !CFLAG:LOCAL:감금된날 < 3
+	RETURN -1
+ENDIF
+TARGET = LOCAL
+
+구출자 = RAND:20
+LOCAL:1 = 0
+FOR LOCAL:2, 0, 5
+	FOR LOCAL,0,CHARANUM
+		IF !CFLAG:LOCAL:감금됨&& (RELATION:대상:LOCAL > 0 || RELATION:LOCAL:대상 > 0)
+			LOCAL:1++
+			IF LOCAL:1 == 구출자
+				구출자 = LOCAL
+				GOTO 구출본체
+			ENDIF
+		ENDIF
+	NEXT
+NEXT
+
+RETURN -1
+
+$구출본체
+IF 구출자 > CHARANUM
+	RETURN -1
+ENDIF
+IF CFLAG:구출자:감금됨
+	RETURN -1
+ENDIF
+
+DRAWLINE
+PRINTFORML ***바스락바스락
+PRINTFORML 한밤중, %마스터의% 저택 근처에 의문의 발소리가 들린다...
+PRINTFORML 그 소리의 정체는...%CALLNAME:구출자%다!
+PRINTFORMW %조사처리(CALLNAME:구출자,"는")% 얼마전 지하실에 갇힌 %CALLNAME:대상%의 구출을 목표로 저택에 들어섰다...
+
+MARK:구출자:반발각인 = MIN(MARK:구출자:반발각인 + 1 , 3)
+;일단 1 추가
+
+구출력 = 5 + TALENT:구출자:담력 + MIN(ABL:구출자:레벨 / 50 , 5) + MARK:구출자:반발각인
+
+;1단계 - 문열기
+DRAWLINE
+PRINTFORMW %조사처리(CALLNAME:구출자,"는")% 조심스레 현관문을 열었다...
+IF RAND:5 == 0
+	PRINTFORML ...실패다, 열리지 않는다
+	PRINTFORMW 문을 부쉈다간 들킬것이 뻔하므로 다른 루트를 찾기로 했다...
+	구출력 --
+	IF RAND:5 == 0
+		PRINTFORMW 어쩔수 없이 창문을 살펴보았다...
+		IF RAND:2 == 0
+			PRINTFORMW ...열리지 않는다, 하는수없이 약간의 소음을 감수하고 창문을 깨버렸다
+			구출력 -= 3
+		ELSE
+			PRINTFORMW ...창문은 요행히 잘 열렸다...
+		ENDIF
+	ELSE
+		PRINTFORMW ...실패다, 찾을수 없다...
+		PRINTFORMW 하는수없이 다음을 기약하기로 했다...
+		RETURN -1
+	ENDIF
+ELSE
+	PRINTFORMW 현관문이 가볍게 열렸다...
+ENDIF
+
+IF 구출력 <= 0
+	GOTO 들킴
+ENDIF
+
+;2단계 - 복도 통과
+
+PRINTFORMW %조사처리(CALLNAME:구출자,"는")% 조용히 복도를 지나쳐가고 있다...
+IF RAND:6 == 0
+	PRINTFORML ...! 바닥에 미끄러져 넘어져버렸다!
+	PRINTFORMW 상당한 소음이 나 버렸다...
+	구출력 -- 
+ELSE
+	PRINTFORMW 무사히 계단참까지 왔다...
+ENDIF
+IF 구출력 <= 0
+	GOTO 들킴
+ENDIF
+;3단계 - 계단 통과
+
+PRINTFORMW %조사처리(CALLNAME:구출자,"는")% 조용히 계단을 내려가고 있다...
+IF RAND:6 == 0
+	PRINTFORMW ...계단에서 상당한 소음이 난다...
+	구출력 -- 
+ELSE
+	PRINTFORMW 사뿐사뿐 걸어서 지하까지 올 수 있었다
+ENDIF
+IF 구출력 <= 0
+	GOTO 들킴
+ENDIF
+;4단계 - 복도 통과
+
+PRINTFORMW %조사처리(CALLNAME:구출자,"는")% 조용히 복도를 지나쳐가고 있다...
+IF RAND:6 == 0
+	PRINTFORML ...! 바닥에 미끄러져 넘어져버렸다!
+	PRINTFORMW 상당한 소음이 나 버렸다...
+	구출력 -- 
+ELSE
+	PRINTFORMW 무사히 계단참까지 왔다...
+ENDIF
+IF 구출력 <= 0
+	GOTO 들킴
+ENDIF
+
+;5단계 - 문 열기
+
+PRINTFORMW 이제 감금실 앞까지 왔다...
+PRINTFORMW %조사처리(CALLNAME:구출자,"는")% 조심스레 문을 열고 있다...
+구출력 -= RAND:3
+
+IF 구출력 <= 0
+	GOTO 들킴
+ELSE
+	PRINTFORML ...! 문이 열렸다!
+	PRINTFORML 재빨리 방 안으로 들어간 %조사처리(CALLNAME:구출자,"는")% %조사처리(CALLNAME:대상,"를")% 찾아내 황급히 밖으로 도망치기 시작했다!
+	구출력 -= RAND:3
+	IF 구출력 <= 0
+		GOTO 들킴
+	ENDIF
+	PRINTFORML 마침내 집 밖으로 빠져나온 %조사처리(CALLNAME:구출자,"는")% 저택을 뒤로한채 저 멀리 사라져 갔다...
+	PRINTFORMW ...%조사처리(CALLNAME:대상,"은")% 이제 감금실에 없다!
+	CALL 타겟감금해제
+	DRAWLINE
+	RETURN 1
+ENDIF
+
+$들킴
+PRINTFORML ...! 소리를 듣고 나와 본 %CALLNAME:MASTER%에게 들켜버렸다!
+PRINTFORMW %조사처리(CALLNAME:구출자,"는")% 전투태세를 취했다!
+TARGET = 구출자
+후처리인터셉트 = 1
+CALL 뉴탄막전투(MASTER,TARGET,1)
+SELECTCASE 후처리인터셉트승패여부
+	CASE 0
+		;타겟 패배
+		PRINTFORML %타겟은% 바닥에 쓰러져 지친숨을 헐떡이고 있다...
+		PRINTFORML 어쩔까?
+		PRINTFORML [0] 가둔다
+		PRINTFORML [1] 내쫓는다
+		INPUT
+		IF RESULT
+			PRINTFORMW 쓰러진 %타겟을% 걷어차 밖으로 내다 버렸다...
+		ELSE
+			PRINTFORMW 쓰러진 %타겟을% 끌어다 감금실에 집어넣었다...
+			CALL 타겟감금(2)
+		ENDIF
+	CASE 1
+		;무승부
+		IF 도망감
+			PRINTFORML %타겟은% 도망간 %마스터를% 한심스럽게 바라보곤 다시 안으로 향했다...
+			PRINTFORMW 아무런 방해없이 %조사처리(CALLNAME:대상,"을")% 구출한 %타겟은% 유유히 저택을 떠났다...
+			TARGET = 대상
+			CALL 타겟감금해제
+		ELSE
+			PRINTFORMW %타겟은% 지속된 전투에 지친건지 다음을 기약하며 도망가버렸다...
+		ENDIF
+		CFLAG:MASTER:철야 = 1
+	CASE 2
+		;마스터 패배
+		PRINTFORML %타겟은% 바닥에 쓰러진 %마스터를% 꼴 좋다는듯이 바라보았다
+		PRINTFORML %타겟은% %조사처리(CALLNAME:대상,"을")% 데리고 저택밖으로 유유히 달아나버렸다...
+		CFLAG:MASTER:철야 = 1
+		TARGET = 대상
+		CALL 타겟감금해제
+ENDSELECT
+후처리인터셉트승패여부 = 0
