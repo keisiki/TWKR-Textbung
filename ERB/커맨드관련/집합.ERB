@@ -238,6 +238,7 @@ PRINTFORML %CALLNAME:C_ID%의 이동코스트는 {이동코스트}
 #DIM 인원수                    ;동일 맵에 있는 인원수, 이동할 수 없는 캐릭터도 표시되어 인원수에 가산되어 있다
 #DIM 입력값                    ;RESULT 취득용
 #DIM C_ID
+#DIM NOW_TARGET
 SIF CFLAG:MASTER:현재위치 == OMANEKIBEYA()
 	RETURN
 SIF !AT_HOME(MASTER)
@@ -248,6 +249,8 @@ SIF PRIVATEROOM:(CFLAG:MASTER:현재위치 % 100)
 	RETURN
 CALL SYUGOS_GETDATA(인원수, 집합)
 CALL SYUGOS_COST(인원수, 집합)
+SIF TARGET
+	NOW_TARGET = TARGET
 FOR LOCAL, 0, 인원수
 	C_ID = 집합:LOCAL:0
 	SIF GETBIT(집합:LOCAL:1, 0)
@@ -257,7 +260,7 @@ FOR LOCAL, 0, 인원수
 		CONTINUE
 	SIF CFLAG:C_ID:빡침
 		CONTINUE
-	IF DISHTYPE == 3
+	IF DISH_TYPE == "디저트"
 		SIF !TIME_PROGRESS(TCVAR:C_ID:디저트공복시각)
 			CONTINUE
 	ELSE
@@ -265,7 +268,13 @@ FOR LOCAL, 0, 인원수
 			CONTINUE
 	ENDIF
 	CFLAG:C_ID:현재위치 = CFLAG:MASTER:현재위치
+	CFLAG:C_ID:동실 = 1
+	;자유행동의 중단
+	Activity_Duration:C_ID = 0
+	Activity_Type:C_ID = 0
 	PRINTFORML 식사 낌새를 냄새로 알아차리고 %조사처리(CALLNAME:C_ID,"가")% 찾아왔다
 NEXT
 CALL TARGETSET_CHACK
+SIF NOW_TARGET
+	TARGET = NOW_TARGET
 PRINTFORMW 
