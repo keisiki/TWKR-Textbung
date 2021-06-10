@@ -5,21 +5,23 @@
 ;20.7.24
 ;연인플래그 의존성 삭제함. 아내플래그도 의존성 삭제 가능하나 보류
 ;현재 아내 관련 기능은 TALENT 설정 없이 이곳 함수에만 의존하고 있음
+;21.6.11
+;FLAG 의존성을 대부분 삭제함.
 ;==============================================================
 @SET_연인(ARG)
-IF TALENT:ARG:스침
-	IF FLAG:스침연인수 < 100
-		포말의연인:(FLAG:스침연인수) = %CALLNAME:ARG%
-		FLAG:스침연인수 ++
-	ELSE
-		포말의연인:(RAND:100) = %CALLNAME:ARG%
-	ENDIF
-ENDIF
+
 SELECTCASE ARG
 	CASE -1
-		FLAG:스침연인수 = 0
+		스친연인수 = 0
 		VARSET 포말의연인
 		RETURN -1
+	CASE RANDOM_CHARANUM
+		IF 스친연인수 < 100
+			포말의연인:스친연인수 = %CALLNAME:ARG%
+			스친연인수 ++
+		ELSE
+			포말의연인:(RAND:100) = %CALLNAME:ARG%
+		ENDIF
 	CASE 1 TO CHARANUM
 		SIF !TALENT:ARG:연인
 			TALENT:ARG:연인 = 1
@@ -59,45 +61,32 @@ FOR LOCAL, 1, CHARANUM
 	ENDIF
 NEXT
 ;스침상대 연인 스텍기능이 남아있을 때
-LOCAL:1 += FLAG:스침연인수
+LOCAL:1 += 스친연인수
 RETURNF LOCAL:1
 [SKIPEND]
 
 ;;
 @SET_아내(ARG)
-IF TALENT:ARG:스침
-	IF FLAG:스침아내수 < 100
-		포말의아내:(FLAG:스침아내수) = %CALLNAME:ARG%
-		FLAG:스침아내수 ++
-	ELSE
-		포말의아내:(RAND:100) = %CALLNAME:ARG%
-	ENDIF
-ENDIF
 SELECTCASE ARG
 	CASE -1
-		FLAG:아내플래그1 = 0
-		FLAG:아내플래그2 = 0
-		FLAG:아내플래그3 = 0
-		FLAG:아내플래그4 = 0
-		FLAG:스침아내수 = 0
+		스친아내수 = 0
 		VARSET 포말의아내
+		VARSET 아내플래그
 		RETURN -1
-	CASE 1 TO 35
-		LOCAL = ARG
-		LOCALS = 아내플래그1
-	CASE 36 TO 70
-		LOCAL = ARG - 35
-		LOCALS = 아내플래그2
-	CASE 71 TO 105
-		LOCAL = ARG - 70
-		LOCALS = 아내플래그3
-	CASE 106 TO 140
-		LOCAL = ARG - 105
-		LOCALS = 아내플래그4
+	CASE RANDOM_CHARANUM
+		VARSET LOCALS
+		IF 스친아내수 < 100
+			포말의아내:스친아내수 = %CALLNAME:ARG%
+			스친아내수 ++
+		ELSE
+			포말의아내:(RAND:100) = %CALLNAME:ARG%
+		ENDIF
+		REPLACE(포말의연인, CALLNAME:ARG, LOCALS)
+	CASE 1 TO CHARANUM
+		아내플래그:ARG:0 = 1
 	CASEELSE
 		THROW NO가 부정합니다
 ENDSELECT
-SETBIT FLAG:(LOCALS) , LOCAL
 
 @IS_아내(ARG)
 #FUNCTION
@@ -105,26 +94,9 @@ IF TALENT:ARG:스침
 	SIF FINDELEMENT(포말의아내, CALLNAME:ARG, , , 1) > 0
 		RETURNF 1
 	RETURNF 0
+ELSE
+	RETURNF 아내플래그:ARG:0
 ENDIF
-SELECTCASE NO:ARG
-	CASE 0
-		RETURNF 0
-	CASE 1 TO 35
-		LOCAL = ARG
-		LOCALS = 아내플래그1
-	CASE 36 TO 70
-		LOCAL = ARG - 35
-		LOCALS = 아내플래그2
-	CASE 71 TO 105
-		LOCAL = ARG - 70
-		LOCALS = 아내플래그3
-	CASE 106 TO 140
-		LOCAL = ARG - 105
-		LOCALS = 아내플래그4
-	CASEELSE
-		THROW NO가 부정합니다
-ENDSELECT
-RETURNF (GETBIT (FLAG:(LOCALS) , LOCAL))
 
 @WITH_아내(ARG)
 #FUNCTION
@@ -145,6 +117,6 @@ VARSET LOCAL
 FOR LOCAL, 1, CHARANUM
 	LOCAL:1 += IS_아내(LOCAL)
 NEXT
-LOCAL:1 += FLAG:스침아내수
+LOCAL:1 += 스친아내수
 RETURNF LOCAL:1
 
