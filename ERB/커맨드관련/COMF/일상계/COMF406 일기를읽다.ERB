@@ -1,0 +1,242 @@
+﻿;-------------------------------------------------
+;日記を読む
+;日常系コマンド
+;-------------------------------------------------
+@COM406
+#DIM 동거
+#DIM OWNER
+
+IF TARGET > 0 && CFLAG:TARGET:초기위치 == CFLAG:MASTER:초기위치
+	동거 = 1
+ELSE
+	동거 = 0
+ENDIF
+OWNER = COM406_CHECK_OWNER()
+
+LOCAL = 50 + ABL:MASTER:화술기능 * 5 + ABL:TARGET:친밀 * 2
+SIF BASE:TARGET:술기운 > MAXBASE:TARGET:술기운 / 2
+	LOCAL -= 15
+
+SELECTCASE TFLAG:192
+	;通常
+	CASE 0
+		SELECTCASE RAND:LOCAL
+			CASE IS < 20
+				TFLAG:193 = 1
+			CASE 20 TO 50
+				TFLAG:193 = 2
+			CASEELSE
+				TFLAG:193 = 3
+		ENDSELECT
+	;強制成功or大成功
+	CASE 1
+		SELECTCASE RAND:LOCAL
+			CASE IS < 50
+				TFLAG:193 = 2
+			CASEELSE
+				TFLAG:193 = 3
+		ENDSELECT
+	;強制失敗
+	CASE -1
+		TFLAG:193 = 1
+	;コマンド終了
+	CASE -2
+		TFLAG:193 = -1
+		RETURN 0
+ENDSELECT
+
+TFLAG:194 = OWNER
+
+IF CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치
+	PRINTFORML 机の上には日記帳が\@ 동거 ? 二冊# \@置いてある。
+	PRINTFORML 何をする？
+	VARSET LOCALS, "？？？？"
+	IF TARGET > 0
+		LOCALS:0 = %CALLNAME:TARGET%에게 일기를 읽어달라 한다
+		LOCALS:1 = %CALLNAME:TARGET%의 일기를 읽는다
+	ENDIF
+	{
+	CALL ASK_M("日記をつける",1,"日記を読む",1,@"%LOCALS:0%", TARGET > 0,
+	@"%LOCALS:1%", 동거 && (!SHIRAHU(TARGET) || TALENT:TARGET:연모 ),
+	"何もしない",1)
+	}
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORML 日記の内容を直接入力してください。<br>を入力すれば改行されます。
+			PRINTFORML システム側で自動記録されるので日付の記入はいりません。
+			PRINTL
+			INPUTS
+			CALL MASTER_DIARY_WRITE,RESULTS
+			PRINTL
+		CASE 1
+			CALL READ_MASTER_DIARY
+		CASE 2
+			IF ABL:TARGET:친밀 >= 5
+				PRINTFORMW %타겟은% %CALLNAME:MASTER%の日記を手に取った…
+				CALL SHARE_MASTER_DIARY
+			ELSE
+				PRINTFORMW %타겟은% 興味なさそうだ…
+			ENDIF
+		CASE 3
+			CALL CHARA_DIARY_COM(TARGET)
+		CASE 4
+	ENDSELECT
+	GOTO SKIP
+ELSEIF TALENT:OWNER:연모 && CFLAG:MASTER:현재위치 != CFLAG:MASTER:초기위치
+	PRINTFORML 枕の隣に日記帳が置いてある。
+	PRINTFORML %CALLNAME:OWNER%は日記の内容をシェアする気があるようだ。
+	PRINTFORML どうしますか？
+	CALL ASK_YN("日記を読む","読まない")
+	IF !RESULT
+		CALL CHARA_DIARY_COM(OWNER)
+	ENDIF
+ELSEIF CFLAG:OWNER:현재위치 != CFLAG:MASTER:현재위치 && TARGET && !(FLAG:70 || !SHIRAHU(TARGET))
+	PRINTFORML 枕の下に%CALLNAME:OWNER%の日記帳が置いてあるようだ。
+	PRINTFORML しかし…すぐ傍には%CALLNAME:TARGET%がいる…
+	PRINTFORML どうしますか？
+	CALL ASK_YN("一緒に日記を盗み読む","読まない")
+	IF !RESULT && TFLAG:193 > 0
+		CALL CHARA_DIARY_COM(OWNER)
+	ELSE
+		PRINTFORML やっぱりやめよう…
+	ENDIF
+ELSE
+	PRINTFORML 枕の下に日記帳が置いてあるようだ。
+	PRINTFORML どうする？
+	CALL ASK_YN("盗み読む","読まない")
+	IF !RESULT
+		CALL CHARA_DIARY_COM(OWNER)
+	ENDIF
+ENDIF
+
+$SKIP
+IF !FLAG:70
+	TIME += 5
+ELSE
+	BASE:MASTER:TSP -= 10
+ENDIF
+
+IF SHIRAHU(TARGET) && TARGET > 0
+	;固定で獲得するソース
+	SOURCE:환락 = 200
+
+	;ABL:친밀をみる
+	IF ABL:친밀 <= 1
+		SOURCE:환락 += (ABL:친밀 * 30)
+	ELSEIF ABL:친밀 <= 3
+		SOURCE:환락 += 200 + (ABL:친밀 * 30)
+	ELSEIF ABL:친밀 <= 5
+		SOURCE:환락 += 500 + (ABL:친밀 * 30)
+	ELSEIF ABL:친밀 <= 8
+		SOURCE:환락 += 750 + (ABL:친밀 * 50)
+	ELSEIF ABL:친밀 <= 10
+		SOURCE:환락 += 1000 + (ABL:친밀 * 50)
+	ELSE
+		SOURCE:환락 += 1600 + (ABL:친밀 * 30)
+	ENDIF
+
+
+	SOURCE:환락 = LIMIT(SOURCE:환락,0,5000)
+
+
+	SOURCE:수동 = 100 + 100 * ABL:순종
+	SOURCE:정복 = 100 + 100 * ABL:새드끼
+
+	IF TFLAG:193 == -1 || TFLAG:193 == -2
+		TIMES SOURCE:환락 , 0.10
+		TIMES SOURCE:정복 , 0.50
+		TIMES SOURCE:수동 , 0.50
+	ELSEIF TFLAG:193 == 0
+		TIMES SOURCE:환락 , 1.00
+		TIMES SOURCE:정복 , 1.00
+		TIMES SOURCE:수동 , 1.00
+	ELSE
+		TIMES SOURCE:환락 , 2.00
+		TIMES SOURCE:정복 , 2.00
+		TIMES SOURCE:수동 , 2.00
+	ENDIF
+	SELECTCASE ABL:MASTER:화술기능
+		CASE 0
+			TIMES SOURCE:환락 , 0.20
+			TIMES SOURCE:정복 , 0.20
+			TIMES SOURCE:수동 , 0.20
+		CASE 1
+			TIMES SOURCE:환락 , 0.40
+			TIMES SOURCE:정복 , 0.40
+			TIMES SOURCE:수동 , 0.40
+		CASE 2
+			TIMES SOURCE:환락 , 0.70
+			TIMES SOURCE:정복 , 0.70
+			TIMES SOURCE:수동 , 0.70
+		CASE 3
+			TIMES SOURCE:환락 , 1.00
+			TIMES SOURCE:정복 , 1.00
+			TIMES SOURCE:수동 , 1.00
+		CASE 4
+			TIMES SOURCE:환락 , 1.20
+			TIMES SOURCE:정복 , 1.20
+			TIMES SOURCE:수동 , 1.20
+		CASEELSE
+			TIMES SOURCE:환락 , 1.50
+			TIMES SOURCE:정복 , 1.50
+			TIMES SOURCE:수동 , 1.50
+	ENDSELECT
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE406
+#DIM OWNER
+OWNER = COM406_CHECK_OWNER()
+
+;移動実行判定
+SIF !TFLAG:100
+	RETURN 0
+	
+;장난かウフフ中
+SIF CFLAG:MASTER:장난
+	RETURN 0
+
+SIF CFLAG:MASTER:우후후
+	RETURN 0
+
+;拠点にいる時か초대部屋のみ
+SIF !AT_HOME(MASTER) && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
+	RETURN 0
+
+SIF CFLAG:MASTER:현재위치 != CFLAG:MASTER:초기위치 && !OWNER
+	RETURN 0
+
+SIF !TALENT:OWNER:연모 && ABL:MASTER:교양 < ABL:OWNER:교양 && OWNER
+	RETURN 0
+
+SIF !TALENT:OWNER:연모 && CFLAG:OWNER:현재위치 == CFLAG:OWNER:초기위치 && !(FLAG:70 || !SHIRAHU(OWNER)) && OWNER
+	RETURN 0
+
+SIF !TALENT:TARGET:연모 && !(FLAG:70 || !SHIRAHU(TARGET)) && TARGET
+	RETURN 0
+
+RETURN 1
+
+@MESSAGE_COM406
+#DIM OWNER
+OWNER = COM406_CHECK_OWNER()
+
+IF (!TALENT:OWNER:연모 && !(FLAG:70 || !SHIRAHU(OWNER))) && !(CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치)
+	PRINTFORML 読み終わった後、日記帳をそっと元の場所に戻した。
+ELSE
+ENDIF
+
+;日記の著者チェッカー
+@COM406_CHECK_OWNER
+#FUNCTION
+
+IF TARGET > 0 && CFLAG:TARGET:초기위치 == CFLAG:MASTER:초기위치 && CFLAG:MASTER:현재위치 == CFLAG:MASTER:초기위치
+	RETURNF TARGET
+ELSEIF TARGET == CFLAG:MASTER:초대 && CFLAG:MASTER:현재위치 == OMANEKIBEYA()
+	RETURNF CFLAG:MASTER:초대
+ELSE
+	RETURNF PRIVATEROOM:(CFLAG:MASTER:현재위치 % 100)
+ENDIF

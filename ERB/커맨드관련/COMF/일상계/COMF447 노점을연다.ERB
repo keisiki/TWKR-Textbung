@@ -69,10 +69,9 @@ LinesToErase = 1
 LOCAL:10 = 999
 FOR LOCAL, 351, 710
 	SELECTCASE LOCAL
-		CASE 399 TO 499, 513, 516, 520 TO 599, 601 TO 610, 612 TO 615, 618 TO 625, 630 TO 699
-			;★持っていても売れないアイテムを上のCASEへ追加
-		CASEELSE
-			;アイテム未所持と、永遠亭での薬品販売を弾く
+	;★팔리는 아이템을 아래의 CASE에 추가
+		CASE 351 TO 398, 500 TO 512, 600, 611, 616, 626 TO 629, 700 TO 708
+		;GoodsID에 팔려고 내놓는 아이템의 번호를 알려 주다
 			IF ITEM:(LOCAL) > 0 || (STALL_SPOT(CFLAG:MASTER:현재위치) == 5 && INRANGE(LOCAL, 501, 516))
 				LOCALS:0 = [{LOCAL}] %ITEMNAME:(LOCAL), 16, LEFT%×{ITEM:(LOCAL)}    
 				LOCAL:10 += STRLENS(LOCALS:0)
@@ -99,6 +98,8 @@ FOR LOCAL, 351, 710
 					PRINT  
 				PRINT 　　
 			ENDIF
+		CASEELSE
+			CONTINUE
 	ENDSELECT
 NEXT
 PRINTL 
@@ -162,19 +163,22 @@ SELECTCASE RESULT
 		PRINTL   
 		PRINTBUTTON "[0] 그만둔다", 0
 		PRINT     
-		PRINTBUTTON "[1] 1개", 1
+		PRINTBUTTON @"[1] 1%세는법(GoodsID:Lineup, 1)%", 1
 		PRINT     
-		IF 候補個数 >= 5
-			PRINTBUTTON "[5] 5개", 5
+		IF 候補個数 > 5
+			PRINTBUTTON @"[5] 5%세는법(GoodsID:Lineup, 5)%", 5
 			PRINT     
 		ENDIF
-		IF 候補個数 >= 10
-			PRINTBUTTON "[10] 10개", 10
+		IF 候補個数 > 10
+			PRINTBUTTON @"[10] 10%세는법(GoodsID:Lineup, 10)%", 10
 			PRINT    
 		ENDIF
-		IF 候補個数 >= 20
-			PRINTBUTTON "[20] 20개", 20
+		IF 候補個数 > 20
+			PRINTBUTTON @"[20] 20%세는법(GoodsID:Lineup, 20)%", 20
 			PRINT    
+		ENDIF
+		IF 候補個数 > 1
+			PRINTBUTTON @" [{候補個数}] 소지 전부", 候補個数
 		ENDIF
 		LinesToErase += 3
 		$INPUT_LOOP02
@@ -230,7 +234,7 @@ ELSE
 ENDIF
 
 ;商人パワー設定
-商人パワーM = ABL:MASTER:화술기능 * 25 + ABL:MASTER:교양 * 10 + TFLAG:행운보정 * 3
+商人パワーM = ABL:MASTER:화술기능 * 25 + ABL:MASTER:교양 * 10 + TFLAG:행운보정 * 5
 
 SIF CHARA
 	商人パワーT = ABL:CHARA:화술기능 * 25 + ABL:CHARA:교양 * 10
@@ -297,16 +301,16 @@ FOR COUNT, 0, 来客数
 	ENDIF
 
 	;売る個数を設定
-	候補個数 = MAX(RAND:(5 + ABL:MASTER:화술기능), 1)
+	候補個数 = MAX(RAND:(5 + ABL:MASTER:화술기능 + RAND:5), 1)
 	;売る個数が商品の在庫より多い場合の処理
 	SIF (候補個数 + GoodsSold:LOCAL) > GoodsQty:LOCAL
 		候補個数 = GoodsQty:LOCAL - GoodsSold:LOCAL
 
 	SETCOLOR C_YELLOW
-	PRINTFORM %조사처리(ITEMNAME:(GoodsID:LOCAL),"가")% {候補個数}개,
+	PRINTFORM %조사처리(ITEMNAME:(GoodsID:LOCAL),"가")% {候補個数}%세는법(GoodsID:LOCAL, 候補個数)%,
 	;売却値を設定
-	売却値 = (STALL_PRICE_SET(商人パワー, GoodsID:LOCAL, 候補個数)/3) * 2
-	PRINTFORML \\{売却値}으로 팔렸다！
+	売却値 = STALL_PRICE_SET(商人パワー, GoodsID:LOCAL, 候補個数)
+	PRINTFORML %금액표시(売却値)%으로 팔렸다！
 	RESETCOLOR
 
 ;	利率判定に応じてテキスト
@@ -355,15 +359,7 @@ FOR LOCAL, 1, 6
 	IF GoodsQty:LOCAL
 		PRINTFORM 　%조사처리(ITEMNAME:(GoodsID:LOCAL),"는")%
 		IF GoodsSold:LOCAL
-			PRINTFORM {GoodsSold:LOCAL}
-			SELECTCASE GoodsID:LOCAL
-				CASE 627
-					PRINTFORMW 병 팔렸다
-				CASE 707, 708
-					PRINTFORMW 마리 팔렸다
-				CASEELSE
-					PRINTFORMW 개 팔렸다
-			ENDSELECT
+			PRINTFORM {GoodsSold:LOCAL}%세는법(GoodsID:LOCAL, GoodsSold:LOCAL)% 팔렸다
 		ELSE
 			PRINTFORMW 전혀 팔리지 않았다…
 		ENDIF
@@ -376,7 +372,7 @@ PRINTL
 IF 合計売却値
 	PRINTFORM 합계로
 	SETCOLOR 0x00FF00
-	PRINTFORM \\{合計売却値}
+	PRINTFORM %금액표시(合計売却値)%
 	RESETCOLOR
 	PRINTFORMW 의 벌이가 되었다！
 	MONEY += 合計売却値
@@ -660,7 +656,7 @@ SELECTCASE ARG
 		LOCAL:0 = MAX(RAND:30, 7)
 		SIF GROUPMATCH(FESTIVAL(), "추석")
 			LOCAL:0 += MAX(RAND:30, 20)
-	CASE 8	;玄武の沢  商売人の河童たちの経済圏
+	CASE 8	;玄武の沢  商売人の캇파たちの経済圏
 		LOCAL:0 = MAX(RAND:25, 15)
 		SIF IS_WEEKEND(DAY)
 			LOCAL:0 += RAND:15
@@ -809,19 +805,19 @@ RETURNF 0
 
 ;補正価格の決定
 SELECTCASE ARG:1
-	;野菜たちは旬から遠いと価値が上がる
+	;야채たちは旬から遠いと価値が上がる
 	CASE 351 TO 361
 		SIF DAY:2 == 3
-			TIMES 補正価格, 1.3
+			TIMES 補正価格, 1.5
 	CASE 362 TO 374
 		SIF DAY:2 == 4
-			TIMES 補正価格, 1.3
+			TIMES 補正価格, 1.5
 	CASE 375 TO 386
 		SIF DAY:2 == 1
-			TIMES 補正価格, 1.3
+			TIMES 補正価格, 1.5
 	CASE 387 TO 398
 		SIF DAY:2 == 2
-			TIMES 補正価格, 1.3
+			TIMES 補正価格, 1.5
 	;価格調整
 	CASE 500
 		補正価格 += 150
@@ -843,6 +839,9 @@ SELECTCASE ARG:1
 		補正価格 += 350
 ENDSELECT
 
+SIF FESTIVAL() != ""
+	TIMES 補正価格, 1.5
+
 ;露店の場所による補正
 SELECTCASE STALL_SPOT(CFLAG:MASTER:현재위치)
 	CASE 1	;博麗神社
@@ -856,27 +855,27 @@ SELECTCASE STALL_SPOT(CFLAG:MASTER:현재위치)
 
 	CASE 5	;永遠亭入り口  にんじん
 		SIF GROUPMATCH(ARG:1, 388)
-			TIMES 補正価格, 1.5
+			TIMES 補正価格, 2.0
 	CASE 6	;魔法の森  
 
 	CASE 7	;中有の道  
 
 	CASE 8	;玄武の沢  きゅうり↑  おさかな↓
 		SIF GROUPMATCH(ARG:1, 362)
-			TIMES 補正価格, 1.5
+			TIMES 補正価格, 2.5
 		SIF GROUPMATCH(ARG:1, 707, 708)
 			TIMES 補正価格, 0.5
 	CASE 9	;妖怪の山頂上  おさかな
 		SIF GROUPMATCH(ARG:1, 707, 708)
-			TIMES 補正価格, 1.3
-	CASE 10	;守矢神社
+			TIMES 補正価格, 1.5
+	CASE 10	;守矢神社  
 
 	CASE 11	;有頂天街  山の幸系統
 		SIF GROUPMATCH(ARG:1, 600, 611, 616, 626, 627, 628, 629, 707, 708)
 			TIMES 補正価格, 1.3
-	CASE 12	;地底大通り  野菜
+	CASE 12	;地底大通り  야채
 		SIF INRANGE(ARG:1, 351, 398)
-			TIMES 補正価格, 1.3
+			TIMES 補正価格, 1.5
 	CASE 13	;月の都  山の幸系統
 		SIF GROUPMATCH(ARG:1, 600, 611, 616, 626, 627, 628, 629, 707, 708)
 			TIMES 補正価格, 1.3

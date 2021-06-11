@@ -28,15 +28,49 @@ PRINTL 구버전에는 존재하지 않던 캐릭터·초기 소질·플래그 �
 
 VARSET 대사실장체크
 리셋화면 = 0
-FOR C_ID, 51, 캐릭터수상한
-	IF C_ID < CHARANUM
-		SIF TALENT:C_ID:스침
-			DELCHARA C_ID
-	ENDIF
-	IF GETCHARA (C_ID) == -1
+FOR C_ID,0,CHARANUM ;일단 모브 삭제
+	SIF TALENT:C_ID:스침
+		DELCHARA C_ID
+NEXT
+
+FOR C_ID,1,CHARANUM ;CSV의 이름을 참고해 NO를 고친다
+	VARSET LOCAL
+	FOR LOCAL,1,캐릭터수상한
+		SIF !EXISTCSV(LOCAL)
+			CONTINUE
+		IF NAME:C_ID == CSVNAME(LOCAL)
+			NO:C_ID = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+NEXT
+
+FOR C_ID,1,캐릭터수상한 ;끝나면 새로운 캐릭터 추가
+	IF GETCHARA(C_ID) == -1 && EXISTCSV(C_ID)
 		ADDCHARA C_ID
 		TARGET = C_ID
 		RESULT = 0
+	ENDIF
+	IF TALENT:C_ID:스침
+		RANDOM_CHARANUM = C_ID
+		BREAK
+	ENDIF
+NEXT
+
+FOR C_ID, 1, CHARANUM
+	IF NO:C_ID != C_ID && NO:C_ID != 0 ;만약 어긋나면 다시 열거한다
+		IF NO:C_ID > C_ID ;CSVNO가 지금의 NO보다 뒤라면 SWAP해서 계속
+			SWAPCHARA C_ID,NO:C_ID
+			FOR LOCAL,0,CHARANUM
+				SWAP RELATION:LOCAL:C_ID,RELATION:LOCAL:(NO:C_ID)
+			NEXT
+		ELSE
+			SWAPCHARA C_ID,NO:C_ID ;그렇지 않으면 SWAP해서 처음부터 다시 나열한다
+			FOR LOCAL,0,CHARANUM
+				SWAP RELATION:LOCAL:C_ID,RELATION:LOCAL:(NO:C_ID)
+			NEXT
+			C_ID = 1
+		ENDIF
 	ENDIF
 	IF TALENT:C_ID:스침
 		RANDOM_CHARANUM = C_ID
@@ -170,6 +204,7 @@ FOR C_ID, 1, CHARANUM
 	CFLAG:C_ID:기상시간 = CSVCFLAG (C_ID, GETNUM(CFLAG, "기상시간"))
 	CFLAG:C_ID:자주가는지역 = CSVCFLAG (C_ID, GETNUM(CFLAG, "자주가는지역"))
 	CFLAG:C_ID:자택위치 = CSVCFLAG (C_ID, GETNUM(CFLAG, "자택위치"))
+	;CFLAG:C_ID:집주인후보 = CSVCFLAG (C_ID, GETNUM(CFLAG, "집주인후보")) ;KR판 임의수정 주석처리. 일판은 2번 씀
 	CFLAG:C_ID:이동율보정 = CSVCFLAG (C_ID, GETNUM(CFLAG, "이동율보정"))
 	CFLAG:C_ID:이동절도 = CSVCFLAG (C_ID, GETNUM(CFLAG, "이동절도"))
 	CFLAG:C_ID:내방억제치 = CSVCFLAG(C_ID, GETNUM(CFLAG, "내방억제치"))
@@ -228,6 +263,15 @@ FOR C_ID, 1, CHARANUM
 			ENDIF
 		NEXT
 	ENDIF
+	;선물 정보의 수정
+	IF !GIFT_GOT:C_ID:1
+		CFLAG:C_ID:선물스톡 = 0
+		IF CFLAG:C_ID:받은선물
+			CFLAG:C_ID:받은선물 -= (GET_GIFTDATA(CFLAG:C_ID:받은선물, "횟수") * 10000000000000000)
+			CFLAG:C_ID:받은선물 += 1 * 10000000000000000
+			GIFT_GOT:C_ID:1 = CFLAG:C_ID:받은선물
+		ENDIF
+	ENDIF
 NEXT
 CFLAG:MASTER:신사거주 = CFLAG:MASTER:초기위치
 IF FLAG:더부살이캐릭터 && SUMIKOMI_ROOM
@@ -237,6 +281,12 @@ IF FLAG:더부살이캐릭터 && SUMIKOMI_ROOM
 ENDIF
 SIF !FLAG:술벌레 
 	FLAG:술벌레 = 1
+
+IF GETBIT(FLAG_DAILY_EV23, 0) && !FLAG_DAILY_EV23_판매원
+	PRINTFORML 訪問販売員の外見は…
+	CALL ASK_YN("髪を後ろで二つにまとめている","ボーイッシュなショートヘア")
+	FLAG_DAILY_EV23_판매원 = RESULT + 1
+ENDIF
 
 ;레이무
 NAME:[[레이무]] = 하쿠레이 레이무
@@ -382,7 +432,7 @@ NAME:[[케이네]] = 카미시라사와 케이네
 
 ;신묘마루
 NAME:[[신묘마루]] = 스쿠나 신묘마루
-;CFLAG:71:신사 거주 = CFLAG:71:초기 위치
+;CFLAG:71:신사거주 = CFLAG:71:초기위치
 ;TALENT:71:100 = -5
 
 ;에이린
@@ -803,7 +853,7 @@ CFLAG:ARG:퇴짜 = 0
 CFLAG:ARG:딸딸이들킴 = 0
 CFLAG:ARG:면간발각 = 0
 CFLAG:ARG:수면간 = 0
-CFLAG:ARG:만취간 = 0 ;TODO 원본에서 2번 씀
+CFLAG:ARG:만취간 = 0
 CFLAG:ARG:발렌타인 = 0
 CFLAG:ARG:마지막에만난날 = 0
 CFLAG:ARG:무자각임신 = 0
@@ -814,14 +864,13 @@ CFLAG:ARG:육아인원수 = 0
 CFLAG:ARG:자각사정 = 0 ;TODO 현재 원본에 없음 ;일판 身に覚え_母로 숫자 대체
 CFLAG:ARG:몸으로기억_아버지 = 0
 CFLAG:ARG:임신자각상태 = 0
-CFLAG:ARG:만취간 = 0 ;TODO 원본에서 2번 씀
 CFLAG:ARG:술을못함 = 0
 CFLAG:ARG:억지로질내사정 = 0
 CFLAG:ARG:임신 = 0
 CFLAG:ARG:임신경과일수 = 0
 CFLAG:ARG:아이인원수 = 0
 CFLAG:ARG:자식보정 = 0
-CFLAG:ARG:출산휴가 = 0
+CFLAG:ARG:출산휴가중 = 0
 CFLAG:ARG:누계질내정액 = 0
 CFLAG:ARG:누계애널정액 = 0
 CFLAG:ARG:누계정음 = 0
@@ -892,7 +941,7 @@ VARSET CHILD_BIRTHDAY:ARG:0, 0
 VARSET CHILD_WEATHER:ARG:0, ""
 VARSET CHILD_SEX:ARG:0, 0
 VARSET CHILDNAME:ARG:0, ""
-;SIF !EXP:ARG:키스경험
+SIF !EXP:ARG:키스경험
 	TALENT:ARG:키스미경험 = 1
 TALENT:ARG:0 = CSVTALENT(ARG,0)
 PRINTFORMW %ARG를% 리셋 했습니다.
@@ -1033,5 +1082,7 @@ CASE [[早鬼]]
 	SETBIT CFLAG:ARG:탄막특능, SKL怪力乱神
 	SETBIT CFLAG:ARG:탄막특능, SKL豪放磊落
 	SETBIT CFLAG:ARG:탄막특능, SKL乾坤一擲
+CASE [[美宵]]
+	SETBIT CFLAG:ARG:탄막특능, SKL豪放磊落
 ENDSELECT
 

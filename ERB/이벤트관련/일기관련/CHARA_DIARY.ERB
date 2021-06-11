@@ -1,0 +1,186 @@
+﻿@CHARA_DIARY_COM(C_ID)
+#DIM DCOUNT
+#DIM PAGENUM
+#DIM C_ID
+#DIM CLOSE
+RESULT = 0
+PAGENUM = 0
+CLOSE = 0
+;コマンドで呼び出されたとき
+TRYCALLFORM DIARY_K{C_ID}_EXIST
+IF !RESULT
+	PRINTFORMW まだ何も書かれていないようだ…
+	RETURN
+ENDIF
+
+FOR DCOUNT, 1, MAX_DIARY_PAGE:C_ID:0 + 1
+	SIF GROUPMATCH(DIARY:C_ID:DCOUNT, 1, 3)
+		PAGENUM ++
+NEXT
+IF PAGENUM == 0
+	PRINTFORMW まだ何も書かれていないようだ…
+	RETURN
+ENDIF
+FOR DCOUNT, 1, MAX_DIARY_PAGE:C_ID:0 + 1
+	SIF !PAGESET:C_ID:DCOUNT
+		BREAK
+	CALLFORM DIARY_TEXT_K{C_ID}, PAGESET:C_ID:DCOUNT, "コマンド", DCOUNT
+	DRAWLINE
+	;未読(3)だったら既読(1)にする
+	SIF DIARY:C_ID:(PAGESET:C_ID:DCOUNT) == 3
+		DIARY:C_ID:(PAGESET:C_ID:DCOUNT) = 1
+	IF PAGENUM > 1
+		CALL ASK_M("次のページ ", 1, " 5ページ先", DCOUNT + 5 <= PAGENUM, "10ページ先", DCOUNT + 10 <= PAGENUM, "前のページ", DCOUNT > 1, "日記を閉じる", 1)
+		IF RESULT == 0
+			CONTINUE
+		ELSEIF RESULT == 1
+			DCOUNT += 4
+		ELSEIF RESULT == 2
+			DCOUNT += 9
+		ELSEIF RESULT == 3
+			DCOUNT += -2
+		ELSEIF RESULT == 4
+			CLOSE = 1
+			BREAK
+		ENDIF
+	ENDIF
+NEXT
+IF !CLOSE
+	PRINTFORMW 日記はここで終わっている… 
+ELSE
+	PRINTFORMW %CALLNAME:MASTER%は読むのを止めた
+ENDIF
+
+@CHARA_DIARY_AFTERTRAIN
+#DIM CHARA
+#DIM DCOUNT
+#DIM PAGECOUNT
+
+;毎日終わるとき
+FOR CHARA, 1, CHARANUM 
+	TRYCALLFORM DIARY_K{NO:CHARA}_EXIST
+	SIF !RESULT
+		CONTINUE
+	;PRINTFORML %CALLNAME:CHARA%の日記を確認
+	TARGET = CHARA
+	;日記の書き込み判定,存在判定を通ってるのでTRYじゃなく強制にしてエラーチェック
+	CALLFORM DIARY_BEFORE_CHECK_K{NO:CHARA}
+	FOR DCOUNT, 1, MAX_DIARY_PAGE:CHARA:0 + 1
+		;最初にヒットした未読(2)を表示
+		IF DIARY:CHARA:DCOUNT == 2
+			;ページセットしてから口上色を付けて表示
+			CALL CHARA_DIARY_PAGESETTING(CHARA, DCOUNT)
+			PAGECOUNT = RESULT
+			TRYCALLFORM M_KOJO_COLOR_K{NO:CHARA}
+			CALLFORM DIARY_TEXT_K{NO:CHARA}, PAGESET:CHARA:PAGECOUNT, "デイリー", PAGECOUNT
+			PRINTL
+			;既読フラグをつける
+			DIARY:(NO:CHARA):DCOUNT = 1
+			DRAWLINE
+			BREAK
+		;未読でない場合スキップ
+		ELSE
+			CONTINUE
+		ENDIF
+	NEXT
+	;日記は毎日一回だけ。呼び出されなかった日記IDのフラグをリセットする
+	;恋慕とか告白とか大事なイベントは順番を前にしたほうがいいです。
+	FOR DCOUNT, 1, MAX_DIARY_PAGE:CHARA:0 + 1
+		IF DIARY:CHARA:DCOUNT == 2
+			DIARY:CHARA:DCOUNT = 0
+		ENDIF
+	NEXT
+	CALLFORM DIARY_AFTER_CHECK_K{CHARA}
+NEXT
+
+@MASTER_DIARY_WRITE,内容
+#DIMS 内容
+
+;上限超えたら2つ消す
+IF STRCOUNT(SAVESTR:1,"//") >= 100
+	SPLIT SAVESTR:1,"//",LOCALS
+	SAVESTR:1 =
+	FOR LOCAL,0,99
+		SAVESTR:1 = %LOCALS:LOCAL%%SAVESTR:1%
+	NEXT
+ENDIF
+SAVESTR:1 = ・ %GET_MONTH()% {DAY:3,2,RIGHT}日 （%GET_DAY()%） %시각표시(TIME)%_L_%内容%//%SAVESTR:1%
+
+
+@READ_MASTER_DIARY
+#DIMS 表示内容,100
+#DIMS 内容,2
+#DIM PAGE
+
+SPLIT SAVESTR:1,"//",表示内容
+FOR LOCAL,0,100
+	SIF 表示内容:LOCAL != ""
+		PAGE ++
+NEXT
+
+PRINTFORML ---| %CALLNAME:MASTER%の日記 |-------------------------------------------------------------------------------------
+FOR LOCAL,0,100
+	IF 表示内容:LOCAL != ""
+		SPLIT 表示内容:LOCAL,"_L_",内容
+		PRINTL
+		PRINTFORML PAGE.{1+LOCAL}
+		PRINTL
+		HTML_PRINT @"%内容:0%<br><br>%内容:1%<br>"
+		PRINTL
+		IF PAGE > 1
+			PRINTL --------------------------------------------------------------------------------------------------------------------
+			CALL ASK_YN("次のページ ","日記を閉じる")
+			IF RESULT
+				BREAK
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+@SHARE_MASTER_DIARY
+#DIMS 表示内容,100
+#DIMS 内容,2
+#DIM PAGE
+#DIM READPAGE
+
+SPLIT SAVESTR:1,"//",表示内容
+FOR LOCAL,0,100
+	SIF 表示内容:LOCAL != ""
+		PAGE ++
+NEXT
+
+SIF PAGE >= 1
+	READPAGE = RAND:PAGE
+
+IF PAGE == 0
+	CALL SPTALK,TARGET,,,@"「何も書かれてないじゃない……」//%CALLNAME:TARGET%は日記帳を閉じた。"
+	RETURN 0
+ENDIF
+
+PRINTFORML %CALLNAME:TARGET%はページを適当にめくって読み始めた…
+PRINTL
+CALL PRINT_FACE,TARGET
+
+IF 表示内容:READPAGE != ""
+	SPLIT 表示内容:READPAGE,"_L_",内容
+	PRINTL
+	PRINTFORML PAGE.{1+READPAGE}
+	PRINTL
+	HTML_PRINT @"%内容:0%<br><br>%内容:1%<br>"
+	PRINTL
+	PRINTW
+ENDIF
+;===========================================================================
+;日記に書き込む処理
+;指定されたCHARAのDIARY番号(PAGENUM)を最後の空白ページにセット
+;何ページに書いたかを返り値にする
+;===========================================================================
+@CHARA_DIARY_PAGESETTING(CHARA, PAGENUM)
+#DIM CHARA
+#DIM PAGENUM
+FOR LOCAL, 1, MAX_DIARY_PAGE:CHARA:0 + 1
+	IF !PAGESET:CHARA:LOCAL
+		PAGESET:CHARA:LOCAL = PAGENUM
+		RETURN LOCAL
+	ENDIF
+NEXT

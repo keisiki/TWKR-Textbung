@@ -1,8 +1,8 @@
 ﻿;-------------------------------------------------
-;贈り物を生成する関数
+;선물을 생성하는 함수
 ;RESULT:0  GIFT_ID
-;RESULT:1  値段
-;RESULTS   名前
+;RESULT:1  값
+;RESULTS   이름
 ;-------------------------------------------------
 @CREATE_GIFT(AREA)
 #DIM AREA
@@ -24,20 +24,69 @@ ADJECT = RESULT:0
 MAGNIF_PRICE = RESULT:1
 GIFTNAME_ADJECT = %RESULTS:0%
 
-;値段の設定
+;가격설정
 RESULT:1 = BASIC_PRICE * MAGNIF_PRICE / 100
-;半額セールとか値引き要素等
-SIF 0
+;반값 세일이나 할인 요소 등
+SIF FLAG:기념품점염가대매출 >= 100 && FLAG:기념품점염가대매출 % 100 == CFLAG:MASTER:데이트중
 	TIMES RESULT:1, 0.50
 
-;名前の設定
+;이름의 설정
 RESULTS = %GIFTNAME_ADJECT%%GIFTNAME_MAIN%
-;IDの設定
+;ID의 설정
 RESULT:0 = ADJECT * 1000 + MAIN
 RETURN RESULT:0
 
 ;-------------------------------------------------
-;贈り物본체を抽選する関数
+;キャラクターに依存した贈り物を生成する関数
+;-------------------------------------------------
+@CREATE_GIFT_FROM_CHARA(CHARA, SCORE_MIN, SCORE_MAX)
+#DIM CHARA
+#DIM SCORE_MIN
+#DIM SCORE_MAX
+#DIM GIFT_ID
+#DIM MAIN
+#DIM ADJECT
+#DIM BASIC_PRICE
+#DIM MAGNIF_PRICE
+#DIMS GIFTNAME
+#DIMS GIFTNAME_MAIN
+#DIMS GIFTNAME_ADJECT
+#DIM SCORE
+VARSET RESULT
+SIF SCORE_MAX <= SCORE_MIN
+	SCORE_MAX = 1000
+
+CALL DRAW_GIFT_MAIN(99)
+MAIN = RESULT:0
+BASIC_PRICE = RESULT:1
+GIFTNAME_MAIN = %RESULTS:0%
+
+CALL DRAW_GIFT_ADJECT(99, RESULTS:1)
+ADJECT = RESULT:0
+MAGNIF_PRICE = RESULT:1
+GIFTNAME_ADJECT = %RESULTS:0%
+
+;가격설정
+RESULT:1 = BASIC_PRICE * MAGNIF_PRICE / 100
+;이름의 설정
+GIFTNAME = %GIFTNAME_ADJECT%%GIFTNAME_MAIN%
+;ID의 설정
+GIFT_ID = ADJECT * 1000 + MAIN
+
+;評価
+CALL REVIEW_GIFT(CHARA, GIFT_ID)
+SCORE = RESULT
+
+IF INRANGE(RESULT, SCORE_MIN, SCORE_MAX)
+	RESULT:1 = SCORE
+	RESULTS = %GIFTNAME%
+	RETURN GIFT_ID
+ELSE
+	RESTART
+ENDIF
+
+;-------------------------------------------------
+;선물의본체를뽑는함수
 ;-------------------------------------------------
 @DRAW_GIFT_MAIN(AREA)
 #DIM AREA
@@ -54,7 +103,7 @@ WEND
 RETURN GIFT_MAIN
 
 ;-------------------------------------------------
-;贈り物の형용사を抽選する関数
+;선물의형용사를뽑는함수
 ;-------------------------------------------------
 @DRAW_GIFT_ADJECT(AREA, SENSE)
 #DIM AREA
@@ -63,7 +112,7 @@ RETURN GIFT_MAIN
 #DIMS SENSE
 #DIM 카테고리상한
 VARSET RESULT
-카테고리상한 = 13
+카테고리상한 = 21
 WHILE !RESULT
 	CATEGORY_ADJECT = RAND:카테고리상한 + 1
 	GIFT_ADJECT = CATEGORY_ADJECT * 100 + RAND:100
@@ -72,7 +121,7 @@ WEND
 RETURN GIFT_ADJECT
 
 ;-------------------------------------------------
-;贈り物を평가する関数
+;선물을평가하는함수
 ;-------------------------------------------------
 @REVIEW_GIFT(CHARA, GIFT_ID)
 #DIM CHARA
@@ -85,7 +134,7 @@ RETURN GIFT_ADJECT
 #DIM MAGNIF_PRICE
 #DIM BASIC_PRICE
 
-;SENSE抽出
+;SENSE추출
 SENSE_GIFT = 
 CALL GIFTDATA_ADJECT(GET_GIFTDATA(GIFT_ID, "형용사"))
 SENSE_GIFT += RESULTS:1
@@ -95,7 +144,7 @@ CALL GIFTDATA_MAIN(GET_GIFTDATA(GIFT_ID, "본체"))
 SENSE_GIFT += RESULTS:1
 BASIC_PRICE = RESULT:1
 
-;정가を見て10,000以上なら고급、1,500未満なら싸구려
+;정가를 보고 10,000이상이면고급、1,500미만이면싸구려
 IF BASIC_PRICE * MAGNIF_PRICE / 100 >= 10000
 	SENSE_GIFT += "고급/"
 ELSEIF BASIC_PRICE * MAGNIF_PRICE / 100 < 1500
@@ -103,42 +152,44 @@ ELSEIF BASIC_PRICE * MAGNIF_PRICE / 100 < 1500
 ENDIF
 
 
-;캐릭터の感性
+;캐릭터의 감성
 SENSE_CHARA_GOOD = %GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함")%
 SENSE_CHARA_BAD = %GET_STR(, "캐릭터데이터", CHARA, "감성：싫어함")%
 
-;共通設定：好き
-;［유치］は캐릭터が好き
+;공통설정：좋아함
+;［유치］는 캐릭터가 좋아함
 SIF TALENT:CHARA:유치
 	SENSE_CHARA_GOOD += "캐릭터/" * 3
-;［요정］は자연が好き
-SIF TALENT:CHARA:요정
-	SENSE_CHARA_GOOD += "자연/"
-;［츠쿠모가미］は츠쿠모가미と도구が好き
-SIF TALENT:CHARA:츠쿠모가미
-	SENSE_CHARA_GOOD += "츠쿠모가미/도구/"
-;요괴は요괴が好き
-SIF 요괴체커(CHARA)
-	SENSE_CHARA_GOOD += "요괴/"
-;CSVの전투능력があるなら스펠카드は好き
+;［요정］는 자연을 좋아함
+SIF CHECK_CHARA(CHARA, "요정")
+	SENSE_CHARA_GOOD += "자연/" * 3
+;［츠쿠모가미］는 츠쿠모가미랑 도구를 좋아함
+SIF CHECK_CHARA(CHARA, "츠쿠모가미")
+	SENSE_CHARA_GOOD += "츠쿠모가미/도구/" * 3
+;요괴는 요괴를 좋아함
+SIF CHECK_CHARA(CHARA, "요괴")
+	SENSE_CHARA_GOOD += "요괴/" * 3
+;CSV의전투능력이 있다면 스펠카드를 좋아함
 SIF CSVABL(CHARA, GETNUM(ABL, "전투능력")) > 0
 	SENSE_CHARA_GOOD += "스펠카드/" * 3
+;캐논볼はみんなが欲しがる
+SENSE_CHARA_GOOD += "캐논볼/"
 
-;共通設定：嫌い
-;조악はみんな嫌い
+;공통설정：싫어함
+;조악한건 모두 싫어한다 
 SIF 1
-	SENSE_CHARA_BAD += "조악/" * 5
-;요괴は주술が嫌い
-IF 요괴체커(CHARA)
+	SENSE_CHARA_BAD += "조악/" * 6
+;요괴・유령は주술が好きでないなら주술は嫌い
+IF (CHECK_CHARA(CHARA, "요괴") || CHECK_CHARA(CHARA, "유령")) && STRFIND(SENSE_CHARA_GOOD, "주술/") < 0
 	SENSE_CHARA_BAD += "주술/" * 3
-	;법구が好きでないなら법구は嫌い
+	;법구를 좋아하지 않는다면 법구는 싫어함
 	SIF STRFIND(SENSE_CHARA_GOOD, "법구/") < 0
 		SENSE_CHARA_BAD += "법구/" * 3
 ENDIF
-;요괴ではなく요술が好きでないなら요술は嫌い
-IF !요괴체커(CHARA) && STRFIND(SENSE_CHARA_GOOD, "요술/") < 0
+;요괴ではなく요술が好きでないなら요술は嫌い,もしくは주술が好きなら요술は嫌い
+IF (!CHECK_CHARA(CHARA, "요괴") && STRFIND(SENSE_CHARA_GOOD, "요술/") < 0) || (STRFIND(SENSE_CHARA_GOOD, "주술/") >= 0)
 	SENSE_CHARA_BAD += "요술/" * 3
-	;さらに뼈、피、독も同様
+	;거듭해서 뼈、피、독 또한 마찬가지
 	SIF STRFIND(SENSE_CHARA_GOOD, "뼈/") < 0
 		SENSE_CHARA_BAD += "뼈/" * 3
 	SIF STRFIND(SENSE_CHARA_GOOD, "피/") < 0
@@ -146,20 +197,20 @@ IF !요괴체커(CHARA) && STRFIND(SENSE_CHARA_GOOD, "요술/") < 0
 	SIF STRFIND(SENSE_CHARA_GOOD, "독/") < 0
 		SENSE_CHARA_BAD += "독/" * 3
 ENDIF
-;술내성が下戸なら술は嫌い
+;술내성이 낮으면 술을 싫어한다
 IF TALENT:CHARA:술내성 < -1
 	SENSE_CHARA_BAD += "술/" * 3
 ELSEIF TALENT:CHARA:술내성 < 0
 	SENSE_CHARA_BAD += "술/"
 ENDIF
-;CSVの전투능력がないなら스펠카드はちょっと…
+;CSV의 전투능력이 없다면 스펠카드는 좀…
 SIF CSVABL(CHARA, GETNUM(ABL, "전투능력")) <= 0
 	SENSE_CHARA_BAD += "스펠카드/"
 
 ;평가득점
 SENSE_GOOD = 300 + 100 * STR_MULTI_COUNT(SENSE_CHARA_GOOD, SENSE_GIFT)
 
-;;무드による補正,※封印しました
+;;무드에 의한 보정,※봉인했습니다
 ;IF BASE:CHARA:무드 >= MAXBASE:CHARA:무드
 ;	TIMES SENSE_GOOD, 1.00
 ;ELSEIF BASE:CHARA:무드 >= MAXBASE:CHARA:무드 / 2
@@ -170,48 +221,33 @@ SENSE_GOOD = 300 + 100 * STR_MULTI_COUNT(SENSE_CHARA_GOOD, SENSE_GIFT)
 ;	TIMES SENSE_GOOD, 0.40
 ;ENDIF
 
-;;自宅地域による補正,※封印しました
+;;자택위치에 의한 보정,※봉인했습니다
 ;SIF CFLAG:CHARA:데이트중  == CFLAG:CHARA:자택위치 / 100
 ;	TIMES SENSE_GOOD, 0.80
 
-;祭日による補正
+;축일에 의한 보정
 SIF FESTIVAL() != ""
 	TIMES SENSE_GOOD, 1.25
 
-;평가減点
+;평가감점
 SENSE_BAD = 300 + 100 * STR_MULTI_COUNT(SENSE_CHARA_BAD, SENSE_GIFT)
 
-;総評
+;総평가
 RESULT = SENSE_GOOD * 1000 / (SENSE_GOOD + SENSE_BAD)
 [IF_DEBUG]
-	PRINTFORML 좋아함：%SENSE_CHARA_GOOD%
-	PRINTFORML 싫어함：%SENSE_CHARA_BAD%
-	PRINTFORML 물건：%SENSE_GIFT%
-	PRINTFORML 득점：{SENSE_GOOD}
-	PRINTFORML 감점：{SENSE_BAD}
-	PRINTFORML 결과：{RESULT}
-	WAIT
+;	PRINTFORML 좋아함：%SENSE_CHARA_GOOD%
+;	PRINTFORML 싫어함：%SENSE_CHARA_BAD%
+;	PRINTFORML 물건：%SENSE_GIFT%
+;	PRINTFORML 득점：{SENSE_GOOD}
+;	PRINTFORML 감점：{SENSE_BAD}
+;	PRINTFORML 결과：{RESULT}
+;	WAIT
 [ENDIF]
 RETURN RESULT
-;-------------------------------------------------
-;요괴かどうか判定する関数
-;COMMONのがいいかも
-;-------------------------------------------------
-@요괴체커(ARG)
-#FUNCTION
-SIF TALENT:ARG:인간
-	RETURNF 0
-SIF TALENT:ARG:신령
-	RETURNF 0
-SIF TALENT:ARG:요정
-	RETURNF 0
-SIF CHECK_CHARA(ARG, "봉래인")
-	RETURNF 0
-RETURNF 1
 
 
 ;-------------------------------------------------
-;一日の終わりに贈り物をお気に入りにするかの関数
+;하루의 끝에 선물을 즐겨찾는 함수
 ;-------------------------------------------------
 @GIFT_FAVORITE
 #DIM CHARA
@@ -230,7 +266,7 @@ FOR CHARA, 1, CHARANUM
 	GIFT_MAIN = GET_GIFTDATA(GIFT_ID, "본체")
 	GIFT_SCORE:1 = GET_GIFTDATA(GIFT_ID, "득점")
 	
-	;贈り物データの参照
+	;선물데이터 참조
 	CALL GIFTDATA_ADJECT(GIFT_ADJECT)
 	LOCALS:1 = %RESULTS:0%
 	CALL GIFTDATA_MAIN(GIFT_MAIN)
@@ -252,15 +288,13 @@ FOR CHARA, 1, CHARANUM
 		ELSE
 			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 넋을 잃고 바라보다가 잠이 들었다……。
 		ENDIF
-		;現在の贈り物と比較してお気に入りにする
+		;현재의 선물과 비교해서 마음에 들게한다
 		IF CFLAG:CHARA:받은선물
 			GIFT_SCORE:2 = GET_GIFTDATA(CFLAG:CHARA:받은선물, "득점")
 		ELSE
 			GIFT_SCORE:2 = 0
 		ENDIF
 		IF GIFT_SCORE:1 >= GIFT_SCORE:2
-			SIF CFLAG:CHARA:받은선물
-				CFLAG:CHARA:선물스톡 = CFLAG:CHARA:받은선물
 			CFLAG:CHARA:받은선물 = TCVAR:CHARA:오늘의선물
 			CALL COLORMESSAGE(@"%조사처리(GIFT_NAME,"는")% %CALLNAME:CHARA%의 마음에 들었다!", C_YELLOW, 2)
 		ENDIF
@@ -281,17 +315,17 @@ FOR CHARA, 1, CHARANUM
 NEXT
 
 ;-------------------------------------------------
-;Look内で받은선물を表示する関数
+;Look안에서 받은선물을 표시하는 함수
 ;-------------------------------------------------
 @LOOK_GIFT(CHARA)
 #DIM CHARA
 #DIM GIFT_NAME
 #DIM GIFT_SCORE
-;우후후中は表示しない
+;우후후중에는 표시하지않는다
 SIF CFLAG:CHARA:우후후
 	RETURN
 
-;お気に入り
+;즐겨찾기
 IF CFLAG:CHARA:받은선물
 	PRINTL 
 	PRINT 【마음에 듦】
@@ -299,16 +333,16 @@ IF CFLAG:CHARA:받은선물
 	CALL GIFTNAME(CFLAG:CHARA:받은선물)
 	PRINTFORM %RESULTS%
 	[IF_DEBUG]
-		CALL PRINT_GIFTDATA(CFLAG:CHARA:받은선물, CHARA)
+		CALL PRINT_GIFTDATA(CFLAG:CHARA:받은선물, CHARA, "디버그")
 	[ENDIF]
-;お気に入りでない場合
+;마음에 들지 않는 경우
 ELSEIF CFLAG:CHARA:선물스톡
 	GIFT_SCORE = GET_GIFTDATA(CFLAG:CHARA:선물스톡, "득점")
-	;400未満は휴대しない
+	;400미만은 휴대하지 않는다
 	IF GIFT_SCORE < 400
 		RETURN
 	ELSE
-		;평가득점が高いほど휴대しやすい
+		;평가득점이 높을수록 휴대하기 쉽다
 		SIF FLAG:일일이벤트 * 10 > GIFT_SCORE
 			RETURN
 	ENDIF
@@ -319,13 +353,13 @@ ELSEIF CFLAG:CHARA:선물스톡
 ENDIF
 
 ;-------------------------------------------------
-;贈り物データを表示する関数
+;선물 데이터를 표시하는 함수
 ;-------------------------------------------------
-@PRINT_GIFTDATA(GIFT_ID, CHARA)
+@PRINT_GIFTDATA(GIFT_ID, CHARA, ARGS)
 #DIM GIFT_ID
 #DIM CHARA
 #DIM 횟수
-#DIM GIFT_SOCRE
+#DIM GIFT_SCORE
 #DIM 받은날
 #DIM 산장소
 #DIM GIFT_ADJECT
@@ -338,7 +372,7 @@ ENDIF
 #DIMS SENSE
 
 횟수 = GET_GIFTDATA(GIFT_ID, "횟수")
-GIFT_SOCRE = GET_GIFTDATA(GIFT_ID, "득점")
+GIFT_SCORE = GET_GIFTDATA(GIFT_ID, "득점")
 받은날 = GET_GIFTDATA(GIFT_ID, "날짜")
 산장소 = GET_GIFTDATA(GIFT_ID, "장소")
 GIFT_ADJECT = GET_GIFTDATA(GIFT_ID, "형용사")
@@ -355,12 +389,31 @@ LOCALS:2 = %RESULTS:0%
 GIFT_NAME = %LOCALS:1%%LOCALS:2%
 SENSE += RESULTS:1
 
-[IF_DEBUG]
+IF ARGS == "당신의"
+	PRINTFORM [{횟수, 2}] %GIFT_NAME, 36, LEFT%
+	CALL REVIEW_STARS(GIFT_SCORE)
+	PRINT 　
+	CALL PRINT_DATE(받은날)
+	PRINTFORM %GET_MAPNAME(산장소)%에서 돌아오는 길에 \@ 횟수 == 1 ? 初めて # \@貰った
+	PRINTL 
+ELSEIF ARGS == "캐릭터의"
+	IF CFLAG:CHARA:받은선물 == GIFT_ID
+		CALL COLORMESSAGE("★", C_YELLOW, 0)
+		PRINTFORM %GIFT_NAME, 34, LEFT%
+	ELSE
+		PRINTFORM %GIFT_NAME, 36, LEFT%
+	ENDIF
+	CALL REVIEW_STARS(GIFT_SCORE)
+	PRINT 　
+	CALL PRINT_DATE(받은날)
+	PRINTFORM %GIFTSHOP_NAME(산장소)%에서 \@ 횟수 == 1 ? 初めて # {횟수}回目に \@買ってあげた
+	PRINTL 
+ELSEIF ARGS == "디버그"
 	PRINTL 
 	CALL PRINT_DATE(받은날)
-	PRINTFORML %GET_MAPNAME(산장소)%에서 %CALLNAME:CHARA%에게 {횟수}번째로 사준 %GIFT_NAME%
+	PRINTFORML %GIFTSHOP_NAME(산장소)%에서 %CALLNAME:CHARA%に{횟수}回目に買ってあげた%GIFT_NAME%
 	PRINTFORML 정가는 {BASIC_PRICE} * {MAGNIF_PRICE}\% = \\{BASIC_PRICE * MAGNIF_PRICE / 100}
-	PRINTFORML 평가득점은　{GIFT_SOCRE }점
+	PRINTFORML 평가득점은　{GIFT_SCORE}점
 	PRINTFORM 이 형용사를 파는 곳은
 	SIF GETBIT(SELL_AREA_ADJECT, 0)
 		PRINT 　신사
@@ -420,10 +473,9 @@ SENSE += RESULTS:1
 	ENDIF
 	PRINTFORML SENSE：%SENSE%
 	RETURN
-[ENDIF]
-
+ENDIF
 ;-------------------------------------------------
-;贈り物データを抽出する関数
+;선물데이터를 추출하는 함수
 ;-------------------------------------------------
 @GET_GIFTDATA(GIFT_ID, ARGS)
 #FUNCTION
@@ -444,8 +496,8 @@ CASE "본체"
 ENDSELECT
 
 ;-------------------------------------------------
-;贈り物の名前を出力する関数
-;FUNCTIONSにしたかったけどCALLできなくて泣く泣くこのカタチに…
+;선물 이름을 출력하는 함수
+;FUNCTIONS으로 하고싶었지만 CALL하지못하고 울다가 이모양으로…
 ;-------------------------------------------------
 @GIFTNAME(GIFT_ID)
 #DIM GIFT_ID
@@ -463,10 +515,10 @@ RESULTS = %LOCALS:1%%LOCALS:2%
 RETURN
 
 ;-------------------------------------------------
-;引数に地域を羅列するとそこのbitを入れて返す関数Ver.2.0
-;"전부"を入れると전부入れた数値(2^11-1)を返す
-;"以外"を入れると逆になる
-;COMMONに入れてもいいかもしれない（どこで使うか知らん）
+;인수에 지역을 나열하면 그 곳의 bit를 넣어 반환하는 함수Ver.2.0
+;"전부"를 넣으면 전부 집어넣은 수치 (2^11-1)를 되돌린다
+;"이외"를 넣으면 거꾸로 된다
+;COMMON에 넣어도 좋을지도 모른다(어디에 쓸지 몰라）
 ;-------------------------------------------------
 @AREA_SETBIT(ARGS)
 #FUNCTION
@@ -503,3 +555,226 @@ IF STRFIND(ARGS, "이외") >= 0
 	NEXT
 ENDIF
 RETURNF RESULT
+
+;-------------------------------------------------
+;デート帰りの贈り物イベントが発生するかのチェック
+;-------------------------------------------------
+@GIFT_DATE_CHECK(CHARA)
+#FUNCTION
+#DIM CHARA
+#DIM 上限
+#DIM 発生率
+;祭日でないなら上限80%
+IF FESTIVAL() == ""
+	上限 = 80
+ELSE
+	上限 = 100
+ENDIF
+
+;모브코
+SIF TALENT:CHARA:스침
+	RETURNF 0
+;すでに渡している
+SIF DAY == GET_GIFTDATA(CFLAG:CHARA:건네준선물, "날짜")
+	RETURNF 0
+;前回の贈り物から一週間以上経ってる(祭日を除く）
+SIF DAY - GET_GIFTDATA(CFLAG:CHARA:건네준선물, "날짜") < 7 && FESTIVAL() == ""
+	RETURNF 0
+;반발각인,언짢음,분노
+SIF MARK:CHARA:반발각인 || TALENT:CHARA:기분 < 0 || CFLAG:CHARA:빡침
+	RETURNF 0
+;무드1220未満
+SIF BASE:CHARA:무드 < 1220
+	RETURNF 0
+
+;친밀5以降から친밀1につき5%上昇
+発生率 = (ABL:CHARA:친밀 - 4) * 5
+;祭日なら1.5倍
+SIF FESTIVAL() != ""
+	TIMES 発生率, 1.5
+;연인なら1.5倍
+SIF TALENT:CHARA:연인
+	TIMES 発生率, 1.5
+;発生率%で発生
+SIF MIN(発生率, 上限) > RAND:100
+	RETURNF 1
+RETURNF 0
+
+;-------------------------------------------------
+;デート帰りの贈り物イベント
+;-------------------------------------------------
+@GIFT_DATE_EVENT(CHARA)
+#DIM CHARA
+#DIM GIFT_ID
+#DIMS GIFT_NAME
+#DIM 渡した횟수
+#DIM 点数
+
+PRINTL 
+PRINTFORM デートからの帰り道、
+SELECTCASE CFLAG:CHARA:성격경향
+;気弱系
+CASE 1
+	PRINTFORML %CALLNAME:CHARA%はもじもじした様子で懐から何かを取り出し、恐る恐る%CALLNAME:MASTER%に差し出してきた…
+;強気系
+CASE 2
+	PRINTFORML %CALLNAME:CHARA%は%CALLNAME:MASTER%の顔を見て、思い出したかのように何かを取り出すと得意気にそれを渡してきた…
+;素直系
+CASE 3
+	PRINTFORML %CALLNAME:CHARA%はおもむろに何かを取り出すと、%CALLNAME:MASTER%にあげると言ってそれを手渡してきた…
+;真가면目系
+CASE 4
+	PRINTFORML %CALLNAME:CHARA%は%CALLNAME:MASTER%に渡したい物があると言って箱を取り出し、丁重に差し出してきた…
+;その他
+CASEELSE
+	PRINTFORML %CALLNAME:CHARA%は渡したい物があると言って何かを取り出し、%CALLNAME:MASTER%に差し出してきた…
+ENDSELECT
+PRINTW 
+
+;点数は必要ないけど一応
+点数 = 0
+
+;贈り物生成
+CALL CREATE_GIFT_FROM_CHARA(CHARA, 701, 1000)
+GIFT_ID = RESULT
+GIFT_NAME = %RESULTS%
+渡した횟수 = GET_GIFTDATA(CFLAG:CHARA:건네준선물, "횟수") + 1
+;ID의 설정
+GIFT_ID = 渡した횟수 * 10000000000000000 + 点数 * 10000000000000 + DAY * 1000000000 + CFLAG:MASTER:데이트중 * 10000000 + GIFT_ID
+GIFT_GAVE:CHARA:(渡した횟수 % 100) = GIFT_ID
+CFLAG:CHARA:건네준선물 = GIFT_ID
+
+PRINTFORMW 【%GIFT_NAME%】を貰った！
+
+;-------------------------------------------------
+;기념품점の이름を返す関数
+;-------------------------------------------------
+@GIFTSHOP_NAME(산장소, コマンド)
+#FUNCTIONS
+#DIM 산장소
+#DIM コマンド
+SELECTCASE 산장소
+CASE 5
+	RETURNF "향림당"
+CASEELSE
+	IF コマンド
+		RETURNF "기념품점"
+	ELSE
+		RETURNF GET_MAPNAME(산장소)
+	ENDIF
+ENDSELECT
+
+;-------------------------------------------------
+;点数に応じた★を表示する関数
+;評価方法が特殊なので表示個数も変則的
+;-------------------------------------------------
+@REVIEW_STARS(SCORE)
+#DIM SCORE
+#DIM STAR
+#DIM STARCOLOR
+SELECTCASE SCORE
+CASE IS >= 800
+	STAR = 5
+CASE IS >= 700
+	STAR = 4
+CASE IS >= 500
+	STAR = 3
+CASE IS >= 400
+	STAR = 2
+CASEELSE
+	STAR = 1
+ENDSELECT
+FOR LOCAL, 1, 6
+	IF LOCAL <= STAR
+		IF STAR >= 4
+			SETCOLOR C_ORANGE
+		ELSEIF STAR <= 1
+			SETCOLOR C_AQUA
+		ELSE
+			SETCOLOR C_YELLOW
+		ENDIF
+		PRINT ★
+	ELSE
+		SETCOLOR C_GRAY
+		PRINT ☆
+	ENDIF
+NEXT
+RESETCOLOR
+
+;-------------------------------------------------
+;SHOPから呼ばれる表示関数
+;-------------------------------------------------
+@SHOW_COLLECTION_GIFT
+PRINTFORML ☆받은선물☆
+FOR LOCAL, 1, CHARANUM
+	IF !CFLAG:LOCAL:출금 && !TALENT:LOCAL:스침
+		SIF !GIFT_GAVE:LOCAL:1
+			SETCOLOR C_GRAY
+		PRINTFORMLC [{LOCAL}] %CALLNAME:LOCAL, 15, LEFT%
+		RESETCOLOR
+	ENDIF
+NEXT
+PRINTL 
+DRAWLINE
+PRINTFORML [999] - 戻る
+INPUT
+
+IF RESULT == 999
+		RETURN
+ELSEIF INRANGE(RESULT, 1, CHARANUM) && !CFLAG:RESULT:출금 && !TALENT:RESULT:스침
+	CALL SHOW_GIFT_GAVE(RESULT)
+ENDIF
+RESTART
+
+;-------------------------------------------------
+;받은선물を表示する関数
+;-------------------------------------------------
+@SHOW_GIFT_GAVE(CHARA)
+#DIM CHARA
+#DIM SCORE
+#DIM GIFT_NUM
+#DIM LINE
+#DIM FAVO
+PRINTFORML 　●選択するとレビューできます
+PRINTFORML 　☆%CALLNAME:CHARA%から받은선물
+FOR LOCAL, 0, 100
+	;フラグ0番が100を兼ねているのでこの形に
+	SIF GIFT_GAVE:CHARA:((LOCAL + 1) % 100)
+		CALL PRINT_GIFTDATA(GIFT_GAVE:CHARA:((LOCAL + 1) % 100), CHARA, "당신의")
+	IF !GIFT_GAVE:CHARA:((LOCAL + 1) % 100)
+		LINE = LOCAL
+		BREAK
+	ENDIF
+NEXT
+DRAWLINE
+CALL GIFTNAME(ITEM:마음에드는아이템)
+PRINTFORML ☆現在の마음에드는：%RESULTS%
+CALL GIFTNAME(FAVO)
+PRINTFORML [999] - 戻る　　　　　　　　　　　　　　 \@ FAVO ? [998] %RESULTS%を마음에드는にする # \@
+INPUT
+IF RESULT == 999
+	FAVO = 0
+	RETURN
+ELSEIF RESULT == 998
+	ITEM:마음에드는아이템 = FAVO
+ELSEIF INRANGE(RESULT, 0, 100) && GIFT_GAVE:CHARA:RESULT
+	GIFT_NUM = RESULT
+	;星の数が変則的なので
+	SELECTCASE GET_GIFTDATA(GIFT_GAVE:CHARA:GIFT_NUM, "득점")
+	CASE IS >= 800
+		SCORE = 0
+	CASE IS >= 700
+		SCORE = 800
+	CASE IS >= 500
+		SCORE = 700
+	CASE IS >= 400
+		SCORE = 500
+	CASEELSE
+		SCORE = 400
+	ENDSELECT
+	GIFT_GAVE:CHARA:GIFT_NUM -= (GET_GIFTDATA(GIFT_GAVE:CHARA:GIFT_NUM, "득점") * 10000000000000)
+	GIFT_GAVE:CHARA:GIFT_NUM += (SCORE * 10000000000000)
+	FAVO = GIFT_GAVE:CHARA:GIFT_NUM
+ENDIF
+CLEARLINE 6 + LINE
+RESTART
