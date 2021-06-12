@@ -163,41 +163,36 @@ CALL BROAD_HITOSAGASI
 @UNIQUE_COM_아이스를산다
 #DIM 아이스값
 #DIM 팩값
-아이스값 = ICE_PRICE()
-팩값 = ICE_PRICE() * 9
-PRINTL 「아이스 원해?」
-PRINTFORML 
-PRINTFORML 소지금 :\\%TOSTR(MONEY,"#,###")%
-PRINTFORML 
-CALL EX_SHOPPING("아이스", "달고 맛있는 아이스", 0, 아이스값)
-CALL EX_SHOPPING("아이스 세트", "다 같이 먹자", 1, 팩값)
-PRINTFORML 
-PRINTL [100] 그만둔다
-INPUT
-SELECTCASE RESULT
-	CASE 0
-		CALL BUY_ABLE(213, 아이스값 , 1)
-	CASE 1
-		CALL BUY_ABLE(213, 팩값 , 10)
-	CASE 100
-		RETURN -1
-	CASEELSE
-ENDSELECT
-RESTART
-
-@ICE_PRICE
-#FUNCTION
 SELECTCASE DAY:2
 CASE 1
-	RETURNF 400
+	아이스값 = 400
 CASE 2
-	RETURNF 500
+	아이스값 = 500
 CASE 3
-	RETURNF 300
+	아이스값 = 300
 CASE 4
-	RETURNF 200
+	아이스값 = 200
 ENDSELECT
+팩값 = 아이스값 * 9
 
+DRAWLINE
+PRINTL 「아이스 원해?」
+PRINTFORML 소지금 :%금액표시(MONEY)%
+DRAWLINE
+CALL EX_SHOPPING(GETNUM(ITEM, "아이스크림"), "아이스", "달고 맛있는 아이스", 아이스값, 1)
+CALL EX_SHOPPING(GETNUM(ITEM, "아이스크림"), "아이스 세트", "다 같이 먹자", 팩값, 10, GETNUM(ITEM, "아이스크림") + 1)
+DRAWLINE
+PRINTL [999] 그만둔다
+INPUT
+
+IF RESULT == 999
+	RETURN -1
+ELSEIF RESULT == GETNUM(ITEM, "아이스크림")
+	CALL ITEM_CARTON(GETNUM(ITEM, "아이스크림"), 아이스값, 1)
+ELSEIF RESULT == GETNUM(ITEM, "아이스크림") + 1
+	CALL ITEM_CARTON(GETNUM(ITEM, "아이스크림"), 팩값, 10)
+ENDIF
+RESTART
 
 ;-------------------------------------------------
 ;사쿠야 용
@@ -509,59 +504,51 @@ RETURNF CLIENT_ID:(RAND:CLIENT_CNT)
 ;니토리 용
 ;-------------------------------------------------
 @UNIQUE_COM_도구를산다
+#DIM 買うもの
+#DIM 割引
 TFLAG:194 = 1
-CALL ITEM_SALES
+割引 = 66
+;購入条件設定
+FOR LOCAL, 0, 1000
+	CALL ITEMDATA(LOCAL, "SHOP:캇파의 도구점")
+	IF RESULT
+		CALL ITEMDATA(LOCAL, "SALES")
+		ITEMSALES:LOCAL = RESULT
+	ENDIF
+NEXT
 DRAWLINE
 CALL LIST_ITEM("캇파 도구")
 DRAWLINE
 PRINTL 「지금이라면 싸게 해 두어」
 PRINTFORML 구입할 아이템을 선택해주세요 소지금 :\\%TOSTR(MONEY,"#,###")%
-CALL SHOW_ITEM, "캇파 도구", 3
-PRINTL
 DRAWLINE
-PRINT [100] - 돌아간다　　　　　[101] - 도구의 개조　[102] - 도구의 개발
+CALL SHOW_SHOPPING("캇파의 도구점", "캇파 도구", 割引)
+DRAWLINE
+;未実装
+;PRINTL [990] - 도구의 개조　[991] - 도구의 개발
+PRINTL [990] - 도구의 개조
+PRINTL [999] - 돌아간다　　　　　
 INPUT
-LOCAL = RESULT
-SELECTCASE LOCAL
-CASE 100
+
+IF RESULT == 999
 	RETURN -1
-CASE 101
+ELSEIF RESULT == 990
 	CALL TOOL_CUSTOM
 	SIF RESULT
 		RETURN RESULT
-CASE 102
-	PRINTL 「개발하려면 git이 필요하다」
-	PRINTW git란 도대체…
-	RETURN -1
-CASEELSE
-	SELECTCASE ITEMSTOCK(LOCAL)
-	CASE 1, 4
-		RETURN -1
-	CASE 2
-		PRINTW 품절입니다
-		RETURN -1
-	CASE 3
-		PRINTW 소지금이 충분하지 않습니다
-		RETURN -1
-	CASE 5
-		PRINTW 이미 충분히 가지고 있습니다
-		RETURN -1
-	CASEELSE
-		SIF !INRANGE(LOCAL, 0, 100)
-			RETURN -1
-	ENDSELECT
-	PRINTFORML %조사처리(ITEMNAME:LOCAL,"를")% 구입하겠습니까?
-	PRINTL [0] - 네  [1] - 아니오
-	INPUT
-	SIF RESULT
-		RETURN -1
-	ITEM:LOCAL ++
-	MONEY -= ITEMPRICE:LOCAL / 3
-	SIF INRANGE(LOCAL, 0, 39)
-		SETBIT FLAG:아이템구입끝난상태, LOCAL
-ENDSELECT
-RESTART
-
+ELSEIF RESULT == 991
+	;未実装
+ELSE
+	買うもの = RESULT
+	CALL ITEMDATA(買うもの, "SHOP:캇파의 도구점", 割引)
+	IF RESULT && ITEMSALES:買うもの >= 0 && ITEM:買うもの < 소지수제한
+		CALL ITEMDATA(買うもの, "구입", 割引)
+		SIF RESULT
+			RESTART
+	ELSE
+		RESTART
+	ENDIF
+ENDIF
 
 
 ;도구 개조 함수
@@ -570,27 +557,28 @@ RESTART
 ;구입으로 RETURN -1, 구입하지 않을 때는 RETURN 0
 ;아무것도 하지 않고 말미에 도달하면(자) 구입한 취급이 됩니다
 @TOOL_CUSTOM
-#DIM 번호_간이풀장
 #DIM 거품개조전제조건
-GETNUM ITEM, "간이풀장"
-번호_간이풀장 = RESULT
 거품개조전제조건 = GETBIT (FLAG:풀장, 0) && GETBIT (FLAG:풀장, 1) && GETBIT (FLAG:풀장, 2)
-
+DRAWLINE
 PRINTFORML 개조할 아이템을 선택해주세요 소지금 :\\%TOSTR(MONEY,"#,###")%
-IF ITEM:간이풀장
-	LOCALS = [{번호_간이풀장}] 간이풀장
-	PRINTBUTTONLC LOCALS, 번호_간이풀장
-ENDIF
-PRINT [100] - 역시 그만둔다
+DRAWLINE
+FOR LOCAL, 0, 1000
+	CALL ITEMDATA(LOCAL, "TYPE:개조가능")
+	SIF RESULT && ITEM:LOCAL
+		PRINTFORML [{LOCAL, 3}] - %ITEMNAME:LOCAL%
+NEXT
+PRINT [999] - 역시 그만둔다
 INPUT
 SELECTCASE RESULT
-CASE 100
+CASE 999
 	RETURN
-CASE 번호_간이풀장
+CASE GETNUM(ITEM, "간이풀장")
 	SIF !ITEM:간이풀장
 		RETURN
+	DRAWLINE
 	PRINTL 「어떻게 개조해?」
 	PRINT 현재 상태：
+	DRAWLINE
 	SIF GETBIT (FLAG:풀장, 0)
 		PRINT [자주모터]
 	SIF GETBIT (FLAG:풀장, 1)
@@ -602,23 +590,23 @@ CASE 번호_간이풀장
 	PRINTL
 	
 	IF !GETBIT (FLAG:풀장, 0)
-		PRINTL [1] - 모터(\5000)：이동의 부담이 없어진다
+		PRINTL [  1] - 모터(\5000)：이동의 부담이 없어진다
 	ELSE
-		SETCOLOR 150,150,150
+		SETCOLOR C_GRAY
 		PRINTL [완료] - 모터：이동의 부담이 없어진다
 		RESETCOLOR
 	ENDIF
 	IF !GETBIT (FLAG:풀장, 1)
-		PRINTL [2] - 온수 기능(\5000)：넓은 장소에서 편하게 한다
+		PRINTL [  2] - 온수 기능(\5000)：넓은 장소에서 편하게 한다
 	ELSE
-		SETCOLOR 150,150,150
+		SETCOLOR C_GRAY
 		PRINTL [완료] - 온수 기능：넓은 장소에서 편하게 한다·목욕탕플레이가 생긴다
 		RESETCOLOR
 	ENDIF
 	IF !GETBIT (FLAG:풀장, 2)
-		PRINTL [3] - 샤워(\5000)：샤워로 씻을 수 있다·물주기도 할 수 있다
+		PRINTL [  3] - 샤워(\5000)：샤워로 씻을 수 있다·물주기도 할 수 있다
 	ELSE
-		SETCOLOR 150,150,150
+		SETCOLOR C_GRAY
 		PRINTL [완료] - 샤워：샤워로 씻을 수 있다·물주기도 할 수 있다
 		RESETCOLOR
 	ENDIF
@@ -628,16 +616,16 @@ CASE 번호_간이풀장
 	ELSEIF !GETBIT (FLAG:풀장, 3)
 		PRINTL [5] - 이상한 거품(\5000)：와카사기히메가 자유롭게 이동할 수 있게 된다
 	ELSE
-		SETCOLOR 150,150,150
+		SETCOLOR C_GRAY
 		PRINTL [완료] - 이상한 거품：와카사기히메가 자유롭게 이동할 수 있게 된다
 		RESETCOLOR
-		PRINTL 더 이상 개조할 수 없다
+		PRINTL 　　　　더 이상 개조할 수 없다
 	ENDIF
 	
-	PRINTL [100]역시 그만둔다
+	PRINTL [999]역시 그만둔다
 	INPUT
 	SELECTCASE RESULT
-	CASE 100
+	CASE 999
 		RETURN
 	CASE 1
 		IF !GETBIT (FLAG:풀장, 0) && MONEY >= 5000
@@ -694,57 +682,54 @@ RETURN -1
 
 
 ;-------------------------------------------------
-;레이센용
+;우동게용
 ;-------------------------------------------------
 @UNIQUE_COM_약을산다
+#DIM 買うもの
 DRAWLINE
 CALL LIST_ITEM("토끼 약품")
 DRAWLINE
-PRINTFORML 구입할 아이템을 선택해주세요 소지금 :\\%TOSTR(MONEY,"#,###")%
+PRINTFORML 구입할 아이템을 선택해주세요 소지금 :%금액표시(MONEY)%
+DRAWLINE
 PRINTL
 VARSET LOCALS
-CALL EX_SHOPPING("로션병", "로션들이의 대병. 5회분은 있을 것이다. ", 0,1000)
-CALL EX_SHOPPING("콘돔 이득용 팩", "50개나 들어가 있다. ", 1,1000)
-CALL EX_SHOPPING("필(5정들이)", "밝은 가족 계획", 2,5000)
-CALL EX_SHOPPING("미약", "호의를 안기 쉬워지는", 250)
-CALL EX_SHOPPING("수면제", "악용은 안 돼요? ", 252)
-CALL EX_SHOPPING("영양드링크", "타우린 1000mg 배합", 501)
-CALL EX_SHOPPING("정력제", "더러운 부자 납품업자", 502)
-CALL EX_SHOPPING("우콘드링크", "술을 마시기 전에", 510)
-CALL EX_SHOPPING("붕대", "상처를 입었는데나 숨기고 싶은 장소에 감자", 520)
-SIF TARGET == 53 && !ITEM:130
-	CALL EX_SHOPPING("토부「개운대문」","럭키 색골이 일어나는 꿈의 아이템", 130)
+CALL EX_SHOPPING(GETNUM(ITEM, "로션"), "로션 물병(와인)", "로션이 든 큰병. 5회분은 있을 것이다. ", 1000, 5)
+CALL EX_SHOPPING(GETNUM(ITEM, "콘돔"), "콘돔 이득용 팩", "50개나 들어가 있다. ", 1000, 50)
+CALL EX_SHOPPING(GETNUM(ITEM, "피임약"), "필(5정들이)", "밝은 가족 계획", 5000, 5)
+CALL ITEM_SHOPPING(GETNUM(ITEM, "미약"), "호의를 품기 쉬워진다")
+CALL ITEM_SHOPPING(GETNUM(ITEM, "수면제"), "악용하면 안 돼요?")
+CALL ITEM_SHOPPING(GETNUM(ITEM, "영양드링크"), "타우린 1000mg 배합")
+CALL ITEM_SHOPPING(GETNUM(ITEM, "정력제"), "더러운 부자 납품업자")
+CALL ITEM_SHOPPING(GETNUM(ITEM, "우콘드링크"), "술 마시기 전에")
+CALL ITEM_SHOPPING(GETNUM(ITEM, "붕대"), "상처를 입은 데나 숨기고 싶은 장소에 감자")
+CALL ITEM_SHOPPING(GETNUM(ITEM, "영양강화제"), "料理に混ぜれば不足しがちな栄養を補えます")
+SIF TARGET == [[테위]] && !ITEM:토부「개운대문」
+	CALL ITEM_SHOPPING(GETNUM(ITEM, "토부「개운대문」"),"럭키 색골이 일어나는 꿈의 아이템")
 DRAWLINE
-PRINTL [100] 그만둔다
+PRINTL [999] 그만둔다
 INPUT
-SELECTCASE RESULT
-	CASE 0
-		CALL BUY_ABLE(40,1000,5)
-	CASE 1
-		CALL BUY_ABLE(45,1000,50)
-	CASE 2
-		CALL BUY_ABLE(49,5000,5)
-	CASE 130
-		SIF TARGET == 53 && !ITEM:130
-			CALL BOTTAKURI
-	;정리하고 구매 함수로 수매
-	;이것들의 아이템은 특히 할인은 없기 때문에 @BUY_ABLE를 사용하는 필연성이 없다
-	CASE 250, 252, 501, 502, 510, 520
-		SELECTCASE ITEMSTOCK(RESULT)
-		CASE 1, 4
-		CASE 2
-			PRINTW 품절입니다
-		CASE 3
-			PRINTW 소지금이 충분하지 않습니다
-		CASE 5
-			PRINTW 이미 충분히 가지고 있습니다
-		CASEELSE
-			CALL ITEM_MATOMEGAI(RESULT)
-		ENDSELECT
-	CASE 100
-		RETURN -1
-	CASEELSE
-ENDSELECT
+
+IF RESULT == 999
+	RETURN -1
+ELSEIF RESULT == GETNUM(ITEM, "토부「개운대문」") && TARGET == [[테위]] && !ITEM:토부「개운대문」
+	CALL BOTTAKURI
+ELSEIF RESULT == GETNUM(ITEM, "로션")
+	CALL ITEM_CARTON(RESULT, 1000, 5)
+ELSEIF RESULT == GETNUM(ITEM, "콘돔")
+	CALL ITEM_CARTON(RESULT, 1000, 50)
+ELSEIF RESULT == GETNUM(ITEM, "피임약")
+	CALL ITEM_CARTON(RESULT, 5000, 5)
+ELSE
+	買うもの = RESULT
+	CALL ITEMDATA(買うもの, "TYPE:토끼 약품")
+	IF RESULT && ITEMSALES:買うもの >= 1 && ITEM:買うもの < 소지수제한
+		CALL ITEMDATA(買うもの, "구입")
+		SIF !RESULT
+			RESTART
+	ELSE
+		RESTART
+	ENDIF
+ENDIF
 RESTART
 
 @BOTTAKURI
@@ -1106,7 +1091,7 @@ RESTART
 ;-------------------------------------------------
 ;우루미 용
 ;-------------------------------------------------
-@UNIQUE_COM_魚の交換
+@UNIQUE_COM_물고기교환
 #DIM PREV_DAY
 #DIM CNG_NUM
 
@@ -1114,7 +1099,7 @@ IF PREV_DAY == DAY
 	PRINTFORMW 「뭔디? 오늘은 벌써 교환해 줬잖어?」
 	RETURN
 ENDIF
-CNG_NUM = GET_INT(0, "캐릭터데이터", TARGET, "고유커맨드：魚の交換レート")
+CNG_NUM = GET_INT(0, "캐릭터데이터", TARGET, "고유커맨드：물고기교환レート")
 
 PRINTFORML 「맛있는 물고기가 갖고 싶어?」
 PRINTFORML 「그러네에。그냥 물고기 {CNG_NUM}마리라면 교환해도 좋아」

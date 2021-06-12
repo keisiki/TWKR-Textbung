@@ -33,8 +33,7 @@ SIF TFLAG:102 == 2
 ;요리의 시간경과
 ;-------------------------------------------------
 SIF DISH_NAME != ""
-	CALL CEACK_COOKING
-
+	CALL DISH_FRESHNESS
 ;-------------------------------------------------
 ;밭의 시간경과
 ;-------------------------------------------------
@@ -100,10 +99,16 @@ CALL INFO_CULC_WEATHER(날씨비표시)
 CALL INFO_GO_NEXTDAY
 CALL CHANGE_TIMEZONE
 
-;여기에서 게임 화면에 표시되는 인터페이스
+;子供の描写
+CALL CHILD_DESCRIPTION
+
+;귀가시간等の予告通知
+CALL TIMEUP_NOTICE(FLAG:데이트상대)
+
+;時計画像表示
 CALL INFO_CLOCK_IMAGE(TIME)
 
-;ここからゲーム画面に表示されるインターフェイス
+;여기부터 게임 화면에 표시되는 인터페이스
 DRAWLINEFORM *
 ;일시와 축일의 표시(개행 없음)
 CALL INFO_TIME_WATCH
@@ -234,7 +239,7 @@ ENDIF
 
 IF CFLAG:TARGET:수면
 	SELECTCASE TCVAR:TARGET:수면제강도
- 	CASE 1
+	CASE 1
 		LOCALS += "・깊은 수면"
 	CASE 2
 		LOCALS += "・매우 깊은 수면"
@@ -642,7 +647,7 @@ SIF DISH_LIMIT >= DISH_MAXLIMIT
 	FRESH_MESSAGE = 0
 DISH_LIMIT -= TIME_PROGRESS(TIME:1)
 SIF DISH_LIMIT <= DISH_MAXLIMIT * 4 / 5
-	DISH_TASTE '= REPLACE(DISH_TASTE, "できたて\/", "")
+	DISH_TASTE '= REPLACE(DISH_TASTE, "갓만든\/", "")
 IF DISH_LIMIT <= DISH_MAXLIMIT * -1
 	CALL COLORMESSAGE(조사처리(DISH_NAME, "는") + "차마 먹을 수 없다!", C_RED, 2)
 	PRINTL
@@ -651,22 +656,22 @@ IF DISH_LIMIT <= DISH_MAXLIMIT * -1
 	FRESH_MESSAGE = 0
 ELSEIF DISH_LIMIT <= 0 && FRESH_MESSAGE < 2
 	CALL COLORMESSAGE(DISH_NAME + "에게서 고약한 냄새가 …", C_ORANGE, 2)
-	DISH_TASTE '= REPLACE(DISH_TASTE, "冷たい\/", "")
-	DISH_TASTE '= REPLACE(DISH_TASTE, "温かい\/", "")
-	DISH_TASTE += "劣化/" * 2
+	DISH_TASTE '= REPLACE(DISH_TASTE, "차가운\/", "")
+	DISH_TASTE '= REPLACE(DISH_TASTE, "따뜻한\/", "")
+	DISH_TASTE += "열화/" * 2
 	FRESH_MESSAGE = 2
 ELSEIF DISH_LIMIT <= DISH_MAXLIMIT * 1 / 2 && FRESH_MESSAGE < 1
-	IF STRCOUNT(DISH_TASTE, "アイス/")
-		PRINTFORMW %DISH_NAME%が溶けてきた…
-		DISH_TASTE '= REPLACE(DISH_TASTE, "冷たい\/", "")
-	ELSEIF STRCOUNT(DISH_TASTE, "冷たい/")
-		PRINTFORMW %DISH_NAME%はぬるくなってしまった
-		DISH_TASTE '= REPLACE(DISH_TASTE, "冷たい\/", "")
+	IF STRCOUNT(DISH_TASTE, "아이스크림/")
+		PRINTFORMW %조사처리(DISH_NAME,"가")% 녹기 시작했다…
+		DISH_TASTE '= REPLACE(DISH_TASTE, "차가운\/", "")
+	ELSEIF STRCOUNT(DISH_TASTE, "차가운/")
+		PRINTFORMW %조사처리(DISH_NAME,"은")% 미지근해져 버렸다
+		DISH_TASTE '= REPLACE(DISH_TASTE, "차가운\/", "")
 	ELSE
 		PRINTFORMW %조사처리(DISH_NAME,"은")% 차가워져 버렸다…
-		DISH_TASTE '= REPLACE(DISH_TASTE, "温かい\/", "")
+		DISH_TASTE '= REPLACE(DISH_TASTE, "따뜻한\/", "")
 	ENDIF
-	DISH_TASTE += "劣化/"
+	DISH_TASTE += "열화/"
 	FRESH_MESSAGE = 1
 ENDIF
 
@@ -1009,7 +1014,7 @@ ENDIF
 
 ;일시와 축일의 표시(개행 없음)
 @INFO_TIME_WATCH
-PRINTFORM %GET_MONTH()% {DAY:3}일째(%GET_DAY(DAY)%)
+PRINTFORM %GET_MONTH()% {DAY:3}일째(%GET_DAY()%)
 SETCOLOR C_RED
 PRINTFORM %FESTIVAL()%
 RESETCOLOR
@@ -1021,7 +1026,7 @@ PRINTFORM (%CLASSICAL_TIME(TIME, 1, 2)%)
 ;
 ;	ARG		：時刻
 ;	iSize	：フォントに対するサイズ％数値　縦基準　縦横比維持　省略で1000(10倍)
-;	sAlign	：align属性　省略で左寄せ　left, center, rightの三種が손가락定できます
+;	sAlign	：align属性　省略で右寄せ　left, center, rightの三種が손가락定できます
 ;-------------------------------------------------
 @INFO_CLOCK_IMAGE(ARG, iSize=500,sAlign="right")
 #DIM iSize
@@ -1143,7 +1148,6 @@ RESETCOLOR
 ;TSPバーとコマンドの位置はどちらが良い？
 ;暫定に倣って停止解除の位置とX軸が近いのでコマンドを右側にしていますが、スペース（"　"）があるので左側にもできます。
 @INFO_TIMESTOP
-PRINT TSP
 CALL BASE_BAR(MASTER, "TSP", 30, "물색", "「종류 표기 없음」")
 ;시간정지 커맨드를 참고에 조건 덧붙여 씀
 IF BASE:MASTER:기력 <= 0 || BASE:MASTER:TSP <= 0 || (!FLAG:70 && (CFLAG:우후후 || CFLAG:장난 || CFLAG:동침중))
@@ -1253,11 +1257,11 @@ ENDIF
 ;-------------------------------------------------
 @INFO_DISH
 PRINTFORM <%EX_DISH_NAME%
-SIF STRCOUNT(DISH_TASTE, "できたて") == 1
-	PRINT (できたて)
-SIF STRCOUNT(DISH_TASTE, "劣化") == 1
+SIF STRCOUNT(DISH_TASTE, "갓만든") == 1
+	PRINT (갓만든)
+SIF STRCOUNT(DISH_TASTE, "열화") == 1
 	PRINT (열화)
-SIF STRCOUNT(DISH_TASTE, "劣化") >= 2
+SIF STRCOUNT(DISH_TASTE, "열화") >= 2
 	PRINT (상함)
 SIF DISH_DRG
 	PRINTFORM (%ITEMNAME:DISH_DRG%)
@@ -1413,7 +1417,7 @@ ENDIF
 ;PRINTFORM [%HUNGER(TARGET)%]　
 DEBUGPRINTFORML  합의판정치:{CFLAG:합의판정}
 
-LOCAL = BASE:분노 / 200
+LOCAL = MIN(BASE:분노 / 200, 5)
 IF CFLAG:수면
 	IF CFLAG:빡침
 		SETCOLOR 255,0,0
@@ -1538,7 +1542,7 @@ LOCAL = LIMIT(BASE:무드 / 200,0,5)
 PRINTFORM 무드:
 SIF BASE:무드 == MAXBASE:무드
 	SETCOLOR 255,51,153
-	IF BASE:무드 == MAXBASE:무드 && CHK_DATENOW(CFLAG:TARGET:데이트중)
+IF BASE:무드 == MAXBASE:무드 && CHK_DATENOW(CFLAG:TARGET:데이트중)
 	FONTBOLD
 	PRINTFORM OverDrive!!
 	FONTREGULAR

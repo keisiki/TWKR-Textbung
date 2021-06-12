@@ -11,9 +11,15 @@
 #DIM 호감도계수
 #DIM 받은횟수
 #DIM 건네준횟수
+#DIM 店員
+#DIM 重複防止,11
+#DIMS 台詞
 
 ;とりあえず５つ。11個以上のときは#DIMも修整する
 상품상한 = 5
+
+;店員の見た目を決める。@GIFTSHOP_NAMEを変更すると향림당の店主も変わる
+店員 = GET_MAPID(CFLAG:MASTER:현재위치) + ((GET_MAPID(CFLAG:MASTER:현재위치) == 5 && GIFTSHOP_NAME(5) == "향림당") * 15)
 
 ;ソース用の設定
 IF CFLAG:TARGET:호감도 < 100
@@ -34,9 +40,14 @@ ENDIF
 
 PRINTL 
 DRAWLINE
-;店員に喋らせる場合（例文）
-IF 0
-	PRINTFORML 「어서오세요」
+;店員に喋らせる。ガワを変えるだけなので一言程度
+IF !重複防止:(GET_MAPID(CFLAG:MASTER:현재위치))
+	台詞 = 「어서오세요」/「%TEXTR("彼女さんへの贈り物ですか？/良かったら見ていってください/お値打ちな品、ありますよ/")%」
+	CALL SPTALK, 0, "笑顔", 店員, @"%台詞%", 1
+	重複防止:(GET_MAPID(CFLAG:MASTER:현재위치)) = 1
+ENDIF
+IF FLAG:기념품점염가대매출 >= 100 && FLAG:기념품점염가대매출 % 100 == CFLAG:MASTER:데이트중
+	CALL COLORMESSAGE(@"大安売り開催中！", C_YELLOW, 1)
 ELSE
 	PRINTFORML %CALLNAME:TARGET%에게 뭔가 사주자……
 ENDIF
@@ -72,6 +83,7 @@ IF RESULT == 0
 	TFLAG:194 = -1
 	;ウィンドウショッピングとして少量のソースを獲得
 	SOURCE:환락 = 500 + 300 * 호감도계수
+	重複防止:(GET_MAPID(CFLAG:MASTER:현재위치)) = 0
 ;商品リロード
 ELSEIF RESULT == 99
 	;ひやかしはお断り
@@ -79,8 +91,10 @@ ELSEIF RESULT == 99
 		TFLAG:194 = -2
 		재로드수 = 0
 		;閉店ガラガラ（他の店も閉まるのは仕様）
+		重複防止:(GET_MAPID(CFLAG:MASTER:현재위치)) = 0
 		SETBIT TFLAG:일일일회, 10
 	ELSE
+		CLEARLINE 9 + 상품상한
 		생성완료 = 0
 		재로드수 ++
 		TIME += 10
@@ -97,19 +111,14 @@ ELSEIF INRANGE(RESULT, 1, 상품상한 + 1)
 	;商品購入
 	ELSE
 		BOUGHT_GIFT = RESULT
+		台詞 = 「ありがとうございます」/「%TEXTR("良い買い物をしましたね/またお越しください/さっそく贈ってあげてはどうでしょうか")%」
+		CALL SPTALK, 0, "笑顔", 店員, @"%台詞%", 1
 		MONEY -= GIFT_PRICE:BOUGHT_GIFT
+		重複防止:(GET_MAPID(CFLAG:MASTER:현재위치)) = 0
 		;받은횟수をチェック
-		IF !CFLAG:TARGET:선물스톡
-			받은횟수 = 1
-		ELSE
-			받은횟수 = GET_GIFTDATA(CFLAG:TARGET:선물스톡, "횟수") + 1
-		ENDIF
+		받은횟수 = GET_GIFTDATA(CFLAG:TARGET:선물스톡, "횟수") + 1
 		;건네준횟수をチェック
-		IF !CFLAG:MASTER:건네준선물
-			건네준횟수 = 1
-		ELSE
-			건네준횟수 = CFLAG:MASTER:건네준선물 / 1000
-		ENDIF
+		건네준횟수 = CFLAG:MASTER:건네준선물 / 1000 + 1
 		;批評する
 		CALL REVIEW_GIFT(TARGET, GIFT_LIST:BOUGHT_GIFT)
 		SCORE = RESULT
@@ -123,6 +132,8 @@ ELSEIF INRANGE(RESULT, 1, 상품상한 + 1)
 		[ENDIF]
 		;ストックにGIFT_IDを保存
 		CFLAG:TARGET:선물스톡 = 받은횟수 * 10000000000000000 + SCORE * 10000000000000 + DAY * 1000000000 + CFLAG:MASTER:데이트중 * 10000000 + GIFT_LIST:BOUGHT_GIFT
+		;ストレージにも保存
+		GIFT_GOT:TARGET:(받은횟수 % 100) = CFLAG:TARGET:선물스톡
 		;TARGETはID,MASTERは渡したキャラを保存
 		TCVAR:TARGET:오늘의선물 = CFLAG:TARGET:선물스톡
 		TCVAR:MASTER:오늘의선물 = TARGET
@@ -217,7 +228,7 @@ SIF ARG == GET_MAP_REPLACEMENT(343)
 ;待合室,他にいいところが…
 SIF ARG == GET_MAP_REPLACEMENT(403)
 	RETURNF 1
-;香霖堂
+;향림당
 SIF ARG == GET_MAP_REPLACEMENT(502)
 	RETURNF 1
 ;中有の道

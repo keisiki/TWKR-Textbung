@@ -1,0 +1,276 @@
+﻿;-------------------------------------------------
+;아이와 만나다
+;-------------------------------------------------
+@COM337
+#DIM CHARA
+#DIM CHILDNUM
+
+;自立後
+IF TFLAG:묘사중인아이 > 1000
+	CHARA = TFLAG:묘사중인아이 % 1000
+	CHILDNUM = TFLAG:묘사중인아이 / 1000
+;육아중
+ELSE
+	CHARA = TFLAG:묘사중인아이
+	CHILDNUM = TALENT:CHARA:육아중
+	;同室の場合のみソースを獲得する
+	IF TARGET == CHARA
+		;ソースの量はかなり適当
+		IF CHILD_LOVE:CHARA:CHILDNUM < 0
+			SOURCE:반감 = 300
+		ELSEIF CHILD_LOVE:CHARA:CHILDNUM < 200
+			SOURCE:환락 = 200 + (ABL:친밀 * 20)
+			SOURCE:사랑 = 100 + (ABL:친밀 * 10)
+		ELSEIF CHILD_LOVE:CHARA:CHILDNUM < 300
+			SOURCE:환락 = 400 + (ABL:친밀 * 30)
+			SOURCE:사랑 = 200 + (ABL:친밀 * 20)
+		ELSEIF CHILD_LOVE:CHARA:CHILDNUM < 400
+			SOURCE:환락 = 800 + (ABL:친밀 * 60)
+			SOURCE:사랑 = 500 + (ABL:친밀 * 40)
+		ELSE
+			SOURCE:환락 = 1600 + (ABL:친밀 * 90)
+			SOURCE:사랑 = 1000 + (ABL:친밀 * 60)
+		ENDIF
+	ENDIF
+ENDIF
+IF CHILD_LOVE:CHARA:CHILDNUM < 0
+	TFLAG:193 = -1
+ELSEIF CHILD_LOVE:CHARA:CHILDNUM < 200
+	TFLAG:193 = 1
+ELSEIF CHILD_LOVE:CHARA:CHILDNUM < 300
+	TFLAG:193 = 2
+ELSEIF CHILD_LOVE:CHARA:CHILDNUM < 400
+	TFLAG:193 = 3
+ELSE
+	TFLAG:193 = 4
+ENDIF
+
+;口上用にTARGETを変える,TFLAG:194にはCHILDNUMを入れる
+;口上側で行動による分岐をしたい場合はCHILD_ACT:[[キャラ番号]]:(TFLAG:194)に行動内容が文字列で入ってます
+;TFLAG:193は愛情度による分岐
+TFLAG:현재의TARGET = TARGET
+TARGET = CHARA
+TFLAG:194 = CHILDNUM
+
+SELECTCASE CHILD_ACT:CHARA:CHILDNUM
+CASE "식사"
+	;같이 식사
+	IF CFLAG:CHARA:출산경과일 >= CHILD_젖떼기
+		TCVAR:MASTER:공복시각 = 1440 * DAY + TIME + 60
+		CALL RECOVER(MASTER, 30, "체력", "식사에 의한 회복")
+		CALL RECOVER(MASTER, 30, "기력", "식사에 의한 회복")
+	ENDIF
+CASE "料理"
+	SIF !RAND:2
+		EXP:MASTER:요리경험 ++
+CASE "読書"
+	SIF !RAND:2
+		EXP:MASTER:학습경험 ++
+CASE "歌唱"
+	;演奏できる
+	SIF GROUPMATCH(1, MUSIC_ABLE(30), MUSIC_ABLE(31), MUSIC_ABLE(32), MUSIC_ABLE(33), MUSIC_ABLE(34), MUSIC_ABLE(35))
+		EXP:MASTER:연주경험 ++
+CASE "掃除"
+	EXP:MASTER:청소경험 ++
+CASE "勉強"
+	EXP:MASTER:학습경험 ++
+ENDSELECT
+
+;子供の愛情度アップ（メッセージでなんちゃって表示する）
+SIF TFLAG:묘사중인아이 < 1000
+	CHILD_LOVE:CHARA:CHILDNUM ++
+
+TIME += 10
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE337
+;아이와 만나다実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(337)
+	RETURN RESULT
+SIF FLAG:시간정지
+	RETURN 0
+;TARGETではなくMASTER
+SIF CFLAG:MASTER:동침중
+	RETURN 0
+SIF !TFLAG:묘사중인아이
+	RETURN 0
+;육아중のキャラと同室の場合はTARGETにしないと実行できない（描写はされる）
+IF TFLAG:묘사중인아이 < 1000
+	IF CFLAG:MASTER:현재위치 == CFLAG:(TFLAG:묘사중인아이):현재위치 
+		SIF TARGET != TFLAG:묘사중인아이
+			RETURN 0
+	ENDIF
+ENDIF
+;기력0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;[아이와 만나다]の表示するコマンド名
+;ARG  TFLAG:묘사중인아이
+;-------------------------------------------------
+@아이소개명칭(ARG)
+#FUNCTIONS
+#DIM CHARA
+#DIM CHILDNUM
+#DIMS 아이의행동
+#DIMS 아이의이름
+
+;自立後
+IF TFLAG:묘사중인아이 > 1000
+	CHARA = ARG % 1000
+	CHILDNUM = ARG / 1000
+;육아중
+ELSE
+	CHARA = ARG
+	CHILDNUM = TALENT:CHARA:육아중
+ENDIF
+
+아이의행동 = %CHILD_ACT:CHARA:CHILDNUM%
+아이의이름 = %CHILDNAME:CHARA:CHILDNUM%
+SELECTCASE 아이의행동
+CASE "睡眠"
+	RETURNF 조사처리(아이의이름,"을") + " 쓰다듬다"
+CASE "起床"
+	IF CFLAG:CHARA:출산경과일 < CHILD_어휘
+		RETURNF 조사처리(아이의이름,"을") + " 달래다"
+	ELSE
+		RETURNF 조사처리(아이의이름,"과") + " 회화"
+	ENDIF
+CASE "入浴"
+	RETURNF 조사처리(아이의이름,"을") + " 씻기다"
+CASE "식사"
+	IF CFLAG:CHARA:출산경과일 < CHILD_젖떼기
+		RETURNF 조사처리(아이의이름,"을") + " 어루만지다"
+	ELSE
+		RETURNF 조사처리(아이의이름,"과") + " 같이 식사"
+	ENDIF
+CASE "玩具"
+	IF CFLAG:CHARA:출산경과일 < CHILD_자립전
+		RETURNF 조사처리(아이의이름,"과") + " 놀다"
+	ELSE
+		RETURNF 조사처리(아이의이름,"과") + " 회화"
+	ENDIF
+CASE "お絵かき"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "遊び"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "勉強"
+	RETURNF 조사처리(아이의이름,"을") + " 거들다"
+CASE "読書"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "料理"
+	RETURNF 조사처리(아이의이름,"을") + " 거들다"
+CASE "絵描き"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "歌唱"
+	;演奏できる
+	IF GROUPMATCH(1, MUSIC_ABLE(30), MUSIC_ABLE(31), MUSIC_ABLE(32), MUSIC_ABLE(33), MUSIC_ABLE(34), MUSIC_ABLE(35))
+		RETURNF 아이의이름 + "의 반주를 하다"
+	ELSE
+		RETURNF 조사처리(아이의이름,"과") + " 놀다"
+	ENDIF
+CASE "掃除"
+	RETURNF 조사처리(아이의이름,"을") + " 거들다"
+CASE "支度"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "登校"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "授業"
+	RETURNF "수업 참관"
+CASE "帰宅"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "仕事"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "散歩"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+
+CASE "幼児期_抱かれる"
+	RETURNF 조사처리(아이의이름,"을") + " 어루만지다"
+CASE "幼児期_眠たそう"
+	RETURNF 조사처리(아이의이름,"을") + " 어루만지다"
+CASE "幼児期_大人しい"
+	RETURNF 조사처리(아이의이름,"을") + " 어루만지다"
+CASE "幼児期_こちらを見る"
+	RETURNF 조사처리(아이의이름,"을") + " 어르다"
+CASE "幼児期_何かを訴える"
+	RETURNF 조사처리(아이의이름,"을") + " 어르다"
+CASE "幼児期_何かを目で追う"
+	RETURNF 조사처리(아이의이름,"을") + " 어르다"
+CASE "幼児期_あやされる"
+	RETURNF 조사처리(아이의이름,"을") + " 어르다"
+
+CASE "幼少期_会話"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "幼少期_教わる"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "幼少期_しつけられる"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "幼少期_親子遊び"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "幼少期_一人遊び"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "幼少期_大人しい"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "幼少期_考え事"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "幼少期_眠そう"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "幼少期_はしゃぐ"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "幼少期_うろちょろ"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "幼少期_うずうず"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "幼少期_見つめる"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "幼少期_遊ぼう"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "幼少期_ぺたぺた"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "幼少期_かまって"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+
+CASE "自立前_会話"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_教わる"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_しつけられる"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_ひそひそ話"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_文句"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_主張"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_笑い合う"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_教えて"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_手伝い"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_一人遊び"
+	RETURNF 조사처리(아이의이름,"과") + " 놀다"
+CASE "自立前_考え事"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_眠そう"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_話したい"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_気にする"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_遠慮"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASE "自立前_睨む"
+	RETURNF 조사처리(아이의이름,"과") + " 회화"
+CASEELSE
+	RETURNF "아이와 만나다"
+ENDSELECT
+

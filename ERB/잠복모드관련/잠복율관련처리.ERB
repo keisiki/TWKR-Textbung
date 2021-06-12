@@ -1,0 +1,181 @@
+﻿;----------------------------------------------------------------------------------------------------
+;잠복율の증감처리
+;----------------------------------------------------------------------------------------------------
+@잠복율증감처리
+IF GETBIT(FLAG:잠복,2)
+	;会話モードはこれで判定
+	SELECTCASE SELECTCOM
+		CASE 300
+			BASE:MASTER:잠복율 += 10
+		CASE 19,20,21
+			BASE:MASTER:잠복율 += 0
+		CASEELSE
+			IF NOWEX:C절정 || NOWEX:V절정 || NOWEX:A절정 || NOWEX:B절정 || NOWEX:M절정
+				BASE:MASTER:잠복율 -= 18
+			ELSE
+				BASE:MASTER:잠복율 -= 6
+			ENDIF
+	ENDSELECT
+	CALL 대화모드지속판정
+ELSEIF GETBIT(FLAG:잠복,1)
+	;探索モードはこれで判定
+	SELECTCASE SELECTCOM
+		CASE 19,20,21
+			BASE:MASTER:잠복율 += 3
+		CASEELSE
+			IF NOWEX:C절정 || NOWEX:V절정 || NOWEX:A절정 || NOWEX:B절정 || NOWEX:M절정
+				BASE:MASTER:잠복율 -= 12
+			ELSE
+				BASE:MASTER:잠복율 -= 4
+			ENDIF
+		ENDSELECT
+	CALL 탐색판정
+ELSE
+	;잠복モードはこれで判定
+	IF GET_TARGETNUM() > 1
+		SELECTCASE SELECTCOM
+			CASE 19,20,21
+				BASE:MASTER:잠복율 += 5
+			CASEELSE
+				IF NOWEX:C절정 || NOWEX:V절정 || NOWEX:A절정 || NOWEX:B절정 || NOWEX:M절정
+					BASE:MASTER:잠복율 -= 6
+				ELSE
+					BASE:MASTER:잠복율 -= 2
+				ENDIF
+			ENDSELECT
+		SIF BASE:MASTER:잠복율 < 40
+			CALL 탐색자결정처리
+	ELSE
+	;周囲に誰もいなければ常に100％
+		BASE:MASTER:잠복율 = 100
+	ENDIF
+
+ENDIF
+
+;会話モード以外で계속키스中は＋7
+SIF TEQUIP:계속키스 && !GETBIT(FLAG:잠복,2)
+	BASE:MASTER:잠복율 += 7
+
+;잠복율100以上なら100に
+BASE:MASTER:잠복율 = MIN(BASE:MASTER:잠복율, 100)
+
+;잠복율0%で잠복モード終了、ウフフバレへ
+IF BASE:MASTER:잠복율 <=0
+	CALL 잠복모드종료처리
+	CALL AFFAIR_DISCLOSURE(LOCAL, 0)
+ENDIF
+;----------------------------------------------------------------------------------------------------
+;잠복モードの終了処理
+;----------------------------------------------------------------------------------------------------
+@잠복모드종료처리
+;CFLAG:잠복상태が1以上のキャラを全て0に
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	;全CFLAG:探索状態をオフに
+	SIF GETBIT(CFLAG:(TARGET:LOCAL):잠복상태,0)
+		CLEARBIT CFLAG:(TARGET:LOCAL):잠복상태,0
+	SIF GETBIT(CFLAG:(TARGET:LOCAL):잠복상태,1)
+		CLEARBIT CFLAG:(TARGET:LOCAL):잠복상태,1
+	SIF GETBIT(CFLAG:(TARGET:LOCAL):잠복상태,2)
+		CLEARBIT CFLAG:(TARGET:LOCAL):잠복상태,2
+NEXT
+;잠복フラグをオールクリア
+CLEARBIT FLAG:잠복,0
+CLEARBIT FLAG:잠복,1
+CLEARBIT FLAG:잠복,2
+TFLAG:탐색시행횟수 = 0
+TFLAG:회화횟수 = 0
+
+
+;----------------------------------------------------------------------------------------------------
+;探索者の決定処理
+;----------------------------------------------------------------------------------------------------
+@탐색자결정처리
+;(LOCAL:1)＝探索者
+LOCAL:1 = IN_ROOM_MEMBER("MAX", CFLAG:MASTER:현재위치, "CFLAG", 2)
+SIF CFLAG:(LOCAL:1):호감도 < 1500
+	RETURN
+SIF GETBIT(CFLAG:(LOCAL:1):잠복상태,0)
+	RETURN
+
+SETBIT CFLAG:(LOCAL:1):잠복상태,1
+
+;探索モード(1)をオンに
+SETBIT FLAG:잠복,1
+SETCOLOR COLOR("黄")
+PRINTFORML %CALLNAME:MASTER%의 気配に気付いた%CALLNAME:(LOCAL:1)%は周囲の探索を始めたようだ…
+RESETCOLOR
+
+;----------------------------------------------------------------------------------------------------
+;探索モードの탐색판정関連
+;----------------------------------------------------------------------------------------------------
+@탐색판정
+;(LOCAL:1)＝探索者
+LOCAL:1 = IN_ROOM_MEMBER("MAX", CFLAG:MASTER:현재위치, "CFLAG", 2)
+IF !GETBIT(CFLAG:(LOCAL:1):잠복상태,1)
+;探索キャラが移動した等でいない場合は探索モード(1)をオフ
+	CLEARBIT FLAG:잠복,1
+	TFLAG:탐색시행횟수 = 0
+	SETCOLOR COLOR("緑")
+	PRINTFORML こちらを探っていた者は何処かへ行ってしまったようだ
+	RESETCOLOR
+ENDIF
+
+
+
+IF TFLAG:탐색시행횟수 < 6
+	IF RAND:10 < 1 
+		;探索された場合会話モード(2)をオンに、探索モード(1)はオフに
+		SETBIT CFLAG:(LOCAL:1):잠복상태,2
+		CLEARBIT CFLAG:(LOCAL:1):잠복상태,1
+		SETBIT FLAG:잠복,2
+		CLEARBIT FLAG:잠복,1
+		TFLAG:탐색시행횟수 = 0
+		SETCOLOR COLOR("赤")
+		PRINTFORML %CALLNAME:(LOCAL:1)%は%마스터를% 見つけて遠巻きに話しかけてきた！
+		RESETCOLOR
+	ELSE
+		TFLAG:탐색시행횟수 ++
+		SETCOLOR COLOR("黄")
+		PRINTFORML %CALLNAME:(LOCAL:1)%は%마스터를% 探している…
+		RESETCOLOR
+	ENDIF
+ELSE
+	;탐색시행횟수が6回以上なら探索終了
+	CLEARBIT CFLAG:(LOCAL:1):잠복상태,1
+	CLEARBIT FLAG:잠복,1
+	TFLAG:탐색시행횟수 = 0
+	SETCOLOR COLOR("緑")
+	PRINTFORML %CALLNAME:(LOCAL:1)%は %CALLNAME:MASTER%의 探索を諦めたようだ…
+	RESETCOLOR
+ENDIF
+
+;----------------------------------------------------------------------------------------------------
+;会話モードの継続判定
+;----------------------------------------------------------------------------------------------------
+@대화모드지속판정
+;(LOCAL:1)＝会話者
+LOCAL:1 = IN_ROOM_MEMBER("MAX", CFLAG:MASTER:현재위치, "CFLAG", 2)
+IF !GETBIT(CFLAG:(LOCAL:1):잠복상태,2)
+;会話キャラが移動した等でいない場合は会話モード(2)をオフ
+	CLEARBIT FLAG:잠복,2
+	TFLAG:회화횟수 = 0
+	SETCOLOR COLOR("緑")
+	PRINTFORML いつの間にか会話の相手はいなくなっていた
+	RESETCOLOR
+ENDIF
+
+;회화횟수以下のRANDを出せば会話終了。それ以外ならモード続行
+IF RAND:20 < TFLAG:회화횟수
+	CLEARBIT CFLAG:(LOCAL:1):잠복상태,2
+	CLEARBIT FLAG:잠복,2
+	TFLAG:회화횟수 = 0
+	SETCOLOR COLOR("緑")
+	PRINTFORML %CALLNAME:(LOCAL:1)%は %마스터와%의 会話に満足したようだ
+	RESETCOLOR
+ELSE
+	TFLAG:회화횟수 ++
+	SETCOLOR COLOR("赤")
+	PRINTFORML %CALLNAME:(LOCAL:1)%は まだ%마스터와% 話したそうにしている
+	RESETCOLOR
+ENDIF
+

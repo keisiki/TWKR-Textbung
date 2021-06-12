@@ -4,64 +4,42 @@
 ;-------------------------------------------------
 @COM614
 #DIM 구입품목
-#DIM 가격
-#DIM 구입상한
-SIF !FLAG:일일이벤트 % 10
-	PRINTL 오늘은 특매일 같다(표기 가격에서 50%를 뺍니다)
+#DIM 할인
+DRAWLINE
+IF !FLAG:일일이벤트 % 10
+	PRINTL 오늘은 특매일 같다!
+	할인 = 60
+ELSE
+	할인 = 30
+ENDIF
 PRINTFORML 소지금:\\{MONEY}
-CALL EX_SHOPPING("잡곡","피나 조. 가난한 사람의 음식", 48)
-CALL EX_SHOPPING("묵은쌀","서민의 음식", 50)
-CALL EX_SHOPPING("백미","부르주아의 음식", 47)
-PRINTL [99] - 그만둔다
+DRAWLINE
+CALL ITEM_SHOPPING(GETNUM(ITEM, "싸구려식재"), "色々な料理に使える間に合わせの食材", 할인)
+CALL ITEM_SHOPPING(GETNUM(ITEM, "상급식재"), "食の質をワンランク上げるちょっといい食材", 할인)
+CALL ITEM_SHOPPING(GETNUM(ITEM, "고급식재"), "質も高いが値段もお高いブルジョワの食材", 할인)
+CALL ITEM_SHOPPING(GETNUM(ITEM, "감미재"), "デザート料理に使える甘い食材", 할인)
+CALL ITEM_SHOPPING(GETNUM(ITEM, "짐승고기"), "肉料理全般に使える動物の肉", 할인)
+CALL ITEM_SHOPPING(GETNUM(ITEM, "새고기"), "一部の肉料理に使える鳥類の肉", 할인)
+DRAWLINE
+PRINTL [999] 그만둔다
 INPUT
-SIF RESULT == 99
-	RETURN -1
-구입품목 = RESULT
-가격 = ITEMPRICE:구입품목
-SIF !FLAG:일일이벤트 % 10
-	가격 /= 2
 
-PRINTFORM 몇 개 사겠습니까?  1개　￥{가격}
-IF CHK_DATENOW(CFLAG:TARGET:데이트중) && TARGET > 0
-	구입상한 = ITEMSALES:구입품목 > 0 ?  MIN( ITEMSALES:구입품목, 10 ) # 10
-ELSE
-	구입상한 = ITEMSALES:구입품목 > 0 ?  MIN( ITEMSALES:구입품목, 5 ) # 5
-ENDIF
-PRINTFORML ({구입상한}개까지)
-PRINTL [0] - 그만둔다
-SIF 구입상한
-	PRINT [1] - 1개　
-SIF 구입상한 >= 5
-	PRINT [5] - 5개　
-SIF 구입상한 >= 10
-	PRINT [10] - 10　
-SIF NOSAMES(구입상한, 0, 1, 5, 10 ) 
-	PRINTFORM [{구입상한}] - {구입상한}개　
-$LOOP_INPUT
-INPUT
-IF RESULT < 1
+IF RESULT == 999
 	RETURN -1
-ELSEIF RESULT > 5 && !(CHK_DATENOW(CFLAG:TARGET:데이트중) && TARGET > 0)
-	PRINTL 혼자서는 그렇게 들 수 없다
-	GOTO LOOP_INPUT
-ELSEIF RESULT > 10
-	PRINTL 그렇게 들 수 없다
-	GOTO LOOP_INPUT
-ELSEIF MONEY < 가격 * RESULT
-	PRINTL 돈이 부족하다
-	GOTO LOOP_INPUT
-ELSEIF RESULT > 구입상한
-	PRINTL 품절입니다
-	GOTO LOOP_INPUT
 ELSE
-	MONEY -= 가격 * RESULT
-	ITEM:구입품목 += RESULT
-	ITEMSALES:구입품목 -= RESULT
-	SIF ITEMSALES:구입품목 == 0
-		ITEMSALES:구입품목 = -1	; 제고품절
-	SETBIT TFLAG:일일일회, 2
-	PRINTFORML {RESULT}개의 %ITEMNAME:구입품목%를 샀다
+	구입품목 = RESULT
+	CALL ITEMDATA(구입품목, "SHOP:식료품점")
+	IF RESULT && ITEMSALES:구입품목 >= 1 && ITEM:구입품목 < 소지수제한
+		CALL ITEMDATA(구입품목, "구입", 할인)
+		SIF !RESULT
+			RESTART
+	ELSE
+		RESTART
+	ENDIF
 ENDIF
+
+;일일일회 구매한도는 철폐했습니다
+
 
 IF CHK_DATENOW(CFLAG:TARGET:데이트중) && TARGET > 0
 	LOCAL = RAND:100
@@ -183,7 +161,7 @@ RETURN 1
 ;食材を買える場所を判定する関数
 @KAIDASHI_SHOP(ARG)
 #FUNCTION
-;食料品店
+;식료품점
 SIF ARG == GET_MAP_REPLACEMENT(216)
 	RETURNF 1
 RETURNF 0
