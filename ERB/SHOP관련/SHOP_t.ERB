@@ -15,6 +15,11 @@ FLAG:ISTEXTBUNG = 1
 ;기상 전화면 표시중 플래그
 TFLAG:100 = 0
 ;---------------------
+;モブ店員画像を一度だけ作成。スマートなやり方ではない。もっといい場所はないだろうか
+;SIF !SPRITECREATED("顔絵_服_通常_MOB_0")
+;	CALL モブ店員画像作成
+;SPTALKで呼ばれたとき、画像がなければ作成にしました
+;---------------------
 ;기상시간 자동 보정, 최저 수면 시간은 4시간
 LOCAL:1 = CFLAG:MASTER:취침시간 - DAY * 1440
 IF (TIME:3 >= LOCAL:1 && (TIME:3 - LOCAL:1) < 240) || (TIME:3 < 240 && (1440 + TIME:3 - LOCAL:1) < 240)
@@ -101,23 +106,23 @@ PRINTLC [100] - 기상
 PRINTLC [102] - 생활환경 설정
 SIF CFLAG:MASTER:현재위치 != OMANEKIBEYA() &&!FLAG:감방남은일수
 	PRINTLC [110] - 자택 이사
+SIF MAIN_MAP == 14 ;KR판 저택용 설정
+	PRINTLC [104] - 주거 설정
 PRINTL
 PRINTL
 
 PRINTLC [101] - 능력 표시
 SIF !FLAG:감방남은일수
 	PRINTLC [103] - 스키마 통신 판매
-IF MAIN_MAP == 14 ;KR판 저택용 설정
-	PRINTFORML [104] - 주거 설정
-ELSE
-	PRINTL
-ENDIF
+
+
+PRINTL
 PRINTLC [105] - 실적 해제
 SIF FLAG:700
 	PRINTLC [106] - 콜렉션
 
 PRINTLC [114] - 메모라이즈
-;PRINTLC [108] - 손에 넣은 악보 ;TODO KR판 악보기능 이식시 주석 해제
+
 PRINTL
 ;PRINTLC [109] - 잡은 물고기 리스트;TODO KR판 낚시 컬랙션 기능 이식시 주석 해제
 SIF !FLAG:감방남은일수
@@ -129,6 +134,12 @@ SIF !FLAG:감방남은일수
 IF FLAG:조교전&&!FLAG:감방남은일수
 	PRINTLC [113] - 조교전
 ENDIF
+
+PRINTL
+PRINTLC [310] - 손에 넣은 악보
+PRINTLC [311] - 받은 선물
+PRINTLC [312] - 잡은 물고기 리스트
+PRINTLC [313] - 소지 아이템 목록
 PRINTL
 PRINTL
 
@@ -139,12 +150,14 @@ PRINTLC [107] - 의뢰 리셋
 PRINTLC [700] - 의상 리셋
 PRINTL
 PRINTLC [400] - OPTION
+PRINTLC [410] - 채집 리스트
 
 SIF SAVESTR:본체버전 != eraTW_Version
 	SETCOLOR C_RED
 PRINTLC [500] - UPDATE
-PRINTL
-;PRINTLC [420] - TUTORIAL
+RESETCOLOR
+PRINTL 
+PRINTLC [420] - TUTORIAL
 RESETCOLOR
 
 PRINTL
@@ -156,9 +169,6 @@ PRINTL
 
 SIF MONEY:2
 	PRINTFORML [600] - 카리스마 매각
-	
-SIF FLAG:엔딩여부 ;KR판 구잔재 또는 오리지날
-	PRINTFORML [800] - 강하게 뉴게임
 
 DRAWLINE
 
@@ -199,15 +209,17 @@ ELSEIF RESULT == 102 && !FLAG:기절중단
 ;KR판 저택용
 ELSEIF RESULT == 104 && !FLAG:기절중단 && MAIN_MAP==14
 	CALL 주거설정함수
+ELSEIF RESULT == 313
+	CALL SHOW_ALLITEM
 ELSEIF RESULT == 105 && !FLAG:기절중단
 	CALL BONUS
 ELSEIF RESULT == 107 && !FLAG:기절중단
 	CALL IRAI_RESET
 ;108 - 악보, 109 - 낚시 기능 완전 이식시 주석해제
-; ELSEIF RESULT == 108
-; 	CALL SHOW_COLLECTION_SCORE
-; ELSEIF RESULT == 109
-; 	CALL SHOW_COLLECTION_FISH
+ELSEIF RESULT == 310
+	CALL SHOW_COLLECTION_SCORE
+ELSEIF RESULT == 312
+	CALL SHOW_COLLECTION_FISH
 ELSEIF RESULT == 110 && CFLAG:MASTER:현재위치 != OMANEKIBEYA()&& !FLAG:기절중단 &&!FLAG:감방남은일수
 	CALL SET_MAINHOME
 ;너굴너굴
@@ -221,6 +233,8 @@ ELSEIF RESULT == 113&&FLAG:조교전 &&!FLAG:감방남은일수
 	CALL 조교전
 ELSEIF RESULT == 114
 	CALL 메모라이즈
+ELSEIF RESULT == 311
+	CALL SHOW_COLLECTION_GIFT
 ;SAVE
 ELSEIF RESULT == 200
 	SAVEGAME
@@ -240,20 +254,6 @@ ELSEIF RESULT == 700
 	CALL RESET_ALL_CLOTHES
 ELSEIF RESULT == 2400
 	CALL 기상시간설정()
-ELSEIF RESULT == 800 ;KR판 구잔재 또는 오리지날
-	IF FLAG:엔딩여부
-		PRINTFORML 시간을 날려버리고 첫날로 되돌아가겠습니까?
-		PRINTL 
-		PRINTL [0] 아직 할 게 남았어
-		PRINTL [1] 좋아! 지금이다!
-		INPUT
-		IF RESULT == 1
-			CALL 강하게뉴게임
-		ELSE
-;			PRINTW 「스위치」를 누르는 것은 멈출 수 없었지만, 행운에도 옵션 선택까지 밖에 돌아오지 않았다.
-			RESTART
-		ENDIF
-	ENDIF
 ENDIF
 
 
@@ -261,6 +261,9 @@ ENDIF
 SETCOLOR C_YELLOW
 PRINTPLAIN TIPS:
 PRINTDATA
+	DATAFORM 特定の場所でないと実行できないコマンドがある。
+	DATAFORM 名前横の【★】をクリックすると、【追う】コマンドでそのキャラの場所へ移動できる。
+	DATAFORM マップによっては家庭菜園や戦闘訓練する場所がない。必要に応じて引っ越そう。
 	DATAFORM 모두에게 쉽게 사랑받는다는 꿈은 집어치워라, 그러기에 세상은 가혹하다
 	DATAFORM 과도한 빚, 불행의 시작입니다
 	DATAFORM 매일 밥을 먹지 않으면 건강에 해롭다
@@ -280,6 +283,8 @@ PRINTDATA
 	DATAFORM 랜덤 캐릭터를 망각했을 경우 두 번 다시 재등장하지 않지만, 임신 판정을 하는 것은 망각했을 경우만.
 	DATAFORM 랜덤 캐릭터가 재등장시키는 경우, 능력 상승 보정을 잃어 임신하지 않게 된다.
 	DATAFORM 랜덤 캐릭터를 두 명 이상 동시에 출현시킬 수 없다.
+	DATAFORM ランダムキャラの情報はdatフォルダに保存される。
+	DATAFORM 出会ったマップでなければランダムキャラを再登場させられない。
 	DATAFORM 금욕이 힘들어지면 순순히 싸거나 마음의 평안을 소원으로 빌어라.
 	DATAFORM 주야역전 생활하는 캐릭터도 있다. 친해지고 싶으면 기상 시간을 늦추자.
 	DATAFORM 커맨드가 표시되지 않는다? 필터가 걸렸는지 봐봐.
@@ -313,9 +318,18 @@ PRINTDATA
 	DATAFORM 연회 중에 연주하면 쌈짓돈을 받을 수도 있지만, 솜씨가 모자라면 혼난다.
 	DATAFORM 발원해서 인연 맺기를 원하면, 다음날 그 캐릭터가 내방해 온다.
 	DATAFORM 일등의 예정은 능력 화면이나 캘린더에서 확인할 수 있다.
-	DATAFORM resource 폴더 내에 다른 사람판 및 교체 화상의 압축 파일이 있다.
+	DATAFORM 캐릭터에 따라서는 능력화면이나 화상 설정으로 다른 화상으로 변경할 수 있다.
 	DATAFORM 타깃으로 하고 있는 캐릭터를 클릭하면 버튼 하나로 스탠딩과 얼굴 화상을 전환할 수 있다。
 	DATAFORM 일부 캐릭터에게서 소재를 살 수 있다.
+	DATAFORM 【妖精】は「自然」の贈り物が好き。
+	DATAFORM 【幼稚】は「キャラクター」の贈り物が好き。
+	DATAFORM 「スペルカード」の贈り物は戦闘能力のない子以外なら好き。
+	DATAFORM 【妖怪】【幽霊】は概して「巫術」や「法具」の贈り物が嫌い。
+	DATAFORM 「粗悪」な贈り物はみんな嫌い。
+	DATAFORM 「妖術」「骨」「血」「毒」の贈り物は妖怪以外の大部分のキャラから嫌られる。
+	DATAFORM 祭日は露店コマンドの売れ行き・利益率がよくなる。
+	DATAFORM 地底では野菜が高く売れる。
+	DATAFORM 山頂では魚が高く売れる。
 ENDDATA
 PRINTFORML 
 

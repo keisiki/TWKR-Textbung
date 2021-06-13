@@ -1,0 +1,101 @@
+﻿;-------------------------------------------------
+;楽譜番号を取得
+;SERIES_NO シリーズ番号
+;SERIES_SCORE_NO シリーズ内の楽譜番号
+;
+;RETURNFS 楽譜番号
+;-------------------------------------------------
+@GET_SCORE_NO(SERIES_NO, SERIES_SCORE_NO)
+#FUNCTION
+#DIM SERIES_NO		; シリーズ番号
+#DIM SERIES_SCORE_NO; シリーズ内の楽譜番号
+
+RETURNF (악보명개시번호 + SERIES_NO * 악보최대수（시리즈별） + SERIES_SCORE_NO)
+
+;-------------------------------------------------
+;楽譜名を取得
+;SCORE_NO 楽譜番号
+;MASK_FLAG 楽譜名を隠す場合、1
+;
+;RETURNFS 楽譜名
+;-------------------------------------------------
+@GET_SCORE_NAME(SCORE_NO, MASK_FLAG=0)
+#FUNCTIONS
+#DIM SCORE_NO	; 楽譜番号
+#DIM MASK_FLAG	; マスク処理フラグ
+
+IF MASK_FLAG
+	RETURNF ("?" * STRLENS(STR:SCORE_NO))
+ELSE
+	RETURNF STR:SCORE_NO
+ENDIF
+
+;-------------------------------------------------
+;楽譜名(シリーズ名も含む)を取得
+;SCORE_NO 楽譜番号
+;
+;RETURNFS 楽譜名(シリーズ名も含む)
+;-------------------------------------------------
+@GET_SCORE_FULLNAME(SCORE_NO)
+#FUNCTIONS
+#DIM SCORE_NO	; 楽譜番号
+
+#DIM SERIES_NO		; シリーズ番号
+#DIM SERIES_SCORE_NO; シリーズ内の楽譜番号
+
+SERIES_NO = GET_SERIES_NO(SCORE_NO)
+SERIES_SCORE_NO = GET_SERIES_SCORE_NO(SCORE_NO)
+
+RETURNF @"【{SERIES_NO + 1}:%GET_SERIES_SHORT_NAME(SERIES_NO)%】「{SERIES_SCORE_NO + 1}:%GET_SCORE_NAME(SCORE_NO)%」"
+
+;-------------------------------------------------
+;楽譜番号(シリーズ内)を取得
+;SCORE_NO 楽譜番号
+;
+;RETURNFS 楽譜番号(シリーズ内)
+;-------------------------------------------------
+@GET_SERIES_SCORE_NO(SCORE_NO)
+#FUNCTION
+#DIM SCORE_NO	; 楽譜番号
+
+RETURNF (SCORE_NO - 악보명개시번호) % 악보최대수（시리즈별）
+
+;-----------------------------------------------------------
+;楽譜を持っているかの判定
+;SCORE_NO 楽譜番号
+;
+;RETURNF 楽譜を持ってる場合、1
+;-----------------------------------------------------------
+@HAVE_SCORE(SCORE_NO)
+#FUNCTION
+#DIM SCORE_NO		; 楽譜番号
+#DIM SERIES_NO		; シリーズ番号
+#DIM SERIES_SCORE_NO; シリーズ内の楽譜番号
+
+SERIES_NO = GET_SERIES_NO(SCORE_NO)
+SERIES_SCORE_NO = GET_SERIES_SCORE_NO(SCORE_NO)
+
+RETURNF GETBIT(FLAG:(악보플래그시작번호 + SERIES_NO), SERIES_SCORE_NO % 64)
+
+;-----------------------------------------------------------
+;楽譜フラグの設定
+;SCORE_NO 楽譜番号
+;FLAG_VALUE 設定するフラグ
+;-----------------------------------------------------------
+@SET_SCORE(SCORE_NO, FLAG_VALUE)
+#FUNCTION
+#DIM SCORE_NO		; 楽譜番号
+#DIM FLAG_VALUE		; 設定するフラグ
+#DIM SERIES_NO		; シリーズ番号
+#DIM SERIES_SCORE_NO; シリーズ内の楽譜番号
+
+SERIES_NO = GET_SERIES_NO(SCORE_NO)
+SERIES_SCORE_NO = GET_SERIES_SCORE_NO(SCORE_NO)
+
+IF FLAG_VALUE
+	SETBIT FLAG:(악보플래그시작번호 + SERIES_NO), (SERIES_SCORE_NO % 64)
+ELSE
+	CLEARBIT FLAG:(악보플래그시작번호 + SERIES_NO), (SERIES_SCORE_NO % 64)
+ENDIF
+
+RETURNF 0

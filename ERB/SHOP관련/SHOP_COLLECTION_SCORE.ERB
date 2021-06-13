@@ -1,0 +1,70 @@
+﻿;-----------------------------------------------------------
+;	手に入れた楽譜の表示
+;-----------------------------------------------------------
+@SHOW_COLLECTION_SCORE
+DRAWLINE
+CALL DISPLAY_ALL_COLLECTION_SCORE
+
+PRINTL
+PRINTFORML 集めた楽譜数({RESULT:2}/{RESULT:1})
+
+PRINT [0] - 돌아간다 
+
+$SCORE_INPUT
+INPUT
+IF RESULT == 0
+	RETURN 0
+ELSE
+	CLEARLINE 1
+ENDIF
+GOTO SCORE_INPUT
+
+;-----------------------------------------------------------
+;全楽譜コレクション表示
+;SHOW_EMPTY_SERIES_FLAG 未入手のシリーズを表示する場合、1
+;
+;RESULT:1 総数
+;RESULT:2 所有数
+;-----------------------------------------------------------
+@DISPLAY_ALL_COLLECTION_SCORE(SHOW_EMPTY_SERIES_FLAG=1)
+#DIM SHOW_EMPTY_SERIES_FLAG	; 未入手のシリーズを表示する場合、1
+
+#DIM SCORE_NO			; 楽譜番号
+#DIM SERIES_NO			; シリーズ番号
+#DIM SERIES_SCORE_NO	; シリーズ内の楽譜番号
+#DIMS sPrint_Text		; HTML_PRINTする文字列TEMP
+
+RESULT:1 = 0
+RESULT:2 = 0
+FOR LOCAL, 0, 악보최대수
+	SCORE_NO = (악보명개시번호 + LOCAL) 
+	SERIES_NO = GET_SERIES_NO(SCORE_NO)
+	SERIES_SCORE_NO = GET_SERIES_SCORE_NO(SCORE_NO)
+
+	IF SERIES_SCORE_NO == 0
+		LOCAL:1 = EXEC_SCORES(악보처리모드：총수카운트, -1, SERIES_NO)	; 総数
+		LOCAL:2 = EXEC_SCORES(악보처리모드：소지수카운트, -1, SERIES_NO); 所持数
+		LOCAL:3 = (SHOW_EMPTY_SERIES_FLAG || (0 < LOCAL:2))					; 表示判定
+		
+		; 結果に加算
+		RESULT:1 += LOCAL:1
+		RESULT:2 += LOCAL:2
+
+		IF (0 < LOCAL:1) && LOCAL:3
+			PRINTFORML
+			PRINTFORML 【{SERIES_NO + 1,2}:%GET_SERIES_NAME(SERIES_NO)%】({LOCAL:2}/{LOCAL:1})
+		ENDIF
+	ENDIF
+
+	IF (STR:SCORE_NO != "")
+		; 楽譜表示
+		IF LOCAL:3
+			sPrint_Text = <p align='left'><nobr>
+			sPrint_Text += @"  <button value='{SCORE_NO}' title='入手条件：%GET_SCORE_INFO_MESSAGE(SCORE_NO)%'>"
+			sPrint_Text += @"{SERIES_SCORE_NO + 1,2}:%GET_SCORE_NAME(SCORE_NO, !HAVE_SCORE(SCORE_NO))%"
+			sPrint_Text += @"</button>"
+			sPrint_Text += @"<br>"
+			HTML_PRINT sPrint_Text
+		ENDIF
+	ENDIF
+NEXT

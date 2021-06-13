@@ -1,0 +1,103 @@
+﻿;-------------------------------------------------
+;楽譜フラグ操作
+;EXEC_MODE 楽譜処理モード
+;TARGET_SCORE_INFO_NO 対象の楽譜入手条件番号、全入手の場合は-1
+;SERIES_NO 対象のシリーズ番号、全取得の場合は-1
+;
+;악보처리모드：총수카운트
+;악보처리모드：소지수카운트
+;악보처리모드：전악보취득
+;	RETURNF 処理数
+;악보처리모드：악보랜덤1개취득
+;	RETURNF 対象の楽譜NO、既に全取得済みなら-1
+;악보처리모드：未入手がある캐릭터관련시리즈모두취득
+;	RETURNF 処理数
+;   RESULT:(0~処理数) 未入手があるシリーズ番号
+;-------------------------------------------------
+@EXEC_SCORES(EXEC_MODE, TARGET_SCORE_INFO_NO=-1, TARGET_SERIES_NO=-1)
+#FUNCTION
+#DIM DYNAMIC EXEC_MODE
+#DIM DYNAMIC TARGET_SCORE_INFO_NO	; 対象の楽譜入手条件番号
+#DIM DYNAMIC TARGET_SERIES_NO		; 対象のシリーズ番号、全取得の場合は-1
+
+#DIM DYNAMIC INDEX
+#DIM DYNAMIC START_SCORE_NO	; 楽譜開始番号
+#DIM DYNAMIC END_SCORE_NO	; 楽譜終了番号
+#DIM DYNAMIC SCORE_COUNT	; 対象楽譜数
+#DIM DYNAMIC SCORE_NO		; 楽譜番号
+#DIM DYNAMIC SCORE_INFO_NO	; 入手条件番号
+#DIM DYNAMIC HIT			; 取得可能判定
+
+IF TARGET_SERIES_NO == -1
+	; シリーズ指定がない場合、全楽譜を対象
+	START_SCORE_NO = 0
+	END_SCORE_NO = 악보최대수
+ELSE
+	; シリーズ指定がある場合、そのシリーズの楽譜飲みを対象
+	START_SCORE_NO = TARGET_SERIES_NO * 악보최대수（시리즈별）
+	END_SCORE_NO = (TARGET_SERIES_NO + 1) * 악보최대수（시리즈별）
+ENDIF
+
+SCORE_COUNT = 0
+INDEX = START_SCORE_NO
+WHILE INDEX < END_SCORE_NO
+	SCORE_NO = (악보명개시번호 + INDEX) 
+	SCORE_INFO_NO = GET_SCORE_INFO_NO(SCORE_NO)
+	
+	; 楽譜入手条件番号の判定
+	HIT = 0
+	IF (SCORE_INFO_NO != -1)
+		IF (TARGET_SCORE_INFO_NO == -1)
+			HIT = 1
+		ELSEIF (TARGET_SCORE_INFO_NO == 악보입수방법：랜덤) || (TARGET_SCORE_INFO_NO == 악보입수방법：랜덤（캐릭터없음）)
+			; ランダム時の場合のみ、いずれかの場合にヒット
+			HIT = ((SCORE_INFO_NO == 악보입수방법：랜덤) || (SCORE_INFO_NO == 악보입수방법：랜덤（캐릭터없음）))
+		ELSE
+			HIT = (SCORE_INFO_NO == TARGET_SCORE_INFO_NO)
+		ENDIF
+	ENDIF
+
+	IF HIT
+		SELECTCASE EXEC_MODE
+			CASE 악보처리모드：총수카운트
+				SCORE_COUNT += 1
+			CASE 악보처리모드：소지수카운트
+				SIF HAVE_SCORE(SCORE_NO)
+					SCORE_COUNT += 1
+			CASE 악보처리모드：악보랜덤1개취득
+				IF !HAVE_SCORE(SCORE_NO)
+					LOCAL:SCORE_COUNT = SCORE_NO
+					SCORE_COUNT += 1
+				ENDIF
+			CASE 악보처리모드：전악보취득
+				IF !HAVE_SCORE(SCORE_NO)
+					IF OBTAIN_SCORE(SCORE_NO)
+						RESULT = OBTAIN_SCORE_CHECK(SCORE_NO)
+						SCORE_COUNT += 1
+					ENDIF
+				ENDIF
+			CASE 악보처리모드：캐릭터관련시리즈모두취득
+				LOCAL:SCORE_COUNT = GET_SERIES_NO(SCORE_NO)
+				SCORE_COUNT += 1
+		ENDSELECT
+	ENDIF
+	
+	INDEX++
+WEND
+
+SELECTCASE EXEC_MODE
+	CASE 악보처리모드：총수카운트, 악보처리모드：소지수카운트, 악보처리모드：전악보취득
+		RETURNF SCORE_COUNT
+	CASE 악보처리모드：악보랜덤1개취득
+		SIF SCORE_COUNT < 1
+			RETURNF -1
+		SCORE_NO = LOCAL:(RAND:SCORE_COUNT)
+		SIF OBTAIN_SCORE(SCORE_NO)
+			RESULT = OBTAIN_SCORE_CHECK(SCORE_NO)
+		RETURNF SCORE_NO
+	CASE 악보처리모드：캐릭터관련시리즈모두취득
+		FOR INDEX, 0, SCORE_COUNT
+			RESULT:INDEX = LOCAL:INDEX
+		NEXT
+		RETURNF SCORE_COUNT
+ENDSELECT
