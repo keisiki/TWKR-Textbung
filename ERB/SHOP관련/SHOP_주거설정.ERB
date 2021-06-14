@@ -5,80 +5,59 @@
 @주거설정함수
 #DIM 선택한방
 
-DRAWLINE
 CALL 저택방이름설정
-IF ITEM:주택==1
 
-
-ENDIF
-
-IF ITEM:주택>=2
-	PRINTFORML 2층
-	PRINTL
-	PRINTFORML [15] [%STR:9415%]
-	PRINTFORML [16] [%STR:9416%]
-	PRINTFORML [17] [%STR:9417%]
-	PRINTFORML [18] [%STR:9418%]
-	PRINTFORML [19] [%STR:9419%]
-	DRAWLINE
-ENDIF
-
-IF ITEM:주택>=3
-	PRINTFORML 3층
-	PRINTL
-	PRINTFORML [24] [%STR:9424%]
-	PRINTFORML [25] [%STR:9425%]
-	PRINTFORML [26] [%STR:9426%]
-	PRINTFORML [27] [%STR:9427%]
-	PRINTFORML [28] [%STR:9428%]
-	PRINTFORML [29] [%STR:9429%]
-	DRAWLINE
-ENDIF
-IF ITEM:주택>=4
-	PRINTFORML 지하
-	PRINTL
-	PRINTFORML [34] [%STR:9434%]
-	PRINTFORML [35] [%STR:9435%]
-	PRINTFORML [36] [%STR:9436%]
-	PRINTFORML [37] [%STR:9437%]
-	PRINTFORML [38] [%STR:9438%]
-	PRINTFORML [39] [%STR:9439%]
-	DRAWLINE
-ENDIF
-PRINTFORML [999] 돌아간다
 $LOOP
+DRAWLINE
+IF ITEM:주택==1
+;주택 캐릭터 이사시 추가
+ELSEIF ITEM:주택 >= 2
+	FOR LOCAL, 1, 100
+		IF ROOMDATA:LOCAL & 장소_이불 && !(ROOMDATA:LOCAL & 장소_하늘의소리) ;안방 제외 독실
+			SIF INRANGE(LOCAL, 24,29) && ITEM:주택 < 3
+				CONTINUE
+			SIF INRANGE(LOCAL, 34,39) && ITEM:주택 < 4
+				CONTINUE
+			PRINTFORML [{LOCAL}] [%STR:(9400+LOCAL)%]
+			SIF GROUPMATCH(LOCAL, 19,29,39)
+				DRAWLINE
+		ENDIF
+	NEXT
+ENDIF
+
+PRINTFORML [999] 돌아간다
 INPUT
-선택한방 =RESULT
-SELECTCASE 선택한방
-	CASE 15 TO 19
-		CALL SET_TOMYHOUSECHAR
-		SIF !(INRANGE(RESULT,1,CHARANUM-1) || RESULT == 999)
-			RETURN
-		CALL SET_TOMYHOUSESET(선택한방,RESULT)
-	CASE 24 TO 29
-		CALL SET_TOMYHOUSECHAR
-		SIF !(INRANGE(RESULT,1,CHARANUM-1) || RESULT == 999)
-			RETURN
-		CALL SET_TOMYHOUSESET(선택한방,RESULT)
-	CASE 34 TO 39
-		CALL SET_TOMYHOUSECHAR
-		SIF !(INRANGE(RESULT,1,CHARANUM-1) || RESULT == 999)
-			RETURN
-		CALL SET_TOMYHOUSESET(선택한방,RESULT)
-	CASE 999
-		RETURN
-	CASEELSE
+선택한방 = RESULT
+IF 선택한방 == 999
+	RETURN
+ELSEIF ITEM:주택 < 2
+	GOTO LOOP
+ELSEIF INRANGE(선택한방, 15, 19) || INRANGE(선택한방, 24, 29) || INRANGE(선택한방, 34, 39)
+	IF (INRANGE(선택한방, 24,29) && ITEM:주택 < 3) || (INRANGE(선택한방, 34,39) && ITEM:주택 < 4)
+		PRINTW 현재 선택한 방이 존재하지 않습니다.
+		CLEARLINE 1
 		GOTO LOOP
-ENDSELECT
+	ENDIF
+	CALL SET_TOMYHOUSECHAR(선택한방)
+	SIF RESULT == 0 ;돌아가기
+		GOTO LOOP
+	CALL SET_TOMYHOUSESET(선택한방,RESULT)
+;돌아간다
+ELSEIF 선택한방 == 999
+	RETURN
+ELSE
+	GOTO LOOP
+ENDIF
 RETURN
 
-
-@SET_TOMYHOUSECHAR
+@SET_TOMYHOUSECHAR(선택한방)
+#DIM 선택한방
 #DIM CHARA_ID
+PRINTFORML 현재 방주인: \@ 저택방주인(선택한방) ? %CALLNAME:저택방주인(선택한방)% # 없음\@
 FOR CHARA_ID, 1, CHARANUM -1
-	SIF !TALENT:CHARA_ID:연인 && !TALENT:CHARA_ID:연모 && !TALENT:CHARA_ID:당신의노예
+	SIF !TALENT:CHARA_ID:연인 && !TALENT:CHARA_ID:연모
 		CONTINUE
-	SIF CFLAG:CHARA_ID:저택에거주
+	SIF 저택거주:CHARA_ID:0
 		SETCOLOR C_PINK
 	PRINTFORMLC [{CHARA_ID, 3}] %CALLNAME:CHARA_ID%
 	RESETCOLOR
@@ -89,17 +68,17 @@ PRINTL [900] 방 비우기
 PRINTL [999] 돌아간다
 DO
 	INPUT
-	CHARA_ID = RESULT
-	SELECTCASE CHARA_ID
+	SELECTCASE RESULT
 		CASE 900
 			PRINTW 방을 비웁니다.
-			RETURN 999
+			RETURN -1
 		CASE 999
-			PRINTW 돌아갑니다
-			RETURN
-		CASE 1 TO CHARANUM
+			PRINTW 이전으로 돌아갑니다
+			RETURN 0
+		CASE 1 TO (CHARANUM - 1)
 			RETURN RESULT
-	CASEELSE
+		CASEELSE
+			PRINTW 유효하지 않은 값입니다
 	ENDSELECT
 LOOP 1
 
@@ -109,131 +88,226 @@ RESTART
 @SET_TOMYHOUSESET(선택한방,선택한캐릭)
 #DIM 선택한방
 #DIM 선택한캐릭
-IF 선택한캐릭 == 999
+#DIM 방위치번호
+#DIM 방_전주인
+방위치번호 = 선택한방 + MAIN_MAP * 100
+방_전주인 = 저택방주인(선택한방)
+
+;선택한 방의 정보 초기화
+CALL ROOMSET_EMPTY(방위치번호)
+IF 선택한캐릭 == -1 ;방 비우기
+	RETURN 
+ELSEIF 방_전주인 ;방에 이미 거주자가 있었음
+	PRINTFORMW 우선 %조사처리(CALLNAME:방_전주인,"를")% 집으로 돌려보냈습니다.
+ENDIF
+;;선택한캐릭이 이미 자택에 살고 있을때
+IF 저택거주:선택한캐릭:0
+	PRINTFORMW %CALLNAME:선택한캐릭%의 방을 옮깁니다.
+	CALL ROOMSET_EMPTY(저택거주:선택한캐릭:0)
+ENDIF
+
+IF MAIN_MAP == 14 ;저택
 	SELECTCASE 선택한방
 		CASE 15 TO 19
-			IF FLAG:(161+선택한방-15)!=0
-			;;이전 거주자 처리
-				STR:(선택한방+8000+1400)=이층·독실{선택한방-14}
-				CFLAG:(FLAG:(161+선택한방-15)):신사거주 = 0
-				CFLAG:(FLAG:(161+선택한방-15)):초기위치 = CSVCFLAG ((FLAG:(161+선택한방-15)), 311)
-				CFLAG:(FLAG:(161+선택한방-15)):저택에거주=0
-				FLAG:(161+선택한방-15)=0
-			ENDIF
+			;;이후 거주자 처리
+			저택2층독실배정:(선택한방 - 15) = 선택한캐릭
 		CASE 24 TO 29
-			IF FLAG:(161+선택한방-24+5)!=0
-				STR:(선택한방+8000+1400)=삼층·독실{선택한방-1423}
-				CFLAG:(FLAG:(161+선택한방-24+5)):신사거주 = 0
-				CFLAG:(FLAG:(161+선택한방-24+5)):초기위치 = CSVCFLAG ((FLAG:(161+선택한방-24+5)), 311)
-				CFLAG:(FLAG:(161+선택한방-24+5)):저택에거주=0
-				FLAG:(161+선택한방-24+5)=0
-			ENDIF
+			저택3층독실배정:(선택한방 - 24) = 선택한캐릭
 		CASE 34 TO 39
-			IF FLAG:(161+선택한방-34+11)!=0
-				STR:(선택한방+8000+1400)=지하·독실{선택한방-1433}
-				CFLAG:(FLAG:(161+선택한방-34+11)):신사거주 = 0
-				CFLAG:(FLAG:(161+선택한방-34+11)):초기위치 = CSVCFLAG ((FLAG:(161+선택한방-34+11)), 311)
-				CFLAG:(FLAG:(161+선택한방-34+11)):저택에거주=0
-				FLAG:(161+선택한방-34+11)=0
-			ENDIF
+			저택지하독실배정:(선택한방 - 34) = 선택한캐릭
 	ENDSELECT
 
-	RETURN 
+
+
+
 ENDIF
+CFLAG:선택한캐릭:신사거주 = 방위치번호
+CFLAG:선택한캐릭:초기위치 = 방위치번호
+저택거주:선택한캐릭:0 = 방위치번호
 
-;;선택한캐릭이 이미 자택에 살고 있을때 원래 살고있던 방의 이름을 되돌림
-IF CFLAG:선택한캐릭:저택에거주
-	FOR LOCAL, 161, 178
-		IF FLAG:LOCAL ==선택한캐릭
-			
-			SELECTCASE 선택한방
-				CASE 15 TO 19
-					STR:((CFLAG:선택한캐릭:저택에거주)+8000)=이층·독실{(CFLAG:선택한캐릭:저택에거주)-1414}
-				CASE 24 TO 29
-					STR:((CFLAG:선택한캐릭:저택에거주)+8000)=삼층·독실{(CFLAG:선택한캐릭:저택에거주)-1423}
-				CASE 34 TO 39
-					STR:((CFLAG:선택한캐릭:저택에거주)+8000)=지하·독실{(CFLAG:선택한캐릭:저택에거주)-1433}
-			ENDSELECT
-			FLAG:LOCAL=0
-			CFLAG:선택한캐릭:저택에거주=0
-		ENDIF
-	NEXT
-ENDIF
-
-SELECTCASE 선택한방
-	CASE 15 TO 19
-		IF FLAG:(161+선택한방-15)!=0
-		;;이전 거주자 처리
-			CFLAG:(FLAG:(161+선택한방-15)):신사거주 = 0
-			CFLAG:(FLAG:(161+선택한방-15)):초기위치 = CSVCFLAG ((FLAG:(161+선택한방-15)), 311)
-			CFLAG:(FLAG:(161+선택한방-15)):저택에거주=0
-		
-		ENDIF
-		;;이후 거주자 처리
-		STR:(9400+선택한방)=이층·%CALLNAME:선택한캐릭%의 방
-		FLAG:(161+선택한방-15)=선택한캐릭
-	CASE 24 TO 29
-		IF FLAG:(161+선택한방-24+5)!=0
-			CFLAG:(FLAG:(161+선택한방-24+5)):신사거주 = 0
-			CFLAG:(FLAG:(161+선택한방-24+5)):초기위치 = CSVCFLAG ((FLAG:(161+선택한방-24+5)), 311)
-			CFLAG:(FLAG:(161+선택한방-24+5)):저택에거주=0
-			
-		ENDIF
-		STR:(9400+선택한방)=삼층·%CALLNAME:선택한캐릭%의 방
-		FLAG:(161+선택한방-24+5)=선택한캐릭
-	CASE 34 TO 39
-		IF FLAG:(161+선택한방-34+11)!=0
-			CFLAG:(FLAG:(161+선택한방-34+11)):신사거주 = 0
-			CFLAG:(FLAG:(161+선택한방-34+11)):초기위치 = CSVCFLAG ((FLAG:(161+선택한방-34+11)), 311)
-			CFLAG:(FLAG:(161+선택한방-34+11)):저택에거주=0
-		ENDIF
-		STR:(9400+선택한방)=지하·%CALLNAME:선택한캐릭%의 방
-		FLAG:(161+선택한방-34+11)=선택한캐릭
-ENDSELECT
-CFLAG:선택한캐릭:신사거주=1400+선택한방
-CFLAG:선택한캐릭:초기위치 =1400+선택한방
-CFLAG:선택한캐릭:저택에거주=1400+선택한방
-
+;ROOMSETTING > ROOMSETTING_14 안에서 저택방이름설정 불러오므로 방이름 설정 관련 추가 조치 불요
 CALL ROOMSETTING
 
+;자택 방 이름 설정 함수
+;저택거주 등 함수는 이미 설정해둔 것으로 본다
 @저택방이름설정
-
-FOR LOCAL, 161, 178
-	IF FLAG:LOCAL
-		SELECTCASE CFLAG:(FLAG:LOCAL):저택에거주
-			CASE 1415 TO 1419
-				STR:(8000+CFLAG:(FLAG:LOCAL):저택에거주)=이층·%CALLNAME:(FLAG:LOCAL)%의 방
-			CASE 1424 TO 1429
-				STR:(8000+CFLAG:(FLAG:LOCAL):저택에거주)=삼층·%CALLNAME:(FLAG:LOCAL)%의 방
-			CASE 1434 TO 1439
-				STR:(8000+CFLAG:(FLAG:LOCAL):저택에거주)=지하·%CALLNAME:(FLAG:LOCAL)%의 방
-		ENDSELECT
+#DIM 방번호
+#DIMS DYNAMIC 방이름
+VARSET LOCALS
+;str.csv에 있는 내용 코드화
+FOR LOCAL, 1, 100
+	IF MAIN_MAP == 13 || MAIN_MAP == 14
+		방번호 = LOCAL + 8000 + (MAIN_MAP * 100)
+	ELSE
+		THROW 지원하지 않는 MAIN_MAP 위치: {MAIN_MAP}
+	ENDIF
+	IF !저택방주인(방번호) ;주인없는 방
+		방이름 '= DEF_MANSION_ROOMNAME(방번호)	
 	ELSE
 		SELECTCASE LOCAL
-			CASE 161 TO 165
-				STR:(LOCAL+9400-161+15)=이층·독실{LOCAL-160}
-			CASE 166 TO 171
-				STR:(LOCAL+9400-166+24)=삼층·독실{LOCAL-165}
-			CASE 172 TO 178
-				STR:(LOCAL+9400-172+34)=지하·독실{LOCAL-171}
+			CASE 15 TO 19
+				방이름 '= "이층·"
+			CASE 24 TO 29
+				방이름 '= "삼층·"
+			CASE 34 TO 39
+				방이름 '= "지하·"
 		ENDSELECT
+		LOCALS '= CALLNAME:저택방주인(방번호)
+		SIF STRLENS(LOCALS) >= 11
+			LOCALS '= SUBSTRING(CALLNAME:저택방주인(방번호),0,8) ;전각문자 4자까지
+		방이름 += @"%LOCALS%의 방"
 	ENDIF
+	STR:방번호 '= 방이름
 NEXT
 
-@저택방주인(ARG)
-#FUNCTION
-;방 위치 입력시 해당 방 주인의 NO 출력
+;KR판 주택/저택용 초기 장소명 함수
+;ARG = 방STR번호
+@DEF_MANSION_ROOMNAME(ARG)
+#FUNCTIONS
+#DIMS DYNAMIC 방이름
+SIF !INRANGE(ARG, 9300, 9500)
+	THROW 지원하지 않는 대역 {ARG}
+
+;방이름 기초설정
+SELECTCASE ARG
+	;주택
+	CASE 9301
+		방이름 '= "봉당"
+	CASE 9302
+		방이름 '= "거실"
+	CASE 9303
+		방이름 '= "침실"
+	CASE 9304
+		방이름 '= "응접실"
+	CASE 9305
+		방이름 '= "식사소"
+	CASE 9306
+		방이름 '= "마당"
+	CASE 9307
+		방이름 '= "헛간"
+	CASE 9308
+		방이름 '= "목욕탕"
+	;저택
+	CASE 9401 TO 9408, 9413 ; 1층
+		방이름 '= "일층·"
+	CASE 9409 TO 9412 ; 옥외
+		방이름 '= "옥외·"
+	CASE 9414 TO 9423 ; 2층
+		방이름 '= "이층·"
+	CASE 9424 TO 9433 ; 3층
+		방이름 '= "삼층·"
+	CASE 9434 TO 9444 ; 지하	
+		방이름 '= "지하·"
+ENDSELECT
+;방이름 세부설정
+SELECTCASE ARG
+	CASE 9401
+		방이름 += "현관"
+	CASE 9402
+		방이름 += "거실"
+	CASE 9403
+		방이름 += "응접실"
+	CASE 9404
+		방이름 += "객실"
+	CASE 9405
+		방이름 += "식당"
+	CASE 9406
+		방이름 += "부엌"
+	CASE 9407
+		방이름 += "탈의실"
+	CASE 9408
+		방이름 += "욕실"
+	CASE 9409
+		방이름 += "안뜰"
+	CASE 9410
+		방이름 += "연못"
+	CASE 9411
+		방이름 += "창고"
+	CASE 9412
+		방이름 += "능무대"
+	CASE 9413, 9423, 9433, 9443
+		방이름 += "통로"
+	CASE 9414
+		방이름 += "안방"
+	CASE 9415 TO 9419
+		방이름 += @"독실{ARG - 9414}"
+	CASE 9420
+		방이름 += "휴게실"
+	CASE 9421
+		방이름 += "유희실"
+	CASE 9422
+		방이름 += "서재"
+	CASE 9424 TO 9429
+		방이름 += @"독실{ARG - 9423}"
+	CASE 9430
+		방이름 += "다용도실"
+	CASE 9431
+		방이름 += "전망대"
+	CASE 9432
+		방이름 += "휴게실"
+	CASE 9434 TO 9439
+		방이름 += @"독실{ARG - 9433}"
+	CASE 9440
+		방이름 += "다용도실"
+	CASE 9441
+		방이름 += "도장"
+	CASE 9442
+		방이름 += "탈의실"
+	CASE 9444
+		방이름 += "온천"
+ENDSELECT
+RETURNF 방이름
+
+;저택 방 비우기 함수
+;ARG = 장소STR번호 또는 캐릭터 위치번호에서 참조
+@ROOMSET_EMPTY(ARG)
+#DIM DYNAMIC 방_전주인
+;방STR번호라면 8000 뻬기
 SIF ARG > 8000
 	ARG -= 8000
-SIF ARG > 1400
-	ARG -= 1400
+;캐릭터 위치번호라면 MAIN_MAP * 100 빼기
+SIF ARG > (MAIN_MAP * 100)
+	ARG -= (MAIN_MAP * 100)
 
-SELECTCASE ARG
-	CASE 15 TO 19
-		RETURNF FLAG:(161+ARG-15)
-	CASE 24 TO 29
-		RETURNF FLAG:(166+ARG-24)
-	CASE 34 TO 39
-		RETURNF FLAG:(172+ARG-34)
-ENDSELECT
+방_전주인 = 저택방주인(ARG)
+
+IF MAIN_MAP == 14 ;저택
+	SELECTCASE ARG
+		CASE 15 TO 19
+			저택2층독실배정:(ARG - 15) = 0
+		CASE 24 TO 29
+			저택3층독실배정:(ARG - 24) = 0
+		CASE 34 TO 39
+			저택지하독실배정:(ARG - 34) = 0
+	ENDSELECT
+ENDIF
+;전주인 발견시 집으로 돌려보냄
+IF 방_전주인 > 0
+	CFLAG:방_전주인:신사거주 = 0
+	CFLAG:방_전주인:초기위치 = CSVCFLAG(방_전주인, 311)
+	저택거주:방_전주인:0 = 0
+ENDIF
+STR:(8000 + ARG + MAIN_MAP * 100) '= DEF_MANSION_ROOMNAME(8000 + ARG + MAIN_MAP * 100)
+
+;방 위치 입력시 해당 방 주인의 NO 출력
+;ARG = 방STR번호 || 캐릭터 위치번호 || MAIN_MAP내 번호
+@저택방주인(ARG)
+#FUNCTION
+;방STR번호라면 8000 뻬기
+SIF ARG > 8000
+	ARG -= 8000
+;캐릭터 위치번호라면 MAIN_MAP * 100 빼기
+SIF ARG > (MAIN_MAP * 100)
+	ARG -= (MAIN_MAP * 100)
+
+IF MAIN_MAP == 14 ;저택
+	SELECTCASE ARG
+		CASE 15 TO 19
+			RETURNF 저택2층독실배정:(ARG - 15)
+		CASE 24 TO 29
+			RETURNF 저택3층독실배정:(ARG - 24)
+		CASE 34 TO 39
+			RETURNF 저택지하독실배정:(ARG - 34)
+	ENDSELECT
+ENDIF
 RETURNF MASTER

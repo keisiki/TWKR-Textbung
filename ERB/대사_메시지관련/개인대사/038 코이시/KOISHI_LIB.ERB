@@ -303,3 +303,401 @@ IF 1
 		ENDSELECT
 	ENDIF
 ENDIF
+
+;----------------------------------------------------
+;코이시 중복 회화 처리용 함수
+;ARGS로 상황 불러옴
+;----------------------------------------------------
+@KOISHI_DUP_TALK(ARGS,ARG=0)
+SELECTCASE ARGS
+	CASE "회임첫대사-고개숙인코이시" ;회임 첫대사 + 무지 + 무자각임신 + 연인
+		PRINTFORMW 코이시는 고개를 숙였다...
+		PRINTFORML [1] %마스터의% 능력을 밝힌다
+		PRINTFORML [2] 그저 위로해줄뿐
+		INPUT
+		IF RESULT == 1
+			CALL KOISHI_DUP_TALK("회임첫대사-능력시범",1)
+			PRINTFORMW 「...으으, 그런건 좀 빨리 말해주지...」
+			PRINTFORMW 「괜시리 걱정했다구우...버려질까봐...」
+			PRINTFORMW 코이시는 희미하게 웃으며 눈물을 닦았다...
+			PRINTFORMW 「...%마스터의% 아이라아...분명 귀엽겠지...히힛...」
+			CFLAG:2506 = 1 ;시간정지 자각
+			CFLAG:5502 = 0 ;이번 아이 책임 X
+		ELSE
+			PRINTFORMW %마스터는% 울고 있는 코이시를 토닥토닥 다독여줬다
+			PRINTFORMW ...재밌는게 생각났다, 내 애라곤 안할거지만, 책임은 져주겠다고 말하면 어떨까?
+			PRINTFORML [1] 나쁘지 않은데?
+			PRINTFORML [2] 그래도 책임지긴 싫은데...
+			INPUT
+			IF RESULT == 1
+				PRINTFORMW %마스터는% 코이시의 눈물을 닦아주며, 그 아이를 책임져 주겠다고 말했다
+				PRINTFORMW 「...어..? 책임져 주는거야...?」
+				PRINTFORMW 「그 말은...버리지 않겠다는거야...?」
+				PRINTFORMW 코이시는 놀란 눈으로 %마스터를% 바라봤다
+				PRINTFORMW 「...흐윽...기뻐...그리고 미안해...\@ARG ? 처음엔#\@ %마스터의% 아이를 꼭 낳아주고 싶었는데...」
+				PRINTFORMW \@ARG ? ...사실 #\@뱃속에 %마스터의% 아이가 있단걸 알면 무슨 생각을 할까...
+				CFLAG:호감도 += 50
+				CFLAG:신뢰도 += 25
+			ELSE
+				PRINTFORMW 관두자, 애초에 그럴거면 코이시한테 그런짓 하지 말았어야지
+				CFLAG:5502 = 1 ;이번 아이 책임 X
+				CFLAG:6000++ ;배드엔딩 플래그
+			ENDIF
+		ENDIF
+	CASE "회임첫대사-능력시범"
+		IF ARG == 1 ;무지 + 무자각임신 + 연인
+			PRINTFORMW %마스터는% 코이시에게 시간정지의 시범을 보여주었다
+			PRINTFORMW 고개를 들게 하고, 시간정지로 등 뒤로 간뒤 뒤에서 포옹해주자 깜짝 놀란 표정을 했다...
+			PRINTFORMW 「...그러니까, 이 애는 %마스터의% 애라구?」
+			PRINTFORMW 「......」
+			PRINTFORMW %마스터가% 자신의 아이임을 알려주자 코이시는 얼굴을 붉혔다
+		ENDIF
+		;일단 능력의 시범을 보였으니 시간정지 자각을 합니다
+		CFLAG:2506 = 1
+	CASE "회임첫대사-연모취득" ;TODO 조건확인요망
+		;0b1 = 깨끗한교제 생성여부 0b10 애욕 변동 여부 0b100 연인까지 가는지 여부
+		IF ARG & 0b10 && TALENT:애욕 ;애욕이 있으면 사모가 없는것으로 상정
+			PRINTFORMW 코이시는 몸도 마음도 %CALLNAME:MASTER%에게 채워지는 것에 즐거움을 느끼고 있다...
+			PRINTFORMW 문란한 관계속에 여문 연정, 그것도 또 하나의 사랑의 형태...
+			PRINTFORMW 코이시의 [애욕]은 [연모]로 변했습니다
+			PRINTFORML
+			TALENT:애욕 = 0
+		ENDIF
+		IF TALENT:사모||!TALENT:연인
+			PRINTFORMW 코이시는 %마스터와% 보내는 시간에 행복을 느끼고 있는것 같다...
+			PRINTFORMW 코이시의 [사모]는 [연모]가 되었다
+			PRINTFORML
+			IF ARG & 1 && !MARK:시간각인
+				CFLAG:깨끗한교제 = 1
+			ENDIF
+			TALENT:사모 = 0
+		ENDIF
+		TALENT:연모 = 1
+
+		IF ARG & 0b100
+			PRINTFORMW 코이시는 뺨을 발그레하게 물들이며 %마스터를% 받아들였다...
+			PRINTFORMW 코이시와 %마스터는% [연인]이 되었다
+			TALENT:연인 = 1
+		ENDIF
+	CASE "회임첫대사-누군가의해코지"
+		PRINTFORMW %마스터는% 아마도 누군가가 코이시가 자는동안 해코지 했던가 한 것 같다고 답했다
+		PRINTFORMW 「...흑...싫은데...얼굴도 모르는 사람의 아이같은건...」
+		PRINTFORMW 「...차라리 %CALLNAME:MASTER% 애면 기쁠텐데...흑...」
+		PRINTFORMW 코이시는 낙담한듯 고개를 숙이곤 흘끔흘끔 %마스터를% 바라봤다
+		PRINTFORMW 「...저기, %CALLNAME:MASTER%...나 얘 어떻게 해야해...? 낳아야해..?」
+		PRINTFORML [1] 같이 길러줄테니 낳자
+		PRINTFORML [2] 뭐 그럴수밖에, 잘해봐
+		INPUT
+		IF RESULT == 1
+			PRINTFORMW 「...어? 같이 길러준다고...? 왜..?」
+			PRINTFORMW %마스터는% 코이시를 안아주며 그 아이도 내 아이인 셈 치고 같이 키우자고 말했다
+			PRINTFORMW 코이시는 얼굴을 붉혔다...
+			PRINTFORMW 「으응...미안해...폐 끼쳐서...흐윽...%마스터의% 애면 좋을텐데...」
+			PRINTFORMW 「...저기, 이 애 낳은 뒤에...%마스터의% 애도 만들어주면 안될까...? 적어도 또 모르는 사람의 애는 갖고 싶지 않은걸...」
+			PRINTFORMW 「차라리 %마스터가% 아빠인 아이가 훨씬 나아...그러니깐...」
+			PRINTFORMW 코이시는 부끄러운지 말을 끝맺지 못했다...
+			PRINTFORML
+			CALL KOISHI_DUP_TALK("회임첫대사-연모취득", 0b10) ;TODO 조건확인요망
+			CFLAG:6000 -= 2
+			CFLAG:5502 = 0
+		ELSE
+			PRINTFORMW 「...훌쩍...으읏...우에에엥...」
+			PRINTFORMW 코이시는 훌쩍훌쩍 울었으나 %마스터는% 애써 그것을 듣지 않았다
+			CFLAG:6000++ ;배드엔딩 플래그
+			CFLAG:5502 = 1 ;이번 아이 책임 X
+		ENDIF
+	CASE "회임첫대사-같이길러줄래"
+		PRINTFORMW 「근데...얘 어떻게 해야해...? 낳아야 해? ...같이 길러줄거야?」
+		PRINTFORML [1] 당연하지
+		PRINTFORML [2] 아니, 기를 생각은 없는데...
+		INPUT
+		IF RESULT == 1
+			PRINTFORMW 「...으으음...그러며언..나도 좋아! 같이 기르자~」
+			PRINTFORMW 「아이 이름은 어떻게 할래? 다음에 또 만들래? 아니아니 일단 사귀는거부터 해야하나? 응?」
+			PRINTFORMW 코이시는 왠지 들떠보인다
+			PRINTFORMW 「앗...그렇지이...일단은...이렇게...%UNICODE(0x2764)%」
+			PRINTFORMW 코이시는 얼굴을 들어 %마스터의% 볼에 진한 키스를 했다
+			PRINTFORMW 「히히...좋아해...%CALLNAME:MASTER%...」
+			CALL KOISHI_DUP_TALK("회임첫대사-연모취득", 0b11) ;TODO 조건확인요망
+			PRINTFORMW 코이시는 뺨을 발그레하게 물들이며 %마스터를% 받아들였다...
+			PRINTFORMW 코이시와 %마스터는% [연인]이 되었다
+			TALENT:연인 = 1
+			CFLAG:6000 -= 2
+		ELSE
+			PRINTFORMW 「에에...방금까진 %마스터가% 아빠라며?」
+			PRINTFORMW 「...책임지긴 싫다구? 으으...그럼 얜 어쩌라구우...」
+			PRINTFORMW %마스터는% 알아서 하라며 손을 내저었다
+			PRINTFORMW 「...우으읏...너무해...어째서 그러는거야...응?」
+			PRINTFORMW 「...훌쩍...으읏...멋대로 아기만들어놓곤...왜에...책임은 안져주는데...」
+			PRINTFORMW 코이시는 훌쩍훌쩍 울었으나 %마스터는% 애써 그것을 듣지 않았다
+			CFLAG:6000++ ;배드엔딩 플래그
+			CFLAG:5502 = 1 ;이번 아이 책임 X
+		ENDIF
+	CASE "회임첫대사-애아빠할래"
+		PRINTFORMW 「...\@ARG == 1 ? 우우...#\@저기, %CALLNAME:MASTER%~...%마스터가% 얘 아빠 해주면 안돼?」
+		PRINTFORML [1] 그러지 뭐
+		PRINTFORML [2] 미쳤어?
+		INPUT
+		IF RESULT == 1
+			PRINTFORMW 「앗- 고마워~」
+			PRINTFORMW 「후후...그럼 이제 뭐 할까 여보? 에헷...」
+			PRINTFORMW 소꿉놀이하는 아이마냥 싱글벙글 다가왔다...
+			PRINTFORMW ...것보다 딱히 아이가 생긴건 신경쓰지 않는것 같다...
+			CFLAG:5502 = 0
+			CFLAG:호감도 += 300
+			CFLAG:신뢰도 += 100
+			ABL:친밀 += 1
+		ELSE
+			PRINTFORMW 「...칫...야박해...」
+			PRINTFORMW 코이시는 볼을 부풀렸다
+			PRINTFORMW 「뭐어, 어쩔수 없나...언니보고 키워달래야지...」
+			IF CFLAG:49:현재위치 == CFLAG:현재위치
+				PRINTFORMW 『아니, 어째서...』
+				PRINTFORMW 사토리는 어이없다는 표정으로 코이시를 바라봤다
+			ENDIF
+			CFLAG:5502 = 1
+			CFLAG:호감도 -= 1
+		ENDIF
+	CASE "회임첫대사-모르는사람아이"
+		PRINTFORMW 「...미안해, 또...」
+		PRINTFORMW 코이시는 잔뜩 움츠러든채 말했다
+		PRINTFORMW 「...또, 모르는 사람의 아이가 생겨버렸어...」
+		PRINTFORMW 「미안해...흐흑...나, %마스터의% 연인인데...」
+		PRINTFORMW 코이시는 서러운지 엉엉 울기 시작했다
+		PRINTFORMW ...그런데, 얘는 어떻게 할까
+		PRINTFORML [1] 책임져 준다
+		PRINTFORML [2] 알 게 뭐람
+		INPUT
+		IF RESULT == 1
+			PRINTFORMW 「...어...? %마스터의% 아이로 해주겠다고...?」
+			PRINTFORMW 코이시는 눈물을 그치고 놀란 눈으로 %마스터를% 바라봤다
+			PRINTFORMW 그리곤 이내 달려들어 %마스터를% 와락 껴안았다
+			PRINTFORMW ...애초에 원래 내 아이지만...아직은 모르니깐 상관 없겠지...
+			CFLAG:호감도 += 50
+		ELSE
+			PRINTFORMW 「흐흑...미안해...버리지 말아줘...」
+			PRINTFORMW 「나...난 %CALLNAME:MASTER%밖에 없어...응? 알잖아...그러니깐...」
+			PRINTFORMW 딱히 별 말 안해도 혼자 겁에질려 있었다...
+			PRINTFORMW 적당히 안아줘서 달래주고 버리지 않을거라고 해주고 나서야 겨우겨우 진정했다...
+			PRINTFORMW ...그래도 책임은 질 수 없다고 선을 단단히 그어주자 고개를 숙였다...
+			PRINTFORMW 「...으응...아..알았어...%마스터의% 애도 아니니깐, 당연...하지..」
+			IF ARG == 1
+				PRINTFORMW 「응응...나 혼자서 기를테니깐...그건 걱정하지 말아줘...그러니깐...」
+				PRINTFORMW 코이시는 눈물을 닦으며 말했다
+				PRINTFORMW 진실을 알게되면 과연 무슨 표정을 보일까...
+			ELSE
+				PRINTFORMW 「응응...나 혼자서 기를테니깐...그건 걱정하지 말아줘...」
+			ENDIF
+			CFLAG:5502 = 1
+		ENDIF
+	CASE "회임첫대사-또임신버리기"
+		;생해금 >= 2 ARG 1 반발3+연인 2 반발3 3 연인 4 사모/연모/애욕 5 섹프 제외 기타
+		;생해금 아님 ARG 6 반발3+연인 7 반발3 8 연인/연모/사모/애욕 9 섹프 제외 기타
+		PRINTFORML [1] 아니, 안 버릴거야
+		PRINTFORML [2] 응, 버릴거야
+		INPUT
+		IF RESULT == 1
+			SELECTCASE ARG
+				CASE 1
+					PRINTFORMW 「...책임져 주는거야? 고마워...」
+					PRINTFORMW 「......근데, 얘만 보살펴주면...전의 아이가 너무 불쌍해지잖아...어떻게 안될까...?」
+					PRINTFORMW 「책임져 달라고는 안할게, 그저 아빠 행세라도 해주면...안될까?」
+				CASE 2
+					PRINTFORMW 「...책임져 준다고? 고마워」
+					PRINTFORMW 「......근데, 얘만 보살펴주면...전의 아이가 너무 불쌍해지잖아?」
+					PRINTFORMW 「책임져 달라곤 안해, 하지만 아빠 행세라도 해주면 안될까?」
+				CASE 3,4
+					PRINTFORMW 「...안 버리는거야? 정말이지?」
+					PRINTFORMW 「......하지마안... 얘만 보살펴주면...전의 아이가 너무 불쌍해지잖아?」
+					PRINTFORMW 「책임져 달라는건 아닌데... 하지만 적어도 아빠 행세라도... 해주면 안될까?」
+				CASE 5
+					PRINTFORMW 「...안 버리는거야? 정말이지?」
+					PRINTFORMW 「......하지마안... 얘만 보살펴주면 전의 아이가 너무 불쌍한데...」
+					PRINTFORMW 「...걔를 책임져 달라는건 아닌데... 하지만 적어도 아빠 행세라도... 해주면 안될까?」
+					PRINTFORMW 「아빠없이 자라는건 너무 불쌍하지 않아...?」
+				CASE 6,7
+					PRINTFORMW 「...안 버리는거야? 정말이지?」
+					PRINTFORMW 「...근데 그러면 전의 아이들도 책임져 주면 안될까?」
+					PRINTFORMW 「...돈이나 그런게 아냐... 적어도 아빠 행세라도\@ARG == 6?...#\@ 해주면 안될까?」
+					PRINTFORMW 「아빠없이 자라는건 너무 불쌍하지 않아...? \@ARG == 6?더군다나 엄마는 나고, #\@애들한테 무척이나 괴롭혀질걸...」
+				CASE 8,9
+					PRINTFORMW 「...안 버리는거야? 정말이지?」
+					PRINTFORMW 「...근데... 그러면 전의 아이들도 책임져 주면 안될까?」
+					PRINTFORMW 「...돈이나 그런거 말고... 같이 놀아주고, 사랑해주고... 그래주면 안될까?」
+					PRINTFORMW 「아빠없이 자라는건 너무 불쌍하잖아...? 더군다나 엄마는 나고, 애들한테 무척이나 괴롭혀질걸...」
+			ENDSELECT
+			IF GROUPMATCH(ARG, 1,2)
+				PRINTFORMW 말은 저렇게 하지만, 기대도 안하는 눈빛이다...
+			ENDIF
+			IF GROUPMATCH(ARG, 1,2,3,4,5)
+				PRINTFORML [1] 아니, 걔넨 아니야
+			ELSEIF GROUPMATCH(ARG, 6,7,8,9)
+				PRINTFORML [1] 그건 싫어
+			ENDIF
+			PRINTFORML [2] ...알았어
+			INPUT
+			IF RESULT == 1
+				IF ARG == 1
+					PRINTFORMW 「...응, 알았어...」
+					PRINTFORMW 코이시는 침울한 표정으로 고개를 숙였다
+					PRINTFORMW 「...그럼 얘는 어떻게 기를까? 일단 이름부터 정해둬야 하나..?」
+					PRINTFORMW 애써 웃어보이지만 표정에서 슬픔이 미처 감춰지지 않고 드러났다...
+				ELSE ;ARG != 1
+					PRINTFORMW 「하아...그래, 알았어...」
+					PRINTFORMW 코이시는 한숨을 쉬며 고개를 숙였다
+					SELECTCASE ARG
+						CASE 3
+							PRINTFORMW 「...으응 아냐, 괜찮아...나 안운다구?」
+							PRINTFORMW 말은 그렇게 해도 눈가가 촉촉하다...
+						CASE 4
+							PRINTFORMW 「...뭐어, %마스터의% 사정도 있을테지...」
+						CASE 5,6,8,9
+							PRINTFORMW 「그래두...애 크면 보러는 와줘...?」
+						CASE 7
+							PRINTFORMW 「...딱히 기대도 안했어...」
+					ENDSELECT
+				ENDIF
+			ELSE
+				;버린 아이의 성장을 기록하는게 화나서 그냥 지움
+				IF GROUPMATCH(ARG, 1,2,3,4)
+					PRINTFORMW 「...어?」
+					PRINTFORMW 예상외의 대답이어서 놀란 눈치다
+				ENDIF
+				SELECTCASE ARG
+					CASE 1
+						PRINTFORMW 「고..고마워...애들도 기뻐할거야...에헤헤...」
+						PRINTFORMW 코이시는 %CALLNAME:MASTER%에게 달려들어 와락 끌어안곤 눈물을 글썽였다...
+					CASE 2
+						PRINTFORMW 「...응, 그래...애들도 분명 좋아하겠지...」
+						PRINTFORMW 코이시는 무덤덤한 척 하고 있지만 꽤나 기뻐보이는 눈치다
+					CASE 3,4
+						PRINTFORMW 「...고마워...! 애들도 분명히 기뻐할거야...!」
+						PRINTFORMW 코이시는 해맑은 미소를 띄며 %마스터를% 껴안았다...
+						TFLAG:103 = 1
+					CASE 5,6
+						PRINTFORMW 「앗... 고마워...」
+						PRINTFORMW 「...애들도 분명히 기뻐할거야!」
+						PRINTFORMW 코이시는 \@ARG == 5 ?해맑은#희미한\@ 미소를 띄며 %마스터를% 바라봤다...
+						TFLAG:103 = 1
+					CASE 7,8,9
+						PRINTFORMW 「...그래, 고마워...」
+						PRINTFORMW 코이시는 담담하게 말했으나 조금 기뻐보인다
+						TFLAG:103 = 1
+				ENDSELECT
+				CFLAG:MASTER:아이인원수 += CFLAG:5501
+				CFLAG:5501 = 0 ;책임 안 진 아이수
+			ENDIF
+
+			CFLAG:5502 = 0 ;이번 아이는 책임지지 않음
+		ELSE
+			IF ARG == 1
+				PRINTFORMW 「그...그렇구나...알겠어...」
+				PRINTFORMW 코이시는 침울한 표정으로 고개를 끄덕였다...
+			ELSE ;ARG != 1
+				PRINTFORMW 「...뭐어...그럴거라곤 생각했어」
+				PRINTFORMW 코이시는 어쩐지 조금 슬퍼보인다...
+			ENDIF
+			CFLAG:5502 = 1
+			TFLAG:193 = -1
+		ENDIF
+	CASE "회임첫대사-길러줄거야"
+		;생해금 >= 2 ARG 1 반발3+연인 2 반발3 3 연인 4 사모/연모/애욕 5 섹프 제외 기타
+		;생해금 아님 ARG 6 반발3+연인 7 반발3 8 연인/연모/사모/애욕 9 섹프 제외 기타
+		PRINTFORML [1] 싫은데
+		PRINTFORML [2] 좋아
+		INPUT
+		IF RESULT == 1
+			SELECTCASE ARG
+				CASE 1 TO 5
+					PRINTFORMW 「..뭐?」
+					PRINTFORMW %마스터는% 책임지기 싫다고 말했다
+					IF GROUPMATCH(ARG, 1,2,3,4)
+						PRINTFORMW 「잠깐..농담이 지나치잖아......진심이야?」
+					ELSEIF ARG == 5
+						PRINTFORMW 「잠깐..농담두 참......설마 진심?」
+					ENDIF
+					PRINTFORMW %마스터가% 재차 강하게 밀어붙이자 코이시는 화난 표정을 지었으나
+					IF MARK:고통각인 == 3
+						PRINTFORMW %마스터가% 주먹을 들어올리자 \@ GROUPMATCH(ARG, 1,2,3,4) ? 바들바들 떨며# 얼굴이 창백해지며 곧바로\@ 움츠러들었다
+					ELSE
+						PRINTFORMW 싫다면 지금당장 떼 주겠다며 주먹을 들어올리자 곧바로 움츠러들었다
+					ENDIF
+					PRINTFORMW 「...아..알았어...책임져달라 안할테니깐...\@ GROUPMATCH(ARG, 1,2,3,4)? 그러지마..응?#\@」
+					IF ARG == 5
+						PRINTFORMW 「그러니까 그거 치워...」
+					ENDIF
+					SELECTCASE ARG
+						CASE 1,2
+							PRINTFORMW 코이시는 눈물을 글썽였다...
+						CASE 3,4,5
+							PRINTFORMW 코이시는 파르르 떨며 눈물을 글썽였다
+					ENDSELECT
+				CASE 6
+					PRINTFORMW 「...응?」
+					PRINTFORMW %마스터는% 책임지기 싫다고 말했다
+					PRINTFORMW 「...왜 그러는거야...?」
+					PRINTFORMW 코이시의 눈에 눈물이 맺혔다
+					PRINTFORMW 「...흐윽...어째서...」
+				CASE 7,8
+					PRINTFORMW 「...어?」
+					PRINTFORMW %마스터는% 책임지기 싫다고 말했다
+					PRINTFORMW 「...왜...왜 그러는거야...내가 뭘 잘못했길래...」
+					PRINTFORMW 코이시의 눈에 눈물이 맺혔다
+					PRINTFORMW 그러나 %마스터는% 들은채도 하지 않았다...
+				CASE 9
+					PRINTFORMW 「...어?」
+					PRINTFORMW %마스터는% 책임지기 싫다고 말했다
+					PRINTFORMW 「...으..못됐어, %마스터는% 싸면 끝이지만 난 계속 힘들단 말야...」
+					PRINTFORMW 코이시는 화를 냈다
+					PRINTFORMW 그러나 %마스터는% 들은채도 하지 않았다...
+			ENDSELECT
+			CFLAG:5502 = 1
+			TFLAG:193 = -1
+		ELSE
+			PRINTFORMW 코이시는 희미한 웃음을 띄며 배를 만졌다
+			PRINTFORMW 「...근데 애는 몇명까지 만들 생각\@ GROUPMATCH(ARG, 1,2) ?인거야#\@?」
+			PRINTFORM 「...뭐? 이 세상을 가득 채울만큼...? 
+			SELECTCASE ARG
+				CASE 1,2
+					PRINTFORMW 그건 좀 봐줘어...」
+				CASE 3
+					PRINTFORMW 그럼 힘내야겠네에...태어나면 또 열심히 하자?」
+				CASE 4
+					PRINTFORMW 정말...그건 좀 봐줘~」
+				CASE 5
+					PRINTFORMW 으으...아무리 그래도 그건 무리...」
+				CASE 6,7,8
+					PRINTFORMW 으으...아무리 그래도 그건 좀 봐줘...」
+				CASE 9
+					PRINTFORMW 으으...그건 좀 무리...」
+			ENDSELECT
+		ENDIF
+	CASE "회임첫대사-같이기르자"
+		PRINTFORMW 「...나 또 애 생겼어...」
+		PRINTFORMW 코이시는 침울한 표정으로 다가왔다
+		PRINTFORMW 「근데...%마스터의% 애가 아냐\@ARG==1?,#...\@ 미안해...」
+		PRINTFORMW 「...믿기진 않겠지만...어째선지 보이지 않는 누군가한테 범해져서 잔뜩 뿌려졌어...」
+		PRINTFORMW 「그리고 그 결과가 이거...」
+		PRINTFORMW 코이시는 울음을 터뜨릴것만 같은 표정으로 임신사실을 알려왔다
+		PRINTFORMW 「미안해...버리지 말아줘...흐윽...」
+		PRINTFORMW 「아이는...내가 어떻게든 할테니깐...」
+		PRINTFORML [1] 그러지말고 같이 기르자
+		PRINTFORML [2] 그저 위로해줄뿐
+		INPUT
+		IF RESULT == 1
+			PRINTFORMW 울고 있는 코이시를 다독여주며 같이 아이를 키우자고 전했다
+			PRINTFORMW 「에...? 정말로...?」
+			PRINTFORMW 뜻 밖에 대답에 크게 놀란듯하다..
+			PRINTFORMW 「...고마워...고마워...흐흑...」
+			PRINTFORMW 코이시는 연신 눈물을 흘리며 %마스터를% 껴안았다...
+		ELSE
+			PRINTFORMW %마스터는% 조용히 코이시를 안아주며 울지말라고 했다...
+			PRINTFORMW 「흐윽...흐에에에엥...」
+			PRINTFORMW 그러나 코이시는 충격이 컸는지 엉엉 울기 시작했다...
+			CFLAG:5502 = 1
+			TALENT:기분 = -1
+		ENDIF 
+	CASEELSE
+		THROW 상정되지 않은 상황 %ARGS%
+ENDSELECT
+RETURN 1

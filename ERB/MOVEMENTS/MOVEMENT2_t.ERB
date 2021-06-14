@@ -47,15 +47,21 @@ IF !TCVAR:ARG:패배강간
 				;통상의 데이트중
 				ELSE
 					;お誘い
-					IF (TALENT:ARG:연모 || TALENT:ARG:섹프 == 2) && CFLAG:ARG:욕구불만도 >= (700 + TALENT:ARG:수치심 * 150) && !CFLAG:ARG:신사거주 && !TCVAR:ARG:연속숙박금지 && CFLAG:(ARG):현재위치 != OMANEKIBEYA() && CFLAG:ARG:자택위치
+					IF (TALENT:ARG:연모 || TALENT:ARG:섹프 == 2) && CFLAG:ARG:욕구불만도 >= (700 + TALENT:ARG:수치심 * 150) && !CFLAG:ARG:신사거주 && !TCVAR:ARG:연속숙박금지 && CFLAG:(ARG):현재위치 != OMANEKIBEYA()
 						PRINTFORML %ARG로%부터 방에 오지 않겠냐고 권유받았다.
 						CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,4,0)
 						CALL ASK_YN("간다","그만둔다")
 						IF !RESULT
-							PRINTFORML %CALLNAME:ARG%에게 권유받은 대로, %마스터는% %CALLNAME:ARG%의 방으로 향했다……
+							IF CFLAG:ARG:자택위치
+								PRINTFORML %CALLNAME:ARG%에게 권유받은 대로, %마스터는% %CALLNAME:ARG%의 방으로 향했다……
+								PRINTFORMW +{TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)}분
+								TIME += TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)
+							ELSE
+								PRINTFORML %CALLNAME:ARG%에게 권유받은 대로, %마스터는% 어딘지도 모르는 %CALLNAME:ARG%의 방으로 향했다……
+								PRINTFORMW +30분
+								TIME += 30
+							ENDIF
 							CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,5,0)
-							PRINTFORMW +{TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)}분
-							TIME += TIME_REQUIRED(CFLAG:ARG:현재위치 / 100, CFLAG:ARG:자택위치 / 100)
 							CALL OMANEKI_ENTER(ARG)
 							CALL TARGETSET_CHACK
 						ELSE
@@ -73,7 +79,7 @@ IF !TCVAR:ARG:패배강간
 			;신사내에 있을까 자택에서도 초대방도 아닌 장소
 			ELSEIF AT_HOME(ARG) || (CFLAG:(ARG):현재위치 != CFLAG:(ARG):자택위치 && CFLAG:(ARG):현재위치 != OMANEKIBEYA()) && CFLAG:ARG:행동 != 5
 				CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,1,0)
-					PRINTFORMW %귀가이유% %ARG는% 돌아갔습니다.
+				PRINTFORMW %귀가이유% %ARG는% 돌아갔습니다.
 				CALL SET_TOGETHER(0,ARG,1)
 				SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
 					CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
@@ -109,6 +115,8 @@ IF !TCVAR:ARG:패배강간
 ENDIF
 
 @침실로부터내쫓아(ARG)
+SIF !AT_HOME(MASTER)
+	RETURN
 SIF !ARG
 	RETURN
 SIF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치

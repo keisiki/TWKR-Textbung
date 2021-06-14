@@ -15,10 +15,17 @@ SIF !GETBIT(FLAG:1000, 5)
 SETBIT FLAG:1000, 5
 SIF !GETBIT(FLAG:1000, 6)
 	CALL TWKR_ITEMFIX
+SETBIT FLAG:1000, 6
 SIF !GETBIT(FLAG:1000, 7)
 	CALL TWKR_EXPFIX
-SETBIT FLAG:1000, 6
 SETBIT FLAG:1000, 7
+SIF !GETBIT(FLAG:1000, 8)
+	CALL TWKR_MANSIONFIX
+SETBIT FLAG:1000, 8
+SIF !GETBIT(FLAG:1000, 9)
+	CALL TWKR_SHOWAA_WIFE_FIX
+SETBIT FLAG:1000, 9
+
 @KAISYONASI
 SETBIT FLAG:1000, 1
 PRINTFORML 스스로 상대에게 고백할 수준의 배짱은 있어?
@@ -122,6 +129,15 @@ FOR LOCAL,1,CHARANUM
 	EQUIP:LOCAL:상반신윗도리2 = CLOTH:2
 	EQUIP:LOCAL:원피스 = CLOTH:3
 	EQUIP:LOCAL:기모노 = CLOTH:4
+
+	;UPDATE 에 있던 코드 이관
+	;;바람기공인과 액세서리의 앨리어싱
+	CSTR:LOCAL:49=%CSTR:LOCAL:50%
+	CSTR:LOCAL:50=%CSTR:LOCAL:51%
+	CSTR:LOCAL:51=
+	;;아내 추가 패치 관련
+	SIF TALENT:LOCAL:연인&&!(TALENT:LOCAL:연인==3)
+		TALENT:LOCAL:연인=1
 NEXT
 PRINTFORMW 초기화 및 이관을 완료했습니다.
 ;--------------------------------------------------------
@@ -149,3 +165,55 @@ REPEAT CHARANUM
 REND
 
 PRINTL 과거 세이브의 호환을 위해 정음경험값을 정액경험값에 대입했습니다.
+
+;--------------------------------------------------------
+;2021.06.08
+;주택/저택 CSV 변수 이관용
+;--------------------------------------------------------
+@TWKR_MANSIONFIX
+;CFLAG:저택에거주
+REPEAT CHARANUM
+	저택거주:COUNT:0 = CFLAG:COUNT:29
+	CFLAG:COUNT:29 = 0
+REND
+;FLAG:저택독실배정
+FOR LOCAL, 161, 178
+	SELECTCASE LOCAL
+		CASE 161 TO 165
+			저택2층독실배정:(LOCAL - 161) = FLAG:LOCAL
+		CASE 166 TO 171
+			저택3층독실배정:(LOCAL - 166) = FLAG:LOCAL
+		CASE 172 TO 178
+			저택지하독실배정:(LOCAL - 172) = FLAG:LOCAL
+	ENDSELECT
+	FLAG:LOCAL = 0
+NEXT
+
+PRINTL 주택, 저택 관련 변수 데이터를 주택저택.ERH로 이관했습니다.
+
+;--------------------------------------------------------
+;2021.06.11
+;DIM CONST AA표시 = 99 및 FLAG:잠복 관련 오류 처리
+;복수연인 및 아내 관련 FLAG 의존성 삭제 병행
+;--------------------------------------------------------
+@TWKR_SHOWAA_WIFE_FIX
+;AA표시와 잠복이 겹치던 문제 해결
+FLAG:99 = 0
+
+;아내플래그 이관
+FOR LOCAL, 150, 154
+	FOR LOCAL:1, 0, 64
+		SIF GETBIT(FLAG:LOCAL, LOCAL:1)
+			아내플래그:(LOCAL:1):0 = 1
+	NEXT
+	FLAG:LOCAL = 0
+NEXT
+
+;58,스침연인수,;100사람까지
+스친연인수 = FLAG:58
+FLAG:58 = 0
+;158,스침아내수,;100사람까지
+스친아내수 = FLAG:158
+FLAG:158 = 0
+
+PRINTL AA표시/잠복 관련 문제와 아내플래그 FLAG 의존성을 제거했습니다.
