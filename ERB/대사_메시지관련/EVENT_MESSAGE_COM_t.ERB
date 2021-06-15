@@ -1,5 +1,20 @@
 ﻿;조교시 텍스트
 @TRAIN_MESSAGE
+#DIM 이중표시
+;파생커맨드 구상에서 2번 불리는 것을 방지
+IF FLAG:시간정지
+	IF 이중표시 == BASE:MASTER:TSP
+		RETURN
+	ELSE
+		이중표시 = BASE:MASTER:TSP
+	ENDIF
+ELSE
+	IF 이중표시 == TIME
+		RETURN
+	ELSE
+		이중표시 = TIME
+	ENDIF
+ENDIF
 DRAWLINE
 RESULT = 1
 ;카운터 탈의의 열매 처리
@@ -34,9 +49,14 @@ ENDIF
 IF CFLAG:MASTER:우후후 != 2 && SELECTCOM != 461
 	CALL 카운터호출처리
 ENDIF
+IF CFLAG:TARGET:구상셀렉터
+	TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+ELSE
+	TRYCALLFORM M_KOJO_K{NO:TARGET}
+ENDIF
+;TARGET口上出力
 SIF FLAG:대사색깔
-TRYCALLFORM M_KOJO_COLOR_K{TARGET}
-
+	TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:TARGET}
 ;-------------------------------------------------
 ;0, 애무
 ;-------------------------------------------------
@@ -490,6 +510,7 @@ IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
 ELSE
 	PRINTFORM %CALLNAME:TARGET%의
 ENDIF
+;CALL PrintMilkedNipple(TARGET, "의복묘사부")
 IF TEQUIP:1 == 0
 	PRINT 
 ELSE
@@ -509,48 +530,17 @@ ELSE
 	NEXT
 ENDIF
 IF TALENT:가슴사이즈 <= -1
-	IF TALENT:모유체질 && RAND:3 == 0
-		IF RAND:3
-			PRINT 자유를 배이게 한다
-		ELSEIF RAND:2
-			PRINT 모유를 배이게 한다
-		ELSE
-			PRINT 밀크를 배이게 한다
-		ENDIF
-	ENDIF
-	PRINTFORM %OPPAI_DESCRIPTION(TARGET)%의
-	IF RAND:3 == 0
-		PRINTL 처의,
-	ELSEIF RAND:2
-		PRINTL 정상에 있는,
-	ELSE
-		PRINTL 
-	ENDIF
-	PRINTFORM %NIPPLE_DESCRIPTION(TARGET, 1)%
+	CALL PrintMilkedNipple(TARGET)
 	IF TEQUIP:유두빨기
 		IF RAND:3 == 0
-			PRINTL 를 살짝 깨무는…
+			PRINTL 를 살짝 깨물었다…
 		ELSEIF RAND:2 == 0
-			PRINTL 빨아 붙어, 싫은 것 같은 소리를 내면서 괴롭히고 …
+			PRINTL 빨아 붙어, 싫은 것 같은 소리를 내면서 괴롭혔다…
 		ELSE
-			PRINTL 를 입에 넣으면서, 유륜의 주위를 초조하게 하도록(듯이) 빨았다…
+			PRINTL 를 입에 넣으면서, 유륜의 주위를 초조하게 하듯 빨았다…
 		ENDIF
 	ELSE
-		IF RAND:7 == 0
-			PRINTL 를 타지 않아로 반죽하고 돌렸다…
-		ELSEIF RAND:6 == 0
-			PRINTL 를 소와 눌러, 미끌미끌과 켰다 …
-		ELSEIF RAND:5 == 0
-			PRINTL 를 궁리했다 …
-		ELSEIF RAND:4 == 0
-			PRINTL 를 강약 붙이면서 자극했다…
-		ELSEIF RAND:3 == 0
-			PRINTL 를 유륜에 따라 간질였다…
-		ELSEIF RAND:2 == 0
-			PRINTL 를 안주 주었다…
-		ELSE
-			PRINTL 를 잡아당겼다 …
-		ENDIF
+		PRINTFORML %TEXTR("를 타지 않아로 반죽하고 돌렸다…/를 소와 눌러, 미끌미끌과 켰다 …/를 궁리했다 …/를 강약 붙이면서 자극했다…/를 유륜에 따라 간질였다…/를 안주 주었다…/를 잡아당겼다 …")%
 	ENDIF
 ELSEIF TALENT:가슴사이즈 >= 1
 	IF EX:B절정 * 10000 + PALAM:쾌B + PALAM:욕정 >= 10000 && RAND:4 == 0
@@ -591,7 +581,7 @@ ELSEIF TALENT:가슴사이즈 >= 1
 		ELSEIF RAND:2 == 0 && TALENT:PLAYER:새드
 			PRINTL 억지로 이끌어, 타테나가의 범종과 같이 형태를 비뚤어지게 하게 했다…
 		ELSE
-			PRINTL 형이 변 깰수록 유하기 만…
+			PRINTL 형이 변 깰수록 주물렀다…
 		ENDIF
 		IF EX:B절정 * 10000 + PALAM:쾌B + PALAM:욕정 >= 10000 && ABL:B감각 <= 5 && RAND:3 == 0
 			IF RAND:3 == 0 && TALENT:음유 && TALENT:마조 &&  EX:B절정 * 10000 + PALAM:쾌B + PALAM:욕정 >= 30000
@@ -606,53 +596,41 @@ ELSEIF TALENT:가슴사이즈 >= 1
 			ENDIF
 		ENDIF
 	ELSEIF RAND:2 == 0
-		PRINTFORML %OPPAI_DESCRIPTION(TARGET, 1)%에
-		PRINT 손가락붐비게 해
+		PRINTFORM %OPPAI_DESCRIPTION(TARGET, 1)%에 손가락을 박아넣어
 		IF TALENT:가슴사이즈 >= 1 && RAND:2
 			PRINTL 강화해에 비비어 넣었다…
 		ELSE
 			PRINTL 포동포동으로 한 감촉을 즐겼다…
 		ENDIF
 	ELSE
-		PRINTFORML %OPPAI_DESCRIPTION(TARGET)%에
-		PRINTL 손가락이 침울해지는 감촉을 즐겼다…
+		PRINTFORML %OPPAI_DESCRIPTION(TARGET)%에 손가락이 깊이 가라앉는 감촉을 즐겼다…
 	ENDIF
 ELSE
 	IF RAND:2
 		IF RAND:4 == 0
-			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 들어 올리도록(듯이) 해 어루만지는.
+			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 들어 올리도록(듯이) 해 어루만졌다.
 		ELSEIF RAND:3 == 0
 			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 덥석으로 해, 빚고 절의 부엌 돌렸다.
 		ELSEIF RAND:2 == 0
 			SIF RAND:2 == 0
 				PRINT 탄력을 즐기면서
-			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 마음껏 유하기 만.
+			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 마음껏 마구 주물렀다.
 		ELSE
 			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%의 부드러움을 즐겼다.
 		ENDIF
 	ELSE
 		IF RAND:2
 			IF RAND:4 == 0
-				PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 들어 올리도록(듯이) 해 어루만지는.
+				PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 들어 올리도록(듯이) 해 어루만졌다.
 			ELSEIF RAND:3 == 0
 				PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 덥석으로 해, 빚고 절의 부엌 돌렸다.
 			ELSEIF RAND:2 == 0
-				PRINTFORM %OPPAI_DESCRIPTION(TARGET)%
-				IF RAND:2 == 0
-					PRINT 의 탄력을 즐기면서
-				ELSE
-					PRINT 를
-				ENDIF
-				PRINTL 마음껏 유하기 만.
+				PRINTFORML %OPPAI_DESCRIPTION(TARGET)% %TEXTR(@"의 탄력을 즐기면서/%조사만처리(OPPAI_DESCRIPTION(TARGET), "를")%")% 마음껏 마구 주물렀다.
 			ELSE
 				PRINTFORML %OPPAI_DESCRIPTION(TARGET)%의 부드러움을 즐겼다.
 			ENDIF
 		ELSE
-			IF RAND:2
-				PRINTFORML %OPPAI_DESCRIPTION(TARGET)%전체를 감싸도록(듯이) 손바닥에서 어루만지는.
-			ELSE
-				PRINTFORML %OPPAI_DESCRIPTION(TARGET)%유하기 만.
-			ENDIF
+			PRINTFORML %OPPAI_DESCRIPTION(TARGET)% %TEXTR(@"전체를 감싸듯 손바닥에서 어루만졌다./%조사만처리(OPPAI_DESCRIPTION(TARGET), "를")% 주물렀다.")%
 		ENDIF
 	ENDIF
 ENDIF
@@ -680,68 +658,13 @@ IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
 		PRINTFORM %타겟과% 연결된 채로
 	ENDIF
 ELSE
-	PRINTFORM %CALLNAME:TARGET%의
+	PRINTFORM %CALLNAME:TARGET%의 
 ENDIF
-IF TEQUIP:1 == 0
-	PRINT 
-ELSE
-	FOR LOCAL, 17,6,-1
-		IF GROUPMATCH(LOCAL, 13, 12, 11)
-			CONTINUE
-		ENDIF
-		IF EQUIP:TARGET:LOCAL
-			IF !TEQUIP:상반신탈의상태
-				PRINTFORM %CLOTHNAME(LOCAL, EQUIP:TARGET:LOCAL)% 위로부터
-				BREAK
-			ELSEIF TEQUIP:상반신탈의상태
-				PRINTFORM 흐트러졌다 %CLOTHNAME(LOCAL, EQUIP:TARGET:LOCAL)%의 사이부터 엿보인다
-				BREAK
-			ENDIF
-		ENDIF
-	NEXT
-ENDIF
-IF TALENT:모유체질 && RAND:3 == 0
-	IF RAND:3
-		PRINT 자유를 배이게 한다
-	ELSEIF RAND:2
-		PRINT 모유를 배이게 한다
-	ELSE
-		PRINT 밀크를 배이게 한다
-	ENDIF
-ENDIF
-PRINTFORM %OPPAI_DESCRIPTION(TARGET)%의
-IF RAND:3 == 0
-	PRINT 처의,
-ELSEIF RAND:2
-	PRINT 정상에 있는,
-ELSE
-	PRINT 
-ENDIF
-PRINTFORM %NIPPLE_DESCRIPTION(TARGET, 1)%
+CALL PrintMilkedNipple(TARGET, "의복묘사부")
 IF TEQUIP:유두빨기
-	IF RAND:3 == 0
-		PRINTL 를 살짝 깨무는…
-	ELSEIF RAND:2 == 0
-		PRINTL 빨아 붙어, 싫은 것 같은 소리를 내면서 괴롭히고 …
-	ELSE
-		PRINTL 를 입에 넣으면서, 유륜의 주위를 초조하게 하도록(듯이) 빨았다…
-	ENDIF
+	PRINTFORML %TEXTR("를 살짝 깨물었다…/를 빨아 붙어, 싫은 것 같은 소리를 내면서 괴롭혔다…/를 입에 넣으면서, 유륜의 주위를 초조하게 하듯이 빨았다…")%
 ELSE
-	IF RAND:7 == 0
-		PRINTL 를 타지 않아로 반죽하고 돌렸다…
-	ELSEIF RAND:6 == 0
-		PRINTL 를 소와 눌러, 미끌미끌과 켰다 …
-	ELSEIF RAND:5 == 0
-		PRINTL 를 궁리했다 …
-	ELSEIF RAND:4 == 0
-		PRINTL 를 강약 붙이면서 자극했다…
-	ELSEIF RAND:3 == 0
-		PRINTL 를 유륜에 따라 간질였다…
-	ELSEIF RAND:2 == 0
-		PRINTL 를 안주 주었다…
-	ELSE
-		PRINTL 를 잡아당겼다 …
-	ENDIF
+	PRINTFORML %TEXTR("를 타지 않아로 반죽하고 돌렸다…/를 소와 눌러, 미끌미끌과 켰다…/를 궁리했다…/를 강약 붙이면서 자극했다…/를 유륜에 따라 간질였다…/를 안주 주었다…/를 잡아당겼다…")%
 ENDIF
 ;모유
 IF TALENT:모유체질 && RAND:3 == 0
@@ -756,7 +679,7 @@ ENDIF
 ;-------------------------------------------------
 @MESSAGE_COM8
 IF FLAG:70 == 1
-	PRINTFORM 시간이 멈춘%CALLNAME:TARGET%의
+	PRINTFORM 시간이 멈춘 %CALLNAME:TARGET%의
 	;작은 체형
 	IF TALENT:체형 < 0
 		PRINT 아이와 같이 내세우고 비비 꼬고를
@@ -924,37 +847,7 @@ IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
 ELSE
 	PRINTFORM %CALLNAME:TARGET%의
 ENDIF
-IF TEQUIP:1 == 0
-	PRINT 
-ELSE
-	FOR LOCAL, 17,6,-1
-		IF GROUPMATCH(LOCAL, 13, 12, 11)
-			CONTINUE
-		ENDIF
-		IF EQUIP:TARGET:LOCAL 
-			PRINTFORM %CLOTHNAME(LOCAL, EQUIP:TARGET:LOCAL)% 위로부터
-			BREAK
-		ENDIF
-	NEXT
-ENDIF
-IF TALENT:모유체질 && RAND:3 == 0
-	IF RAND:3
-		PRINT 자유를 배이게 한다
-	ELSEIF RAND:2
-		PRINT 모유를 배이게 한다
-	ELSE
-		PRINT 밀크를 배이게 한다
-	ENDIF
-ENDIF
-PRINTFORM %OPPAI_DESCRIPTION(TARGET)%의
-IF RAND:3 == 0
-	PRINTL 처의,
-ELSEIF RAND:2
-	PRINTL 정상에 있는,
-ELSE
-	PRINTL 
-ENDIF
-PRINTFORM %NIPPLE_DESCRIPTION(TARGET, 1)%
+CALL PrintMilkedNipple(TARGET, "의복묘사부")
 IF RAND:3 == 0
 	PRINTL 를 살짝 깨물고 개개 희롱하면서 빨아당겼다…
 ELSEIF RAND:2 == 0
@@ -982,37 +875,7 @@ IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
 ELSE
 	PRINTFORM %CALLNAME:TARGET%의
 ENDIF
-IF TEQUIP:1 == 0
-	PRINT 
-ELSE
-	FOR LOCAL, 17,6,-1
-		IF GROUPMATCH(LOCAL, 13, 12, 11)
-			CONTINUE
-		ENDIF
-		IF EQUIP:TARGET:LOCAL 
-			PRINTFORM %CLOTHNAME(LOCAL, EQUIP:TARGET:LOCAL)% 위로부터
-			BREAK
-		ENDIF
-	NEXT
-ENDIF
-IF TALENT:모유체질 && RAND:3 == 0
-	IF RAND:3
-		PRINT 자유를 배이게 한다
-	ELSEIF RAND:2
-		PRINT 모유를 배이게 한다
-	ELSE
-		PRINT 밀크를 배이게 한다
-	ENDIF
-ENDIF
-PRINTFORM %OPPAI_DESCRIPTION(TARGET)%의
-IF RAND:3 == 0
-	PRINTL 처의,
-ELSEIF RAND:2
-	PRINTL 정상에 있는,
-ELSE
-	PRINTL 
-ENDIF
-PRINTFORM %NIPPLE_DESCRIPTION(TARGET, 1)%
+CALL PrintMilkedNipple(TARGET, "의복묘사부")
 IF RAND:3 == 0
 	PRINTL 를 살짝 깨물고 개개 희롱하면서 빨아당겼다…
 ELSEIF RAND:2 == 0
@@ -1103,7 +966,7 @@ IF TALENT:가슴사이즈 >= 1
 		ELSEIF RAND:2 == 0 && TALENT:PLAYER:새드
 			PRINTL 억지로 이끌어, 타테나가의 범종과 같이 형태를 비뚤어지게 하게 했다…
 		ELSE
-			PRINTL 형이 변 깰수록 유하기 만…
+			PRINTL 형이 변 깰수록 주물렀다…
 		ENDIF
 		IF EX:B절정 * 10000 + PALAM:쾌B + PALAM:욕정 >= 10000 && ABL:B감각 <= 5 && RAND:3 == 0
 			IF RAND:3 == 0 && TALENT:음유 && TALENT:마조 &&  EX:B절정 * 10000 + PALAM:쾌B + PALAM:욕정 >= 30000
@@ -1132,22 +995,22 @@ IF TALENT:가슴사이즈 >= 1
 ELSE
 	IF RAND:2
 		IF RAND:4 == 0
-			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 들어 올리도록(듯이) 해 어루만지는.
+			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 들어 올리도록(듯이) 해 어루만졌다.
 		ELSEIF RAND:3 == 0
 			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%를 덥석으로 해, 빚고 절의 부엌 돌렸다.
 		ELSEIF RAND:2 == 0
 			PRINTFORM %OPPAI_DESCRIPTION(TARGET)%를
 			SIF RAND:2
 				PRINT 탄력을 즐기면서
-			PRINTL 마음껏 유하기 만.
+			PRINTL 마음껏 마구 주물렀다.
 		ELSE
 			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%의 부드러움을 즐겼다.
 		ENDIF
 	ELSE
 		IF RAND:2
-			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%전체를 감싸도록(듯이) 손바닥에서 어루만지는.
+			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%전체를 감싸도록(듯이) 손바닥에서 어루만졌다.
 		ELSE
-			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%유하기 만.
+			PRINTFORML %OPPAI_DESCRIPTION(TARGET)%주물렀다.
 		ENDIF
 	ENDIF
 ENDIF
@@ -1258,6 +1121,131 @@ ELSE
 		PRINTL 희미한 죄악감과 수치심을 부추겨져 주홍에 물든 얼굴을 살짝 외면해 버렸다
 	ENDIF
 ENDIF
+
+;-------------------------------------------------
+;15,クリ愛撫
+;-------------------------------------------------
+@MESSAGE_COM15
+PRINTFORM %조교자는% 
+IF FLAG:70 == 1
+	SIF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+		PRINTFORM %타겟을% 범한 채 
+	PRINTFORM 시간이 멈춘 %CALLNAME:TARGET%의 클리토리스를 
+	IF TEQUIP:0 > 1
+		IF PALAM:윤활 > PALAMLV:4
+			PRINTFORM 濡れそぼった
+		ELSEIF PALAM:윤활 > PALAMLV:2
+			PRINTFORM 湿り気を帯びた
+		ENDIF
+		PRINTFORM %SHOW_BOTTOM(TARGET)%の上から
+	ENDIF
+	IF ABL:C감각 <= 3
+		PRINTFORML くにくにと弄り回した
+	ELSEIF ABL:C감각 <= 5
+		PRINTFORML 嬲るように指を押しつけた
+	ELSE
+		PRINTFORML ぐりぐりと遠慮無くこすりつけた
+	ENDIF
+	
+	IF NOWEX:C절정 || NOWEX:V절정 || NOWEX:A절정 || NOWEX:B절정 || NOWEX:M절정
+		IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+			PRINTFORML %TINKO(PLAYER)%を挿入されている\@ TEQUIP:50 == PLAYER ? 膣 # アヌス \@は%CALLNAME:TARGET%の意思とは無関係にびくびくと震えながら快楽を貪っている…
+		ELSE
+			PRINTFORML %타겟은% 身動き一つせずに絶頂し愛液を溢れさせている…
+		ENDIF
+	ELSE
+		IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+			PRINTFORML %마스터는% 身動き一つしない %CALLNAME:TARGET%의 클리토리스を弄びながら\@ TEQUIP:50 == PLAYER ? 膣 # アヌス \@を犯している…
+		ELSEIF ABL:C감각 <= 4
+			PRINTFORML %타겟은% 時間を止めた時のままの表情で클리토리스を弄ばれている…
+		ELSE
+			PRINTFORML %CALLNAME:TARGET%の클리토리스は時間を止められていても、快楽を求めるようにヒクヒクと蠢いている…
+		ENDIF
+	ENDIF
+ELSEIF CFLAG:MASTER:장난 == 2
+	SIF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+		PRINTFORM %타겟을% 犯したまま
+	PRINTFORM 眠っている%CALLNAME:TARGET%の
+	PRINT 秘処を
+	IF TEQUIP:0 > 1
+		IF PALAM:윤활 > PALAMLV:4
+			PRINTFORM お漏らししたような
+		ELSEIF PALAM:윤활 > PALAMLV:2
+			PRINTFORM しっとりし始めた
+		ENDIF
+		PRINTFORM %SHOW_BOTTOM(TARGET)%の上から
+	ENDIF
+	IF ABL:C감각 <= 3
+		PRINTFORML さわさわと軽く撫でた
+	ELSEIF ABL:C감각 <= 5
+		PRINTFORML ふにふにと揺らしている
+	ELSE
+		PRINTFORML くりくりとこすりたてた
+	ENDIF
+	IF ABL:C감각 <= 3
+		PRINTFORML %타겟은% 無意識に身をよじっている…
+	ELSEIF ABL:C감각 <= 5
+		PRINTFORML %타겟은% ひくんひくんと腰をゆらしている…
+	ELSE
+		PRINTFORM %타겟은% 
+		IF TARGET == 57 && !TALENT:연모
+			PRINTFORM 無表情に
+		ENDIF
+		PRINTFORML 頬を上気させ、自ら腰を押しつけてくる…
+	ENDIF
+ELSE
+	IF !RAND:2 && ((TEQUIP:50 == PLAYER && ABL:V감각 >= 5) || (TEQUIP:51 == PLAYER && ABL:A감각 >= 5))
+		PRINTFORM %TEXTR("蕩けきった顔で/頬を紅潮させて/甘い息を吐きながら/嬌声をあげて")%
+		PRINTFORM %TEXTR("腰をくねらせる/肉棒の感触を味わっている/熱い粘膜でペニスを舐めしゃぶる/快楽に翻弄されている/深く腰を押し付ける")%
+	ELSEIF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+		SELECTCASE TEQUIP:체위
+			CASE 1
+				PRINTFORM %타겟과% 이어진 채로 
+			CASE 2
+				PRINTFORM %타겟을% 後ろから突き上げながら
+			CASE 3,5
+				PRINTFORM %타겟을% 下から突き上げながら
+			CASE 4
+				PRINTFORM %CALLNAME:TARGET%と抱き合いながら
+		ENDSELECT
+	ELSE
+		PRINTFORM %CALLNAME:TARGET%의 
+	ENDIF
+	IF TEQUIP:0 > 1
+		IF PALAM:윤활 > PALAMLV:4
+			PRINTFORM ぐしょぐしょに濡れた
+		ELSEIF PALAM:윤활 > PALAMLV:2
+			PRINTFORM ほんのりと湿った
+		ENDIF
+		PRINTFORM %SHOW_BOTTOM(TARGET)%の上から、秘処の
+		IF ABL:C감각 <= 3
+			PRINTFORML 縦筋をなで上げた……
+		ELSEIF ABL:C감각 <= 5
+			PRINTFORML ワレメの上部を重点的に攻めた……
+		ELSE
+			PRINTFORML クリのあたりをぐりぐりと押し込んだ……
+		ENDIF
+	ELSE
+		IF ABL:C감각 <= 1
+			PRINTFORM 皮を被った
+		ELSEIF  ABL:C감각 <= 3
+			PRINTFORM 剥き出しの
+		ELSEIF  ABL:C감각 <= 5
+			PRINTFORM ピンと尖る
+		ELSE
+			PRINTFORM ぷっくりと膨れ上がった
+		ENDIF
+		PRINTFORM 클리토리스を
+		IF ABL:C감각 <= 3
+			PRINTFORML そっと撫で回した……
+		ELSEIF ABL:C감각 <= 5
+			PRINTFORML 軽く摘み上げた……
+		ELSE
+			PRINTFORML %TEXTR("ゆっくりと揉みしだいた……/摘みながらこすりあげた……/ぐりぐりと刺激した……")%
+		ENDIF
+	ENDIF
+ENDIF
+
 ;-------------------------------------------------
 ;19, 계속키스
 ;-------------------------------------------------
@@ -1267,8 +1255,7 @@ IF FLAG:70 == 1
 	PRINTFORM 시간이 멈추었다
 	IF TEQUIP:50 == PLAYER
 		IF NOWEX:PLAYER:사정
-			PRINTFORM %타겟을% 꼭 껴안아 입맞춤해,
-			PRINTFORM 혀를 얽히게 할 수 있는이면서 허리의 움직임을 앞당겨 갔다…
+			PRINTFORM %타겟을% 꼭 껴안아 입맞춤해, 혀를 얽히게 할 수 있는이면서 허리의 움직임을 앞당겨 갔다…
 			RETURN 0
 		ELSE
 			PRINTFORM %타겟을% 범한 채로, 구강을 구석구석까지 빨고 회
@@ -1281,8 +1268,7 @@ ELSEIF CFLAG:MASTER:장난 == 2
 	PRINTFORM 자고 있다
 	IF TEQUIP:50 == PLAYER
 		IF NOWEX:PLAYER:사정
-			PRINTFORM %타겟을% 꼭 껴안아 입맞춤해,
-			PRINTFORM 혀를 얽히게 할 수 있는이면서 허리의 움직임을 앞당겨 갔다…
+			PRINTFORM %타겟을% 꼭 껴안아 입맞춤해, 혀를 얽히게 할 수 있는이면서 허리의 움직임을 앞당겨 갔다…
 			RETURN 0
 		ELSE
 			PRINTFORM %타겟을% 범한 채로, 구강을 구석구석까지 빨고 회

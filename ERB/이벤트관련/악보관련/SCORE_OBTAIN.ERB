@@ -1,0 +1,122 @@
+﻿;-----------------------------------------------------------
+;楽譜をランダムに1つ取得
+;
+;RETURNF 取得した楽譜番号、取得できなかった場合は-1
+;-----------------------------------------------------------
+@악보입수_랜덤
+#FUNCTION
+
+RETURNF EXEC_SCORES(악보처리모드：악보랜덤1개취득, 악보입수방법：랜덤)
+
+;-----------------------------------------------------------
+;キャラ番号と同じ入手条件の楽譜をランダムに1つ取得
+;TARGET キャラ番号
+;
+;RETURNF 取得した楽譜番号、取得できなかった場合は-1
+;-----------------------------------------------------------
+@악보입수_연주대성공(TARGET)
+#FUNCTION
+
+RETURNF EXEC_SCORES(악보처리모드：악보랜덤1개취득, TARGET)
+
+;-----------------------------------------------------------
+;キャラ番号に関連した入手条件が「악보입수방법：시리즈관련캐릭함락」の楽譜を一つ取得
+;TARGET キャラ番号
+;
+;RETURNF 取得した楽譜番号、取得できなかった場合は-1
+;-----------------------------------------------------------
+@악보입수_함락(TARGET)
+#FUNCTION
+
+COUNT = EXEC_SCORES(악보처리모드：캐릭터관련시리즈모두취득, TARGET)
+FOR LOCAL, 0, COUNT
+	RESULT = EXEC_SCORES(악보처리모드：악보랜덤1개취득, 악보입수방법：시리즈관련캐릭함락, RESULT:LOCAL)
+	SIF RESULT != -1
+		RETURNF RESULT
+NEXT
+
+RETURNF -1
+
+;-----------------------------------------------------------
+;キャラ番号に関連した入手条件が「악보입수방법：시리즈관련캐릭탄막승부」の楽譜を一つ取得
+;TARGET キャラ番号
+;
+;RETURNF 取得した楽譜番号、取得できなかった場合は-1
+;-----------------------------------------------------------
+@악보입수_탄막승부(TARGET)
+#FUNCTION
+
+COUNT = EXEC_SCORES(악보처리모드：캐릭터관련시리즈모두취득, TARGET)
+FOR LOCAL, 0, COUNT
+	RESULT = EXEC_SCORES(악보처리모드：악보랜덤1개취득, 악보입수방법：시리즈관련캐릭탄막승부, RESULT:LOCAL)
+	SIF RESULT != -1
+		RETURNF RESULT
+NEXT
+
+RETURNF -1
+
+;-----------------------------------------------------------
+;指定した入手条件の楽譜を一つ取得
+;EXEC_MODE 楽譜処理モード
+;
+;RETURNF 取得した楽譜番号、取得できなかった場合は-1
+;-----------------------------------------------------------
+@악보입수_특수조건(EXEC_MODE)
+#FUNCTION
+#DIM EXEC_MODE
+RETURNF EXEC_SCORES(악보처리모드：악보랜덤1개취득, EXEC_MODE)
+
+;-----------------------------------------------------------
+;楽譜を入手
+;SCORE_NO 楽譜番号
+;SKIP_CHECK チェックする場合は1
+;
+;RETURNF 入手済みなら0, 未入手なら1
+;-----------------------------------------------------------
+@OBTAIN_SCORE(SCORE_NO, SKIP_CHECK=1)
+#FUNCTION
+#DIM SCORE_NO	; 楽譜番号
+#DIM SKIP_CHECK	; チェックする場合は1
+
+IF HAVE_SCORE(SCORE_NO)
+	;楽譜入手済みの場合、処理をスキップ
+	RETURNF 0
+ELSE
+	RESULT = SET_SCORE(SCORE_NO, 1)
+	PRINTFORML %GET_SCORE_OBTAIN_MESSAGE(SCORE_NO)%
+	RETURNF 1
+ENDIF
+
+;-----------------------------------------------------------
+;楽譜取得に連動して取得される楽譜のチェック
+;SCORE_NO 楽譜番号
+;-----------------------------------------------------------
+@OBTAIN_SCORE_CHECK(SCORE_NO)
+#FUNCTION
+#DIM DYNAMIC SCORE_NO	; 楽譜番号
+
+#DIM DYNAMIC SERIES_NO	; シリーズ番号
+
+SERIES_NO = GET_SERIES_NO(SCORE_NO)
+
+;【악보입수방법：시리즈첫취득】の処理
+LOCAL = EXEC_SCORES(악보처리모드：소지수카운트, -1, SERIES_NO)
+SIF 0 < LOCAL
+	; 1つ以上楽譜がある場合、【시리즈첫취득】の楽譜を全て取得
+	RESULT = EXEC_SCORES(악보처리모드：전악보취득, 악보입수방법：시리즈첫취득, SERIES_NO)
+
+;【악보입수방법：시리즈랜덤컴플리트】の処理
+LOCAL:1 = EXEC_SCORES(악보처리모드：총수카운트, 악보입수방법：랜덤, SERIES_NO)
+LOCAL:2 = EXEC_SCORES(악보처리모드：소지수카운트, 악보입수방법：랜덤, SERIES_NO)
+SIF LOCAL:1 <= LOCAL:2
+	RESULT = EXEC_SCORES(악보처리모드：전악보취득, 악보입수방법：시리즈랜덤컴플리트, SERIES_NO)
+
+;【악보입수방법：시리즈완전컴플리트】の処理
+LOCAL:1 = EXEC_SCORES(악보처리모드：총수카운트, -1, SERIES_NO)
+LOCAL:2 = EXEC_SCORES(악보처리모드：소지수카운트, -1, SERIES_NO)
+LOCAL:3 = EXEC_SCORES(악보처리모드：총수카운트, 악보입수방법：시리즈완전컴플리트, SERIES_NO)
+SIF (LOCAL:1 - LOCAL:3) <= LOCAL:2
+	; 楽譜所持数が (総数 - 完全コンプの楽譜数) を上回っていた場合、【시리즈완전컴플리트】の楽譜を全て取得
+	RESULT = EXEC_SCORES(악보처리모드：전악보취득, 악보입수방법：시리즈완전컴플리트, SERIES_NO)
+
+RETURNF 0

@@ -1,0 +1,931 @@
+﻿;存否関数
+;F関数はTRYCALL系が使えないので通常関数で存否配列を作っちゃう
+@EXIST_일반의뢰15
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+;ここでARGで渡されるのはCLIENT_IDです
+@일반의뢰15(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "의뢰명"
+	IF TALENT:ARG:무지
+		CALLF MAKE_STR(V_NAME, @"%TEXTR("가슴이 두근두근거려/가랑이가 저릿저릿해")%")
+	ELSEIF TALENT:ARG:마조
+		CALLF MAKE_STR(V_NAME, @"%CALLNAME:MASTER%에게 %TEXTR("범해지고 싶어/엉망진창 당하고 싶어")%")
+	ELSE
+		CALLF MAKE_STR(V_NAME, @"%마스터가% 안아줬으면 해")
+	ENDIF
+CASE "의뢰내용 표시"
+	IF TALENT:ARG:무지
+		CALLF MAKE_STR(V_NAME, "어떻게든 해줘")
+	ELSEIF TALENT:ARG:마조
+		CALLF MAKE_STR(V_NAME, "바라는 대로 괴롭힌다")
+	ELSE
+		CALLF MAKE_STR(V_NAME, @"%CALLNAME:ARG%의 욕구 불만을 해소한다")
+	ENDIF
+CASE "의뢰 보수 표시"
+	IF TALENT:ARG:무지
+		CALLF MAKE_STR(V_NAME, "용돈")
+	ELSE
+	;性技術を売ると考えたら技巧*5000円とかのがいいのかも？
+		CALLF MAKE_STR(V_NAME, "\\20000(호스트비)")
+	ENDIF
+CASE "의뢰실행 커맨드 이름"
+	IF TALENT:ARG:무지
+		CALLF MAKE_STR(V_NAME, "어떻게든 해 준다")
+	ELSEIF TALENT:ARG:마조
+		CALLF MAKE_STR(V_NAME, @"%ARG를% 범한다")
+	ELSE
+		CALLF MAKE_STR(V_NAME, @"%ARG를% 안는다")
+	ENDIF
+CASE "의뢰내용"
+	CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "작업"))
+CASE "의뢰 서브"
+CASE "의뢰기한"
+;発生時ではなく受託時に確定します
+CASE "의뢰 발생율"
+	;자존심が高かったり恥じらいを持ってるキャラは言い出しづらいだろうから確率低下
+	IF TALENT:ARG:자존심 == 1 || TALENT:ARG:수치심 == 1
+		CALLF MAKE_INT(V_NAME, 9)
+	;初期設定で걸레幻想郷にした場合は依頼発生頻度高すぎると阿鼻叫喚になりそうだから걸레の場合は確率低下
+	;かわりに욕구불만도に関わらず発生するようにしてバランスが取れるといいなぁ
+	ELSEIF TALENT:ARG:걸레
+		CALLF MAKE_INT(V_NAME, 4)
+	;それ以外は発生条件が厳しめなので기본の発生率はとりあえず高めに
+	ELSE
+		CALLF MAKE_INT(V_NAME, 15)
+	ENDIF
+CASE "의뢰 발생 조건"
+;섹프or애욕かつ욕구불만도700以上 or 걸레 ;KR판 임의수정, 주석 조건 맞게 정리
+	SIF ( (TALENT:ARG:섹프 || TALENT:ARG:애욕) && CFLAG:TARGET:욕구불만도 > 700 ) || TALENT:ARG:걸레
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰 수탁 가능 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰실행 가능 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+;成功/失敗処理はCARRYOUTで直接書く
+;SOURCEやITEM入手、消費が煩雑になるので
+CASE "의뢰 소멸 조건"
+;依頼以外の要因で욕구불만도が解消された場合消えるべきなのかもしれないけど文法とかよくわかんないので雑にスルー
+	SIF RAND:100 < 30
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰인 데리고 나가 가능"
+	CALLF MAKE_INT(V_NAME, 1)
+ENDSELECT
+
+
+
+@IRAI_일반15(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+#DIM 장소
+;1=대상의 방 2=혼숙 여관・러브호텔 3=유카리 파생 전용 4=이외
+#DIM 주입량
+#DIM 기본주입량
+#DIM 호감도상승량
+#DIM 횟수
+#DIM 경험증가수,58
+#DIMS PLACE
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE SCENE
+CASE "의뢰 조건 표시"
+;何か専用の表示情報を設けたい時用
+;受託済みの依頼表示で使用されます
+;
+;PRINT系だけでSOURCEとかは入れちゃダメ、WAITも無しで
+;ここ以外の表示項目は
+;PRINTFORML 　　　　　：
+;となっているのでスペースを揃えたほうが見栄えが良いです
+
+CASE "의뢰실행시"
+;このCASEに限り、RESULTが意味を持ちます
+;依頼実行時のRESULTにはIRAI_CONST_RESULT()を使用してください
+;可能な引数は"キャンセル", "実行して成功", "実行して失敗", "実行して未解決"です
+;独自処理を仕込みたい時は"実行して未解決"で先延ばしするなりしてください
+;
+;"依頼実行時"に限っていえば、CHARAはTARGETと同一であり、必ずしもCLIENT_IDと一致するとは限りません
+;個々のケースで確認する必要があります
+;この依頼は「作業」扱いであり、CLIENTがTARGETになっている時のみ実行できます
+;
+;
+VARSET 경험증가수
+횟수 = MAX(MIN(ABL:CLIENT_ID:욕망 / 2, 5) + CFLAG:CLIENT_ID:욕구불만도 / 200,1)
+주입량 = 0
+
+경험증가수:0 += 1 + RAND:(횟수 * 2) 
+경험증가수:4 += 3 + ABL:CLIENT_ID:M감각 * 2
+경험증가수:3 += RAND:(횟수 * 2) 
+경험증가수:5 += 경험증가수:0 / 2
+경험증가수:8 += 경험증가수:3 / 2
+경험증가수:10 += 경험증가수:0 / 2
+경험증가수:25 = 경험증가수:4
+경험증가수:27 = 경험증가수:4
+EXP:MASTER:M경험 += 경험증가수:4
+EXP:MASTER:키스경험 += 경험증가수:4
+EXP:MASTER:펠라티오경험 += 경험증가수:4
+기본주입량 = (ABL:CLIENT_ID:질 + 1) * 20 + BASE:MASTER:정력 / 25
+FOR LOCAL,1,횟수
+	주입량 += 기본주입량 + RAND:(기본주입량)
+NEXT
+
+주입량 = MIN(주입량, BASE:MASTER:정력)
+
+CALL ADD_SAMEN_V(CLIENT_ID, 주입량)
+
+
+;以下デフォルト地の文
+
+IF TALENT:CLIENT_ID:무지
+	PRINTFORML %마스터는% 未知の興奮に戸惑いながら熱い吐息をこぼす%CALLNAME:CLIENT_ID%の手を引いて、
+ELSEIF TALENT:CLIENT_ID:수치심 == 1
+	PRINTFORML %마스터는% 恥じらいに頬を染める%CALLNAME:CLIENT_ID%の手を引いて、
+;紫の場合は以下の派生に繋げるために紫主導限定で
+ELSEIF RAND:2 == 0 || CLIENT_ID == 26
+	PRINTFORML %CALLNAME:CLIENT_ID%は艶っぽい笑みを浮かべながら%CALLNAME:MASTER%の手を引いて、
+ELSE
+	PRINTFORML %마스터는% 切なそうに体をよじる%CALLNAME:CLIENT_ID%の%TEXTR("手を引いて/腰を抱き寄せながら/")%、
+ENDIF
+
+	;장소分岐
+	;そのキャラの自室があるMAPの場合33%で自室に連れ込む
+	IF GET_MAPID(CFLAG:MASTER:현재위치) == GET_MAPID(GET_CHARAHOME(CLIENT_ID)) && RAND:3 ==0
+		PRINTFORMW %CALLNAME:CLIENT_ID%の自室にしけ込んだ
+			IF TALENT:CLIENT_ID:자존심 == 1
+				PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+				PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+			ELSE
+			ENDIF
+		장소 = 1
+	;紫限定。自室以外は장소問わずこうなる
+	ELSEIF CLIENT_ID == 26
+		PRINTFORMW 昏く口を開けるスキマへと%마스터를% 導いた
+		PRINTFORML 
+		PRINTFORMW ………
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORMW ………………
+			SELECTCASE RAND:4
+				CASE 0
+					PRINTFORML 
+					PRINTFORML スキマを出ると、幻想郷よりもどこか煙たい空気と夜の街独特の喧騒が%마스터를% 迎えた
+					PRINTFORMW けばけばしいネオンが光る看板が目を引くここは、どうやら外の世界のラブホテルのようだ
+					PRINTFORML 
+					PRINTFORMW 「こういうのも、また風情といったものでしょう？」
+					PRINTFORML 
+					PRINTFORMW そう言って彼女は%CALLNAME:MASTER%の腕を抱いてエントランスへと歩みを進めた
+					CALL 일반의뢰15_AEGI_YUKARI
+					PRINTFORML 
+					PRINTFORML マジックミラー越しにシャワーを浴びる%CALLNAME:CLIENT_ID%の姿に욕정を抑えきれず、
+					PRINTFORMW %마스터는% バスルームに乱入して%CALLNAME:CLIENT_ID%を襲った
+					PRINTFORML 
+					PRINTFORML 「待てないの？」などと言いながらもまんざらでもなさそうな%CALLNAME:CLIENT_ID%は
+					PRINTFORMW 期待に蕩けきった秘所を%CALLNAME:MASTER%の肉欲に貫かれ、美しい艶声を浴場いっぱいに響かせる
+					PRINTFORML 
+					PRINTFORML 壁に手をつかせて獣のように後ろから子宮を捏ねてやると%CALLNAME:CLIENT_ID%はのけぞって悦び、
+					PRINTFORMW 질壁をきゅうきゅうと締め上げて%CALLNAME:MASTER%のペニスに媚びる
+					PRINTFORML 
+					PRINTFORML やがて限界を迎えた%CALLNAME:MASTER%が%CALLNAME:CLIENT_ID%の尻にザーメンをぶっかけると、
+					PRINTFORMW ぽたぽたと零れ落ちてはシャワーで流されていくそれを蕩けきった目でながめながら、%CALLNAME:CLIENT_ID%は%마스터를% 煽った
+					PRINTFORML 
+					PRINTFORMW 「次はシャワーじゃ流せない질内(ところ)に、注いでくれるかしら？」
+					PRINTFORML 
+					PRINTFORML 二回戦のおねだりに早くも肉棒に活力を漲らせた%마스터는% シャワーを止めると、
+					PRINTFORMW 水も滴る%CALLNAME:CLIENT_ID%を横抱きに抱いてベッドへと向かうのだった
+				CASE 1
+					PRINTFORML 
+					PRINTFORML スキマを出ると、独特の硫黄臭とともに、湿気と熱気のこもった空気が%CALLNAME:MASTER%の肺を満たした
+					PRINTFORMW 木々に囲まれた中に石造りの湯船だけがぽつんとあるここは、どうやら温泉のようだ
+					PRINTFORML 
+					PRINTFORMW 「外の世界の秘湯よ。 ここには私以外誰も来れないわ」
+					PRINTFORML 
+					PRINTFORMW そう言った彼女は得意げに%CALLNAME:MASTER%に流し目を送ると、服を脱ぎはじめた
+					CALL 일반의뢰15_AEGI_YUKARI
+					PRINTFORML 
+					PRINTFORML はじめこそ素直に温泉を楽しむ流れだったものの、隣で湯に浸かる%CALLNAME:CLIENT_ID%に
+					PRINTFORMW %CALLNAME:MASTER%が我慢できるはずもなく、気付けば%CALLNAME:CLIENT_ID%を抱き寄せ、交尾へと発展していた
+					PRINTFORML 
+					PRINTFORML %CALLNAME:CLIENT_ID%の好みなのか少し熱めの湯にすっかり血色の良くなったうなじに吸い付きながら
+					PRINTFORMW 背面座位で突き上げるように子宮を小突いてやると、ぞくぞくと躰を震わせて甘い声をあげる
+					PRINTFORML 
+					PRINTFORML やがて限界を迎えた%CALLNAME:MASTER%がどこに出してほしいかと問うと、熱と快楽に蕩かされきった%CALLNAME:CLIENT_ID%は
+					PRINTFORMW 快感に喘ぐばかりで、答えられないまま%CALLNAME:MASTER%の精を질の奥に受け入れた
+				CASE 2
+					PRINTFORML 
+					PRINTFORML スキマを出ると、燦燦と照りつける太陽と心地よい潮風が%마스터를% 迎えた
+					PRINTFORMW 白い砂浜に水平線、周囲にはヤシなど幻想郷と違う植生の木が生い茂るここは、どうやら外の世界の南国のようだ
+					PRINTFORML 
+					PRINTFORMW 「ここはとある無人島。 たまにはこういう開放的なのも、いいでしょう？」
+					PRINTFORML 
+					PRINTFORMW そう言った彼女は服など無粋とばかりに豪快に服を脱ぎ捨てると、%CALLNAME:MASTER%の服を脱がしにかかった
+					CALL 일반의뢰15_AEGI_YUKARI
+					PRINTFORML 
+					PRINTFORMW 砂浜に生えたヤシに手をつかせ、%CALLNAME:MASTER%と%CALLNAME:CLIENT_ID%は獣のように交わっている
+					PRINTFORML 
+					PRINTFORML 照りつける太陽に汗とまばゆい金髪を煌めかせながら%CALLNAME:MASTER%の与える快楽に酔いしれる%CALLNAME:CLIENT_ID%の艶姿は美しく、
+					PRINTFORMW 野生的な解放感もあいまって神話の世界にでも迷い込んだかのような錯覚を%CALLNAME:MASTER%にもたらす
+					PRINTFORML 
+					PRINTFORML 非日常感に否応なく射精欲が高まってきた%CALLNAME:MASTER%が目の前の美姫のどこにぶっかけてやろうかとペニスを抜こうとすると、
+					PRINTFORMW %CALLNAME:CLIENT_ID%はちらと振り向いて彼女の腰を掴んだ%CALLNAME:MASTER%の手をそっと撫でた
+					PRINTFORML 
+					PRINTFORMW 「ここは野生の、獣の世界。 雌が見定めた雄の胤をに注がれたい장소はひとつしかない。 そうでしょう？」
+					PRINTFORML 
+					PRINTFORMW 女神の如き極上の雌にそうも扇情的に囁かれてはたまらない
+					PRINTFORML 
+					PRINTFORML %CALLNAME:MASTER%が男根をずぱんっと根元まで埋め、望み通りに子宮の中までたっぷりとマーキングしてやると、
+					PRINTFORMW 快楽に咽ぶこの美しい雌はひときわ甘い鳴き声をあげて絶頂に身を震わせた
+				CASE 3
+					PRINTFORML 
+					PRINTFORML スキマを出ると、幻想郷よりもどこか煙たい空気と夜の街独特の喧騒が%마스터를% 迎えた
+					PRINTFORMW 日光を建物に遮られて薄暗く、あたりに捨てられた空き缶やたばこの吸い殻が散らばるここは、外の世界の路地裏だろうか
+					PRINTFORML 
+					PRINTFORMW 「まさに『掃き溜めに鶴』、でしょう？ さあ、いらして？」
+					PRINTFORML 
+					PRINTFORMW 彼女はそう言って壁に手をつくと、尻を振って%CALLNAME:MASTER%の욕정を誘った
+					CALL 일반의뢰15_AEGI_YUKARI
+					PRINTFORML 
+					PRINTFORMW 路地裏から%CALLNAME:CLIENT_ID%のあられもない嬌声が響いてくる
+					PRINTFORML 
+					PRINTFORML いつ人が来るかも知れない장소での営みは%CALLNAME:CLIENT_ID%の性感を昂らせ、
+					PRINTFORMW %CALLNAME:MASTER%が질奥を小突くたびに背筋をびくりびくりと震わせる
+					PRINTFORML 
+					PRINTFORML やがて我慢できなくなった%CALLNAME:MASTER%が抽挿を激しくすると嬌声は一層激しさを増し、
+					PRINTFORMW 子宮口に何度目かの질内射精を浴びながら%CALLNAME:CLIENT_ID%は大きく絶頂した
+					PRINTFORML 
+					PRINTFORMW 絶頂の余韻に息を荒げながら、%CALLNAME:CLIENT_ID%は射精で萎えた%CALLNAME:MASTER%のペニスの前に跪く
+					PRINTFORML 
+					PRINTFORML ねろ…ぬろ…と慈愛を込めた丁寧なお掃除フェラに%CALLNAME:MASTER%の肉槍は見る間に硬さを取り戻し、
+					PRINTFORMW 路地裏には再び蕩けた女の甘い鳴き声が響き渡るのだった
+					
+				;ここまで書いといてなんだけどいまいちピンと来なかったのでコメントアウトしとく
+;				CASE 4
+;					PRINTFORML 
+;					PRINTFORML スキマを出ると、目の前に広がるのはどこか懐かしい光景
+;					PRINTFORMW 整然と並んだ机と椅子、黒板にスピーカー、そして教壇。ここは……学校？
+;					PRINTFORML 
+;					PRINTFORMW 「ふふ、お気に召しました？」
+;					PRINTFORML 
+;					PRINTFORMW いつもの紫よりも少し高い声に振り向くと、そこには学生服に身を包んだ紫が窓を背に佇んでいた
+;					PRINTFORMW 普段と違う儚げな雰囲気を纏う彼女はどこか幼くみえる。背もほんの少し低いだろうか
+;					PRINTFORML 
+;					PRINTFORMW 「장소にあわせて姿も変えてみましたの。 イメージプレイの一環よ」
+;					PRINTFORML 
+;					PRINTFORML そう言って紫が%마스터를% 指差す。
+;					PRINTFORMW いつの間にやら%CALLNAME:MASTER%も学生服を着せられていたのだった
+;					PRINTFORML 
+;					PRINTFORML 戸惑う%CALLNAME:MASTER%にくすくすと笑いながら、紫がこつこつと歩み寄って%마스터를% 上目遣いに見上げ囁いた
+;					PRINTFORML 
+;					PRINTFORMW 「せっかくだから呼び方も変えましょうか」
+;					CALL HPH_PRINT("「さ、気持ちいいコト、しましょ？ センパイHPH」","W")
+;					CALL 일반의뢰15_AEGI_YUKARI
+;					PRINTFORML 
+;					PRINTFORMW ふたつ繋げた机を寝台代わりにして、%CALLNAME:MASTER%と%CALLNAME:CLIENT_ID%は交わっている
+			ENDSELECT
+			장소 = 3
+	ELSE
+		SELECTCASE GET_MAPID(CFLAG:MASTER:현재위치)
+			;神社
+			CASE 0
+				PRINTFORMW 人気のない%TEXTR("物置の陰/離れの裏/トイレの中/近くの茂み/近くの木陰/")%に%TEXTR("導いた/連れ込んだ/")%
+					IF TALENT:CLIENT_ID:자존심 == 1
+						PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+						PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+					ELSE
+					ENDIF
+				IF !RAND:2
+					CALL 일반의뢰15_AEGI_ROSYUTSU("神聖な神社の片隅", "から、", "漏れ聞こえてくる")
+				ELSE
+					CALL 일반의뢰15_AEGI_ROSYUTSU("神聖な神社の片隅", "に、", "響く")
+				ENDIF
+				장소 = 4
+				
+			;寺
+			CASE 1
+				PRINTFORMW 人気のない%TEXTR("経堂の裏/本堂の裏/講堂の裏/トイレの中/近くの茂み/近くの木陰/")%に%TEXTR("導いた/連れ込んだ/")%
+					IF TALENT:CLIENT_ID:자존심 == 1
+						PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+						PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+					ELSE
+					ENDIF
+				IF !RAND:2
+					CALL 일반의뢰15_AEGI_ROSYUTSU("静謐な命蓮寺の片隅", "から、", "漏れ聞こえてくる")
+				ELSE
+					CALL 일반의뢰15_AEGI_ROSYUTSU("静謐な命蓮寺の片隅", "に、", "響く")
+				ENDIF
+				장소 = 4
+			;人里
+			CASE 2
+				;小鈴限定で50%で鈴奈庵の本棚の陰で。こういうの好き
+				IF CLIENT_ID == 70 && RAND:2 == 0
+					PRINTFORMW 鈴奈庵の奥に入ると本棚の陰へと身を寄せた
+					PLACE = カウンターに「臨時休業中」の札が掲げられた人里の貸本屋の奥
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響く")
+					ENDIF
+					장소 = 4
+				;人里限定で50%で連れ込み宿でしっぽりする。ホ別だからあなたの懐は痛まない
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 連れ込み宿にしけ込んだ
+					장소 = 2
+				ELSE
+					PRINTFORMW 人気のない%TEXTR("長屋の裏手/奥まった路地裏/서당近くの木陰/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 人里の喧騒にまぎれて、
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "", "響く")
+					ENDIF
+					장소 = 4
+				ENDIF
+			;紅魔館
+			CASE 3
+				;パチュリーと小悪魔は50%で図書館の本棚の陰で。
+				IF (CLIENT_ID == 54 && RAND:2 == 0) || (CLIENT_ID == 59 && RAND:2 == 0)
+					PRINTFORMW 図書館の奥へと入り、本棚の暗がりへと身を寄せた
+					PLACE = 薄暗い図書館の本棚のあいだ
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響く")
+					ENDIF
+					장소 = 4
+				;咲夜限定。紅魔館に蒸留室(スティルルーム)とかあんのかね…？
+				ELSEIF CLIENT_ID == 15 && RAND:2 == 0
+					PRINTFORMW 使われていない応接間の一つに連れ込むと、かちゃりと音をたてて鍵を閉めた
+					PLACE = 鍵のかかった応接室のドアの向こう
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					장소 = 4
+				ELSEIF RAND:3 >= 1
+					PRINTFORMW 人気のない%TEXTR("紅魔館の広間のカーテンの陰/紅魔館の大階段の陰/倉庫の暗がり/トイレの中/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 吸血鬼の城の片隅
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響く")
+					ENDIF
+					장소 = 4
+				ELSE
+					PRINTFORMW 人気のない%TEXTR("霧のかかった湖畔の木陰/霧のかかった湖畔の茂み/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 霧がかかって薄暗い湖畔
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、波音にまぎれて", "響いている")
+					장소 = 4
+				ENDIF
+			;竹林
+			CASE 4
+				;夏季限定幽香派生(自室派生込みで条件かなりきついので発生は100%)
+				IF CLIENT_ID == 68 && DAY:2 == 2
+					PRINTFORMW 太陽の畑へ向かうと、燦燦と咲く向日葵の中にその身をそっと押し倒した
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 照りつける太陽のようにまばゆいひまわり達のあいだ
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					ENDIF
+					장소 = 4
+				;ミスティア限定
+				ELSEIF CLIENT_ID == 28 && RAND:2 == 0
+					PRINTFORMW 準備中の屋台の陰に隠れるように身を寄せた
+					PLACE = 今日の仕込みも終わっていない屋台の陰
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					장소 = 4
+				ELSEIF RAND:3 >= 1
+					PRINTFORMW 人気のない%TEXTR("来客用トイレ/物置の陰/竹藪の奥/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 永遠亭の片隅
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					ENDIF
+					장소 = 4
+				ELSE
+					PRINTFORMW 人気のない竹藪の奥に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = ざわざわとさざめく迷いの竹林の奥
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					ENDIF
+					장소 = 4
+				ENDIF
+				;魔法の森 派生できそうなとこが思ったより少ないから加筆できそうならじゃんじゃん欲しい
+			CASE 5
+			;アリス限定
+				IF CLIENT_ID == 17 && RAND:2 == 0
+					PRINTFORMW 彼女の研究室に連れ込むと、かちゃりと音をたてて鍵を閉めた
+					PLACE = 日々の研究に使われる彼女にとって神聖とも言えるはずの장소
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					ENDIF
+					장소 = 4
+				ELSE
+					PRINTFORMW 人気のない%TEXTR("大樹の傍の茂み/香霖堂近くの木陰/竹藪の奥/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 魔法の森のさざめきにまぎれ
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "て、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "るように、", "響いている")
+					ENDIF
+					장소 = 4
+				ENDIF
+			;冥界 白玉楼マヨヒガ是非曲直庁畜生界と大型拠点が多すぎて派生장소を下手に設定できない…
+			;他人のおうちテリトリーにわざわざ入り込んでスるのはなんか違う…(例 えーき様があなたを八雲邸につれこんでしっぽり)
+			;ということで加筆できるなら超欲しいやつ
+			;派生先があんまりなんでキャラ用の分岐増やして確率100%にしてどうにかごまかすやつ。
+			CASE 6
+				;えーきさま限定。法壇は裁判官(裁判長)が座るとこ。法廷正面のちょっと高くなってるアレ。インモラル裁判長…
+				IF CLIENT_ID == 30
+					PRINTFORMW 人のはけた法廷の鍵を閉めて二人きりになると、法壇の陰へと身を寄せた
+					PRINTFORML %CALLNAME:CLIENT_ID%は恥ずかしさを隠すように小言を零しながらつんとした表情を装っているが、
+					PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+					PLACE = 罪人を裁く神聖な法廷
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					장소 = 4
+				;小町限定
+				ELSEIF CLIENT_ID == 76
+					PRINTFORMW 彼岸花の咲き乱れる茂みの中にその身をそっと押し倒した
+					PLACE = むせかえるような彼岸花の芳香の中
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					장소 = 4
+				;妖夢、幽々子限定
+				ELSEIF CLIENT_ID == 23 || CLIENT_ID == 66
+					PRINTFORMW 人のいない白玉楼の%TEXTR("空き部屋/居間/台所/厠の中/")%へと連れ込み、体を寄せ合った
+					PLACE = 冥界一立派な屋敷の一室
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					장소 = 4
+				;八雲家限定
+				ELSEIF CLIENT_ID == 24 || CLIENT_ID == 25 || CLIENT_ID == 26
+					PRINTFORMW 人のいないマヨヒガの%TEXTR("空き部屋/居間/台所/厠の中/")%へと連れ込み、体を寄せ合った
+					PRINTFORMW 人のいない白玉楼の%TEXTR("空き部屋/居間/台所/厠の中/")%へと連れ込み、体を寄せ合った
+					PLACE = 尋ね人に富をもたらすと伝わるマヨヒガの一室
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					장소 = 4
+				;畜生界住み限定…と思ったんだけど正直畜生界の設定とかよくわかってないのでここだけ全員自室行き。だれか書いて(切実)
+				ELSEIF CLIENT_ID == 130 || CLIENT_ID == 131 || CLIENT_ID == 132 || CLIENT_ID == 133
+					PRINTFORMW %CALLNAME:CLIENT_ID%の自室にしけ込んだ
+					장소 = 1
+				;その他 あまりにも適当
+				ELSE
+					PRINTFORMW 人気のない%TEXTR("近くの茂み/近くの木陰/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 生者のいない静かな冥界の片隅
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					ENDIF
+					장소 = 4
+				ENDIF
+			;妖怪の山 山麓 景観ががっつり山というか山道だからどうにも派生先が…
+			CASE 7
+				;にとり限定
+				IF CLIENT_ID == 51 && RAND:2 == 0
+					PRINTFORMW 河童のアジトの秘密部屋に連れ込んで抱き合った
+					PLACE = 河童たちの喧騒にまぎれて、
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "", "漏れ聞こえてくる")
+					장소 = 4
+				ELSE
+					PRINTFORMW 人気のない%TEXTR("大蝦蟇の池のほとり/沢のそばの茂み/水浴び場傍の茂み/近くの茂み/近くの木陰/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 木々のさざめきにまぎれ
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "て、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "るように、", "響いている")
+					ENDIF
+					장소 = 4
+				ENDIF
+			;妖怪の山 山頂
+			CASE 8
+				;天子、衣玖限定
+				IF  (CLIENT_ID == 34 && RAND:2 == 0) || (CLIENT_ID == 35 && RAND:2 == 0)
+					PRINTFORMW %TEXTR("誰もいない桃園の木陰/人通りのない有頂天街の路地裏/")%に身を寄せた
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 刺激の少ない天界に、
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "", "響いている")
+					장소 = 4
+				;もりやさんち限定
+				ELSEIF (CLIENT_ID == 31 && RAND:2 == 0)  || (CLIENT_ID == 32 && RAND:2 == 0)  || (CLIENT_ID == 33 && RAND:2 == 0) 
+					PRINTFORMW %TEXTR("本殿の居間/本殿の厠/")%に連れ込むと、誰もいないのを確認して抱き合った
+					PLACE = 文字通り神が住まう社の一室
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "から、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					ENDIF
+					장소 = 4
+				ELSE
+					PRINTFORMW 人気のない%TEXTR("九天の滝の裏/山の湖の湖畔の岩陰/索道駅傍の茂み/近くの茂み/近くの木陰/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 木々のさざめきにまぎれ
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "て、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "るように、", "響いている")
+					ENDIF
+					장소 = 4
+				ENDIF
+			;地底
+			CASE 9
+				;パルスィ限定 限定にしないと嫉妬がヤバい
+				;手が滑って川の土手の下の前に「滅多に人が来ない」って入れそうになったよね…
+				IF CLIENT_ID == 60 && RAND:2 == 0
+					PRINTFORMW 誰もいない%TEXTR("橋の下/川の土手の下/")%に身を寄せ抱き合った
+					PRINTFORML %CALLNAME:CLIENT_ID%は気恥ずかしいのかつんとした表情を装って普段通り「妬ましい」などと零しているが、
+					PRINTFORMW いつもより熱のこもった視線と上気した頬は隠せていない
+					PLACE = 彼女が守る橋のたもと
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+					장소 = 4
+				;さとり限定
+				ELSEIF CLIENT_ID == 49
+					PRINTFORMW 書斎に連れ込んでそっと鍵を閉めた
+					PLACE = 日々の業務をこなす彼女の仕事机を
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "前にして、", "響く")
+					장소 = 4
+				;こいし限定も作りたかった(過去形)だれかつくって
+				;ELSEIF CLIENT_ID == 38
+				
+				;地底にもラブホあったから50%でしっぽりする。ホ別だからあなたの懐は痛まない
+				ELSEIF RAND:2 == 0
+					PRINTFORMW 地底のラブホテルに連れ込んだ
+					장소 = 2
+				ELSE
+					PRINTFORMW 人気のない%TEXTR("旧地獄繁華街の路地裏/旧地獄の名残の空き家/地底温泉近くの木陰/誰のとも知れぬあばら家/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+					PLACE = 地底の妖怪たちの喧騒にまぎれ
+					IF !RAND:2
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "て、", "漏れ聞こえてくる")
+					ELSE
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "るように、", "響いている")
+					ENDIF
+					장소 = 4
+				ENDIF
+			;月 設備とかわかんねぇ！ので！適当！
+			CASE 10
+				IF RAND:3 >= 1
+					PRINTFORMW 人気のない%TEXTR("月の都の路地裏/옥토끼の街の裏路地/桃林の木陰/")%に%TEXTR("導いた/連れ込んだ/")%
+						IF TALENT:CLIENT_ID:자존심 == 1
+							PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+							PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+						ELSE
+						ENDIF
+						PLACE = 穢れを許さないはずの月の大地
+						CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響いている")
+						장소 = 4
+				ELSE
+					PRINTFORMW 人気のない月の都の路地裏に%TEXTR("導いた/連れ込んだ/")%
+					IF TALENT:CLIENT_ID:자존심 == 1
+						PRINTFORML %CALLNAME:CLIENT_ID%は興奮を悟られないようにつんとした表情を装っているが、
+						PRINTFORMW 普段より熱のこもった吐息と上気した頬は隠せていない
+					ELSE
+					ENDIF
+					PLACE = 穢れを許さないはずの月の都
+					CALL 일반의뢰15_AEGI_ROSYUTSU(PLACE, "に、", "響く")
+					장소 = 4
+				ENDIF
+			ENDSELECT
+	ENDIF
+	PRINTFORML 
+	
+	IF 장소 == 1 || 장소 == 2
+		PRINTFORM %CALLNAME:CLIENT_ID%は
+			IF 장소 == 1
+				PRINTFORML %마스터를% 部屋に上げると、
+			ELSE
+				PRINTFORML 通された部屋の鍵を閉めると、
+			ENDIF
+		PRINTFORMW 待ちきれないとばかりに%CALLNAME:MASTER%の首に腕を回し、キスをねだる
+		PRINTFORM %CALLNAME:MASTER%が望みどおり
+			SIF TALENT:CLIENT_ID:키스미경험
+				PRINTFORM 未だ誰も知らない唇に
+		PRINTFORML 口付けてやると、%CALLNAME:CLIENT_ID%は욕정と歓喜に躰をくねらせ、
+		CALL HPH_PRINT(@"腰をすり…HPHすり…HPHと%CALLNAME:MASTER%のペニスへと擦りつけてきた","W")
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		SELECTCASE RAND:6
+		CASE 0
+			CALL HPH_PRINT("「あんっHPH あっHPH そこっHPH いいっHPH」","W")
+		CASE 1
+			CALL HPH_PRINT("「あっHPH そこっHPH やぁっHPH イクっHPH」","W")
+		CASE 2
+			CALL HPH_PRINT("「あんっHPH そこっHPH そこすきっHPH あっ、イっ……っHPH」","W")
+		CASE 3
+			CALL HPH_PRINT("「んちゅ…HPH んっHPH んふっHPH ん゛～～～っHPHHPH」","W")
+		CASE 4
+			CALL HPH_PRINT("「あっHPH はんっHPH ああっHPH あ゛あ゛～～～っHPH」","W")
+		CASE 5
+			CALL HPH_PRINT("「あっHPH そこダメっHPH またイクっHPH イクっHPH イ゛っ……っHPHHPH」","W")
+		ENDSELECT
+		PRINTFORML 
+		IF 장소 == 1
+			PRINTFORM %CALLNAME:CLIENT_ID%の部屋
+		ELSEIF 장소 == 2 && GET_MAPID(CFLAG:MASTER:현재위치) == 2
+			PRINTFORM 人里の喧騒が混じる連れ込み宿の一室
+		ELSE
+		;IF 장소 == 2 && GET_MAPID(CFLAG:MASTER:현재위치) == 9
+			PRINTFORM ほの暗い、文字通りアンダーグラウンドなラブホテルの一室
+		ENDIF
+	PRINTFORM に、
+	PRINTFORMW %TEXTR("ぐちゅぐちゅと激しい水音/「ぱんっ、ぱんっ」という破裂音にも似た音/荒々しいふたつの呼吸音")%と%TEXTR("蕩けるような雌の声/雌に生まれた悦びの声/快楽に喘ぐ声/あられもない嬌声/")%が響きわたる
+		SIF TALENT:CLIENT_ID:무지
+			PRINTFORMW 頭では理解できていなくても、%CALLNAME:MASTER%の手で雌の本能に目覚めさせられた%CALLNAME:CLIENT_ID%の躰はすっかり快楽の虜だ
+	SELECTCASE RAND:5
+	CASE 0
+		PRINTFORML 
+		PRINTFORMW %마스터는% ねっとりとした愛撫と腰使いで%CALLNAME:CLIENT_ID%を焦らしていく
+		PRINTFORML 
+		PRINTFORML イキそうになるたびに寸止めされ続けて我慢ができなくなった%CALLNAME:CLIENT_ID%の口から
+		PRINTFORML 「질内にください」とおねだりの言葉を引き出した%마스터는% つけていたゴムを外すと、
+		PRINTFORMW %CALLNAME:CLIENT_ID%のさんざん焦らされて降りきった子宮口にたっぷりと孕ませ汁を飲ませてやった
+	CASE 1
+		PRINTFORMW %마스터는% %CALLNAME:CLIENT_ID%の要望で対面座位で繋がっている
+		PRINTFORML 
+		CALL HPH_PRINT(@"場を盛り上げるためか、それとも本心からのものか、耳元で%CALLNAME:CLIENT_ID%に「好き…HPH 好きなの…HPH」と囁かれるたび","L")
+		PRINTFORMW %CALLNAME:MASTER%のペニスは질内で硬さを増していく
+		PRINTFORML 
+		PRINTFORML やがて互いに限界が近くなるにつれ動きが激しくなってくると、呂律が回らなくなった%CALLNAME:CLIENT_ID%は
+		PRINTFORMW 睦言のかわりに射精を促す締め付けで%CALLNAME:MASTER%に快楽をもたらした
+	CASE 2
+		PRINTFORMW 部屋に入るなりずっと抱き合っている二人は汗みずくだ
+		PRINTFORML 
+		PRINTFORML 服を脱ぐために離れることすら拒否した%CALLNAME:CLIENT_ID%の服は汗と体液でじっとりと湿り、
+		PRINTFORMW %CALLNAME:MASTER%の服と絡まって二人の繋がりをより強固にしている
+		PRINTFORML 
+		PRINTFORML 彼女の奥を抉りながら「この服の有様では部屋を出てからが大変だ」と色づいた耳元に囁くと
+		PRINTFORMW %CALLNAME:CLIENT_ID%はかあっと頬を赤く染め、しかし離れる気はないのか、%마스터를% 抱きしめる手を強くした
+	CASE 3
+		PRINTFORMW %CALLNAME:CLIENT_ID%は髪を振り乱しながら%CALLNAME:MASTER%の上で腰を振っている
+		PRINTFORML 
+		PRINTFORML ぐりぐりと腰をグラインドさせて快楽を貪る%CALLNAME:CLIENT_ID%の%TEXTR("乳首/陰核/")%を不意打ちのように指で捏ね回してやると、
+		PRINTFORMW 苦しそうにも聞こえる呻きとともにびくびくと体を震わせて絶頂した
+		PRINTFORML 
+		PRINTFORML 身も心も蕩けきった%CALLNAME:CLIENT_ID%が求めるままに二人はまぐわい続け、
+		PRINTFORMW 閉めきった部屋には汗のこもった熱気と性臭が充満していった
+	CASE 4
+		IF 장소 == 2
+			PRINTFORMW %CALLNAME:CLIENT_ID%は宿に備え付けられたメイド服を着て%CALLNAME:MASTER%に奉仕している
+			PRINTFORML 
+			CALL HPH_PRINT(@"甘く蕩けた声で%CALLNAME:CLIENT_ID%に「ご主人様ぁ…HPH」などと囁かれると、","L")
+			PRINTFORMW %CALLNAME:MASTER%のペニスは硬くなるばかりで、一向に萎える気配を見せない
+			PRINTFORML 
+			PRINTFORML 今だけは%CALLNAME:MASTER%だけの従者となった%CALLNAME:CLIENT_ID%との逢瀬は熱く盛り上がり、
+			PRINTFORMW 宿の利用時間が来る頃には備え付けの衣装は%CALLNAME:MASTER%が吐き出した白濁で見るも無残な有様になっていた
+		ELSE
+			PRINTFORMW %CALLNAME:CLIENT_ID%は下着姿で%CALLNAME:MASTER%に奉仕している
+			PRINTFORML 
+			PRINTFORML 「%CALLNAME:MASTER%が射精するたびに違う下着に着替える」というルールで
+			PRINTFORML 淫らなファッションショーの会場と化した%CALLNAME:CLIENT_ID%の私室には
+			PRINTFORMW 既に何着もの下着が二人の体液にまみれて脱ぎ捨てられている
+			PRINTFORML 
+			PRINTFORML 마음에드는だと言う下着姿で%CALLNAME:MASTER%に跨り腰を振る%CALLNAME:CLIENT_ID%に
+			PRINTFORML 「それを着るたびにこの情事を思い出すように」と囁いてたっぷりと精を注いでやると、
+			PRINTFORMW %CALLNAME:CLIENT_ID%は絶頂と歓喜に身を震わせながら恥ずかしそうに頷くのだった
+		ENDIF
+	ENDSELECT
+	ELSEIF 장소 == 4
+		SIF TALENT:CLIENT_ID:무지
+			PRINTFORMW 頭では理解できていなくても、%CALLNAME:MASTER%の手で雌の本能に目覚めさせられた%CALLNAME:CLIENT_ID%の躰はすっかり快楽の虜だ
+		PRINTFORML 
+		PRINTFORMW %TEXTR("あられもない姿を見られないように/よがり声を聞かれるのは流石に恥ずかしいのだろう/")%、%TEXTR(@"口を手で押さえて/%CALLNAME:MASTER%の唇に吸い付いて/唇を噛んで/俯いて/")%必死で声を我慢している様が可愛らしい
+		PRINTFORML 
+		PRINTFORM %TEXTR("立ちバック/対面立位/")%で
+		SELECTCASE RAND:5
+		CASE 0
+			PRINTFORML 髪を撫で耳元で甘い言葉を囁きながら
+		CASE 1
+			PRINTFORML クリトリスを揉むように刺激しながら
+		CASE 2
+			PRINTFORML 指先でアナルを揉むように刺激しながら
+		CASE 3
+			IF TALENT:CLIENT_ID:가슴사이즈 >= 1
+				PRINTFORM %TEXTR("たわわに実った/豊満な/")%
+			ELSEIF TALENT:CLIENT_ID:가슴사이즈 == -1
+				PRINTFORM %TEXTR("慎ましやかな/掌にすっぽりと収まる/")%
+			ELSEIF TALENT:CLIENT_ID:가슴사이즈 == -2
+				PRINTFORM %TEXTR("肉付きの薄い/あばらの浮き出た/")%
+			ELSE
+				PRINTFORM 動きに合わせて揺れる
+			ENDIF
+			PRINTFORML 胸を揉みしだきながら
+		CASE 4
+			IF ABL:CLIENT_ID:마조끼 >= 3
+				PRINTFORML 乳首をぎゅっと抓るように押し潰しながら
+			ELSE
+				PRINTFORML 乳首を指先でしごくように摺りあげながら
+			ENDIF
+		ENDSELECT
+		PRINTFORML %TEXTR("子宮口/Ｇスポット/")%を%TEXTR("ねっとりと捏ねるように/ごりごりと力強く/")%突いてやると、
+		PRINTFORM %CALLNAME:CLIENT_ID%はびくびくと背筋を震わせながら絶頂して
+		SELECTCASE RAND:4
+		CASE 0
+			PRINTFORMW 蕩けきった질肉が%CALLNAME:MASTER%のペニスをきゅうきゅうと締め付けた
+		CASE 1
+			PRINTFORMW だらしないイキ顔を晒した
+		CASE 2
+			PRINTFORMW 快楽にゆるんだ口からだらしなく涎をこぼした
+		CASE 3
+			PRINTFORMW 抑えきれないエクスタシーの声があたりに響いた
+		ENDSELECT
+	ELSE
+	ENDIF
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	PRINTFORM %마스터는% 
+	IF TALENT:CLIENT_ID:처녀
+		PRINTFORM %CALLNAME:CLIENT_ID%の純潔を奪い、
+	ELSE
+		PRINTFORM %CALLNAME:CLIENT_ID%を{횟수}度%TEXTR("犯し/抱き/")%、
+	ENDIF
+	PRINTFORMW 子宮に{주입량}の精液を注ぎ込んだ
+
+	;以上デフォルト地の文
+
+	SIF TALENT:MASTER:키스미경험
+		CALL SET_FIRSTKISS(MASTER, CLIENT_ID, 2)
+	SIF TALENT:CLIENT_ID:키스미경험
+		CALL SET_FIRSTKISS(CLIENT_ID, MASTER, 2, "흘러가는 대로")
+
+IF TALENT:CLIENT_ID:처녀 == -1
+	SETCOLOR 247,171,166
+	PRINTFORMW 【무자각비처녀상실】
+	TALENT:CLIENT_ID:처녀 = 0
+ENDIF
+IF TALENT:CLIENT_ID:처녀 == 1
+	SETCOLOR 247,171,166
+	PRINTFORMW 【처녀상실】
+	CALL SET_HISTORY_LOST_V(CLIENT_ID, MASTER, "페니스", "역원교", "돈을 내고")
+ENDIF
+
+SETCOLOR C_YELLOW
+FOR LOCAL,0,58
+	IF 경험증가수:LOCAL
+		PRINTFORML %EXPNAME:LOCAL% ＋{경험증가수:LOCAL}
+		EXP:CLIENT_ID:LOCAL += 경험증가수:LOCAL
+	ENDIF
+NEXT
+RESETCOLOR
+CALL JUEL_UP_SPECIAL(CLIENT_ID,"욕정","욕망",20,1)
+IF TCVAR:CLIENT_ID:파과
+	CALL JUEL_UP_SPECIAL(CLIENT_ID,"쾌V","V감각",100,1)
+ELSE
+	CALL JUEL_UP_SPECIAL(CLIENT_ID,"쾌V","V감각",15,1)
+ENDIF
+CALL ADD_EXP_LESNIAN(횟수 * 5, CLIENT_ID, "PRINT")
+PRINTFORMW …
+PRINTFORMW ……
+PRINTFORMW ………
+
+TIME += 횟수 * 20
+EXP:MASTER:청소경험 ++
+DOWNBASE:MASTER:체력 = 횟수 * 100
+DOWNBASE:MASTER:기력 = 횟수 * 150
+호감도상승량 = 횟수 * ABL:CLIENT_ID:친밀 * 5
+
+CALL CHANGE_CFLAG(2,CLIENT_ID,호감도상승량)
+CFLAG:CLIENT_ID:욕구불만도 = 0
+TCVAR:CLIENT_ID:파과 = 0
+
+;TWあなたは片づけせずにはいられない
+$BYEBYE
+
+SIF GETBIT(TALENT:MASTER:성별, 1)
+	DOWNBASE:MASTER:정력 = 주입량
+	
+;これいる？
+;PRINTFORML 
+;PRINTFORMW 後始末をした%CALLNAME:CLIENT_ID%と%마스터는% 元の장소に戻った
+
+
+RETURN IRAI_CONST_RESULT("실행해 성공")
+
+
+CASE "의뢰 성공시"
+;成功報告時の報酬など
+	TALENT:TARGET:기분 = LIMIT(TALENT:기분 + 1, -1, 1)
+	CALL CHANGE_CFLAG(2, TARGET, 30)
+	CALL CHANGE_CFLAG(4, TARGET, 5)
+IF TALENT:CLIENT_ID:무지
+	CALL GET_MONEY_YEN(2000, 2)
+ELSE
+	CALL GET_MONEY_YEN(20000, 2)
+ENDIF
+CASE "의뢰 실패시"
+;失敗報告時の処理
+	CALL CHANGE_CFLAG(2, TARGET, -10)
+	CALL CHANGE_CFLAG(4, TARGET, -5)
+	CALL CHANGE_CFLAG(340, TARGET, 100)
+ENDSELECT
+
+@일반의뢰15_AEGI_YUKARI
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+SELECTCASE RAND:6
+	CASE 0
+		CALL HPH_PRINT("「あんっHPH あっHPH そこっHPH いいっHPH」","W")
+	CASE 1
+		CALL HPH_PRINT("「あっHPH そこっHPH やぁっHPH イクっHPH」","W")
+	CASE 2
+		CALL HPH_PRINT("「あんっHPH そこっHPH そこすきっHPH あっ、イっ……っHPH」","W")
+	CASE 3
+		CALL HPH_PRINT("「んちゅ…HPH んっHPH んふっHPH ん゛～～～っHPHHPH」","W")
+	CASE 4
+		CALL HPH_PRINT("「あっHPH はんっHPH ああっHPH あ゛あ゛～～～っHPH」","W")
+	CASE 5
+		CALL HPH_PRINT("「あっHPH そこダメっHPH またイクっHPH イクっHPH イ゛っ……っHPHHPH」","W")
+ENDSELECT
+
+@일반의뢰15_AEGI_ROSYUTSU(PLACE, PRE, POST)
+#DIMS PLACE
+#DIMS PRE
+#DIMS POST
+
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+	SELECTCASE RAND:7
+	CASE 0
+		CALL HPH_PRINT("「……HPH ………っHPH ……あっHPH」","W")
+	CASE 1
+		CALL HPH_PRINT("「……んっHPH ……ふっHPH ……HPH」","W")
+	CASE 2
+		CALL HPH_PRINT("「……HPH ………んっHPH ………んぅっHPH」","W")
+	CASE 3
+		CALL HPH_PRINT("「……んっHPH ……あぅっHPH ………ん゛っHPH」","W")
+	CASE 4
+		CALL HPH_PRINT("「……あっHPH ……やっHPH こえ、でちゃ…っHPH」","W")
+	CASE 5
+		CALL HPH_PRINT("「……あんっHPH ……だめっHPH こえ、きこえ…っHPH」","W")
+	CASE 6
+		CALL HPH_PRINT("「……HPHHPH ………ちゅHPH …っ～～～HPHHPHHPH」","W")
+	ENDSELECT
+PRINTFORML 
+PRINTFORM %PLACE%%PRE%%TEXTR("ぐちゅぐちゅと激しい水音/かすかな水音/「ぱんっ、ぱんっ」という破裂音にも似た音")%と
+PRINTFORMW %TEXTR("抑えきれない甘い声/くぐもった嬌声/")%が%POST%

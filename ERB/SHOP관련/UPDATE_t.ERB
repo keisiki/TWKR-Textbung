@@ -28,15 +28,49 @@ PRINTL 구버전에는 존재하지 않던 캐릭터·초기 소질·플래그 �
 
 VARSET 대사실장체크
 리셋화면 = 0
-FOR C_ID, 51, 캐릭터수상한
-	IF C_ID < CHARANUM
-		SIF TALENT:C_ID:스침
-			DELCHARA C_ID
-	ENDIF
-	IF GETCHARA (C_ID) == -1
+FOR C_ID,0,CHARANUM ;일단 모브 삭제
+	SIF TALENT:C_ID:스침
+		DELCHARA C_ID
+NEXT
+
+FOR C_ID,1,CHARANUM ;CSV의 이름을 참고해 NO를 고친다
+	VARSET LOCAL
+	FOR LOCAL,1,캐릭터수상한
+		SIF !EXISTCSV(LOCAL)
+			CONTINUE
+		IF NAME:C_ID == CSVNAME(LOCAL)
+			NO:C_ID = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+NEXT
+
+FOR C_ID,1,캐릭터수상한 ;끝나면 새로운 캐릭터 추가
+	IF GETCHARA(C_ID) == -1 && EXISTCSV(C_ID)
 		ADDCHARA C_ID
 		TARGET = C_ID
 		RESULT = 0
+	ENDIF
+	IF TALENT:C_ID:스침
+		RANDOM_CHARANUM = C_ID
+		BREAK
+	ENDIF
+NEXT
+
+FOR C_ID, 1, CHARANUM
+	IF NO:C_ID != C_ID && NO:C_ID != 0 ;만약 어긋나면 다시 열거한다
+		IF NO:C_ID > C_ID ;CSVNO가 지금의 NO보다 뒤라면 SWAP해서 계속
+			SWAPCHARA C_ID,NO:C_ID
+			FOR LOCAL,0,CHARANUM
+				SWAP RELATION:LOCAL:C_ID,RELATION:LOCAL:(NO:C_ID)
+			NEXT
+		ELSE
+			SWAPCHARA C_ID,NO:C_ID ;그렇지 않으면 SWAP해서 처음부터 다시 나열한다
+			FOR LOCAL,0,CHARANUM
+				SWAP RELATION:LOCAL:C_ID,RELATION:LOCAL:(NO:C_ID)
+			NEXT
+			C_ID = 1
+		ENDIF
 	ENDIF
 	IF TALENT:C_ID:스침
 		RANDOM_CHARANUM = C_ID
@@ -143,17 +177,32 @@ FOR C_ID, 1, CHARANUM
 	FOR LOCAL:1, 1, CHARANUM
 		RELATION:C_ID:(LOCAL:1) = CSVRELATION(C_ID, LOCAL:1)
 	NEXT
-	;리소스 차이 유무를 확인
-	rname = 別顔_服_通常_{C_ID}
-	IF SPRITECREATED(rname) && !CFLAG:C_ID:별도얼굴있음
-		PRINTFORML %CALLNAME:C_ID%의 별도 얼굴화상을 확인
-		CFLAG:C_ID:별도얼굴있음 = 1
+	;교체 이미지 유무 확인
+	IF CFLAG:C_ID:별도얼굴있음 < CSVCFLAG(C_ID, 562) || CFLAG:C_ID:별도스탠딩있음 < CSVCFLAG(C_ID, 563)
+		PRINTFORML %CALLNAME:C_ID%の新しい差し替え画像を検出しました。
+		IF CFLAG:C_ID:별도얼굴있음 < CSVCFLAG(C_ID, 562)
+			CALL 画像セット(@"顔絵_服_通常_{C_ID}", 0, 0, 100, 0, 0, "", "デフォルト顔絵")
+			FOR LOCAL:1, 1, CSVCFLAG(C_ID, 562)+1
+				CALL 画像セット(@"\@LOCAL:1 >= 2?別顔{LOCAL:1}#別顔\@_服_通常_{C_ID}", 0, 0, 100, 0, 0, "", "差し替え顔絵")
+			NEXT
+			CALL 画像一斉表示("左", 0, 1)
+		ENDIF
+		IF CFLAG:C_ID:별도스탠딩있음 < CSVCFLAG(C_ID, 563)
+			CALL 画像セット(@"立ち絵_服_通常_{C_ID}", 0, 0, 100, 0, 0, "", "デフォルト立ち絵")
+			FOR LOCAL:1, 1, CSVCFLAG(C_ID, 563)+1
+				CALL 画像セット(@"\@LOCAL:1 >= 2?別立ち{LOCAL:1}#別立ち\@_服_通常_{C_ID}", 0, 0, 100, 0, 0, "", "差し替え立ち絵")
+			NEXT
+			CALL 画像一斉表示("左", 0, 1)
+		ENDIF
+		PRINT [0] 差し替えなし
+		FOR LOCAL:1, 1, MAX(CSVCFLAG(C_ID, 562), CSVCFLAG(C_ID, 563)) + 1
+			PRINTFORM [{LOCAL:1}] 差し替え{LOCAL:1}
+		NEXT
+		INPUT
+		CFLAG:LOCAL:대체적용 = RESULT
 	ENDIF
-	rname = 別立ち_服_通常_{C_ID}
-	IF SPRITECREATED(rname) && !CFLAG:C_ID:별도스탠딩있음
-		PRINTFORML %CALLNAME:C_ID%의 별도 스탠딩화상을 확인
-		CFLAG:C_ID:별도스탠딩있음 = 1
-	ENDIF
+	CFLAG:C_ID:별도얼굴있음 = CSVCFLAG(C_ID, 562)
+	CFLAG:C_ID:별도스탠딩있음 = CSVCFLAG(C_ID, 563)
 	;주인 플래그
 	CFLAG:C_ID:집주인후보 = CSVCFLAG (C_ID, GETNUM(CFLAG, "집주인후보"))
 	CFLAG:C_ID:더부살이필요신뢰도 = CSVCFLAG (C_ID, GETNUM(CFLAG, "더부살이필요신뢰도"))
@@ -170,6 +219,7 @@ FOR C_ID, 1, CHARANUM
 	CFLAG:C_ID:기상시간 = CSVCFLAG (C_ID, GETNUM(CFLAG, "기상시간"))
 	CFLAG:C_ID:자주가는지역 = CSVCFLAG (C_ID, GETNUM(CFLAG, "자주가는지역"))
 	CFLAG:C_ID:자택위치 = CSVCFLAG (C_ID, GETNUM(CFLAG, "자택위치"))
+	;CFLAG:C_ID:집주인후보 = CSVCFLAG (C_ID, GETNUM(CFLAG, "집주인후보")) ;KR판 임의수정 주석처리. 일판은 2번 씀
 	CFLAG:C_ID:이동율보정 = CSVCFLAG (C_ID, GETNUM(CFLAG, "이동율보정"))
 	CFLAG:C_ID:이동절도 = CSVCFLAG (C_ID, GETNUM(CFLAG, "이동절도"))
 	CFLAG:C_ID:내방억제치 = CSVCFLAG(C_ID, GETNUM(CFLAG, "내방억제치"))
@@ -183,6 +233,7 @@ FOR C_ID, 1, CHARANUM
 		SIF MAXBASE:C_ID:1 < CSVBASE (C_ID, 1)
 			MAXBASE:C_ID:1 = CSVBASE (C_ID, 1)
 	ENDIF
+	CFLAG:C_ID:출산휴가타입 = CSVCFLAG (C_ID, GETNUM(CFLAG, "출산휴가타입"))
 	;술내성
 	MAXBASE:C_ID:술기운 = CSVBASE(C_ID, GETNUM(BASE, "술기운"))
 	CALL SET_MINIMUM_EXP_ALL(C_ID)
@@ -198,35 +249,61 @@ FOR C_ID, 1, CHARANUM
 	;자식의성별과 생년월일
 	IF EXP:C_ID:출산경험
 		FOR LOCAL:1, 1, 11
-			IF CHILD_BIRTHDAY:C_ID:(LOCAL:1) && !CHILD_BIRTHDATE:C_ID:(LOCAL:1)
-				;생년월일 설정
-				CHILD_BIRTHDATE:C_ID:(LOCAL:1) = DAY_TO_DATE(CHILD_BIRTHDAY:C_ID:(LOCAL:1))
-				;날씨는 거슬러 올라갈 수 없기 때문에 개이고 란 것으로
-				CHILD_WEATHER:C_ID:(LOCAL:1) = 분명히 맑음
-				;엘렌의 아이는 예외
-				IF C_ID == [[엘렌]]
-					CHILD_SEX:C_ID:(LOCAL:1) = 0
-				ELSE
-					;첫회
-					IF !아이설정첫회 && !FLAG:자식의성별
-						아이설정첫회 = 1
-						PRINTL 자식의성별이 설정되어 있지 않습니다
-						PRINTL 선택해 주세요
-						CALL ASK_M("랜덤", 1, "여자아이", 1, "남자아이", 1)
-						SIF RESULT == 1 || RESULT == 2
-							FLAG:자식의성별 = RESULT
-					ENDIF
-					IF !FLAG:자식의성별
-						CHILD_SEX:C_ID:(LOCAL:1) = RAND:2 + 1
+			;태어난 아이의 설정
+			IF CHILD_BIRTHDAY:C_ID:(LOCAL:1)
+				IF !CHILD_BIRTHDATE:C_ID:(LOCAL:1)
+					;생년월일 설정
+					CHILD_BIRTHDATE:C_ID:(LOCAL:1) = DAY_TO_DATE(CHILD_BIRTHDAY:C_ID:(LOCAL:1))
+					;날씨는 거슬러 올라갈 수 없기 때문에 개이고 란 것으로
+					CHILD_WEATHER:C_ID:(LOCAL:1) = 분명히 맑음
+					;엘렌의 아이는 예외
+					IF C_ID == [[엘렌]]
+						CHILD_SEX:C_ID:(LOCAL:1) = 0
 					ELSE
-						CHILD_SEX:C_ID:(LOCAL:1) = FLAG:자식의성별
+						;첫회
+						IF !아이설정첫회 && !FLAG:자식의성별
+							아이설정첫회 = 1
+							PRINTL 자식의성별이 설정되어 있지 않습니다
+							PRINTL 선택해 주세요
+							CALL ASK_M("랜덤", 1, "여자아이", 1, "남자아이", 1)
+							SIF RESULT == 1 || RESULT == 2
+								FLAG:자식의성별 = RESULT
+						ENDIF
+						IF !FLAG:자식의성별
+							CHILD_SEX:C_ID:(LOCAL:1) = RAND:2 + 1
+						ELSE
+							CHILD_SEX:C_ID:(LOCAL:1) = FLAG:자식의성별
+						ENDIF
+						PRINTFORM %CHILDNAME:C_ID:(LOCAL:1), 15, LEFT% 는 \@ CHILD_SEX:C_ID:(LOCAL:1) == 1 ?  녀 # 남 \@의 아이로 생년월일은 
+						CALL PRINT_DATE(CHILD_BIRTHDAY:C_ID:(LOCAL:1))
+						PRINTFORML 입니다
 					ENDIF
-					PRINTFORM %CHILDNAME:C_ID:(LOCAL:1), 15, LEFT% 는 \@ CHILD_SEX:C_ID:(LOCAL:1) == 1 ?  녀 # 남 \@의 아이로 생년월일은 
-					CALL PRINT_DATE(CHILD_BIRTHDAY:C_ID:(LOCAL:1))
-					PRINTFORML 입니다
 				ENDIF
+				;초기 애정도 설정
+				IF !CHILD_LOVE:C_ID:(LOCAL:1)
+					;무자각 임신 정보는 상실되었으므로 함락 없음으로 판정
+					IF TALENT:C_ID:연모
+						CHILD_LOVE:C_ID:(LOCAL:1) = 300
+					ELSEIF TALENT:C_ID:사모
+						CHILD_LOVE:C_ID:(LOCAL:1) = 200
+					ELSE
+						CHILD_LOVE:C_ID:(LOCAL:1) = 100
+					ENDIF
+				ENDIF
+				;자립처 설정
+				SIF !CHILD_AREA:C_ID:(LOCAL:1)
+					CALL 자립처선정(C_ID, LOCAL:1)
 			ENDIF
 		NEXT
+	ENDIF
+	;선물 정보의 수정
+	IF !GIFT_GOT:C_ID:1
+		CFLAG:C_ID:선물스톡 = 0
+		IF CFLAG:C_ID:받은선물
+			CFLAG:C_ID:받은선물 -= (GET_GIFTDATA(CFLAG:C_ID:받은선물, "횟수") * 10000000000000000)
+			CFLAG:C_ID:받은선물 += 1 * 10000000000000000
+			GIFT_GOT:C_ID:1 = CFLAG:C_ID:받은선물
+		ENDIF
 	ENDIF
 NEXT
 CFLAG:MASTER:신사거주 = CFLAG:MASTER:초기위치
@@ -237,6 +314,12 @@ IF FLAG:더부살이캐릭터 && SUMIKOMI_ROOM
 ENDIF
 SIF !FLAG:술벌레 
 	FLAG:술벌레 = 1
+
+IF GETBIT(FLAG_DAILY_EV23, 0) && !FLAG_DAILY_EV23_판매원
+	PRINTFORML 訪問販売員の外見は…
+	CALL ASK_YN("髪を後ろで二つにまとめている","ボーイッシュなショートヘア")
+	FLAG_DAILY_EV23_판매원 = RESULT + 1
+ENDIF
 
 ;레이무
 NAME:[[레이무]] = 하쿠레이 레이무
@@ -382,7 +465,7 @@ NAME:[[케이네]] = 카미시라사와 케이네
 
 ;신묘마루
 NAME:[[신묘마루]] = 스쿠나 신묘마루
-;CFLAG:71:신사 거주 = CFLAG:71:초기 위치
+;CFLAG:71:신사거주 = CFLAG:71:초기위치
 ;TALENT:71:100 = -5
 
 ;에이린
@@ -629,29 +712,34 @@ SIF !RESULT
 	CALL IRAI_RESET
 
 ;아이템류의 재고 관리
-CALL ITEM_RANGE, "식재료의 시장"
-FOR LOCAL, RESULT:0, RESULT:1
-	SIF ITEM_TYPES( LOCAL, "식재료의 시장" ) && (ITEMSALES:LOCAL == 0 || ITEMSALES:LOCAL > 30 )
-		ITEMSALES:LOCAL = LIMIT( ITEMSALES:LOCAL, 10, 30 )
-NEXT
-CALL ITEM_RANGE, "술집"
-FOR LOCAL, RESULT:0, RESULT:1
-	SIF ITEM_TYPES( LOCAL, "술집" ) && (ITEMSALES:LOCAL == 0 || ITEMSALES:LOCAL > 30 )
-		ITEMSALES:LOCAL = LIMIT( ITEMSALES:LOCAL, 5, 30 )
-	IF ITEM:LOCAL > 99
-		LOCAL:1 = ITEM:LOCAL - 99
-		LOCAL:2 = ITEMPRICE:LOCAL * 50 / 100
-		ITEM:LOCAL = 99
-		MONEY += LOCAL:1 * LOCAL:2
-		PRINTFORML %조사처리(ITEMNAME:LOCAL,"가")% 99개 이상이므로 초과분을 현금으로 반환합니다.
-		PRINTFORML 특별히 통상 주류 매입시 최고금액으로 인수하오니 양해 부탁드립니다.
-		PRINTFORML 그리고, 앞으로의 주류 최대소지수는 99개로 제한됩니다.
-	ENDIF
-NEXT
-CALL ITEM_RANGE, "꽃집"
-FOR LOCAL, 1 + RESULT:0, RESULT:1
-	SIF ITEM_TYPES( LOCAL, "꽃집" ) && (ITEMSALES:LOCAL == 0 || ITEMSALES:LOCAL > 3 )
+FOR LOCAL, 0, 1000
+	CALL ITEMDATA(LOCAL, "SHOP:식료품점")
+	RESULT:1 = RESULT
+	CALL ITEMDATA(LOCAL, "SHOP:술집")
+	RESULT:2 = RESULT
+	CALL ITEMDATA(LOCAL, "SHOP:꽃집")
+	RESULT:3 = RESULT
+	CALL ITEMDATA(LOCAL, "SHOP:야채가게")
+	RESULT:4 = RESULT
+	IF RESULT:1 && !INRANGE(ITEMSALES:LOCAL, 1, 30)
+		ITEMSALES:LOCAL = LIMIT(ITEMSALES:LOCAL, 10, 30)
+	ELSEIF RESULT:2 && !INRANGE(ITEMSALES:LOCAL, 1, 30)
+		ITEMSALES:LOCAL = LIMIT(ITEMSALES:LOCAL, 5, 30)
+	ELSEIF RESULT:3 && !INRANGE(ITEMSALES:LOCAL, 0, 3)
 		ITEMSALES:LOCAL = 3
+	ELSEIF RESULT:4 && !INRANGE(ITEMSALES:LOCAL, 0, 5)
+		ITEMSALES:LOCAL = RAND:5
+	ENDIF
+	;ついでに소지수제한,換金はしません
+	IF ITEM:LOCAL > 소지수제한 && !GROUPMATCH(ITEMNAME:LOCAL, "마음에드는아이템")
+		ITEM:LOCAL = 소지수제한
+		PRINTFORMW %ITEMNAME:LOCAL%が소지수제한を超えていたので制限値まで減らしました
+	ENDIF
+	;ついでのついでに存在外アイテムの削除
+	IF ITEMNAME:LOCAL == ""
+		ITEM:LOCAL = 0
+		ITEMSALES:LOCAL = 0
+	ENDIF
 NEXT
 
 IF TALENT:MASTER:체형 == -3
@@ -803,7 +891,7 @@ CFLAG:ARG:퇴짜 = 0
 CFLAG:ARG:딸딸이들킴 = 0
 CFLAG:ARG:면간발각 = 0
 CFLAG:ARG:수면간 = 0
-CFLAG:ARG:만취간 = 0 ;TODO 원본에서 2번 씀
+CFLAG:ARG:만취간 = 0
 CFLAG:ARG:발렌타인 = 0
 CFLAG:ARG:마지막에만난날 = 0
 CFLAG:ARG:무자각임신 = 0
@@ -811,17 +899,17 @@ CFLAG:ARG:임신추가사이즈 = 0
 CFLAG:ARG:깨끗한교제 = 0
 CFLAG:ARG:출산경과일 = 0
 CFLAG:ARG:육아인원수 = 0
-CFLAG:ARG:자각사정 = 0 ;TODO 현재 원본에 없음 ;일판 身に覚え_母로 숫자 대체
+CFLAG:ARG:몸으로기억_어머니 = 0
 CFLAG:ARG:몸으로기억_아버지 = 0
 CFLAG:ARG:임신자각상태 = 0
-CFLAG:ARG:만취간 = 0 ;TODO 원본에서 2번 씀
+;CFLAG:ARG:만취간 = 0 ;KR판 임의수정 주석처리, 원본에서 2번 씀
 CFLAG:ARG:술을못함 = 0
 CFLAG:ARG:억지로질내사정 = 0
 CFLAG:ARG:임신 = 0
 CFLAG:ARG:임신경과일수 = 0
 CFLAG:ARG:아이인원수 = 0
 CFLAG:ARG:자식보정 = 0
-CFLAG:ARG:출산휴가 = 0
+CFLAG:ARG:출산휴가중 = 0
 CFLAG:ARG:누계질내정액 = 0
 CFLAG:ARG:누계애널정액 = 0
 CFLAG:ARG:누계정음 = 0
@@ -892,7 +980,7 @@ VARSET CHILD_BIRTHDAY:ARG:0, 0
 VARSET CHILD_WEATHER:ARG:0, ""
 VARSET CHILD_SEX:ARG:0, 0
 VARSET CHILDNAME:ARG:0, ""
-;SIF !EXP:ARG:키스경험
+SIF !EXP:ARG:키스경험
 	TALENT:ARG:키스미경험 = 1
 TALENT:ARG:0 = CSVTALENT(ARG,0)
 PRINTFORMW %ARG를% 리셋 했습니다.
@@ -1033,5 +1121,7 @@ CASE [[早鬼]]
 	SETBIT CFLAG:ARG:탄막특능, SKL怪力乱神
 	SETBIT CFLAG:ARG:탄막특능, SKL豪放磊落
 	SETBIT CFLAG:ARG:탄막특능, SKL乾坤一擲
+CASE [[美宵]]
+	SETBIT CFLAG:ARG:탄막특능, SKL豪放磊落
 ENDSELECT
 

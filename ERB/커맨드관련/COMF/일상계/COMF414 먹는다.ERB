@@ -3,199 +3,123 @@
 ;日常系コマンド、レベル1
 ;-------------------------------------------------
 @COM414
-#DIM 回復前체력_MASTER
-#DIM 回復前기력_MASTER
-#DIM 回復後체력_MASTER
-#DIM 回復後기력_MASTER
-#DIM 回復前체력_TARGET
-#DIM 回復前기력_TARGET
-#DIM 回復後체력_TARGET
-#DIM 回復後기력_TARGET
-#DIM NUM_TARGET
 #DIM NOW_TARGET
-#DIM NOW_SUCCESS
-#DIM T_ID
+#DIM EAT_TIME
 CALL AssembleForMeal
-NUM_TARGET = GET_TARGETNUM()
-VARSET LOCAL
-回復前체력_MASTER = BASE:MASTER:체력
-回復前기력_MASTER = BASE:MASTER:기력
+CVARSET TCVAR, GETNUM(TCVAR, "요리평가치"), 0
+IF DISH_TYPE == "주식"
+	EAT_TIME = 40
+ELSE
+	EAT_TIME = 20
+ENDIF
 
 FLAG:오늘밥 += 1
 
 CALL 영양소증가(요리영양소:0,요리영양소:1,요리영양소:2,요리영양소:3,요리영양소:4)
 VARSET 요리영양소
 FLAG:충치진행도 += RAND:3
+;특수요리판정
+IF DISH_NAME == "샤브샤브" && TARGET
+	FOR LOCAL, 1, GET_TARGETNUM() + 1
+		SIF EQUIP:(TARGET:LOCAL):하반신속옷2 > 0
+			CONTINUE
+		TFLAG:194 = 1
+		DISH_TASTE += "정력/"
+		BREAK
+	NEXT
+ELSEIF STRCOUNT(DISH_TASTE, "로터/")
+	TFLAG:194 = 2
+ELSEIF DISH_NAME == "모짜렐라 치즈와 토마토의 샐러드"
+	TFLAG:194 = 30
+ELSEIF DISH_NAME == "도핑 콘소메 수프"
+	TFLAG:194 = 31
+ELSEIF DISH_NAME == "긴기 요리"
+	TFLAG:194 = 34
+ENDIF
+
+;우선 MASTER 말고
 IF TARGET
-	回復前체력_TARGET = BASE:TARGET:체력
-	回復前기력_TARGET = BASE:TARGET:기력
-	CALL COM414_CTRL_EAT_DISH("PRI")
-	SIF RESULT < 0
-		RETURN
-	;信頼
-	TFLAG:98 += 3
-	SIF ABL:MASTER:요리기능 > 1
-		TFLAG:98 ++ 
-	SIF ABL:MASTER:요리기능 > 3
-		TFLAG:98 ++ 
-	
-	;장난を仕込まれていない
-	IF !TASTE_GIVEUP(TARGET, DISH_RADICAL()) && TFLAG:192 >= 0
-		;味付けがツボだと失敗しない
-		IF CFLAG:TARGET:미각기호 & TCVAR:MASTER:308
-			TFLAG:193 = MAX(TFLAG:193,0)
-			;信頼にも修正
-			TFLAG:98 += 2
+	;구상 측의 제어
+	CALL KOJO_MESSAGE_SEND("SUCCESS",-1,TARGET,-1,-1)
+	SELECTCASE TFLAG:192
+	CASE 1
+		IF RAND:(100 - ABL:MASTER:요리기능 * 2) <= 9
+			TCVAR:TARGET:요리평가치 = 700
+		ELSE
+			TCVAR:TARGET:요리평가치 = 500
 		ENDIF
-	ENDIF
-	SELECTCASE DISHTYPE
-		CASE 1
-
-		CASE 2,4,5
-
-		CASE 3
-
+	CASE -1
+		TCVAR:TARGET:요리평가치 = 400
+	CASE -2
+		TFLAG:193 = -2
+		RETURN
+	CASEELSE
+		TCVAR:TARGET:요리평가치 = 0
 	ENDSELECT
-	
-	;特殊な식사フラグ
-	SELECTCASE DISHNAME
-		CASE "샤브샤브"
-			;その場にはいてないキャラがいるか確認
-			FOR LOCAL, 1, NUM_TARGET + 1
-				SIF EQUIP:(TARGET:LOCAL):하반신속옷2 > 0
-					CONTINUE
-				TFLAG:194 = 1
-				BREAK
-			NEXT
-		CASE "긴기 요리"
-			TFLAG:194 = 34
-		CASE "모짜렐라 치즈와 토마토의 샐러드"
-			TFLAG:194 = 30
-		CASE "도핑 콘소메 수프"
-			TFLAG:194 = 31
-		CASEELSE
-			SIF DISHTYPE == 4
-				TFLAG:194 = 2
-	ENDSELECT
-	
-	;その場に居るTARGET全員で回す
-	;TARGET:0以外を先に処理して最後にTARGET:0
 	NOW_TARGET = TARGET
-	NOW_SUCCESS = TFLAG:193
-	FOR LOCAL:4, 1, NUM_TARGET + 1
-		TARGET = TARGET:(LOCAL:4)
+	;일단 현재 TARGET 이외가 먹는다
+	FOR LOCAL, 1, GET_TARGETNUM() + 1
+		TARGET = TARGET:LOCAL
 		SIF TARGET == NOW_TARGET
 			CONTINUE
+		;구상 측의 제어
 		CALL KOJO_MESSAGE_SEND("SUCCESS",-1,TARGET,-1,-1)
-		CALL COM414_CTRL_EAT_DISH("LATER")
-		CALL COM414_1
+		SELECTCASE TFLAG:192
+		CASE 1
+			IF RAND:(100 - ABL:MASTER:요리기능 * 2) <= 9
+				TCVAR:TARGET:요리평가치 = 700
+			ELSE
+				TCVAR:TARGET:요리평가치 = 500
+			ENDIF
+		CASE -1
+			TCVAR:TARGET:요리평가치 = 300
+		CASE -2
+			CONTINUE
+		CASEELSE
+			TCVAR:TARGET:요리평가치 = 0
+		ENDSELECT
+		;시식
+		CALL COM414_実食(TARGET, EAT_TIME, TARGET == DISH_ASSI || CFLAG:TARGET:행동 == 5)
 	NEXT
+	;그 후에 TARGET이 먹는다
 	TARGET = NOW_TARGET
-	TFLAG:193 = NOW_SUCCESS
-
-	IF !CFLAG:수면
-		CALL COM414_1
-	ELSE
-		SIF TFLAG:193 == 1
-			EXP:MASTER:회화경험 --
-	ENDIF
-	回復後체력_TARGET = BASE:TARGET:체력
-	回復後기력_TARGET = BASE:TARGET:기력
+	;현재의 TARGET은 보너스 확정
+	CALL COM414_実食(TARGET, EAT_TIME, 1)
+	;신뢰도,약간 큰, 평균 3
+	TFLAG:98 = (TCVAR:TARGET:요리평가치 / 100) / 2 + 1
 ENDIF
 
-;軽食
-IF DISHTYPE == 1
-	CALL 식사(MASTER)
-	TIME += 20
-	SIF CFLAG:동행
-		CFLAG:동행 += 20
-;요리が샤브샤브ではいてないキャラがいると노팬티샤브샤브に
-ELSEIF TFLAG:194 == 1
-	BASE:MASTER:체력 = MIN(BASE:MASTER:체력 + MAXBASE:MASTER:체력 / 3 , MAXBASE:MASTER:체력)
-	BASE:MASTER:기력 = MIN(BASE:MASTER:기력 + MAXBASE:MASTER:기력 / 2 , MAXBASE:MASTER:기력)
-	BASE:MASTER:정력 = MIN(BASE:MASTER:정력 + MAXBASE:MASTER:정력 / 2 , MAXBASE:MASTER:정력)
-	;식사をしたフラグ
-	CALL 만복도상승(MASTER,"주식")
-	TIME += 40
-	SIF CFLAG:동행
-		CFLAG:동행 += 40
-ELSEIF DISHTYPE == 2
-	CALL 식사(MASTER)
-	TIME += 40
-	SIF CFLAG:동행
-		CFLAG:동행 += 40
-ELSEIF DISHTYPE == 3
-	CALL 식사(MASTER)
-	TIME += 20
-	SIF CFLAG:동행
-		CFLAG:동행 += 20
-ELSEIF DISHTYPE == 4 || DISHTYPE == 5
-	CALL 식사(MASTER)
-	TIME += 40
-	SIF CFLAG:동행
-		CFLAG:동행 += 40
-ENDIF
-回復後체력_MASTER = BASE:MASTER:체력
-回復後기력_MASTER = BASE:MASTER:기력
-;CALL RESET_DISH
-DRAWLINE
-PRINTFORML 체력+{ABS(回復後체력_MASTER - 回復前체력_MASTER)}（%CALLNAME:MASTER%）
-PRINTFORML 기력+{ABS(回復後기력_MASTER - 回復前기력_MASTER)}（%CALLNAME:MASTER%）
-IF TARGET
-	PRINTFORML 체력+{ABS(回復後체력_TARGET - 回復前체력_TARGET)}（%CALLNAME:TARGET%）
-	PRINTFORML 기력+{ABS(回復後기력_TARGET - 回復前기력_TARGET)}（%CALLNAME:TARGET%）
-ENDIF
-주문내용_술 = 0
+CALL 식사(MASTER)
+TIME += EAT_TIME
+SIF CFLAG:MASTER:동행
+	CFLAG:MASTER:동행 += EAT_TIME
 RETURN 1
 
-
-;식사結果の成功制御、判定部分がほぼ同一だったので切り出し
-@COM414_CTRL_EAT_DISH(SCENE)
-#DIMS SCENE
-SELECTCASE TFLAG:192
-CASE 0
-	;通常
-	LOCAL = RAND:(MAX(100 - ABL:MASTER:요리기능 * 2, 1))
-	LOCAL:1 = MIN(90 + GET_SUCCESS_RATE() / 5, 99)
-	SELECTCASE LOCAL
-		CASE IS <= 9
-			TFLAG:193 = 1
-		CASE IS >= LOCAL:1
-			;10～1％で失敗
-			TFLAG:193 = -1
-		CASEELSE
-			;残りは成功
-			TFLAG:193 = 0
-	ENDSELECT
-CASE 1
-	IF RAND:(MAX(100 - ABL:MASTER:요리기능 * 2, 1)) <= 9
-		TFLAG:193 = 1
-	ELSE
-		;残りは成功
-		TFLAG:193 = 0
-	ENDIF
-CASE -1, -2
-	TFLAG:193 = -1
-ENDSELECT
-
-IF SCENE == "PRI"
-	SIF TFLAG:192 == -2
-		RETURN -1
-	SELECTCASE TFLAG:193
-	CASE 1
-		TFLAG:98 = 2
-	CASE -1
-		TFLAG:98 = -2
-	CASEELSE
-		TFLAG:98 = 0
-	ENDSELECT
-ENDIF
-
-@COM414_1
+;-------------------------------------------------
+;食べる処理と獲得ソースの計算
+;CHARA     食べる人
+;EAT_TIME  食べる時間
+;BONUS     DISH_ASSIと현재의TARGETと仕事中のキャラは보너스2倍
+;-------------------------------------------------
+@COM414_実食(CHARA, EAT_TIME, BONUS)
+#DIM CHARA
+#DIM EAT_TIME
+#DIM BONUS
 #DIM 空腹
+#DIM 評価点係数
+#DIM 호감도係数
+#DIM 순종係数
+#DIM 時間係数
+
 #DIM DISH_ITAZURA
 空腹 = 0
-IF DISHTYPE == 3
+;食べられない状況
+SIF CFLAG:CHARA:수면
+	RETURN
+SIF CFLAG:CHARA:쇠약
+	RETURN
+;만복なので食べない
+IF DISH_TYPE == "디저트"
 	SIF TIME_PROGRESS(TCVAR:디저트공복시각)
 		空腹 = 1
 ELSE
@@ -204,125 +128,104 @@ ELSE
 ENDIF
 SIF !空腹
 	RETURN
+;먹는다
+CALL 식사(CHARA)
 
-;満腹でない
-;固定で獲得するソース
-SELECTCASE DISHSPOIL
-	CASE 0
-		SOURCE:환락 = 800
-	CASE 1
-		SOURCE:환락 = 400
-	CASE 2
-		SOURCE:환락 = 100
-		SOURCE:불결 = 400
-		SOURCE:반감 = 400
-ENDSELECT
-
-;ABL:순종をみる
+;계수 설정
 IF ABL:순종 <= 1
-	SOURCE:환락 += (ABL:순종 * 60)
+	순종係数 = 0
 ELSEIF ABL:순종 <= 3
-	SOURCE:환락 += 500 + (ABL:순종 * 60)
+	순종係数 = 1
 ELSEIF ABL:순종 <= 5
-	SOURCE:환락 += 700 + (ABL:순종 * 60)
+	순종係数 = 2
 ELSEIF ABL:순종 <= 8
-	SOURCE:환락 += 1000 + (ABL:순종 * 75)
+	순종係数 = 3
 ELSEIF ABL:순종 <= 11
-	SOURCE:환락 += 1500 + (ABL:순종 * 75)
+	순종係数 = 4
+ELSEIF ABL:순종 <= 14
+	순종係数 = 5
 ELSE
-	SOURCE:환락 += 3000 + (ABL:순종 * 30)
+	순종係数 = 6
 ENDIF
-
-;노팬티샤브샤브で노출追加
-SIF TFLAG:194 == 1
-	SOURCE:노출 += 1000 
-;호감도をみる
-IF CFLAG:2 <= 500
-	SOURCE:환락 += CFLAG:2
-ELSEIF CFLAG:2 <= 5000
-	SOURCE:환락 += 500 + (CFLAG:2 - 500) / 3
+IF CFLAG:CHARA:호감도 < 100
+	호감도係数 = 0
+ELSEIF CFLAG:CHARA:호감도 < 500
+	호감도係数 = 1
+ELSEIF CFLAG:CHARA:호감도 < 1000
+	호감도係数 = 2
+ELSEIF CFLAG:CHARA:호감도 < 5000
+	호감도係数 = 4
+ELSEIF CFLAG:CHARA:호감도 < 10000
+	호감도係数 = 6
+ELSEIF CFLAG:CHARA:호감도 < 30000
+	호감도係数 = 8
 ELSE
-	SOURCE:환락 += 2000 + (CFLAG:2 - 5000) / 5
+	호감도係数 = 10
 ENDIF
-SIF SOURCE:환락 < 0
-	SOURCE:환락 = 0
-
-;장난요리を先に処理
-DISH_ITAZURA = TASTE_GIVEUP(TARGET, DISH_RADICAL())
-SELECTCASE DISH_ITAZURA
-CASE 0
-	;미각기호を見る
-	SIF CFLAG:TARGET:미각기호 & TCVAR:MASTER:308
-		SOURCE:환락 += 200
-CASE DISH_RADICAL_엄청매운
-	SOURCE:고통 += 500
-CASE DISH_RADICAL_격감
-	SOURCE:반감 += 300
-CASE DISH_RADICAL_고추냉이
-	SOURCE:고통 += 500
-CASE DISH_RADICAL_레몬
-	SOURCE:불결 += 300
-ENDSELECT
-IF DISH_ITAZURA
-	SOURCE:반감 += 500
-	TFLAG:98 -= 2
-	IF TALENT:유치
-		TIMES SOURCE:고통, 1.2
-		TIMES SOURCE:반감, 1.2
-		TIMES SOURCE:불결, 1.2
-	ENDIF
-	IF CFLAG:행동 == 5
-		TIMES SOURCE:반감, 1.2
-		TIMES SOURCE:불결, 1.2
-		TFLAG:98 -= 2
-	ENDIF
-	SOURCE:환락 = 0
-	IF TALENT:대식가
-		TIMES SOURCE:반감, 1.2
-		TIMES SOURCE:불결, 1.2
-		TFLAG:98 -= 2
-	ENDIF
-	CALL KIGEN_CHANGE(TARGET, 70, -1)
-	CALL 식사(TARGET)
-	RETURN
-ENDIF
-
-SOURCE:수동 = 200 + 100 * ABL:순종
-SOURCE:정복 = 200 + 100 * ABL:새드끼
-
-IF TFLAG:193 == -1
-	TIMES SOURCE:환락 , 0.10
-	TIMES SOURCE:정복 , 0.50
-	TIMES SOURCE:수동 , 0.50
-ELSEIF TFLAG:193 == 0
-	TIMES SOURCE:환락 , 1.00
-	TIMES SOURCE:정복 , 1.00
-	TIMES SOURCE:수동 , 1.00
-	CALL KIGEN_CHANGE(TARGET,30,1)
+;1~3? , 간식&디저트1, 주식2
+時間係数 = EAT_TIME / 20
+;1~9
+IF TCVAR:CHARA:요리평가치 < 300
+	評価点係数 = 0
+ELSEIF TCVAR:CHARA:요리평가치 < 400
+	評価点係数 = 1
+ELSEIF TCVAR:CHARA:요리평가치 < 500
+	評価点係数 = 3
+ELSEIF TCVAR:CHARA:요리평가치 < 600
+	評価点係数 = 12
+ELSEIF TCVAR:CHARA:요리평가치 < 650
+	評価点係数 = 16
+ELSEIF TCVAR:CHARA:요리평가치 < 700
+	評価点係数 = 20
+ELSEIF TCVAR:CHARA:요리평가치 < 750
+	評価点係数 = 24
+ELSEIF TCVAR:CHARA:요리평가치 < 800
+	評価点係数 = 30
+ELSEIF TCVAR:CHARA:요리평가치 < 850
+	評価点係数 = 36
+ELSEIF TCVAR:CHARA:요리평가치 < 900
+	評価点係数 = 40
 ELSE
-	TIMES SOURCE:환락 , 2.00
-	TIMES SOURCE:정복 , 2.00
-	TIMES SOURCE:수동 , 2.00
-	IF TALENT:기분 < 0
-		CALL KIGEN_CHANGE(TARGET,100,1)
-	ELSE
-		CALL KIGEN_CHANGE(TARGET,50,1)
-	ENDIF
+	評価点係数 = 45
 ENDIF
-SOURCE:환락 = SOURCE:환락 * (ABL:MASTER:요리기능 + DISHQUALITY * 2) / 5
-SOURCE:정복 = SOURCE:정복 * (ABL:MASTER:요리기능 + DISHQUALITY * 2) / 5
-SOURCE:수동 = SOURCE:수동 * (ABL:MASTER:요리기능 + DISHQUALITY * 2) / 5
-IF CFLAG:행동 == 5
-	TIMES SOURCE:환락 , 2.00
-	TIMES SOURCE:정복 , 2.00
-	TIMES SOURCE:수동 , 2.00
-	TFLAG:98 += 2
-ENDIF
-CALL 식사(TARGET)
+
+;평가치의 영향 강화
+SOURCE:CHARA:환락 = (100 * 評価点係数 + 500 * 호감도係数 + 30 * ABL:CHARA:친밀) * 時間係数
+SOURCE:CHARA:수동 = (20 * 評価点係数 + 300 * 순종係数 + 30 * ABL:CHARA:순종) * 時間係数
+SIF CHARA == DISH_ASSI
+	SOURCE:CHARA:정복 = (10 * 評価点係数 + ABL:CHARA:새드끼 * 30) * 時間係数
+SOURCE:CHARA:불결 = STRCOUNT(DISH_TASTE, "열화/") * (100 - TCVAR:CHARA:요리평가치 / 10) * 2
+SOURCE:CHARA:반감 = STRCOUNT(DISH_TASTE, "열화/") * (100 - TCVAR:CHARA:요리평가치 / 10) * 2
+;노팬티샤브샤브
+SIF TFLAG:194 == 1 && ! EQUIP:CHARA:하반신속옷2
+	SOURCE:CHARA:노출 = 1000
 
 SIF TALENT:대식가
-	TIMES SOURCE:환락 , 1.50
+	TIMES SOURCE:환락, 1.50
+IF BONUS
+	TIMES SOURCE:환락, 1.50
+	TIMES SOURCE:수동, 1.50
+	TIMES SOURCE:정복, 1.50
+ENDIF
 
+IF TCVAR:CHARA:요리평가치 >= 700
+	IF TALENT:CHARA:기분 < 0
+		CALL KIGEN_CHANGE(CHARA, 100, 1)
+	ELSE
+		CALL KIGEN_CHANGE(CHARA, 50, 1)
+	ENDIF
+	TFLAG:193 = 1
+ELSEIF TCVAR:CHARA:요리평가치 >= 400
+	CALL KIGEN_CHANGE(CHARA, 30, 1)
+	TFLAG:193 = 0
+ELSE
+	SIF TALENT:CHARA:기분 >= 0
+		CALL KIGEN_CHANGE(CHARA, 100, -1)
+	TFLAG:193 = -1
+ENDIF
+
+SIF CFLAG:CHARA:동행
+	CFLAG:CHARA:동행 += EAT_TIME
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
@@ -336,17 +239,14 @@ SIF GLOBAL_COMABLE(414)
 ;停止中は不可
 SIF FLAG:70 == 1
 	RETURN 0
-;장난をした요리は自分で食べない
-SIF DISH_RADICAL() && !TARGET
-	RETURN 0
 ;요리がない
-SIF DISHNAME == ""
+SIF DISH_NAME == ""
 	RETURN 0
-;軽食以外は屋内じゃなきゃ無理
-SIF FLAG:20 >= 10 && !INROOM(CFLAG:MASTER:현재위치)
+;경식以外は屋内じゃなきゃ無理
+SIF DISH_TYPE != "경식" && !INROOM(CFLAG:MASTER:현재위치)
 	RETURN 0
 ;食べたばかり
-IF DISHTYPE == 3
+IF DISH_TYPE == "디저트"
 	SIF !TIME_PROGRESS(TCVAR:MASTER:디저트공복시각)
 		RETURN 0
 ELSE
@@ -357,3 +257,321 @@ SIF CFLAG:MASTER:우후후
 	RETURN 0
 RETURN 1
 
+;-------------------------------------------------
+;실제로 음식을 먹는 처리
+;-------------------------------------------------
+@식사(ARG)
+#DIM 정력회복량
+#DIM 기력회복량
+#DIM 체력회복량
+#DIM TSP회복량
+#DIM 정력회복율
+#DIM 기력회복율
+#DIM 체력회복율
+#DIM TSP회복율
+#DIM 만복도
+;회복율은 0.1%단위
+
+FLAG:오늘밥 = 1
+TSP회복량 = 0
+TSP회복율 = 0
+
+;기본 회복율과 포만도
+SELECTCASE DISH_TYPE
+	CASE "경식"
+		체력회복율 = 300
+		기력회복율 = 300
+		정력회복율 = 100
+		만복도 = 180
+	CASE "주식"
+		체력회복율 = 500
+		기력회복율 = 500
+		정력회복율 = 200
+		만복도 = 360
+	CASE "디저트"
+		체력회복율 = 300
+		기력회복율 = 500
+		정력회복율 = 100
+		만복도 = 180
+ENDSELECT
+;追加回復率
+SIF STRCOUNT(DISH_TASTE, "신력/")
+	TIMES 기력회복율, 1.2
+SIF STRCOUNT(DISH_TASTE, "요력/")
+	TIMES 기력회복율, 1.2
+SIF STRCOUNT(DISH_TASTE, "생명력/")
+	TIMES 체력회복율, 1.2
+SIF STRCOUNT(DISH_TASTE, "영장/")
+	TSP회복율 += 200
+;오니의마력と区別
+SIF STRCOUNT(DISH_TASTE, "/마력/")
+	TSP회복율 += 200
+SIF STRCOUNT(DISH_TASTE, "선술/")
+	TSP회복율 += 200
+SIF STRCOUNT(DISH_TASTE, "비술/")
+	TSP회복율 += 200
+IF STRCOUNT(DISH_TASTE, "오니의마력/")
+	정력회복율 = 1000
+	;정력最大値バフ(미실장）
+ENDIF
+IF STRCOUNT(DISH_TASTE, "피의마력/")
+	TSP회복율 = 1000
+	;TSP最大値バフ(미실장）
+ENDIF
+IF STRCOUNT(DISH_TASTE, "정력/")
+	정력회복율 += 500
+	SIF ARG == MASTER
+		TALENT:MASTER:농후정액 = 1
+ENDIF
+;添加物
+SELECTCASE DISH_DRG_2
+CASE GETNUM(ITEM, "영양강화제")
+	TIMES 기력회복율, 1.2
+	TIMES 체력회복율, 1.2
+	TIMES 정력회복율, 1.2
+ENDSELECT
+;버프계,미실장
+[SKIPSTART]
+SIF STRCOUNT(DISH_TASTE, "약효/") && ARG == MASTER
+	;미정
+SIF STRCOUNT(DISH_TASTE, "祝福/") && ARG == MASTER
+	;미정
+SIF STRCOUNT(DISH_TASTE, "인챈트/") && ARG == MASTER
+	;戦闘力強化１
+SIF STRCOUNT(DISH_TASTE, "가호/") && ARG == MASTER
+	;戦闘力強化２
+SIF STRCOUNT(DISH_TASTE, "기적/") && ARG == MASTER
+	;ラックアップ１
+SIF STRCOUNT(DISH_TASTE, "행운/") && ARG == MASTER
+	;ラックアップ２
+SIF STRCOUNT(DISH_TASTE, "풍요/") && ARG == MASTER
+	;미정
+[SKIPEND]
+
+;MASTER 이외의 처리
+IF ARG != MASTER
+	;맛의 평가, 구상측에서 제어되는 경우 컷
+	SIF !TCVAR:ARG:요리평가치
+		CALL REVIEW_DISH(ARG, DISH_TASTE)
+	;투입
+	SELECTCASE DISH_DRG
+	CASE GETNUM(ITEM, "미약")
+		TCVAR:ARG:미약 = 210
+	CASE GETNUM(ITEM, "이뇨제")
+		TCVAR:ARG:이뇨제 = 210
+	CASE GETNUM(ITEM, "춘약")
+		TCVAR:ARG:춘약 = 210
+	CASE GETNUM(ITEM, "수면제")
+		IF TCVAR:ARG:수면제강도 < 2
+			TCVAR:ARG:수면제강도 = 2
+			TCVAR:ARG:수면제차사용 = 1
+		ENDIF
+	CASE GETNUM(ITEM, "배란유발제")
+		TCVAR:ARG:강제배란 = 180
+	CASE GETNUM(ITEM, "보테이지")
+		TCVAR:ARG:무조건임신 = 1
+	CASE GETNUM(ITEM, "히스테리큐")
+		TCVAR:ARG:히스테리큐 = 1
+	ENDSELECT
+	;;평가치 보정,기력과 체력 뿐
+	SELECTCASE TCVAR:ARG:요리평가치
+	CASE IS < 400
+		TIMES 체력회복율, 0.6
+		TIMES 기력회복율, 0.6
+	CASE IS < 500
+		TIMES 체력회복율, 0.8
+		TIMES 기력회복율, 0.8
+	CASE IS < 600
+		TIMES 체력회복율, 1.0
+		TIMES 기력회복율, 1.0
+	CASEELSE
+		TIMES 체력회복율, 1.2
+		TIMES 기력회복율, 1.2
+	ENDSELECT
+ENDIF
+
+;회복량 계산
+체력회복량 = MAXBASE:ARG:체력 * 체력회복율 / 1000
+기력회복량 = MAXBASE:ARG:기력 * 기력회복율 / 1000
+정력회복량 = MAXBASE:ARG:정력 * 정력회복율 / 1000
+TSP회복량 = MAXBASE:ARG:TSP * TSP회복율 / 1000
+
+IF 주문내용_술
+	CALL DRUNKEN(ARG,주문내용_술)
+	COOK_POWER += 1
+	체력회복율 += 15
+	기력회복율 += 75
+ENDIF
+
+;로터 요리
+SIF STRCOUNT(DISH_TASTE, "로터/")
+	EXP:ARG:C경험 += 30
+
+;만복도 상승
+SIF TALENT:ARG:대식가
+	TIMES 만복도, 0.7
+IF DISH_TYPE == "디저트"
+	TCVAR:ARG:디저트공복시각 = 1440 * DAY + TIME + 만복도
+ELSE
+	TCVAR:ARG:공복시각 = 1440 * DAY + TIME + 만복도
+ENDIF
+
+;回復処理
+CALL RECOVER(ARG, 체력회복량, "체력", "식사에 의한 회복")
+CALL RECOVER(ARG, 기력회복량, "기력", "식사에 의한 회복")
+IF ARG == MASTER
+	CALL RECOVER(ARG, 정력회복량, "정력", "식사에 의한 회복")
+	CALL RECOVER(ARG, TSP회복량, "TSP", "식사에 의한 회복")
+ELSE
+	PRINTFORML %CALLNAME:ARG + "의 평가…………", 40, LEFT%{TCVAR:ARG:요리평가치, 3}점
+ENDIF
+
+;動かないフラグ
+TCVAR:ARG:가능한한움직이지않는다 = 1
+
+;-------------------------------------------------
+;요리を評価する関数
+;ARGS	DISH_TASTE
+;-------------------------------------------------
+@REVIEW_DISH(CHARA, ARGS)
+#DIM CHARA
+#DIMS TASTE_CHARA_GOOD
+#DIMS TASTE_CHARA_BAD
+#DIM TASTE_GOOD
+#DIM TASTE_BAD
+
+TASTE_CHARA_GOOD = %GET_STR(, "캐릭터데이터", CHARA, "요리：좋아하는 맛")%
+TASTE_CHARA_BAD = %GET_STR(, "캐릭터데이터", CHARA, "요리：싫어하는 맛")%
+
+;共通設定；好き
+;디저트はみんな好き
+TASTE_CHARA_GOOD += "디저트/"
+;갓만든はみんな好き
+TASTE_CHARA_GOOD += "갓만든/"
+;[요괴]は요력が好き
+SIF CHECK_CHARA(CHARA, "요괴") && !CHECK_CHARA(CHARA, "반인간")
+	TASTE_CHARA_GOOD += "요력/"
+;[신령][인간]は신력が好き
+SIF CHECK_CHARA(CHARA, "신령") || (CHECK_CHARA(CHARA, "인간") && !CHECK_CHARA(CHARA, "반인간"))
+	TASTE_CHARA_GOOD += "신력/"
+;[요정]は생명력が好き
+SIF CHECK_CHARA(CHARA, "요정")
+	TASTE_CHARA_GOOD += "생명력/"
+;[마법사]は마력が好き
+SIF CHECK_CHARA(CHARA, "마법사")
+	TASTE_CHARA_GOOD += "마력/"
+;[유령][츠쿠모가미]は영장が嫌いじゃないなら好き
+SIF (CHECK_CHARA(CHARA, "유령") || CHECK_CHARA(CHARA, "츠쿠모가미")) && !STRCOUNT(TASTE_CHARA_BAD, "영장/")
+	TASTE_CHARA_GOOD += "영장/"
+;[츠쿠모가미]は오니의마력が好き
+SIF CHECK_CHARA(CHARA, "츠쿠모가미")
+	TASTE_CHARA_GOOD += "오니의마력/" * 3
+;[유치]は어머니의 맛が好き
+SIF TALENT:CHARA:유치
+	TASTE_CHARA_GOOD += "어머니의 맛/"
+;[유치]は어린이 런치が好き
+SIF TALENT:CHARA:유치
+	TASTE_CHARA_GOOD += "어린이 런치/" * 5
+;DISH_ASSIなら질투は好き(보너스）
+SIF CHARA == DISH_ASSI
+	TASTE_CHARA_GOOD += "질투/" * 3
+;BASEPOINTが500以上なら숨김맛は好き(보너스）
+SIF DISH_BASEPOINT >= 500
+	TASTE_CHARA_GOOD += "숨김맛/" * 2
+;夏は冷たいものが、冬は温かいものが好き(嫌いじゃなければ）
+IF GET_MONTH() == "여름의 달" && !STRCOUNT(TASTE_CHARA_BAD, "차가운/")
+	TASTE_CHARA_GOOD += "차가운/"
+ELSEIF GET_MONTH() == "겨울의 달" && !STRCOUNT(TASTE_CHARA_BAD, "따뜻한/")
+	TASTE_CHARA_GOOD += "따뜻한/"
+ENDIF
+;애정,ASSI→MASTERへの애정であって点数化できないのでは？,今のところフレーバー
+
+
+;共通設定：嫌い
+;[열화]はみんな嫌い
+TASTE_CHARA_BAD += "열화/" * 3
+;[철지난]はNG
+TASTE_CHARA_BAD += "철지난/" * 6
+;[요괴][유령][츠쿠모가미]は신력が好きじゃないなら嫌い
+SIF (CHECK_CHARA(CHARA, "요괴") || CHECK_CHARA(CHARA, "유령") || CHECK_CHARA(CHARA, "츠쿠모가미")) && !STRCOUNT(TASTE_CHARA_GOOD, "신력/")
+	TASTE_CHARA_BAD  += "신력/"
+;[인간][신령]は요력が好きじゃないなら嫌い
+SIF (CHECK_CHARA(CHARA, "인간") || CHECK_CHARA(CHARA, "신령")) && !STRCOUNT(TASTE_CHARA_GOOD, "요력/")
+	TASTE_CHARA_BAD  += "요력/"
+;[인간]は영장が好きじゃないなら嫌い
+SIF CHECK_CHARA(CHARA, "인간") && !CHECK_CHARA(CHARA, "반인간") && !STRCOUNT(TASTE_CHARA_GOOD, "영장/")
+	TASTE_CHARA_BAD  += "영장/"
+;DISH_ASSIでないなら질투は嫌い(減点）
+IF CHARA != DISH_ASSI
+	IF TALENT:CHARA:연인
+		TASTE_CHARA_BAD  += "질투/" * 5
+	ELSEIF TALENT:CHARA:연모
+		TASTE_CHARA_BAD  += "질투/" * 3
+	ELSEIF TALENT:CHARA:사모
+		TASTE_CHARA_BAD  += "질투/"
+	ENDIF
+ENDIF
+;BASEPOINTが500未満なら숨김맛は嫌い(減点）
+SIF DISH_BASEPOINT < 500
+	TASTE_CHARA_BAD += "숨김맛/" * 2
+
+;評価得点,得点はブレる
+TASTE_GOOD = 300 + (80 + RAND:20) * STR_MULTI_COUNT(TASTE_CHARA_GOOD, ARGS)
+;評価減点,減点は1.5倍
+TASTE_BAD = 300 + 150 * STR_MULTI_COUNT(TASTE_CHARA_BAD, ARGS)
+
+;総評
+TCVAR:CHARA:요리평가치 = TASTE_GOOD * DISH_BASEPOINT * 2 / (TASTE_GOOD + TASTE_BAD)
+[IF_DEBUG]
+	PRINTFORML 좋아함：%TASTE_CHARA_GOOD%
+	PRINTFORML 싫어함：%TASTE_CHARA_BAD%
+	PRINTFORML 품목：%ARGS%
+	PRINTFORML 기본：{DISH_BASEPOINT}
+	PRINTFORML 득점：{TASTE_GOOD}
+	PRINTFORML 감점：{TASTE_BAD}
+	PRINTFORML 결과：{TCVAR:CHARA:요리평가치}
+	WAIT
+[ENDIF]
+
+;-------------------------------------------------
+;주로 오래된 구상에 맞추기 위한 자극적 미각 함수
+;엄청매운/격감/매우 신 에는 대응하지만,고추냉이에는 대응 불가……
+;-------------------------------------------------
+@TASTE_REACTION(ARGS)
+#FUNCTION
+SIF STRCOUNT(DISH_TASTE, ARGS + "/") >= 5
+	RETURNF 1
+
+;-------------------------------------------------
+;만복도상승
+;-------------------------------------------------
+@만복도상승(ARG, ARGS)
+#DIM 만복도
+SELECTCASE ARGS
+	CASE "경식"
+		만복도 = 180
+	CASE "주식"
+		만복도 = 360
+	CASE "디저트"
+		만복도 = 180
+ENDSELECT
+
+SIF TALENT:ARG:대식가
+	TIMES 만복도, 0.7
+IF ARGS == "디저트" ;KR판 임의수정, 일판(4.782)는 디저트공복과 일반공복이 반대임.
+	TCVAR:ARG:디저트공복시각 = 1440 * DAY + TIME + 만복도
+	IF 주문내용_술
+		주문내용_술 = 0
+		TCVAR:ARG:디저트공복시각 = 1440 * DAY + TIME + 5
+		SIF TALENT:ARG:대식가
+			TCVAR:ARG:디저트공복시각 -= 4
+	ENDIF
+ELSE
+	TCVAR:ARG:공복시각 = 1440 * DAY + TIME + 만복도
+	IF 주문내용_술
+		주문내용_술 = 0
+		TCVAR:ARG:공복시각 = 1440 * DAY + TIME + 5
+		SIF TALENT:ARG:대식가
+			TCVAR:ARG:공복시각 -= 4
+	ENDIF
+ENDIF

@@ -1,5 +1,4 @@
-﻿
-;-------------------------------------------------
+﻿;-------------------------------------------------
 ;목욕탕
 ;일상계 커맨드, 레벨 1
 ;-------------------------------------------------
@@ -12,16 +11,17 @@
 #DIM 회복전기력2
 #DIM 회복후체력2
 #DIM 회복후기력2
-
+#DIMS 台詞
 회복전체력1 = BASE:MASTER:체력
 회복전기력1 = BASE:MASTER:기력
 IF DAY * 1440 + TIME - EX:MASTER:전회입욕시각 < 360
 	TFLAG:194 = 1
 	PRINTFORML 방금 막 목욕한 직후다
 	RETURN -1
-ELSEIF PLACE_SENTO() == 2
+ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 2
 	;접수대 를 화나게 해 버렸을 경우
 	IF TFLAG:209 == 4
+		CALL SPTALK, 0, "怒り", 14, "「………………」",1
 		PRINTFORML 접수대 쪽에서 날선 시선이 날아오고 있다……
 		PRINTFORML 다른 날에 다시 오는 편이 좋을 것 같다……
 		RETURN -1
@@ -29,52 +29,84 @@ ELSEIF PLACE_SENTO() == 2
 	ELSE
 		;돈 부족했다 이벤트를 보고 있다
 		IF TFLAG:209 == 3
-			PRINTL 「……어라, 웬 일이야? 혹시 목욕값 가져왔어?」
+			台詞 = 「……어라, 웬 일이야? 혹시 목욕값 가져왔어?」
 		;그만두는을 선택했지만 역시 들어가고 싶어졌다
 		ELSEIF TFLAG:209 == 2
-			PRINTL 「……뭐야, 혹시 마음이 변했어?」
+			台詞 = 「……뭐야, 혹시 마음이 변했어?」
 		;그 이외
 		ELSE
 			;게을러 그다지 의욕이 없는 접수대
-			PRINTL 「……어섭셔―」
+			台詞 = 「……어섭셔―」
 		ENDIF
-		PRINTL 「목욕비는 \2000이면 돼」
+		台詞 = %台詞%/「목욕비는 \2000이면 돼」
+		CALL SPTALK, 0, "通常", 14, @"%台詞%",1
 		DRAWLINE
+		SIF MAIN_MAP == 2
+			PRINTL [2] \50000 내고 전세낸다
 		PRINTL [1] \2000 내고 입욕한다
 		PRINTL [0] 그만둔다
 		$LOOP_hitozato
 		INPUT
-		IF RESULT == 1
+		IF RESULT == 2 && MAIN_MAP == 2
+			IF MONEY < 50000
+				{
+				台詞 = 「……어, 전세내고 싶다고?」
+						/「그렇다면 말야, 당연히 대금이라는게 필요해」
+						/「가난한 사람은 얌전히 입욕으로 참아!」
+				}
+				CALL SPTALK, 0, "通常", 14, @"%台詞%",1
+				RETURN -1
+			ELSE
+				MONEY -= 50000
+				{
+				台詞 = 「……어, 전세내고 싶다고?」
+						/「흐-음……뭐 어디에 쓸 건지는 대충 상상이 가지만……」
+						/「돈 잘 내는 손님한테는 관대하니까, 그러면 24시까지 자유롭게 써도 돼」
+						/「이제 편히 쉬다 나와요……」
+				}
+				CALL SPTALK, 0, "通常", 14, @"%台詞%",1
+				CALLF 욕탕대절(DAY, 1)
+				RETURN 1
+			ENDIF
+		ELSEIF RESULT == 1
 			IF MONEY < 2000
-				PRINTW 「……응, 편히 쉬다 나와요」
-				PRINTW 「근데 안 되잖아. 돈 부족하잖아!」
-				PRINTW 「…………」
-					;도발 내성 없는 접수대 빡침
-					IF TFLAG:209 >= 2
-						PRINTL 「…………저기 있지. 나도 이래봬도 한가하지가 않아요」
-						PRINTL 「……이러면 화낸다?」
-						TFLAG:209 = 4
-					ELSE
-						PRINTL 「…………저기 있지. 괜히 오지랖 떠는 걸지도 모르겠는데」
-						PRINTL 「……만약 돈 없어서 힘들기라도 하면, 여기서 발품깨나 팔아야하지만 온천이 있으니 거기 가보지그래?」
-						TFLAG:209 = 3
-					ENDIF
+				{
+				台詞 = 「……응, 편히 쉬다 나와요」
+						/「아니 잠깐, 돈이 부족하잖아!」
+						/「…………」
+				}
+				CALL SPTALK, 0, "通常", 14, @"%台詞%",1
+				;도발 내성 없는 접수대 빡침
+				IF TFLAG:209 >= 2
+					台詞 = 「…………저기 있지. 나도 이래봬도 한가하지가 않아요」/「……이러면 화낸다?」
+					CALL SPTALK, 0, "怒り", 14, @"%台詞%",1
+					TFLAG:209 = 4
+				ELSE
+					{
+					台詞 = 「…………저기 있지. 괜히 오지랖 떠는 걸지도 모르겠는데」
+							/「……만약 돈 없어서 힘들기라도 하면」
+							/「여기서 발품깨나 팔아야하지만 온천이 있으니 거기 가보지 그래?」
+					}
+					CALL SPTALK, 0, "通常", 14, @"%台詞%",1
+					TFLAG:209 = 3
+				ENDIF
 				RETURN -1
 			ELSE
 				MONEY -= 2000
-				PRINTL 「……응, 편히 쉬다 나와요」
+				台詞 = 「……응, 편히 쉬다 나와요」
+				SIF TARGET > 0 && CFLAG:TARGET:6 > 0 && !CFLAG:TARGET:수면 
+					台詞 = 「……아, 말해두겠는데 내가 지켜보고 있으니 이상한 짓 하지 마」
+				CALL SPTALK, 0, "通常", 14, @"%台詞%",1
 				IF TARGET > 0 && CFLAG:TARGET:6 > 0 && !CFLAG:TARGET:수면 
-					PRINTL 「……아, 말해두겠는데 내가 지켜보고 있으니 이상한 짓 하지 마」
-					PRINTL  
-					PRINTFORMW %조교자는% %타겟과% 탈의실 앞에서 일단 갈라지고 목욕탕으로 간다
 					회복전체력2 = BASE:TARGET:체력
 					회복전기력2 = BASE:TARGET:기력
-					CALL ODEKAKE_OFURO(TARGET, 1)
+					CALL ODEKAKE_OFURO(TARGET,1)
 					회복후체력2 = BASE:TARGET:체력
 					회복후기력2 = BASE:TARGET:기력
+					PRINTFORMW %조교자는% %타겟과% 탈의실 앞에서 일단 헤어져 목욕탕으로 향했다
 				ENDIF
 
-				CALL ODEKAKE_OFURO(MASTER, 1)
+				CALL ODEKAKE_OFURO(MASTER,1)
 
 				DRAWLINE
 				PRINTW …
@@ -97,13 +129,17 @@ ELSEIF PLACE_SENTO() == 2
 		ELSEIF RESULT == 0
 			;도발 내성 없는 접수대 빡침
 			IF TFLAG:209 >= 2
-				PRINTL 「…………저기 있지. 나도 이래봬도 한가하지가 않아요」
-				PRINTL 「……이러면 화낸다?」
+				台詞 = 「…………저기 있지. 나도 이래봬도 한가하지가 않아요」/「……이러면 화낸다?」
+				CALL SPTALK, 0, "怒り", 14, @"%台詞%",1
 				TFLAG:209 = 4
 			ELSE
-				PRINTL 「관두려고? ……뭐, 상관없지만」
-				PRINTL 「…………저기 있지. 괜히 오지랖 떠는 걸지도 모르겠는데」
-				PRINTL 「……만약 돈 아까워서 그런 거면, 여기서 발품깨나 팔아야하지만 온천이 있으니 거기 가보지그래?」
+				{
+				台詞 = 「관두려고? ……뭐, 상관없지만」
+						/「…………저기 있지. 괜히 오지랖 떠는 걸지도 모르겠는데」
+						/「……만약 돈 아까워서 그런 거면」
+						/「여기서 발품깨나 팔아야하지만 온천이 있으니 거기 가보지그래?」
+				}
+				CALL SPTALK, 0, "通常", 14, @"%台詞%",1
 				TFLAG:209 = 2
 			ENDIF
 			RETURN -1
@@ -111,7 +147,7 @@ ELSEIF PLACE_SENTO() == 2
 			GOTO LOOP_hitozato
 		ENDIF
 	ENDIF
-ELSEIF PLACE_SENTO() == 9
+ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 	;접수대를 화나게 해 버렸을 경우
 	IF TFLAG:211 == 4
 		PRINTFORML 접수대 쪽에서 날선 시선이 날아오고 있다……
@@ -185,8 +221,9 @@ ELSEIF PLACE_SENTO() == 9
 						PRINTFORMW %타겟은% %조교자가% 보내는 시선에 부끄러운 내색이다……
 						회복전체력2 = BASE:TARGET:체력
 						회복전기력2 = BASE:TARGET:기력
-						CALL ODEKAKE_OFURO(TARGET, 2)
+						CALL ODEKAKE_OFURO(TARGET,2)
 						IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+							;붉은실은 KR판 고유기능 또는 구잔재
 							CALL 붉은실발동
 							EXP:MASTER:데이트경험 ++
 							EXP:TARGET:데이트경험 ++
@@ -196,13 +233,13 @@ ELSEIF PLACE_SENTO() == 9
 						회복후체력2 = BASE:TARGET:체력
 						회복후기력2 = BASE:TARGET:기력
 					ENDIF
-					CALL ODEKAKE_OFURO(MASTER, 2)
+					CALL ODEKAKE_OFURO(MASTER,2)
 					DRAWLINE
 					PRINTW …
 					PRINTW ……
 					PRINTW …………
 					IF TARGET > 0 && CFLAG:TARGET:6 > 0 && !CFLAG:TARGET:수면
-						PRINTFORMW %CALLNAME:PLAYER%과 %타겟은% 둘이 사이좋게 온천에서 편히 쉬었다
+						PRINTFORMW %조교자와% %타겟은% 둘이 사이좋게 온천에서 편히 쉬었다
 					ELSE
 						PRINTFORMW %조교자는% 온천에서 편히 쉬었다
 					ENDIF
@@ -223,7 +260,7 @@ ELSEIF PLACE_SENTO() == 9
 					INPUT
 					IF RESULT
 						TFLAG:물긷기 = 3
-						PRINTFORML %STR:(7000 + TFLAG:물긷기)%를 길었다
+						PRINTFORML %조사처리(STR:(7000 + TFLAG:물긷기),"를")% 길었다
 						IF MAIN_MAP != 9
 							PRINTL 가진 상태로 걷기는 힘들기에 귀가합니다
 							CALL 외출처로부터귀가
@@ -232,7 +269,7 @@ ELSEIF PLACE_SENTO() == 9
 						RETURN 1
 				ENDIF
 			CASE 2
-				PRINTL 「미안하데야―! 지금 암컷 아들을 조달 중이얌―!」
+				PRINTL 「미안하데야―! 지금 암컷 야들을 조달 중이얌―!」
 				PRINTL  현재 이벤트 작성 중이므로 기다려 주세요
 				GOTO LOOP_titei
 			CASE 0
@@ -261,17 +298,6 @@ IF TARGET
 	PRINTFORML 체력+{ABS(회복후체력2 - 회복전체력2)}(%CALLNAME:TARGET%)
 	PRINTFORML 기력+{ABS(회복후기력2 - 회복전기력2)}(%CALLNAME:TARGET%)
 ENDIF
-@PLACE_SENTO(ARG)
-#FUNCTION
-;마을
-IF ARG == GET_MAP_REPLACEMENT(223)
-	RETURNF 2
-;지저
-ELSEIF ARG == GET_MAP_REPLACEMENT(934)
-	RETURNF 9
-ELSE
-	RETURNF 0
-ENDIF
 
 ;목욕탕
 @COM_ABLE432
@@ -291,14 +317,28 @@ SIF CFLAG:수면
 SIF CFLAG:동침중
 	RETURN 0
 ;욕실이 있는 장소 이외는 불가
-SIF !PLACE_SENTO()
+SIF !PLACE_SENTO(CFLAG:MASTER:현재위치)
 	RETURN 0
 SIF CFLAG:우후후 == 2
 	RETURN 0
+;대절하고 있다면 필요는 없다
+SIF 욕탕대절(DAY)
+	RETURN 0
 RETURN 1
 
+@PLACE_SENTO(ARG)
+#FUNCTION
+;마을
+IF ARG == GET_MAP_REPLACEMENT(223)
+	RETURNF 2
+;지저
+ELSEIF ARG == GET_MAP_REPLACEMENT(934)
+	RETURNF 9
+ELSE
+	RETURNF 0
+ENDIF
 
-@ODEKAKE_OFURO(ARG, ARG:1)
+@ODEKAKE_OFURO(ARG,ARG:1)
 ;ARG=1 마을　ARG=2 지저 =3풀장
 RESET_STAIN ARG
 STAIN:ARG:4 = 0

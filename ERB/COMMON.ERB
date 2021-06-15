@@ -7,19 +7,16 @@
 ;반환값 4 조건을 충족하지 않았음
 ;반환값 5 이미 99개 소지하고 있음
 ;-------------------------------------------------
-@ITEMSTOCK(ARG)
+@ITEMSTOCK(ARG, 値段)
 #FUNCTION
-SIF ARG == 73
-	RETURNF 0
+#DIM 値段
 SIF !STRLENS(ITEMNAME:ARG)
 	RETURNF 1
 SIF ITEMSALES:ARG == -2
 	RETURNF 4
 SIF ITEMSALES:ARG == -1
 	RETURNF 2
-SIF (MONEY < 물가적용(ITEMPRICE:ARG) && !TFLAG:194) || (TFLAG:194 == 1 && MONEY < 물가적용(ITEMPRICE:ARG) / 3)
-	RETURNF 3
-SIF (MONEY < 물가적용(ITEMPRICE:ARG)*3 && !TFLAG:194) &&ARG==98&&ITEM:주택>=1
+SIF MONEY < 물가적용(値段)
 	RETURNF 3
 SIF ITEM:ARG >= 99
 	RETURNF 5
@@ -54,10 +51,10 @@ ENDSELECT
 RETURN RESULT
 ;-------------------------------------------------
 ;선택지를 표시해 입력 결과를 돌려주는 함수 조건을 채우지 않는 선택지를 회색 표시로 해 무효로 하는 것이 가능
-;인수에 대사와 조건(0으로 무효, 비0으로 유효)을 지정. 최대 6개까지
+;인수에 대사와 조건(0으로 무효, 비0으로 유효)을 지정. 최대 7개까지
 ;반환값은 선택한 선택지의 번호
 ;-------------------------------------------------
-@ASK_M(ARGS:0, ARG:0, ARGS:1, ARG:1, ARGS:2, ARG:2, ARGS:3, ARG:3, ARGS:4, ARG:4, ARGS:5, ARG:5, ARGS:6, ARG:6)
+@ASK_M(ARGS:0, ARG:0, ARGS:1, ARG:1, ARGS:2, ARG:2, ARGS:3, ARG:3, ARGS:4, ARG:4, ARGS:5, ARG:5, ARGS:6, ARG:6, ARGS:7, ARG:7)
 #DIM CONST 선택지상한 = 6
 CURRENTREDRAW
 LOCAL:0 = RESULT
@@ -87,8 +84,8 @@ RETURN RESULT
 ;-------------------------------------------------
 @PAY_YEN_OR_CM(ARG, ARG:1)
 PRINTFORML [0] 그만둔다
-PRINTFORML [1] \\{ARG} 지불한다　　(현재 소지금：\\{MONEY})
-PRINTFORML [2] CM{ARG:1} 지불한다　(현재 소지 카리스마：CM{MONEY:2})
+PRINTFORML [1] %금액표시(ARG)% 지불한다　　(현재 소지금：%금액표시(MONEY)%)
+PRINTFORML [2] CM%세자리구분(ARG:1)% 지불한다　(현재 소지 카리스마：CM%세자리구분(MONEY:2)%)
 $INPUT_LOOP
 INPUT
 SELECTCASE RESULT
@@ -132,7 +129,27 @@ RETURNF 상한 - 상승률 * 상한 / (상승률 + ARG:0)
 #DIM 상승률
 RETURNF 상한 * (ARG:0 + 1) / (상승률 + ARG:0 + 1)
 
-;eg 5000*1001/1201
+;-------------------------------------------------
+;関数名:GET_REVISION3
+;概　要:汎用補正値取得関数
+;引　数:num…参照する数値　TH:0~2…しきい値1~3　
+;-------------------------------------------------
+@GET_REVISION3(num, TH:0, TH:1, TH:2)
+#FUNCTION
+#DIM TH, 3
+#DIM num
+
+FOR LOCAL,0,3
+	SIF num <= TH:LOCAL || !TH:LOCAL
+		RETURNF num
+	;引数がTHを超えてたら超過分をSQRT*2
+	num = TH:LOCAL + SQRT(num - TH:LOCAL) * 2
+NEXT
+
+RETURNF num
+
+;10000, 50, 100, 200なら124
+
 
 ;-------------------------------------------------
 ;함수명 :PRINT_BASE
@@ -356,6 +373,16 @@ IF GETBIT(TALENT:ARG:2, 0) == GETBIT(TALENT:(ARG:1):2, 0)
 ELSE
 	RETURNF 0
 ENDIF
+
+;-------------------------------------------------
+;関数名:NameToID
+;引数にCALLNAMEを入れるとキャラ番号を返す
+;-------------------------------------------------
+@NameToID(ARGS)
+#FUNCTION
+LOCAL = FINDCHARA(CALLNAME, @"%ARGS%" , 1)
+RETURNF LOCAL
+
 
 ;-------------------------------------------------
 ;함수명 :GET_TARGETNUM
@@ -590,7 +617,7 @@ MAXBASE:ARG:강화능력 += 변동치
 BASE:ARG:강화능력 += 변동치
 BUFF:ARG:강화능력 += 변동치
 SIF 메시지
-	CALL COLORMESSAGE(@"%CALLNAME:ARG%의%BASENAME:강화능력%가 일시적으로\@ 변동치 > 0?  오른# 내린\@", C_YELLOW, 1)
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%의 %조사처리(BASENAME:강화능력,"이")% 일시적으로 {ABS(변동치)} \@ 변동치 > 0?  올랐다# 내려갔다\@", C_YELLOW, 1)
 ;-------------------------------------------------
 ;함수명 :BUFF_RESET
 ;개요:버프를 완전하게 리셋
@@ -858,6 +885,11 @@ IF !FLAG:70
 		CFLAG:ARG:손에정액 = 0
 	ENDIF
 ENDIF
+
+;잠복モード解除
+SIF GETBIT(FLAG:잠복,0)
+	CALL 잠복모드종료처리
+
 ;-------------------------------------------------------------
 ;ARG와 당신이 동성이었던 경우, 양자에게 레즈비언(동성애자) 경험을 추가하는 함수
 ;-------------------------------------------------------------
@@ -1158,24 +1190,50 @@ CASE "존재", "存在"
 	RETURNF !CFLAG:C_ID:출금
 CASE "함락", "陥落"
 	RETURNF (TALENT:C_ID:사모 || TALENT:C_ID:연모 || TALENT:C_ID:애욕 || TALENT:C_ID:연인 || TALENT:C_ID:섹프)
-CASE "무녀", "巫女"
-	RETURNF (TALENT:C_ID:인간 == 3)
+CASE "인간", "人間"
+	RETURNF TALENT:C_ID:인간
+CASE "선인", "仙人"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "인간")) == "선인"
+CASE "천인", "天人"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "인간")) == "천인"
+CASE "월인", "月人"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "인간")) == "월인"
+CASE "마계인", "魔界人"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "인간")) == "마계인"
+CASE "외계인", "外界人"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "인간")) == "외계인"
+CASE "요괴", "妖怪"
+	RETURNF TALENT:C_ID:요괴
+CASE "오니", "鬼"
+	RETURNF GROUPMATCH(GET_TRIBENAME(C_ID, GETNUM(TALENT, "요괴")), "오니", "흡혈귀")
+CASE "흡혈귀", "吸血鬼"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "요괴")) == "흡혈귀"
+CASE "캇파", "河童"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "요괴")) == "캇파"
+CASE "텐구", "天狗"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "요괴")) == "텐구"
+CASE "요수", "妖獣"
+	RETURNF GROUPMATCH(GET_TRIBENAME(C_ID, GETNUM(TALENT, "요괴")), "요수", "요조", "요충")
 CASE "요정", "妖精"
 	RETURNF TALENT:C_ID:요정
 CASE "신령", "神霊"
 	RETURNF TALENT:C_ID:신령
+CASE "유령", "幽霊"
+	RETURNF TALENT:C_ID:유령
 CASE "츠쿠모가미", "付喪神"
 	RETURNF TALENT:C_ID:츠쿠모가미
-CASE "오니", "鬼"
-	RETURNF (TALENT:C_ID:오니 || TALENT:C_ID:흡혈귀)
-CASE "텐구", "天狗"
-	RETURNF TALENT:C_ID:텐구
-CASE "봉래인", "蓬莱人"
-	RETURNF TALENT:C_ID:봉래인
-CASE "요괴", "妖怪"
-	RETURNF !( C_ID == 0|| TALENT:C_ID:인간 || TALENT:C_ID:요정 || TALENT:C_ID:신령 || TALENT:C_ID:츠쿠모가미 || TALENT:C_ID:오니 || TALENT:C_ID:흡혈귀 || TALENT:C_ID:텐구 || TALENT:C_ID:봉래인 )
+CASE "인형", "人形"
+	RETURNF TALENT:C_ID:인형
+CASE "무녀", "巫女"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "추가종족")) == "무녀"
 CASE "마법사", "魔法使い"
-	RETURNF (TALENT:C_ID:인간 == 2)
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "추가종족")) == "마법사"
+CASE "메이드", "メイド"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "추가종족")) == "메이드"
+CASE "봉래인", "蓬莱人"
+	RETURNF GET_TRIBENAME(C_ID, GETNUM(TALENT, "추가종족")) == "봉래인"
+CASE "반인간", "半人間"
+	RETURNF TALENT:C_ID:인간 && (TALENT:C_ID:요괴 || TALENT:C_ID:요정 || TALENT:C_ID:신령 || TALENT:C_ID:유령 || TALENT:C_ID:츠쿠모가미 || TALENT:C_ID:인형)
 CASE "약점잡음", "弱み握り"
 ;C_ID가 MASTER의 약점을 잡고 있다
 	RETURNF CFLAG:C_ID:약점잡음
@@ -1649,7 +1707,7 @@ SIF !STRLENS(ARGS)
 SELECTCASE C_NAME
 CASE "C_P_PURPLE"
 	SETCOLOR C_P_PURPLE
-CASE "C_BLUE"
+CASE "C_BLUE" ;KR판 오리지날
 	SETCOLOR C_BLUE
 CASE "C_WHITE"
 	SETCOLOR C_WHITE
@@ -2206,7 +2264,7 @@ RETURNF (CHARANUM - 1) - CMATCH(CFLAG:동행 , 0, 1, CHARANUM)
 ;MASTER가 수에 들어가지 않기 때문에 CHARANUM - 1입니다
 
 ;----------------------------------------------------------------------------------------------------
-;DAIRY_EV0로부터 잘라
+;DAILY_EV0로부터 잘라
 ;주인의 MAP의 YOGORE 관련 판정
 ;염려 사항：무명 지점의 YOGORE의 취급은 어떻게는 이겠지?
 ;----------------------------------------------------------------------------------------------------
@@ -2238,6 +2296,9 @@ RETURNF MAXROOM % 100
 #DIM PRINT_TYPE;표시형식　0=통상　1=L　2=W
 
 ITEM_ID = GETNUM(ITEM, ITEM_NAME)
+IF ITEM_ID == -1
+	PRINTFORML %ITEM_NAME%가 존재하지 않습니다
+ENDIF
 DEBUGPRINTFORML %ITEM_NAME%를 취득、ID는 {ITEM_ID}
 IF ITEM:ITEM_ID + ITEM_NUM >= 100
 	CALL COLORMESSAGE(@"%조사처리(ITEMNAME:ITEM_ID,"를")% 더이상 가질 수 없다", C_YELLOW, PRINT_TYPE)
@@ -2390,8 +2451,33 @@ FOR LOCAL, 0, 100
 	PRINTFORML {NOISE3(LOCAL, 100)}
 NEXT
 
+;단위 포함 3자리마다 콤마 표시(함수명은 임시)
+@금액표시(ARG)
+#FUNCTIONS
+RETURNF MONEYSTR(ARG, "#,##0")
+
+@세자리구분(ARG)
+#FUNCTIONS
+RETURNF TOSTR(ARG, "#,##0")
+
+@세는법(ITEM_NO, ITEM_NUM = 1)
+#FUNCTIONS
+#DIM ITEM_NO
+#DIM ITEM_NUM
+SELECTCASE ITEM_NO
+	CASE 627
+		RETURNF "병"
+	CASE 706
+		RETURNF "마리"
+	CASE 707, 708
+		RETURNF "마리"
+	CASEELSE
+		RETURNF \@ ITEM_NUM < 10 ? 개 # 개 \@
+ENDSELECT
+
+
 ;-------------------------------------------
-;함락상태의 지정;KR판 구잔재 또는 오리지날
+;함락상태의 지정;KR판 구잔재 ;일판에선 현재 사토리 커맨드자동신음 안에 있음
 ;ARG를 입력하지 않으면, TARGET 입력
 ;-------------------------------------------
 @함락상태(ARG)

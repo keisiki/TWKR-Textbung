@@ -112,6 +112,7 @@ ELSE
 	PRINT 　 직장　：
 	PRINTFORML %CSVCSTR(선택중캐릭터ID, 2)%
 ENDIF
+[SKIPSTART]
 
 PRINT 미각 기호：
 IF GETBIT(CFLAG:선택중캐릭터ID:332, 0)
@@ -140,7 +141,7 @@ PRINTL 싫어하는 맛：
 CALL SHOW_TASTE(GET_STR(, "캐릭터데이터", 선택중캐릭터ID, "요리：싫어하는 맛"))
 PRINTL 조수 효과：
 CALL SHOW_TASTE(GET_TASTE_ASSIBONUS(선택중캐릭터ID))
-SIF 선택중캐릭터ID == MASTER && STRLENS(DISHNAME)
+SIF 선택중캐릭터ID == MASTER && STRLENS(DISH_NAME)
 	CALL SHOW_DISHDATA
 
 IF CFLAG:선택중캐릭터ID:좋아하는체위
@@ -169,6 +170,7 @@ IF CFLAG:선택중캐릭터ID:좋아하는체위
 	ENDSELECT
 	PRINTL 　
 ENDIF
+[SKIPEND]
 
 PRINTL 　
 IF 선택중캐릭터ID == RANDOM_CHARANUM
@@ -201,14 +203,26 @@ IF CFLAG:선택중캐릭터ID:인계
 		PRINTL 이전 회차에서 연모가 되었던 적이 있다
 	SIF GETBIT (CFLAG:선택중캐릭터ID:인계, 1)
 		PRINTL 이전 회차에서 연인이 되었던 적이 있다
-	SIF GETBIT (CFLAG:선택중캐릭터ID:인계, 7)
+	SIF GETBIT (CFLAG:선택중캐릭터ID:인계, 7) ;KR판 오리지날
 		PRINTL 이전 회차에서 아내가 되었던 적이 있다
 ENDIF
 IF 선택중캐릭터ID == MASTER
+	IF HOW_아내() ;KR판 오리지날 아내
+		LOCAL:3 = 1
+		FOR LOCAL:1, 1, CHARANUM
+			IF IS_아내(LOCAL:1)
+				SIF !(LOCAL:3 % 15)
+					PRINTL 
+				LOCAL:3 ++
+				PRINTFORM ［%CALLNAME:(LOCAL:1)%］
+			ENDIF
+		NEXT
+		PRINTFORML 와 부부 사이다
+	ENDIF
 	IF TALENT:선택중캐릭터ID:연인
 		LOCAL:3 = 1
-		FOR LOCAL:1 , 1 , CHARANUM
-			IF TALENT:(LOCAL:1):연인
+		FOR LOCAL:1, 1, CHARANUM
+			IF TALENT:(LOCAL:1):연인 && !IS_아내(LOCAL:1)
 				SIF !(LOCAL:3 % 15)
 					PRINTL 
 				LOCAL:3 ++
@@ -216,17 +230,6 @@ IF 선택중캐릭터ID == MASTER
 			ENDIF
 		NEXT
 		PRINTFORML 와 사랑하는 사이다
-	ELSEIF IS_아내(선택중캐릭터ID)
-		LOCAL:3 = 1
-		FOR LOCAL:1, 1, CHARANUM
-			IF IS_아내(LOCAL:1)
-				SIF !(LOCAL:3 % 15)
-					PRINTL 
-				LOCAL:3 ++
-				PRINTFORM [%CALLNAME:(LOCAL:1)%]
-			ENDIF
-		NEXT
-		PRINTFORML 와 부부 사이다
 	ENDIF
 ENDIF
 SIF CFLAG:선택중캐릭터ID:깨끗한교제
@@ -273,20 +276,7 @@ IF TALENT:선택중캐릭터ID:임신소망
 		PRINTFORML 뚜렷하게 인식하고 있지는 않지만,%CALLNAME:MASTER%의 아이를 갖고 싶다고 느끼고 있다.
 	ENDIF
 ENDIF
-
-IF CFLAG:선택중캐릭터ID:발렌타인
-	SELECTCASE CFLAG:선택중캐릭터ID:발렌타인 % 100
-		CASE 1
-			LOCALS = 블랙썬더를
-		CASE 2
-			LOCALS = 평범한 초콜렛을
-		CASE 3
-			LOCALS = 고급 초콜렛을
-		CASE 4
-			LOCALS = 수제 초콜렛을
-	ENDSELECT
-	PRINTFORML 발렌타인에 %LOCALS% 준 \@ CFLAG:선택중캐릭터ID:발렌타인 > 100?  (답례 완료)# \@
-ENDIF
+CALL Valentine_History(선택중캐릭터ID)
 PRINTFORML 
 PRINTL □ 탄막스킬 □---------------------------------------------------------------------
 CALL DANMAKU_OPPONENT_STATUS(선택중캐릭터ID, 1)
@@ -400,31 +390,25 @@ ENDIF
 
 SIF GETBIT (CFLAG:선택중캐릭터ID:인계, 5)
 	PRINTFORML 어떡해야 느끼는지 %CALLNAME:MASTER%에게 속속들이 파악당한 
-IF CFLAG:선택중캐릭터ID:누계뿌려짐
+SIF CFLAG:선택중캐릭터ID:누계뿌려짐
 	PRINTFORML 지금까지 {CFLAG:선택중캐릭터ID:누계뿌려짐}의 정액에 범벅된 
-	SELECTCASE ABL:선택중캐릭터ID:가슴 ;KR판 구잔재 또는 오리지날
-		CASE IS >= 5
-			IF TALENT:선택중캐릭터ID:가슴사이즈 < 0
-				PRINTFORML 그 가슴은, 이제 성기를 자극하기 위해 존재한다
-			ELSE
-				PRINTFORML 그 유방은, 이제 성기로 변하고 말았다
-			ENDIF
-		CASE IS >= 3
-			IF TALENT:선택중캐릭터ID:가슴사이즈 < 0
-				PRINTFORML 그 가슴은, 남근을 자극하는 방법을 알고 있다
-			ELSE
-				PRINTFORML 그 유방은, 정액을 짜내는 방법을 단단히 익히고 있다
-			ENDIF
-	ENDSELECT
-ENDIF
-
 IF TALENT:선택중캐릭터ID:모유체질
 	;PRINTFORML \@ ABL:선택중캐릭터ID:분유중독 >= 3 ? 단맛 나는 젖이 듬뿍 담겨 있다# 자극해주면 단맛 나는 젖이 배어나올 것이다\@
 	PRINTFORML 자극해주면 단맛 나는 젖이 배어나올 것이다
 ENDIF
-SELECTCASE ABL:선택중캐릭터ID:가슴
+SELECTCASE ABL:선택중캐릭터ID:가슴 ;KR판 구잔재 또는 오리지날. 일판은 공란임.
 	CASE IS >= 5
+		IF TALENT:선택중캐릭터ID:가슴사이즈 < 0
+			PRINTFORML 그 가슴은, 이제 성기를 자극하기 위해 존재한다
+		ELSE
+			PRINTFORML 그 유방은, 이제 성기로 변하고 말았다
+		ENDIF
 	CASE IS >= 3
+		IF TALENT:선택중캐릭터ID:가슴사이즈 < 0
+			PRINTFORML 그 가슴은, 남근을 자극하는 방법을 알고 있다
+		ELSE
+			PRINTFORML 그 유방은, 정액을 짜내는 방법을 단단히 익히고 있다
+		ENDIF
 ENDSELECT
 PRINTL
 
@@ -988,7 +972,7 @@ ENDIF
 #DIM LINE_BREAK
 LINE_BREAK = 0
 PRINT □ 
-CALL PRINTBUTTON_EX(@"%CALLNAME:C_ID%가 파악 중인 %CALLNAME:MASTER%의 육체 관계 (노란색은 공인)", 168, TFLAG:168)
+CALL PRINTBUTTON_EX(@"%조사처리(CALLNAME:C_ID,"가")% 파악 중인 %CALLNAME:MASTER%의 육체 관계 (노란색은 공인)", 168, TFLAG:168)
 PRINTL  □------------------------------------------------------------
 IF !TFLAG:바람기력표시
 	PRINTFORML 
@@ -1011,3 +995,92 @@ IF !TFLAG:바람기력표시
 		PRINTL 
 ENDIF
 
+@PRINT_STATE_PREFERENCE(선택중캐릭터ID)
+#DIM 선택중캐릭터ID
+PRINTL □ 취향기호 □-----------------------------------------------------------------------
+PRINTL 좋아함：
+CALL SHOW_TASTE(GET_STR(, "캐릭터데이터", 선택중캐릭터ID, "감성：좋아함"), "POSITIVE", ABL:선택중캐릭터ID:친밀 < 5)
+PRINTFORML 
+PRINTL 싫어함：
+CALL SHOW_TASTE(GET_STR(, "캐릭터데이터", 선택중캐릭터ID, "감성：싫어함"), "NEGATIVE", ABL:선택중캐릭터ID:친밀 < 5)
+DRAWLINE
+PRINTL 좋아하는 맛：
+CALL SHOW_TASTE(GET_STR(, "캐릭터데이터", 선택중캐릭터ID, "요리：좋아하는 맛"))
+PRINTL 싫어하는 맛：
+CALL SHOW_TASTE(GET_STR(, "캐릭터데이터", 선택중캐릭터ID, "요리：싫어하는 맛"))
+PRINTL 조수 효과：
+CALL DISH_TASTE_FROM_CHARA(선택중캐릭터ID, "OUTPUT")
+CALL SHOW_TASTE(RESULTS, "ASSIDATA")
+IF 선택중캐릭터ID == MASTER && EX_DISH_NAME != ""
+	PRINTFORML ＜%EX_DISH_NAME%＞
+	CALL SHOW_TASTE(DISH_TASTE, "DISH_DATA")
+ENDIF
+DRAWLINE
+IF CFLAG:선택중캐릭터ID:좋아하는체위
+	PRINT 약점：
+	SELECTCASE CFLAG:선택중캐릭터ID:좋아하는체위
+	CASE 1
+		PRINTL 정상위
+	CASE 2 
+		PRINTL 후배위
+	CASE 3 
+		PRINTL 기승위
+	CASE 4 
+		PRINTL 대면좌위 
+	CASE 5 
+		PRINTL 배면좌위
+	CASE 6
+		PRINTL 정상위 애널
+	CASE 7 
+		PRINTL 후배위 애널
+	CASE 8 
+		PRINTL 기승위 애널
+	CASE 9 
+		PRINTL 대면좌위 애널
+	CASE 10 
+		PRINTL 배면좌위 애널
+	ENDSELECT
+	PRINTL 　
+ENDIF
+
+@PRINT_STATE_GIFTDATA(선택중캐릭터ID, 最大表示行数)
+#DIM 선택중캐릭터ID
+#DIM 最大表示行数
+#DIM 表示開始
+SIF !GIFT_GOT:선택중캐릭터ID:1
+	RETURN
+
+SIF !最大表示行数
+	最大表示行数 = 100
+
+FOR LOCAL, 0, 100
+	;フラグ0番が100を兼ねているのでこの形に
+	IF !GIFT_GOT:선택중캐릭터ID:((LOCAL + 1) % 100)
+		表示開始 = MAX(LOCAL + 1 - 最大表示行数, 1)
+		BREAK
+	ENDIF
+NEXT
+
+PRINTL □ 당신이 준 선물 □-----------------------------------------------------------
+;お気に入りを先頭に持ってくる
+SIF CFLAG:선택중캐릭터ID:받은선물
+	CALL PRINT_GIFTDATA(CFLAG:선택중캐릭터ID:받은선물, 선택중캐릭터ID, "캐릭터의")
+FOR LOCAL, 表示開始, 表示開始 + 最大表示行数 + 1
+	SIF GIFT_GOT:선택중캐릭터ID:LOCAL && GIFT_GOT:선택중캐릭터ID:LOCAL != CFLAG:선택중캐릭터ID:받은선물
+		CALL PRINT_GIFTDATA(GIFT_GOT:선택중캐릭터ID:LOCAL, 선택중캐릭터ID, "캐릭터의")
+NEXT
+
+@Valentine_History(ARG)
+IF CFLAG:ARG:발렌타인
+	SELECTCASE CFLAG:ARG:발렌타인 % 100
+		CASE 1
+			LOCALS = 블랙썬더를
+		CASE 2
+			LOCALS = 평범한 초콜렛을
+		CASE 3
+			LOCALS = 고급 초콜렛을
+		CASE 4
+			LOCALS = 수제 초콜렛을
+	ENDSELECT
+	PRINTFORML 발렌타인에 %조사처리(LOCALS,"를")% 주었다 \@ CFLAG:ARG:발렌타인 > 100?  (답례 완료)# \@
+ENDIF

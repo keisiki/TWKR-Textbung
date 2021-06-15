@@ -25,14 +25,16 @@ IF (TCVAR:TARGET:일개시 - TIME:0 <= 30 && TCVAR:TARGET:일개시 - TIME:0 > 0
 	CALL MESSAGE_TALK(12)
 ELSEIF CFLAG:TARGET:수면
 	CALL MESSAGE_TALK(3)
+ELSEIF GETBIT(FLAG:잠복,0)
+	CALL MESSAGE_TALK(16)
+ELSEIF TFLAG:묘사중인아이
+	CALL MESSAGE_TALK(14)
 ELSEIF ((CFLAG:TARGET:취침시간 - TIME:0 <= 30 && CFLAG:TARGET:취침시간 - TIME:0 > 0) || (TCVAR:수면제강도 >= 2 && !RAND:3)) && !FLAG:70
 	CALL MESSAGE_TALK(13)
 ELSEIF TALKER:0 && TALKER:1 && (!FLAG:70 || CFLAG:TARGET:344 == 1)
 	CALL MESSAGE_TALK(2, TALKER:0, TALKER:1)
 ELSEIF FLAG:연회개최플래그 >= 98 && CFLAG:MASTER:현재위치 == TFLAG:연회장
 	CALL MESSAGE_TALK(1)
-ELSEIF TALENT:TARGET:육아중 && FLAG:자식묘사 && TCVAR:TARGET:아이공복도 != -1 && !CHK_DATENOW(CFLAG:TARGET:데이트중) && !CFLAG:MASTER:우후후 && !BATHROOM(CFLAG:MASTER:현재위치)
-	CALL MESSAGE_TALK(14)
 ELSEIF TALENT:MASTER:형상 == 4 && TIME > 1140 && CFLAG:MASTER:데이트중 && (CFLAG:MASTER:현재위치 % 100) % 10 && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
 	CALL MESSAGE_TALK(5,0,0)
 ELSEIF CFLAG:MASTER:현재위치 == GET_MAP_REPLACEMENT(HATAKE)
@@ -107,6 +109,10 @@ NEXT
 @MESSAGE_TALK(ARG, ARG:1, ARG:2)
 #DIMS 회장
 #DIMS 아이의이름
+#DIMS 子供の行動
+#DIM CHARA
+#DIM CHILDNUM
+#DIM 同室
 ;기능 체크
 ;SIF !GETBIT(FLAG:3, 2)
 	;RETURN 0
@@ -127,17 +133,17 @@ SELECTCASE ARG
 				PRINTFORML %회장%에선 {FLAG:35}명 정도의 연회가 열리고 있다……
 			ENDIF
 			;날을 넘었을 경우
-			IF DAY > FLAG:34
+			IF DAY > FLAG:개시일
 				;경과시간에 응해 분기
-				IF TIME >= (FLAG:33 + 240) - 1440 * (DAY - FLAG:34)
+				IF TIME >= (FLAG:33 + 240) - 1440 * (DAY - FLAG:개시일)
 					IF FLAG:35 <= 3
 						PRINTFORML 이제 남은 사람들은 일부의 강자들뿐인 모양이다……
 					ELSE
 						PRINTFORML 탈락자가 뜨문뜨문 생긴 모양이다……
 					ENDIF
-				ELSEIF TIME >= (FLAG:33 + 180) - 1440 * (DAY - FLAG:34)
+				ELSEIF TIME >= (FLAG:33 + 180) - 1440 * (DAY - FLAG:개시일)
 					PRINTFORML 꽤 취한 모양이다……
-				ELSEIF TIME >= (FLAG:33 + 60) - 1440 * (DAY - FLAG:34)
+				ELSEIF TIME >= (FLAG:33 + 60) - 1440 * (DAY - FLAG:개시일)
 					PRINTFORML 웃음소리와 소란이 끊이지 않으며 달아오르고 있다……
 				;아직 시작되었던 바로 직후
 				ELSE
@@ -398,127 +404,439 @@ SELECTCASE ARG
 			PRINTFORML %타겟은% 하품을 꾹 참고 있다
 		ENDIF
 	CASE 14
-		아이의이름 = %CHILDNAME:TARGET:(TALENT:TARGET:육아중)%
-		IF LOCAL:1 != TIME
-			IF CFLAG:TARGET:출산경과일 < CHILD_어휘
-				LOCAL = RAND:16
-			ELSEIF CFLAG:TARGET:출산경과일 < CHILD_자립전
-				LOCAL = RAND:24
-			ELSE
-				LOCAL = RAND:30
-			ENDIF
-			LOCAL:1 = TIME
-		ENDIF
-		IF GO_SCHOOL(TARGET) && INRANGE(TIME, 420, 540)
-			PRINTFORML %아이의이름%는 서당에 갈 준비를 하고 있다
-		ELSEIF CFLAG:TARGET:출산경과일 < CHILD_어휘
-			SELECTCASE LOCAL
-			CASE 1, 2, 3, 4
-				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%에 안겨 있다
-			CASE 5, 6
-				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%의 품속에서 졸린 눈치다
-			CASE 7, 8
-				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%의 품속에서 얌전히 있다
-			CASE 9, 10, 11, 12
-				PRINTFORML %CALLNAME:TARGET%에 안긴 %아이의이름%가 이쪽을 보고 있다
-			CASE 13
-				PRINTFORML %CALLNAME:TARGET%에 안긴 %아이의이름%는 뭔가를 호소하고 있다
-			CASE 14
-				PRINTFORML %아이의이름%는 뭔가를 눈으로 좇고 있다
-			CASEELSE
-				PRINTFORML %타겟은% %아이의이름%를 어르고 있다
-			ENDSELECT
-		ELSEIF CFLAG:TARGET:출산경과일 < CHILD_자립전
-			SELECTCASE LOCAL
-			CASE 1, 2
-				PRINTFORML %타겟과% %아이의이름%는 즐겁게 이야기를 나누고 있다
-			CASE 3, 4
-				PRINTFORML %타겟은% %아이의이름%에게 뭔가를 가르치고 있다
-			CASE 5, 6
-				PRINTFORML %타겟은% %아이의이름%에게 이야기를 하고 있다
-			CASE 7, 8
-				PRINTFORML %타겟은% %아이의이름%의 행실을 바로잡고 있다
-			CASE 9
-				PRINTFORML %아이의이름%는 %타겟과% 놀고 있다
-			CASE 10
-				PRINTFORML %아이의이름%는 %타겟과% 열심히 이야기를 나누고 있다
-			CASE 11
-				PRINTFORML %아이의이름%는 혼자서 놀고 있다
-			CASE 12
-				PRINTFORML %아이의이름%는 얌전히 있다
-			CASE 13
-				PRINTFORML %아이의이름%는 골똘히 생각하고 있다
-			CASE 14
-				PRINTFORML %아이의이름%는 졸린 눈치다
-			CASE 15
-				PRINTFORML %아이의이름%는 까불거리고 있다
-			CASE 16
-				PRINTFORML %아이의이름%가 쫄랑쫄랑 돌아다니고 있다
-			CASE 17
-				PRINTFORML %아이의이름%는 좀이 쑤신 눈치다
-			CASE 18
-				PRINTFORML %아이의이름%는 이쪽을 빤히 쳐다보고 있다
-			CASE 19, 20
-				PRINTFORML %아이의이름%는 %마스터와% 놀려 하고 있다
-			CASE 21, 22
-				PRINTFORML %아이의이름%가 더듬더듬 만져댄다
-			CASEELSE
-				PRINTFORML %아이의이름%는 %CALLNAME:MASTER%에 놀아주길 바라는 모양이다
-			ENDSELECT
+		;자립후
+		IF TFLAG:묘사중인아이 > 1000
+			CHARA = TFLAG:묘사중인아이 % 1000
+			CHILDNUM = TFLAG:묘사중인아이 / 1000
+		;육아중
 		ELSE
-			SELECTCASE LOCAL
-			CASE 1, 2
-				PRINTFORML %타겟과% %아이의이름%는 즐겁게 이야기를 나누고 있다
-			CASE 3, 4
-				PRINTFORML %타겟은% %아이의이름%에게 뭔가를 가르치고 있다
-			CASE 5, 6
-				PRINTFORML %타겟은% %아이의이름%에게 이야기를 하고 있다
-			CASE 7
-				PRINTFORML %타겟은% %아이의이름%의 행실을 바로잡고 있다
-			CASE 8
-				PRINTFORML %타겟은% 이쪽을 보면서 %아이의이름%와 소곤소곤 이야기를 나누고 있다
-			CASE 9
-				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%에게 불평을 주워섬기고 있다
-			CASE 10
-				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%에게 주장하고 있다
-			CASE 11
-				PRINTFORML %아이의이름%는 %타겟과% 함께 웃고 있다
-			CASE 12, 13
-				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%에게 가르침을 청하고 있다
-			CASE 14, 15
-				PRINTFORML %아이의이름%는 %CALLNAME:TARGET%의 손을 거들고 있다
-			CASE 16
-				PRINTFORML %아이의이름%는 혼자서 놀고 있다
-			CASE 17, 18, 19, 20
-				PRINTFORML %아이의이름%는 공부하고 있다
-			CASE 21
-				PRINTFORML %아이의이름%는 골똘히 생각하고 있다
-			CASE 22
-				PRINTFORML %아이의이름%는 졸린 눈치다
-			CASE 23, 24
-				PRINTFORML %아이의이름%는 책을 읽고 있다
-			CASE 25
-				PRINTFORML %아이의이름%는 몸을 단련하고 있다
-			CASE 26, 27
-				PRINTFORML %아이의이름%는 %마스터와% 대화하고 싶은 모양이다
-			CASE 28
-				PRINTFORML %아이의이름%는 %마스터를% 신경 쓰고 있다
-			CASE 29
-				PRINTFORML %아이의이름%는 %마스터를% 거리끼고 있다
-			CASEELSE
-				PRINTFORML %아이의이름%가 날카로운 눈매로 이쪽을 보고 있다
-			ENDSELECT
+			CHARA = TFLAG:묘사중인아이
+			CHILDNUM = TALENT:CHARA:육아중
 		ENDIF
+		아이의이름 = %CHILDNAME:CHARA:CHILDNUM%
+		子供の行動 = %CHILD_ACT:CHARA:CHILDNUM%
+		SELECTCASE 子供の行動
+			CASE "睡眠"
+				;幼少期以降は例外として自室外だと表示されず、フラグをオフにする（寝室に帰る描写があるため）
+				IF CFLAG:CHARA:출산경과일 >= CHILD_어휘 && !自室自宅判定(CFLAG:MASTER:현재위치, CHARA)
+					TFLAG:묘사중인아이 = 0
+				ELSE
+					PRINTFORM %조사처리(아이의이름,"은")%すやすやと眠っている
+				ENDIF
+			CASE "起床"
+				IF CFLAG:CHARA:출산경과일 < CHILD_어휘
+					PRINTFORM %조사처리(아이의이름,"은")%お腹を空かせている
+				ELSE
+					PRINTDATA
+						DATAFORM %조사처리(아이의이름,"은")%あくびをしている
+						DATAFORM %조사처리(아이의이름,"은")%眠たそうにしている
+						DATAFORM %조사처리(아이의이름,"은")%背伸びしている
+						DATAFORM %조사처리(아이의이름,"은")%目をこすっている
+						DATAFORM %조사처리(아이의이름,"은")%寝ぼけている
+					ENDDATA
+				ENDIF
+			CASE "入浴"
+				IF CFLAG:CHARA:출산경과일 < CHILD_어휘
+					PRINTFORM %조사처리(아이의이름,"은")%お風呂に入れてもらってる
+				ELSE
+					PRINTDATA
+						DATAFORM %조사처리(아이의이름,"은")%十かぞえている
+						DATAFORM %조사처리(아이의이름,"은")%湯船ではしゃいでいる
+						DATAFORM %조사처리(아이의이름,"은")%泡を作って遊んでいる
+						DATAFORM %조사처리(아이의이름,"은")%潜って遊んでいる
+						DATAFORM %조사처리(아이의이름,"은")%頭を洗ってもらっている
+						DATAFORM %조사처리(아이의이름,"은")%身体を洗ってもらっている
+					ENDDATA
+				ENDIF
+			CASE "식사"
+				IF CFLAG:CHARA:출산경과일 < CHILD_젖떼기
+					PRINTFORM %조사처리(아이의이름,"은")%おっぱいを吸っている
+				ELSEIF CFLAG:CHARA:출산경과일 < CHILD_어휘
+					PRINTFORM %조사처리(아이의이름,"은")%젖떼기食を口に咥えている
+				ELSE
+					SELECTCASE TIME
+					CASE 300 TO 540 
+						PRINTFORM %조사처리(아이의이름,"은")%朝ごはんを食べている
+					CASE 660 TO 900
+						PRINTFORM %조사처리(아이의이름,"은")%お昼ごはんを食べている
+					CASE 1020 TO 1200
+						PRINTFORM %조사처리(아이의이름,"은")%夕飯を食べている
+					CASE 1200 TO 1440
+						PRINTFORM %조사처리(아이의이름,"은")%夜ごはんを食べている
+					CASE 0 TO 180
+						PRINTFORM %조사처리(아이의이름,"은")%夜食を食べている
+					CASEELSE
+						PRINTFORM %조사처리(아이의이름,"은")%ごはんを食べている
+					ENDSELECT
+				ENDIF
+			CASE "玩具"
+				IF CFLAG:CHARA:출산경과일 < CHILD_자립전
+					PRINTFORM %조사처리(아이의이름,"은")%玩具で遊んでいる
+				ELSE
+					PRINTFORM %조사처리(아이의이름,"은")%玩具を見つめている
+				ENDIF
+			CASE "お絵かき"
+				PRINTFORM %조사처리(아이의이름,"은")%お絵かきをしている
+			CASE "遊び"
+				PRINTDATA
+					DATAFORM %조사처리(아이의이름,"은")%元気に走り回っている
+					DATAFORM %조사처리(아이의이름,"은")%弾幕ごっこの真似事をしている
+					DATAFORM %조사처리(아이의이름,"은")%飛び跳ねている
+					DATAFORM %조사처리(아이의이름,"은")%転がっている
+					DATAFORM %조사처리(아이의이름,"은")%駆け回っている
+					DATAFORM %조사처리(아이의이름,"은")%踊り回っている
+					DATAFORM %조사처리(아이의이름,"은")%チャンバラごっこをしている
+					DATAFORM %조사처리(아이의이름,"은")%はしゃぎ回っている
+					DATAFORM %조사처리(아이의이름,"은")%ケンケンパしている
+					DATAFORM %조사처리(아이의이름,"은")%縄跳びをしている
+				ENDDATA
+			CASE "勉強"
+				PRINTFORM %조사처리(아이의이름,"은")%勉強している
+			CASE "読書"
+				PRINTFORM %조사처리(아이의이름,"은")%黙々と本を読み耽っている
+			CASE "料理"
+				PRINTDATA
+					DATAFORM %조사처리(아이의이름,"은")%たどたどしく料理している
+					DATAFORM %조사처리(아이의이름,"은")%ぎこちなく料理をしている
+					DATAFORM %조사처리(아이의이름,"은")%レシピとにらめっこしている
+					DATAFORM %조사처리(아이의이름,"은")%慎重に食材を刻んでいる
+					DATAFORM %조사처리(아이의이름,"은")%火加減を念入りに見ている
+					DATAFORM %조사처리(아이의이름,"은")%目を凝らして計量している
+				ENDDATA
+			CASE "絵描き"
+				PRINTDATA
+					DATAFORM %조사처리(아이의이름,"은")%構想を練っている
+					DATAFORM %조사처리(아이의이름,"은")%昔描いた絵を取り出した
+					DATAFORM %조사처리(아이의이름,"은")%新しい紙を取り出した
+					DATAFORM %조사처리(아이의이름,"은")%気ままに絵を描いている
+					DATAFORM %조사처리(아이의이름,"은")%熱心に絵を描いている
+					DATAFORM %조사처리(아이의이름,"은")%夢中になって絵を描いている
+					DATAFORM %조사처리(아이의이름,"은")%鼻歌を歌いながら絵を描いている
+					DATAFORM %조사처리(아이의이름,"은")%こちらを見ながら絵を描いている
+					DATAFORM %조사처리(아이의이름,"은")%色を塗っている
+				ENDDATA
+			CASE "歌唱"
+				PRINTDATA
+					DATAFORM %조사처리(아이의이름,"은")%元気に歌っている
+					DATAFORM %조사처리(아이의이름,"은")%気ままに歌っている
+					DATAFORM %조사처리(아이의이름,"은")%なりきって歌っている
+					DATAFORM %조사처리(아이의이름,"은")%うっとりして歌っている
+					DATAFORM %조사처리(아이의이름,"은")%堂々と歌っている
+					DATAFORM %조사처리(아이의이름,"은")%リズムに乗っている
+					DATAFORM %조사처리(아이의이름,"은")%踊っている
+					DATAFORM %조사처리(아이의이름,"은")%楽器を弾く真似をしている
+					DATAFORM %조사처리(아이의이름,"은")%ポーズを決めている
+				ENDDATA
+			CASE "掃除"
+				PRINTFORM %조사처리(아이의이름,"은")%部屋の掃除をしている
+			CASE "支度"
+				PRINTFORM %조사처리(아이의이름,"은")% 서당에 갈 채비를 하고 있다
+			CASE "登校"
+				PRINTFORM %조사처리(아이의이름,"가")%登校していく……
+			CASE "授業"
+				PRINTFORM %조사처리(아이의이름,"은")%授業を受けている
+			CASE "帰宅"
+				;寺子屋で見送った場合は表示されず、フラグをオフにする
+				IF  !自室自宅判定(CFLAG:MASTER:현재위치, CHARA) && CFLAG:MASTER:현재위치 != CFLAG:CHARA:현재위치
+					TFLAG:묘사중인아이 = 0
+				ELSE
+					PRINTFORM %조사처리(아이의이름,"은")%カバンを降ろしている
+				ENDIF
+			CASE "仕事"
+				PRINTFORM %조사처리(아이의이름,"은")%仕事に励んでいる
+			CASE "散歩"
+				PRINTDATA
+					DATAFORM %조사처리(아이의이름,"은")%誰かと話している
+					DATAFORM %조사처리(아이의이름,"은")%異性の人物と並んでいる
+					DATAFORM %조사처리(아이의이름,"은")%佇んでいる
+					DATAFORM %조사처리(아이의이름,"은")%お茶をすすっている
+					DATAFORM %조사처리(아이의이름,"은")%あくびをしている
+					DATAFORM %조사처리(아이의이름,"은")%手帳に何かを書いている
+					DATAFORM %조사처리(아이의이름,"은")%辺りを見回している
+					DATAFORM %조사처리(아이의이름,"은")% 졸린 눈치다
+					DATAFORM %조사처리(아이의이름,"은")%こちらの様子を伺っている
+				ENDDATA
+			;その他の行動,ここでCHILD_ACTを決めちゃう
+			CASEELSE
+				IF CFLAG:MASTER:현재위치 == CFLAG:CHARA:현재위치
+					同室 = 1
+				ELSE
+					同室 = 0
+				ENDIF
+				;描写の抽選と固定
+				IF LOCAL:1 != TIME || LOCAL:2 != 同室
+					IF CFLAG:CHARA:출산경과일 < CHILD_어휘
+						LOCAL = RAND:16
+					ELSEIF CFLAG:CHARA:출산경과일 < CHILD_자립전
+						IF 同室
+							LOCAL = RAND:24
+						ELSE
+							LOCAL = RAND:14
+						ENDIF
+					ELSE
+						IF 同室
+							LOCAL = RAND:26
+						ELSE
+							LOCAL = RAND:11
+						ENDIF
+					ENDIF
+					LOCAL:1 = TIME
+					LOCAL:2 = 同室
+				ENDIF
+				IF CFLAG:CHARA:출산경과일 < CHILD_어휘
+					SELECTCASE LOCAL
+					CASE 1, 2, 3, 4
+						PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:CHARA%에 안겨 있다
+						CHILD_ACT:CHARA:CHILDNUM = 幼児期_抱かれる
+					CASE 5, 6
+						PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:CHARA%의 품속에서 졸린 눈치다
+						CHILD_ACT:CHARA:CHILDNUM = 幼児期_眠たそう
+					CASE 7, 8
+						PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:CHARA%의 품속에서 얌전히 있다
+						CHILD_ACT:CHARA:CHILDNUM = 幼児期_大人しい
+					CASE 9, 10, 11, 12
+						PRINTFORM %CALLNAME:CHARA%에 안긴 %조사처리(아이의이름,"가")% 이쪽을 보고 있다
+						CHILD_ACT:CHARA:CHILDNUM = 幼児期_こちらを見る
+					CASE 13
+						PRINTFORM %CALLNAME:CHARA%에 안긴 %조사처리(아이의이름,"은")% 뭔가를 호소하고 있다
+						CHILD_ACT:CHARA:CHILDNUM = 幼児期_何かを訴える
+					CASE 14
+						PRINTFORM %조사처리(아이의이름,"은")% 뭔가를 눈으로 좇고 있다
+						CHILD_ACT:CHARA:CHILDNUM = 幼児期_何かを目で追う
+					CASEELSE
+						PRINTFORM %CALLNAME:CHARA%은 %아이의이름%를 어르고 있다
+						CHILD_ACT:CHARA:CHILDNUM = 幼児期_あやされる
+					ENDSELECT
+				ELSEIF CFLAG:CHARA:출산경과일 < CHILD_자립전
+					IF 同室
+						SELECTCASE LOCAL
+						CASE 1, 2
+							PRINTFORM %조사처리(CALLNAME:CHARA,"과")% %조사처리(아이의이름,"은")% 즐겁게 이야기를 나누고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_会話
+						CASE 3, 4
+							PRINTFORM %조사처리(CALLNAME:CHARA,"은")% %아이의이름%에게 뭔가를 가르치고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_教わる
+						CASE 5, 6
+							PRINTFORM %조사처리(CALLNAME:CHARA,"은")% %아이의이름%에게 이야기를 하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_会話
+						CASE 7, 8
+							PRINTFORM %조사처리(CALLNAME:CHARA,"은")% %아이의이름%의 행실을 바로잡고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_しつけられる
+						CASE 9
+							PRINTFORM %조사처리(아이의이름,"은")% %조사처리(CALLNAME:CHARA,"과")% 놀고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_親子遊び
+						CASE 10
+							PRINTFORM %조사처리(아이의이름,"은")% %조사처리(CALLNAME:CHARA,"과")% 열심히 이야기를 나누고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_会話
+						CASE 11
+							PRINTFORM %조사처리(아이의이름,"은")% 혼자서 놀고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_一人遊び
+						CASE 12
+							PRINTFORM %조사처리(아이의이름,"은")% 얌전히 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_大人しい
+						CASE 13
+							PRINTFORM %조사처리(아이의이름,"은")% 골똘히 생각하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_考え事
+						CASE 14
+							PRINTFORM %조사처리(아이의이름,"은")% 졸린 눈치다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_眠そう
+						CASE 15
+							PRINTFORM %조사처리(아이의이름,"은")% 까불거리고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_はしゃぐ
+						CASE 16
+							PRINTFORM %조사처리(아이의이름,"가")% 쫄랑쫄랑 돌아다니고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_うろちょろ
+						CASE 17
+							PRINTFORM %조사처리(아이의이름,"은")% 좀이 쑤신 눈치다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_うずうず
+						CASE 18
+							PRINTFORM %조사처리(아이의이름,"은")% 이쪽을 빤히 쳐다보고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_見つめる
+						CASE 19, 20
+							PRINTFORM %조사처리(아이의이름,"은")% %마스터와% 놀려 하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_遊ぼう
+						CASE 21, 22
+							PRINTFORM %조사처리(아이의이름,"가")% 더듬더듬 만져댄다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_ぺたぺた
+						CASEELSE
+							PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:MASTER%에 놀아주길 바라는 모양이다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_かまって
+						ENDSELECT
+					;単独
+					ELSE
+						SELECTCASE LOCAL
+						CASE 1
+							PRINTFORM %조사처리(아이의이름,"은")% 혼자서 놀고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_一人遊び
+						CASE 2
+							PRINTFORM %조사처리(아이의이름,"은")% 大人しくしている
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_大人しい
+						CASE 3
+							PRINTFORM %조사처리(아이의이름,"은")% 골똘히 생각하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_考え事
+						CASE 4
+							PRINTFORM %조사처리(아이의이름,"은")% 졸린 눈치다
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_眠そう
+						CASE 5
+							PRINTFORM %조사처리(아이의이름,"은")% はしゃいでいる
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_はしゃぐ
+						CASE 6
+							PRINTFORM %조사처리(아이의이름,"가")%うろちょろしている
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_うろちょろ
+						CASE 7
+							PRINTFORM %조사처리(아이의이름,"은")% うずうずしている
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_うずうず
+						CASE 8
+							PRINTFORM %조사처리(아이의이름,"은")% こちらをじっと見つめている
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_見つめる
+						CASE 9, 10
+							PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:MASTER%と遊ぼうとしている
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_遊ぼう
+						CASE 11, 12
+							PRINTFORM %조사처리(아이의이름,"가")%ぺたぺたと触ってくる
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_ぺたぺた
+						CASEELSE
+							PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:MASTER%にかまってほしいようだ
+							CHILD_ACT:CHARA:CHILDNUM = 幼少期_かまって
+						ENDSELECT
+					ENDIF
+				ELSE
+					IF 同室
+						SELECTCASE LOCAL
+						CASE 1, 2
+							PRINTFORM %조사처리(CALLNAME:CHARA,"과")% %조사처리(아이의이름,"은")% 즐겁게 이야기를 나누고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_会話
+						CASE 3, 4
+							PRINTFORM %조사처리(CALLNAME:CHARA,"은")% %아이의이름%에게 뭔가를 가르치고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_教わる
+						CASE 5, 6
+							PRINTFORM %조사처리(CALLNAME:CHARA,"은")% %아이의이름%에게 이야기를 하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_会話
+						CASE 7
+							PRINTFORM %조사처리(CALLNAME:CHARA,"은")% %아이의이름%의 행실을 바로잡고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_しつけられる
+						CASE 8
+							PRINTFORM %조사처리(CALLNAME:CHARA,"은")% 이쪽을 보면서 %아이의이름%와 소곤소곤 이야기를 나누고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_ひそひそ話
+						CASE 9
+							PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:TARGET%에게 불평을 주워섬기고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_文句
+						CASE 10
+							PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:TARGET%에게 주장하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_主張
+						CASE 11
+							PRINTFORM %조사처리(아이의이름,"은")% %조사처리(CALLNAME:CHARA,"과")% 함께 웃고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_笑い合う
+						CASE 12, 13
+							PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:TARGET%에게 가르침을 청하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_教えて
+						CASE 14, 15
+							PRINTFORM %조사처리(아이의이름,"은")% %CALLNAME:TARGET%의 손을 거들고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_手伝い
+						CASE 16, 17
+							PRINTFORM %조사처리(아이의이름,"은")% 혼자서 놀고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_一人遊び
+						CASE 18
+							PRINTFORM %조사처리(아이의이름,"은")% 골똘히 생각하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_考え事
+						CASE 19
+							PRINTFORM %조사처리(아이의이름,"은")% 졸린 눈치다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_眠そう
+						CASE 20, 21, 22, 23
+							PRINTFORM %조사처리(아이의이름,"은")% %마스터와% 대화하고 싶은 모양이다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_話したい
+						CASE 24
+							PRINTFORM %조사처리(아이의이름,"은")% %마스터를% 신경 쓰고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_気にする
+						CASE 25
+							PRINTFORM %조사처리(아이의이름,"은")% %마스터를% 사양하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_遠慮
+						CASEELSE
+							PRINTFORM %조사처리(아이의이름,"가")% 날카로운 눈매로 이쪽을 보고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_睨む
+						ENDSELECT
+					;単独
+					ELSE
+						SELECTCASE LOCAL
+						CASE 1, 2
+							PRINTFORM %조사처리(아이의이름,"은")% 혼자서 놀고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_一人遊び
+						CASE 3, 4
+							PRINTFORM %조사처리(아이의이름,"은")% 골똘히 생각하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_考え事
+						CASE 5
+							PRINTFORM %조사처리(아이의이름,"은")% 졸린 눈치다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_眠そう
+						CASE 6, 7, 8, 9
+							PRINTFORM %조사처리(아이의이름,"은")% %마스터와% 대화하고 싶은 모양이다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_話したい
+						CASE 10
+							PRINTFORM %조사처리(아이의이름,"은")% %마스터를% 신경 쓰고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_気にする
+						CASE 11
+							PRINTFORM %조사처리(아이의이름,"은")% %마스터를% 사양하고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_遠慮
+						CASEELSE
+							PRINTFORM %조사처리(아이의이름,"가")% 날카로운 눈매로 이쪽을 보고 있다
+							CHILD_ACT:CHARA:CHILDNUM = 自立前_睨む
+						ENDSELECT
+					ENDIF
+				ENDIF
+		ENDSELECT
+		PRINTL 
+	CASE 15
+		IF !CHARA_HOLIDAY(30)
+			;裁判中
+			IF BETWEENTIME(540, 719)
+				IF !FLAG:70
+					PRINTFORML 法廷は厳粛な雰囲気に包まれている
+					IF RAND:2
+						PRINTFORML %CALLNAME:(ARG:1)%は\@ 충전율(TARGET,3) >= 10 ? %SHOW_BOTTOM(TARGET,1)%の中をぐしょぐしょにしながら、# \@厳かに裁判を進めている…
+					ELSE
+						PRINTFORML \@ 충전율(30,3) >= 30 ? たっぷりと# \@\@ 충전율(30,3) >= 10 ? お腹に精液を溜めた # \@%CALLNAME:(ARG:1)%は神妙な顔つきで裁判を進めている…
+					ENDIF
+				ELSEIF !CFLAG:MASTER:우후후
+					PRINTFORML 裁判は停止中だ…
+				ELSE
+					PRINTFORML %CALLNAME:(ARG:1)%は神聖な法廷で襲われている…
+				ENDIF
+			ENDIF
+		ENDIF
+	CASE 16
+		CALL 잠복묘사
 ENDSELECT
+;아이의 묘사가 없다면 플래그를 끄고, 정경묘사에서 불린 건 제외
+SIF ARG != 14 && !GROUPMATCH(ARG, 1, 6, 15, 7)
+	TFLAG:묘사중인아이 = 0
 ;-----------------------------------------------------------------------------------------------------------------
 @정경묘사
+#DIM KROOM_DESC
 VARSET LOCAL
+;口上内私室描写をチェック
+KROOM_DESC = 0
+IF CFLAG:MASTER:초대
+	KROOM_DESC = CFLAG:MASTER:초대
+ELSEIF PRIVATEROOM:(CFLAG:MASTER:현재위치 % 100)
+	KROOM_DESC = PRIVATEROOM:(CFLAG:MASTER:현재위치 % 100)
+ENDIF
+IF KROOM_DESC
+	TRYCCALLFORM K{KROOM_DESC}_ROOM_DESCRIPTION
+	;	PRINTFORML あったよ
+		RETURN
+	CATCH
+	;	PRINTFORML ないよ
+	;関数がないなら続行
+	ENDCATCH
+ENDIF
 ;부근에서 연회를 하고 있다면 떠들썩한 모습이 보인다
 IF FLAG:연회개최플래그 >= 98 && CAN_MOVE(CFLAG:MASTER:현재위치, TFLAG:연회장) >= 2
 	CALL MESSAGE_TALK(1)
-;-군요 선생님의 서당 정경 문장
+;케이네 선생님의 서당 정경 문장
 ELSEIF CFLAG:MASTER:현재위치 == 240 && CFLAG:67:행동 == 5
 		CALL MESSAGE_TALK(6)
+;에이키님의 裁判風景描写文章
+ELSEIF ((CFLAG:MASTER:현재위치 == 640 && MAIN_MAP != 6) || (CFLAG:MASTER:현재위치 == 612 && MAIN_MAP == 6)) && CFLAG:30:행동 == 5
+		CALL MESSAGE_TALK(15, 30)
 	;ELSEIF CFLAG:MASTER:우후후 && GET_TARGETNUM() > 1
 	;	CALL EASY_TARGET_CHANGER
 ELSEIF GROUPMATCH(CFLAG:MASTER:현재위치, 210,220,230,250,270) 

@@ -161,8 +161,8 @@ WHILE 1
 			CONTINUE
 		CASE 돌아간다
 			RETURN 돌아간다
-		CASE AA표시
-			;FLAG:AA표시 = !FLAG:AA표시
+		CASE 화상변환
+			FLAG:AA표시 = !FLAG:AA표시
 		CASE 160 TO 167
 			TFLAG:입력치 = !TFLAG:입력치
 		CASEELSE
@@ -1175,7 +1175,7 @@ LOOP 1
 #DIM  C_ID ;등록 번호
 #DIMS OP   ;실행 옵션
 #DIM  PAGE ;표시중의 페이지
-#DIMS CONST DISP_NAME , 5 = "의상 및 능력", "경험과 보주", "개인정보", "함락 조건", "전투능력치"
+#DIMS CONST DISP_NAME , 7 = "능력", "경험과 보주", "개인정보", "호불호", "신체정보", "소지도구", "전투능력치"
 CALL CHARA_STATE(C_ID, PAGE, OP)
 
 PRINTBUTTON @"[4] -　　　%DISP_NAME:((PAGE - 1 + 상세능력표시최대페이지번호) % 상세능력표시최대페이지번호), 10%", 4
@@ -1208,10 +1208,6 @@ DO
 	;표시·비표시의 전환
 	CASE 160 TO 168
 		TFLAG:RESULT = !TFLAG:RESULT
-	CASE AA표시
-	;	FLAG:AA표시 = !FLAG:AA표시
-	CASE 99
-		FLAG:그림표시 = !FLAG:그림표시
 	CASEELSE
 		$RETRY
 		REUSELASTLINE 무효인 입력입니다
@@ -1226,18 +1222,18 @@ RESTART
 ;조교중 타겟용의 리스트 표시 함수
 ;보통에 TARGET를 건네주면(자) TARGET:0이 중복 해 버리므로 그대로는 사용할 수 없었다
 ;리스트에 MASTER를 포함하도록(듯이) 개량
-@TARGET_LIST_STATE(ARG:0)
+@TARGET_LIST_STATE
 #DIM TARGET_LIST, 캐릭터수상한
 #DIM TARGET_NUM
 #DIM VIEW
 VARSET TARGET_LIST
 TARGET_NUM = FINDELEMENT(TARGET, 0) - 1
-VIEW = ARG:0
+VIEW = TARGET
 SIF TARGET_NUM <= 0
 	RETURN
 ARRAYCOPY "TARGET", "TARGET_LIST"
 TARGET_LIST:0 = MASTER
-VIEW = FINDELEMENT(TARGET_LIST, ARG:0)
+VIEW = FINDELEMENT(TARGET_LIST, TARGET)
 SIF VIEW == -1
 	VIEW = 0
 CALL LIST_CHARA_STATE(TARGET_LIST, VIEW, TARGET_NUM + 1, "「조교중」")
@@ -1253,7 +1249,7 @@ CALL LIST_CHARA_STATE(TARGET_LIST, VIEW, TARGET_NUM + 1, "「조교중」")
 #DIMS    OP         ;실행 옵션
 #DIM     C_ID       ;등록 번호
 #DIM     PAGE       ;표시중의 페이지
-#DIMS CONST DISP_NAME , 5 = "의상 및 능력", "경험과 보주", "개인정보", "함락 조건", "전투능력치"
+#DIMS CONST DISP_NAME , 7 =  "능력", "경험과 보주", "개인정보", "호불호", "신체정보", "함락 조건", "전투능력치"
 CALL CHARA_STATE(CHARA_LIST:C_VIEW, PAGE, OP)
 DRAWLINE
 PRINTFORM 　　　　　　　　　　　
@@ -1304,8 +1300,10 @@ DO
 	;CASE AA표시
 		;FLAG:AA표시 = !FLAG:AA표시
 	CASE 98
-		SIF CFLAG:(CHARA_LIST:C_VIEW):별도얼굴있음 && CFLAG:(CHARA_LIST:C_VIEW):별도스탠딩있음
-			CFLAG:(CHARA_LIST:C_VIEW):대체적용 = !CFLAG:(CHARA_LIST:C_VIEW):대체적용
+		SIF CFLAG:(CHARA_LIST:C_VIEW):별도얼굴있음 || CFLAG:(CHARA_LIST:C_VIEW):별도스탠딩있음
+			CFLAG:(CHARA_LIST:C_VIEW):대체적용 += 1
+		SIF CFLAG:(CHARA_LIST:C_VIEW):대체적용 > CFLAG:(CHARA_LIST:C_VIEW):별도얼굴있음 && CFLAG:(CHARA_LIST:C_VIEW):대체적용 > CFLAG:(CHARA_LIST:C_VIEW):별도스탠딩있음
+			CFLAG:(CHARA_LIST:C_VIEW):대체적용 = 0
 	CASE 99
 		FLAG:그림표시 = !FLAG:그림표시
 	CASEELSE
@@ -1340,8 +1338,8 @@ ELSE
 ENDIF
 ;MASTER라면 소지금을 기재
 IF C_ID == MASTER
-	PRINTFORM (%"소지금:\\" + TOSTR(MONEY,"#,###")%)
-	PRINTFORM  (소지 카리스마:{MONEY:2}CM)
+	PRINTFORM (소지금:%금액표시(MONEY)%
+	PRINTFORM  (소지 카리스마:%세자리구분(MONEY:2)%CM)
 	PRINTFORM  (소지수찰:{ITEM:131}매)
 ENDIF
 IF FLAG:생리주기가시화 && TALENT:C_ID:성별 != 2
@@ -1366,38 +1364,35 @@ ENDIF
 RESETCOLOR
 ;여기만 BASE 기본 표시로 독립시켜도 괜찮을지도라는 느낌에 쓰기 좋은 점 그렇게
 PRINTL 　
-CALL BASE_BAR(C_ID, "체력", 18, "초록")
+CALL BASE_BAR(C_ID, "체력", 28, "초록")
 PRINTFORM 　　
-CALL BASE_BAR(C_ID, "기력", 18, "파랑", "「개행」")
-IF BASE:C_ID:술기운
-	CALL BASE_BAR(C_ID, "술기운", 18, "빨강")
+CALL BASE_BAR(C_ID, "기력", 28, "파랑", "「개행」")
+SIF BASE:C_ID:술기운
+	CALL BASE_BAR(C_ID, "술기운", 28, "빨강", "「개행」")
+
+IF C_ID == MASTER
+	CALL BASE_BAR(MASTER, "정력", 28, "黄")
+	PRINTFORM 　　
+	CALL BASE_BAR(C_ID, "TSP", 28, "물색", "「개행」")
 ELSE
-	PRINTFORM %"　" * 24%
+	IF NOTICE_LUST(C_ID)
+		;기술을 정리할 수 있다고 하는 이유로써 미묘하게 반응을 일으키는 최소의 물리량 변경
+		SELECTCASE CFLAG:C_ID:욕구불만도
+		CASE IS >= 665
+			SETCOLOR C_RED
+		CASE IS >= 332
+			SETCOLOR C_YELLOW
+		ENDSELECT
+		PRINTFORMD 욕구 불만도：
+		PRINTFORM {CFLAG:C_ID:욕구불만도 / 10}
+		PRINTFORMD ％
+		RESETCOLOR
+	ENDIF
+	PRINTFORM 　　
+	SIF CFLAG:(C_ID):탄막승부승리 == 1
+		PRINTFORM ★탄막승부에 승리했다
+	PRINTFORML
 ENDIF
-PRINTFORM 　　
-SIF C_ID == MASTER
-	CALL BASE_BAR(C_ID, "TSP", 18, "물색")
-PRINTFORML 
-
-IF NOTICE_LUST(C_ID)
-	;기술을 정리할 수 있다고 하는 이유로써 미묘하게 반응을 일으키는 최소의 물리량 변경
-	SELECTCASE CFLAG:C_ID:욕구불만도
-	CASE IS >= 665
-		SETCOLOR C_RED
-	CASE IS >= 332
-		SETCOLOR C_YELLOW
-	ENDSELECT
-	PRINTFORMD 욕구 불만도：
-	PRINTFORM {CFLAG:C_ID:욕구불만도 / 10}
-	PRINTFORMD ％
-	RESETCOLOR
-ENDIF
-SIF CFLAG:(C_ID):탄막승부승리 == 1
-	PRINTFORM ★탄막승부에 승리했다
-PRINTFORML 
-	
-
-
 
 ;캐릭터 정보 표시 함수
 ;등록 번호와 페이지번호, 옵션을 지정해 정보를 표시한다
@@ -1405,45 +1400,19 @@ PRINTFORML
 #DIM  C_ID
 #DIM  PAGE
 #DIMS OP
+;#DIM STARTLINE
+
+;STARTLINE = LINECOUNT
+
 CALL BASIC_STATE(C_ID, OP)
 SELECTCASE PAGE
 CASE 0
+	CALL PRINT_STATE_IMAGE(C_ID)
 	CALL SHOW_SIZE(C_ID)
-	IF !FLAG:그림표시
-		PRINTL [99] 그림 미표시
-	ELSE
-		PRINTLC [99] 그림 표시
-		SIF (FLAG:스탠딩종류 == 1 && CFLAG:C_ID:별도얼굴있음) || (FLAG:스탠딩종류 == 0 && CFLAG:C_ID:별도스탠딩있음)
-			PRINTFORMLC [98] 대체화상 \@ CFLAG:C_ID:대체적용? ON# OFF\@
-		PRINTL
-	ENDIF
-	IF !FLAG:그림표시
-		
-	ELSEIF FLAG:그림표시
-		CALL PRINT_STATE_IMAGE(C_ID)
-	ENDIF
 	CALL PRINT_STATE_CLOTH(C_ID)
-	
-	;도구라고 할까 아이템이지만 외가 2 문자이고
-	IF C_ID == MASTER
-		PRINT □ 
-		CALL PRINTBUTTON_EX("도구", 167, TFLAG:167)
-		PRINTL  □---------------------------------------------------------------------------
-		SIF !TFLAG:도구표시
-			CALL LIST_ITEM("모두")
-	ENDIF
-	;CALL PRINT_STATE_ABL(C_ID)
 	CALL PRINT_STATE_TALENT(C_ID)
 	PRINTL
 	CALL SHOW_ABILITY(C_ID)
-	PRINTL
-	;IF C_ID != MASTER
-	;	PRINTL
-	;	PRINT □ 
-	;	CALL PRINTBUTTON_EX("각인", 166, TFLAG:166)
-	;	PRINTL  □---------------------------------------------------------------------------
-	;	CALL PRINT_각인(C_ID)
-	;ENDIF
 CASE 1
 	PRINTL
 	CALL PRINT_STATE_EXP(C_ID)
@@ -1464,12 +1433,22 @@ CASE 1
 	ENDIF
 CASE 2
 	CALL PRINT_STATE_PERSONAL(C_ID)
-	CALL 육체정보(C_ID)
 	CALL SHOW_RELATION(C_ID)
 CASE 3
-	CALL 함락조건표시(C_ID)
-	CALL 바람기파악상황(C_ID)
+	CALL PRINT_STATE_PREFERENCE(C_ID)
+	CALL PRINT_STATE_GIFTDATA(C_ID, 15)
 CASE 4
+	CALL 육체정보(C_ID)
+CASE 5
+	IF C_ID == MASTER
+		CALL SHOW_ALLITEM_INFO
+	ELSE
+		CALL 함락조건표시(C_ID)
+		CALL 바람기파악상황(C_ID)
+	ENDIF
+
+CASE 6
+
 	CALL 텍붕이모드능력치표시(C_ID)
 	IF C_ID == MASTER&&!FLAG:식사강제플래그
 		CALL 영양정보
@@ -1481,21 +1460,24 @@ CASEELSE
 	THROW 이상한PAGE {PAGE}
 ENDSELECT
 
-
+;WHILE (680/GETCONFIG("一行の高さ"))-(LINECOUNT-STARTLINE) > 0
+;	PRINTL
+;WEND
 
 
 ;각인과 능력을 일괄해 표시한다
 ;세로폭을 압축하고 싶다
 @SHOW_ABILITY(C_ID)
 #DIM  C_ID
+;KR판 오리지날 또는 구잔재 채집/낚시/조제기능 표시
 {
 #DIMS CONST DISP_NAME , 63 = 
 	"고통",     "ㅤ친밀ㅤ",     "ㅤ교양ㅤ", "C감각", "손기술ㅤ", "마조끼", "자위중독",
 	"쾌락",     "ㅤ순종ㅤ", "화술기능", "V감각", "질기술ㅤ", "새드끼", "정액중독",
 	"괘씸",     "ㅤ욕망ㅤ", "전투능력", "A감각", "A기술ㅤ", "레즈끼", "레즈중독",
 	"반발",     "ㅤ기교ㅤ", "청소기능", "B감각", "가슴기술", "호모끼", "게이중독",
-	"이력", "봉사정신", "요리기능", "M감각", "혀기술ㅤ",         "", "질사중독",
-	"시간",   "노출벽", "음악기능",       "", "허리기술",         "", "항사중독",
+	"이력", 	"봉사정신", "요리기능", "M감각", "혀기술ㅤ",         "", "질사중독",
+	"시간",   	 "노출벽", "음악기능",       "", "허리기술",         "", "항사중독",
 	"마크",   "", "채집기능",       "", "",         "", "",
 	"마크",   "", "낚시기능",       "", "",         "", "",
 	"마크",   "", "조제기능",       "", "",         "", "",

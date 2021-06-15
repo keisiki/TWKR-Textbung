@@ -225,7 +225,8 @@ FOR LOCAL, 1, 전회의캐릭터수
 	ENDIF
 	IF GETCHARA (LOCAL) == -1
 		ADDCHARA LOCAL
-	CALL KOJO_MULTIPLE(LOCAL)
+	;시험 삼아 CALL KOJO_MULTIPLE을 FOR~NEXT 루프 밖으로 내보내기
+	;CALL KOJO_MULTIPLE(LOCAL)
 	ENDIF
 	;효율화 추구를 위해 인계 플래그와 동시에 돌린다
 	;파일 체크는 벌써 하고 있기 때문에 그 안에서 돌리면 끝나는 이야기였습니다(반성)
@@ -237,7 +238,7 @@ FOR LOCAL, 1, 전회의캐릭터수
 		;팬티콜렉션의 인계
 		CFLAG:LOCAL:(LOCAL:1 + 100) = 전회의팬티:LOCAL:(LOCAL:1)
 	NEXT
-		CFLAG:LOCAL:구상용이어받아테두리 = 전회의CFLAG:LOCAL
+	CFLAG:LOCAL:구상용이어받아테두리 = 전회의CFLAG:LOCAL
 	;키스미경험의 리셋
 	SIF EXP:LOCAL:키스경험 == 0
 		 TALENT:LOCAL:키스미경험 = 1
@@ -247,6 +248,12 @@ FOR LOCAL, 1, 전회의캐릭터수
 	TALENT:LOCAL:주인 = 0
 NEXT
 ;다 된 캐릭터의 출금을 체크
+
+;위쪽 루프에서 이사
+FOR LOCAL,1,전회의캐릭터수
+	CALL KOJO_MULTIPLE(LOCAL)
+NEXT
+;역극 캐릭터의 출금을 체크
 IF 전회의역극출금
 	CFLAG:(FLAG:역극):출금 = 전회의역극출금
 	FLAG:출금인원수 ++
@@ -350,7 +357,7 @@ VARSET 전회의팬티
 ;ARG=캐릭터번호
 ;현재 동일 캐릭터 구상은 최대 4개까지 상정
 ;-----------------------------------------------------------
-@KOJO_MULTIPLE(C_ID,KCOLOR)
+@KOJO_MULTIPLE(C_ID)
 #DIM C_ID
 #DIM DYNAMIC KCOLOR
 #DIM DYNAMIC 구상카운트
@@ -362,9 +369,7 @@ FOR 구상카운트,0,5
 		RESULT = 0
 		TRYCALLFORM M_KOJO_K{C_ID}_{구상카운트}
 		IF RESULT
-			IF KCOLOR && GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
-				TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{C_ID}
-			ELSEIF !GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
+			IF !GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
 				구상수 += 1
 				구상실장수 += 1
 				SETBIT CFLAG:C_ID:대사실장상황,구상카운트
@@ -375,22 +380,20 @@ FOR 구상카운트,0,5
 	ELSE
 		TRYCALLFORM M_KOJO_K{C_ID}
 		IF RESULT
-			IF KCOLOR && GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
-				TRYCALLFORM M_KOJO_COLOR_K{C_ID}
-			ELSEIF !GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
+			IF !GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
 				구상수 += 1
 				구상실장수 += 1
 				SETBIT CFLAG:C_ID:대사실장상황,구상카운트
 			ELSEIF GETBIT(CFLAG:C_ID:대사실장상황,구상카운트)
 				구상실장수 += 1
 			ENDIF
+		ELSE
+			CFLAG:C_ID:대사실장상황 = 0
 		ENDIF
 	ENDIF
 	SIF !RESULT
 		BREAK
 NEXT
-SIF KCOLOR
-	RETURN
 ;구상 존재 판정
 IF 구상수
 	;신규 별인구상추가

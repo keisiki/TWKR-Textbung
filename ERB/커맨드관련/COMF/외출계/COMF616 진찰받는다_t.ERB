@@ -3,6 +3,7 @@
 ;외출 커맨드
 ;-------------------------------------------------
 @COM616
+#DIM 買うもの
 PRINTL 「오늘은 무슨 일일까?」
 $LOOP
 DRAWLINE
@@ -53,30 +54,35 @@ ELSEIF RESULT == 1
 		MONEY -= 건보적용(3000)
 	ENDIF
 ELSEIF RESULT == 3
-	PRINTL 「이런 건 어떨까」
-	DRAWLINE
 	$SELL
-	FOR LOCAL, 12,17
-		SIF ITEMNAME:LOCAL == ""
-			CONTINUE
-		PRINTFORM [{LOCAL}] %ITEMNAME:LOCAL% ￥{(ITEMPRICE:LOCAL) / 5}
-		IF ITEM:LOCAL
-			PRINTL 　(매진)
-		ELSE
-			PRINTL
+	;購入条件設定
+	FOR LOCAL, 0, 1000
+		CALL ITEMDATA(LOCAL, "SHOP:진찰")
+		IF RESULT
+			CALL ITEMDATA(LOCAL, "SALES")
+			ITEMSALES:LOCAL = RESULT
 		ENDIF
 	NEXT
-	PRINTL
-	PRINTL [100] 돌아온다
-	$LOOP2
+	DRAWLINE
+	PRINTL 「이런 건 어떨까」
+	PRINTFORML 購入するアイテムを選んでください（소지금:\\%TOSTR(MONEY,"#,###")%）
+	DRAWLINE
+	CALL SHOW_SHOPPING("진찰", "調教")
+	DRAWLINE
+	PRINTL [999] 돌아온다
 	INPUT
-	IF RESULT >= 12 && RESULT <= 17
-		CALL BUY_ABLE(RESULT, 0,1,80)
-		GOTO SELL
-	ELSEIF RESULT == 100
+	IF RESULT == 999
 		RETURN 0
 	ELSE
-		GOTO LOOP2
+		買うもの = RESULT
+		CALL ITEMDATA(買うもの, "SHOP:진찰")
+		IF RESULT && ITEMSALES:買うもの >= 0 && ITEM:買うもの < 소지수제한
+			CALL ITEMDATA(買うもの, "구입")
+			SIF RESULT
+				GOTO SELL
+		ELSE
+			GOTO SELL
+		ENDIF
 	ENDIF
 ELSEIF RESULT == 4 && TALENT:MASTER:청소중독
 	IF FLAG:850 == 0
@@ -322,7 +328,7 @@ ENDSELECT
 
 PRINTFORMW 에이린은 %LOCALS%에 의한 치료를 실시했다
 SIF ARG == 2
-	PRINTL 후아 싫어해 개, 만 타 응!
+	PRINTL 화이팅 한 방, 만따-앙!
 SIF ARG >= 0 && ARG <= 2
 	PRINTW 체력이 회복했다
 SIF ARG >= 3 && ARG <= 6

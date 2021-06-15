@@ -4,6 +4,7 @@
 #DIM 내방확률
 #DIM 기본내방확률
 #DIM 내방인원수상한
+#DIM 내방연쇄
 
 ;LOCAL = 각 캐릭터의 NO 
 내방자수 = 0
@@ -25,9 +26,11 @@ CASEELSE
 	기본내방확률 = 18
 ENDSELECT
 
-내방인원수상한 = 10
-SIF TALENT:MASTER:천객만래
+IF TALENT:MASTER:천객만래
 	내방인원수상한 = 12
+ELSE
+	내방인원수상한 = 10
+ENDIF
 SIF MAIN_MAP == 12
 	내방인원수상한 = 0
 ;우선 확정으로 오는 캐릭터를 카운트
@@ -37,6 +40,7 @@ FOR LOCAL, 1, CHARANUM
 	IF CFLAG:LOCAL:연회참가
 		IF IN_HOME(FLAG:32)
 			CFLAG:LOCAL:거점내방 = 1
+			CFLAG:LOCAL:마지막내방일 = DAY
 			내방자수 ++
 		;다만 신사외라면 확실히 오지 않는(술>>(넘을 수 없는 벽)>>연인의 당신)
 		ELSE
@@ -44,8 +48,9 @@ FOR LOCAL, 1, CHARANUM
 		ENDIF
 	;발원함 대상/의뢰실행중 및 달성 사람은 내방한다
 	; // 자택 멤버는 발원함 플래그가 ON에서도 내방하지 않게 from 발원함 패치. ERB//
-	ELSEIF (CFLAG:LOCAL:다음날내방 && !CFLAG:LOCAL:신사거주) || CFLAG:LOCAL:의뢰상황 == 3
+	ELSEIF 내방가능(LOCAL, "강제") && (CFLAG:LOCAL:다음날내방) || CFLAG:LOCAL:의뢰상황 == 3
 		CFLAG:LOCAL:거점내방 = 1
+		CFLAG:LOCAL:마지막내방일 = DAY
 		내방자수 ++
 	ELSE
 		CFLAG:LOCAL:거점내방 = 0
@@ -81,72 +86,98 @@ FOR LOCAL:10 , 0 , CHARANUM - 1
 		CONTINUE
 	;출금인원수＋각 소질에 의한 수정으로부터 내방율을 산출해, 판정
 	;일부 캐릭터에게는 추가로 조건이나 확률 변동이 존재
-	;내방자수가 내방인원수상한을 넘으면(자) 스킵
-	SIF 내방자수 > 내방인원수상한
+	SIF FLAG:교류내방모드 == 2
+		BREAK
+	;내방자수가 내방인원수상한을 넘으면(자) 종료
+	SIF 내방자수 >= 내방인원수상한
+		BREAK
+	;이미 내방 플래그가 서 있으면 판정하지 않음
+	SIF CFLAG:LOCAL:거점내방
+		CONTINUE
+	SIF !내방가능(LOCAL)
 		CONTINUE
 	내방확률 = 기본내방확률 - TALENT:LOCAL:연모 * 2 - TALENT:LOCAL:사모 - CFLAG:LOCAL:(420 + MAIN_MAP)
 	SIF CFLAG:LOCAL:딸딸이들킴
 		내방확률 += 5
-	SELECTCASE LOCAL
-		;플랑, 님
-		CASE 50, 66
-			IF !RAND:(2 + 내방확률)
-				CFLAG:LOCAL:거점내방 = 1
-				내방자수 ++
-			ELSE
-				CFLAG:LOCAL:거점내방 = 0
-			ENDIF
-		;쳇
-		CASE 54
-			IF !RAND:(10 + 내방확률)
-				CFLAG:LOCAL:거점내방 = 1
-				내방자수 ++
-			ELSE
-				CFLAG:LOCAL:거점내방 = 0
-			ENDIF
-		;도 고담&나
-		CASE 61, 62
-			IF !RAND:(내방확률) && CFLAG:LOCAL:호감도 > 500
-				CFLAG:LOCAL:거점내방 = 1
-				내방자수 ++
-			ELSE
-				CFLAG:LOCAL:거점내방 = 0
-			ENDIF
-		;면월, 사구메는 예지상에는 가고 싶어하지 않는다
-		CASE 98,99,110
-			IF !TALENT:LOCAL:연모 && !TALENT:LOCAL:사모
-				CFLAG:LOCAL:거점내방 = 0
-			ELSEIF !RAND:(5 + 내방확률)
-				CFLAG:LOCAL:거점내방 = 1
-				내방자수 ++
-			ELSE
-				CFLAG:LOCAL:거점내방 = 0
-			ENDIF
-		CASEELSE
-			IF !RAND:내방확률
-				CFLAG:LOCAL:거점내방 = 1
-				내방자수 ++
-			ELSE
-				CFLAG:LOCAL:거점내방 = 0
-			ENDIF
-	ENDSELECT
-
-	;와카사기히메의 내방플래그는 풀장이 없으면 접힌다
-	IF LOCAL == 93 && CFLAG:LOCAL:거점내방 && FLAG:풀장 < 8
+	;最初の一ヶ月は補正なし
+	IF DAY > 30
+		;마지막내방일が近いほど来訪しにくい
+		IF DAY - CFLAG:LOCAL:마지막내방일 < 4
+			내방확률 += 100
+		ELSEIF DAY - CFLAG:LOCAL:마지막내방일 < 8
+			내방확률 += 10
+		ELSEIF DAY - CFLAG:LOCAL:마지막내방일 > 20
+			내방확률 = 내방확률 * 3 / 4
+		ELSEIF DAY - CFLAG:LOCAL:마지막내방일 > 30
+			내방확률 = 내방확률 * 2 / 3
+		ENDIF
+	ENDIF
+	IF !RAND:(내방확률 + CFLAG:LOCAL:내방억제치)
+		CFLAG:LOCAL:거점내방 = 1
+		CFLAG:LOCAL:마지막내방일 = DAY
+		내방자수 ++
+	ELSE
 		CFLAG:LOCAL:거점내방 = 0
-		내방자수 --
-	;교류 모드로 플래그 때
-	ELSEIF FLAG:교류내방모드 == 1 && CFLAG:LOCAL:호감도 <= 0
-		CFLAG:LOCAL:거점내방 = 0
-		내방자수 --
-	ELSEIF FLAG:교류내방모드 == 2
-		CFLAG:LOCAL:거점내방 = 0
-		내방자수 --
+	ENDIF
+	;相性の良いキャラが一緒に来訪してくるシステム(最大2人まで)
+	내방연쇄 = 0
+	IF CFLAG:LOCAL:거점내방
+		FOR LOCAL:11, 1, CHARANUM - 1
+			LOCAL:1 = SHAFFLE_ARRAY:(LOCAL:11) + 1
+			IF RELATION:LOCAL:(LOCAL:1) > 100 && 내방가능(LOCAL:1) && 내방자수 < 내방인원수상한 && 내방연쇄 < 2
+				;相性200%で50%,120%で30%
+				IF RAND:100 < RELATION:LOCAL:(LOCAL:1) / 4
+					CFLAG:(LOCAL:1):거점내방 = 1
+					CFLAG:(LOCAL:1):마지막내방일 = DAY
+					내방자수 ++
+					내방연쇄 ++
+				ENDIF
+			ENDIF
+		NEXT
 	ENDIF
 NEXT
+
 
 ;외박중은 비표시
 IF 내방자수 > 0 && AT_HOME(MASTER)
 	PRINTFORMW %GET_MAPNAME(MAIN_MAP)%에 내방자가 있던 것 같다.
 	PRINTL
 ENDIF
+
+@내방가능(ARG, ARGS)
+#FUNCTION
+;절대 내방할 수 없는 판정
+SIF CFLAG:ARG:신사거주 > 0
+	RETURNF 0
+SIF CFLAG:ARG:출금 || TALENT:ARG:스침
+	RETURNF 0
+SIF MAIN_MAP == 12
+	RETURNF 0
+IF GROUPMATCH(ARG, [[와카사기히메]])
+	SIF !GETBIT(FLAG:풀장, 3)
+		RETURNF 0
+ENDIF
+
+;강제라면 여기서 판정
+SIF ARGS == "강제"
+	RETURNF 1
+
+;모드에 따른 설정
+IF FLAG:교류내방모드 == 1
+	SIF CFLAG:ARG:호감도 <= 50
+		RETURNF 0
+ELSEIF FLAG:교류내방모드 == 2
+	RETURNF 0
+ENDIF
+;캐릭터별 설정
+SELECTCASE ARG
+CASE [[모코우]], [[카구야]]
+	SIF CFLAG:ARG:호감도 <= 500
+		RETURNF 0
+;와타츠키、사구메は穢れた地上には行きたがらない
+CASE [[요리히메]], [[토요히메]], [[사구메]]
+	SIF !TALENT:ARG:연모 && !TALENT:ARG:사모
+		RETURNF 0
+ENDSELECT
+
+RETURNF 1

@@ -321,3 +321,122 @@ SIF BASE:MASTER:기력 <= 0
 SIF BASE:MASTER:술기운 > 0
 	RETURN 0
 RETURN 1
+
+;자동청소
+@AUTO_SWEEP
+#DIM SWEEPID
+#DIM 掃除前の汚れ
+#DIM 掃除後の汚れ
+#DIM 清掃力
+#DIM 掃除量
+#DIM 掃除ダイス
+
+;一人でいる場合、出発地点を掃除する
+[IF_DEBUG]
+PRINTFORML 자동청소フラグ:{GETBIT(FLAG:자동청소, 1)}、동행：{CFLAG:MASTER:동행}
+[ENDIF]
+IF (GETBIT(FLAG:자동청소, 1) && !CFLAG:MASTER:동행)
+
+	SWEEPID = CFLAG:MASTER:현재위치
+
+	;汚れの主観スキップ判定
+	IF YOGORE:SWEEPID < OSOUJI_LIMIT(MASTER)
+		RETURN -1
+	ENDIF
+	
+	;체력기력0ならスキップ
+	IF (BASE:MASTER:체력 == 0 || BASE:MASTER:기력 == 0)
+		RETURN -1
+	ENDIF
+	
+	;掃除処理
+	清掃力 = (2 + ABL:MASTER:청소기능 + 3 * TALENT:MASTER:청소중독)
+	
+	;커스텀대비による補正
+	SELECTCASE ITEM:커스텀대비
+		CASE 1
+			清掃力 += 2
+		CASE 2
+			清掃力 += 3
+		CASE 3
+			清掃力 += 4
+	ENDSELECT
+	
+	;成功判定
+	掃除ダイス = (4 + ABL:MASTER:청소기능) - RAND:11
+	
+	[IF_DEBUG]
+	PRINTFORML [ベースの清掃力:{清掃力}][掃除ダイス:{掃除ダイス}]
+	[ENDIF]
+	
+	;掃除ダイスが1以上なら成功(清掃0で30%、清掃6で90%)
+	IF (掃除ダイス > 0)
+	
+		清掃力 = 清掃力 * (5 - TALENT:MASTER:61) / 5
+		
+		掃除前の汚れ = YOGORE:(SWEEPID)
+		
+		YOGORE:(SWEEPID) = YOGORE:(SWEEPID) / 清掃力
+		
+		掃除後の汚れ = YOGORE:(SWEEPID)
+		
+		;掃除量を計算して半分を戻して反映
+		掃除量 = (掃除前の汚れ - 掃除後の汚れ) / 2
+		掃除後の汚れ += 掃除量
+		YOGORE:(SWEEPID) += 掃除量
+		EX:MASTER:오늘의청소회수 = EX:MASTER:오늘의청소회수 + 掃除量
+		
+		PRINTFORML %조교자는% %NAME_FROM_PLACE(SWEEPID)%を出る前に掃除した
+		PRINTFORML
+		
+		[IF_DEBUG]
+		PRINTFORML [清掃力:{清掃力}][掃除前:{掃除前の汚れ}][掃除後:{掃除後の汚れ}]
+		[ENDIF]
+		
+		;청소경험は1/3上昇
+		SIF !RAND:3
+			EXP:MASTER:청소경험 ++
+		
+	ELSE 
+		;掃除失敗
+		SELECTCASE RAND:10
+			CASE 1
+				PRINTFORML %조교자는% %NAME_FROM_PLACE(SWEEPID)%を出る前に掃除しようとして、バケツをひっくり返した
+			CASE 2
+				PRINTFORML %조교자가% 手に取ったホウキは突然暴れ始めてどこかへ行ってしまった
+			CASE 3
+				PRINTFORML %조교자는% %NAME_FROM_PLACE(SWEEPID)%をうまく掃除できなかった
+			CASE 4
+				PRINTFORML %조교자가% 掃除した%NAME_FROM_PLACE(SWEEPID)%は前より汚れているように見える
+			CASE 5
+				PRINTFORML %조교자는% %NAME_FROM_PLACE(SWEEPID)%を綺麗にしようと努力はした
+			CASE 6
+				PRINTFORML 掃除をしようとした%CALLNAME:PLAYER%の前に邪魔しようとする妖精の集団が現れた！
+			CASE 7
+				PRINTFORML %조교자가% 掃除している後ろで妖精がゴミを散らかしている...
+			CASE 8
+				PRINTFORML %조교자는% 片づけは明日でいいやと感じた
+			CASEELSE
+				PRINTFORML %조교자는% 今は掃除をする時ではないと感じた
+		ENDSELECT
+		PRINTFORML
+		
+		;청소경험は1/20上昇
+		SIF !RAND:20
+			EXP:MASTER:청소경험 ++
+		
+	ENDIF
+	
+	;消費TSP/ステータス/消費時間は全て通常の半分
+	
+	;自動時止め移動、またはTS中ならTSP消費
+	IF ((GETBIT(FLAG:순간이동, 1) || FLAG:70) && BASE:MASTER:TSP > 25)
+		BASE:MASTER:TSP -= 25
+	ELSE
+		DOWNBASE:MASTER:체력 = 25
+		DOWNBASE:MASTER:기력 = 50
+		TIME += 15
+	ENDIF
+ENDIF
+
+RETURN 1

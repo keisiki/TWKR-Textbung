@@ -157,7 +157,6 @@ CASE 1
 				RETURN 0
 			CASE 1 TO 3
 				상대 = RESULT + 30
-				GOTO DATE_RIGHT
 			CASE 4
 				PRINTFORML 「그럴 수가, 그럼 제 기분이 안 풀려요……!」
 				PRINTFORML 「최소한 이거라도 이것을 받아주세요」
@@ -165,60 +164,18 @@ CASE 1
 				ITEM:모리야부적 += 50
 				RETURN 0
 		ENDSELECT
-	ENDIF	
-	PRINTL 쓴웃음 지으면서 안쪽에 얘기한다
-	$DATE_RIGHT
-	IF CFLAG:상대:수면 || CFLAG:상대:쇠약
-		PRINTFORML 「네? 졸려? 지쳤어? 거기를 어떻게든」
-		PRINTFORML 「조금 기다려 주세요. 금방 돌아올 테니까요」
-		PRINTFORMW 종종걸음으로 안쪽에 달려 갔다
-		PRINTFORMW ……
-		PRINTFORMW 불명료하면서, 그러고도 신이신가요, 좋아해 일하고 있는 것이 아닌 것은 누구라도 같은, 여기가 신앙의 돈벌이 어디, 라고 하는 말이 들린다……
-		PRINTFORMW ……
-		PRINTFORMW 돌아왔다
-		PRINTFORMW 「후우, 기다리게 해서 죄송합니다」
-		CFLAG:상대:수면 = 0
-		CFLAG:상대:쇠약 = 0
-		BASE:상대:체력 = MAXBASE:상대:체력 / 2
-		TALENT:상대:기분 = -1
-	ENDIF
-	PRINTFORML 「축하합니다. 1등의 %NAME:상대%님과의 데이트권, 당선입니다!」
-	PRINTW 「덧붙여 이 권리는 즉시 행사되기 때문에 즐겨 와 주세요♪」
-	IF (FLAG:데이트상대 && GET_MAPID(CFLAG:MASTER:현재위치) != MAIN_MAP)
-		CFLAG:(FLAG:데이트상대):데이트중 = MAIN_MAP
-		CFLAG:(FLAG:데이트상대):동행 = 0
-		;연속으로 적용한 호운의 군사를 위해서(때문에)…
-		CALL 모리야복권데이트상대의리셋()
-	ELSEIF GET_MAPID(CFLAG:MASTER:현재위치) == MAIN_MAP
-		FOR LOCAL, 1, CHARANUM
-			SIF !CFLAG:LOCAL:동행
-				CONTINUE
-			CFLAG:LOCAL:동행 = 0
-			SIF MATCH(LOCAL, 31,32,33)
-				CALL 모리야복권데이트상대의리셋()
-		NEXT
-	ENDIF
-	CFLAG:상대:현재위치 = CFLAG:MASTER:현재위치
-	;상대의 캐릭터의 동행(MASTER도), 현재위치, 데이트중의 CFLAG를 세트
-	IF GET_MAPID(CFLAG:MASTER:현재위치) != MAIN_MAP
-		CFLAG:MASTER:동행 = 60
-		CFLAG:상대:동행 = 60
-		CFLAG:상대:데이트중 = CFLAG:MASTER:현재위치 / 100
-		FLAG:데이트상대 = 상대
-		;모리야복권데이트상대에 데이트의 상대를 격납
-		FLAG:모리야복권데이트상대 = FLAG:데이트상대
-		CFLAG:(FLAG:데이트상대):내방시간 = 0
-		CFLAG:(FLAG:데이트상대):귀가시간 = 0
-		CFLAG:(FLAG:데이트상대):취침시간 = 0
-		CFLAG:(FLAG:데이트상대):기상시간 = 0
-	;메인 맵시는 최대 3시간까지
+	ELSEIF FLAG:데이트상대
+		PRINTFORMW 「축하합니다. 1등의 %NAME:상대%님과의 모갓！？」
+		PRINTFORML 「뭐뭔가요 갑자기！에？지금 데이트중이니까 큰소리로 말하지 말라고요？」
+		PRINTFORML 「당신 있잖아요、여자애 데리고 이런 수상한 제비뽑는 거 아니에요！」
+		PRINTFORML 수상하다고 말했어。
+		PRINTFORMW 「아무튼, %NAME:상대%님과의 데이트권、당첨되었으니까요」
 	ELSE
-		CFLAG:MASTER:동행 = 180
-		CFLAG:상대:동행 = 180
-		FLAG:모리야복권데이트상대 = 상대
-	ENDIF
-	SIF !CFLAG:(상대):안면
-		CALL KOJO_MESSAGE_SEND("ENCOUNTER", MASTER, FLAG:모리야복권데이트상대, 1,0)
+		PRINTFORML 「축하합니다. 1등의 %NAME:상대%님과의 데이트권, 당선입니다!」
+	ENDIF	
+	FLAG:모리야데이트권 = 상대
+	PRINTFORML 「그럼、준비가 되면 말씀해주세요」
+	CALL COLORMESSAGE(@"데이트권을 행사하지 않고 1등 당첨이 되면 전번의 권리는 소실됩니다",C_YELLOW,2)
 ;2등：행복의 기적이 환상향을 쌉니다(전원 좋은 기분＋자신의 신분 회복)
 CASE 2
 	PRINTL 「축하합니다. 2등은 코치야 사나에 님께서 베푸는 행복의 기적의 실연입니다」
@@ -315,19 +272,10 @@ CASE 7
 	PRINTL 「상품은 야채의모종 세트입니다」
 	PRINTL 「노력해 풍작 목표로 해 주세요」
 	PRINTW 「덧붙여 우리 모리야 신사에서는 풍작 기원 및 봉납의 접수도 가고 있습니다」
-	ITEM:양배추의모종 = MIN(ITEM:양배추의모종 + 1, 99)
-	ITEM:딸기의모종 = MIN(ITEM:딸기의모종 + 1, 99)
-	ITEM:순무의모종 = MIN(ITEM:순무의모종 + 1, 99)
-	ITEM:오이의모종 = MIN(ITEM:오이의모종 + 1, 99)
-	ITEM:토마토의모종 = MIN(ITEM:토마토의모종 + 1, 99)
-	ITEM:수박의모종 = MIN(ITEM:수박의모종 + 1, 99)
-	ITEM:가지의모종 = MIN(ITEM:가지의모종 + 1, 99)
-	ITEM:고구마의모종 = MIN(ITEM:고구마의모종 + 1, 99)
-	ITEM:유리의모종 = MIN(ITEM:유리의모종 + 1, 99)
-	ITEM:당근의모종 = MIN(ITEM:당근의모종 + 1, 99)
-	ITEM:파의모종 = MIN(ITEM:파의모종 + 1, 99)
-	ITEM:로터의모종 = MIN(ITEM:로터의모종 + 1, 99)
-	
+	FOR LOCAL, 0, 1000
+		SIF STRCOUNT(ITEMNAME:LOCAL, "의모종")
+			ITEM:LOCAL = MIN(ITEM:LOCAL + 1, 99)
+	NEXT
 	PRINTW 「아, 가지지 못했던 만큼은 모리야 신사에의 기증 취급으로 돌려주세요」
 
 ;8등：한 번 먹으면 멈추지 않는, 의리 초콜렛의 임금님의 엔트리다!
@@ -368,15 +316,15 @@ CASE 10
 	PRINTW ……
 	PRINTW …
 	PRINTL ┌─────────────┐
-	PRINTL ｜　　　　　　　　　　　　　　　｜
-	PRINTL ｜　　모리야 부적 　　　　　　　｜
-	PRINTL ｜　　　　　　　　　　　　　　　｜
-	PRINTL ｜　　5장 모으면　　　　　　　　｜
-	PRINTL ｜　　　복권을 1회 뽑기 가능 　｜
-	PRINTL ｜　　　　　　　　　　　　　　　｜
-	PRINTL ｜　이익은 보증하기 어렵습니다　｜
-	PRINTL ｜　　　　　　　　　　　　　　　｜
-	PRINTL ｜　　　　　　　　모리야 신사 　｜
+	PRINTL ｜　　　　　　　　　　　　　｜
+	PRINTL ｜　　모리야부적　　　　　　｜
+	PRINTL ｜　　　　　　　　　　　　　｜
+	PRINTL ｜　　5장 모으면　　　　　　｜
+	PRINTL ｜　　 뽑기 1회 가능합니다　｜
+	PRINTL ｜　　　　　　　　　　　　　｜
+	PRINTL ｜이익은 보증하기 어렵습니다｜
+	PRINTL ｜　　　　　　　　　　　　　｜
+	PRINTL ｜　　　　　　　모리야신사　｜
 	PRINTL └─────────────┘
 	PRINTW 에둘러 말해서 꽝이잖아. 이거 허탕 아냐?
 	PRINTFORMW 「다음엔 꼭 좋은 걸 뽑을 수 있어요. 힘내라%UNICODE(0x2665)% 힘내라%UNICODE(0x2665)%」
@@ -401,3 +349,54 @@ IF FLAG:모리야복권데이트상대
 	CFLAG:(FLAG:모리야복권데이트상대):기상시간 = CSVCFLAG(FLAG:모리야복권데이트상대, 355)
 	FLAG:모리야복권데이트상대 = 0
 ENDIF
+
+
+@DATE_RIGHT
+#DIM 상대
+상대 = FLAG:모리야데이트권
+FLAG:모리야데이트권 = 0
+PRINTL 「잠시만 기다려주세요」안쪽에 말을 건넸다
+IF CFLAG:상대:수면 || CFLAG:상대:쇠약
+	PRINTFORML 「네? 졸려? 지쳤어? 거기를 어떻게든」
+	PRINTFORML 「조금 기다려 주세요. 금방 돌아올 테니까요」
+	PRINTFORMW 종종걸음으로 안쪽에 달려 갔다
+	PRINTFORMW ……
+	PRINTFORMW 불명료하면서, 그러고도 신이신가요, 좋아해 일하고 있는 것이 아닌 것은 누구라도 같은, 여기가 신앙의 돈벌이 어디, 라고 하는 말이 들린다……
+	PRINTFORMW ……
+	PRINTFORMW 돌아왔다
+	PRINTFORMW 「후우, 기다리게 해서 죄송합니다」
+	CFLAG:상대:수면 = 0
+	CFLAG:상대:쇠약 = 0
+	BASE:상대:체력 = MAXBASE:상대:체력 / 2
+	TALENT:상대:기분 = -1
+ENDIF
+IF GET_MAPID(CFLAG:MASTER:현재위치) == MAIN_MAP
+	FOR LOCAL,1,CHARANUM
+		SIF !CFLAG:LOCAL:동행
+			CONTINUE
+		CFLAG:LOCAL:동행 = 0
+		SIF MATCH(LOCAL, 31,32,33)
+			CALL 모리야복권데이트상대의리셋()
+	NEXT
+ENDIF
+CFLAG:상대:현재위치 = CFLAG:MASTER:현재위치
+;상대의 캐릭터의 동행(MASTER도), 현재위치, 데이트중의 CFLAG를 세트
+IF GET_MAPID(CFLAG:MASTER:현재위치) != MAIN_MAP
+	CFLAG:MASTER:동행 = 60
+	CFLAG:상대:동행 = 60
+	CFLAG:상대:데이트중 = CFLAG:MASTER:현재위치 / 100
+	FLAG:데이트상대 = 상대
+	;모리야복권데이트상대에 데이트의 상대를 격납
+	FLAG:모리야복권데이트상대 = FLAG:데이트상대
+	CFLAG:(FLAG:데이트상대):내방시간 = 0
+	CFLAG:(FLAG:데이트상대):귀가시간 = 0
+	CFLAG:(FLAG:데이트상대):취침시간 = 0
+	CFLAG:(FLAG:데이트상대):기상시간 = 0
+;메인 맵시는 최대 3시간까지
+ELSE
+	CFLAG:MASTER:동행 = 180
+	CFLAG:상대:동행 = 180
+	FLAG:모리야복권데이트상대 = 상대
+ENDIF
+SIF !CFLAG:(상대):안면
+	CALL KOJO_MESSAGE_SEND("ENCOUNTER", MASTER, FLAG:모리야복권데이트상대, 1,0)

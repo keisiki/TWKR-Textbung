@@ -7,6 +7,8 @@
 @COM435
 #DIM 가챠횟수
 #DIM 카리스마지불
+#DIMS 台詞
+#DIMS 表情
 VARSET LOCAL
 가챠횟수 = 0
 IF !BETWEENTIME(600,1200)
@@ -41,8 +43,7 @@ IF !GETBIT(FLAG:999, 2)
 ENDIF
 
 IF FLAG:모리야복권데이트상대
-	PRINTFORML 「복권이나 뽑을 때가 아니잖아요」
-	PRINTFORML 「신과의 데이트권이라고요. 1분 1초라도 헛되이 쓰면 안 되죠!」
+	CALL SPTALK, 0, @"通常", 15, @"「복권이나 뽑을 때가 아니잖아요」/「신과의 데이트권이라고요. 1분 1초라도 헛되이 쓰면 안 되죠!」", 1
 	RETURN -1
 ENDIF
 IF FLAG:모리야데이트권 && !FLAG:데이트상대
@@ -53,17 +54,27 @@ IF FLAG:모리야데이트권 && !FLAG:데이트상대
 		RETURN 1
 	ENDIF
 ENDIF
-IF MONEY < 3000
+IF MONEY < 3000 && MONEY:2 < 20
 	PRINTFORMW 지갑을 확인했더니 돈이 부족했다
 	PRINTFORMW 자, 시주하기 위해서 돈을 모아오세요
 	RETURN -1
 ENDIF
 
-PRINTL 모리야 복권은 1회 3000엔이나 20카리스마, 혹은 모리야 부적 5장입니다
+CALL SPTALK, 0, @"笑顔", 15, @"「모리야 복권은 1회 3000엔이나 20카리스마, 혹은 모리야 부적 5장입니다」", 1
 PRINTL 어떻게 하겠습니까?
 CALL ASK_M("위험이 위태로울 것 같으니 그만둔다", 1,"\\3000으로 뽑아본다", MONEY >= 3000, "20CM로 뽑아본다", MONEY:2 >= 20, "부적 5장으로 뽑는다", ITEM:131>= 5, "\\27000으로 10연 가챠", MONEY >= 27000, "180CM로 10연 가챠", MONEY:2 >= 180, "부적 50장으로 10연 가챠", ITEM:131 >= 50)
 SELECTCASE RESULT
 	CASE 0
+		IF 顔絵付きメッセージ
+			IF !RAND:8
+				台詞 = 「えー、ひやかしですか」/「……祟られますよ？」
+				表情 = 怒り
+			ELSE
+				台詞 = 「%TEXTR("……危なくないですよ？/ご利益あるんですよー？/うーん、次はお願いしますね")%」
+				表情 = 通常
+			ENDIF
+			CALL SPTALK, 0, @"%表情%", 15, @"%台詞%", 1
+		ENDIF
 		RETURN -1
 	CASE 1
 		MONEY -= 3000
@@ -132,6 +143,8 @@ IF 가챠횟수 > 0
 	GOTO RENZOKU
 ENDIF
 
+SIF 顔絵付きメッセージ
+	CALL SPTALK, 0, @"笑顔", 15, @"「ありがとうございましたー」", 1
 RETURN 1
 
 ;모리야복권

@@ -12,16 +12,16 @@ DRAWLINEFORM －
 PRINTFORML [93] - 텍붕이모드 추가기능 관리
 PRINTFORML [94] - 오토신음일괄설정
 PRINTFORML [95] - 간이 필터의 일괄 설정
-PRINTFORML [96] - 요리의 옵션 설정
+;PRINTFORML [96] - 요리의 옵션 설정
 PRINTFORML [97] - 그림 상세 설정
 PRINTFORML [98] - 등장캐릭터변환
 PRINTFORML [99] - 커맨드필터
 DRAWLINE
-IF DAY > 120; 일판용 강하게 재시작. 한판에선 주석화되어 있었음
+IF DAY > 120 || FLAG:엔딩여부 ;KR판 오리지날, 엔딩여부 체크로 강하게 뉴게임 가능
 	PRINTFORML [200] - 바이쳐 더스트
 	LOCAL:1 ++
 ENDIF
-PRINTFORML [100] - 설정 완료
+PRINTFORML [999] - 설정 완료
 INPUT
 IF OPTION_SETNAME(RESULT) != ""
 	CALL OPTION_SETTING(RESULT)
@@ -32,15 +32,15 @@ ELSEIF RESULT == 94
 	CALL OPTION_오토신음일괄설정
 ELSEIF RESULT == 95
 	CALL 간이필터일괄설정
-ELSEIF RESULT == 96
-	CALL SET_OPTION_COOKING
+;ELSEIF RESULT == 96
+;	CALL SET_OPTION_COOKING
 ELSEIF RESULT == 97
 	CALL OPTION_그림표시상세설정
 ELSEIF RESULT == 98
 	CALL 등장캐릭터변환
 ELSEIF RESULT == 99
 	CALL OPTION_COMMAND_FILTER
-ELSEIF RESULT == 200; && DAY > 120
+ELSEIF RESULT == 200 && (DAY > 120 || FLAG:엔딩여부)
 	IF FLAG:채무
 		LOCAL = 0
 		LOCAL += 5000000
@@ -57,13 +57,13 @@ ELSEIF RESULT == 200; && DAY > 120
 		ENDIF
 	ENDIF
 	PRINTFORML 시간을 날려버려서 1일째로 되돌아가겠습니까?
-    PRINTL 
-    PRINTL [0] 「스위치」를 누르게 하지맛――
-    PRINTL [1] 아냐! 한계다 누를래! 지금이닷!
-    INPUT
-    IF RESULT == 1
-        CALL 강하게뉴게임
-    ELSE
+	PRINTL 
+	PRINTL [0] 「스위치」를 누르게 하지맛――
+	PRINTL [1] 아냐! 한계다 누를래! 지금이닷!
+	INPUT
+	IF RESULT == 1
+		CALL 강하게뉴게임
+	ELSE
 ;		PRINTW 「스위치」를 누르는 건 멈추지 못했지만, 운 좋게도 옵션 선택까지밖에 돌아가지 않았다.
 	ENDIF
 ELSE
@@ -762,16 +762,26 @@ FOR LOCAL, 1, 11
 NEXT
 PRINTL ▼샘플▼
 CALL PRINT_TARGET_IMAGE(TARGET)
-PRINTL
+PRINTL 
 PRINTFORML [ 0] - 그림표시를 \@ FLAG:그림표시 ? 한다 # 안한다 \@
 IF FLAG:그림표시
 	PRINTFORML [ *]┬ 현재의 \@ FLAG:스탠딩종류 ? 얼굴 그림 # 스탠딩 \@의 표시 인원수 {FLAG:그림표시}인 화상사이즈{100 + isModifier}％
 	PRINTFORML [ 1]├ 늘린다
 	PRINTFORML [ 2]└ 줄인다
 	PRINTFORML [ 3] - 캐릭터 그림의 타입 \@ FLAG:스탠딩종류 ? [얼굴] # [스탠딩] \@
-	PRINTFORML [ 4]\@ FLAG:그림표시 ? ┬ # %" "%- \@ 삽화를 표시한다 \@ FLAG:삽화표시 ? ON # OFF \@
+	PRINTFORML [ 4]┬ 현재의 화상 사이즈[\@ FLAG:멀티사이즈? 원본크기 # {デフォルトキャラ画像横幅} \@]：{100 + isModifier}％
+	PRINTFORML [ 5]├ 확대
+	PRINTFORML [ 6]└ 축소
+	PRINTFORML [ 7] - \@ FLAG:스탠딩종류 ? 얼굴 그림 # 스탠딩 \@의 표시 위치 [\@ FLAG:그림표시위치 ? 왼쪽 맞춤# 중앙 맞춤 \@]
+	PRINTFORML [ 8] - 그림 표시에 테두리를 친다 \@ FLAG:화상범위표시 ? ON # OFF \@
+	PRINTFORML [ 9] - \@ FLAG:거유차이표시? 거유 이상의 별도 화상이 있는 캐릭터라면 표시한다# 거유차이를 표시하지 않는다\@
+	PRINTFORML [10] - \@ FLAG:追加エフェクト? 추가 이펙트를 표시한다# 추가 이펙트를 표시하지 않는다\@
+	PRINTFORML [11] - 취침후의 \@ FLAG:自慰画像非表示? 자위화상을 표시하지 않는다 # 자위화상을 표시한다\@
+	PRINTFORML [12] - 얼굴 그림이 첨부된 메시지 \@ 顔絵付きメッセージ ? 있음 # 없음\@
+	PRINTL 
+	PRINTFORML [13]\@ FLAG:그림표시 ? ┬ # %" "%- \@ 삽화를 표시한다 \@ FLAG:삽화표시 ? ON # OFF \@
 	IF FLAG:그림표시
-		PRINT [ 5]└ 사정 그림의 종류
+		PRINT [14]└ 사정 그림의 종류
 		SELECTCASE FLAG:사정화상종류
 			CASE 0
 				PRINTL  [단면＋효과음]
@@ -783,18 +793,12 @@ IF FLAG:그림표시
 	ELSE
 		PRINTL
 	ENDIF
-	PRINTFORML [ 6]\@ FLAG:애니메이션 ? ┬ # %" "%- \@애니메이션 설정 \@ FLAG:애니메이션 ? 반복 회수 {FLAG:애니메이션}회 # OFF \@
+	PRINTFORML [15]\@ FLAG:애니메이션 ? ┬ # %" "%- \@애니메이션 설정 \@ FLAG:애니메이션 ? 반복 회수 {FLAG:애니메이션}회 # OFF \@
 	IF FLAG:애니메이션
 		PRINTFORML [ 7]└삽입중에는 매턴 애니메이션 표시：\@FLAG:삽입애니메이션필터 & 아니메필터_삽입 ? [×]# [O]\@
 	ELSE
 		PRINTL 
 	ENDIF
-	PRINTFORML [ 8] - \@ FLAG:스탠딩종류 ? 얼굴 그림 # 스탠딩 \@의 표시 위치 [\@ FLAG:그림표시위치 ? 왼쪽 맞춤# 중앙 맞춤 \@]
-	PRINTFORML [ 9] - 그림 표시에 테두리를 친다 \@ FLAG:화상범위표시 ? ON # OFF \@
-	PRINTFORML [10] - 화상 확대
-	PRINTFORML [11] - 화상 축소
-	PRINTFORML [12] - \@ FLAG:거유차이표시? 거유 이상의 별도 화상이 있는 캐릭터라면 표시한다# 거유차이를 표시하지 않는다\@
-	PRINTFORML [13] - \@ FLAG:追加エフェクト? 추가 이펙트를 표시한다# 추가 이펙트를 표시하지 않는다\@
 ELSE
 	FOR LOCAL, 1, 13
 		PRINTL 
@@ -818,179 +822,53 @@ ELSEIF RESULT == 2
 ELSEIF RESULT == 3
 	FLAG:스탠딩종류 = !FLAG:스탠딩종류
 ELSEIF RESULT == 4
+	IF FLAG:멀티사이즈
+		FLAG:멀티사이즈 = !FLAG:멀티사이즈
+		デフォルトキャラ画像横幅 = 180
+	ELSEIF デフォルトキャラ画像横幅 == 180
+		デフォルトキャラ画像横幅 = 270
+	ELSE
+		FLAG:멀티사이즈 = !FLAG:멀티사이즈
+	ENDIF
+ELSEIF RESULT == 5
+	isModifier = MIN(isModifier + 10, 50)
+ELSEIF RESULT == 6
+	isModifier = MAX(isModifier - 10, -50)
+ELSEIF RESULT == 7
+	FLAG:그림표시위치 = !FLAG:그림표시위치
+ELSEIF RESULT == 8
+	FLAG:화상범위표시 = !FLAG:화상범위표시
+ELSEIF RESULT == 9
+	FLAG:거유차이표시 = !FLAG:거유차이표시
+ELSEIF RESULT == 10
+	FLAG:追加エフェクト = !FLAG:追加エフェクト
+ELSEIF RESULT == 11
+	FLAG:自慰画像非表示 = !FLAG:自慰画像非表示
+ELSEIF RESULT == 12
+	INVERTBIT 顔絵付きメッセージ, 0
+ELSEIF RESULT == 13
 	FLAG:삽화표시 = !FLAG:삽화표시
-ELSEIF RESULT == 5 && FLAG:삽화표시
+ELSEIF RESULT == 14 && FLAG:삽화표시
 	FLAG:사정화상종류++
 	SIF FLAG:사정화상종류 >= 3
 		FLAG:사정화상종류 = 0
-ELSEIF RESULT == 6
+ELSEIF RESULT == 15
 	FLAG:애니메이션++
 	SIF FLAG:애니메이션 >= 6
 		FLAG:애니메이션 = 0
-ELSEIF RESULT == 7
+ELSEIF RESULT == 16
 	INVERTBIT FLAG:삽입애니메이션필터, 0
 	;CALL ASK_M("삽입 표시 전환", 1,"절정 표시 전환", 1,"사정 표시 전환", 1,"사정 표시 전환", 1,"돌아간다", 1)
 	;SIF RESULT == 4
 	;	RESTART
 	;INVERTBIT FLAG:가사언필터, RESULT
 	RESTART
-ELSEIF RESULT == 8
-	FLAG:그림표시위치 = !FLAG:그림표시위치
-ELSEIF RESULT == 9
-	FLAG:화상범위표시 = !FLAG:화상범위표시
-ELSEIF RESULT == 10
-	isModifier = MIN(isModifier + 10, 50)
-ELSEIF RESULT == 11
-	isModifier = MAX(isModifier - 10, -50)
-ELSEIF RESULT == 12
-	FLAG:거유차이표시 = !FLAG:거유차이표시
-ELSEIF RESULT == 13
-	FLAG:追加エフェクト = !FLAG:追加エフェクト
 ENDIF
 RESTART
 
-;요리 옵션 설정 함수
-;0:수동 결정,1:이물 불가,2:약물 불가
-@SET_OPTION_COOKING
-#DIM CONST OP_BIT_수동결정 = 0
-#DIM CONST OP_BIT_이물불가 = 1
-#DIM CONST OP_BIT_약물불가 = 2
-#DIM CONST OP_BIT_채점온 = 3
-PRINTFORML 요리 관련의 옵션을 설정합니다
-PRINTFORML 현재의 설정
-IF GET_OPTION_COOKING("요리 내용 수동 결정")
-	PRINTFORML 　요리 내용：수동으로 결정
-ELSE
-	PRINTFORML 　요리 내용：자동으로 결정
-ENDIF
-IF GET_OPTION_COOKING("이물 혼입 불가")
-	PRINTFORML 　이물 혼입：하지 않는다
-ELSE
-	PRINTFORML 　이물 혼입：한다
-ENDIF
-IF GET_OPTION_COOKING("약물 혼입 불가")
-	PRINTFORML 　약물 혼입：하지 않는다
-ELSE
-	PRINTFORML 　약물 혼입：한다
-ENDIF
-SELECTCASE GET_OPTION_COOKING("자동 맛내기 설정")
-CASE 0
-	PRINTFORML 　자동 맛내기：하지 않는다
-CASE 10
-	PRINTFORML 　자동 맛내기：자동으로 보통 맛
-CASE 11
-	PRINTFORML 　자동 맛내기：자동으로 진한 맛
-CASE 12
-	PRINTFORML 　자동 맛내기：자동으로 담백한 맛
-ENDSELECT
-IF GET_OPTION_COOKING("채점 기능 오프")
-	PRINTFORML 　채점 기능：오프
-ELSE
-	PRINTFORML 　채점 기능：온
-ENDIF
-IF FLAG:요리사양
-	PRINTFORML 　요리 시스템：구버젼
-ELSE
-	PRINTFORML 　요리 시스템：신버젼
-ENDIF
-DO
-	PRINTFORML [9] 요리 내용의 설정 변경
-	PRINTFORML [8] 이물 혼입의 설정 변경
-	PRINTFORML [7] 약물 혼입의 설정 변경
-	PRINTFORML [6] 자동 맛내기의 설정 변경
-	PRINTFORML [5] 채점 기능의 설정 변경
-	PRINTFORML [4] 요리 시스템의 설정 변경
-	PRINTFORML 
-	PRINTFORML 
-	PRINTFORML [0] 결정
-	INPUT
-	SELECTCASE RESULT
-	CASE 9
-		INVERTBIT FLAG:요리옵션, OP_BIT_수동결정
-	CASE 8
-		INVERTBIT FLAG:요리옵션, OP_BIT_이물불가
-	CASE 7
-		INVERTBIT FLAG:요리옵션, OP_BIT_약물불가
-	CASE 6
-		PRINTFORML 자동 맛내기 기능의 설정
-		PRINTFORML [12] 자동 맛내기 ＜담백한 맛＞
-		PRINTFORML [11] 자동 맛내기 ＜진한 맛＞
-		PRINTFORML [10] 자동 맛내기 ＜보통 맛＞
-		PRINTFORML [ 0] 자동 맛내기를 사용하지 않는다
-		DO
-			INPUT
-			SELECTCASE RESULT
-			CASE 10, 11, 12
-				CLEARBIT FLAG:요리옵션, 10, 11, 12
-				SETBIT   FLAG:요리옵션, RESULT
-			CASE 0
-				CLEARBIT FLAG:요리옵션, 10, 11, 12
-			CASEELSE
-			PRINTFORML 무효인 입력입니다
-			CONTINUE
-			ENDSELECT
-			BREAK
-		LOOP 1
-	CASE 5
-		INVERTBIT FLAG:요리옵션, OP_BIT_채점온
-	CASE 4
-		FLAG:요리사양 = !FLAG:요리사양
-	CASE 0
-		RETURN 
-	CASEELSE
-		PRINTFORML 무효인 입력입니다
-		CONTINUE
-	ENDSELECT
-	BREAK
-LOOP 1
-RESTART
 
 
-;요리옵션의 내용 취득 함수
-@GET_OPTION_COOKING(TYPE)
-#FUNCTION
-#DIMS DYNAMIC TYPE
-#DIM CONST OP_BIT_수동결정 = 0
-#DIM CONST OP_BIT_이물혼입불가 = 1
-#DIM CONST OP_BIT_약물혼입불가 = 2
-#DIM CONST OP_BIT_채점기능온 = 3
-#DIM CONST OP_BIT_자동맛내기_보통 = 10
-#DIM CONST OP_BIT_자동맛내기_진한 = 11
-#DIM CONST OP_BIT_자동맛내기_얇은 = 12
-SELECTCASE TYPE
-CASE "요리 내용 수동 결정"
-	SIF GETBIT(FLAG:요리옵션, OP_BIT_수동결정)
-		RETURNF 1
-CASE "요리 내용 자동 결정"
-	RETURNF !GET_OPTION_COOKING("요리 내용 수동 결정")
 
-CASE "이물 혼입 불가"
-	SIF GETBIT(FLAG:요리옵션, OP_BIT_이물혼입불가)
-		RETURNF 1
-CASE "이물 혼입 가능"
-	RETURNF !GET_OPTION_COOKING("이물 혼입 불가")
-
-CASE "약물 혼입 불가"
-	SIF GETBIT(FLAG:요리옵션, OP_BIT_약물혼입불가)
-		RETURNF 1
-CASE "약물 혼입 가능"
-	RETURNF !GET_OPTION_COOKING("약물 혼입 불가")
-CASE "자동 맛내기 설정"
-	SIF GETBIT(FLAG:요리옵션, OP_BIT_자동맛내기_보통)
-		RETURNF OP_BIT_자동맛내기_보통
-	SIF GETBIT(FLAG:요리옵션, OP_BIT_자동맛내기_진한)
-		RETURNF OP_BIT_자동맛내기_진한
-	SIF GETBIT(FLAG:요리옵션, OP_BIT_자동맛내기_얇은)
-		RETURNF OP_BIT_자동맛내기_얇은
-CASE "채점 기능 온"
-	SIF GETBIT(FLAG:요리옵션, OP_BIT_채점기능온)
-		RETURNF 1
-CASE "채점 기능 오프"
-	RETURNF !GET_OPTION_COOKING("채점 기능 온")
-CASEELSE
-	THROW 불명한 TYPE%TYPE%
-ENDSELECT
-RETURNF 0
 
 
 @SIMATTYAUOJISAN
@@ -1100,274 +978,4 @@ FOR 대상, 1, CHARANUM
 	NEXT
 NEXT
 
-;이하 TWKR 고유 또는 구버전. 디버그약점잡힘삭제와 NAME_CHANGEF 모두 선택 불가했음
-;디버그용약점잡힘삭제
-@디버그약점잡힘삭제
-#DIM  O_ID   
-FOR O_ID, 1, CHARANUM
-	PRINTFORML %CALLNAME:O_ID%의 현재 약점잡음 : {CFLAG:O_ID:약점잡음}
-	CFLAG:O_ID:약점잡음=0
-NEXT
-
-;이름을 한글로 바꾼다
-@NAME_CHANGEF
-#DIM  O_ID   
-#DIMS V_NAME
-;FOR O_ID, 1, CHARANUM
-;	PRINTFORML NAME:{O_ID}=%NAME:O_ID%
-;	PRINTFORML CALLNAME:{O_ID}=%CALLNAME:O_ID%
-;NEXT
-
-NAME:1=하쿠레이 레이무
-CALLNAME:1=레이무
-NAME:2=루코토
-CALLNAME:2=루코토
-NAME:3=카나 아나베랄
-CALLNAME:3=카나
-NAME:4=미마
-CALLNAME:4=미마
-NAME:5=서니 밀크
-CALLNAME:5=서니
-NAME:6=루나 차일드
-CALLNAME:6=루나
-NAME:7=스타 사파이어
-CALLNAME:7=스타
-NAME:8=키타시라카와 치유리
-CALLNAME:8=치유리
-NAME:9=오카자키 유메미
-CALLNAME:9=유메미
-NAME:10=이부키 스이카
-CALLNAME:10=스이카
-NAME:11=키리사메 마리사
-CALLNAME:11=마리사
-NAME:12=루미아
-CALLNAME:12=루미아
-NAME:13=대요정
-CALLNAME:13=대요정
-NAME:14=치르노
-CALLNAME:14=치르노
-NAME:15=이자요이 사쿠야
-CALLNAME:15=사쿠야
-NAME:16=레밀리아 스칼렛
-CALLNAME:16=레밀리아
-NAME:17=앨리스 마가트로이드
-CALLNAME:17=앨리스
-NAME:18=릴리 화이트
-CALLNAME:18=릴리W
-NAME:19=릴리 블랙
-CALLNAME:19=릴리B
-NAME:20=리리카 프리즘리버
-CALLNAME:20=리리카
-NAME:21=메를랑 프리즘리버
-CALLNAME:21=메를랑
-NAME:22=루나사 프리즘리버
-CALLNAME:22=루나사
-NAME:23=콘파쿠 요우무
-CALLNAME:23=요우무
-NAME:24=첸
-CALLNAME:24=첸
-NAME:25=야쿠모 란
-CALLNAME:25=란
-NAME:26=야쿠모 유카리
-CALLNAME:26=유카리
-NAME:27=리글 나이트버그
-CALLNAME:27=리글
-NAME:28=미스티아 로렐라이
-CALLNAME:28=미스티아
-NAME:29=샤메이마루 아야
-CALLNAME:29=아야
-NAME:30=시키 에이키
-CALLNAME:30=에이키
-NAME:31=코치야 사나에
-CALLNAME:31=사나에
-NAME:32=야사카 카나코
-CALLNAME:32=카나코
-NAME:33=모리야 스와코
-CALLNAME:33=스와코
-NAME:34=히나나위 텐시
-CALLNAME:34=텐시
-NAME:35=나가에 이쿠
-CALLNAME:35=이쿠
-NAME:36=카엔뵤 린
-CALLNAME:36=린
-NAME:37=레이우지 우츠호
-CALLNAME:37=우츠호
-NAME:38=코메이지 코이시
-CALLNAME:38=코이시
-NAME:39=나즈린
-CALLNAME:39=나즈린
-NAME:40=타타라 코가사
-CALLNAME:40=코가사
-NAME:41=호쥬 누에
-CALLNAME:41=누에
-NAME:42=히메카이도 하타테
-CALLNAME:42=하타테
-NAME:43=이바라키 카센
-CALLNAME:43=카센
-NAME:44=폭신폭신 엘렌
-CALLNAME:44=엘렌
-NAME:45=아사쿠라 리카코
-CALLNAME:45=리카코
-NAME:46=메이라
-CALLNAME:46=메이라
-NAME:47=리카
-CALLNAME:47=리카
-NAME:48=루이즈
-CALLNAME:48=루이즈
-NAME:49=코메이지 사토리
-CALLNAME:49=사토리
-NAME:50=플랑드르 스칼렛
-CALLNAME:50=플랑
-NAME:51=카와시로 니토리
-CALLNAME:51=니토리
-NAME:52=레이센 우동게인 이나바
-CALLNAME:52=레이센
-NAME:53=이나바 테위
-CALLNAME:53=테위
-NAME:54=파츄리 널릿지
-CALLNAME:54=파츄리
-NAME:55=히지리 뱌쿠렌
-CALLNAME:55=뱌쿠렌
-NAME:56=토요사토미미노 미코
-CALLNAME:56=미코
-NAME:57=하타노 코코로
-CALLNAME:57=코코로
-NAME:58=홍 메이링
-CALLNAME:58=메이링
-NAME:59=소악마
-CALLNAME:59=소악마
-NAME:60=미즈하시 파르시
-CALLNAME:60=파르시
-NAME:61=후지와라노 모코우
-CALLNAME:61=모코우
-NAME:62=호라이산 카구야
-CALLNAME:62=카구야
-NAME:63=이마이즈미 카게로
-CALLNAME:63=카게로
-NAME:64=호시구마 유기
-CALLNAME:64=유기
-NAME:65=이누바시리 모미지
-CALLNAME:65=모미지
-NAME:66=사이교우지 유유코
-CALLNAME:66=유유코
-NAME:67=카미시라사와 케이네
-CALLNAME:67=케이네
-NAME:68=카자미 유카
-CALLNAME:68=유카
-NAME:69=후타츠이와 마미조
-CALLNAME:69=마미조
-NAME:70=모토오리 코스즈
-CALLNAME:70=코스즈
-NAME:71=스쿠나 신묘마루
-CALLNAME:71=신묘마루
-NAME:72=야고코로 에이린
-CALLNAME:72=에이린
-NAME:73=세키반키
-CALLNAME:73=반키
-NAME:74=레티 화이트락
-CALLNAME:74=레티
-NAME:75=메디슨 멜랑콜리
-CALLNAME:75=메디슨
-NAME:76=오노즈카 코마치
-CALLNAME:76=코마치
-NAME:77=아키 시즈하
-CALLNAME:77=시즈하
-NAME:78=아키 미노리코
-CALLNAME:78=미노리코
-NAME:79=카기야마 히나
-CALLNAME:79=히나
-NAME:80=히에다노 아큐
-CALLNAME:80=아큐
-NAME:81=우사미 렌코
-CALLNAME:81=렌코
-NAME:82=마에리베리 한
-CALLNAME:82=메리
-NAME:83=키스메
-CALLNAME:83=키스메
-NAME:84=쿠로다니 야마메
-CALLNAME:84=야마메
-NAME:85=쿠모이 이치린
-CALLNAME:85=이치린
-NAME:86=무라사 미나미츠
-CALLNAME:86=무라사
-NAME:87=토라마루 쇼
-CALLNAME:87=쇼
-NAME:88=카소다니 쿄코
-CALLNAME:88=쿄코
-NAME:89=미야코 요시카
-CALLNAME:89=요시카
-NAME:90=곽청아
-CALLNAME:90=청아
-NAME:91=소가노 토지코
-CALLNAME:91=토지코
-NAME:92=모노노베노 후토
-CALLNAME:92=후토
-NAME:93=와카사기히메
-CALLNAME:93=와카사기히메
-NAME:94=츠쿠모 벤벤
-CALLNAME:94=벤벤
-NAME:95=츠쿠모 야츠하시
-CALLNAME:95=야츠하시
-NAME:96=호리카와 라이코
-CALLNAME:96=라이코
-NAME:97=키진 세이자
-CALLNAME:97=세이자
-NAME:98=와타츠키노 요리히메
-CALLNAME:98=요리히메
-NAME:99=와타츠키노 토요히메
-CALLNAME:99=토요히메
-NAME:100=레이센
-CALLNAME:100=레이센
-NAME:101=토키코
-CALLNAME:101=토키코
-NAME:102=신키
-CALLNAME:102=신키
-NAME:103=유메코
-CALLNAME:103=유메코
-NAME:104=유키
-CALLNAME:104=유키
-NAME:105=마이
-CALLNAME:105=마이
-NAME:106=우사미 스미레코
-CALLNAME:106=스미레코
-NAME:107=세이란
-CALLNAME:107=세이란
-NAME:108=링고
-CALLNAME:108=링고
-NAME:109=도레미 스위트
-CALLNAME:109=도레미
-NAME:110=키신 사구메
-CALLNAME:110=사구메
-NAME:111=클라운피스
-CALLNAME:111=클라운피스
-NAME:112=순호
-CALLNAME:112=순호
-NAME:113=헤카티아 라피스라줄리
-CALLNAME:113=헤카티아
-NAME:114=쿠루미
-CALLNAME:114=쿠루미
-NAME:115=엘리
-CALLNAME:115=엘리
-NAME:116=무게츠
-CALLNAME:116=무게츠
-NAME:117=겐게츠
-CALLNAME:117=겐게츠
-NAME:118=이터니티 라바
-CALLNAME:118=라바
-NAME:119=사카타 네무노
-CALLNAME:119=네무노
-NAME:120=코마노 아운
-CALLNAME:120=아운
-NAME:121=야타데라 나루미
-CALLNAME:121=나루미
-NAME:122=테이레이다 마이
-CALLNAME:122=마이
-NAME:123=니시다 사토노
-CALLNAME:123=사토노
-NAME:124=마타라 오키나
-CALLNAME:124=오키나
-NAME:125=요리가미 조온
-CALLNAME:125=조온
-NAME:126=요리가미 시온
-CALLNAME:126=시온
 

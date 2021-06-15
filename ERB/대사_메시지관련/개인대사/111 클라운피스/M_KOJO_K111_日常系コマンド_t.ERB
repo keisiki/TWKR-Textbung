@@ -2554,7 +2554,7 @@ RETURN RESULT
 ;기입 체크(=0, 비표시, 1, 표시)
 LOCAL = 1
 ;-------------------------------------------------
-IF LOCAL && DISHASSI == 111
+IF LOCAL && DISH_ASSI == 111
 	CALL M_KOJO_COLOR_K111
 	;햄버거
 	IF DISHNAME == "햄버거"
@@ -2578,37 +2578,37 @@ IF LOCAL && DISHASSI == 111
 			SELECTCASE RAND:4
 			CASE 1
 				PRINTFORML 「그래! 치즈버거 만들자!」
-				DISHTASTE += "치즈/"
+				DISH_TASTE += "치즈/"
 				TCVAR:111:357 = 1
 			CASE 2
 				PRINTFORML 「그래! 스파이시버거 만들자!」
-				DISHTASTE += "스파이스/"
+				DISH_TASTE += "스파이스/"
 				TCVAR:111:357 = 2
 			CASE 3
 				PRINTFORML 「그래! 주인님을 본딴 어비스버거 만들자!」
-				DISHTASTE += "스파이스/그림같은/" * 3
+				DISH_TASTE += "스파이스/그림같은/" * 3
 				TCVAR:111:357 = 3
 			CASEELSE
 				PRINTFORML 「그래! 요정을 표현한 페어리버거 만들자!」
-				DISHTASTE += "귀엽다/"
+				DISH_TASTE += "귀엽다/"
 				TCVAR:111:357 = 4
 			ENDSELECT
 		ELSEIF ABL:111:요리기능 >= 1
 			SELECTCASE RAND:4
 			CASE 1
 				PRINTFORML 「그래! 치즈버거 만들자!」
-				DISHTASTE += "치즈/"
+				DISH_TASTE += "치즈/"
 				TCVAR:111:357 = 1
 			CASE 2
 				PRINTFORML 「그래! 스파이시버거 만들자!」
-				DISHTASTE += "스파이스/"
+				DISH_TASTE += "스파이스/"
 				TCVAR:111:357 = 2
 			CASEELSE
 				;탈락
 			ENDSELECT
 		ENDIF
 	;과자
-	ELSEIF DISHTYPE == 3
+	ELSEIF DISH_TYPE == "디저트"
 		SELECTCASE RAND:2
 		CASE 1
 			PRINTFORML 「과자 만들기?」
@@ -2670,17 +2670,17 @@ IF LOCAL && DISHASSI == 111
 	;야채를 뽑는다
 	;야채 빼기 처리는 본체 측에 이동했습니다
 	;주인이 뽑고 있든 표시되는 것은 사양이라는 것으로
-	IF STRFIND(DISHTASTE, "야채 빼기/") >= 0
+	IF STRCOUNT(DISH_TASTE, "야채 빼기/")
 		PRINTFORML 「윽! 이거, 야채 들어갔잖아……」
 		PRINTFORML 「몰래 빼버려야지!」
 		PRINTW 
 	ENDIF
 	;야채 넣은 야채 빼기(? )(이)라면 안 되기 때문에
-	IF STRFIND(DISHTASTE, "햄버거") >= 0 && TCVAR:111:356
+	IF STRCOUNT(DISH_TASTE, "햄버거") && TCVAR:111:356
 		PRINTFORML 「우와! 맛있어보여∼！」
 		PRINTFORML 「빨리 먹자♪ 먹는다? 아니면 먹여줄래??」
 	;금단의 요리
-	ELSEIF DISHTYPE == 4
+	ELSEIF STRCOUNT(DISH_TASTE, "로터")
 		PRINTFORML 「완성했지만……, 뭐야, 이거?」
 		PRINTFORML 「저, 정말로 먹는 거야……?」
 	ELSE
@@ -2708,6 +2708,9 @@ IF LOCAL && DISHASSI == 111
 			CASE 2
 				PRINTFORML 「이런 느낌?」
 				PRINTFORML 「좀 더 조미료 넣어야 되는 거 아냐?」
+			CASE 3
+				PRINTFORML 「できた～！ もうこれでいいでしょ！」
+				PRINTFORML 「食べたら変わらないって」
 			CASEELSE
 				PRINTFORML 「해냈다∼！이 정도면 됬지!」
 				PRINTFORML 「먹으면 다 똑같다구」
@@ -2737,8 +2740,8 @@ LOCAL = 1
 IF LOCAL && !CFLAG:111:수면
 	CALL M_KOJO_COLOR_K111
 	;함께 만들었다
-	IF DISHASSI == 111
-		IF STRFIND(DISHTASTE, "햄버거") >= 0
+	IF DISH_ASSI == 111
+		IF STRFIND(DISH_TASTE, "햄버거") >= 0
 			;치즈
 			IF TCVAR:111:357 == 1
 				PRINTFORML 「역시 치즈버거는 왕도라는 느낌∼」
@@ -2763,6 +2766,8 @@ IF LOCAL && !CFLAG:111:수면
 			ELSE
 				PRINTFORMW 「좋아한다는 정도는 아니지만, 옛날에는 자주 먹었어∼」
 			ENDIF
+			;日記を書く
+			CALL M_KOJO_DIARYSETTING_K111(21)
 		ELSEIF DISHNAME == "도핑 콘소메 수프"
 			ALIGNMENT CENTER
 			PRINTFORMW 「도핑 콘소메 수프다……」
@@ -2775,29 +2780,23 @@ IF LOCAL && !CFLAG:111:수면
 			PRINTFORMW 「긴기 요리」
 			PRINTFORMDW 재료는?
 			PRINTFORMW 「긴기」
-		ELSEIF DISHNAME == "콩나물 볶음"
-			PRINTFORMDW 야채볶음을 만들었을 텐데, 콩나물밖에 없다……
+		ELSEIF STRCOUNT(EX_DISH_NAME, "콩나물 볶음")
 			PRINTL 
 			PRINTFORMW 「꽤나 궁상스러운 요리구나」
-		ELSEIF DISHNAME == "나물없음"
-			PRINTFORMDW 식초랑 가다랑어포 뿐, 정작 중요한 야채가 없다…
+		ELSEIF STRCOUNT(EX_DISH_NAME, "나물없음")
 			PRINTL 
 			PRINTFORMW 「이런걸로 잘도 배가 부르는구나」
-		ELSEIF DISHNAME == "곱빼기밥"
-			PRINTFORMDW 야채절임이 없다! 그것 없이 그저 밥 뿐이다!
+		ELSEIF STRCOUNT(EX_DISH_NAME, "곱빼기밥")
 			PRINTL 
 			PRINTFORMW 「밥밖에 없는데도 잘 먹네∼」
 		ELSEIF DISHNAME == "모짜렐라 치즈만의 샐러드"
-			PRINTFORMDW 완성∼! ……이, 이것은∼!
-			PRINTFORMDW ……이라고 생각했지만, 뭔가 중요한 게 빠진 것 같지만, 맛있어보인다, 이 치즈∼
 			PRINTL 
 			PRINTFORMW 「응∼♪ 치즈 맛있다∼♪」
-		ELSEIF STRFIND(DISHTASTE, "야채 빼기") >= 0
-			PRINTFORMDW 야채가 들어가 있지 않다……
+		ELSEIF STRCOUNT(DISH_TASTE, "야채 빼기") >= 0
 			PRINTL 
 			PRINTFORMW 「응∼♪ 맛있다∼♪」
 		;디저트
-		ELSEIF DISHTYPE == 3
+		ELSEIF DISH_TYPE == "디저트"
 			;쿠키
 			IF TCVAR:111:357 == 1
 				IF CFLAG:111:현재위치 == CFLAG:113:현재위치
@@ -2845,30 +2844,30 @@ IF LOCAL && !CFLAG:111:수면
 					ELSE
 						PRINTFORMW 「꺄핫♪ 자 이번에는 %마스터가% 해줘! 아앙∼ %UNICODE(0x2764)%」
 					ENDIF
-					PRINTFORMW 「응∼♪ 달콤해∼♪」
 				ENDIF
+				PRINTFORMW 「응∼♪ 달콤해∼♪」
 			ENDIF
 		;금단
-		ELSEIF DISHTYPE == 4
+		ELSEIF STRCOUNT(DISH_TASTE, "로터")
 			PRINTFORML 「오……오오……!」
 			PRINTFORMW 「의외로 맛있다! 근데, 왠지 아랫쪽이 근질근질해……」
 		ELSE
 			PRINTFORML 「잘 먹겠습니다∼!」
 			PRINTW 
-			IF STRFIND(DISHTASTE, "야채/") >= 0
+			IF STRCOUNT(DISH_TASTE, "야채/")
 				PRINTFORML 「으으-! 이거, 야채가 들어가 있어……」
 				PRINTFORMW 「나는 필요없으니까, %마스터가% 먹어!」
-			ELSEIF STRFIND(DISHTASTE, "스파이스") >= 0 && TCVAR:111:요리총평가치 >= 70 && !RAND:2
+			ELSEIF STRCOUNT(DISH_TASTE, "스파이스") && TCVAR:111:요리평가치 >= 700 && !RAND:2
 				PRINTFORMW 「응∼♪ 짜릿한 매운맛! 맛있다!」
-			ELSEIF STRFIND(DISHTASTE, "치즈") >= 0 && TCVAR:111:요리총평가치 >= 70 && !RAND:2
+			ELSEIF STRCOUNT(DISH_TASTE, "치즈") && TCVAR:111:요리평가치 >= 700 && !RAND:2
 				PRINTFORMW 「응∼♪ 치즈 맛있다∼♪」
-			ELSEIF TCVAR:111:요리총평가치 >= 85
+			ELSEIF TCVAR:111:요리평가치 >= 850
 				PRINTFORMW 「응∼∼! 지-인짜 맛있다! 또 먹고 싶어♪」
-			ELSEIF TCVAR:111:요리총평가치 >= 75
+			ELSEIF TCVAR:111:요리평가치 >= 750
 				PRINTFORMW 「응∼∼! 이거 진짜 맛있다!」
-			ELSEIF TCVAR:111:요리총평가치 >= 65 || !GETBIT(FLAG:요리옵션, 3)
+			ELSEIF TCVAR:111:요리평가치 >= 650
 				PRINTFORMW 「응∼！ 맛있다∼！」
-			ELSEIF TCVAR:111:요리총평가치 >= 55
+			ELSEIF TCVAR:111:요리평가치 >= 550
 				PRINTFORMW 「으응, 냠냠…」
 			ELSE
 				PRINTFORMW 「에-, 나 이거 싫어!」
@@ -2892,6 +2891,8 @@ IF LOCAL && !CFLAG:111:수면
 				PRINTFORML 「아! 햄버거 주는거야?」
 				PRINTFORMW 「예∼! 고마워∼♪」
 			ENDIF
+			;日記を書く
+			CALL M_KOJO_DIARYSETTING_K111(21)
 		ELSEIF DISHNAME == "긴기 요리"
 			PRINTFORMW 「이거 무슨 요리?」
 			PRINTFORMDW 긴기 요리
@@ -2899,31 +2900,31 @@ IF LOCAL && !CFLAG:111:수면
 			PRINTFORMDW 긴기
 			PRINTFORMW 「그런……」
 		;디저트
-		ELSEIF DISHTYPE == 3
+		ELSEIF DISH_TYPE == "디저트"
 			PRINTFORML 「과자다! 주는거야!? 고마워∼♪」
 			PRINTFORMW 「응∼∼♪ 달콤해∼♪」
 		;금단
-		ELSEIF DISHTYPE == 4
+		ELSEIF STRCOUNT(DISH_TASTE, "로터")
 			PRINTFORMW 「밥 주는 거야? 예∼!」
 			PRINTFORMW 「…………으음, 이게……뭐야?」
 		ELSE
 			PRINTFORML 「밥 주는 거야? 예∼!」
 			PRINTFORML 「잘 먹겠습니다∼」
 			PRINTW 
-			IF STRFIND(DISHTASTE, "야채/") >= 0
+			IF STRCOUNT(DISH_TASTE, "야채/")
 				PRINTFORML 「으으-! 이거, 야채가 들어가 있어……」
 				PRINTFORMW 「나는 필요없으니까, %마스터가% 먹어!」
-			ELSEIF STRFIND(DISHTASTE, "스파이스") >= 0 && TCVAR:111:요리총평가치 >= 70 && !RAND:2
+			ELSEIF STRCOUNT(DISH_TASTE, "스파이스") && TCVAR:111:요리평가치 >= 700 && !RAND:2
 				PRINTFORMW 「응∼♪ 짜릿한 매운맛! 맛있다!」
-			ELSEIF STRFIND(DISHTASTE, "치즈") >= 0 && TCVAR:111:요리총평가치 >= 70 && !RAND:2
+			ELSEIF STRCOUNT(DISH_TASTE, "치즈") && TCVAR:111:요리평가치 >= 700 && !RAND:2
 				PRINTFORMW 「응∼♪ 치즈 맛있다∼♪」
-			ELSEIF TCVAR:111:요리총평가치 >= 85
+			ELSEIF TCVAR:111:요리평가치 >= 850
 				PRINTFORMW 「응∼∼! 지-인짜 맛있다! 또 먹고 싶어♪」
-			ELSEIF TCVAR:111:요리총평가치 >= 75
+			ELSEIF TCVAR:111:요리평가치 >= 750
 				PRINTFORMW 「응∼∼! 이거 진짜 맛있다!」
-			ELSEIF TCVAR:111:요리총평가치 >= 65 || !GETBIT(FLAG:요리옵션, 3)
+			ELSEIF TCVAR:111:요리평가치 >= 650
 				PRINTFORMW 「응∼！ 맛있다∼！」
-			ELSEIF TCVAR:111:요리총평가치 >= 55
+			ELSEIF TCVAR:111:요리평가치 >= 550
 				PRINTFORMW 「으응, 냠냠…」
 			ELSE
 				PRINTFORMW 「에-, 나 이거 싫어!」
@@ -3476,11 +3477,11 @@ IF LOCAL
 		PRINTDL ┌─────────────┐
 		PRINTDL ｜　　　　　　　　　　　　　｜
 		PRINTDL ｜　　모리야부적　　　　　　｜
-		PRINTDL ｜　   　　　　　　　　　　　｜
-		PRINTDL ｜    　5장 모으면                　｜
-		PRINTDL ｜　　   뽑기 1회 가능합니다　｜
 		PRINTDL ｜　　　　　　　　　　　　　｜
-		PRINTDL ｜이익은 보증하기 어렵습니다 ｜
+		PRINTDL ｜　　5장 모으면　　　　　　｜
+		PRINTDL ｜　　 뽑기 1회 가능합니다　｜
+		PRINTDL ｜　　　　　　　　　　　　　｜
+		PRINTDL ｜이익은 보증하기 어렵습니다｜
 		PRINTDL ｜　　　　　　　　　　　　　｜
 		PRINTDL ｜　　　　　　　모리야신사　｜
 		PRINTDL └─────────────┘

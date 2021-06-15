@@ -1,7 +1,4 @@
-﻿;@MESSAGE_COM448
-	
-
-;-------------------------------------------------
+﻿;-------------------------------------------------
 ;403휴식
 ;-------------------------------------------------
 @MESSAGE_COM403
@@ -9,7 +6,7 @@ IF TARGET > 0
 	IF CFLAG:TARGET:수면
 		PRINTDATAL
 			DATAFORM %조교자는% %CALLNAME:TARGET%의 잠자는 얼굴을 보면서 중단했다
-			DATAFORM %조교자는% 자는 %CALLNAME:TARGET%의 근처에서 쉬는 것으로 했다
+			DATAFORM %조교자는% 자는 %CALLNAME:TARGET%의 근처에서 쉬기로 했다
 		ENDDATA
 	ELSE
 		PRINTDATAL
@@ -17,7 +14,7 @@ IF TARGET > 0
 			DATAFORM %조교자는% %타겟과% 가볍고 쉬는 것으로 했다
 		ENDDATA
 	ENDIF
-ELSE
+ELSE ;KR판 임의수정(오리지날), 일판은 TEXTR로 되어있음.
 	PRINTDATAL
 		DATAFORM %조교자는% 중단했다
 		DATAFORM %조교자는% 가볍고 쉬는 것으로 했다
@@ -271,26 +268,44 @@ ENDIF
 ;413, 요리
 ;-------------------------------------------------
 @MESSAGE_COM413
-IF TFLAG:194 >= 100
-	LOCALS = %ITEMNAME:(TFLAG:194 - 100)%
-	PRINTFORM %마스터는% 
-	SELECTCASE DAY:2
-		CASE 1
-			PRINTFORML %LOCALS%에 소금 후추로 밑간하고 나서 싱거운에 옷을 입어 까랑 하고 올렸다
-		CASE 2
-			PRINTFORML 깨끗이 내린 %LOCALS%를 확 뜨거운 물 긁어 차게 한 그릇에 담아, 매 고기를 곁들였다
-		CASE 3
-			PRINTFORML %LOCALS%를 생선회로 하고 나서 가볍게 쬐어, 쥠으로 해 특제의 소스를 발랐다
-		CASE 4
-			PRINTFORML 다시마 베이스의 심플한 국물로 야채와 함께%LOCALS%를 삶었다
-	ENDSELECT
-ENDIF
+#DIM 도구력
+#DIM 보너스점수
+;本当はこれで良かったんだけど、既存の口上に全部手を入れなくちゃいけなくなったのでやめました
+도구력 = TFLAG:194 / 100
+보너스점수 = TFLAG:194 % 100
+;PRINTFORMW \@ DISH_ASSI ? %CALLNAME:DISH_ASSI%と # \@【%DISH_NAME%】を作ります
+SELECTCASE DISH_NAME
+	CASE "튀김 로터"
+		PRINTFORML %마스터는% 로터に塩コショウで下味してから薄めに衣をつけてカラッと揚げた
+	CASE "살짝 데친 E마사지기풍 로터"
+		PRINTFORML %마스터는% 綺麗におろした로터をさっと湯掻いて冷やした器に盛り、梅肉を添えた
+	CASE "클리캡용 로터 손잡이"
+		PRINTFORML %마스터는% 로터を刺身にしてから軽く炙り、握りにして特製のタレを塗った
+	CASE "오나홀로 만든 로터 조림"
+		PRINTFORML %마스터는% 昆布ベースのシンプルな出汁で野菜と共に로터を煮込んだ
+	CASEELSE
+;		PRINTFORML ・
+;		PRINTFORML ・・・
+;		SIF DISH_TIME > 10
+;			PRINTFORML ・・・・・・
+;		SIF DISH_TIME > 30
+;			PRINTFORML ・・・・・・・・・・・・
+ENDSELECT
+;PRINTFORML 【%EX_DISH_NAME%】
+;CALL SHOW_TASTE(DISH_TASTE, "DISH_DATA")
+;PRINTFORM 出来栄え：
+;CALL 出来栄え(DISH_BASEPOINT)
+;IF DISH_ASSI
+;	PRINTFORML 　／%CALLNAME:MASTER%の技能({ABL:MASTER:料理技能}) + %CALLNAME:DISH_ASSI%の技能({ABL:DISH_ASSI:料理技能}) + 食材の品質({DISH_RANK})\@ 도구력 ? + 道具の品質({도구력}) # \@\@ 보너스점수 ? + 보너스점수({보너스점수}) # \@
+;ELSE
+;	PRINTFORML 　／%CALLNAME:MASTER%の技能 x 2({ABL:MASTER:料理技能 * 2}) + 食材の品質({DISH_RANK})\@ 도구력 ? + 道具の品質({도구력}) # \@\@ 보너스점수 ? + 보너스점수({보너스점수}) # \@
+;ENDIF
 ;-------------------------------------------------
 ;414, 식사를배달시킨다
 ;-------------------------------------------------
 @MESSAGE_COM414
 #DIM DYNAMIC EAT_ALONE
-PRINTFORML %조사처리(CALLNAME:PLAYER,"는")% ＜%EX_DISHNAME()%＞%조사만처리(EX_DISHNAME(),"를")% 먹기로 했다
+PRINTFORML %조교자는% ＜%EX_DISH_NAME%＞%조사만처리(EX_DISH_NAME,"를")% 먹기로 했다
 IF TARGET > 0 && !CFLAG:TARGET:수면
 	PRINTFORML %조교자는% %CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 들 # \@에게 식사 제의를 했다
 ;ELSEIF TARGET > 0 && CFLAG:TARGET:쇠약
@@ -299,35 +314,8 @@ ELSE
 	PRINTFORML %조교자는% 혼자서 묵묵히 식사를 배달시켰다…
 	EAT_ALONE = 1
 ENDIF
-
 CALL MESSAGE_EAT_DISH(PLAYER, EAT_ALONE)
-IF !DISH_RADICAL()
-	IF TARGET > 0
-		SIF CFLAG:TARGET:미각기호 & TCVAR:MASTER:308
-			PRINTFORML %타겟은% 이 맛내기를 마음에 든 것 같다
-		IF TFLAG:193 == 1
-			PRINTFORML %타겟과% %조교자는%＜%EX_DISHNAME()%＞를 먹으면서 즐거운 한 때를 보냈다…
-		ELSEIF TFLAG:193 == -1
-			PRINTFORML …아무래도 %타겟이% 입맛에 맞지 않았던 것 같다
-		ENDIF
-		RETURN
-	ENDIF
-ELSE
-	IF TARGET > 0
-		CALL MESSAGE_REACTION_TASTE
-		RETURN
-	ENDIF
-	SELECTCASE DISH_RADICAL()
-	CASE DISH_RADICAL_엄청매운
-		PRINTFORML 강요해 오는 강렬한 매운맛에 %조교자가% 젓가락 장미구기절 했다…
-	CASE DISH_RADICAL_격감
-		PRINTFORML 지나친 달콤함에 %조교자는% 젓가락이 진행되지 않는다…
-	CASE DISH_RADICAL_고추냉이
-		PRINTFORML %조교자는% 코를 찔러 빠져요 녹의 향기를 즐겼다
-	CASE DISH_RADICAL_레몬
-		PRINTFORML 입 안에 퍼지는 시큼함에 %조교자는% 입을 다문다…
-	ENDSELECT
-ENDIF
+
 ;-------------------------------------------------
 ;415, 식사를대접한다
 ;-------------------------------------------------
@@ -335,26 +323,13 @@ ENDIF
 #DIM DYNAMIC EAT_ALONE
 SIF GET_TARGETNUM() <= 1
 	EAT_ALONE = 1
-PRINTFORML %조교자는% %CALLNAME:TARGET%\@ EAT_ALONE == 0 ?  들 # \@에게＜%EX_DISHNAME()%＞를 대접했다
+PRINTFORML %조교자는% %CALLNAME:TARGET%\@ EAT_ALONE == 0 ?  들 # \@에게＜%EX_DISH_NAME%＞를 대접했다
 IF TFLAG:193 == -2
-	PRINTFORML %타겟은% 무엇인가 말하고 싶어 하는 것 같은 표정으로, ＜%EX_DISHNAME()%＞를 되물렸다
+	PRINTFORML %타겟은% 무엇인가 말하고 싶어 하는 것 같은 표정으로, ＜%EX_DISH_NAME%＞를 되물렸다
 	RETURN
 ENDIF
 
 CALL MESSAGE_EAT_DISH(TARGET, EAT_ALONE)
-IF !DISH_RADICAL()
-	SIF CFLAG:TARGET:미각기호 & TCVAR:MASTER:308
-		PRINTFORML %타겟은% 이 맛내기를 마음에 든 것 같다
-	IF TFLAG:193 == 1
-		PRINTFORML %타겟은% ＜%EX_DISHNAME()%＞를 평정해 만족한 것 같다…
-	ELSEIF TFLAG:193 == -1
-		PRINTFORML …아무래도 %타겟이% 입맛에 맞지 않았던 것 같다
-	ENDIF
-ELSE
-	CALL MESSAGE_REACTION_TASTE
-ENDIF
-
-
 
 ;-------------------------------------------------
 ;414/415, 공통, 각 요리마다의 지문
@@ -362,66 +337,21 @@ ENDIF
 @MESSAGE_EAT_DISH(CHARA, EAT_ALONE)
 #DIM CHARA    ;주체가 되는 캐릭터
 #DIM EAT_ALONE;먹는 것이 한사람이라면 1
-SELECTCASE TFLAG:194
-CASE 1
+IF TFLAG:194 == 1
 	PRINTL 이것은… 노팬티 샤브샤브다!
-CASE 2
+;ELSEIF STRCOUNT(DISH_TASTE, "로터/")
+;	PRINTL 
+ELSEIF STRCOUNT(DISH_TASTE, "정력/")
 	PRINTL 이것은 정력이 붙는다!
-CASEELSE
-	SELECTCASE DISHNAME
-	CASE "긴기 요리"
-		PRINTW 「이것 무슨 요리?」
-		PRINTW 「긴기 요리」
-		PRINTW 「재료는?」
-		PRINTW 「긴기」
-	CASE "모짜렐라 치즈와 토마토의 샐러드"
-		PRINTL 운 뭐 예~!　 ……이, 이것은~!이 맛원아~!전혀로 한 치즈에 토마토의 쥬시 부분이 얽혀 붙는 능숙함이다!
-		PRINTL 치즈가 토마토를!토마토가 치즈를 닫는!“하모니”개-응입니까∼“맛의 조화”개-응입니까~!
-		PRINTL 예를 들면 사이먼과 가판크루의 듀엣!　웃체에 대한 낭 장!　타카모리조웅의 원작에 대테츠야의“내일의 죠”!
-	CASE "도핑 콘소메 수프"
-		PRINTL 세지 못할 식재료·약물을 정밀한 밸런스로 배합해 특수한 맛내기를 베풀어 삶는 일7일7밤!
-		PRINTL 혈액이나 뇨로부터는 결코 검출되지 않고, 게다가 모든 약물의 효과도 수배…
-		PRINTL 혈관으로부터 주입(먹는다) 일로 한층 더 수배!
-	CASE "경단"
-		IF NAME_MOON(DAY:3) == "보름 -중추의 명월- "
-			PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 
-			IF MOON_WATCH(DAY:3) < 1
-				PRINTFORML 달이 안보이는 것을 아쉬워하면서 
-			ELSE
-				PRINTFORML 훌륭한 만월을 바라보면서 
-			ENDIF
-			PRINTFORML 15일에 바치는 경단을 집어 먹었다
-		ENDIF
-	CASE "스시", "신선한 생선회", "생선회"
-		PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 물고기의 맛을 살린 심플하면서 안쪽 깊은 묘미에 입맛을 쳤다
-	CASE "정어리 파이"
-		PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 하늘을 노려보는 물고기의 무리에 압도되면서도, 과감하게 도미카 샀다
-		
-	CASE "고기만두"
-		SIF DISHSPOIL < 1 && DAY:2 == 4
-			PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 김이 나는 후끈후끈한 %조사처리(DISHNAME,"을")% 덥석 물었다!
-	CASE "샌드위치", "주먹밥", "스콘"
-		PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ %조사처리(DISHNAME,"를")% 집으면서 휴식했다.
-
-	CASE "오세치요리"
-		PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 화려더 처세의 재능 요리의 찬합을 쿡쿡 찌르면서 신년의 도래를 축하했다
-	CASE "토시코시 소바"
-		PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 소바를 훌쩍거리면서 
-		IF RAND:10 < 5
-			PRINTFORML 오는 신년에 생각을 달렸다
-		ELSE
-			PRINTFORML 지나고 가는 작년을 되돌아 보았다
-		ENDIF
-	CASE "에호마키"
-		PRINTFORML 근처에는 꼼질꼼질 김밥을 베어무는 소리만이 울리고 있다
-	;야채 빼기
-	CASE "콩나물 볶음"
-		PRINTL 야채볶음을 만들었을 것이 콩나물만으로 되어 있다……
-	CASE "나물없음"
-		PRINTL 식초와 가다랑어로 만든 포만으로 중요한 푸른 채소가 없다……
-	CASE "곱빼기밥"
-		PRINTL 채소 절임이 없다! 저것이 없다고 밥이 진행되지 않는다!
-	CASE "모짜렐라 치즈만의 샐러드"
+ENDIF
+SELECTCASE DISH_NAME
+CASE "긴기 요리"
+	PRINTW 「이것 무슨 요리?」
+	PRINTW 「긴기 요리」
+	PRINTW 「재료는?」
+	PRINTW 「긴기」
+CASE "모짜렐라 치즈와 토마토의 샐러드"
+	IF STRCOUNT(DISH_TASTE, "야채 빼기/")
 		IF CHARA == [[나즈린]] || (CHARA == MASTER && FLAG:역극 == [[나즈린]])
 			;는 엉성한 전용 분기! 하모니라는건 뭐야
 			PRINTL 운 뭐아～있고!    ……이, 이것은～! 이 맛원아～! 시원시원한 치즈에 치즈의 쥬시 부분이 얽혀 붙는 능숙함이다!  
@@ -431,10 +361,102 @@ CASEELSE
 			PRINTL 운 뭐아～있고!    ……이, 이것은～!
 			PRINTL ……라고 생각했지만, 뭔가 잘 모르지만, 맛이 그다지 하지 않아? 이 치즈～
 		ENDIF
-	CASEELSE
-		SIF STRFIND(DISHTASTE, "야채 빼기/") >= 0
-			PRINTL 야채가 들어가 있지 않다……
-	ENDSELECT
+	ELSE
+		PRINTL 운 뭐 예~!　 ……이, 이것은~!이 맛원아~!전혀로 한 치즈에 토마토의 쥬시 부분이 얽혀 붙는 능숙함이다!
+		PRINTL 치즈가 토마토를!토마토가 치즈를 닫는!“하모니”개-응입니까∼“맛의 조화”개-응입니까~!
+		PRINTL 예를 들면 사이먼과 가판크루의 듀엣!　웃체에 대한 낭 장!　타카모리조웅의 원작에 대테츠야의“내일의 죠”!
+	ENDIF
+CASE "도핑 콘소메 수프"
+	PRINTL 세지 못할 식재료·약물을 정밀한 밸런스로 배합해 특수한 맛내기를 베풀어 삶는 일7일7밤!
+	PRINTL 혈액이나 뇨로부터는 결코 검출되지 않고, 게다가 모든 약물의 효과도 수배…
+	PRINTL 혈관으로부터 주입(먹는다) 일로 한층 더 수배!
+CASE "경단"
+	IF NAME_MOON(DAY:3) == "보름 -중추의 명월- "
+		PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 
+		IF MOON_WATCH(DAY:3) < 1
+			PRINTFORML 달이 안보이는 것을 아쉬워하면서 
+		ELSE
+			PRINTFORML 훌륭한 만월을 바라보면서 
+		ENDIF
+		PRINTFORML 15일에 바치는 경단을 집어 먹었다
+	ENDIF
+CASE "초밥", "생선회", "활어회"
+	PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 물고기의 맛을 살린 심플하면서 안쪽 깊은 묘미에 입맛을 쳤다
+CASE "정어리 파이"
+	PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 하늘을 노려보는 물고기의 무리에 압도되면서도, 과감하게 도미카 샀다
+CASE "고기만두"
+	SIF STRCOUNT(DISH_TASTE, "따뜻한/") && STRCOUNT(DISH_TASTE, "旬/")
+		PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 김이 나는 후끈후끈한 %조사처리(DISH_NAME,"을")% 덥석 물었다!
+CASE "샌드위치", "주먹밥", "스콘"
+	PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ %조사처리(DISH_NAME,"를")% 집으면서 휴식했다.
+CASE "오세치요리"
+	SIF STRCOUNT(DISH_TASTE, "길한물건/")
+		PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 화려더 처세의 재능 요리의 찬합을 쿡쿡 찌르면서 신년의 도래를 축하했다
+CASE "토시코시 소바"
+	IF STRCOUNT(DISH_TASTE, "길한물건/")
+		PRINTFORML %CALLNAME:CHARA%\@ EAT_ALONE == 0 ? 들은 # %조사만처리(CALLNAME:CHARA,"는")%\@ 소바를 훌쩍거리면서 
+		IF RAND:10 < 5
+			PRINTFORML 오는 신년에 생각을 달렸다
+		ELSE
+			PRINTFORML 지나고 가는 작년을 되돌아 보았다
+		ENDIF
+	ENDIF
+CASE "에호마키"
+	SIF STRCOUNT(DISH_TASTE, "길한물건/")
+		PRINTFORML 근처에는 꼼질꼼질 김밥을 베어무는 소리만이 울리고 있다
+;야채 빼기
+CASE "콩나물 볶음"
+	SIF STRCOUNT(DISH_TASTE, "야채 빼기/")
+		PRINTL 야채볶음을 만들었을 것이 콩나물만으로 되어 있다……
+CASE "나물없음"
+	SIF STRCOUNT(DISH_TASTE, "야채 빼기/")
+		PRINTL 식초와 가다랑어로 만든 포만으로 중요한 푸른 채소가 없다……
+CASE "채소절임 곱빼기밥"
+	SIF STRCOUNT(DISH_TASTE, "야채 빼기/")
+		PRINTL 채소 절임이 없다! 저것이 없다고 밥이 진행되지 않는다!
+CASEELSE
+	SIF STRCOUNT(DISH_TASTE, "야채 빼기/")
+		PRINTL 야채가 들어가 있지 않다……
+ENDSELECT
+IF DISH_DRG
+	CALL MESSAGE_EAT_DISH_DRG(TARGET, GET_TARGETNUM() > 1)
+ELSEIF TFLAG:193 == 1
+	PRINTFORML %타겟은% ＜%EX_DISH_NAME%＞를 평정해 만족한 것 같다…
+ELSEIF TFLAG:193 == -1
+	PRINTFORML …아무래도 %타겟이% 입맛에 맞지 않았던 것 같다
+ELSE
+	IF CHARA == MASTER
+		PRINTFORML %타겟과% %조교자는% ＜%EX_DISH_NAME%＞%조사만처리(EX_DISH_NAME,"를")% 먹으면서 즐거운 한때를 보냈다…
+	ELSE
+		PRINTFORML %타겟은% ＜%EX_DISH_NAME%＞%조사만처리(EX_DISH_NAME,"를")%먹으면서 즐거운 한때를 보냈다…
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;仕込み料理を食べた時の反応,MASTERには使わない
+;-------------------------------------------------
+@MESSAGE_EAT_DISH_DRG(CHARA, 복수인)
+#DIM CHARA
+#DIM 복수인
+SIF CHARA == MASTER
+	RETURN
+PRINTFORML %CALLNAME:CHARA%\@ 복수인 ? 들은 # %조사만처리(CALLNAME:CHARA, "은")%\@ %조사처리(ITEMNAME:DISH_DRG,"가")% 들어간 ＜%EX_DISH_NAME%＞%조사만처리(EX_DISH_NAME,"를")% 평정했다
+PRINTFORM %CALLNAME:CHARA%\@ 복수인 ? 들은 # %조사만처리(CALLNAME:CHARA, "은")%\@ 
+SELECTCASE ITEMNAME:DISH_DRG
+CASE "미약"
+	PRINTFORML 뺨에 홍조를 띠며 묘하게 열띤 한숨을 내쉬고 있다…
+CASE "이뇨제"
+	PRINTFORML 약간 안짱다리가 되어, 머뭇머뭇 허리를 흔들고 있다…
+CASE "춘약"
+	PRINTFORML 황홀해 하는 표정으로 가만히 이쪽을 응시하고 있다…
+CASE "수면제"
+	PRINTFORML 눈꺼풀을 무겁게 하고 꾸벅꾸벅하고 있다…
+CASE "배란유발제"
+	PRINTFORML 살짝 풀어진 표정으로 이쪽을 응시해 오고 있다...
+CASE "보테이지"
+	PRINTFORML 살짝 풀어진 표정으로 이쪽을 응시해 오고 있다...
+CASE "히스테리큐"
+	PRINTFORML 살짝 풀어진 표정으로 이쪽을 응시해 오고 있다...
 ENDSELECT
 
 ;-------------------------------------------------
@@ -605,6 +627,13 @@ IF TFLAG:사용악기 != 0
 		ENDIF
 	ENDIF
 ENDIF
+;楽譜入手処理
+PRINTL
+LOCAL = -1
+SIF TFLAG:193 == 1
+	LOCAL = 악보입수_연주대성공(TARGET)
+SIF (LOCAL == -1) && TARGET && (TFLAG:193 != -1) && (RAND:(100) < 30)
+	RESULT = 악보입수_랜덤()
 ;-------------------------------------------------
 ;417, 낮잠잔다
 ;-------------------------------------------------
@@ -617,7 +646,13 @@ IF TFLAG:194 == 2
 			PRINTFORML 누군가가 덮어준 것 같다
 			PRINTFORML 배려에 감사하면서 %조교자는% 행동을 개시했다
 		CASEELSE
-			PRINTL 깨어나자 딱딱한 다다미의 감촉이 전해졌다
+			IF ITEM:오동나무침대
+				PRINTFORML 柔らかなベッドで二度寝したくなったが、頑張って起きることにしよう…
+			ELSEIF ITEM:참나무쇼파
+				PRINTFORML ソファーの上でもそれなりに寝られるものだ
+			ELSE
+				PRINTL 깨어나자 딱딱한 다다미의 감촉이 전해졌다
+			ENDIF
 	ENDSELECT
 ELSEIF TFLAG:194 == 1
 	IF CFLAG:TARGET:동침중
@@ -653,7 +688,7 @@ ELSEIF TFLAG:194 == 1
 				PRINTFORML 얼굴을 들여다보고 있었던 것이라고 눈치채는 것과 %타겟이% 획 비켜서고는 동시였다
 				PRINTFORM %타겟은% 아무 일도 없는 것처럼 행동하려 하고 있었지만
 				IF TARGET == 57 && !TALENT:연모
-					PRINTFORML 원숭이와 시시구치 가면이 난무 하고 있다
+					PRINTFORML 원숭이와 시시구치 탈이 난무 하고 있다
 				ELSE
 					PRINTFORML 귀가 새빨갛다
 				ENDIF
@@ -978,6 +1013,15 @@ SIF ABL:MASTER:교양 > 2 && TARGET > 0
 SIF ABL:MASTER:교양 < ABL:TARGET:교양 - 2
 	PRINTFORM %CALLNAME:TARGET%의 지도는 매우 도움이 된다
 	
+
+
+
+;-------------------------------------------------
+;442,벌채한다
+;-------------------------------------------------
+@MESSAGE_COM442
+
+
 ;-------------------------------------------------
 ;445, 채집한다
 ;-------------------------------------------------
@@ -1025,7 +1069,7 @@ SELECTCASE TFLAG:193
 	CASE 0
 
 	CASEELSE
-		PRINTFORML 所持金 \\{MONEY - TFLAG:194} → \\{MONEY}
+		PRINTFORML 소지금 %금액표시(MONEY - TFLAG:194)% → %금액표시(MONEY)%
 ENDSELECT
 
 ;-------------------------------------------------

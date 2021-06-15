@@ -1,0 +1,267 @@
+﻿;**************************************************************
+;積み石コンテストver0.1です
+;受付台詞は瓔花にするか名無しの水子にするか迷って微妙な感じになりました
+;色々ミスがあったりバランス調整も適当で構文も変…と酷い出来なので直してくださるとうれしいです
+;作者が書いてる分は改変自由で作者への連絡も不要です
+;作者:Cineraria
+;**************************************************************
+@COM633
+#DIM WIN_P
+PRINTL 「積み石コンテストにようこそ！どの階級に挑戦する？参加費は一律￥3000でコンテストに参加できるよ」
+$LOOP
+DRAWLINE
+{
+CALL ASK_M("EASY-積み木級-(簡単に積める難易度です)",1,"NORMAL-ジェンガ級-(油断してると崩れる難易度です)", 1,
+"HARD-トランプタワー級-(一つ目を積むのも緊張する難易度です)",TALENT:MASTER:돌쌓기랭커 >= 1,
+"LUNATIC-ピラミッド級-(石でも投げないとやってられません)", TALENT:MASTER:돌쌓기랭커 >= 2,
+"PHANTASM-バベルの塔級-(石を投げても当たりません)", TALENT:MASTER:돌쌓기랭커 >= 3,
+"EXTRA-人間ピラミッド級-(おひとり様お断りします)", CHK_DATENOW(CFLAG:12),
+"HELP",1, "やめる",1)
+}
+IF RESULT == 0
+	PRINTFORMW 「積み木級に挑戦ね！二回勝ち抜けば優勝だよ！」
+	CALL Stone_Entry(0, 2, 5000)
+ELSEIF RESULT == 1
+	PRINTFORMW 「ジェンガ級に挑戦ね！もう石積みにも慣れたかな？三回勝ち抜けば優勝だよ！」
+	CALL Stone_Entry(1, 3, 7000)
+ELSEIF RESULT == 2
+	PRINTFORMW 「トランプタワー級に挑戦ね！みんなあなたに注目してるよ！四回勝ち抜けば優勝だよ！」
+	CALL Stone_Entry(2, 4, 10000)
+ELSEIF RESULT == 3
+	PRINTFORMW 「ピラミッド級に挑戦！ついにここまで来たね！五回勝ち抜けば優勝だよ！」
+	CALL Stone_Entry_EX(3, 5, 15000)
+ELSEIF RESULT == 4
+	PRINTFORMW 「バベルの塔級に挑戦！？幻と言われたこの階級に挑むの！？頑張ってね！五回勝ち抜けば優勝だよ！」
+	CALL Stone_Entry_EX(4, 5, 30000)
+ELSEIF RESULT == 5
+	MONEY -= 3000
+	TIME += 60
+	WIN_P = 0
+	PRINTFORMW 「人間ピラミッド級に挑戦ね！まだ仮実装だけどそれで良ければ！」
+	PRINTFORMW 「えーっと…今回の対戦相手は…」
+	CALL TAGMATCH
+	IF RESULT == 0
+		WIN_P = 1
+	ELSE
+		WIN_P = 0
+	ENDIF
+	IF WIN_P == 1
+		PRINTFORMW
+		PRINTFORMW 「おめでとう！賞金の￥5000をどうぞ！」
+		PRINTFORMW 「またお二人で遊びに来てください！」
+		MONEY += 5000
+		RETURN 0
+	ELSE
+		PRINTFORMW
+		PRINTFORMW 「負けたのでここで終わり…お疲れ様。また二人で参加してね！」
+		RETURN 0
+	ENDIF
+	RETURN 0
+ELSEIF RESULT == 6
+	CALL Stone_Help
+	GOTO LOOP
+ELSEIF RESULT == 7
+	RETURN -1
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行可能判定
+;-------------------------------------------------
+;石積みコンテスト
+@COM_ABLE633
+;一括管理
+SIF GLOBAL_COMABLE(633)
+	RETURN RESULT
+SIF !INRANGE(TIME, 540, 1020)
+	RETURN 0
+
+IF !AT_HOME(MASTER)
+	SIF CFLAG:MASTER:현재위치 != 삼도천
+		RETURN 0
+ELSE
+	;冥界が拠点の場合は、賽の河原
+	SIF CFLAG:MASTER:현재위치 != 602
+		RETURN 0
+ENDIF
+;睡眠中
+SIF CFLAG:수면
+	RETURN 0
+;時間停止中
+SIF FLAG:70
+	RETURN 0
+RETURN 1
+
+@Stone_Help
+{
+CALL ASK_M("積み石コンテストって？",1,"難易度について その１",1,"難易度について その２",1,"優勝賞金なにか教えて",1,
+"勝てません。何を鍛えたらいいですか？",1, "このコンテストっていつやってるの？",1, "もどる",1)
+}
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML 【積み石コンテストって？】
+		PRINTFORML 戎瓔花主催の積み石に関する色んな事を競うコンテストです
+		PRINTFORML さまざまな部門に分けられていますが…あなたが参加できるのは早積み部門だけとなっています
+		PRINTFORML 早積み部門は制限時間終了時に積んでいる石の数を競う部門です。頑張ってください
+		PRINTFORMW なお、自分の持つ能力は使用してはいけないルールとなっています
+		PRINTFORMW
+	CASE 1
+		PRINTFORML 【難易度について その１】
+		PRINTFORML 早積み部門はたくさんの参加者がおり、その技量に応じた階級が振り分けられています
+		PRINTFORML 最初はEASYしか参加できませんが優勝すれば次の難易度に挑戦できるようになります
+		PRINTFORML 難易度に応じて賞金も豪華になっていきます
+		PRINTFORMW 参加費は一律￥3000です。奮ってご参加ください
+		PRINTFORMW
+	CASE 2
+		PRINTFORML 【優勝賞金なにか教えて】
+		PRINTFORML EASY - ￥5000
+		PRINTFORML NORMAL - ￥7000
+		PRINTFORML HARD - ￥10000
+		PRINTFORML LUNATIC - ￥15000
+		PRINTFORMW ????? - ￥30000
+		PRINTFORMW
+	CASE 3
+		PRINTFORML 【難易度について その２】
+		PRINTFORML 難易度に応じて優勝までに戦う回数も変わります
+		PRINTFORML EASYでは２回勝てば優勝ですがNORMALでは３回、HARDでは４回…といった感じに増えていきます
+		PRINTFORML まだ未実装のデート中のみ参加できる階級は１回の勝利で商品がもらえます
+		PRINTFORMW めざせ！石積みマスター！
+		PRINTFORMW
+	CASE 4
+		PRINTFORML 【勝てません。何を鍛えたらいいですか？】
+		PRINTFORML 手先が器用な人ほど多く積むことができます
+		PRINTFORML 技巧・指技術はもちろんのこと、調合などの指を使う技能を鍛えると多く積めます
+		PRINTFORML またいくつか持っていると有利になる素質も存在しています
+		PRINTFORMW ちなみに欲望の数値が高いと少し不利になります。石を積むという作業に欲望は必要ないのです
+		PRINTFORMW
+	CASE 5
+		PRINTFORML 【このコンテストっていつやってるの？】
+		PRINTFORML ９：００～１７：００までです
+		PRINTFORML いくつかその時間に仕事があるはずなのにコンテストに参加している子がいますが……
+		PRINTFORML まあ気にしないでください
+		PRINTFORMW 将来的に曜日を限定したり一日一回にするかも？
+		PRINTFORMW
+	CASE 6
+		RETURN 0
+ENDSELECT
+RESTART
+
+@Stone_Entry(Rank, MaxBattle, Prize)
+#DIM Rank
+#DIM MaxBattle
+#DIM Prize
+#DIM WIN_P
+#DIM difficulty
+
+WIN_P = 0
+difficulty = Rank
+MONEY -= 3000
+TIME += 60
+FOR WIN_P, 0, MaxBattle
+	IF WIN_P > 0
+		PRINTFORMW
+		PRINTFORMW 「{WIN_P}戦目勝利おめでとう！ここでやめることもできるよどうする？参加費分は戻ってくるよ？」
+		CALL ASK_YN("続ける","やめる")
+		IF RESULT
+			PRINTFORMW 「そっか…また参加してね」
+			MONEY += 3000
+			RETURN -1
+		ELSE
+			PRINTFORMW 「そうこなくっちゃ！」
+		ENDIF
+	ENDIF
+	PRINTFORMW 「えーっと…第{WIN_P + 1}回戦の相手は…」
+	CALL STONELEVEL(difficulty)
+	IF RESULT == 1
+		PRINTFORMW 「負けたのでここで終わり…お疲れ様。また参加してね！」
+		RETURN 0
+	ELSE
+		difficulty ++
+	ENDIF
+NEXT
+PRINTFORMW 「優勝おめでとう！賞金の￥{Prize}をどうぞ！」
+IF TALENT:MASTER:돌쌓기랭커 > Rank
+	PRINTFORML 「これより上の級でも通用するんじゃない？」
+ELSE
+	PRINTFORML 「そしてジェンガ級初優勝のあなたには…新しい称号をプレゼント！」
+	TALENT:MASTER:돌쌓기랭커 = Rank + 1
+ENDIF
+PRINTFORMW 「また参加してね」
+MONEY += Prize
+RETURN 0
+
+@Stone_Entry_EX(Rank, MaxBattle, Prize)
+#DIM Rank
+#DIM MaxBattle
+#DIM Prize
+#DIM WIN_P
+#DIM difficulty
+TIME += 60
+WIN_P = 0
+MONEY -= 3000
+IF Rank == 3
+	difficulty = 5
+ELSEIF Rank == 4
+	difficulty = 6
+ENDIF
+
+FOR WIN_P, 0, MaxBattle
+	IF WIN_P > 0
+		PRINTFORMW
+		;決勝前
+		IF WIN_P == MaxBattle - 1
+			PRINTFORMW 「四戦目勝利おめでとう！次の相手は最強だから気を引き締めてね！ここでやめることもできるよどうする？参加費分は戻ってくるよ？」
+		ELSE
+			PRINTFORMW 「{WIN_P}戦目勝利おめでとう！ここでやめることもできるよどうする？参加費分は戻ってくるよ？」
+		ENDIF
+		CALL ASK_YN("続ける","やめる")
+		IF RESULT
+			PRINTFORMW 「そっか…また参加してね」
+			MONEY += 3000
+			RETURN -1
+		ELSE
+			PRINTFORMW 「そうこなくっちゃ！」
+		ENDIF
+	ENDIF
+	IF WIN_P == MaxBattle - 1
+		PRINTFORMW 「覚悟はできた？最終戦の相手は……そう！」
+		CALL STONELEVEL(Rank + 4)
+	ELSE
+		PRINTFORMW 「えーっと…第{WIN_P + 1}回戦の相手は…」
+		CALL STONELEVEL(difficulty)
+	ENDIF
+	IF RESULT == 1
+		IF WIN_P == MaxBattle - 1
+			PRINTFORMW 「瓔花ちゃんとあそこまで渡り合うなんてすごい！惜しかった…また挑戦してね！」
+		ELSE
+			PRINTFORMW 「負けたのでここで終わり…お疲れ様。また参加してね！」
+		ENDIF
+		RETURN 0
+	ELSE
+		difficulty = MIN(difficulty + 1, 6)
+	ENDIF
+NEXT
+PRINTFORMW 「優勝おめでとう！賞金の￥{Prize}をどうぞ！」
+;ピラミッド
+IF Rank == 3
+	IF TALENT:MASTER:돌쌓기랭커 > Rank
+		PRINTFORML 「これより上の級でも通用するんじゃない？」
+	ELSE
+		PRINTFORMW 「そしてピラミッド級初優勝のあなたには…石積みベテランの称号をプレゼント！」
+		PRINTFORMW 「ところでさ…」
+		PRINTFORMW 「これで終わりかと思った？……実はもう一個上に本気の本気の瓔花ちゃんと戦えるっていう幻と言われた階級があるんだ。超強いから頑張ってね！」
+		TALENT:MASTER:돌쌓기랭커 = Rank + 1
+	ENDIF
+;バベル
+ELSEIF Rank == 4
+	IF TALENT:MASTER:돌쌓기랭커 >= 5
+		PRINTFORML 「また本気の瓔花ちゃんに勝ったの…凄い！」
+	ELSE
+		PRINTFORML 「そしてバベルの塔級初優勝のあなたには…って瓔花が先に言っちゃったけれど……石積みマスターの称号をプレゼント！すごーい！」
+		TALENT:MASTER:돌쌓기랭커 = 5
+	ENDIF
+ENDIF
+
+PRINTFORMW 「また参加してね」
+MONEY += Prize
+RETURN 0
