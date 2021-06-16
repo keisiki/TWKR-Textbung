@@ -48,7 +48,7 @@ ELSEIF INRANGE(RESULT, 990, 996)
 	CASE 996
 		TYPE = 소질
 	ENDSELECT
-ELSEIF INRANGE(RESULT, 0, 1000)
+ELSEIF INRANGE(RESULT, 0, 1100)
 	SELECT_ITEM = RESULT
 	SELECTCASE ITEMSTOCK(SELECT_ITEM)
 	CASE 1, 4
@@ -83,7 +83,7 @@ RESTART
 #DIM 가격
 표시수 = 0
 표시행 = 0
-FOR LOCAL, 0 , 1000
+FOR LOCAL, 0 , 1100
 	CALL ITEMDATA(LOCAL, "SHOP:" + 판매점)
 	IF RESULT
 		IF TYPE != ""
@@ -160,7 +160,7 @@ CASE "전부"
 CASEELSE
 	;全部回す
 	표시수 = 0
-	FOR LOCAL, 0, 1000
+	FOR LOCAL, 0, 1100
 		CALL ITEMDATA(LOCAL, "TYPE:" + TYPE)
 		IF RESULT && ITEM:LOCAL
 			PRINTFORMLC %ITEMNAME:LOCAL%({ITEM:LOCAL})
@@ -211,31 +211,35 @@ PRINTFORM %조사처리(ITEMNAME:ARG,"를")% 몇 개 구입하겠습니까?(재�
 PRINTL 
 가격 = ITEMPRICE:ARG * (100 - 할인 + FLAG:물가) / 100
 ;돈부족, 아이템수의 초과는 나중에 맞춘다
+;텍붕이 패치 - 현재 아이템 갯수와 상관없이 일정한 숫자로 뜨게
 SIF ITEMSALES:ARG
 	PRINTL [ 1]  - 1　
-SIF MIN(ITEMSALES:ARG, 소지수제한 - ITEM:ARG) >= 5
+SIF MIN(ITEMSALES:ARG, 소지수제한) >= 5
 	PRINTL [ 5]  - 5　
-SIF MIN(ITEMSALES:ARG, 소지수제한 - ITEM:ARG) >= 10
+SIF MIN(ITEMSALES:ARG, 소지수제한) >= 10
 	PRINTL [10] - 10　
-SIF MIN(ITEMSALES:ARG, 소지수제한 - ITEM:ARG) >= 20
+SIF MIN(ITEMSALES:ARG, 소지수제한) >= 20
 	PRINTL [20] - 20　
-SIF MIN(ITEMSALES:ARG, 소지수제한 - ITEM:ARG) >= 50
+SIF MIN(ITEMSALES:ARG, 소지수제한) >= 50
 	PRINTL [50] - 50　
-PRINTFORML [{MIN(ITEMSALES:ARG, 소지수제한 - ITEM:ARG), 2}] 전부
+PRINTFORML [{MIN(ITEMSALES:ARG, 소지수제한), 2}] 전부
 PRINTL [ 0]  - 그만둔다
 INPUT
 IF INRANGE(RESULT, 1, ITEMSALES:ARG)
 	IF 가격 * RESULT > MONEY
 		PRINTFORMW 돈이 부족하다…
 		RETURN 0
-	ELSEIF ITEM:ARG + RESULT > 소지수제한
-		PRINTFORMW 그렇게 사면 다 들 수 없다！
-		RETURN 0
+	;소지수제한 제압
+	;ELSEIF ITEM:ARG + RESULT > 소지수제한
+	;	PRINTFORMW 그렇게 사면 다 들 수 없다！
+	;	RETURN 0
 	ENDIF
 	MONEY -= 가격 * RESULT
 	ITEMSALES:ARG -= RESULT
 	ITEM:ARG += RESULT
 	PRINTFORMW %조사처리(ITEMNAME:ARG,"를")% {RESULT}개, %금액표시(가격 *RESULT)%에 구입했습니다
+	;쌀 리필
+	ITEMSALES:1033 = 99
 	RETURN 가격
 ENDIF
 RETURN 0
@@ -254,8 +258,9 @@ RETURN 0
 #DIM 할인
 IF !갯수
 	갯수 = 1
-ELSEIF ITEM:ARG + 갯수 > 소지수제한
-	갯수 = 소지수제한 - ITEM:ARG
+;소지수제한 제압
+;ELSEIF ITEM:ARG + 갯수 > 소지수제한
+;	갯수 = 소지수제한 - ITEM:ARG
 ENDIF
 SIF !가격
 	가격 = ITEMPRICE:ARG * 갯수
@@ -265,8 +270,9 @@ IF 가격 > MONEY
 	PRINTW 돈이 부족하다…
 ELSEIF ITEMSALES:ARG == -1
 	PRINTW 매진입니다
-ELSEIF ITEM:ARG >= 소지수제한
-	PRINTW 충분히 가지고 있다
+;소지수제한 제압
+;ELSEIF ITEM:ARG >= 소지수제한
+;	PRINTW 충분히 가지고 있다
 ELSE
 	MONEY -= 가격
 	ITEMSALES:ARG -= 갯수
@@ -290,14 +296,15 @@ ITEMSALES:ARG = RESULT
 LOCALS = ￥{가격}
 IF RESULT <= 0
 	SETCOLOR C_GRAY
-	LOCALS = 매진
+	설명문 = 매진
 ENDIF
 SIF 가격 > MONEY
 	SETCOLOR C_GRAY
-IF ITEM:ARG >= 소지수제한
-	SETCOLOR C_GRAY
-	LOCALS = 가질 수 없다
-ENDIF
+;소지수제한 제압
+;IF ITEM:ARG >= 소지수제한
+;	SETCOLOR C_GRAY
+;	설명문 = 가질 수 없다
+;ENDIF
 LOCALS = [{ARG, 3}] %ITEMNAME:ARG, 22, LEFT% %금액표시(가격)%
 
 ;LOCALS = [{ARG, 3}] %ITEMNAME:ARG, 22, LEFT% %LOCALS%
@@ -326,8 +333,9 @@ SIF RESULT <= 0
 	SETCOLOR C_GRAY
 SIF 가격 > MONEY
 	SETCOLOR C_GRAY
-SIF ITEM:ARG >= 소지수제한
-	SETCOLOR C_GRAY
+;소지수제한 제압
+;SIF ITEM:ARG >= 소지수제한
+;	SETCOLOR C_GRAY
 PRINTFORML @%LOCALS,48,LEFT%%설명문%
 RESETCOLOR
 
@@ -351,7 +359,7 @@ CALL 술집의재고
 CALL 가게에입하(GETNUM(ITEM, "거름"), 1, 3)
 ; 모종은 1종 1일 1개 입하, 최대재고도 3입니다
 ;	모종을 허술하게 하면(자) 할까 링에 화를 들어요?
-FOR LOCAL, 0, 1000
+FOR LOCAL, 0, 1100
 	IF STRCOUNT(ITEMNAME:LOCAL, "의모종")
 		CALL 가게에입하(LOCAL, 1, 3)
 	ELSE
@@ -361,6 +369,7 @@ FOR LOCAL, 0, 1000
 			CALL 가게에입하(LOCAL, RAND:2, 5)
 	ENDIF
 NEXT
+ITEMSALES:1033 = 99
 
 ; RETURN 1 해서는 안됩니다
 
