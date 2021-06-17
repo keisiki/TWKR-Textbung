@@ -1,0 +1,84 @@
+﻿;-------------------------------------------------
+;物陰に誘う
+;日常系コマンド、レベル1
+;-------------------------------------------------
+@COM356
+;物陰に誘う
+;LOCAL:1 잠복장소
+
+IF FLAG:생활능력무
+	DRAWLINE
+	PRINTFORMW %CALLNAME:MASTER%에게 그런 배짱은 없다
+	RETURN -1
+ENDIF
+;口上処理による強制成功
+SIF TFLAG:192 == 1
+	GOTO SENPUKU
+;口上処理による強制失敗
+SIF TFLAG:192 == -1
+	RETURN -1
+;무지でない場合、노출벽3以上(수치심で増減)必須
+IF !TALENT:무지 && ABL:노출벽 + TALENT:수치심 < 3
+	DRAWLINE
+	PRINTFORMW %타겟은% 아직 밖에서 하는 것에 저항이 있는 것 같다
+	TFLAG:193 = -1
+	RETURN -1
+ENDIF
+
+$SENPUKU
+CALL 잠복장소결정처리
+
+
+IF TALENT:무지
+	DRAWLINE
+	PRINTFORMW %마스터는% 아무것도 모르는 %타겟을% 교묘하겍 %조사처리(NAME_HIDING_PLACE(),"으로")% 꾀어냈다……
+ELSE
+	DRAWLINE
+	PRINTFORMW %마스터는% 뺨을 붉히는 %타겟을% %조사처리(NAME_HIDING_PLACE(),"으로")% 권유했다……
+ENDIF
+
+CFLAG:MASTER:우후후 = 1
+CFLAG:TARGET:우후후 = 1
+
+SETBIT CFLAG:TARGET:잠복상태,0
+SETBIT FLAG:잠복,0
+
+;開始時に잠복율を100%に
+BASE:MASTER:잠복율 = 100
+
+
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE356
+SIF !TFLAG:100
+	RETURN 0
+;時間停止中は不可
+SIF FLAG:시간정지
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(356)
+	RETURN RESULT
+;自室不可
+SIF CFLAG:MASTER:현재위치 == (CFLAG:MASTER:초기위치 || CFLAG:TARGET:초기위치)
+	RETURN 0
+SIF CFLAG:MASTER:현재위치 == OMANEKIBEYA()
+	RETURN 0
+SIF CFLAG:우후후
+	RETURN 0
+SIF !(CFLAG:기정사실 & 합의_우후후)
+	RETURN 0
+;睡眠中
+SIF CFLAG:수면 && !CFLAG:동침중
+	RETURN 0
+;잠복モード中は不可
+SIF GETBIT(FLAG:잠복,0)
+	RETURN 0
+;기력0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF TARGET < 1
+	RETURN 0
+RETURN 1
