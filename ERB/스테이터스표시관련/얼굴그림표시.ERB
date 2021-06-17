@@ -1,0 +1,210 @@
+﻿;CIDが0の時別途定義のMOBキャラを表示するように
+;例）CALL PRINT_FACE, 0, "通常", "服", "6" でMOBゾンビフェアリーを表示
+@PRINT_FACE,CID,表情="",服装="",差分="",エフェクト=""
+#DIMS 表情
+#DIMS 服装
+#DIMS 差分
+#DIMS エフェクト
+#DIM CID
+
+SIF !顔絵付きメッセージ
+	RETURN
+キャラ画像表示サイズ比 = 100
+
+SIF 表情 == ""
+	表情 = 通常
+
+IF CID
+	CALL GET_BASE_RESOURCE(CID, "顔絵", 服装, 表情, "", 差分)
+	SIF !RESULT
+		RESULTS = %GET_BASESTYLE(CID, "顔絵")%_服_通常_{CID}
+ELSE
+	RESULTS = 顔絵_%服装%_%表情%_MOB_%差分%
+	SIF !SPRITECREATED(RESULTS)
+		CALL モブ店員画像作成(TOINT(差分))
+	SIF !SPRITECREATED(RESULTS)
+		RESULTS = 顔絵_服_通常_MOB_%差分%
+	SIF !SPRITECREATED(RESULTS)
+		RETURN
+ENDIF
+
+SIF FLAG:멀티사이즈
+	デフォルトキャラ画像横幅 = SPRITEHEIGHT(RESULTS)
+CALL 画像セット(RESULTS, 0, 0, キャラ画像表示サイズ比, 0, 1, "100", CALLNAME:CID)
+
+IF エフェクト != ""
+	CALL GET_EFFECT_RESOURCE(CID, エフェクト)
+	FOR LOCAL, 0, RESULT
+		CALL 画像セット(RESULTS:LOCAL, 0, 0, キャラ画像表示サイズ比, LOCAL + 1)
+	NEXT
+ENDIF
+
+CALL 画像一斉表示(0, 0, 1, -1)
+
+
+@SPTALK,CID,表情="",デフォルト=0,MESSAGE,整形=0
+;CIDが0の時別途定義のMOBキャラを表示するように
+;例）CALL SPTALK, 0, "笑顔", 1, @"「この記述で」/「モブが喋ります」",1
+#DIM CID
+#DIMS 表情
+#DIM デフォルト
+#DIMS MESSAGE
+#DIM 整形
+#DIMS 服装
+#DIMS MESSAGE_PRINT,50
+#DIMS FONTCOLOR
+
+キャラ画像表示サイズ比 = 100
+
+;口上色取得判定
+IF CID
+	RESETCOLOR
+	RESULTS =
+	TRYCALLFORM M_KOJO_COLOR_K{CID}
+	IF GETCOLOR() == 12632256
+		RESULTS = 0XD5DEDF
+	ELSE
+		LOCAL = GETCOLOR()
+		RESULTS = 0
+		RESULTS += TOSTR(LOCAL, "X")
+	ENDIF
+	FONTCOLOR = %RESULTS%
+ELSE
+	FONTCOLOR = 0XD5DEDF
+ENDIF
+
+VARSET MESSAGE_PRINT
+IF 顔絵付きメッセージ == 1
+	SIF 表情 == ""
+	表情 = 通常
+
+	IF CID
+		IF デフォルト == 1
+			服装 = 服
+		ELSE
+			服装 =
+		ENDIF
+
+		CALL GET_BASE_RESOURCE(CID, "顔絵", 服装, 表情)
+		SIF !RESULT
+			RESULTS = %GET_BASESTYLE(CID, "顔絵")%_服_通常_{CID}
+	ELSE
+		RESULTS = 顔絵_服_%表情%_MOB_{デフォルト}
+		SIF !SPRITECREATED(RESULTS)
+			CALL モブ店員画像作成(デフォルト)
+	ENDIF
+
+	SIF FLAG:멀티사이즈
+		デフォルトキャラ画像横幅 = SPRITEHEIGHT(RESULTS)
+	CALL 画像セット(RESULTS, 0, 0, キャラ画像表示サイズ比, 0, 1, "100", CALLNAME:CID)
+
+	;オプション指定で行送りを揃える
+	SIF 整形
+		MESSAGE = %SPTALK整形(MESSAGE)%
+
+	SPLIT MESSAGE,"/",MESSAGE_PRINT
+	FOR LOCAL,0,RESULT
+		SIF LOCAL != 0
+			CALL ダミーセット(0, 0, キャラ画像表示サイズ比, LOCAL)
+		TEMP_HTML:LOCAL += @"<font color='#%FONTCOLOR%'>%MESSAGE_PRINT:LOCAL%</font>"
+	NEXT
+	CALL 画像一斉表示(0, 0, 1, -1)
+	PRINTL
+ELSE
+	;顔絵メッセージOFF時は通常通りに表示させる
+	SIF CID
+		PRINTFORML －%CALLNAME:CID%－
+	SPLIT MESSAGE,"/",MESSAGE_PRINT
+	FOR LOCAL,0,RESULT
+		SIF MESSAGE_PRINT:LOCAL != ""
+			PRINTFORML %MESSAGE_PRINT:LOCAL%
+	NEXT
+ENDIF
+
+;SPTALKに渡す文を整形
+@SPTALK整形(ARGS)
+#FUNCTIONS
+#DIMS 分割後メッセージ, 50
+#DIM 画像行幅
+#DIMS DYNAMIC 整形メッセージ
+#DIM DYNAMIC メッセージ行 = 0
+VARSET 分割後メッセージ
+
+画像行幅 = デフォルトキャラ画像横幅 / GETCONFIG("一行の高さ")
+SPLIT ARGS, "/", 分割後メッセージ
+
+;文が4行以下の時は間隔を開ける。それ以外は詰めて成形
+FOR LOCAL, 0, 画像行幅
+	IF (RESULT > 4 && (画像行幅-RESULT)/2 - LOCAL > 0) || (RESULT <= 4 && (画像行幅-RESULT*2)/2 - LOCAL > 0)
+		整形メッセージ += "/"
+	ELSE
+		IF RESULT <= 4
+			整形メッセージ += "/"
+			LOCAL += 1
+		ENDIF
+		整形メッセージ += "/" + 分割後メッセージ:メッセージ行
+		メッセージ行 += 1
+	ENDIF
+	SIF メッセージ行 == RESULT
+		BREAK
+NEXT
+;SELECTCASE RESULT
+;	CASE 1
+;		整形メッセージ = 　/　/　/%分割後メッセージ:0%
+;	CASE 2
+;		整形メッセージ = 　/　/%分割後メッセージ:0%//%分割後メッセージ:1%
+;	CASE 3
+;		整形メッセージ = %分割後メッセージ:0%//%分割後メッセージ:1%//%分割後メッセージ:2%
+;	CASE 4
+;		整形メッセージ = 　/　/%分割後メッセージ:0%/%分割後メッセージ:1%/%分割後メッセージ:2%/%分割後メッセージ:3%
+;	CASE IS > 4
+;		整形メッセージ = %ARGS%
+;ENDSELECT
+RETURNF 整形メッセージ
+
+;既読・未読で演出変化するPRINT_TEXT関数
+;CALL PRINT_TEXT(代入する判定条件あるいは数値,"メッセージ内容/L/100行まで反応できるおー")
+;/L/ で改行
+;[W]　MODE（未読、あるいは何等かのフラグ）がTRUEの時にWAIT,FALSEの時に待たせず次の行をPRINT
+;[WW] で強制WAIT
+;例：一行にまとまる書き方
+;	CALL PRINT_TEXT(MODE,@"○月×日 /L/今日、 /L/外界から来たあの人に出会ったようです。[W]/L/ ただ●●を探すことでいっぱいになって、 /L/   /L/ ちゃんと…挨拶できなかった…[W]/L/……いや、わたしが…挨拶もできやしないかもしれないです[W]/L/外界の人とはいえ、やはり人間です /L/なんだか怖いですぅ[W]/L/あう、もう二度と合わせないで…[WW]")
+;改行できる書き方
+;{
+;	CALL PRINT_TEXT(MODE,@"○月×日 /L/ 
+;	今日、 /L/ 
+;	外界から来たあの人に出会ったようです。[W]/L/ 
+;	ただ●●を探すことでいっぱいになって、 /L/   /L/ 
+;	ちゃんと…挨拶できなかった…[W]/L/ 
+;	……いや、わたしが…挨拶もできやしないかもしれないです[W]/L/ 
+;	外界の人とはいえ、やはり人間です /L/ 
+;	なんだか怖いですぅ[W]/L/ 
+;	あう、もう二度と合わせないで…[WW]")
+;}
+;これを応用して、他の口上に使うこともできます。
+@PRINT_TEXT(MODE,MESSAGE)
+#DIMS MESSAGE
+#DIM MODE
+
+VARSET LOCALS
+VARSET RESULTS
+VARSET LOCAL
+
+SPLIT MESSAGE,"/L/",LOCALS
+FOR LOCAL,0,100
+    SIF LOCALS:LOCAL == ""
+        CONTINUE
+    IF STRCOUNT(LOCALS:LOCAL,ESCAPE("[W]"))
+        LOCALS:LOCAL '= REPLACE(LOCALS:LOCAL,ESCAPE("[W]"),"")
+        IF MODE
+            PRINTFORML %LOCALS:LOCAL%
+        ELSE
+            PRINTFORMW %LOCALS:LOCAL%
+        ENDIF
+    ELSEIF STRCOUNT(LOCALS:LOCAL,ESCAPE("[WW]"))
+        LOCALS:LOCAL '= REPLACE(LOCALS:LOCAL,ESCAPE("[WW]"),"")
+        PRINTFORMW %LOCALS:LOCAL%
+    ELSE
+        PRINTFORML %LOCALS:LOCAL%
+    ENDIF
+NEXT
