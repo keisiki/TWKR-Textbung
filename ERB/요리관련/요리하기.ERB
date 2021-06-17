@@ -1,13 +1,10 @@
 ﻿@요리하기
 VARSET 사용된재료
-VARSET 요리이름
 VARSET 주재료
 VARSET 주재료요리법
 VARSET 부재료
 VARSET 부재료요리법
 VARSET 양념
-VARSET 첨가물
-VARSET 요리종류
 기본제공품사용료 = 0
 $LOOP
 DRAWLINE
@@ -15,68 +12,31 @@ DRAWLINE
 PRINTFORM [주재료]
 PRINTFORM 　　　　　　　　　
 PRINTBUTTON "[요리명]",101
-PRINTFORM :%요리이름%
+PRINTFORM :%DISH_NAME%
 PRINTFORM 　　　　　　　　　
 PRINTBUTTON "[요리종류]",102
-IF 요리종류 == 0
-    PRINTFORM : 주식
-ELSEIF 요리종류 == 1
-    PRINTFORM : 경식
-ELSEIF 요리종류 == 2
-    PRINTFORM : 디저트
-ENDIF
+PRINTFORM : \@ DISH_TYPE != "" ? %DISH_TYPE% # 주식\@
 PRINTL
 PRINTFORML [100] %사용된재료표시(주재료요리법,주재료),20,LEFT%
 DRAWLINE
-PRINTFORM [부재료]
-PRINTFORM 　　　　　　　　　
-PRINTFORM [양　념]
-PRINTFORM 　　　　　　　　　
-PRINTFORM [첨가물]
+PRINTFORMLC %"[부재료]", 26, LEFT%
+PRINTFORMLC %"[양　념]", 26, LEFT%
+PRINTFORMLC %"[첨가물]", 26, LEFT%
 PRINTFORML
-;200대 : 부재료
-PRINTFORM [200] %사용된재료표시(부재료요리법:0,부재료:0),20,LEFT%
-;300대 : 양념
-PRINTFORM [300] %사용된재료표시(-1,양념:0),20,LEFT%
-;400대 : 약물등의 첨가물
-PRINTFORM [400] %사용된재료표시(-2,첨가물),20,LEFT%
-PRINTFORML
-PRINTFORM [201] %사용된재료표시(부재료요리법:1,부재료:1),20,LEFT%
-
-PRINTFORM [301] %사용된재료표시(-1,양념:1),20,LEFT%
-PRINTFORML
-PRINTFORM [202] %사용된재료표시(부재료요리법:2,부재료:2),20,LEFT%
-
-PRINTFORM [302] %사용된재료표시(-1,양념:2),20,LEFT%
-PRINTFORML
-PRINTFORM [203] %사용된재료표시(부재료요리법:3,부재료:3),20,LEFT%
-
-PRINTFORM [303] %사용된재료표시(-1,양념:3),20,LEFT%
-PRINTFORML
-PRINTFORM [204] %사용된재료표시(부재료요리법:4,부재료:4),20,LEFT%
-
-PRINTFORM [304] %사용된재료표시(-1,양념:4),20,LEFT%
-PRINTFORML
-PRINTFORM [205] %사용된재료표시(부재료요리법:5,부재료:5),20,LEFT%
-
-PRINTFORM [305] %사용된재료표시(-1,양념:5),20,LEFT%
-PRINTFORML
-PRINTFORM [206] %사용된재료표시(부재료요리법:6,부재료:6),20,LEFT%
-
-PRINTFORM [306] %사용된재료표시(-1,양념:6),20,LEFT%
-PRINTFORML
-PRINTFORM [207] %사용된재료표시(부재료요리법:7,부재료:7),20,LEFT%
-
-PRINTFORM [307] %사용된재료표시(-1,양념:7),20,LEFT%
-PRINTFORML
-PRINTFORM [208] %사용된재료표시(부재료요리법:8,부재료:8),20,LEFT%
-
-PRINTFORM [308] %사용된재료표시(-1,양념:8),20,LEFT%
-PRINTFORML
-PRINTFORM [209] %사용된재료표시(부재료요리법:9,부재료:9),20,LEFT%
-
-PRINTFORM [309] %사용된재료표시(-1,양념:9),20,LEFT%
-PRINTFORML
+FOR LOCAL, 0, 10
+    ;200대 : 부재료
+    PRINTFORMLC [{200+LOCAL}] %사용된재료표시(부재료요리법:LOCAL,부재료:LOCAL),20,LEFT%
+    ;300대 : 양념
+    PRINTFORMLC [{300+LOCAL}] %사용된재료표시(-1,양념:LOCAL),20,LEFT%
+    ;400대 : 약물등의 첨가물
+    IF LOCAL == 0
+        LOCAL:1 = DISH_DRG
+        SIF LOCAL:1 <= 0
+            LOCAL:1 = DISH_DRG_2
+        PRINTFORMLC [{LOCAL+400}] %사용된재료표시(-2,LOCAL:1),20,LEFT%
+    ENDIF
+    PRINTFORML
+NEXT
 DRAWLINE
 IF 주재료
     PRINTFORML [998] 완성!
@@ -88,10 +48,14 @@ IF RESULT == 100
 ELSEIF RESULT == 101
     CALL 요리이름결정
 ELSEIF RESULT == 102
-    요리종류++
-    IF 요리종류 >= 3
-        요리종류 = 0
-    ENDIF
+    SELECTCASE DISH_TYPE
+        CASE "주식"
+            DISH_TYPE '= "경식"
+        CASE "경식"
+            DISH_TYPE '= "디저트"
+        CASEELSE ; "디저트" 포함
+            DISH_TYPE '= "주식"
+    ENDSELECT
     CLEARLINE 18
 ELSEIF RESULT / 100 == 2
     CALL 서브재료선택(RESULT % 200)
@@ -110,9 +74,9 @@ GOTO LOOP
 @요리이름결정
 PRINT 요리의 이름을 입력해주세요:
 INPUTS
-요리이름 = %RESULTS%
-IF 요리이름 == ""
-    요리이름 = 수수께끼 요리
+DISH_NAME = %RESULTS%
+IF DISH_NAME == ""
+    DISH_NAME = 수수께끼 요리
 ENDIF
 PRINTL
 
@@ -229,72 +193,59 @@ RESETCOLOR
 RETURN 1
 
 @기본재료표시함수(ARGS)
+#DIMS MAIN_ING, 10 = "국수", "빵", "육수", "밀가루", "계란", "감자", "콩"
+#DIMS SUB_ING, 10 = "양파", "마늘", "우유", "파프리카"
+#DIMS SPICES = "소금", "후추", "설탕", "식초", "된장", "기름", "간장"
 
-LOCAL = 0
+VARSET LOCAL
 PRINT 기본 
 IF ARGS == "주재료"||ARGS == "부재료"
-    PRINTL 재료 (500\)
+    PRINTFORML 재료 (%금액표시(500)%)
+    DRAWLINE
+    FOR LOCAL, 0, 10
+        SIF LOCAL && !(LOCAL % 4) ;5번째줄마다 빈줄
+            PRINTL
+        IF MAIN_ING:LOCAL != ""
+            PRINTFORMLC [{LOCAL+1, 4, RIGHT}] %MAIN_ING:LOCAL%
+            LOCAL:1 ++
+        ENDIF
+    NEXT
+    IF ARGS == "부재료"
+        FOR LOCAL, 0, 10
+            SIF LOCAL && !(LOCAL % 4) ;5번째줄마다 빈줄
+                PRINTL
+            IF SUB_ING:LOCAL != ""
+                PRINTFORMLC [{LOCAL+1, 4, RIGHT}] %SUB_ING:LOCAL%
+                LOCAL:1 ++
+            ENDIF
+        NEXT
+    ENDIF
 ELSEIF ARGS == "양념"
-    PRINTL 양념 (100\)
-ENDIF
-DRAWLINE
-IF ARGS == "주재료"
-    PRINTLC [0001] 국수
-    PRINTLC [0002] 빵
-    PRINTLC [0003] 육수
-    PRINTLC [0004] 밀가루
-    PRINTL
-    PRINTLC [0005] 계란
-    PRINTLC [0006] 감자
-    PRINTLC [0007] 콩
-    LOCAL = 7
-ELSEIF ARGS == "부재료"
-    PRINTLC [0001] 국수
-    PRINTLC [0002] 빵
-    PRINTLC [0003] 육수
-    PRINTLC [0004] 밀가루
-    PRINTL
-    PRINTLC [0005] 계란
-    PRINTLC [0006] 감자
-    PRINTLC [0007] 콩
-    PRINTLC [0008] 양파
-    PRINTL
-    PRINTLC [0009] 마늘
-    PRINTLC [0010] 우유
-    PRINTLC [0011] 파프리카
-    LOCAL = 11
-ELSEIF ARGS == "양념"
-    PRINTLC [0001] 소금
-    PRINTLC [0002] 후추
-    PRINTLC [0003] 설탕
-    PRINTLC [0004] 식초
-    PRINTL
-    PRINTLC [0005] 된장
-    PRINTLC [0006] 기름
-    PRINTLC [0007] 간장
-    PRINTLC [0008] 고춧가루
-    PRINTL
-    PRINTLC [0009] 젓갈
-    PRINTLC [0010] 버터
-    PRINTLC [0011] 강황
-    LOCAL = 11
+    PRINTFORML 양념 (%금액표시(100)%)
+    DRAWLINE
+    FOR LOCAL, 0, 12
+        SIF LOCAL && !(LOCAL % 4) ;5번째줄마다 빈줄
+            PRINTL
+        IF SPICES:LOCAL != ""
+            PRINTFORMLC [{LOCAL+1, 4, RIGHT}] %SPICES:LOCAL%
+            LOCAL:1 ++
+        ENDIF
+    NEXT
 ENDIF
 PRINTL
-RETURN LOCAL
+RETURN LOCAL:1
 
 @첨가물선택
 #DIM 표시되는재료, 100
 VARSET 표시되는재료, -1 ;표시되는재료 배열의 공란은 -1로 처리
-표시되는재료:0 = GETNUM(ITEM,"미약")
-표시되는재료:1 = GETNUM(ITEM,"이뇨제")
-표시되는재료:2 = GETNUM(ITEM,"춘약")
-표시되는재료:3 = GETNUM(ITEM,"수면제")
-표시되는재료:4 = GETNUM(ITEM,"보테이지")
-표시되는재료:5 = GETNUM(ITEM,"배란유발제")
-표시되는재료:5 = GETNUM(ITEM,"히스테리큐")
+표시되는재료 = GETNUM(ITEM,"미약"), GETNUM(ITEM,"이뇨제"), GETNUM(ITEM,"춘약"), GETNUM(ITEM,"수면제")
+표시되는재료:4 = GETNUM(ITEM,"보테이지"), GETNUM(ITEM,"배란유발제")
+표시되는재료:10 = GETNUM(ITEM,"히스테리큐"), GETNUM(ITEM,"영양강화제")
 
-사용된재료:첨가물 --
-첨가물 = 0
+사용된재료:DISH_DRG = MIN(사용된재료:DISH_DRG - 1, 0)
+사용된재료:DISH_DRG_2 = MIN(사용된재료:DISH_DRG_2 - 1, 0)
+DISH_DRG = 0
+DISH_DRG_2 = 0
 
 PRINTFORML 무엇인가 섞을까?
 DRAWLINE
@@ -328,8 +279,15 @@ ELSE
         ENDIF
     NEXT
     $MAKE
+    SELECTCASE RESULT
+        CASE GETNUM(ITEM,"미약"), GETNUM(ITEM,"이뇨제"), GETNUM(ITEM,"춘약"), GETNUM(ITEM,"수면제")
+            DISH_DRG = RESULT
+        CASE GETNUM(ITEM,"보테이지"), GETNUM(ITEM,"배란유발제")
+            DISH_DRG = RESULT
+        CASE GETNUM(ITEM,"히스테리큐"), GETNUM(ITEM,"영양강화제")
+            DISH_DRG_2 = RESULT
+    ENDSELECT
     사용된재료:RESULT ++
-    첨가물 = RESULT
 ENDIF
 
 @주재료선택
@@ -345,21 +303,12 @@ VARSET 주재료요리법
 
 
 
-표시되는재료:0 = GETNUM(ITEM,"싸구려식재")
-표시되는재료:1 = GETNUM(ITEM,"상급식재")
-표시되는재료:2 = GETNUM(ITEM,"고급식재")
-표시되는재료:3 = GETNUM(ITEM,"쌀")
-표시되는재료:4 = GETNUM(ITEM,"고기")
-표시되는재료:5 = GETNUM(ITEM,"물고기")
-표시되는재료:6 = GETNUM(ITEM,"맛있는물고기")
-표시되는재료:7 = GETNUM(ITEM,"보통버섯")
-표시되는재료:8 = GETNUM(ITEM,"간")
-표시되는재료:9 = GETNUM(ITEM,"당근")
-표시되는재료:10 = GETNUM(ITEM,"순무")
-표시되는재료:11 = GETNUM(ITEM,"죽순")
-표시되는재료:12 = GETNUM(ITEM,"아이스크림")
-표시되는재료:13 = GETNUM(ITEM,"고구마")
-표시되는재료:14 = GETNUM(ITEM,"개구리")
+표시되는재료:0 = GETNUM(ITEM,"싸구려식재"), GETNUM(ITEM,"상급식재"), GETNUM(ITEM,"고급식재")
+표시되는재료:3 = GETNUM(ITEM,"쌀"),  GETNUM(ITEM,"고기")
+표시되는재료:5 = GETNUM(ITEM,"물고기"), GETNUM(ITEM,"맛있는물고기")
+표시되는재료:7 = GETNUM(ITEM,"보통버섯"), GETNUM(ITEM,"간")
+표시되는재료:9 = GETNUM(ITEM,"당근"), GETNUM(ITEM,"순무"),  GETNUM(ITEM,"죽순")
+표시되는재료:12 = GETNUM(ITEM,"아이스크림"), GETNUM(ITEM,"고구마"), GETNUM(ITEM,"개구리")
 
 
 $LOOP
@@ -416,14 +365,14 @@ WEND
 @요리법선택
 PRINTL 어떻게 요리할까...?
 DRAWLINE
-PRINTL [001] 굽기
-PRINTL [002] 삶기
-PRINTL [003] 튀기기
-PRINTL [004] 끓이기
-PRINTL [005] 찌기
-PRINTL [006] 조리기
-PRINTL [007] 볶기
-PRINTL [008] 그대로
+PRINTFORML [{Y_굽기, 3, RIGHT}] 굽기
+PRINTFORML [{Y_삶기, 3, RIGHT}] 삶기
+PRINTFORML [{Y_튀기기, 3, RIGHT}] 튀기기
+PRINTFORML [{Y_끓이기, 3, RIGHT}] 끓이기
+PRINTFORML [{Y_찌기, 3, RIGHT}] 찌기
+PRINTFORML [{Y_조리기, 3, RIGHT}] 조리기
+PRINTFORML [{Y_볶기, 3, RIGHT}] 볶기
+PRINTFORML [{Y_그대로, 3, RIGHT}] 그대로
 DRAWLINE
 WHILE 1
     INPUT
@@ -578,7 +527,6 @@ ENDIF
 
 
 @MAKECOOK
-#DIM DYNAMIC 레시피있음
 PRINTL
 PRINTL
 PRINTL
@@ -609,17 +557,14 @@ NEXT
 ; PHASE 1 - 레시피를 읽어와 일치하는게 있는지 확인, 없다면 그대로 창작요리- 이름 책정
 ;===============
 FOR LOCAL,0,1000
-    TRYCALLFORM 요리레시피{LOCAL}
+    CALL 요리레시피(LOCAL)
     IF RESULT == 1
-        TRYCALLFORM 요리명{LOCAL}
-        요리이름 = %RESULTS%
         PRINTFORML %조사처리(RESULTS,"을")% 만들었다!
-        레시피있음 = LOCAL
         BREAK
     ENDIF
 NEXT
-IF 요리이름 == ""
-    CALL 자동요리이름
+IF DISH_NAME == ""
+    DISH_NAME '= 자동요리이름()
     
 ENDIF
 
@@ -660,27 +605,23 @@ NEXT
 ;===============
 ; PHASE 3 - 맛 책정 안되있으면 자동으로
 ;===============
-IF 레시피있음 == 0
-    $맛책정
-    SELECTCASE 요리종류
-        CASE 0
+IF DISH_TASTE == ""
+    SELECTCASE DISH_TYPE
+        CASE "주식"
             DISH_TASTE += "주식/"
-            DISH_TYPE = 주식
             TIME += 30
-        CASE 1
+        CASE "경식"
             DISH_TASTE += "경식/"
-            DISH_TYPE = 경식
             TIME += 15
-        CASE 2
+        CASE "디저트"
             DISH_TASTE += "디저트/"
-            DISH_TYPE = 디저트
         CASEELSE
             DISH_TASTE += "주식/"
             DISH_TYPE = 주식
             TIME += 30
     ENDSELECT
     
-    DISH_TASTE += 요리이름 + "/"
+    DISH_TASTE += DISH_NAME + "/"
     CALL 음식맛책정("주재료",주재료,주재료요리법)
     FOR LOCAL,0,9
         CALL 음식맛책정("부재료",부재료:LOCAL,부재료요리법:LOCAL)
@@ -702,42 +643,61 @@ IF 레시피있음 == 0
         DISH_TASTE += "심플/"
         TIME -= 5
     ENDIF
-ELSE
-    CALLFORM 요리맛책정{레시피있음}
-    IF RESULTS == ""
-        GOTO 맛책정
-    ENDIF
-    DISH_TASTE = RESULTS
 ENDIF
-DISH_NAME = %요리이름%
+
+;갓만든 요리 표시용
+DISH_TASTE '= "갓만든/"
+;레시피에서 조리 시간이 설정되지 않았을 때
+IF !DISH_TIME
+    SELECTCASE DISH_TYPE
+        CASE "경식"
+            DISH_TIME = 20
+        CASE "주식"
+            DISH_TIME = 40
+        CASE "디저트"
+            DISH_TIME = 40
+    ENDSELECT
+ENDIF
+SIF FLAG:역극
+	CALL DISH_TASTE_FROM_CHARA(FLAG:역극)
+SIF DISH_ASSI
+	CALL DISH_TASTE_FROM_CHARA(DISH_ASSI)
+    
+;레시피별 최대유통기간이 설정되지 않았을 때
+SIF !DISH_MAXLIMIT
+	DISH_MAXLIMIT = 120
+SIF ITEM:보온전기밥통
+	TIMES DISH_MAXLIMIT, 1.5
+;신선도 설정, 조리 시간을 추가해 둔다.
+DISH_LIMIT = DISH_MAXLIMIT + DISH_TIME
+
+DISHNAME '= DISH_NAME
 DISH_BASEPOINT = 3 + MIN(RAND:((ABL:MASTER:요리기능/2) + 1),3)
 DISH_RANK = 3
 
 ;첨가물
 ;#DIM CONST BIT_MIX_DRUG = 0, 21, 22, 23, 24
-IF 첨가물
-    SELECTCASE 첨가물
+IF DISH_DRG != 0
+    SELECTCASE DISH_DRG
         CASE 41
-            SELECT_DRG = GETNUM(ITEM,"미약")
             ITEM:미약 --
         CASE 42
-            SELECT_DRG = GETNUM(ITEM,"이뇨제")
             ITEM:이뇨제 --
         CASE 250
-            SELECT_DRG = GETNUM(ITEM,"춘약")
             ITEM:춘약 --
         CASE 252
-            SELECT_DRG = GETNUM(ITEM,"수면제")
             ITEM:수면제 --
         CASE 91
-            SELECT_DRG = GETNUM(ITEM,"배란유발제")
             ITEM:수면제 --
         CASE 1021
-            SELECT_DRG = GETNUM(ITEM,"보테이지")
             ITEM:보테이지 --
+    ENDSELECT
+ELSEIF DISH_DRG_2 != 0
+    SELECTCASE DISH_DRG_2
         CASE 1022
-            SELECT_DRG = GETNUM(ITEM,"히스테리큐")
             ITEM:히스테리큐 --
+        CASE 518
+            ITEM:영양강화제 --
     ENDSELECT
 ENDIF
 ;
@@ -745,10 +705,22 @@ ENDIF
 ;
 PRINTFORML 요리의 맛 : %DISH_TASTE%
 EXP:MASTER:요리경험 += 2
-SIF TARGET
-    EXP:TARGET:요리경험 += 2
+SIF DISH_ASSI
+    EXP:DISH_ASSI:요리경험 += 2
 TIME += 15
 
+IF STRCOUNT(DISH_TASTE, "로터/")
+	TFLAG:194 = 100
+ELSEIF DISH_TYPE == "디저트"
+	TFLAG:194 = 3
+ELSEIF DISH_TYPE == "주식"
+	TFLAG:194 = 2
+ELSE
+	TFLAG:194 = 1
+ENDIF
+
+;표시용 음식명
+EX_DISH_NAME = DISH_NAME
 
 @요리법포함여부(ARG)
 #FUNCTION
@@ -815,1006 +787,9 @@ ENDIF
 요리영양소:3 += ARG:3 ;비타민
 요리영양소:4 += ARG:4 ;나트륨
 
-@음식맛책정(타입,재료명,요리법)
-#DIMS DYNAMIC 타입
-#DIM DYNAMIC 재료명
-#DIM DYNAMIC 요리법
-;경식/주식/디저트/수수께끼요리/생선요리/개구리요리/진수성찬/잡곡/야취/
-;묵은쌀/검소/백미/품위있는/물고기/맛있는물고기
-;금단/야채/담백/과일/귀여운/붉은/산뜻한/미끄러운/물기/단/볼륨감/스파이스/
-;일식/쌀/계란/매끄러운/심플/국물/농후/
-;고기 요리/양식/치즈/중식/기름/닭고기/튀겨짐/사각사각/토마토/벌레고기/말랑말랑/
-;반죽/귀엽다/팥소/쫄깃한/달구경/
-IF INRANGE(재료명,0,기본제공재료) 
-    IF 타입 == "주재료"
-       IF 재료명 == Y_국수
-            DISH_TASTE += "잡곡/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "사각사각/"
-                CASE Y_삶기
-                    DISH_TASTE += "미끄러운/물기/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/사각사각/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/미끄러운/물기/"
-                CASE Y_찌기
-                    DISH_TASTE += "미끄러운/물기/"
-                CASE Y_조리기
-                    DISH_TASTE += "미끄러운/물기/농후/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/미끄러운/물기/"
-                CASE Y_그대로
-                    DISH_TASTE += "사각사각/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_빵
-            DISH_TASTE += "양식/반죽/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "사각사각/"
-                CASE Y_삶기
-                    DISH_TASTE += "물기/말랑말랑/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/사각사각/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/농후/"
-                CASE Y_찌기
-                    DISH_TASTE += "물기/말랑말랑/볼륨감/쫄깃한/"
-                CASE Y_조리기
-                    DISH_TASTE += "농후/물기/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += ""
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_육수
-            DISH_TASTE += "국물/농후/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += ""
-                CASE Y_삶기
-                    DISH_TASTE += "물기/"
-                CASE Y_튀기기
-                    DISH_TASTE += "기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "물기/"
-                CASE Y_찌기
-                    DISH_TASTE += ""
-                CASE Y_조리기
-                    DISH_TASTE += ""
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += "물기/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_밀가루
-            DISH_TASTE += "잡곡/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += ""
-                CASE Y_삶기
-                    DISH_TASTE += "반죽/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/반죽/"
-                CASE Y_찌기
-                    DISH_TASTE += "반죽/볼륨감/"
-                CASE Y_조리기
-                    DISH_TASTE += "반죽/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += ""
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_계란
-            DISH_TASTE += "계란/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "귀여운/"
-                CASE Y_삶기
-                    DISH_TASTE += "매끄러운/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/"
-                CASE Y_찌기
-                    DISH_TASTE += "말랑말랑/볼륨감/"
-                CASE Y_조리기
-                    DISH_TASTE += "농후/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += ""
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_감자
-            DISH_TASTE += "잡곡/야채/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "사각사각/"
-                CASE Y_삶기
-                    DISH_TASTE += "물기/담백/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/사각사각/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/"
-                CASE Y_찌기
-                    DISH_TASTE += "물기/담백/"
-                CASE Y_조리기
-                    DISH_TASTE += "농후/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/사각사각/"
-                CASE Y_그대로
-                    DISH_TASTE += "사각사각/야취/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_콩
-            DISH_TASTE += "잡곡/야채/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "담백/"
-                CASE Y_삶기
-                    DISH_TASTE += "담백/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/"
-                CASE Y_찌기
-                    DISH_TASTE += "말랑말랑/"
-                CASE Y_조리기
-                    DISH_TASTE += ""
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += "야취/"
-            ENDSELECT
-        ENDIF
-    ELSEIF 타입 == "부재료"
-        IF 재료명 == Y_국수
-            DISH_TASTE += "잡곡/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "사각사각/"
-                CASE Y_삶기
-                    DISH_TASTE += "미끄러운/물기/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/사각사각/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/미끄러운/물기/"
-                CASE Y_찌기
-                    DISH_TASTE += "미끄러운/물기/"
-                CASE Y_조리기
-                    DISH_TASTE += "미끄러운/물기/농후/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/미끄러운/물기/"
-                CASE Y_그대로
-                    DISH_TASTE += "사각사각/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_빵
-            DISH_TASTE += "양식/반죽/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "사각사각/"
-                CASE Y_삶기
-                    DISH_TASTE += "물기/말랑말랑/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/사각사각/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/농후/"
-                CASE Y_찌기
-                    DISH_TASTE += "물기/말랑말랑/볼륨감/쫄깃한/"
-                CASE Y_조리기
-                    DISH_TASTE += "농후/물기/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += ""
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_육수
-            DISH_TASTE += "국물/농후/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += ""
-                CASE Y_삶기
-                    DISH_TASTE += "물기/"
-                CASE Y_튀기기
-                    DISH_TASTE += "기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "물기/"
-                CASE Y_찌기
-                    DISH_TASTE += ""
-                CASE Y_조리기
-                    DISH_TASTE += ""
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += "물기/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_밀가루
-            DISH_TASTE += "잡곡/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += ""
-                CASE Y_삶기
-                    DISH_TASTE += "반죽/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/반죽/"
-                CASE Y_찌기
-                    DISH_TASTE += "반죽/볼륨감/"
-                CASE Y_조리기
-                    DISH_TASTE += "반죽/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += ""
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_계란
-            DISH_TASTE += "계란/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "귀여운/"
-                CASE Y_삶기
-                    DISH_TASTE += "매끄러운/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/"
-                CASE Y_찌기
-                    DISH_TASTE += "말랑말랑/볼륨감/"
-                CASE Y_조리기
-                    DISH_TASTE += "농후/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += ""
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_감자
-            DISH_TASTE += "잡곡/야채/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "사각사각/"
-                CASE Y_삶기
-                    DISH_TASTE += "물기/담백/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/사각사각/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/"
-                CASE Y_찌기
-                    DISH_TASTE += "물기/담백/"
-                CASE Y_조리기
-                    DISH_TASTE += "농후/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/사각사각/"
-                CASE Y_그대로
-                    DISH_TASTE += "사각사각/야취/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_콩
-            DISH_TASTE += "잡곡/야채/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "담백/"
-                CASE Y_삶기
-                    DISH_TASTE += "담백/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/"
-                CASE Y_찌기
-                    DISH_TASTE += "말랑말랑/"
-                CASE Y_조리기
-                    DISH_TASTE += ""
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += "야취/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_양파
-            DISH_TASTE += "스파이스/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "단/산뜻한/"
-                CASE Y_삶기
-                    DISH_TASTE += "단/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/단/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/단/"
-                CASE Y_찌기
-                    DISH_TASTE += "단/"
-                CASE Y_조리기
-                    DISH_TASTE += "단/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/단/"
-                CASE Y_그대로
-                    DISH_TASTE += "산뜻한/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_마늘
-            DISH_TASTE += "농후/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "단/"
-                CASE Y_삶기
-                    DISH_TASTE += ""
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/스파이스/"
-                CASE Y_찌기
-                    DISH_TASTE += "담백/"
-                CASE Y_조리기
-                    DISH_TASTE += ""
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += "스파이스/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_우유
-            DISH_TASTE += "볼륨감/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += ""
-                CASE Y_삶기
-                    DISH_TASTE += ""
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/"
-                CASE Y_찌기
-                    DISH_TASTE += ""
-                CASE Y_조리기
-                    DISH_TASTE += ""
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += ""
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_파프리카
-            DISH_TASTE += "붉은/단/야채/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "단/"
-                CASE Y_삶기
-                    DISH_TASTE += ""
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/"
-                CASE Y_찌기
-                    DISH_TASTE += ""
-                CASE Y_조리기
-                    DISH_TASTE += ""
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += "야취/사각사각/"
-            ENDSELECT
-        ENDIF
-        IF 재료명 == Y_치즈
-            DISH_TASTE += "볼륨감/농후/치즈/"
-            SELECTCASE 요리법
-                CASE Y_굽기
-                    DISH_TASTE += "기름/"
-                CASE Y_삶기
-                    DISH_TASTE += "기름/"
-                CASE Y_튀기기
-                    DISH_TASTE += "튀겨짐/기름/"
-                CASE Y_끓이기
-                    DISH_TASTE += "국물/기름/"
-                CASE Y_찌기
-                    DISH_TASTE += "기름/"
-                CASE Y_조리기
-                    DISH_TASTE += "기름/"
-                CASE Y_볶기
-                    DISH_TASTE += "기름/"
-                CASE Y_그대로
-                    DISH_TASTE += ""
-            ENDSELECT
-        ENDIF
-    ELSEIF 타입 == "양념"
-        IF 재료명 == Y_소금
-            DISH_TASTE += "스파이스/"
-        ENDIF
-        IF 재료명 == Y_후추
-            DISH_TASTE += "스파이스/"
-        ENDIF
-        IF 재료명 == Y_설탕
-            DISH_TASTE += "단/"
-        ENDIF
-        IF 재료명 == Y_식초
-            DISH_TASTE += "산뜻한/"
-        ENDIF
-        IF 재료명 == Y_된장
-            DISH_TASTE += "농후/담백/"
-        ENDIF
-        IF 재료명 == Y_기름
-            DISH_TASTE += "기름/"
-        ENDIF
-        IF 재료명 == Y_간장
-            DISH_TASTE += "담백/품위있는/"
-        ENDIF
-        IF 재료명 == Y_고춧가루
-            DISH_TASTE += "붉은/스파이스/"
-        ENDIF
-        IF 재료명 == Y_젓갈
-            DISH_TASTE += "농후/야취/"
-        ENDIF
-        IF 재료명 == Y_버터
-            DISH_TASTE += "농후/볼륨감/기름/"
-        ENDIF
-        IF 재료명 == Y_강황
-            DISH_TASTE += "스파이스/"
-        ENDIF
-    ENDIF
-ELSEIF 재료명 != 0
-    IF 재료명 == GETNUM(ITEM,"고기")
-        DISH_TASTE += "고기 요리/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                ;DISH_TASTE += ""
-            CASE Y_삶기
-                DISH_TASTE += "물기/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/"
-            CASE Y_찌기
-                DISH_TASTE += "농후/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                DISH_TASTE += "품위있는/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"싸구려식재")
-        DISH_TASTE += "쌀/잡곡/야취/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                ;뻥튀기?
-                DISH_TASTE += "단/볼륨감/"
-            CASE Y_삶기
-                ;?
-                DISH_TASTE += "물기/"
-            CASE Y_튀기기
-                ;?
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                ;죽
-                DISH_TASTE += "국물/물기/담백/검소/"
-            CASE Y_찌기
-                ;밥
-                DISH_TASTE += "담백/"
-            CASE Y_조리기
-                ;얘도 죽...대체 왜?
-                DISH_TASTE += "담백/물기/검소/"
-            CASE Y_볶기
-                ;밥을 볶은거로 합시다
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                ;DISH_TASTE += 
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"상급식재")
-        DISH_TASTE += "쌀/묵은쌀/검소/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                ;뻥튀기?
-                DISH_TASTE += "단/볼륨감/"
-            CASE Y_삶기
-                ;?
-                DISH_TASTE += "물기/"
-            CASE Y_튀기기
-                ;?
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                ;죽
-                DISH_TASTE += "국물/물기/담백/검소/"
-            CASE Y_찌기
-                ;밥
-                DISH_TASTE += "담백/"
-            CASE Y_조리기
-                ;얘도 죽...대체 왜?
-                DISH_TASTE += "담백/물기/검소/"
-            CASE Y_볶기
-                ;밥을 볶은거로 합시다
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                ;DISH_TASTE += 
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"고급식재")
-        DISH_TASTE += "쌀/백미/품위있는/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                ;뻥튀기?
-                DISH_TASTE += "단/볼륨감/"
-            CASE Y_삶기
-                ;?
-                DISH_TASTE += "물기/"
-            CASE Y_튀기기
-                ;?
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                ;죽
-                DISH_TASTE += "국물/물기/담백/검소/"
-            CASE Y_찌기
-                ;밥
-                DISH_TASTE += "담백/"
-            CASE Y_조리기
-                ;얘도 죽...대체 왜?
-                DISH_TASTE += "담백/물기/검소/"
-            CASE Y_볶기
-                ;밥을 볶은거로 합시다
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                ;DISH_TASTE += 
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"쌀")
-        DISH_TASTE += "쌀/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                ;뻥튀기?
-                DISH_TASTE += "단/볼륨감/"
-            CASE Y_삶기
-                ;?
-                DISH_TASTE += "물기/"
-            CASE Y_튀기기
-                ;?
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                ;죽
-                DISH_TASTE += "국물/물기/담백/검소/"
-            CASE Y_찌기
-                ;밥
-                DISH_TASTE += "담백/"
-            CASE Y_조리기
-                ;얘도 죽...대체 왜?
-                DISH_TASTE += "담백/물기/검소/"
-            CASE Y_볶기
-                ;밥을 볶은거로 합시다
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                ;DISH_TASTE += 
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"물고기")
-        DISH_TASTE += "생선 요리/물고기/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "담백/"
-            CASE Y_삶기
-                ;...?
-                DISH_TASTE += "물기/산뜻한/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/농후/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/농후/"
-            CASE Y_찌기
-                DISH_TASTE += "농후/산뜻한/담백/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/물기/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/농후/"
-            CASE Y_그대로
-                DISH_TASTE += "담백/일식/품위있는/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"맛있는물고기")
-        DISH_TASTE += "생선 요리/맛있는물고기/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "담백/"
-            CASE Y_삶기
-                ;...?
-                DISH_TASTE += "물기/산뜻한/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/농후/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/농후/"
-            CASE Y_찌기
-                DISH_TASTE += "농후/산뜻한/담백/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/물기/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/농후/"
-            CASE Y_그대로
-                DISH_TASTE += "담백/일식/품위있는/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"보통버섯")
-        DISH_TASTE += "야채/야취/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "산뜻한/담백/"
-            CASE Y_삶기
-                DISH_TASTE += "산뜻한/미끄러운/쫄깃한/담백/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/"
-            CASE Y_찌기
-                DISH_TASTE += "미끄러운/쫄깃한/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/미끄러운/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                DISH_TASTE += "산뜻한/담백/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"간")
-        DISH_TASTE += "고기 요리/붉은/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "담백/"
-            CASE Y_삶기
-                DISH_TASTE += "담백/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/사각사각/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/농후/말랑말랑/"
-            CASE Y_찌기
-                DISH_TASTE += "담백/물기/말랑말랑/쫄깃한/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/물기/쫄깃한/말랑말랑/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/말랑말랑/"
-            CASE Y_그대로
-                DISH_TASTE += "산뜻한/매끄러운/말랑말랑/쫄깃한/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"당근")
-        DISH_TASTE += "야채/단/붉은/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "물기/"
-            CASE Y_삶기
-                DISH_TASTE += "말랑말랑/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/농후/말랑말랑/"
-            CASE Y_찌기
-                DISH_TASTE += "물기/말랑말랑/"
-            CASE Y_조리기
-                DISH_TASTE += "말랑말랑/농후/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/매끄러운/"
-            CASE Y_그대로
-                DISH_TASTE += "야취/사각사각/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"순무")
-        DISH_TASTE += "야채/담백/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "단/"
-            CASE Y_삶기
-                DISH_TASTE += "말랑말랑/물기/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/사각사각/담백/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/농후/말랑말랑/"
-            CASE Y_찌기
-                DISH_TASTE += "말랑말랑/미끄러운/"
-            CASE Y_조리기
-                DISH_TASTE += "말랑말랑/물기/농후/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/말랑말랑/물기/매끄러운/"
-            CASE Y_그대로
-                DISH_TASTE += "야취/스파이스/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"죽순")
-        DISH_TASTE += "야채/사각사각/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "담백/산뜻한/야취/"
-            CASE Y_삶기
-                DISH_TASTE += "담백/물기/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/담백/야취/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/농후/야취/"
-            CASE Y_찌기
-                DISH_TASTE += "말랑말랑/담백/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/매끄러운/말랑말랑/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/야취/"
-            CASE Y_그대로
-                DISH_TASTE += "야취/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"아이스크림")
-        DISH_TASTE += "단/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "수수께끼요리/국물/물기/"
-            CASE Y_삶기
-                DISH_TASTE += "수수께끼요리/국물/물기/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/물기/"
-            CASE Y_끓이기
-                DISH_TASTE += "수수께끼요리/국물/물기/"
-            CASE Y_찌기
-                DISH_TASTE += "수수께끼요리/국물/물기/"
-            CASE Y_조리기
-                DISH_TASTE += "수수께끼요리/국물/물기/"
-            CASE Y_볶기
-                DISH_TASTE += "수수께끼요리/국물/물기/"
-            CASE Y_그대로
-                
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"가지")
-        DISH_TASTE += "야채/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "말랑말랑/" 
-            CASE Y_삶기
-                DISH_TASTE += "말랑말랑/물기/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/말랑말랑/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/농후/야취/말랑말랑/"
-            CASE Y_찌기
-                DISH_TASTE += "말랑말랑/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/말랑말랑/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/말랑말랑/"
-            CASE Y_그대로
-                DISH_TASTE += "야취/사각사각/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"파")
-        DISH_TASTE += "야채/스파이스/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "사각사각/단/"
-            CASE Y_삶기
-                DISH_TASTE += "농후/물기/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/사각사각/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/미끄러운/"
-            CASE Y_찌기
-                DISH_TASTE += "물기/"
-            CASE Y_조리기
-                DISH_TASTE += "말랑말랑/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/산뜻한/"
-            CASE Y_그대로
-                DISH_TASTE += "산뜻한/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"약초")
-        DISH_TASTE += "야채/야취"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += ""
-            CASE Y_삶기
-                DISH_TASTE += "물기/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/"
-            CASE Y_찌기
-                DISH_TASTE += "물기/"
-            CASE Y_조리기
-                DISH_TASTE += "물기/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                DISH_TASTE += "스파이스/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"고려인삼")
-        DISH_TASTE += "야채/야취/산뜻한/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "담백/"
-            CASE Y_삶기
-                DISH_TASTE += "물기/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/"
-            CASE Y_찌기
-                DISH_TASTE += "물기/"
-            CASE Y_조리기
-                DISH_TASTE += "물기/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                DISH_TASTE += "스파이스/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"양배추")
-        DISH_TASTE += "야채/단/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "담백/" 
-            CASE Y_삶기
-                DISH_TASTE += "물기/미끄러운/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/사각사각/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/물기/말랑말랑/"
-            CASE Y_찌기
-                DISH_TASTE += "물기/미끄러운/"
-            CASE Y_조리기
-                DISH_TASTE += "물기/미끄러운/말랑말랑/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/산뜻한/"
-            CASE Y_그대로
-                DISH_TASTE += "사각사각/산뜻한/담백/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"참마")
-        DISH_TASTE += "야채/미끄러운/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "사각사각/"
-            CASE Y_삶기
-                DISH_TASTE += "사각사각/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/사각사각/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/사각사각/농후/"
-            CASE Y_찌기
-                DISH_TASTE += "물기/"
-            CASE Y_조리기
-                DISH_TASTE += "물기/농후/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                DISH_TASTE += "사각사각/야취/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"오이")
-        DISH_TASTE += "야채/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "담백/"
-            CASE Y_삶기
-                DISH_TASTE += "물기/미끄러운/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/사각사각/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/사각사각/"
-            CASE Y_찌기
-                DISH_TASTE += "말랑말랑/물기/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/물기/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/물기/"
-            CASE Y_그대로
-                DISH_TASTE += "사각사각/물기/담백/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"토마토")
-        DISH_TASTE += "야채/토마토/붉은/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "단/"
-            CASE Y_삶기
-                DISH_TASTE += "말랑말랑/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/말랑말랑/"
-            CASE Y_찌기
-                DISH_TASTE += "말랑말랑/담백/농후/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/단/"
-            CASE Y_그대로
-                DISH_TASTE += "단/농후/담백/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"고구마")
-        DISH_TASTE += "야채/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "볼륨감/단/"
-            CASE Y_삶기
-                DISH_TASTE += "말랑말랑/단/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/단/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/단/"
-            CASE Y_찌기
-                DISH_TASTE += "말랑말랑/담백/농후/단/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/단/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/단/"
-            CASE Y_그대로
-                DISH_TASTE += "사각사각/담백/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"개구리")
-        DISH_TASTE += "개구리요리/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += "담백/"
-            CASE Y_삶기
-                DISH_TASTE += "말랑말랑/쫄깃한/"
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/말랑말랑/쫄깃한/"
-            CASE Y_찌기
-                DISH_TASTE += "말랑말랑/담백/농후/쫄깃한/"
-            CASE Y_조리기
-                DISH_TASTE += "농후/"
-            CASE Y_볶기
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                DISH_TASTE += "말랑말랑/쫄깃한/"
-        ENDSELECT
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"벌꿀")
-        DISH_TASTE += "단/"
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"소주")
-        DISH_TASTE += "단/산뜻한/"
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"맥주")
-        DISH_TASTE += "볼륨감/"
-    ENDIF
-    IF 재료명 == GETNUM(ITEM,"와인")
-        DISH_TASTE += "단/품위있는/"
-    ENDIF
-    [SKIPSTART]
-    IF 재료명 == ""
-        DISH_TASTE += "/"
-        SELECTCASE 요리법
-            CASE Y_굽기
-                DISH_TASTE += 
-            CASE Y_삶기
-                DISH_TASTE += 
-            CASE Y_튀기기
-                DISH_TASTE += "튀겨짐/기름/"
-            CASE Y_끓이기
-                DISH_TASTE += "국물/"
-            CASE Y_찌기
-                DISH_TASTE += 
-            CASE Y_조리기
-                DISH_TASTE += 
-            CASE Y_볶기
-                DISH_TASTE += "기름/"
-            CASE Y_그대로
-                DISH_TASTE += 
-        ENDSELECT
-    ENDIF
-    [SKIPEND]
-ENDIF
-
-
 @자동요리이름
+#FUNCTIONS
+#DIM 요리이름
 ;자동으로 요리 이름을 선정해주는 함수
 FOR LOCAL, 0, 9
     IF 부재료:LOCAL != 0
@@ -1828,3 +803,4 @@ IF 주재료
 ELSE
     요리이름 = 수수께끼 요리
 ENDIF
+RETURNF 요리이름
