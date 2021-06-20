@@ -59,11 +59,16 @@ T_시전자 = 대피소:0
 T_시전자반대 = 대피소:1
 VARSET T_시스템
 
+@T_COM턴넘김(ARG)
+T_행동기회:ARG:0 = 0
+T_행동기회:ARG:1 = 0
+
 @T_COM공격한다
 #DIM DYNAMIC 보너스
 PRINTFORML %T_턴주인의% 공격이 %T_턴반대에게% 날아갔다!
+CALL 행동기회소모(T_턴주인,T_통상행동)
 IF TB_SUM_REMAIN(T_턴주인,TCV_실명)
-    IF 명중판정(ARG능력치(T_턴주인,"적중률") / 2)
+    IF 평타명중판정(ARG능력치(T_턴주인,"적중률") / 2)
         IF T_턴주인 == MASTER
             CALL T_시스템처리(100)
         ELSE
@@ -82,7 +87,7 @@ IF TB_SUM_REMAIN(T_턴주인,TCV_실명)
         RETURN 0
     ENDIF
 ELSE
-    IF 명중판정(ARG능력치(T_턴주인,"적중률"))
+    IF 평타명중판정(ARG능력치(T_턴주인,"적중률"))
         IF T_턴주인 == MASTER
             CALL T_시스템처리(100)
         ELSE
@@ -102,25 +107,32 @@ ELSE
     ENDIF
 ENDIF
 
-;#DIM DYNAMIC 보너스
-;PRINTFORML %T_턴주인의% 공격이 %T_턴반대에게% 날아갔다!
-;IF TB_SUM_REMAIN(T_턴주인,TCV_실명)&&RAND:2 == 0
-;    IF T_턴주인 == MASTER
-;        CALL T_시스템처리(102)
-;    ELSE
-;        CALL T_시스템처리(103)
-;    ENDIF
-;    PRINTFORML 그러나 앞이 제대로 보이지 않아 빗맞추고 말았다...
-;    RETURN 0
-;ENDIF
-;IF T_턴주인 == MASTER
-;    CALL T_시스템처리(100)
-;ELSE
-;    CALL T_시스템처리(101)
-;ENDIF
-;보너스 = RAND:100
-;CALL T_데미지(T_턴반대,TCVAR:T_턴주인:T_공격력+보너스,"물리")
-;RETURN 1
+@평타명중판정(ARG)
+#FUNCTION
+#DIM DYNAMIC 보정
+
+SELECTCASE TB_거리()
+    CASE IS < 10
+        보정 += 10
+    CASE IS < 15
+        보정 += 5
+    CASE IS < 20
+        보정 += 0
+    CASE IS < 25
+        보정 -= 5
+    CASE IS < 30
+        보정 -= 10
+    CASE IS < 35
+        보정 -= 15
+    CASE IS < 40
+        보정 -= 20
+    CASE IS < 45
+        보정 -= 25
+    CASE IS > 46
+        보정 -= 30
+ENDSELECT
+
+RETURNF 명중판정(MAX(ARG능력치(T_턴주인,"적중률") + 보정, 0))
 
 @T_COM회피한다(ARG)
 #DIM DYNAMIC 회피량
@@ -146,6 +158,7 @@ IF TALENT:ARG:그레이즈능숙함
     회피량 *= 2
 ENDIF
 CALL 통합버프(ARG, TCV_회피,-1,회피량, 1)
+CALL 행동기회소모(T_턴주인,T_통상행동)
 RETURN 0
 
 
@@ -156,7 +169,7 @@ RETURN 0
 
 도주판정값 = RAND:(MAX(ARG능력치(ARG,"속도") + ARG능력치(ARG,"운") + 1, 1)) + RAND:10 + 5
 도주저지값 = RAND:(MAX(ARG반대능력치(ARG,"속도") + ARG반대능력치(ARG,"운") + 1, 1))
-
+CALL 행동기회소모(T_턴주인,T_통상행동)
 IF 도주판정값 >= 2* 도주저지값
     PRINTFORML %ARG는% 냅다 도망가버렸다!
     PRINTFORML %조사처리(CALLNAME:사용자반대(ARG),"는")% 그저 바라볼 수 밖에 없었다...
@@ -213,6 +226,30 @@ ELSE
     PRINTFORML 그러나 %조사처리(CALLNAME:사용자반대(ARG),"의")% 속도가 너무 빨라 금새 따라잡히고 말았다!
     RETURN 0
 ENDIF
+
+@T_COM이동한다
+PRINTFORML 어디로 이동할까? (현재의 이동속도 : {ARG능력치(T_대상1,"이동력")}m/턴)
+ALIGNMENT CENTER
+CALL TBS위치관계표시
+
+PRINTFORM [100] 왼쪽
+PRINT                   
+PRINTFORM [200] 오른쪽
+PRINTL
+PRINTFORML [999] 돌아간다
+ALIGNMENT LEFT
+$LOOP
+INPUT
+IF RESULT == 999
+    RETURN -1
+ELSEIF RESULT == 100
+    CALL T_MOVE(T_대상1,-1)
+ELSEIF RESULT == 200
+    CALL T_MOVE(T_대상1,1)
+ELSE
+    GOTO LOOP
+ENDIF
+RETURN 1
 
 @T_COM스킬사용
 #DIM 스킬번호
@@ -275,6 +312,7 @@ WHILE 1 ;$스킬입력루프
     ELSEIF IS_MEMORIZED(LOCAL)
         DRAWLINE
         CALL DO_T_SKILL(T_턴주인, LOCAL)
+        CALL 행동기회소모(T_턴주인,T_통상행동)
         ;시전할수 없을때엔 턴 넘김 없어야 합니다
         ;RESULT == 1일때만 턴 넘어감
         RETURN RESULT
@@ -510,6 +548,8 @@ SELECTCASE 능력치
         결과값 = TCVAR:ARG:T_관통내성
     CASE "적중률"
         결과값 = TCVAR:ARG:T_적중률
+    CASE "이동력"
+        결과값 = TCVAR:ARG:T_이동력
     CASEELSE
         THROW 상정하지 않은 능력치 %능력치%
 ENDSELECT
