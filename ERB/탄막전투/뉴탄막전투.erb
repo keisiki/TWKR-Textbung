@@ -62,6 +62,8 @@ VARSET 데미지스택_대상
 VARSET 데미지스택_속성
 VARSET 데미지스택_존재
 VARSET 데미지스택_피해
+VARSET T_위치
+VARSET T_행동기회
 
 FOR LOCAL, 1, 2000
     T_시전자 = T_대상1
@@ -96,6 +98,8 @@ REPEAT 2
     TCVAR:대상:T_정신내성 = CFLAG:대상:정신내성
     TCVAR:대상:T_관통내성 = CFLAG:대상:관통내성
 REND
+T_위치:T_대상1:0 = TB_위치값한계/2 - TB_위치이격값/2
+T_위치:T_대상2:0 = TB_위치값한계/2 + TB_위치이격값/2
 CALL 공방세팅(ARG, ARG:1)
 
 ;----
@@ -247,6 +251,7 @@ FOR LOCAL, 0, 2
     TCVAR:세팅대상:T_수격내성 = CFLAG:세팅대상:수격내성 + TB_SUM_VALUE(세팅대상,TCV_수격내성) - TCVAR:세팅대상:부상_수격내성
     TCVAR:세팅대상:T_정신내성 = CFLAG:세팅대상:정신내성 + TB_SUM_VALUE(세팅대상,TCV_정신내성) - TCVAR:세팅대상:부상_정신내성
     ;관통내성은 딱히 없다
+    TCVAR:세팅대상:T_이동력 = 5 + MIN(ARG능력치(세팅대상,"속도") / 10 , 35) + MIN(ARG능력치(세팅대상,"속도") / 50, 6) + MIN(ARG능력치(세팅대상,"속도") / 100, 3)
 NEXT
 
 TCVAR:ARG:T_적중률 = 75 + MIN(11,MAX(0,TCVAR:(ARG):T_속도 - TCVAR:(ARG:1):T_속도) / 10) + MIN(4,MAX(0,TCVAR:(ARG):T_운 - TCVAR:(ARG:1):T_운) / 10)
@@ -302,35 +307,9 @@ CALL TB_MINUS_WHO(대상2)
 IF 턴넘김 == 1
     CALL T_시스템처리(2)
     $대상1턴시작
-    IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-        CALL T_시스템처리(200)
-        CALL T_시스템처리(201)
-        IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-            RETURN 1
-        ELSEIF TCVAR:대상1:T_체력 <= 0
-            RETURN 2
-        ELSEIF TCVAR:대상2:T_체력 <= 0
-            RETURN 0
-        ENDIF
-    ;대상2 승리
-    ELSEIF TCVAR:대상1:T_체력 <= 0
-        CALL T_시스템처리(200)
-        IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-            RETURN 1
-        ELSEIF TCVAR:대상1:T_체력 <= 0
-            RETURN 2
-        ELSEIF TCVAR:대상2:T_체력 <= 0
-            RETURN 0
-        ENDIF
-    ELSEIF TCVAR:대상2:T_체력 <= 0
-        CALL T_시스템처리(201)
-        IF TCVAR:대상2:T_체력 <= 0 && TCVAR:대상1:T_체력 <= 0
-            RETURN 1
-        ELSEIF TCVAR:대상1:T_체력 <= 0
-            RETURN 2
-        ELSEIF TCVAR:대상2:T_체력 <= 0
-            RETURN 0
-        ENDIF
+    CALL T_쓰러짐체크
+    IF RESULT != -1
+        RETURN RESULT
     ENDIF
     T_시전자 = 대상1
     T_시전자반대 = 대상2
@@ -338,42 +317,53 @@ IF 턴넘김 == 1
     CALL 뉴탄막상태창
     CALL 뉴탄막커맨드창
     INPUT
-    SELECTCASE RESULT
-        CASE 100
-            ;공격 ;RETURN 0:회피 1:공격성공
-            CALL T_COM공격한다
+    
+    IF RESULT == 100 && 행동기회여부(대상1,T_통상행동)
+        ;공격 ;RETURN 0:회피 1:공격성공
+        CALL T_COM공격한다
+        BREAK
+    ELSEIF RESULT == 101 && 행동기회여부(대상1,T_통상행동)
+        ;스킬사용
+        ;RETURN 0:시전실패 1:시전성공
+        CALL T_COM스킬사용
+        IF RESULT == 1
             BREAK
-        CASE 101
-            ;스킬사용
-            ;RETURN 0:시전실패 1:시전성공
-            CALL T_COM스킬사용
-            SIF RESULT == 1
-                BREAK
-        CASE 102
-            ;아이템사용
-            CALL 뉴탄막아이템
-            IF RESULT == 1
-                BREAK
-            ENDIF
-        CASE 200
-            ;회피
-            CALL T_COM회피한다(대상1)
+        ENDIF
+    ELSEIF RESULT == 102 && 행동기회여부(대상1,T_통상행동)
+        ;아이템사용
+        CALL 뉴탄막아이템
+        IF RESULT == 1
             BREAK
-        CASE 201
-            ;도주
-            CALL T_COM도망간다(대상1)
+        ENDIF
+    ELSEIF RESULT == 200 && 행동기회여부(대상1,T_이동행동)
+        CALL T_COM이동한다
+        IF RESULT == 1
             BREAK
-        CASE 999
-            ;항복
-            CALL T_항복(대상1)
-            IF RESULT == 0
-                ;항복 거절당함
+        ENDIF
+    ELSEIF RESULT == 201 && 행동기회여부(대상1,T_통상행동)
+        ;회피
+        CALL T_COM회피한다(대상1)
+        BREAK
+    ELSEIF RESULT == 202 && 행동기회여부(대상1,T_통상행동)
+        ;도주
+        CALL T_COM도망간다(대상1)
+        BREAK
+    ELSEIF RESULT == 500
+        이동행동자동무시 = !이동행동자동무시
+    ELSEIF RESULT == 501
+        CALL T_COM턴넘김
+        BREAK
+    ELSEIF RESULT == 999 && 행동기회여부(대상1,T_통상행동)
+        ;항복
+        CALL T_항복(대상1)
+        IF RESULT == 0
+            ;항복 거절당함
 
-            ELSE
-                RETURN 2
-            ENDIF
-        CASEELSE
-    ENDSELECT
+        ELSE
+            RETURN 2
+        ENDIF
+    ELSE
+    ENDIF
     ;CALL 뉴탄막상태창
     WEND
 ENDIF
@@ -386,14 +376,18 @@ ENDIF
 IF TB_SUM_VALUE(대상1,TCV_폭주) > 0&&!TB_SUM_VALUE(대상1,TCV_기절)
     FOR LOCAL,0,TB버프한계
         IF T_버프:TB대상:LOCAL == 대상1&&T_버프:TB내용:LOCAL == TCV_폭주
-            T_버프:TB값:LOCAL--
-            IF T_버프:TB값:LOCAL == 0
-                CALLF TB_RESET(LOCAL)
-            ENDIF
-            GOTO 대상1턴시작
+            T_행동기회:T_턴주인:1 += T_버프:TB값:LOCAL
+            T_버프:TB값:LOCAL = 0
+            CALLF TB_RESET(LOCAL)
         ENDIF
     NEXT
 ENDIF
+IF !도망감
+    IF T_추가턴처리(대상1) || (행동기회여부(대상1,T_이동행동) && !이동행동자동무시)
+        GOTO 대상1턴시작
+    ENDIF
+ENDIF
+
 ;승부처리
 ;일단 체력만 기준으로 봄
 ;무승부 처리
@@ -414,26 +408,9 @@ IF 도망감
         RETURN 1
     ENDIF
 ENDIF
-IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-    CALL T_시스템처리(200)
-    CALL T_시스템처리(201)
-    IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-        RETURN 1
-    ELSEIF TCVAR:대상1:T_체력 <= 0
-        RETURN 2
-    ELSEIF TCVAR:대상2:T_체력 <= 0
-        RETURN 0
-    ENDIF
-;대상1 승리
-ELSEIF TCVAR:대상2:T_체력 <= 0
-    CALL T_시스템처리(201)
-    IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-        RETURN 1
-    ELSEIF TCVAR:대상1:T_체력 <= 0
-        RETURN 2
-    ELSEIF TCVAR:대상2:T_체력 <= 0
-        RETURN 0
-    ENDIF
+CALL T_쓰러짐체크
+IF RESULT != -1
+    RETURN RESULT
 ENDIF
 ;-----------------
 ;--------
@@ -450,35 +427,9 @@ IF 턴넘김 == 1
     CALL T_시스템처리(1)
     $대상2턴시작
     CALL 뉴탄막상태창
-    IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-        CALL T_시스템처리(200)
-        CALL T_시스템처리(201)
-        IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-            RETURN 1
-        ELSEIF TCVAR:대상1:T_체력 <= 0
-            RETURN 2
-        ELSEIF TCVAR:대상2:T_체력 <= 0
-            RETURN 0
-        ENDIF
-    ;대상2 승리
-    ELSEIF TCVAR:대상1:T_체력 <= 0
-        CALL T_시스템처리(200)
-        IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
-            RETURN 1
-        ELSEIF TCVAR:대상1:T_체력 <= 0
-            RETURN 2
-        ELSEIF TCVAR:대상2:T_체력 <= 0
-            RETURN 0
-        ENDIF
-    ELSEIF TCVAR:대상2:T_체력 <= 0
-        CALL T_시스템처리(201)
-        IF TCVAR:대상2:T_체력 <= 0 && TCVAR:대상1:T_체력 <= 0
-            RETURN 1
-        ELSEIF TCVAR:대상1:T_체력 <= 0
-            RETURN 2
-        ELSEIF TCVAR:대상2:T_체력 <= 0
-            RETURN 0
-        ENDIF
+    CALL T_쓰러짐체크
+    IF RESULT != -1
+        RETURN RESULT
     ENDIF
     T_시전자 = 대상2
     T_시전자반대 = 대상1
@@ -495,13 +446,25 @@ ENDIF
 IF TB_SUM_VALUE(대상2,TCV_폭주) > 0&&!TB_SUM_VALUE(대상2,TCV_기절)
     FOR LOCAL,0,TB버프한계
         IF T_버프:TB대상:LOCAL == 대상2&&T_버프:TB내용:LOCAL == TCV_폭주
-            T_버프:TB값:LOCAL--
-            IF T_버프:TB값:LOCAL == 0
-                CALLF TB_RESET(LOCAL)
-            ENDIF
-            GOTO 대상2턴시작
+            T_행동기회:T_턴주인:1 += T_버프:TB값:LOCAL
+            T_버프:TB값:LOCAL = 0
+            CALLF TB_RESET(LOCAL)
         ENDIF
     NEXT
+ENDIF
+IF TB_SUM_VALUE(대상2,TCV_폭주) > 0&&!TB_SUM_VALUE(대상2,TCV_기절)
+    FOR LOCAL,0,TB버프한계
+        IF T_버프:TB대상:LOCAL == 대상2&&T_버프:TB내용:LOCAL == TCV_폭주
+            T_행동기회:T_턴주인:1 += T_버프:TB값:LOCAL
+            T_버프:TB값:LOCAL = 0
+            CALLF TB_RESET(LOCAL)
+        ENDIF
+    NEXT
+ENDIF
+IF !도망감
+    IF T_추가턴처리(대상2) || 행동기회여부(대상2,T_이동행동)
+        GOTO 대상2턴시작
+    ENDIF
 ENDIF
 DRAWLINE
 PRINTL 턴 엔드
@@ -530,30 +493,70 @@ IF 도망감
         RETURN 1
     ENDIF
 ENDIF
+CALL T_쓰러짐체크
+IF RESULT != -1
+    RETURN RESULT
+ENDIF
+
+GOTO 뉴탄막루틴시작
+
+
+@T_추가턴처리(ARG)
+#FUNCTION
+IF T_행동기회:ARG:0 > 0
+    RETURNF 1
+ELSE
+    RETURNF 0
+ENDIF
+
+@T_쓰러짐체크
+#DIM DYNAMIC 대상1
+#DIM DYNAMIC 대상2
+대상1 = T_대상1
+대상2 = T_대상2
+;굳이 이러는 이유는 밑에걸 고치기 귀찮아서...언젠가는 고치겠지???
 IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
+    ;동시쓰러짐
+    ;시스템처리
     CALL T_시스템처리(200)
     CALL T_시스템처리(201)
+    ;동시에 쓰러짐
     IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
         RETURN 1
+    ;한쪽만 쓰러짐
     ELSEIF TCVAR:대상1:T_체력 <= 0
         RETURN 2
     ELSEIF TCVAR:대상2:T_체력 <= 0
         RETURN 0
     ENDIF
-;대상2 승리
+;대상1 체력 끝
 ELSEIF TCVAR:대상1:T_체력 <= 0
+    ;시스템처리
     CALL T_시스템처리(200)
+    ;동시에 쓰러짐
     IF TCVAR:대상1:T_체력 <= 0 && TCVAR:대상2:T_체력 <= 0
         RETURN 1
+    ;한쪽만 쓰러짐
+    ELSEIF TCVAR:대상1:T_체력 <= 0
+        RETURN 2
+    ELSEIF TCVAR:대상2:T_체력 <= 0
+        RETURN 0
+    ENDIF
+;대상2 체력 끝
+ELSEIF TCVAR:대상2:T_체력 <= 0
+    ;시스템처리
+    CALL T_시스템처리(201)
+    ;동시에 쓰러짐
+    IF TCVAR:대상2:T_체력 <= 0 && TCVAR:대상1:T_체력 <= 0
+        RETURN 1
+    ;한쪽만 쓰러짐
     ELSEIF TCVAR:대상1:T_체력 <= 0
         RETURN 2
     ELSEIF TCVAR:대상2:T_체력 <= 0
         RETURN 0
     ENDIF
 ENDIF
-
-GOTO 뉴탄막루틴시작
-
+RETURN -1
 
 @T_턴처리(ARG, ARG:1)
 ;RETURN = 1이면 턴주인 턴, 0이라면 턴 넘어감
@@ -563,7 +566,8 @@ T_턴반대 = ARG:1
 ;CALL 버프감소처리(ARG)
 
 CALL 공방세팅(ARG, ARG:1)
-
+T_행동기회:T_턴주인:0 = 1
+T_행동기회:T_턴주인:1 = 1
 
 ;상태이상에 따른 종료처리
 IF TB_SUM_REMAIN(ARG,TCV_기절)
@@ -590,21 +594,67 @@ NEXT
 T_TIME++
 
 @뉴탄막커맨드창
-ALIGNMENT CENTER
-PRINTFORM [100] 공격 한다
-PRINT    
-PRINTFORM [101] 스킬 사용
-PRINT    
-PRINTFORM [102] 아이템 사용
+
+CALL 뉴탄막커맨드창_색깔설정("통상")
+PRINTFORMLC [100] 공격 한다
+;PRINT    
+CALL 뉴탄막커맨드창_색깔설정("통상")
+PRINTFORMLC [101] 스킬 사용
+;PRINT    
+CALL 뉴탄막커맨드창_색깔설정("통상")
+PRINTFORMLC [102] 아이템 사용
+
+IF 이동행동자동무시
+    SETCOLOR 0X808080
+ELSE
+    RESETCOLOR
+ENDIF
+PRINTFORMC [500] 이동행동사용 : \@ 이동행동자동무시 == 1 ? 스킵한다 # 사용한다 \@
+RESETCOLOR
+;----------------
 PRINTL
-PRINTFORM [200] 회피에 집중
-PRINT    
-PRINTFORM [201] 도망친다
+
+
+CALL 뉴탄막커맨드창_색깔설정("이동")
+PRINTFORMLC [200] 이동 한다
+;PRINT    
+CALL 뉴탄막커맨드창_색깔설정("통상")
+PRINTFORMLC [201] 회피에 집중
+;PRINT     
+CALL 뉴탄막커맨드창_색깔설정("통상")
+PRINTFORMLC [202] 도망친다
+
+PRINTFORMLC [501] 턴 넘기기
+
 PRINTL
+
+
+;-----------
+
+CALL 뉴탄막커맨드창_색깔설정("통상")
 PRINTFORM [999] 항복
 PRINTL
+RESETCOLOR
 DRAWLINE
-ALIGNMENT LEFT
+
+
+@뉴탄막커맨드창_색깔설정(ARGS)
+IF ARGS == "이동"
+    IF 행동기회여부(T_대상1,T_이동행동)
+        RESETCOLOR
+    ELSE
+        SETCOLOR 0X808080
+    ENDIF
+ELSEIF ARGS == "통상"
+    IF 행동기회여부(T_대상1,T_통상행동)
+        RESETCOLOR
+    ELSE
+        SETCOLOR 0X808080
+    ENDIF
+ELSE
+    RESETCOLOR
+ENDIF
+
 
 @T_데미지스택(ARG,데미지,속성)
 ;ARG = 공격받는 대상
@@ -953,122 +1003,17 @@ ELSEIF 상태이상 == "실명"
 ENDIF
 RETURN RESULT
 
-@T_부상(대상,부상,양)
-#DIM DYNAMIC 대상
-#DIMS DYNAMIC 부상
-#DIM DYNAMIC 양
-
-SELECTCASE 부상
-    CASE "힘"
-        TCVAR:대상:부상_힘 += 양
-    CASE "지성"
-        TCVAR:대상:부상_지성 += 양
-    CASE "속도"
-        TCVAR:대상:부상_속도 += 양
-    CASE "인내"
-        TCVAR:대상:부상_인내 += 양
-    CASE "운"
-        TCVAR:대상:부상_운 += 양
-    CASE "물리내성"
-        TCVAR:대상:부상_물리내성 += 양
-    CASE "화염내성"
-        TCVAR:대상:부상_화염내성 += 양
-    CASE "빙결내성"
-        TCVAR:대상:부상_빙결내성 += 양
-    CASE "전격내성"
-        TCVAR:대상:부상_전격내성 += 양
-    CASE "질풍내성"
-        TCVAR:대상:부상_질풍내성 += 양
-    CASE "마력내성"
-        TCVAR:대상:부상_마력내성 += 양
-    CASE "수격내성"
-        TCVAR:대상:부상_수격내성 += 양
-    CASE "정신내성"
-        TCVAR:대상:부상_정신내성 += 양
-    CASEELSE
-        THROW 상정하지 않은 대상 %부상%
-ENDSELECT
-
-@CHECK_부상(대상,부상)
+@행동기회여부(ARG,ARG:1)
 #FUNCTION
-#DIM DYNAMIC 대상
-#DIMS DYNAMIC 부상
-SELECTCASE 부상
-    CASE "힘"
-        RETURNF TCVAR:대상:부상_힘
-    CASE "지성"
-        RETURNF TCVAR:대상:부상_지성
-    CASE "속도"
-        RETURNF TCVAR:대상:부상_속도
-    CASE "인내"
-        RETURNF TCVAR:대상:부상_인내
-    CASE "운"
-        RETURNF TCVAR:대상:부상_운
-    CASE "물리내성"
-        RETURNF TCVAR:대상:부상_물리내성
-    CASE "화염내성"
-        RETURNF TCVAR:대상:부상_화염내성
-    CASE "빙결내성"
-        RETURNF TCVAR:대상:부상_빙결내성
-    CASE "전격내성"
-        RETURNF TCVAR:대상:부상_전격내성
-    CASE "질풍내성"
-        RETURNF TCVAR:대상:부상_질풍내성
-    CASE "마력내성"
-        RETURNF TCVAR:대상:부상_마력내성
-    CASE "수격내성"
-        RETURNF TCVAR:대상:부상_수격내성
-    CASE "정신내성"
-        RETURNF TCVAR:대상:부상_정신내성
-    CASEELSE
-        THROW 상정하지 않은 대상 %부상%
-ENDSELECT
+IF ARG:1 == T_통상행동
+    RETURNF T_행동기회:ARG:T_통상행동
+ELSEIF ARG:1 == T_이동행동
+    RETURNF T_행동기회:ARG:T_이동행동
+ENDIF
 
-@RESET_부상(대상,ARGS = "")
-#DIM DYNAMIC 대상
-IF ARGS == ""
-    TCVAR:대상:부상_힘 = 0
-    TCVAR:대상:부상_지성 = 0
-    TCVAR:대상:부상_속도 = 0
-    TCVAR:대상:부상_인내 = 0
-    TCVAR:대상:부상_운 = 0
-    TCVAR:대상:부상_물리내성 = 0
-    TCVAR:대상:부상_화염내성 = 0
-    TCVAR:대상:부상_빙결내성 = 0
-    TCVAR:대상:부상_전격내성 = 0
-    TCVAR:대상:부상_질풍내성 = 0
-    TCVAR:대상:부상_마력내성 = 0
-    TCVAR:대상:부상_수격내성 = 0
-    TCVAR:대상:부상_정신내성 = 0
-ELSE
-    SELECTCASE ARGS
-        CASE "힘"
-            TCVAR:대상:부상_힘 = 0
-        CASE "지성"
-            TCVAR:대상:부상_지성 = 0
-        CASE "속도"
-            TCVAR:대상:부상_속도 = 0
-        CASE "인내"
-            TCVAR:대상:부상_인내 = 0
-        CASE "운"
-            TCVAR:대상:부상_운 = 0
-        CASE "물리내성"
-            TCVAR:대상:부상_물리내성 = 0
-        CASE "화염내성"
-            TCVAR:대상:부상_화염내성 = 0
-        CASE "빙결내성"
-            TCVAR:대상:부상_빙결내성 = 0
-        CASE "전격내성"
-            TCVAR:대상:부상_전격내성 = 0
-        CASE "질풍내성"
-            TCVAR:대상:부상_질풍내성 = 0
-        CASE "마력내성"
-            TCVAR:대상:부상_마력내성 = 0
-        CASE "수격내성"
-            TCVAR:대상:부상_수격내성 = 0
-        CASE "정신내성"
-            TCVAR:대상:부상_정신내성 = 0
-        CASEELSE
-            THROW 상정하지 않은 대상 %ARGS%
-    ENDSELECT
+@행동기회소모(ARG,ARG:1)
+IF ARG:1 == T_통상행동
+    T_행동기회:ARG:T_통상행동 --
+ELSEIF ARG:1 == T_이동행동
+    T_행동기회:ARG:T_이동행동 --
 ENDIF
