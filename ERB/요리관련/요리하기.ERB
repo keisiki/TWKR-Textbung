@@ -527,6 +527,10 @@ ENDIF
 
 
 @MAKECOOK
+#DIM 도구력
+#DIM 보너스점수
+#DIM 감점
+
 PRINTL
 PRINTL
 PRINTL
@@ -673,13 +677,51 @@ DISH_LIMIT = DISH_MAXLIMIT + DISH_TIME
 
 DISHNAME = %DISH_NAME%
 DISH_RANK = 3
-DISH_BASEPOINT = 3 + MIN(RAND:((ABL:MASTER:요리기능 * 2) + 1),10)
-DISH_BASEPOINT +=  DISH_RANK
-IF DISH_ASSI
-    DISH_BASEPOINT += MIN(RAND:((ABL:DISH_ASSI:요리기능 * 2) + 1),10)
-ENDIF
-DISH_BASEPOINT = MIN(300 + (DISH_BASEPOINT * 20), 700)
 
+;기본 점수 계산
+도구력 = ITEM:은행나무도마
+보너스점수 = 0
+감점 = 0
+SIF STRCOUNT(DISH_TASTE, "도구의공명/")
+	TIMES 도구력, 2.0
+
+SIF STRCOUNT(DISH_TASTE, "제철/")
+	보너스점수 += 2
+SIF STRCOUNT(DISH_TASTE, "옥토끼풍/") && STRCOUNT(DISH_TASTE, "당근/")
+	보너스점수 += 2
+SIF STRCOUNT(DISH_TASTE, "프로의 맛/")
+	보너스점수 += 2
+SIF STRCOUNT(DISH_TASTE, "반짝임/")
+	보너스점수 += 1
+;자신있는 요리나 날카로움은 해당되지 않을 경우 소거되어 있으므로 이것으로 OK, 자신있는 요리는 "/"를 제외합니다.
+SIF STRCOUNT(DISH_TASTE, "특기요리")
+	보너스점수 += 2
+SIF STRCOUNT(DISH_TASTE, "섬세한맛/")
+	보너스점수 += 1
+SIF STRCOUNT(DISH_TASTE, "맛있는물/")
+	보너스점수 += 1
+;질투,숨겨진 맛의 효과는 먹을 때
+
+SIF DISH_DRG
+	감점 += 1
+SIF DISH_DRG_2
+	감점 += 1
+
+;DISH_ASSI가 0이면 MASTER니까 분기 필요없지만 일단
+IF DISH_ASSI
+	DISH_BASEPOINT = ABL:MASTER:요리기능 + ABL:DISH_ASSI:요리기능 + DISH_RANK + 도구력 + 보너스점수 - 감점
+	DISH_BASEPOINT = MIN(300 + (DISH_BASEPOINT * 20), 700)
+	PRINTFORM 솜씨：
+	CALL 만듦새(DISH_BASEPOINT)
+	PRINTFORML 　／%CALLNAME:MASTER%의 능력({ABL:MASTER:요리기능}) + %CALLNAME:DISH_ASSI%의 능력({ABL:DISH_ASSI:요리기능}) + 식재료의 품질({DISH_RANK}) \@ 도구력 ? + 도구의 품질({도구력}) # \@ \@ 보너스점수 ? + 보너스점수({보너스점수}) # \@ \@ 감점 ? - 첨가물({감점}) # \@
+ELSE
+	DISH_BASEPOINT = ABL:MASTER:요리기능 + ABL:MASTER:요리기능 + DISH_RANK + 도구력 + 보너스점수 - 감점
+	DISH_BASEPOINT = MIN(300 + (DISH_BASEPOINT * 20), 700)
+	PRINTFORM 솜씨：
+	CALL 만듦새(DISH_BASEPOINT)
+	PRINTFORML 　／%CALLNAME:MASTER%의 능력 x 2({ABL:MASTER:요리기능 * 2}) + 식재료의 품질({DISH_RANK}) \@ 도구력 ? + 도구의 품질({도구력}) # \@ \@ 보너스점수 ? + 보너스점수({보너스점수}) # \@ \@ 감점 ? - 첨가물({감점}) # \@
+ENDIF
+PRINTL 
 
 ;첨가물
 ;#DIM CONST BIT_MIX_DRUG = 0, 21, 22, 23, 24
