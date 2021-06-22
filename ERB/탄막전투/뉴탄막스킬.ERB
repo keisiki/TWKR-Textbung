@@ -112,27 +112,105 @@ ENDIF
 #DIM DYNAMIC 보정
 
 SELECTCASE TB_거리()
-    CASE IS < 10
+    CASE IS < TA_평타사거리:T_턴주인:TA_최적사거리
         보정 += 10
-    CASE IS < 15
+    CASE IS < TA_평타사거리:T_턴주인:TA_최적사거리 + (1 * TA_평타사거리:T_턴주인:TA_사거리범위)
         보정 += 5
-    CASE IS < 20
+    CASE IS < TA_평타사거리:T_턴주인:TA_최적사거리 + (2 * TA_평타사거리:T_턴주인:TA_사거리범위)
         보정 += 0
-    CASE IS < 25
+    CASE IS < TA_평타사거리:T_턴주인:TA_최적사거리 + (3 * TA_평타사거리:T_턴주인:TA_사거리범위)
         보정 -= 5
-    CASE IS < 30
+    CASE IS < TA_평타사거리:T_턴주인:TA_최적사거리 + (4 * TA_평타사거리:T_턴주인:TA_사거리범위)
         보정 -= 10
-    CASE IS < 35
+    CASE IS < TA_평타사거리:T_턴주인:TA_최적사거리 + (5 * TA_평타사거리:T_턴주인:TA_사거리범위)
         보정 -= 15
-    CASE IS < 40
+    CASE IS > TA_평타사거리:T_턴주인:TA_최대사거리
         보정 -= 20
-    CASE IS < 45
-        보정 -= 25
-    CASE IS > 46
-        보정 -= 30
 ENDSELECT
 
-RETURNF 명중판정(MAX(ARG능력치(T_턴주인,"적중률") + 보정, 0))
+RETURNF 명중판정(MAX(ARG + 보정, 0))
+
+
+@스킬명중판정(명중률,스킬번호)
+#FUNCTION
+#DIM DYNAMIC 명중률
+#DIM DYNAMIC 스킬번호
+#DIM DYNAMIC 보정
+#DIM DYNAMIC 최적사거리
+#DIM DYNAMIC 최대사거리
+#DIM DYNAMIC 사거리범위
+#DIM DYNAMIC 속성
+#DIM DYNAMIC 유도력
+
+CALLFORMF T_SKILL{스킬번호}_RANGE("최적사거리")
+최적사거리 = RESULT
+CALLFORMF T_SKILL{스킬번호}_RANGE("최대사거리")
+최대사거리 = RESULT
+CALLFORMF T_SKILL{스킬번호}_RANGE("범위변동단위")
+사거리범위 = RESULT
+CALLFORMF T_SKILL{스킬번호}_RANGE("조준속성")
+속성 = RESULT
+CALLFORMF T_SKILL{스킬번호}_RANGE("유도력")
+유도력 = RESULT
+SELECTCASE 속성
+    CASE T_고정탄
+        SELECTCASE TB_거리()
+            CASE IS < 최적사거리
+                보정 += 10
+            CASE IS < 최적사거리 + (1 * 사거리범위)
+                보정 += 5
+            CASE IS < 최적사거리 + (2 * 사거리범위)
+                보정 += 0
+            CASE IS < 최적사거리 + (3 * 사거리범위)
+                보정 -= 5
+            CASE IS < 최적사거리 + (4 * 사거리범위)
+                보정 -= 10
+            CASE IS < 최적사거리 + (5 * 사거리범위)
+                보정 -= 15
+            CASE IS > 최대사거리 ;불가능하지만 뭐
+                보정 -= 20
+        ENDSELECT
+        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 20, 0 , 5)
+    CASE T_조준탄
+        SELECTCASE TB_거리()
+            CASE IS < 최적사거리
+                보정 += 10
+            CASE IS < 최적사거리 + (1 * 사거리범위)
+                보정 += 5
+            CASE IS < 최적사거리 + (2 * 사거리범위)
+                보정 += 0
+            CASE IS < 최적사거리 + (3 * 사거리범위)
+                보정 -= 5
+            CASE IS < 최적사거리 + (4 * 사거리범위)
+                보정 -= 10
+            CASE IS < 최적사거리 + (5 * 사거리범위)
+                보정 -= 15
+            CASE IS > 최대사거리 ;불가능하지만 뭐
+                보정 -= 20
+        ENDSELECT
+        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 10 , 0 , 15)
+    CASE T_유도탄
+        SELECTCASE TB_거리()
+            CASE IS < 최적사거리
+                보정 += 10
+            CASE IS < 최적사거리 + (1 * 사거리범위)
+                보정 += 5
+            CASE IS < 최적사거리 + (2 * 사거리범위)
+                보정 += 0
+            CASE IS < 최적사거리 + (3 * 사거리범위)
+                보정 -= 5 - 유도력
+            CASE IS < 최적사거리 + (4 * 사거리범위)
+                보정 -= 10 - 유도력
+            CASE IS < 최적사거리 + (5 * 사거리범위)
+                보정 -= 15 - 유도력
+            CASE IS > 최대사거리 ;불가능하지만 뭐
+                보정 -= 20 - 유도력
+        ENDSELECT
+        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도") + 유도력) / 20, 0 , 10)
+    CASE T_즉발탄
+        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 20, 0 , 5)
+ENDSELECT
+RETURNF 명중판정(MAX(ARG + 보정, 0))
 
 @T_COM회피한다(ARG)
 #DIM DYNAMIC 회피량
@@ -491,6 +569,15 @@ IF HAVE_T_SKILL(사용자, 스킬번호)
             RETURN 0
         ENDIF
         RESULT = 0
+
+        IF 이동땜방코드TIDN(스킬번호)
+            CALLFORMF T_SKILL{스킬번호}_RANGE("최대사거리")
+            IF RESULT < TB_거리()
+                RETURN 0
+            ENDIF
+            RESULT = 0
+        ENDIF
+
         RETURN 1
     ELSE
         ;아직 쿨타임이라 시전불가능
