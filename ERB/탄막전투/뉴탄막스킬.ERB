@@ -141,6 +141,7 @@ RETURNF 명중판정(MAX(ARG + 보정, 0))
 #DIM DYNAMIC 사거리범위
 #DIM DYNAMIC 속성
 #DIM DYNAMIC 유도력
+#DIM DYNAMIC 판정
 
 CALLFORMF T_SKILL{스킬번호}_RANGE("최적사거리")
 최적사거리 = RESULT
@@ -153,6 +154,8 @@ CALLFORMF T_SKILL{스킬번호}_RANGE("조준속성")
 CALLFORMF T_SKILL{스킬번호}_RANGE("유도력")
 유도력 = RESULT
 SELECTCASE 속성
+    CASE T_근거리
+        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 20, 0 , 5)
     CASE T_고정탄
         SELECTCASE TB_거리()
             CASE IS < 최적사거리
@@ -210,7 +213,10 @@ SELECTCASE 속성
     CASE T_즉발탄
         보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 20, 0 , 5)
 ENDSELECT
-RETURNF 명중판정(MAX(ARG + 보정, 0))
+
+판정 = 명중판정(MAX(명중률 + 보정, 0))
+RETURNF 판정
+
 
 @T_COM회피한다(ARG)
 #DIM DYNAMIC 회피량
@@ -390,7 +396,8 @@ WHILE 1 ;$스킬입력루프
     ELSEIF IS_MEMORIZED(LOCAL)
         DRAWLINE
         CALL DO_T_SKILL(T_턴주인, LOCAL)
-        CALL 행동기회소모(T_턴주인,T_통상행동)
+        SIF RESULT
+            CALL 행동기회소모(T_턴주인,T_통상행동)
         ;시전할수 없을때엔 턴 넘김 없어야 합니다
         ;RESULT == 1일때만 턴 넘어감
         RETURN RESULT
@@ -445,10 +452,23 @@ WHILE 1
         CALLFORMF T_SKILL{LOCAL}("공격력")
         PRINTFORML 피해량 : {RESULT}
         PRINTL
+        CALLFORMF T_SKILL{LOCAL}_STR("계수")
+        IF RESULTS:0 != "없음"
+            PRINTFORM 계수 : 
+            FOR LOCAL:1,0,4
+                IF RESULTS:(LOCAL:1) != "없음"
+                    IF LOCAL:1 != 0
+                        PRINTFORM  + 
+                    ENDIF
+                    PRINTFORM %RESULTS:(LOCAL:1)%
+                ENDIF
+            NEXT
+        ENDIF
+        PRINTL
         CALLFORM HELP_T_SKILL{LOCAL}
         DRAWLINE
         PRINTW
-        CLEARLINE 16
+        CLEARLINE 17
     ELSE
         ;시전 불가시는 DO_T_SKILL에서 처리
         PRINTL
