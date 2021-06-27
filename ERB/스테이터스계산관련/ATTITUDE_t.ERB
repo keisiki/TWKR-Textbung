@@ -55,6 +55,11 @@ FOR LOCAL, 1, CHARANUM
 	ELSEIF TCVAR:LOCAL:미약 || TCVAR:LOCAL:춘약
 		LOCAL:1 += 50
 	ENDIF
+		IF IsGardenValid(LOCAL)
+		LOCAL:1 += 40
+	ELSEIF IsInsenceValid(LOCAL)
+		LOCAL:1 += 30
+	ENDIF
 	;남성기피
 	SIF OTOKOGIRAI(LOCAL)
 		LOCAL:1 -= 70
@@ -142,13 +147,16 @@ IF TCVAR:ARG:발정
 ELSEIF TCVAR:ARG:미약 || TCVAR:ARG:춘약
 	호의판정치  -= 30
 ENDIF
+SIF TFLAG:선향옥토
+	호의판정치 -= 30
+
 ;종래의 100단위로 하트를 내는 형식이라고 줄선 수가 적어 외롭기 때문에, 50단위로 한다
 CALL SHOW_LOVEPOWER(호의판정치, 50)
 CALL SHOW_REASONWALL(이성판정치, 50)
 
 ;이 보정만은 합의를 저해하지 않는다
 IF CFLAG:ARG:대주고말았다
-	CALL COLORMESSAGE(@"기세라고 해도 이전 몸을 용서(허락)해 끝내고 있는 만큼, 저항이 얇은 것 같다", C_YELLOW, 2)
+	CALL COLORMESSAGE(@"기세라고는 하나 이전에 몸을 허락해 버린 만큼, 저항이 희박한 것 같다", C_YELLOW,2)
 	이성판정치 -= 20
 	CALL SHOW_REASONWALL(이성판정치, 50)
 ENDIF
@@ -160,7 +168,7 @@ IF 호의판정치 >= 이성판정치
 	ENDIF
 	;보정없이 밀어 넘어뜨리지 않는다고 합의가 붙지 않는다
 	SETBIT CFLAG:ARG:기정사실 , 1
-	CALL COLORMESSAGE(@"%CALLNAME:ARG%의 합의를 얻은", C_YELLOW, 2)
+	CALL COLORMESSAGE(@"%CALLNAME:ARG%의 합의를 얻었다",C_YELLOW,2)
 ELSE
 	IF TALENT:ARG:당신의노예
 		이성판정치  = 0
@@ -169,15 +177,29 @@ ELSE
 		이성판정치  -= CFLAG:ARG:종속도
 		CALL COLORMESSAGE(@"약간이나마 굴복한 %ARG는% %마스터의% 말에 거역하기 힘들다...", C_YELLOW, 2)
 	ENDIF
+	SIF TALENT:ARG:당신의노예
+		CALL SHOW_REASONWALL(이성판정치, 50)
 	IF TCVAR:ARG:발정
 		이성판정치  -= 50
-		CALL COLORMESSAGE(@"발정한 %CALLNAME:ARG%의 몸은, 뜻에 반해 %마스터를% 요구해 버리는……", C_YELLOW, 2)
-	ELSEIF TCVAR:ARG:미약 || TCVAR:ARG:춘약
+		CALL COLORMESSAGE(@"발정한 %CALLNAME:ARG%의 몸은, 뜻에 반해 %마스터를% 요구해 버린다……",C_YELLOW,2)
+	ELSEIF TCVAR:ARG:춘약 || TCVAR:ARG:미약 ;KR판 임의수정, 일판은 미약을 LOCAL에서 처리.
 		이성판정치  -= 30
-		CALL COLORMESSAGE(@"약의 효과로 %CALLNAME:ARG%의\@ TCVAR:ARG:춘약?  가슴이 크게 고동친다# 몸이 쑤시는\@……", C_YELLOW, 2)
+		CALL COLORMESSAGE(@"약의 효과로 %CALLNAME:ARG%의 \@ TCVAR:ARG:춘약? 가슴이 크게 고동친다 # 몸이 쑤신다\@……",C_YELLOW,2)
 	ENDIF
-	SIF TCVAR:ARG:미약 || TCVAR:ARG:춘약 || TCVAR:ARG:발정 || TALENT:ARG:당신의노예
-		CALL SHOW_REASONWALL(이성판정치, 50)
+	SIF TCVAR:ARG:춘약 || TCVAR:ARG:미약 || TCVAR:ARG:발정  ;KR판 임의수정, 일판은 미약을 LOCAL에서 처리.
+		CALL SHOW_REASONWALL(이성판정치,50)
+
+	IF IsGardenValid(ARG)
+		이성판정치  -= 50
+		CALL COLORMESSAGE(@"고혹적인 향기가, %CALLNAME:ARG%의 본능을 부추긴다……",C_YELLOW,2)
+		CALL SHOW_REASONWALL(이성판정치,50)
+	ENDIF
+	IF TFLAG:선향옥토
+		이성판정치  -= 30
+		CALL COLORMESSAGE(@"야릇하게 출렁이듯 피어나는 연기가 %CALLNAME:ARG%에게 달콤한 환각을 불러일으킨다……",C_YELLOW,2)
+		CALL SHOW_REASONWALL(이성판정치,50)
+	ENDIF
+	
 	IF TALENT:ARG:창녀||TALENT:ARG:렌탈창녀
 		이성판정치  = 0
 		CALL COLORMESSAGE(@"창녀인 %ARG는% 고객의 요구에 저항할수 없다...", C_YELLOW, 2)
@@ -193,16 +215,20 @@ ELSE
 	ELSE
 		IF CFLAG:ARG:몸목적
 			CALL COLORMESSAGE(@"애욕을 독점하는 미라다의돌밀레니엄이 요염하게 빛난다…!", C_YELLOW, 2)
+			SIF TALENT:ARG:일선을넘지않음
+				CALL COLORMESSAGE(@"【일선을넘지않음】에 의해 효과 반감",C_YELLOW,1)
 			이성판정치 -= 100
 			CALL SHOW_REASONWALL(이성판정치, 50)
 		ENDIF
 		IF MARK:ARG:시간각인
-			CALL COLORMESSAGE(@"멈추었을 때 중(안)에서 개발된%CALLNAME:TARGET%의 몸은, 본인의 의지와 구 어쩔 수 없고 %마스터를% 요구해 버리는…", C_YELLOW, 2)
+			CALL COLORMESSAGE(@"정지된 시간 속에서 개발된%CALLNAME:TARGET%의 몸은, 본인의 의지와 상관없이 %마스터를% 요구해 버린다…",C_YELLOW,2)
 			이성판정치 -= MARK:ARG:시간각인 * 30
 			CALL SHOW_REASONWALL(이성판정치, 50)
 		ENDIF
 		IF 호의판정치 >= 이성판정치
 			TCVAR:ARG:껴안고첫회 = 4
+		ELSEIF CFLAG:ARG:패배자
+			TCVAR:ARG:껴안고첫회 = 20
 		ELSEIF 호의판정치 >= 이성판정치 - 50
 			IF TALENT:ARG:담력 < 0
 				TCVAR:ARG:껴안고첫회 = 5
@@ -235,7 +261,12 @@ SELECTCASE TCVAR:ARG:껴안고첫회
 	CASE 10
 		SOURCE:ARG:반감 += 1000
 		TFLAG:98 = -10
-
+	CASE 20
+		SOURCE:ARG:반감 += 1000
+		TFLAG:98 = -10
+		TCVAR:ARG:억지로 = 1
+		CFLAG:ARG:우후후 = 1
+		CFLAG:MASTER:우후후 = 1
 	CASE 8
 		SOURCE:ARG:반감 += 3000
 		TFLAG:밀어넘어뜨릴수없다 ++
@@ -325,7 +356,7 @@ IF TALENT:ARG:성별기호 != -1
 		LOCAL += 50
 ENDIF
 ;연모도 사모도 애욕도 없음
-SIF TALENT:ARG:사모 && !TALENT:ARG:연모 && !TALENT:ARG:애욕
+SIF !TALENT:ARG:사모 && !TALENT:ARG:연모 && !TALENT:ARG:애욕
 	LOCAL += 50
 ;남성기피
 SIF OTOKOGIRAI(ARG)
@@ -337,5 +368,5 @@ SIF CFLAG:ARG:약점잡힘
 	LOCAL -= 50
 ;욕구 불만
 LOCAL -= CFLAG:ARG:욕구불만도 / 20
-LOCAL -= (EX:ARG:C절정직전 + EX:ARG:V절정직전 + EX:ARG:A절정직전 + EX:ARG:B절정직전 + EX:ARG:M절정직전) * 15
+LOCAL -= (EX:ARG:C절정직전 + EX:ARG:V절정직전 + EX:ARG:A절정직전 + EX:ARG:B절정직전 + EX:ARG:M절정직전) * 20
 RETURNF LOCAL

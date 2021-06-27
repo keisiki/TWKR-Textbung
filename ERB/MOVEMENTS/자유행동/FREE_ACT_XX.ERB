@@ -1,0 +1,65 @@
+﻿[SKIPSTART]
+;SKIPSTART～SKIPENDを外してXXを新しい数値に置換すること
+@EXIST_FreeActXX
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeActXX(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "")
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	CALLF MAKE_INT(V_NAME, 0)
+ENDSELECT
+
+@자유행동내용_XX(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;発生条件、ここでRETURN 0すると発生しない
+		;CHAINは連鎖元キャラに相当
+		SIF 메시지표시
+			PRINTFORMW %CALLNAME:CHARA%は\@ CHAIN ? %CALLNAME:CHAIN%を手伝い始めた。# 活動を始めた。\@
+		;自由行動にかける時間をRETURNする
+		RETURN 60 + RAND:30
+	CASE "행동중"
+		;行動中の処理、地の文もここで
+		IF 메시지표시
+			PRINTFORMW %CALLNAME:CHARA%は%TEXTR("呼吸している/瞬きしている/変顔している")%。
+		ENDIF
+	CASE "완료"
+		;行動時間を使い切ったときの処理、地の文もここで
+		SIF 메시지표시
+			PRINTFORMW %CALLNAME:CHARA%は活動を終えたようだ。
+	CASE "중단"
+		;中断したときの処理、地の文もここで
+	CASE "같이한다"
+		;自由行動に付き合ったとき用メッセージ
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%に付き合った
+	CASE "소스"
+		;付き合うコマンド選択時の入手ソース、시간계수は付き合った時間の1/10
+			;SOURCE:환락 = (50 + ((ABL:친밀 + 호감도계수) * 25)) * 시간계수
+			;SOURCE:수동 = (30 + ((ABL:순종 + 호감도계수) * 15)) * 시간계수
+ENDSELECT
+[SKIPEND]

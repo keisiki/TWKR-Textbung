@@ -1,0 +1,91 @@
+﻿@EXIST_FreeAct10
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct10(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "함께 낚시하기")
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	CALLF MAKE_INT(V_NAME, 0)
+ENDSELECT
+
+@자유행동내용_10(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;낚시기능1以上のキャラが釣りできる場所にいる時
+		SIF ABL:CHARA:낚시기능 < 1
+			RETURN 0
+		SIF !FISHING_SPOT(현위치)
+			RETURN 0
+		SIF BASE:CHARA:기력 <= 500
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% \@ CHAIN ? %조사처리(CALLNAME:CHAIN,"과")% 행동을 같이하기 시작했다.# 낚시대를 꺼냈다.\@
+		RETURN 60 + RAND:120
+	CASE "행동중"
+		IF 메시지표시
+			SELECTCASE RAND:4
+			CASE 1
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 魚を釣り上げた。
+			CASEELSE
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 한가로이 낚시를 하고 있다.
+			ENDSELECT
+		ENDIF
+	CASE "완료"
+		;완료までいったら経験+2
+		EXP:CHARA:낚시경험 += 2
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 낚시를 마친 것 같다.
+	CASE "중단"
+		EXP:CHARA:낚시경험 += 1
+	CASE "같이한다"
+		;自由行動に付き合ったとき用メッセージ
+		IF TFLAG:193 < 0
+			PRINTFORML %조교자는% %타겟이% 낚시를 하는 옆에서 멍하니 있었다…
+		ELSE
+			PRINTFORML %조교자는% %타겟의% 옆에서 같이 낚시를 했다
+			PRINTFORML %TEXTR(@"%타겟은% 무엇인가 낚아 올린 것 같다…/낚싯대를 당기지 않은 채 한가로이 시간을 보냈다…/작은 물고기를 낚아올렸기에 %타겟의% 통에 넣었다…")%
+		ENDIF
+	CASE "소스"
+		;付き合うコマンド選択時の入手ソース、시간계수は付き合った時間の1/10
+		IF !ITEM:낚싯대
+			;낚싯대がないと見てるだけ
+			TFLAG:193 = -1
+			DOWNBASE:MASTER:기력 += 50 * 시간계수
+			DOWNBASE:TARGET:체력 += 10 * 시간계수
+			DOWNBASE:TARGET:기력 += 20 * 시간계수
+			SOURCE:환락 = (50 + ((ABL:친밀 + ABL:MASTER:낚시기능) * 25)) * 시간계수
+		ELSE
+			DOWNBASE:MASTER:체력 += 20 * 시간계수
+			DOWNBASE:MASTER:기력 += 40 * 시간계수
+			DOWNBASE:TARGET:체력 += 10 * 시간계수
+			DOWNBASE:TARGET:기력 += 20 * 시간계수
+			SOURCE:환락 = (150 + ((ABL:친밀 + ABL:MASTER:낚시기능) * 50)) * 시간계수
+			SOURCE:수동 = (100 + ((ABL:순종 + ABL:MASTER:낚시기능) * 50)) * 시간계수
+			TFLAG:98 = 1
+			EXP:MASTER:낚시경험 ++
+		ENDIF
+ENDSELECT

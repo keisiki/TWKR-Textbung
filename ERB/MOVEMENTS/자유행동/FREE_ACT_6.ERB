@@ -1,0 +1,82 @@
+﻿;読書
+@EXIST_FreeAct6
+#LOCALSIZE 1
+#LOCALSSIZE 1
+;オブジェクト本体
+@FreeAct6(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "책의 감상을 듣기")
+CASE "CHAIN"
+;他キャラに連鎖する場合コメントアウト外すこと
+;	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;未入力だと最大30分
+	IF Activity_Duration:TARGET > 30
+		CALLF MAKE_INT(V_NAME, 10)
+	ELSE
+		CALLF MAKE_INT(V_NAME, 0)
+	ENDIF
+ENDSELECT
+
+@자유행동내용_6(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;교양1以上のキャラが読書できる場所または自室にいる時
+		SIF ABL:CHARA:교양 < 1
+			RETURN 0
+		SIF BASE:CHARA:기력 <= 500
+			RETURN 0
+		SIF !IS_LIBRARY(현위치, 1) || 현위치 != CFLAG:CHARA:신사거주
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 책을 읽기 시작했다.
+		RETURN 60 + RAND:60
+	CASE "행동중"
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 묵묵히 책을 읽고 있다.
+	CASE "완료"
+		EXP:CHARA:학습경험 += 1
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 책을 다 읽은 것 같다.
+	CASE "중단"
+		EXP:CHARA:학습경험 += 1
+	CASE "같이한다"
+		PRINTFORML %조교자는% %CALLNAME:TARGET%에게 책의 감상을 물었다
+		IF TFLAG:193 < 0
+			PRINTFORML 집중하고 있어 대답이 돌아오지 않았다…
+		ELSE
+			PRINTFORML %타겟과% 책의 내용으로 흥이 달아올랐다…
+		ENDIF
+	CASE "소스"
+		;読み終わる直前まで聞けない
+		IF Activity_Duration:TARGET > 30
+			TFLAG:193 = -1
+			DOWNBASE:MASTER:기력 += 40 * 시간계수
+			SOURCE:반감 = 50
+		ELSE
+			DOWNBASE:MASTER:기력 += 20 * 시간계수
+			DOWNBASE:TARGET:기력 += 20 * 시간계수
+			SOURCE:환락 = (100 + ((ABL:친밀 + ABL:MASTER:교양) * 50)) * 시간계수
+			SOURCE:수동 = (100 + ((ABL:순종 + ABL:MASTER:교양) * 50)) * 시간계수
+			TFLAG:98 = 1
+			EXP:MASTER:회화경험 ++
+			EXP:MASTER:학습경험 ++
+		ENDIF
+ENDSELECT

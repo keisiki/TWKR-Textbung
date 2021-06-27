@@ -5,22 +5,11 @@
 #DIM 경과시간
 #DIM 행동완료
 #DIM 시간계수
-#DIM 호감도계수
 VARSET LOCAL
-;경과시간設定
-IF GROUPMATCH(자유행동에맡김_명칭(TARGET), "어떤 생각하는지", "함께 식사하기", "함께 집어먹기")
-	;完了まで経過する
-	경과시간 = Activity_Duration:TARGET
-ELSEIF 자유행동에맡김_명칭(TARGET) == "요리를 돕기" && Activity_Duration:TARGET < 60
-	;요리를 돕기は食事とセットなので料理段階までにする
-	경과시간 = Activity_Duration:TARGET - 30
-ELSEIF 자유행동에맡김_명칭(TARGET) == "책의 감상을 듣기" && Activity_Duration:TARGET > 30
-	;読み終わる直前まで完了できない
-	경과시간 = 10
-ELSE
-	;完了まで経過するが最大30分
+
+경과시간 = FreeAct_Time(TARGET)
+SIF !경과시간
 	경과시간 = MIN(Activity_Duration:TARGET, 30)
-ENDIF
 ;행동완료するまで経過してたら행동완료
 IF 경과시간 >= Activity_Duration:TARGET
 	행동완료 = 1
@@ -29,285 +18,11 @@ ELSE
 ENDIF
 ;取得ソースの倍率
 시간계수 = MAX(경과시간 / 10, 1)
-IF CFLAG:TARGET:호감도 < 100
-	호감도계수 = 0
-ELSEIF CFLAG:TARGET:호감도 < 500
-	호감도계수 = 1
-ELSEIF CFLAG:TARGET:호감도 < 1000
-	호감도계수 = 2
-ELSEIF CFLAG:TARGET:호감도 < 5000
-	호감도계수 = 3
-ELSEIF CFLAG:TARGET:호감도 < 10000
-	호감도계수 = 4
-ELSEIF CFLAG:TARGET:호감도 < 30000
-	호감도계수 = 5
-ELSE
-	호감도계수 = 6
-ENDIF
+TRYCALLFORM 자유행동내용_{Activity_Type:TARGET}(TARGET, "소스", 시간계수)
 
-;ソースは全体的に控えめにしたつもりなんですが、参考にした元コマンドによっては効率良くなってるかも…
-;多様なコマンドを元にしているため、ここでは極力簡潔な計算に留めています
-SELECTCASE 자유행동에맡김_명칭(TARGET)
-CASE "어떤 생각하는지"
-	;신뢰도が低いと失敗
-	IF CFLAG:TARGET:신뢰도 < 275 -(ABL:TARGET:친밀 * 25)
-		TFLAG:193 = -1
-		DOWNBASE:MASTER:기력 += 40 * 시간계수
-		DOWNBASE:TARGET:기력 += 40 * 시간계수
-		SOURCE:환락 = (50 + ((ABL:친밀 + ABL:MASTER:화술기능) * 25)) * 시간계수
-		SOURCE:수동 = (30 + ((ABL:순종 + ABL:MASTER:화술기능) * 15)) * 시간계수
-		EXP:MASTER:회화경험 ++
-	ELSE
-		DOWNBASE:MASTER:기력 += 20 * 시간계수
-		DOWNBASE:TARGET:기력 += 20 * 시간계수
-		SOURCE:환락 = (100 + ((ABL:친밀 + ABL:MASTER:화술기능) * 50)) * 시간계수
-		SOURCE:수동 = (60 + ((ABL:순종 + ABL:MASTER:화술기능) * 30)) * 시간계수
-		TFLAG:98 = 1
-		EXP:MASTER:회화경험 ++
-	ENDIF
-CASE "함께 놀기"
-	DOWNBASE:MASTER:체력 += 40 * 시간계수
-	DOWNBASE:MASTER:기력 += 40 * 시간계수
-	DOWNBASE:TARGET:체력 += 20 * 시간계수
-	DOWNBASE:TARGET:기력 += 20 * 시간계수
-	SELECTCASE RAND:10
-	CASE 1
-		;10%で大成功
-		TFLAG:193 = 1
-		SOURCE:환락 = (200 + ((ABL:친밀 + 호감도계수) * 80)) * 시간계수
-		SOURCE:수동 = (120 + ((ABL:순종 + 호감도계수) * 80)) * 시간계수
-		SOURCE:정복 = (120 + (ABL:새드끼 * 120)) * 시간계수
-		TFLAG:98 = 2
-	CASE 2
-		;10%で失敗
-		TFLAG:193 = -1
-		SOURCE:환락 = (100 + ((ABL:친밀 + 호감도계수) * 30)) * 시간계수
-		SOURCE:수동 = (50 + ((ABL:순종 + 호감도계수) * 20)) * 시간계수
-		SOURCE:정복 = (50 + (ABL:새드끼 * 50)) * 시간계수
-	CASEELSE
-		SOURCE:환락 = (150 + ((ABL:친밀 + 호감도계수) * 50)) * 시간계수
-		SOURCE:수동 = (100 + ((ABL:순종 + 호감도계수) * 50)) * 시간계수
-		SOURCE:정복 = (100 + (ABL:새드끼 * 100)) * 시간계수
-		TFLAG:98 = 1
-	ENDSELECT
-CASE "함께 식사하기", "함께 집어먹기", "요리를 나눠받기"
-	IF TIME_PROGRESS(TCVAR:MASTER:공복시각) <= 0
-		;空腹でなかったら効果減少
-		TFLAG:193 = -1
-		SOURCE:환락 = (50 + ((ABL:친밀 + 호감도계수) * 25)) * 시간계수
-		SOURCE:수동 = (30 + ((ABL:순종 + 호감도계수) * 15)) * 시간계수
-		SOURCE:정복 = (30 + (ABL:새드끼 * 10)) * 시간계수
-		TCVAR:MASTER:공복시각 = MAX(1440 * DAY + TIME + 120, TCVAR:MASTER:공복시각)
-		CALL RECOVER(MASTER, 1 * 경과시간, "체력", "식사에 의한 회복")
-		CALL RECOVER(MASTER, 1 * 경과시간, "기력", "식사에 의한 회복")
-		TFLAG:98 = 1
-	ELSE
-		SOURCE:환락 = (100 + ((ABL:친밀 + 호감도계수) * 50)) * 시간계수
-		SOURCE:수동 = (60 + ((ABL:순종 + 호감도계수) * 30)) * 시간계수
-		SOURCE:정복 = (60 + (ABL:새드끼 * 10)) * 시간계수
-		;TARGETは自由行動処理で食事する
-		TCVAR:MASTER:공복시각 = 1440 * DAY + TIME + 120
-		CALL RECOVER(MASTER, 3 * 경과시간, "체력", "식사에 의한 회복")
-		CALL RECOVER(MASTER, 3 * 경과시간, "기력", "식사에 의한 회복")
-		TFLAG:98 = 2
-	ENDIF
-CASE "청소를 돕기"
-	;경과시간に合わせるため簡略化
-	LOCAL = YOGORE:(CFLAG:MASTER:현재위치)
-	YOGORE:(CFLAG:MASTER:현재위치) = MAX(YOGORE:(CFLAG:MASTER:현재위치) -100 * 경과시간 / 5, 0)
-	EX:MASTER:오늘의청소회수 += LOCAL - YOGORE:(CFLAG:MASTER:현재위치)
-	DOWNBASE:MASTER:체력 += 20 * 시간계수
-	DOWNBASE:MASTER:기력 += 40 * 시간계수
-	DOWNBASE:TARGET:체력 += 10 * 시간계수
-	DOWNBASE:TARGET:기력 += 20 * 시간계수
-	SOURCE:환락 = (100 + ((ABL:순종 + ABL:MASTER:청소기능) * 50)) * 시간계수
-	TFLAG:98 = 2
-	EXP:MASTER:청소경험 ++
-CASE "함께 운동하기"
-	DOWNBASE:MASTER:체력 += 40 * 시간계수
-	DOWNBASE:MASTER:기력 += 40 * 시간계수
-	DOWNBASE:TARGET:체력 += 20 * 시간계수
-	DOWNBASE:TARGET:기력 += 20 * 시간계수
-	SOURCE:환락 = (150 + ((ABL:친밀 + ABL:MASTER:전투능력) * 50)) * 시간계수
-	SOURCE:수동 = (100 + ((ABL:순종 + ABL:MASTER:전투능력) * 50)) * 시간계수
-	SOURCE:정복 = (100 + ((ABL:새드끼 + ABL:전투능력) * 100)) * 시간계수
-	TFLAG:98 = 2
-	EXP:MASTER:전투경험 ++
-CASE "책의 감상을 듣기"
-	;読み終わる直前まで聞けない
-	IF Activity_Duration:TARGET > 30
-		TFLAG:193 = -1
-		DOWNBASE:MASTER:기력 += 40 * 시간계수
-		SOURCE:반감 = 50
-	ELSE
-		DOWNBASE:MASTER:기력 += 20 * 시간계수
-		DOWNBASE:TARGET:기력 += 20 * 시간계수
-		SOURCE:환락 = (100 + ((ABL:친밀 + ABL:MASTER:교양) * 50)) * 시간계수
-		SOURCE:수동 = (100 + ((ABL:순종 + ABL:MASTER:교양) * 50)) * 시간계수
-		TFLAG:98 = 1
-		EXP:MASTER:회화경험 ++
-		EXP:MASTER:학습경험 ++
-	ENDIF
-CASE "요리를 돕기"
-	DOWNBASE:MASTER:체력 += 20 * 시간계수
-	DOWNBASE:MASTER:기력 += 20 * 시간계수
-	DOWNBASE:TARGET:체력 += 10 * 시간계수
-	DOWNBASE:TARGET:기력 += 10 * 시간계수
-	SOURCE:환락 = (100 + ((ABL:순종 + ABL:MASTER:요리기능) * 50)) * 시간계수
-	TFLAG:98 = 1
-	EXP:MASTER:요리경험 ++
-CASE "세션을 함께하기", "음악 반주하기"
-	IF !GROUPMATCH(1, MUSIC_ABLE(30), MUSIC_ABLE(31), MUSIC_ABLE(32), MUSIC_ABLE(33), MUSIC_ABLE(34), MUSIC_ABLE(35))
-		;楽器が使えないと見てるだけ
-		TFLAG:193 = -2
-		DOWNBASE:MASTER:기력 += 20 * 시간계수
-		DOWNBASE:TARGET:체력 += 10 * 시간계수
-		DOWNBASE:TARGET:기력 += 20 * 시간계수
-		SOURCE:환락 = (50 + ((ABL:친밀 + ABL:MASTER:음악기능) * 10)) * 시간계수
-	ELSE
-		DOWNBASE:MASTER:체력 += 40 * 시간계수
-		DOWNBASE:MASTER:기력 += 40 * 시간계수
-		DOWNBASE:TARGET:체력 += 20 * 시간계수
-		DOWNBASE:TARGET:기력 += 20 * 시간계수
-		SELECTCASE RAND:(10 + ABL:MASTER:음악기능)
-		CASE 0
-			;失敗
-			TFLAG:193 = -1
-			SOURCE:환락 = (100 + ((ABL:친밀 + ABL:MASTER:음악기능) * 20)) * 시간계수
-		CASE 1 TO 9
-			;成功
-			SOURCE:환락 = (150 + ((ABL:친밀 + ABL:MASTER:음악기능) * 50)) * 시간계수
-			TFLAG:98 = 1
-		CASEELSE
-			;음악기능があるとその確率で大成功
-			TFLAG:193 = 1
-			SOURCE:환락 = (200 + ((ABL:친밀 + ABL:MASTER:음악기능) * 80)) * 시간계수
-			TFLAG:98 = 2
-		ENDSELECT
-		;その場にいる他のキャラにもソースが入る
-		FOR LOCAL, 1, GET_TARGETNUM() + 1
-			SIF TARGET:LOCAL == TARGET
-				CONTINUE
-			SIF !SHIRAHU(TARGET:LOCAL)
-				CONTINUE
-			SOURCE:(TARGET:LOCAL):환락 = ((150 + (50 * TFLAG:193)) + ((ABL:(TARGET:LOCAL):친밀 + ABL:MASTER:음악기능) * (50 + (30 * TFLAG:193)))) * 시간계수
-		NEXT
-		EXP:MASTER:연주경험 ++
-	ENDIF
-CASE "채집을 돕기"
-	DOWNBASE:MASTER:체력 += 20 * 시간계수
-	DOWNBASE:MASTER:기력 += 40 * 시간계수
-	DOWNBASE:TARGET:체력 += 10 * 시간계수
-	DOWNBASE:TARGET:기력 += 20 * 시간계수
-	SOURCE:환락 = (150 + ((ABL:친밀 + ABL:MASTER:채집기능) * 50)) * 시간계수
-	SOURCE:수동 = (100 + ((ABL:순종 + ABL:MASTER:채집기능) * 50)) * 시간계수
-	TFLAG:98 = 1
-	EXP:MASTER:채집경험 ++
-CASE "함께 낚시하기"
-	IF !ITEM:낚싯대
-		;낚싯대がないと見てるだけ
-		TFLAG:193 = -1
-		DOWNBASE:MASTER:기력 += 50 * 시간계수
-		DOWNBASE:TARGET:체력 += 10 * 시간계수
-		DOWNBASE:TARGET:기력 += 20 * 시간계수
-		SOURCE:환락 = (50 + ((ABL:친밀 + ABL:MASTER:낚시기능) * 25)) * 시간계수
-	ELSE
-		DOWNBASE:MASTER:체력 += 20 * 시간계수
-		DOWNBASE:MASTER:기력 += 40 * 시간계수
-		DOWNBASE:TARGET:체력 += 10 * 시간계수
-		DOWNBASE:TARGET:기력 += 20 * 시간계수
-		SOURCE:환락 = (150 + ((ABL:친밀 + ABL:MASTER:낚시기능) * 50)) * 시간계수
-		SOURCE:수동 = (100 + ((ABL:순종 + ABL:MASTER:낚시기능) * 50)) * 시간계수
-		TFLAG:98 = 1
-		EXP:MASTER:낚시경험 ++
-	ENDIF
-CASE "실험을 돕기"
-	DOWNBASE:MASTER:체력 += 20 * 시간계수
-	DOWNBASE:MASTER:기력 += 40 * 시간계수
-	DOWNBASE:TARGET:체력 += 10 * 시간계수
-	DOWNBASE:TARGET:기력 += 20 * 시간계수
-	SOURCE:환락 = (150 + ((ABL:친밀 + ABL:MASTER:조제기능) * 50)) * 시간계수
-	SOURCE:수동 = (100 + ((ABL:순종 + ABL:MASTER:조제기능) * 50)) * 시간계수
-	TFLAG:98 = 1
-	EXP:MASTER:조제경험 ++
-CASE "함께 한가로이 쉬기"
-	;ソースはちょびっとだけ
-	CALL RECOVER_PERMIL(MASTER,20, "체력", 1)
-	CALL RECOVER_PERMIL(MASTER,30, "기력", 1)
-	CALL RECOVER_PERMIL(TARGET,20, "체력", 1)
-	CALL RECOVER_PERMIL(TARGET,30, "기력", 1)
-	SOURCE:환락 = (100 + ((ABL:친밀 + 호감도계수) * 10)) * 시간계수
-	SOURCE:수동 = (50 + ((ABL:순종 + 호감도계수) * 5)) * 시간계수
-CASE "저녁반주를 함께하기"
-	;相手の술내성によって飲む酒が変わる,ソースも相手の술내성依存,なお술내성マイナスは晩酌しない
-	DOWNBASE:MASTER:체력 += 20 * 시간계수
-	DOWNBASE:MASTER:기력 += 10 * 시간계수
-	CALL DRUNKEN(MASTER, MAX(50 + TALENT:TARGET:술내성, 51))
-	SOURCE:환락 = (150 + ((ABL:친밀 + TALENT:TARGET:술내성) * 50)) * 시간계수
-	SOURCE:수동 = (100 + ((ABL:순종 + TALENT:TARGET:술내성) * 50)) * 시간계수
-	SOURCE:정복 = (100 + ((ABL:새드끼 + TALENT:TARGET:술내성) * 50)) * 시간계수
-	TFLAG:98 = 1
-CASE "쇼핑을 돕기"
-	DOWNBASE:MASTER:체력 += 20 * 시간계수
-	DOWNBASE:MASTER:기력 += 20 * 시간계수
-	DOWNBASE:TARGET:체력 += 10 * 시간계수
-	DOWNBASE:TARGET:기력 += 10 * 시간계수
-	SOURCE:환락 = (200 + ((ABL:순종 + 호감도계수)  * 50)) * 시간계수
-	TFLAG:98 = 1
-CASEELSE
-	PRINTFORMW 자유행동이 설정되어 있지 않습니다!
-	RETURN -1
-ENDSELECT
 TIME += 경과시간
 
 RETURN 1
-;-------------------------------------------------
-;명칭
-;-------------------------------------------------
-@자유행동에맡김_명칭(ARG)
-#FUNCTIONS
-SELECTCASE Activity_Type:ARG
-CASE 0
-	RETURNF "어떤 생각하는지"
-CASE 1
-	RETURNF "함께 놀기"
-CASE 2
-	RETURNF "함께 식사하기"
-CASE 3
-	RETURNF "함께 집어먹기"
-CASE 4
-	RETURNF "청소를 돕기"
-CASE 5
-	RETURNF "함께 운동하기"
-CASE 6
-	RETURNF "책의 감상을 듣기"
-CASE 7
-	IF Activity_Duration:ARG > 30
-		RETURNF "요리를 돕기"
-	ELSE
-		RETURNF "요리를 나눠받기"
-	ENDIF
-CASE 8
-	IF TALENT:ARG:음악지식 == 1
-		RETURNF "세션을 함께하기"
-	ELSE
-		RETURNF "음악 반주하기"
-	ENDIF
-CASE 9
-	RETURNF "채집을 돕기"
-CASE 10
-	RETURNF "함께 낚시하기"
-CASE 11
-	RETURNF "실험을 돕기"
-CASE 12
-	RETURNF "함께 한가로이 쉬기"
-CASE 13
-	RETURNF "저녁반주를 함께하기"
-CASE 14
-	RETURNF "쇼핑을 돕기"
-CASEELSE
-	RETURNF "자유행동에 맡김"
-ENDSELECT
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
@@ -330,3 +45,38 @@ SIF !Activity_Duration:TARGET
 ;SIF GROUPMATCH(CFLAG:TARGET:ActivityType, )
 ;	RETURN 0
 RETURN 1
+
+@FreeAct_ID(ARG:0, ARGS:0, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS V_NAME                  ;作成する変数名
+#DIMS C_NAME, OBJ_ID_LAST + 1 ;データ保持
+#DIM  O_ID                    ;参照用
+IF ARGS:0 == "RESET"
+	VARSET C_NAME
+	FOR O_ID, 1, OBJ_ID_LAST + 1
+		C_NAME:O_ID = %GET_STR(, "캐릭터데이터", O_ID, "명칭")%
+	NEXT
+ELSE
+	O_ID = FINDELEMENT(C_NAME, ESCAPE(ARGS:0), , , 1)
+	CALLF MAKE_INT(V_NAME, O_ID)
+ENDIF
+
+@EXIST_FreeAct_ID
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+@FreeAct_Name(ARG)
+#FUNCTIONS
+SIF Activity_Type:ARG == 0 && UNIQUE_FA_NAME:ARG != ""
+	RETURNF UNIQUE_FA_NAME:ARG
+RETURNF GET_STR(ARG, "FreeAct", Activity_Type:ARG, "명칭")
+
+@FreeAct_Time(ARG)
+#FUNCTION
+RETURNF GET_INT(0, "FreeAct", Activity_Type:ARG, "경과시간")
+
+@FreeAct_Chain(ARG)
+#FUNCTION
+RETURNF GET_INT(0, "FreeAct", Activity_Type:ARG, "CHAIN")

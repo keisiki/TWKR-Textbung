@@ -1,0 +1,119 @@
+﻿@EXIST_FreeAct7
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct7(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	IF Activity_Duration:ARG > 30
+		CALLF MAKE_STR(V_NAME, "요리를 돕기")
+	ELSE
+		CALLF MAKE_STR(V_NAME, "요리를 나눠받기")
+	ENDIF
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	IF Activity_Duration:TARGET > 30
+		경과시간 = Activity_Duration:TARGET - 30
+	ELSE
+		경과시간 = 0
+	ENDIF
+	CALLF MAKE_INT(V_NAME, 경과시간)
+ENDSELECT
+
+@자유행동내용_7(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"	
+		;요리기능1以上のキャラが空腹状態で台所にいる時
+		SIF ABL:CHARA:요리기능 < 1
+			RETURN 0
+		SIF !KITCHEN(현위치)
+			RETURN 0
+		SIF TIME_PROGRESS(TCVAR:CHARA:공복시각) <= 0
+			RETURN 0
+		IF 메시지표시
+			IF CHAIN
+				IF Activity_Duration:CHARA > 30
+					PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %조사처리(CALLNAME:CHAIN,"을")% 돕기 시작했다.
+				ELSE
+					PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:CHAIN%의 요리를 나눠받았다.
+				ENDIF
+			ELSE
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 공복을 느껴 요리를 시작했다.
+			ENDIF
+		ENDIF
+		RETURN 60 + RAND:30
+	CASE "행동중"
+		;食事とセット
+		IF Activity_Duration:CHARA > 30
+			SIF 메시지표시
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 경쾌하게 요리를 하고 있다.
+		ELSE
+			SIF 메시지표시
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 만든 음식을 먹고 있다.
+			CALL 자유행동식사(CHARA)
+		ENDIF
+	CASE "완료"
+		;완료までしたら요리경험+2
+		EXP:CHARA:요리경험 += 2
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 식사를 마친 것 같다.
+		CALL 자유행동식사(CHARA)
+	CASE "중단"
+		EXP:CHARA:요리경험 += 1
+		SIF Activity_Duration:CHARA <= 30
+			CALL 자유행동식사(CHARA)
+	CASE "같이한다"
+		;自由行動に付き合ったとき用メッセージ
+		IF TFLAG:193 == 2
+			PRINTFORML %조교자는% %타겟의% 요리를 도왔다
+			SELECTCASE ABL:TARGET:요리기능
+			CASE IS <= 1
+				PRINTFORML %타겟의% 요리는 위험하다…
+			CASE 2, 3
+				PRINTFORML %타겟은% 침착하게 요리를 하고있다…
+			CASEELSE
+				PRINTFORML %타겟이% 솜씨 좋게 요리를 해 따라가기 버겁다…
+			ENDSELECT
+			PRINTFORML %조교자는% %타겟이% 만든 요리를 나누어받았다
+		ELSEIF TFLAG:193 < 0
+			PRINTFORML 그렇게 배가 고프지는 않았다
+		ELSE
+			PRINTFORML 조금 배가 불렀다…
+		ENDIF
+
+	CASE "소스"
+		IF Activity_Duration:TARGET > 30
+			;付き合うコマンド選択時の入手ソース、시간계수は付き合った時間の1/10
+			DOWNBASE:MASTER:체력 += 20 * 시간계수
+			DOWNBASE:MASTER:기력 += 20 * 시간계수
+			DOWNBASE:TARGET:체력 += 10 * 시간계수
+			DOWNBASE:TARGET:기력 += 10 * 시간계수
+			SOURCE:환락 = (100 + ((ABL:순종 + ABL:MASTER:요리기능) * 50)) * 시간계수
+			TFLAG:98 = 1
+			EXP:MASTER:요리경험 ++
+			TFLAG:193 = 2
+		ELSE
+			CALL FreeActMeal(TARGET, 시간계수)
+		ENDIF
+ENDSELECT

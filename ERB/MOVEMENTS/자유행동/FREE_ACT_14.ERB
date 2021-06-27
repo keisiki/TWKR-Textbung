@@ -1,0 +1,66 @@
+﻿@EXIST_FreeAct14
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct14(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "쇼핑을 돕기")
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	CALLF MAKE_INT(V_NAME, 0)
+ENDSELECT
+
+@자유행동내용_14(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;お店にいる時
+		SIF !KAIDASHI_SHOP(현위치) && !FLOWER_SHOP(현위치) && !SAKE_SHOP(현위치) && !YASAI_SHOP(현위치)
+			RETURN 0
+		SIF BASE:CHARA:기력 <= 500
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% \@ CHAIN ? %조사처리(CALLNAME:CHAIN,"과")% 행동을 같이하기 시작했다.# 장바구니를 꺼냈다.\@
+		RETURN 60 + RAND:30
+	CASE "행동중"
+		IF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR("掘り出し物を探している/品物を手にとって値踏みしている/何を買おうか悩んでいる/마음대로 쇼핑하고 있다.")%
+		ENDIF
+	CASE "완료"
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 쇼핑을 마친 것 같다.
+	CASE "중단"
+	CASE "같이한다"
+		;自由行動に付き合ったとき用メッセージ
+		PRINTFORML %조교자는% %타겟의% 쇼핑을 도왔다
+		PRINTFORML %CALLNAME:TARGET%%TEXTR(@"%조사만처리(CALLNAME:TARGET,"는")% 어떤 것을 살까 고민하고 있다…/의 말을 듣고 비슷한 상품을 긁어모았다…/의 짐을 들고 여기저기 돌아다녔다…")%
+	CASE "소스"
+		;付き合うコマンド選択時の入手ソース、시간계수は付き合った時間の1/10
+		DOWNBASE:MASTER:체력 += 20 * 시간계수
+		DOWNBASE:MASTER:기력 += 20 * 시간계수
+		DOWNBASE:TARGET:체력 += 10 * 시간계수
+		DOWNBASE:TARGET:기력 += 10 * 시간계수
+		SOURCE:환락 = (200 + ((ABL:순종 + 호감도계수)  * 50)) * 시간계수
+		TFLAG:98 = 1
+ENDSELECT

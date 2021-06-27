@@ -1,0 +1,72 @@
+﻿@EXIST_FreeAct9
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct9(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "채집을 돕기")
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	CALLF MAKE_INT(V_NAME, 0)
+ENDSELECT
+
+@자유행동내용_9(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;채집기능1以上のキャラが採集できる場所にいる時
+		SIF ABL:CHARA:채집기능 < 1
+			RETURN 0
+		SIF !GATHERING_SPOT(현위치)
+			RETURN 0
+		SIF BASE:CHARA:기력 <= 500
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% \@ CHAIN ? %조사처리(CALLNAME:CHAIN,"을")% 돕기 시작했다.# 주위를 둘러본 후, 채집작업을 시작했다.\@
+		RETURN 60 + RAND:120
+	CASE "행동중"
+		IF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR("周囲をくまなく探っている/何かを見つけたようだ/熱心に採集している/쓸만한 소재를 찾고 있다")%.
+		ENDIF
+	CASE "완료"
+		EXP:CHARA:채집경험 += 1
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 채집을 마친 것 같다.
+	CASE "중단"
+		EXP:CHARA:채집경험 += 1
+	CASE "같이한다"
+		;自由行動に付き合ったとき用メッセージ
+		PRINTFORML %조교자는% %타겟의% 채집을 도왔다
+		PRINTFORML %TEXTR(@"%타겟은% 레어한 물건을 찾고 있는 것 같다…/목표로 한 것은 좀처럼 발견되지 않는다…/적당히 주운 것을 %CALLNAME:TARGET%에게 건네주었다…")%
+	CASE "소스"
+		;付き合うコマンド選択時の入手ソース、시간계수は付き合った時間の1/10
+		DOWNBASE:MASTER:체력 += 20 * 시간계수
+		DOWNBASE:MASTER:기력 += 40 * 시간계수
+		DOWNBASE:TARGET:체력 += 10 * 시간계수
+		DOWNBASE:TARGET:기력 += 20 * 시간계수
+		SOURCE:환락 = (150 + ((ABL:친밀 + ABL:MASTER:채집기능) * 50)) * 시간계수
+		SOURCE:수동 = (100 + ((ABL:순종 + ABL:MASTER:채집기능) * 50)) * 시간계수
+		TFLAG:98 = 1
+		EXP:MASTER:채집경험 ++
+ENDSELECT

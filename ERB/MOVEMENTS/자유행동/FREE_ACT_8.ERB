@@ -1,0 +1,206 @@
+﻿@EXIST_FreeAct8
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct8(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	IF TALENT:ARG:음악지식 == 1
+		CALLF MAKE_STR(V_NAME, "세션을 함께하기")
+	ELSE
+		CALLF MAKE_STR(V_NAME, "음악 반주하기")
+	ENDIF
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	CALLF MAKE_INT(V_NAME, 0)
+ENDSELECT
+
+@자유행동내용_8(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생" ;KR판 임의수정, 일판 (4.790) CASE 상태 등 불량
+		;［음악지식］持ちのキャラが訓練できる場所にいる時
+		SIF !TALENT:CHARA:음악지식
+			RETURN 0
+		SIF !전투훈련가능(현위치)
+			RETURN 0
+		SIF BASE:CHARA:기력 <= MAXBASE:CHARA:기력 / 2
+			RETURN 0
+		IF 메시지표시
+			IF CHAIN
+				SELECTCASE TALENT:CHAIN:음악지식
+				CASE 1
+					SELECTCASE TALENT:CHARA:음악지식
+					CASE 1
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %조사처리(CALLNAME:CHAIN,"과")%의 세션을 시작했다.
+					CASE 2
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:CHAIN%의 연주에 맞춰 노래하기 시작했다.
+					CASE 3
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:CHAIN%의 연주에 맞춰 춤추기 시작했다.
+					ENDSELECT
+				CASE 2
+					SELECTCASE TALENT:CHARA:음악지식
+					CASE 1
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:CHAIN%의 노래에 맞춰 연주하기 시작했다.
+					CASE 2
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %조사처리(CALLNAME:CHAIN,"과")%의 코러스를 시작했다.
+					CASE 3
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:CHAIN%의 노래에 맞춰 춤추기 시작했다.
+					ENDSELECT
+				CASE 3
+					SELECTCASE TALENT:CHARA:음악지식
+					CASE 1
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:CHAIN%의 안무에 맞춰 연주를 시작했다.
+					CASE 2
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:CHAIN%의 안무에 맞춰 노래하기 시작했다.
+					CASE 3
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %조사처리(CALLNAME:CHAIN,"과")% 같이 춤추기 시작했다.
+					ENDSELECT
+				ENDSELECT
+			ELSE
+				SELECTCASE TALENT:CHARA:음악지식
+				CASE 1
+					PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 천천히 연주를 시작했다.
+				CASE 2
+					PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 천천히 노래부르기 시작했다.
+				CASE 3
+					PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 천천히 춤추기 시작했다.
+				ENDSELECT
+			ENDIF
+		ENDIF
+		RETURN 60 + RAND:30
+	CASE "행동중"
+		IF 메시지표시
+			SELECTCASE TALENT:CHARA:음악지식
+			CASE 1
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 시원하게 연주하고 있다.
+			CASE 2
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 마음대로 노래하고 있다.
+			CASE 3
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 화려하게 춤추고 있다.
+			ENDSELECT
+		ENDIF
+	CASE "완료"
+		SELECTCASE TALENT:CHARA:음악지식
+		CASE 1
+			EXP:CHARA:연주경험 += 1
+			SIF 메시지표시
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 연주를 마치고 한숨 돌렸다.
+		CASE 2
+			EXP:CHARA:가창경험 += 1
+			SIF 메시지표시
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 노래를 마치고 한숨 돌렸다.
+		CASE 3
+			EXP:CHARA:무도경험 += 1
+			SIF 메시지표시
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 안무를 마치고 한숨 돌렸다.
+		ENDSELECT
+	CASE "중단"
+		SELECTCASE TALENT:CHARA:음악지식
+		CASE 1
+			EXP:CHARA:연주경험 += 1
+		CASE 2
+			EXP:CHARA:가창경험 += 1
+		CASE 3
+			EXP:CHARA:무도경험 += 1
+		ENDSELECT
+	CASE "같이한다"
+		IF TFLAG:193 == -2
+			SELECTCASE TALENT:TARGET:음악지식
+			CASE 1
+				PRINTFORML %마스터는% 쓸 수 있는 악기가 없어 %타겟의% 연주를 멍하니 들었다…
+			CASE 2
+				PRINTFORML %마스터는% 쓸 수 있는 악기가 없어 %타겟의% 노래를 멍하니 들었다…
+			CASE 3
+				PRINTFORML %마스터는% 쓸 수 있는 악기가 없어 %타겟의% 춤을 멍하니 보았다…
+			ENDSELECT
+		ELSE
+			SELECTCASE TALENT:TARGET:음악지식
+			CASE 1
+				PRINTFORML %마스터는% %타겟과% 나란히 세션을 했다
+				IF TFLAG:193 > 0
+					PRINTFORML %타겟은% 리듬을 타며 연주하고 있다…
+				ELSEIF TFLAG:193 < 0
+					PRINTFORML %타겟은% 떨떠름한 표정을 짓고 있다…
+				ELSE
+					PRINTFORML %타겟은% 침착하게 연주하고 있다…
+				ENDIF
+			CASE 2
+				PRINTFORML %마스터는% %타겟의% 노래에 맞추어 반주를 했다
+				IF TFLAG:193 > 0
+					PRINTFORML %타겟은% 리듬을 타며 노래하고 있다…
+				ELSEIF TFLAG:193 < 0
+					PRINTFORML %타겟은% 떨떠름한 표정을 짓고 있다…
+				ELSE
+					PRINTFORML %타겟은% 침착하게  노래하고 있다…
+				ENDIF
+			CASE 3
+				PRINTFORML %마스터는% %타겟의% 안무에 맞추어 반주를 했다
+				IF TFLAG:193 > 0
+					PRINTFORML %타겟은% 리듬을 타며 춤추고 있다…
+				ELSEIF TFLAG:193 < 0
+					PRINTFORML %타겟은% 떨떠름한 표정을 짓고 있다…
+				ELSE
+					PRINTFORML %타겟은% 침착하게 춤추고 있다…
+				ENDIF
+			ENDSELECT
+		ENDIF
+	CASE "소스"
+		IF !GROUPMATCH(1, MUSIC_ABLE(30), MUSIC_ABLE(31), MUSIC_ABLE(32), MUSIC_ABLE(33), MUSIC_ABLE(34), MUSIC_ABLE(35))
+			;楽器が使えないと見てるだけ
+			TFLAG:193 = -2
+			DOWNBASE:MASTER:기력 += 20 * 시간계수
+			DOWNBASE:TARGET:체력 += 10 * 시간계수
+			DOWNBASE:TARGET:기력 += 20 * 시간계수
+			SOURCE:환락 = (50 + ((ABL:친밀 + ABL:MASTER:음악기능) * 10)) * 시간계수
+		ELSE
+			DOWNBASE:MASTER:체력 += 40 * 시간계수
+			DOWNBASE:MASTER:기력 += 40 * 시간계수
+			DOWNBASE:TARGET:체력 += 20 * 시간계수
+			DOWNBASE:TARGET:기력 += 20 * 시간계수
+			SELECTCASE RAND:(10 + ABL:MASTER:음악기능)
+			CASE 0
+				;失敗
+				TFLAG:193 = -1
+				SOURCE:환락 = (100 + ((ABL:친밀 + ABL:MASTER:음악기능) * 20)) * 시간계수
+			CASE 1 TO 9
+				;成功
+				SOURCE:환락 = (150 + ((ABL:친밀 + ABL:MASTER:음악기능) * 50)) * 시간계수
+				TFLAG:98 = 1
+			CASEELSE
+				;음악기능があるとその確率で大成功
+				TFLAG:193 = 1
+				SOURCE:환락 = (200 + ((ABL:친밀 + ABL:MASTER:음악기능) * 80)) * 시간계수
+				TFLAG:98 = 2
+			ENDSELECT
+			;その場にいる他のキャラにもソースが入る
+			FOR LOCAL, 1, GET_TARGETNUM() + 1
+				SIF TARGET:LOCAL == TARGET
+					CONTINUE
+				SIF !SHIRAHU(TARGET:LOCAL)
+					CONTINUE
+				SOURCE:(TARGET:LOCAL):환락 = ((150 + (50 * TFLAG:193)) + ((ABL:(TARGET:LOCAL):친밀 + ABL:MASTER:음악기능) * (50 + (30 * TFLAG:193)))) * 시간계수
+			NEXT
+			EXP:MASTER:연주경험 ++
+		ENDIF
+ENDSELECT

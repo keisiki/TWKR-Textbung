@@ -1,0 +1,99 @@
+﻿@자유행동처리(ARG)
+;자유행동조건を満たしていない場合は발생せず、중단される
+IF !자유행동조건(ARG)
+	SIF Activity_Duration:ARG
+		TRYCALLFORM 자유행동내용_{Activity_Type:ARG}(ARG, "중단")
+	Activity_Duration:ARG = 0
+	Activity_Type:ARG = 0
+	RETURN
+ENDIF
+;自由행동중の処理
+IF Activity_Duration:ARG
+	;경과시간分減っていく
+	Activity_Duration:ARG = MAX(Activity_Duration:ARG - TIME_PROGRESS(TIME:1), 0)
+	;0になったら종료
+	IF !Activity_Duration:ARG
+		;CALL 자유행동내용(ARG, Activity_Type:ARG, "완료")
+		TRYCALLFORM 자유행동내용_{Activity_Type:ARG}(ARG, "완료")
+	;まだ행동중
+	ELSE
+		TRYCALLFORM 자유행동내용_{Activity_Type:ARG}(ARG, "행동중")
+		;連鎖しない행동は除く（考え事,読書）
+		IF FreeAct_Chain(ARG)
+			FOR LOCAL, 1, CHARANUM
+				;LOCALが連鎖対象でARGが連鎖主
+				IF !Activity_Duration:LOCAL && CFLAG:LOCAL:현재위치 == CFLAG:ARG:현재위치 && RELATION:LOCAL:ARG > 100 && LOCAL != ARG && 자유행동조건(LOCAL)
+					;引数を付けて발생
+					TRYCALLFORM 자유행동내용_{Activity_Type:LOCAL}(LOCAL, "발생", 0, ARG)
+					IF RESULT
+						;連鎖主の행동をトレースする
+						Activity_Duration:LOCAL = Activity_Duration:ARG
+						Activity_Type:LOCAL = Activity_Type:ARG
+						TCVAR:LOCAL:가능한한움직이지않는다 = 1
+					ENDIF
+				ENDIF
+			NEXT
+		ENDIF
+	ENDIF
+	;가능한한움직이지않는다ようにする
+	TCVAR:ARG:가능한한움직이지않는다 = 1
+	RETURN
+ENDIF
+
+;自由행동발생処理
+
+;基本발생率,移動率の15を参考
+;最初は判定値がRAND1000だったけど800にしてみる
+SIF 5 * TIME_PROGRESS(TIME:1) < RAND:800
+	RETURN
+;とりあえず20個分回す
+CALL FISHER_YATES_SHAFFLE(20)
+FOR LOCAL, 0, 20
+	RESULT = 0
+	TRYCALLFORM 자유행동내용_{SHAFFLE_ARRAY:LOCAL}(ARG, "발생")
+	IF RESULT
+		;RESULT=행동時間
+		Activity_Duration:ARG = RESULT
+		Activity_Type:ARG = SHAFFLE_ARRAY:LOCAL
+		TCVAR:ARG:가능한한움직이지않는다 = 1
+		BREAK
+	ENDIF
+NEXT
+
+@자유행동조건(ARG)
+#FUNCTION
+;拠点にいない
+SIF !AT_HOME(ARG)
+	RETURNF 0
+;正常な状態ではない
+SIF !SHIRAHU(ARG)
+	RETURNF 0
+;우후후中
+SIF CFLAG:ARG:우후후
+	RETURNF 0
+;仕事中（행동중）
+SIF CFLAG:ARG:행동
+	RETURNF 0
+;데일리中
+SIF CFLAG:ARG:데일리
+	RETURNF 0
+;동행中
+SIF CFLAG:ARG:동행
+	RETURNF 0
+;移動している
+SIF CFLAG:ARG:현재위치 != CFLAG:ARG:전턴위치
+	RETURNF 0
+;天候ダメージがある
+SIF 날씨에의한영향(ARG, CFLAG:ARG:현재위치) < 0
+	RETURNF 0
+;妊娠中
+SIF CFLAG:ARG:임신자각상태 == 1
+	RETURNF 0
+RETURNF 1
+
+@자유행동식사(CHARA)
+#DIM CHARA
+;2時間分の食事,あまり頻発するとあなたが食べさせられなくなってしまうので少なめ
+TCVAR:CHARA:공복시각 = 1440 * DAY + TIME + 120
+CALL RECOVER(CHARA, 3 * TIME_PROGRESS(TIME:1), "체력", "식사에 의한 회복")
+CALL RECOVER(CHARA, 3 * TIME_PROGRESS(TIME:1), "기력", "식사에 의한 회복")

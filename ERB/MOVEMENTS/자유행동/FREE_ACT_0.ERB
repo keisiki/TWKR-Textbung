@@ -1,0 +1,82 @@
+﻿;考え事
+@EXIST_FreeAct0
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct0(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "어떤 생각하는지")
+CASE "CHAIN"
+;他キャラに連鎖する場合コメントアウト外すこと
+;	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+	CALLF MAKE_INT(V_NAME, Activity_Duration:TARGET)
+ENDSELECT
+
+@자유행동내용_0(CHARA, ARGS,시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+TRYCCALLFORM UNIQUE_FA_{CHARA}(CHARA, ARGS, 시간계수)
+RETURN RESULT
+CATCH
+SELECTCASE ARGS
+	CASE "발생"
+		;在住キャラが自室にいる時
+		SIF !CFLAG:CHARA:신사거주
+			RETURN 0
+		SIF 현위치 != CFLAG:CHARA:신사거주
+			RETURN 0
+		SIF BASE:CHARA:기력 <= 500
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 무엇인가 생각을 하기 시작했다.
+		;返し値は행동時間
+		RETURN 20 + RAND:20
+	CASE "행동중"
+		IF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR("沈思黙考している/ほおづえをついて考えている/上の空で考え事をしている/생각에 잠겨 있다")%.
+		ENDIF
+	CASE "완료"
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 생각을 마친 것 같다.
+	CASE "중단"
+		;중단メッセージは우후후突入時等でも表示されてしまうので表示しない
+	CASE "같이한다"
+		PRINTFORML %조교자는% %CALLNAME:TARGET%에게 생각을 물었다
+		IF TFLAG:193 < 0
+			PRINTFORML %타겟은% 몸을 굳히곤 어물쩍 념겼다…
+		ELSE
+			PRINTFORML 종잡을 수 없는 생각이었던 것 같다…
+		ENDIF
+	CASE "소스"
+		;신뢰도が低いと失敗
+		IF CFLAG:TARGET:신뢰도 < 275 -(ABL:TARGET:친밀 * 25)
+			TFLAG:193 = -1
+			DOWNBASE:MASTER:기력 += 40 * 시간계수
+			DOWNBASE:TARGET:기력 += 40 * 시간계수
+			SOURCE:환락 = (50 + ((ABL:친밀 + ABL:MASTER:화술기능) * 25)) * 시간계수
+			SOURCE:수동 = (30 + ((ABL:순종 + ABL:MASTER:화술기능) * 15)) * 시간계수
+			EXP:MASTER:회화경험 ++
+		ELSE
+			DOWNBASE:MASTER:기력 += 20 * 시간계수
+			DOWNBASE:TARGET:기력 += 20 * 시간계수
+			SOURCE:환락 = (100 + ((ABL:친밀 + ABL:MASTER:화술기능) * 50)) * 시간계수
+			SOURCE:수동 = (60 + ((ABL:순종 + ABL:MASTER:화술기능) * 30)) * 시간계수
+			TFLAG:98 = 1
+			EXP:MASTER:회화경험 ++
+		ENDIF
+ENDSELECT
+ENDCATCH

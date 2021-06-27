@@ -37,18 +37,18 @@ ENDIF
 ;初回用
 @DAILY_EV41_0
 CALL SPTALK, [[카게로]], "通常", 0, @"「こんばんわー」", 1
-PRINTFORMW 戸を開けると立派な山鳥を抱えた카게로が立っていた
+PRINTFORMW 문을 열자 훌륭한 산새를 들고있는 카게로가 서 있었다
 PRINTFORML 「ね、これすごいでしょ？さっき獲ってきたの」
 PRINTFORMW 「%CALLNAME:MASTER%料理得意でしょ？おすそ分けするからなにか作ってくれない？」
 PRINTFORML 
-CALL ASK_YN("しょうがないなあ", "ご相伴させてくれるなら")
+CALL ASK_YN("어쩔 수 없다", "대접해 준다면")
 CALL EV41_MEAL(300)
 CALL GET_ITEM("산새", 5, 1)
 PRINTFORML 
 PRINTFORML 「いまさらこんなことを聞くのもなんだけど…」
 PRINTFORML 「いきなり夜中に押しかけて迷惑だった？」
 PRINTFORML 
-CALL ASK_YN("いつでも歓迎","またお土産よろしく")
+CALL ASK_YN("언제라도 환영","또 선물 부탁해")
 CALL PRINT_FACE, [[카게로]], "笑顔", "服", "", ""
 IF !RESULT
 	PRINTFORML 「ほんと？ありがとう！」
@@ -73,7 +73,7 @@ IF CFLAG:[[카게로]]:생해금 == 2 && BASE:MASTER:정력 >= 500 && BASE:MASTE
 ENDIF
 
 CALL SPTALK, [[카게로]], "笑顔", 0, @"「こんばんわー」", 1
-PRINTFORMW また카게로がやってきた
+PRINTFORMW 또 카게로가 왔다
 PRINTFORMW 「上がっていい？」
 SELECTCASE RAND:10
 	CASE 0
@@ -93,13 +93,24 @@ SELECTCASE RAND:10
 		LOCALS = %TEXTR("죽순/고려인삼/산나물/쓴뿌리")%
 		CALL GET_ITEM(LOCALS, 3, 1)
 ENDSELECT
+IF CFLAG:[[카게로]]:1006
+	PRINTFORMW 「それとこれは姫からね」
+	IF !RAND:10
+		LOCALS = 용의손톱
+		CALL GET_ITEM(LOCALS, 1, 1)
+	ELSE
+		LOCALS = %TEXTR("상약초/어박/약초/물고기/맛있는물고기/활석")%
+		CALL GET_ITEM(LOCALS, 5, 1)
+	ENDIF
+	CFLAG:[[카게로]]:1006 = 0
+ENDIF
 
 PRINTFORMW 
 PRINTFORML 「何をしましょうか」
 IF CAN_WOLFHUNT
-	CALL ASK_M("雑談",1,"月見酒（要：청주）",ITEM:청주,"オオカミ狩り",1)
+	CALL ASK_M("잡담",1,"달맞이 술(필요：청주)",ITEM:청주,"늑대 사냥",1)
 ELSE
-	CALL ASK_M("雑談",1,"月見酒（要：청주）",ITEM:청주)
+	CALL ASK_M("잡담",1,"달맞이 술(필요：청주)",ITEM:청주)
 ENDIF
 SELECTCASE RESULT
 	CASE 0
@@ -112,20 +123,20 @@ SELECTCASE RESULT
 		RETURN 1
 ENDSELECT
 {
-LOCALS = 遠吠えの練習をさせられた/草の根妖怪ネットワークの話をした/TRPGのシナリオ作成を手伝った
-/狩猟採集の話をした/人里の話をした/香林堂の話をした/服飾の話をした/新しいゲームをした
+LOCALS = 짖는 연습을 하게 되었다/풀뿌리 요괴 네트워크 이야기를 했다/TRPG 시나리오 작성을 도왔다
+/수렵 채집 이야기를 했다/마을 이야기를 했다/향림당 이야기를 했다/옷과 악세서리 이야기를 했다/새로운 게임을 했다
 }
 SIF CFLAG:[[카게로]]:생해금 == 2
-	LOCALS += "/将来についての話をした"
+	LOCALS += "/장래에 대해 이야기를 했다"
 SIF CFLAG:[[카게로]]:아이인원수 - CFLAG:[[카게로]]:육아인원수
-	LOCALS += "/独り立ちしていった子供の話をした"
+	LOCALS += "/독립해 나간 아이 이야기를 했다"
 
 ;晴れじゃないと月見酒の効果低下
 IF !GROUPMATCH(TIME:5, 0, 1) && RESULT
 	PRINTFORML 「今夜は月は見れないわね…」
 	변동치 = 200
 ENDIF
-PRINTFORML \@ RESULT == 1? お酒を楽しみながら# \@ %TEXTR(@"%LOCALS%")%
+PRINTFORML \@ RESULT == 1? 술을 즐기면서# \@ %TEXTR(@"%LOCALS%")%
 
 PRINTFORMW ………
 PRINTFORMW ……
@@ -133,6 +144,14 @@ PRINTFORMW …
 CALL BUFF_BASE(MASTER,BASE_기력,변동치,1)
 CALL CHANGE_CFLAG(2,[[카게로]], 변동치)
 CALL CHANGE_CFLAG(4,[[카게로]], 변동치/2)
+IF TALENT:[[카게로]]:연모 && RESULT == 1 && !RAND:2
+	IF !RAND:2
+		CALL DAILY_EV41_2
+	ELSE
+		CALL DAILY_EV41_3
+	ENDIF
+	RETURN 1
+ENDIF
 PRINTFORMW 「そろそろお暇するわね」
 PRINTFORMW 「それじゃ、おやすみなさい」
 RETURN 1
@@ -201,7 +220,7 @@ IF !GETBIT(FLAG_DAILY_EV41, 1)
 	CALL PRINT_FACE, [[카게로]], "オナニー", "裸", "", "吐息"
 	CALL HPH_PRINT,@"「はーーッ……HPH %CALLNAME:MASTER%に狩られちゃった……HPH」","W"
 	PRINTFORMW 「狩った獲物は手放しちゃ駄目よ？」
-	PRINTFORMW 카게로は%CALLNAME:MASTER%にきゅっと抱き着いた
+	PRINTFORMW 카게로는 %CALLNAME:MASTER%에게 달려들어 안겼다
 ELSE
 	;二回目以降
 	IF CFLAG:[[카게로]]:욕구불만도 < 500
@@ -283,7 +302,7 @@ IF CFLAG:MASTER:초기위치 == 230
 	IF !DAILY_EV41_벽쿵
 		PRINTFORML 「ところでシてる最中、お隣の壁がすごいドンドンいってたんだけど……」
 		PRINTFORML 
-		CALL ASK_YN("よくあること","人里の風習")
+		CALL ASK_YN("흔히 있는 일","인간 마을의 풍습")
 		IF !RESULT
 			PRINTFORMW 「変わったお隣さんなのね」
 		ELSE
@@ -294,7 +313,7 @@ IF CFLAG:MASTER:초기위치 == 230
 	ELSEIF DAILY_EV41_벽쿵 < 3
 		PRINTFORML 「お隣、またドンドンいってたわね」
 		PRINTFORML 
-		CALL ASK_YN("気にしないでいい","祝福されている")
+		CALL ASK_YN("신경쓰지마","세례받고 있어")
 		IF !RESULT
 			PRINTFORMW 「%CALLNAME:MASTER%がそう言うならそうなのかな」
 		ELSE
@@ -311,8 +330,8 @@ IF CFLAG:MASTER:초기위치 == 230
 	ELSE
 		CALL JUEL_UP_SPECIAL([[반키]],"욕정","욕망",5,1)
 		CFLAG:[[반키]]:욕구불만도 += 500
-		CALL COLORMESSAGE(@"반키の欲求不満が上がった",C_YELLOW,1)
-		CALL COLORMESSAGE(@"반키の기분が悪くなった",C_RED,1)
+		CALL COLORMESSAGE(@"반키의 욕구 불만이 높아졌다",C_YELLOW,1)
+		CALL COLORMESSAGE(@"반키의 기분이 나빠졌다",C_RED,1)
 		TALENT:[[반키]]:기분 = -1
 	ENDIF
 	DAILY_EV41_벽쿵 ++
@@ -348,3 +367,96 @@ CALL BUFF_BASE(MASTER,BASE_정력,ARG,1)
 CALL BUFF_BASE([[카게로]],BASE_체력,ARG,1)
 CALL BUFF_BASE([[카게로]],BASE_기력,ARG,1)
 EXP:MASTER:요리경험 ++
+
+
+@DAILY_EV41_2
+PRINTFORML 「なんだかいい気分……」
+PRINTFORML 「ね、踊りましょう？」
+LOCALS = %TEXTR("ぐるぐる/ゆらゆら/ふらふら/バタバタ/ピョコピョコ")%
+$choice
+CALL ASK_M("踊る",1,"どうやって？",1,"音楽を奏でる",1)
+SELECTCASE RESULT
+	CASE 0
+	CASE 1
+		PRINTFORMW 「私もよく知らないけど……なんか%LOCALS%動けばいいと思うわ！」 
+	CASE 2
+		PRINTFORML 「音楽とかいいから、私は%CALLNAME:MASTER%と踊りたいの！」
+		PRINTFORMW 怒られた
+		GOTO choice
+ENDSELECT
+PRINTFORMW 夜更けまで二人で%LOCALS%と踊った
+TALENT:[[카게로]]:기분 = 1
+CALL CHANGE_CFLAG(2,[[카게로]], 300)
+
+@DAILY_EV41_3
+#DIM 周回数
+#DIM cost
+#DIM finish
+finish = 0
+周回数 = 1
+PRINTFORML 「ふふ、酔ってきちゃった」
+PRINTFORML 「ね、抱っこして」
+CALL ASK_M("抱っこ",1,"お姫様抱っこ",1,"ブライダルお姫様抱っこ",1)
+PRINTFORML %CALLNAME:MASTER%は카게로を抱え上げた
+PRINTFORML 結構重い……
+PRINTFORML 「それじゃこのままこの辺りを一周して」
+$LOOP
+cost = 周回数 * 100
+CALL COLORMESSAGE(@"残り체력{BASE:MASTER:체력}",C_YELLOW,1)
+CALL ASK_M("一周する", BASE:MASTER:체력 > cost ,"時間停止でサボりながらやる", BASE:MASTER:체력 > cost/ 2 && BASE:MASTER:TSP > cost, "疲れた", 周回数 > 1)
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW ………
+		PRINTFORMW ……
+		PRINTFORMW …
+		PRINTFORMW 「んふー♪」
+		CALL RECOVER(MASTER,cost * -1,"체력")
+		CALL BUFF_BASE([[카게로]],BASE_기력,50,1)
+		CALL CHANGE_CFLAG(2,[[카게로]], 100)
+		周回数 ++
+	CASE 1
+		PRINTFORMW ………
+		PRINTFORMW ……
+		PRINTFORMW …
+		PRINTFORMW 「なんか短くない？　酔ってるせいかしら……」
+		CALL RECOVER(MASTER,cost * -1 / 2,"체력")
+		CALL RECOVER(MASTER,cost * -1,"TSP")
+		CALL BUFF_BASE([[카게로]],BASE_기력,30,1)
+		CALL CHANGE_CFLAG(2,[[카게로]], 30)
+		周回数 ++
+	CASE 2
+		finish = 1
+ENDSELECT
+IF !finish
+	SIF RAND:周回数 > RAND:5 || 周回数 >= 5
+		finish = 2
+ENDIF
+IF finish == 1
+	IF 周回数 < 3
+		PRINTFORML 「もう？　しょうがないわね……」
+		PRINTFORML 「あふ……　それじゃあ、おやすみなさい」
+	ELSE
+		PRINTFORML 「お疲れ様！楽しかったわ」
+		PRINTFORML 「おやすみなさい、また来るわね」
+		PRINTFORMW 카게로는 기분 좋게 돌아갔다
+		CALL CHANGE_CFLAG(2,[[카게로]], 300)
+		TALENT:[[카게로]]:기분 = 1
+		CFLAG:[[카게로]]:다음날내방 = 1
+	ENDIF
+	RETURN
+ELSEIF finish == 2
+	PRINTFORML 「………ぐぅ」
+	PRINTFORML 寝落ちしたようだ
+	CALL CHANGE_CFLAG(2,[[카게로]], 300)
+	;竹林以外が拠点なら泊まっていく
+	TALENT:[[카게로]]:기분 = 1
+	IF MAIN_MAP != 4
+		FLAG:일시체재 = [[카게로]]
+		CFLAG:[[카게로]]:본래의초기위치 = CFLAG:[[카게로]]:초기위치
+		CFLAG:[[카게로]]:초기위치 = CFLAG:MASTER:초기위치
+		CFLAG:[[카게로]]:신사거주 = CFLAG:[[카게로]]:초기위치
+	ENDIF
+	RETURN
+ENDIF
+PRINTFORMW 「もう一周して」
+GOTO LOOP

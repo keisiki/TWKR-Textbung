@@ -1,0 +1,81 @@
+﻿@EXIST_FreeAct13
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct13(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "저녁반주를 함께하기")
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	CALLF MAKE_INT(V_NAME, 0)
+ENDSELECT
+
+@자유행동내용_13(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;酒飲めるキャラが夜間に푹쉼장소にいる時
+		SIF TALENT:CHARA:술내성 < 0
+			RETURN 0
+		SIF !INRANGE(TIME, 1200, 1440) && !INRANGE(TIME, 0, 120)
+			RETURN 0
+		SIF !푹쉼장소(현위치)
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% \@ CHAIN ? %조사처리(CALLNAME:CHAIN,"과")% 행동을 같이하기 시작했다.# 술울 꺼내 저녁 반주를 시작했다.\@
+		RETURN 60 + RAND:30
+	CASE "행동중"
+		;ちょっとずつ酔う,酔いすぎるとSHIRAHUではなくなり중단されるので注意
+		BASE:CHARA:술기운 += TIME_PROGRESS(TIME:1) * (RAND:3 + 1) * (4 - TALENT:CHARA:술내성)
+		IF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR("お酒を飲んで微笑んでいる/じっくりとお酒を味わっている/ほろ酔い気分に浸っている/한가로이 술을 마시고 있다")%.
+		ENDIF
+	CASE "완료"
+		BASE:CHARA:술기운 += TIME_PROGRESS(TIME:1) * (RAND:3 + 1) * (4 - TALENT:CHARA:술내성)
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 저녁 반주를 마친 것 같다.
+	CASE "중단"
+		BASE:CHARA:술기운 += TIME_PROGRESS(TIME:1) * (RAND:3 + 1) * (4 - TALENT:CHARA:술내성)
+	CASE "같이한다"
+		;自由行動に付き合ったとき用メッセージ
+		PRINTFORML %조교자는% %타겟의% 저녁 반주를 함께하며 술잔을 나누었다
+		SELECTCASE TALENT:TARGET:술내성
+		CASE 0, 1
+			PRINTFORML 따뜻한 술과 함께 담소를 나눴다…
+		CASE 2
+			PRINTFORML 감칠맛나는 술에 가볍게 취했다…
+		CASEELSE
+			PRINTFORML 독한 술이었다…
+		ENDSELECT
+	CASE "소스"
+		;付き合うコマンド選択時の入手ソース、시간계수は付き合った時間の1/10
+		;相手の술내성によって飲む酒が変わる,ソースも相手の술내성依存,なお술내성マイナスは晩酌しない
+		DOWNBASE:MASTER:체력 += 20 * 시간계수
+		DOWNBASE:MASTER:기력 += 10 * 시간계수
+		CALL DRUNKEN(MASTER, MAX(50 + TALENT:TARGET:술내성, 51))
+		SOURCE:환락 = (150 + ((ABL:친밀 + TALENT:TARGET:술내성) * 50)) * 시간계수
+		SOURCE:수동 = (100 + ((ABL:순종 + TALENT:TARGET:술내성) * 50)) * 시간계수
+		SOURCE:정복 = (100 + ((ABL:새드끼 + TALENT:TARGET:술내성) * 50)) * 시간계수
+		TFLAG:98 = 1
+ENDSELECT

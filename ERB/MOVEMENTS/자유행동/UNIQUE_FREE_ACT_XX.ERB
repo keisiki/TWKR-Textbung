@@ -1,0 +1,48 @@
+﻿[SKIPSTART]
+@UNIQUE_FA_XX(CHARA, ARGS,시간계수)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+
+UNIQUE_FA_NAME:CHARA = ナントカする
+
+SELECTCASE ARGS
+	CASE "발생"
+		;在住キャラが自室にいる時
+		SIF !CFLAG:CHARA:신사거주
+			RETURN 0
+		SIF 현위치 != CFLAG:CHARA:신사거주
+			RETURN 0
+		SIF BASE:CHARA:기력 <= 500
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %CALLNAME:CHARA%はなにやらナントカし始めた。
+		;返し値は行動時間
+		RETURN 90
+	CASE "행동중"
+		IF 메시지표시
+			PRINTFORMW %CALLNAME:CHARA%はナントカしている
+		ENDIF
+	CASE "완료"
+		SIF 메시지표시
+			PRINTFORMW %CALLNAME:CHARA%はナントカを終えたようだ。
+	CASE "중단"
+		;중단メッセージはうふふ突入時等でも表示されてしまうので表示しない
+	CASE "같이한다"
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:CHARA%にナントカを尋ねた
+		IF TFLAG:193 < 0
+			PRINTFORML %CALLNAME:CHARA%は身体を強張らせ、ナントカしてしまった…
+		ELSE
+			PRINTFORML ナントカだったようだ…
+		ENDIF
+	CASE "소스"
+		DOWNBASE:MASTER:기력 += 20 * 시간계수
+		DOWNBASE:TARGET:기력 += 20 * 시간계수
+		SOURCE:환락 = (100 + ((ABL:친밀 + ABL:MASTER:화술기능) * 50)) * 시간계수
+		SOURCE:수동 = (60 + ((ABL:순종 + ABL:MASTER:화술기능) * 30)) * 시간계수
+ENDSELECT
+[SKIPEND]

@@ -1,0 +1,68 @@
+﻿;つまみ食い
+@EXIST_FreeAct3
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct3(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "함께 집어먹기")
+CASE "CHAIN"
+;他キャラに連鎖する場合コメントアウト外すこと
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;未入力だと最大30分
+	CALLF MAKE_INT(V_NAME, 경과시간)
+ENDSELECT
+
+@자유행동내용_3(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN	;連鎖主
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;요정および特定のキャラが空腹状態で집어먹기스팟にいる時
+		SIF !TALENT:CHARA:요정 && !GROUPMATCH(CHARA, [[루미아]], [[코이시]], [[유유코]], [[시온]])
+			RETURN 0
+		SIF !집어먹기스팟(현위치)
+			RETURN 0
+		SIF TIME_PROGRESS(TCVAR:CHARA:공복시각) <= 0
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% \@ CHAIN ? %조사처리(CALLNAME:CHAIN,"과")% 같이 집어먹기 시작했다.# 몰래 집어먹기 시작했다.\@
+		TCVAR:CHARA:공복시각 = 1440 * DAY + TIME + 120
+		RETURN 30 + RAND:30
+	CASE "행동중"
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 몰래 집어먹고 있다.
+		CALL 자유행동식사(CHARA)
+	CASE "완료"
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 집어먹기를 마치고 만족한 것 같다.
+		CALL 자유행동식사(CHARA)
+	CASE "중단"
+		CALL 자유행동식사(CHARA)
+	CASE "같이한다"
+		PRINTFORML %조교자는% %타겟의% 집어먹기에 가담했다
+		IF TFLAG:193 < 0
+			PRINTFORML 그렇게 배가 고프지는 않았다
+		ELSE
+			PRINTFORML 약간 배도 부르고, 스릴있게 즐길 수 있었다…
+		ENDIF
+	CASE "소스"
+		CALL FreeActMeal(TARGET, 시간계수)
+ENDSELECT

@@ -1,0 +1,89 @@
+﻿;遊ぶ
+@EXIST_FreeAct1
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct1(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+
+SELECTCASE O_DATA
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "함께 놀기")
+CASE "CHAIN"
+;他キャラに連鎖する場合コメントアウト外すこと
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;未入力だと最大30分
+;	CALLF MAKE_INT(V_NAME, 경과시간)
+ENDSELECT
+
+@자유행동내용_1(CHARA, ARGS, 시간계수)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;［유치］持ちが屋外にいる時
+		SIF !TALENT:CHARA:유치
+			RETURN 0
+		SIF !OUTROOF(현위치) && !전투훈련가능(현위치)
+			RETURN 0
+		SIF BASE:CHARA:기력 <= 500
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% \@ CHAIN ? %조사처리(CALLNAME:CHAIN,"과")% 같이 놀기 시작했다. # %NAME_FROM_PLACE(현위치)%에서 놀기 시작했다.\@
+		RETURN 60 + RAND:60
+	CASE "행동중"
+		IF 메시지표시 ;KR판 임의수정, 일판 (4.790) TEXTR의 @ 위치 불량이었음
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR(@"走り回っている/はしゃいでいる/잘 놀고 있다/%CALLNAME:MASTER%にちょっかいを出そうとしている")%。
+		ENDIF
+	CASE "완료"
+		SIF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 놀다 지쳤던 모양이다.
+	CASE "중단"
+		;中断メッセージはうふふ突入時等でも表示されてしまうので表示しない
+	CASE "같이한다"
+		PRINTFORML %조교자는% %타겟의% 놀이에 가담했다
+		IF TFLAG:193 > 0
+			PRINTFORML 크게 달아올랐다…
+		ELSEIF TFLAG:193 < 0
+			PRINTFORML 별로 흥이 나지 않았다…
+		ENDIF
+	CASE "소스"
+		DOWNBASE:MASTER:체력 += 40 * 시간계수
+		DOWNBASE:MASTER:기력 += 40 * 시간계수
+		DOWNBASE:TARGET:체력 += 20 * 시간계수
+		DOWNBASE:TARGET:기력 += 20 * 시간계수
+		SELECTCASE RAND:10
+		CASE 1
+			;10%で大成功
+			TFLAG:193 = 1
+			SOURCE:환락 = (200 + ((ABL:친밀 + 호감도계수(TARGET)) * 80)) * 시간계수
+			SOURCE:수동 = (120 + ((ABL:순종 + 호감도계수(TARGET)) * 80)) * 시간계수
+			SOURCE:정복 = (120 + (ABL:새드끼 * 120)) * 시간계수
+			TFLAG:98 = 2
+		CASE 2
+			;10%で失敗
+			TFLAG:193 = -1
+			SOURCE:환락 = (100 + ((ABL:친밀 + 호감도계수(TARGET)) * 30)) * 시간계수
+			SOURCE:수동 = (50 + ((ABL:순종 + 호감도계수(TARGET)) * 20)) * 시간계수
+			SOURCE:정복 = (50 + (ABL:새드끼 * 50)) * 시간계수
+		CASEELSE
+			SOURCE:환락 = (150 + ((ABL:친밀 + 호감도계수(TARGET)) * 50)) * 시간계수
+			SOURCE:수동 = (100 + ((ABL:순종 + 호감도계수(TARGET)) * 50)) * 시간계수
+			SOURCE:정복 = (100 + (ABL:새드끼 * 100)) * 시간계수
+			TFLAG:98 = 1
+		ENDSELECT
+ENDSELECT
