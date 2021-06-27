@@ -212,6 +212,8 @@ SELECTCASE 속성
         보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도") + 유도력) / 20, 0 , 10)
     CASE T_즉발탄
         보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 20, 0 , 5)
+    CASE T_버프기
+        ;처리없어-
 ENDSELECT
 
 판정 = 명중판정(MAX(명중률 + 보정, 0))
@@ -337,6 +339,8 @@ RETURN 1
 
 @T_COM스킬사용
 #DIM 스킬번호
+#DIM DYNAMIC 시전가부
+#DIM DYNAMIC 쿨타임
 
 CALL T_시스템처리(110)
 
@@ -345,6 +349,7 @@ T_시전자반대 = T_턴반대
 $스킬표시
 PRINTL 무엇을 쓸까?
 DRAWLINE
+PRINTL ┌[번호]─[스킬명]───────────────┬[쿨타임]┬[ＨＰ소모량]┬[ＴＳＰ소모량]─┬[최대사거리]┐
 FOR 스킬번호,1,T_스킬한계값
     ;IF HAVE_T_SKILL(T_턴주인, 스킬번호)
     IF IS_MEMORIZED(스킬번호)
@@ -353,7 +358,9 @@ FOR 스킬번호,1,T_스킬한계값
         IF RESULT == 자동형
             CONTINUE
         ENDIF
+        PRINT │
         CALL CAN_T_SKILL(T_턴주인, 스킬번호)
+        시전가부 = RESULT
         IF RESULT == 1
             CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
             SETCOLOR RESULT
@@ -362,25 +369,65 @@ FOR 스킬번호,1,T_스킬한계값
             SETCOLOR RESULT
         ENDIF
         CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
-        PRINTFORMLC [{스킬번호}] %RESULTS%
+        PRINTFORM [{스킬번호, 4, RIGHT}]　%RESULTS, 36, LEFT%  
         RESETCOLOR
+        PRINT │
+        IF 시전가부 == 1
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
+            SETCOLOR RESULT
+        ELSE
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전불가")
+            SETCOLOR RESULT
+        ENDIF
+        CALLFORM ONGOING_T_SKILL{스킬번호}(MASTER,"남은쿨타임")
+        쿨타임 = RESULT
+        IF RESULT > 0
+            쿨타임 *= -1
+        ELSE
+            ;쿨타임 0, 시전가능
+            CALLFORMF T_SKILL{스킬번호}("쿨타임")
+            쿨타임 = RESULT
+        ENDIF
+        PRINTFORM {쿨타임,8}
+        RESETCOLOR
+        PRINT │
         CALLFORMF T_SKILL{스킬번호}("HP코스트")
         IF RESULT > 0
             SETCOLOR C_RED
-            PRINTFORMLC  {RESULT}
+            PRINTFORM {RESULT, 12, LEFT}
             RESETCOLOR
+
+        ELSE
+            PRINTFORM 　　　　　　
         ENDIF
+        PRINT │
         CALLFORMF T_SKILL{스킬번호}("TSP코스트")
         IF RESULT > 0
             SETCOLOR 0x1111FF
-            PRINTFORMLC  {RESULT}
+            PRINTFORM {RESULT, 16, LEFT}
             RESETCOLOR
         ENDIF
-        PRINTL
+        PRINT │
+        IF 이동땜방코드TIDN(스킬번호)
+            IF 시전가부 == 1
+                CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
+                SETCOLOR RESULT
+            ELSE
+                CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전불가")
+                SETCOLOR RESULT
+            ENDIF
+            CALLFORMF T_SKILL{스킬번호}_RANGE("최대사거리")
+            PRINTFORM {RESULT,10,RIGHT}ｍ
+        ELSE
+            PRINT 　　　　　　
+        ENDIF
+        RESETCOLOR
+        PRINTL │
     ELSE
         ;스킬 소유하고 있지 않음
     ENDIF
 NEXT
+PRINTL └───────────────────────┴────┴──────┴────────┴──────┘
 PRINTL
 PRINTL [9998]설명
 PRINTL [9999]돌아간다
@@ -606,9 +653,13 @@ IF HAVE_T_SKILL(사용자, 스킬번호)
         RESULT = 0
 
         IF 이동땜방코드TIDN(스킬번호)
-            CALLFORMF T_SKILL{스킬번호}_RANGE("최대사거리")
-            IF RESULT < TB_거리()
-                RETURN 0
+            CALLFORMF T_SKILL{스킬번호}_RANGE("조준속성")
+            IF RESULT != T_버프기
+                RESULT = 0
+                CALLFORMF T_SKILL{스킬번호}_RANGE("최대사거리")
+                IF RESULT < TB_거리()
+                    RETURN 0
+                ENDIF
             ENDIF
             RESULT = 0
         ENDIF
