@@ -2,121 +2,67 @@
 @TSC_10
 #DIM CONST 참여인원 = 6
 #DIM DYNAMIC 참가자, 6
-#DIM DYNAMIC 강함
+#DIM DYNAMIC 강함, 300
+#DIM DYNAMIC 룰렛, 300
+#DIM DYNAMIC 포인터
+#DIM DYNAMIC 최약체
+#DIM DYNAMIC 최강자
 #DIM DYNAMIC 플레이어강함
 PRINTFORML 탄막놀이 축제에 참가할까?
 CALL ASK_YN
 IF RESULT
 	RETURN -1
 ELSE
-	LOCAL = MASTER
-	LOCAL:1 = 0
-	;1차 매칭
-	플레이어강함 = (ABL:LOCAL:전투능력 * 15) + (ABL:LOCAL:레벨 * 2) + (CFLAG:LOCAL:힘 + CFLAG:LOCAL:지성 + CFLAG:LOCAL:속도 + CFLAG:LOCAL:인내+ CFLAG:LOCAL:운)
-	FOR LOCAL, 1, CHARANUM
-		강함 = 0
+	VARSET 룰렛, -1
+	;우선 전투력 산정
+	FOR LOCAL, 0, CHARANUM
 		IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
-			강함 = (ABL:LOCAL:전투능력 * 15) + (ABL:LOCAL:레벨 * 2) + (CFLAG:LOCAL:힘 + CFLAG:LOCAL:지성 + CFLAG:LOCAL:속도 + CFLAG:LOCAL:인내+ CFLAG:LOCAL:운)
-			IF 강함 + 30 <= 플레이어강함 && 강함 - 40 >= 플레이어강함
-				참가자:(LOCAL:1) = LOCAL
-				LOCAL:1 ++
-			ENDIF
-		ENDIF
-		IF LOCAL:1 >= 참여인원
-			GOTO 탄막축제시작
+			강함:LOCAL = (ABL:LOCAL:전투능력 * 20) + (ABL:LOCAL:레벨 * 3) + (CFLAG:LOCAL:힘 + CFLAG:LOCAL:지성 + CFLAG:LOCAL:속도 + CFLAG:LOCAL:인내+ CFLAG:LOCAL:운) + 1
+			룰렛:LOCAL = LOCAL
+		ELSE
+			강함:LOCAL = 0
+			룰렛:LOCAL = -1
 		ENDIF
 	NEXT
-	;2차 매칭
-	IF LOCAL:1 < 참여인원
-		FOR LOCAL, 1, CHARANUM
-			FOR LOCAL:2 , 0 , 참여인원
-				IF 참가자:(LOCAL:2) == LOCAL
-					CONTINUE
+	;약한순서대로 세팅된다
+	ARRAYMSORT 강함, 룰렛
+	FINDLASTELEMENT 강함, 0, 0, 300
+	최약체 = RESULT
+	FINDELEMENT 룰렛, 0, 0, 300
+	IF RESULT != -1
+		포인터 = RESULT
+		IF 최약체 + (참여인원/2) > 포인터
+			;마스터가 상위 50% 미만
+			FOR LOCAL,0,5
+				포인터++
+				IF 최약체 + (참여인원/2) <= 포인터
+					BREAK
 				ENDIF
 			NEXT
-			강함 = 0
-			IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
-				강함 = (ABL:LOCAL:전투능력 * 15) + (ABL:LOCAL:레벨 * 2) + (CFLAG:LOCAL:힘 + CFLAG:LOCAL:지성 + CFLAG:LOCAL:속도 + CFLAG:LOCAL:인내+ CFLAG:LOCAL:운)
-				IF 강함 + 90 <= 플레이어강함 && 강함 - 120 >= 플레이어강함
-					참가자:(LOCAL:1) = LOCAL
-					LOCAL:1 ++
-				ENDIF
-			ENDIF
-			IF LOCAL:1 >= 참여인원
-				GOTO 탄막축제시작
-			ENDIF
-		NEXT
-	ENDIF
-	;3차 매칭
-	IF LOCAL:1 < 참여인원
-		FOR LOCAL, 1, CHARANUM
-			FOR LOCAL:2 , 0 , 참여인원
-				IF 참가자:(LOCAL:2) == LOCAL
-					CONTINUE
-				ENDIF
-			NEXT
-			강함 = 0
-			IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
-				강함 = (ABL:LOCAL:전투능력 * 15) + (ABL:LOCAL:레벨 * 2) + (CFLAG:LOCAL:힘 + CFLAG:LOCAL:지성 + CFLAG:LOCAL:속도 + CFLAG:LOCAL:인내+ CFLAG:LOCAL:운)
-				IF 강함 + 150 <= 플레이어강함 && 강함 - 150 >= 플레이어강함
-					참가자:(LOCAL:1) = LOCAL
-					LOCAL:1 ++
-				ENDIF
-			ENDIF
-			IF LOCAL:1 >= 참여인원
-				GOTO 탄막축제시작
-			ENDIF
-		NEXT
-	ENDIF
-	;4차 매칭
-	IF LOCAL:1 < 참여인원
-		FOR LOCAL, 1, CHARANUM
-			FOR LOCAL:2 , 0 , 참여인원
-				IF 참가자:(LOCAL:2) == LOCAL
-					CONTINUE
-				ENDIF
-			NEXT
-			강함 = 0
-			IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
-				강함 = (ABL:LOCAL:전투능력 * 15) + (ABL:LOCAL:레벨 * 2) + (CFLAG:LOCAL:힘 + CFLAG:LOCAL:지성 + CFLAG:LOCAL:속도 + CFLAG:LOCAL:인내+ CFLAG:LOCAL:운)
-				IF 강함 + 350 <= 플레이어강함 && 강함 - 350 >= 플레이어강함
-					참가자:(LOCAL:1) = LOCAL
-					LOCAL:1 ++
-				ENDIF
-			ENDIF
-			IF LOCAL:1 >= 참여인원
-				GOTO 탄막축제시작
-			ENDIF
-		NEXT
-	ENDIF
-	;5차 매칭
-	IF LOCAL:1 < 참여인원
-		FOR LOCAL, 1, CHARANUM
-			FOR LOCAL:2 , 0 , 참여인원
-				IF 참가자:(LOCAL:2) == LOCAL
-					CONTINUE
-				ENDIF
-			NEXT
-			IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치
-				참가자:(LOCAL:1) = LOCAL
+		ENDIF
+		참가자:0 = MASTER
+		FOR LOCAL,1,참여인원/2
+			
+			IF 강함:(포인터 - LOCAL) > 0 && 룰렛:(포인터 - LOCAL) != MASTER
+				참가자:LOCAL = 룰렛:(포인터 - LOCAL)
 				LOCAL:1 ++
 			ENDIF
-			IF LOCAL:1 >= 참여인원
-				GOTO 탄막축제시작
+			IF LOCAL != 참여인원/2
+				IF 강함:(포인터 + LOCAL) > 0&&룰렛:(포인터 + LOCAL) != MASTER
+					참가자:(참여인원 - LOCAL) = 룰렛:(포인터 + LOCAL)
+					LOCAL:1 ++
+				ENDIF
 			ENDIF
 		NEXT
-	ENDIF
-	IF LOCAL:1 < 참여인원 / 2
-		PRINTFORML ...그러나 축제를 벌이기엔 참여자가 너무 적었다
 	ENDIF
 ENDIF
 
 $탄막축제시작
 PRINTFORML
 탄막놀이축제진행중 = 1
-FOR LOCAL,0,LOCAL:1
+FOR LOCAL,1,LOCAL:1
 	TARGET = (참가자:LOCAL)
-	PRINTFORML 제 {LOCAL + 1}번째 참가자는 %CALLNAME:TARGET%!!!
+	PRINTFORML 제 {LOCAL}번째 참가자는 %CALLNAME:TARGET%!!!
 	PRINTFORML
 	CALL 뉴탄막전투(MASTER,TARGET,0)
 	TIME += 20
