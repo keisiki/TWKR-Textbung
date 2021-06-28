@@ -1,0 +1,435 @@
+﻿@CHARAMOVE_DATA_43(ARG,ARG:2)
+LOCAL = 43
+SELECTCASE ARG
+	;이동 대상 멤버 체크
+	CASE 1
+	;이동 확률
+	CASE 2
+	;기상시간대
+	CASE 3
+		RETURN 수면시간(LOCAL)
+	;이동 경향
+	CASE 4
+		SELECTCASE ARG:2
+			;하천 하우스 위층
+			CASE 724 TO 728
+				;7~17시는 피하는, 그 이외도 그다지 가지 않는다
+				;※카센은 일로 도장에 가므로 탈출은 간단
+				IF BETWEENTIME(420,1020)
+					RETURN -10
+				ELSE
+					RETURN -5
+				ENDIF
+			;밖으로 나오기 쉽게 저택내는 피한다
+			CASE 720 TO 723
+				RETURN -10
+			CASE 729, 730
+				RETURN -5
+			;각 개인방
+			CASE 704, 706, 709, 715 TO 719, 733, 734
+				RETURN -100
+		ENDSELECT
+	;일시간대
+	CASE 5
+	;가는 지역(0=박1=사2=리3=호4=죽5=삼6=명7=산8=수9=지10=월)
+	CASE 6
+		SELECTCASE ARG:2
+			CASE 0, 2, 7, 8
+				RETURN 1
+			CASEELSE
+				RETURN 0
+		ENDSELECT
+	;출현 장소
+	CASE 7
+		SELECTCASE ARG:2
+			CASE 1,2,4, 21,22,23, 71,72,73,75, 81,82,83,84
+				RETURN 1
+			CASEELSE
+				RETURN 0
+		ENDSELECT
+ENDSELECT
+
+@EXIST_캐릭터데이터43
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+@캐릭터데이터43(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "통칭"
+	CALLF MAKE_STR(V_NAME, "카센")
+;여기서부터 의상 설정
+CASE "오늘의 파자마"
+	CALLF MAKE_STR(V_NAME, "파자마(주반) 세트")
+
+CASE "평상복：모자"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("모자", "올림머리망"))
+CASE "평상복：신발"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("신발", "신발"))
+CASE "평상복：양말"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("양말", "양말"))
+CASE "평상복：원피스"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("원피스", "도사옷"))
+CASE "평상복：치마"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("치마", "치마"))
+CASE "평상복：그외1"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("그외1", "붕대"))
+CASE "평상복：그외2"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("그외2", "구속도구"))
+
+CASE "고유 속옷 형용사"
+	CALLF MAKE_STR(V_NAME, "파스텔 핑크의")
+CASE "고유 하반신속옷명"
+	CALLF MAKE_STR(V_NAME, "플레어 쇼츠")
+CASE "고유 상반신속옷"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "고유 상반신속옷명"
+	CALLF MAKE_STR(V_NAME, "플레어 브라")
+CASE "고유 속옷 착용 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "고유 속옷 비쳐보이는(앞)"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "고유 속옷 비쳐보이는(뒤)"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "고유 속옷 옷감 두께"
+	CALLF MAKE_INT(V_NAME, 2)
+
+;요리 관련
+CASE "요리：좋아하는 맛"
+	CALLF MAKE_STR(V_NAME, "고기 요리/쌀/중화/튀겨짐/안주/푸짐/농후/품위있는/선명한/호쾌/쫄깃한/선술/지저풍/지옥풍/단/단/짠/짠/")
+CASE "요리：싫어하는 맛"
+	CALLF MAKE_STR(V_NAME, "담백/시큼한/시큼한/명계풍/명계풍/명계풍/" + "수수께끼 요리/소인족 비전의 맛/" * 5)
+CASE "요리：조수 효과"
+	CALLF MAKE_STR(V_NAME, "진한 맛/특기요리＊중화＊/")
+;선물 관련
+CASE "감성：좋아함"
+	CALLF MAKE_STR(V_NAME, "빨강빛/질서/아름다운/대륙풍/지적/" + "동물/식기/생체품/사슬의/환수의/드래곤의/술/" * 3 + "오니의/용의/선인의/귀력의/가시밭의/꽃의/" * 5)
+CASE "감성：싫어함"
+	CALLF MAKE_STR(V_NAME, "혼돈/팝/로리타/" + "기계/" * 3 + "갓파의/텐구의/" * 10)
+
+;특수 의상 설정, 집 데이트에서 드물게 무녀 카센
+CASE "집 데이트 의상"
+	SIF MAIN_MAP == 0 && !RAND:15
+		CALLF MAKE_INT(V_NAME, 101)
+ENDSELECT
+
+;IMAGE_I43_特殊服装(CHARA)-------------------------------------------------------------------
+;キャラクター特有の服装表示条件
+;エフェクトを共有する服装差分はこちらで指定する
+;使用時注意点:
+;	RESULTSに特殊服装を格納すること
+;	書式は %服装%%特殊服装% 適宜"_"等入れること
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_特殊服装(CHARA)
+#DIM CHARA
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF CHECK_NUDE(CHARA)
+		;裸
+		IF FLAG:스탠딩종류
+			;顔絵
+		ELSE
+			;立ち絵
+		ENDIF
+	ELSE
+		;服
+		IF FLAG:스탠딩종류
+			;顔絵
+		ELSE
+			;立ち絵
+		ENDIF
+	ENDIF
+ELSE
+	;通常画像
+	IF CHECK_NUDE(CHARA)
+		;裸
+		IF FLAG:스탠딩종류
+			;顔絵
+		ELSE
+			;立ち絵
+		ENDIF
+	ELSE
+		;服
+		IF FLAG:스탠딩종류
+			;顔絵
+		ELSE
+			;立ち絵
+		ENDIF
+	ENDIF
+ENDIF
+
+;IMAGE_I43_体形(CHARA)-----------------------------------------------------------------------
+;キャラクター特有の体形表示条件
+;エフェクトを共有する体形差分はこちら
+;服装を指定しても自動で表示されるので注意
+;使用時注意点:
+;	RESULTSに体形を格納すること
+;	書式は %体形%%服装% 適宜"_"等入れること
+;	"巨乳"は本編で実装済み %体形%巨乳%服装% で追記可能
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_体形(CHARA)
+#DIM CHARA
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+;IMAGE_I43_特殊表情(CHARA)--------------------------------------------------------------------
+;キャラクター特有の表情表示条件
+;時間停止中でも維持する表情はこちら
+;使用時注意点:
+;	RESULTS:0に表情を格納
+;	RESULTS:1にマウスオーバー時の表情を格納すること
+;	"通常","笑顔","怒り","発情","睡眠"は本編で実装済み
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_特殊表情(CHARA)
+#DIM CHARA
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+;IMAGE_I43_特殊表情COM(CHARA, コマンド)-------------------------------------------------------
+;直前のコマンドで変化するキャラクター特有の表情表示条件
+;時間停止中は変化しない表情はこちら
+;使用時注意点:
+;	RESULTS:0に表情を格納
+;	RESULTS:1にマウスオーバー時の表情を格納すること
+;	"オナニー","愛撫","性交"は本編で実装済み
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_特殊表情COM(CHARA, コマンド)
+#DIM CHARA
+#DIM コマンド
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+;IMAGE_I43_差分(CHARA)-----------------------------------------------------------------------
+;キャラクター特有の差分表示条件
+;裸やエフェクトを共有しない画像はこちら
+;使用時注意点:
+;	RESULTSに差分を格納すること
+;	書式は {CHARA}%差分% 適宜"_"等入れること
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_差分(CHARA)
+#DIM CHARA
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+;IMAGE_I43_特殊照れ(CHARA)--------------------------------------------------------------------
+;キャラクター特有の照れエフェクト表示条件
+;使用時注意点:
+;	RESULTSに特殊照れを格納すること
+;	書式は %特殊照れ%照れ
+;	"裸"は本編で実装済み %特殊照れ%裸照れ で追記可能
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_特殊照れ(CHARA)
+#DIM CHARA
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+;IMAGE_I43_特殊吐息(CHARA)--------------------------------------------------------------------
+;キャラクター特有の吐息エフェクト表示条件
+;使用時注意点:
+;	RESULTSに特殊吐息を格納すること
+;	書式は %特殊吐息%吐息
+;	"裸"は本編で実装済み %特殊吐息%裸吐息 で追記可能
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_特殊吐息(CHARA)
+#DIM CHARA
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+;IMAGE_I43_特殊汗(CHARA)--------------------------------------------------------------------
+;キャラクター特有の汗エフェクト表示条件
+;使用時注意点:
+;	RESULTSに特殊汗を格納すること
+;	書式は %特殊汗%汗
+;	"裸"は本編で実装済み %特殊汗%裸汗 で追記可能
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_特殊汗(CHARA)
+#DIM CHARA
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+;IMAGE_I43_特殊エフェクトチェック(CHAR, エフェクト)--------------------------------------------
+;キャラクター特有のエフェクト判定  特殊エフェクトを直接指定したい場合に参照
+;引数 "エフェクト" に固有のエフェクトが含まれるかを判定する
+;例の通り、STRFINDを使用してください
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_特殊エフェクトチェック(CHARA, エフェクト)
+#DIM CHARA
+#DIMS エフェクト
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+ELSE
+	;通常画像
+	SIF STRFIND(エフェクト, "母乳") != -1
+		RETURN 1
+ENDIF
+
+RETURN 0
+
+;IMAGE_I43_特殊エフェクト(CHARA)--------------------------------------------------------------------
+;キャラクター特有のエフェクト表示条件
+;使用時注意点:
+;	RESULTS配列に特殊エフェクトを格納
+;	RETURNで追加するエフェクト数を返却すること
+;-------------------------------------------------------------------------------------------
+@IMAGE_I43_特殊エフェクト(CHARA)
+#DIM CHARA
+#DIM DYNAMIC エフェクト数 = 0
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+		IF TALENT:CHARA:모유체질 && NOWEX:CHARA:분유 && CHECK_NUDE(CHARA)
+			RESULTS:エフェクト数 = 母乳
+			エフェクト数 += 1
+		ENDIF
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+RETURN エフェクト数
+
+;IMAGE_I43_自慰エフェクト(CHARA)--------------------------------------------------------------------
+;キャラクター特有の自慰エフェクト表示条件
+@IMAGE_I43_自慰エフェクト(CHARA)
+#DIM CHARA
+#DIM DYNAMIC エフェクト数 = 0
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+RETURN エフェクト数
+;********************************************************************************************
