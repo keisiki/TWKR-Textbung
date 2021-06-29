@@ -68,8 +68,8 @@ RETURNF RESULT
 스킬명 = 데몬 로드 애로우
 속성 = 물리
 ;계수는 없다면 없음, 아니라면 그냥 평문
-계수:0 = 없음
-계수:1 = 없음
+계수:0 = 40 * 속도
+계수:1 = 150
 계수:2 = 없음
 계수:3 = 없음
 계수:4 = 없음
@@ -172,8 +172,9 @@ CALLF T_SKILL382("TSP코스트")
 SIF RESULT > 0&&T_시전자 == MASTER
     BASE:T_시전자:TSP -= RESULT
 PRINTFORML 순간적으로 뒤로 몸을 피한 %T_시전자가% 그 반동으로 %T_시전자반대에게% 날아든다!
+CALL TB_돌진(T_시전자,T_시전자반대,-5,T_SKILL382_RANGE("최대사거리"))
 CALL 통합버프(T_시전자,TCV_회피,382,45,1)
-IF 명중판정(명중률)
+IF 스킬명중판정(명중률,382) && TB_거리() <= T_SKILL382_RANGE("최대사거리")
     ;명중!
     ;----------------
     ;대사는 이쪽
@@ -185,7 +186,7 @@ IF 명중판정(명중률)
 
     피해량 = T_SKILL382("공격력")
     속성 '= T_SKILL382_STR("속성")
-    CALL T_데미지스택(T_턴반대, 피해량, 속성)
+    CALL T_데미지스택(T_시전자반대, 피해량, 속성)
     CALL ONGOING_T_SKILL382(사용자, "지속시간설정")
     RETURN 1
 ELSE
@@ -225,3 +226,31 @@ RETURN 0
 ;FUCTION으로 고치면 안됨, 2인경우 침묵 무시, 0인 경우 영향없음
 RETURN 0
 
+@T_SKILL382_RANGE(ARGS)
+#FUNCTION
+#DIM DYNAMIC 최대사거리
+#DIM DYNAMIC 최적사거리
+#DIM DYNAMIC 범위변동단위
+#DIM DYNAMIC 조준속성
+#DIM DYNAMIC 유도력
+;-------------------
+;성능 입력
+;-------------------
+최대사거리 = 40; 스킬이 닿는 최대 거리
+최적사거리 = 1; 명중률 +10% 가 붙는 거리
+범위변동단위 = 1; 몇 m마다 명중률이 1단위 변할지, 최적사거리에 이 값이 5번 더해질때 최악의 보정값(-20)이 된다
+조준속성 = T_즉발탄;T_근거리/T_고정탄/T_조준탄/T_유도탄/T_즉발탄/T_버프기
+유도력 = 0;유도 타입 스킬이 적과의 속도차이를 무시하는 정도, '유도'타입이 아니면 무시해도 됨
+SELECTCASE ARGS
+CASE "최대사거리"
+    RESULT = 최대사거리
+CASE "최적사거리"
+    RESULT = 최적사거리
+CASE "범위변동단위"
+    RESULT = 범위변동단위
+CASE "조준속성"
+    RESULT = 조준속성
+CASE "유도력"
+    RESULT = 유도력
+ENDSELECT
+RETURNF RESULT
