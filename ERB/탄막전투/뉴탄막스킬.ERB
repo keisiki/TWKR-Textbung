@@ -149,6 +149,22 @@ RETURNF 명중판정(MAX(ARG + 보정, 0))
 #DIM DYNAMIC 속성
 #DIM DYNAMIC 유도력
 #DIM DYNAMIC 판정
+#DIM DYNAMIC 상대속도
+
+상대속도 = ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")
+IF TB_SUM_REMAIN(T_시전자반대,TCV_속박)
+    상대속도 += ARG능력치(T_시전자반대,"속도")/2
+ENDIF
+IF TB_SUM_REMAIN(T_시전자,TCV_속박)
+    상대속도 -= ARG능력치(T_시전자,"속도")/2
+ENDIF
+IF TB_SUM_REMAIN(T_시전자반대,TCV_봉쇄)
+    상대속도 += ARG능력치(T_시전자반대,"속도")/2
+ENDIF
+IF TB_SUM_REMAIN(T_시전자,TCV_봉쇄)
+    상대속도 -= ARG능력치(T_시전자,"속도")/2
+ENDIF
+
 
 IF 추가인수 == 0
     CALLFORMF T_SKILL{스킬번호}_RANGE("최적사거리")
@@ -175,7 +191,7 @@ ELSE
 ENDIF
 SELECTCASE 속성
     CASE T_근거리
-        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 20, 0 , 5)
+        보정 += LIMIT(상대속도 / 20, 0 , 5)
     CASE T_고정탄
         SELECTCASE TB_거리()
             CASE IS < 최적사거리 - (5 * 사거리범위)
@@ -203,7 +219,7 @@ SELECTCASE 속성
             CASE IS > 최대사거리 ;불가능하지만 뭐
                 보정 -= 30
         ENDSELECT
-        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 20, 0 , 5)
+        보정 += LIMIT(상대속도 / 20, 0 , 5)
     CASE T_조준탄
         SELECTCASE TB_거리()
             CASE IS < 최적사거리 - (5 * 사거리범위)
@@ -231,7 +247,7 @@ SELECTCASE 속성
             CASE IS > 최대사거리 ;불가능하지만 뭐
                 보정 -= 30
         ENDSELECT
-        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 10 , 0 , 15)
+        보정 += LIMIT(상대속도 / 10 , 0 , 15)
     CASE T_유도탄
         SELECTCASE TB_거리()
             CASE IS < 최적사거리 - (5 * 사거리범위)
@@ -259,9 +275,9 @@ SELECTCASE 속성
             CASE IS > 최대사거리 ;불가능하지만 뭐
                 보정 -= 30 - (유도력/5)
         ENDSELECT
-        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도") + 유도력) / 20, 0 , 10)
+        보정 += LIMIT((상대속도 + 유도력) / 20, 0 , 10)
     CASE T_즉발탄
-        보정 += LIMIT((ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")) / 20, 0 , 5)
+        보정 += LIMIT(상대속도 / 20, 0 , 5)
     CASE T_버프기
         ;처리없어-
 ENDSELECT
@@ -458,6 +474,8 @@ FOR 스킬번호,1,T_스킬한계값
             SETCOLOR 0x1111FF
             PRINTFORM {RESULT, 16, LEFT}
             RESETCOLOR
+        ELSE
+            PRINTFORM 　　　　　　　　
         ENDIF
         PRINT │
         IF 이동땜방코드TIDN(스킬번호)
@@ -721,6 +739,16 @@ IF HAVE_T_SKILL(사용자, 스킬번호)
             ENDIF
             RESULT = 0
         ENDIF
+        TRYCALLFORM SKILLTYPE_MOVE{스킬번호}
+        IF RESULT
+            IF !T_MOVEABLE(사용자) && RESULT == 2
+                RETURN 0
+            ENDIF
+            IF !T_TPABLE(사용자) && RESULT == 3
+                RETURN 0
+            ENDIF
+        ENDIF
+        RESULT = 0
 
         RETURN 1
     ELSE
