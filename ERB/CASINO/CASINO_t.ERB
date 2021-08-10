@@ -39,12 +39,15 @@ PRINTFORML
 PRINTFORML [0] - 돌아간다
 PRINTFORML [9] - 설명
 PRINTFORML [8] - 카리스마 거래
+PRINTFORML [10] - 홍마 가챠
 DO
 	INPUT
 	;휴업중은 게임계는 닫히고 있다
 	SIF FUNC_CASINO("CLOSE_CASINO") && INRANGE(RESULT, 1, 6)
 		GOTO RETRY
 	SELECTCASE RESULT
+	CASE 10
+		CALL 홍마가챠
 	CASE 9
 		CALL CASINO_CHECK_EVENT("HELP")
 	CASE 8
@@ -80,6 +83,135 @@ SIF !EXIT
 	RESTART
 CALL CASINO_CHECK_EVENT("EXIT")
 
+@홍마가챠
+#DIM DYNAMIC 가챠력
+
+$표시루프
+PRINTL
+PRINTL
+PRINTFORML ※레드 데빌 추첨기※
+PRINTFORML 카리스마와 약간의 수수료를 넣어주시면 추첨을 통해 상품을 드립니다
+PRINTFORML 잔액 : {MONEY}￦  카리스마 : {MONEY:2}
+PRINTL
+PRINTFORMLC [0] 그만둔다
+PRINTFORMLC [1] 1 카리스마와 500원
+PRINTFORMLC [2] 10 카리스마와 5000원
+PRINTL
+PRINTFORMLC [3] 50 카리스마와 25000원
+PRINTFORMLC [4] 100 카리스마와 50000원
+PRINTFORMLC [5] 500 카리스마와 250000원
+$LOOP
+INPUT
+IF RESULT == 0
+	RETURN
+ELSEIF RESULT == 1
+	IF !MONEY:2 || MONEY < 500
+		PRINTFORML 잔액이 부족합니다
+		GOTO 표시루프
+	ELSE
+		가챠력 = 1
+		MONEY -= 500
+		MONEY:2 -= 1
+	ENDIF
+ELSEIF RESULT == 2
+	IF MONEY:2 < 5|| MONEY < 5000
+		PRINTFORML 잔액이 부족합니다
+		GOTO 표시루프
+	ELSE
+		가챠력 = 10
+		MONEY -= 5000
+		MONEY:2 -= 10
+	ENDIF
+ELSEIF RESULT == 3
+	IF MONEY:2 < 50|| MONEY < 25000
+		PRINTFORML 잔액이 부족합니다
+		GOTO 표시루프
+	ELSE
+		가챠력 = 15
+		MONEY -= 25000
+		MONEY:2 -= 50
+	ENDIF
+ELSEIF RESULT == 4
+	IF MONEY:2 < 100|| MONEY < 50000
+		PRINTFORML 잔액이 부족합니다
+		GOTO 표시루프
+	ELSE
+		가챠력 = 30
+		MONEY -= 50000
+		MONEY:2 -= 100
+	ENDIF
+ELSEIF RESULT == 5
+	IF MONEY:2 < 500|| MONEY < 250000
+		PRINTFORML 잔액이 부족합니다
+		GOTO 표시루프
+	ELSE
+		가챠력 = 50
+		MONEY -= 250000
+		MONEY:2 -= 500
+	ENDIF
+ELSE
+	GOTO LOOP
+ENDIF
+
+;돌려돌려 돌림판
+LOCAL = RAND:500 + 가챠력
+PRINTFORM 돌
+TWAIT 550,1
+CLEARLINE 1
+PRINTFORM 돌려
+TWAIT 550,1
+CLEARLINE 1
+PRINTFORM 돌려돌
+TWAIT 550,1
+CLEARLINE 1
+PRINTFORM 돌려돌려
+TWAIT 550,1
+CLEARLINE 1
+PRINTFORM 돌려돌려~
+TWAIT 1500,1
+CLEARLINE 1
+PRINTFORM 돌려돌려~ 돌
+TWAIT 350,1
+CLEARLINE 1
+PRINTFORM 돌려돌려~ 돌림
+TWAIT 350,1
+CLEARLINE 1
+PRINTFORM 돌려돌려~ 돌림판
+TWAIT 350,1
+CLEARLINE 1
+PRINTFORM 돌려돌려~ 돌림판!
+TWAIT 750,1
+PRINTFORML
+
+IF LOCAL < 250
+	PRINTFORML 5등상에 당첨!
+	PRINTFORML 500원을 받았다!
+	MONEY += 500
+ELSEIF LOCAL < 375
+	PRINTFORML 4등상에 당첨!
+	PRINTFORML 녹즙 1개를 받았다!
+	ITEM:녹즙++
+ELSEIF LOCAL < 450
+	PRINTFORML 3등상에 당첨!
+	PRINTFORML 와인 2병을 받았다!
+	ITEM:와인 += 2
+ELSEIF LOCAL < 500
+	PRINTFORML 2등상에 당첨!
+	PRINTFORML 스피리터스 5병을 받았다!
+	ITEM:스피리터스 += 5
+ELSEIF LOCAL < 525
+	PRINTFORML 1등상에 당첨!
+	PRINTFORML 홍마 자유이용권 1장을 받았다!
+ELSEIF LOCAL < 549
+	PRINTFORML 특등상에 당첨!
+	PRINTFORML 홍마 자유이용권 5장을 받았다!
+	ITEM:홍마자유이용권 += 5
+ELSEIF LOCAL <= 550
+	PRINTFORML 초 특등상에 당첨!
+	PRINTFORML 홍마 자유이용권 15장을 받았다!
+	ITEM:홍마자유이용권 += 15
+ENDIF
+PRINTL
 
 
 ;카지노계 이벤트의 독자 함수화
@@ -1790,7 +1922,9 @@ IF FLAG:것지수 >= 10000 && FLAG:회원랭크 < 3
 	CALL COLORMESSAGE("골드 카리스마 회원", C_YELLOW)
 	PRINTFORML 이 되어, 새로운 카리스마 보유 상한의 상승과 카리스마의 매각 수수료의 인하가 적용됩니다」
 	PRINTFORMW 「앞으로도 잘 봐주시길 부탁드립니다」
+	PRINTFORMW 「덤으로 홍마 자유이용권 한 장도 같이 드리니, 모쪼록 이용해주시길 바랍니다」
 	FLAG:회원랭크 = 3
+	ITEM:홍마자유이용권 ++
 	CM_COMMISSION = 20
 	CM_LIMIT = 3000
 	FLAG:것지수 = 0
