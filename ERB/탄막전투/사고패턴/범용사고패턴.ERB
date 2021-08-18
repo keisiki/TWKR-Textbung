@@ -1,4 +1,106 @@
 ﻿
+[SKIPSTART]
+;=====================
+;행동패턴 0, 템플릿
+; 올 랜덤 의사결정, 제일 멍청한 수준
+;=====================
+
+@범용사고패턴{번호}(ARG)
+#DIM DYNAMIC 스킬번호
+#DIM 스킬타입, 2 ;0: 선택된 스킬타입 bit값(이진수), 1:선택 과정에서 랜덤으로 결정한 값(십진수)
+;ARG = 행동자
+WHILE 행동기회여부(ARG,T_통상행동)||행동기회여부(ARG,T_이동행동)
+    IF 행동기회여부(ARG,T_통상행동)
+        IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/10)&&RAND:4 == 0
+            IF 항복불가 == 0
+                CALL T_항복(ARG)
+                BREAK
+            ELSEIF ARG능력치(ARG,"속도") + ARG능력치(ARG,"운") + RAND:10 >= ARG반대능력치(ARG,"속도") + ARG반대능력치(ARG,"운")
+                CALL T_COM도망간다(ARG)
+                BREAK
+            ENDIF
+        ENDIF
+        ;스킬시전
+        VARSET 스킬타입
+        ;올랜덤은 타입 선정이 필요없지만 템플릿용으로 적어둠
+        ;공격형 = bit 1, 방어형 = bit 2, 회복형 = bit 3, 상태이상형 = bit 4, 버프형 = bit 5, 해주형 = BIT 6
+        IF (TB_SUM_REMAIN(ARG,TCV_저주) > 0&&RAND:2 == 0)||(TB_SUM_REMAIN(ARG,TCV_출혈) > 0&&RAND:5 == 0)||(TB_SUM_REMAIN(ARG,TCV_독) > 0&&RAND:10 == 0)
+            IF 소지스킬타입:5 == 1
+                스킬타입:1 = 6
+                SELECTCASE 스킬타입:1
+                    CASE 0
+                        ;모두
+                        스킬타입 = 공격형 + 방어형 + 회복형 + 상태이상형 + 버프형
+                    CASE 1, 2, 3, 4, 5, 6
+                        SETBIT 스킬타입, 스킬타입:1
+                ENDSELECT
+                CALL RANDOM_PICK_T_SKILL(ARG, 스킬타입)
+                ;LOCAL = 선택 가능한 스킬 수
+                LOCAL = VARSIZE("SKILL_ARRAY") - MATCH(SKILL_ARRAY, 0)
+                SIF RESULT == 0 && !LOCAL ;선택 가능한 스킬이 없음
+                    CONTINUE
+                스킬번호 = RAND:LOCAL
+                CALL CAST_SPELL(ARG, SKILL_ARRAY:스킬번호)
+                BREAK
+            ENDIF
+        ENDIF
+        
+        SELECTCASE RAND:10
+            CASE 0 TO 4
+                ;통상공격
+                CALL T_COM공격한다
+                BREAK
+            CASE 5
+                ;회피행동
+                IF 1
+                    CALL T_COM회피한다(ARG)
+                    BREAK
+                ENDIF
+            CASE 6 TO 9
+                ;스킬시전
+                VARSET 스킬타입
+                ;올랜덤은 타입 선정이 필요없지만 템플릿용으로 적어둠
+                ;공격형 = bit 1, 방어형 = bit 2, 회복형 = bit 3, 상태이상형 = bit 4, 버프형 = bit 5, 해주형 = BIT 6
+                스킬타입:1 = RAND:6
+                SELECTCASE 스킬타입:1
+                    CASE 0
+                        ;모두
+                        스킬타입 = 공격형 + 방어형 + 회복형 + 상태이상형 + 버프형
+                    CASE 1, 2, 3, 4, 5, 6
+                        SETBIT 스킬타입, 스킬타입:1
+                ENDSELECT
+                CALL RANDOM_PICK_T_SKILL(ARG, 스킬타입)
+                ;LOCAL = 선택 가능한 스킬 수
+                LOCAL = VARSIZE("SKILL_ARRAY") - MATCH(SKILL_ARRAY, 0)
+                SIF RESULT == 0 && !LOCAL ;선택 가능한 스킬이 없음
+                    CONTINUE
+                스킬번호 = RAND:LOCAL
+                CALL CAST_SPELL(ARG, SKILL_ARRAY:스킬번호)
+                BREAK
+        ENDSELECT
+    ELSE
+        SELECTCASE RAND:3
+            CASE 0
+                IF T_MOVEABLE(ARG)
+                    CALL T_MOVE(ARG,-1)
+                ELSE
+                    CALL T_COM턴넘김
+                ENDIF
+            CASE 1
+                IF T_MOVEABLE(ARG)
+                    CALL T_MOVE(ARG,1)
+                ELSE
+                    CALL T_COM턴넘김
+                ENDIF
+            CASE 2
+                CALL T_COM턴넘김
+        ENDSELECT
+        BREAK
+    ENDIF
+WEND
+RETURN 1
+[SKIPEND]
+
 ;=====================
 ;행동패턴 1, 퍼지
 ; 올 랜덤 의사결정, 제일 멍청한 수준
@@ -8,7 +110,7 @@
 #DIM DYNAMIC 스킬번호
 #DIM 스킬타입, 2 ;0: 선택된 스킬타입 bit값(이진수), 1:선택 과정에서 랜덤으로 결정한 값(십진수)
 ;ARG = 행동자
-WHILE 1
+WHILE 행동기회여부(ARG,T_통상행동)||행동기회여부(ARG,T_이동행동)
     IF 행동기회여부(ARG,T_통상행동)
         IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/10)&&RAND:4 == 0
             IF 항복불가 == 0
@@ -112,7 +214,7 @@ RETURN 1
 #DIM DYNAMIC 행동
 #DIM DYNAMIC 해주시도
 ;ARG = 행동자
-WHILE 1
+WHILE 행동기회여부(ARG,T_통상행동)||행동기회여부(ARG,T_이동행동)
     IF 행동기회여부(ARG,T_통상행동)
         IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/5)&&RAND:6 == 0
             IF 항복불가 == 0
@@ -259,7 +361,7 @@ WHILE 1
                 CALL CAST_SPELL(ARG, SKILL_ARRAY:스킬번호)
                 BREAK
         ENDSELECT
-    ELSE
+    ELSEIF 행동기회여부(ARG,T_이동행동)
         ;TODO : 수정필요
         SELECTCASE RAND:3
             CASE 0
@@ -279,6 +381,8 @@ WHILE 1
         ENDSELECT
         
         BREAK
+    ELSE
+        CALL T_COM턴넘김
     ENDIF
 WEND
 RETURN 1
@@ -296,7 +400,7 @@ RETURN 1
 #DIM DYNAMIC 행동
 #DIM DYNAMIC 해주시도
 ;ARG = 행동자
-WHILE 1
+WHILE 행동기회여부(ARG,T_통상행동)||행동기회여부(ARG,T_이동행동)
     IF 행동기회여부(ARG,T_통상행동)
         IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/5)&&RAND:6 == 0
             IF 항복불가 == 0
@@ -438,7 +542,7 @@ WHILE 1
                 CALL CAST_SPELL(ARG, SKILL_ARRAY:스킬번호)
                 BREAK
         ENDSELECT
-    ELSE
+    ELSEIF 행동기회여부(ARG,T_이동행동)
         ;TODO : 수정필요
         SELECTCASE RAND:3
             CASE 0
@@ -457,6 +561,8 @@ WHILE 1
                 CALL T_COM턴넘김
         ENDSELECT
         BREAK
+    ELSE
+        CALL T_COM턴넘김
     ENDIF
 WEND
 RETURN 1
@@ -474,7 +580,7 @@ RETURN 1
 #DIM DYNAMIC 행동
 #DIM DYNAMIC 해주시도
 ;ARG = 행동자
-WHILE 1
+WHILE 행동기회여부(ARG,T_통상행동)||행동기회여부(ARG,T_이동행동)
     IF 행동기회여부(ARG,T_통상행동)
         IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/5)&&RAND:6 == 0
             IF 항복불가 == 0
@@ -617,7 +723,7 @@ WHILE 1
                 CALL CAST_SPELL(ARG, SKILL_ARRAY:스킬번호)
                 BREAK
         ENDSELECT
-    ELSE
+    ELSEIF 행동기회여부(ARG,T_이동행동)
         ;TODO : 수정필요
         SELECTCASE RAND:3
             CASE 0
@@ -636,6 +742,8 @@ WHILE 1
                 CALL T_COM턴넘김
         ENDSELECT
         BREAK
+    ELSE
+        CALL T_COM턴넘김
     ENDIF
 WEND
 RETURN 1
@@ -653,7 +761,7 @@ RETURN 1
 #DIM DYNAMIC 해주시도
 
 ;ARG = 행동자
-WHILE 1
+WHILE 행동기회여부(ARG,T_통상행동)||행동기회여부(ARG,T_이동행동)
     IF 행동기회여부(ARG,T_통상행동)
         IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/5)&&RAND:6 == 0
             IF 항복불가 == 0
@@ -797,7 +905,7 @@ WHILE 1
                 CALL CAST_SPELL(ARG, SKILL_ARRAY:스킬번호)
                 BREAK
         ENDSELECT
-    ELSE
+    ELSEIF 행동기회여부(ARG,T_이동행동)
         ;TODO : 수정필요
         SELECTCASE RAND:3
             CASE 0
@@ -816,6 +924,8 @@ WHILE 1
                 CALL T_COM턴넘김
         ENDSELECT
         BREAK
+    ELSE
+        CALL T_COM턴넘김
     ENDIF
 WEND
 RETURN 1
@@ -841,7 +951,7 @@ RETURN 1
 #DIM DYNAMIC 행동
 #DIM DYNAMIC 해주시도
 ;ARG = 행동자
-WHILE 1
+WHILE 행동기회여부(ARG,T_통상행동)||행동기회여부(ARG,T_이동행동)
     IF 행동기회여부(ARG,T_통상행동)
         IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/5)&&RAND:6 == 0
             IF 항복불가 == 0
@@ -985,7 +1095,7 @@ WHILE 1
                 CALL CAST_SPELL(ARG, SKILL_ARRAY:스킬번호)
                 BREAK
         ENDSELECT
-    ELSE
+    ELSEIF 행동기회여부(ARG,T_이동행동)
         ;TODO : 수정필요
         SELECTCASE RAND:3
             CASE 0
@@ -1004,6 +1114,8 @@ WHILE 1
                 CALL T_COM턴넘김
         ENDSELECT
         BREAK
+    ELSE
+        CALL T_COM턴넘김
     ENDIF
 WEND
 RETURN 1
