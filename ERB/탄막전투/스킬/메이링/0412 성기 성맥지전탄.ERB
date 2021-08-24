@@ -1,0 +1,255 @@
+﻿
+;========================================================================
+;각 함수별 역할 정리
+;T_SKILL412 : 해당 스킬의 기본 정수 스텟 처리
+;T_SKILL412_STR : 해당 스킬의 기본 문자열 스텟 처리
+;T_SKILL412_COLOR : 상황에 따른 출력문 색깔 처리
+;ONGOING_T_SKILL412 : 스킬 사용 이후 처리 (쿨타임 감소, 지속효과 등)
+;AFTER_T_SKILL412 : 스킬 사용 직후 처리
+;T_SKILL412_RANGE : 스킬 사거리관련 반환값만 모아둔 처리
+;
+;시전자 = T_턴주인, 상대방 = T_턴상대
+;========================================================================
+@T_SKILL412(ARGS)
+#FUNCTION
+;ARGS = 인자
+
+#DIM 쿨타임
+#DIM 지속시간
+#DIM 명중률
+#DIM 피해량
+#DIM 타입
+#DIM HP코스트
+#DIM TSP코스트
+;-------------------
+;성능 입력
+;쿨타임 0 = 한 턴에 몇 번이라도, 쿨타임 1 = 한 턴에 한번, 쿨타임 2= 두 턴에 한번
+;-------------------
+쿨타임 = 9;스킬의 쿨타임을 넣으세요
+지속시간 = 0;스킬의 효과가 지속되는 시간을 넣으세요
+명중률 = 65; 몇% 확률로 명중하는지 쓰세요
+피해량 = 75 * ARG능력치(T_시전자,"힘") +(15 * ARG능력치(T_시전자,"지성")) + 200;얼마만큼의 데미지를 주는지 쓰세요, 스텟을 참고해도 좋습니다
+타입 = 공격형;공격형/방어형/회복형/상태이상형/버프형/해주형/자동형 ;ERH 변수입니다.
+HP코스트 = 0;시전시 소모하는 체력의 양입니다
+TSP코스트 = TSP_PERCENT(4);시전시 소모하는 TSP의 양입니다, 아나타가 아니면 소모하지 않습니다
+;여러 타입을 한꺼번에 입력하고자 하는 경우:
+;타입 = 공격형 + 버프형
+;과 같이 + 를 포함해 입력하시면 됩니다.
+;-------------------
+SELECTCASE ARGS
+CASE "쿨타임"
+    ;쿨타임을 반환, 건들일 없다
+    RESULT = 쿨타임
+CASE "명중률"
+    ;명중률을 반환함
+    RESULT = 명중률
+CASE "공격력"
+    ;피해량을 반환, 공격력을 참조하려면 사용
+    RESULT = 피해량
+CASE "지속시간"
+    RESULT = 지속시간
+CASE "타입"
+    RESULT = 타입
+CASE "HP코스트"
+    RESULT = HP코스트
+CASE "TSP코스트"
+    RESULT = TSP코스트
+ENDSELECT
+RETURNF RESULT
+
+;문자열부
+@T_SKILL412_STR(ARGS)
+#FUNCTIONS
+#DIMS DYNAMIC 스킬명
+#DIMS DYNAMIC 속성
+#DIMS DYNAMIC 계수,5
+;-------------------
+;성능 입력
+;-------------------
+스킬명 = 성기 「성맥지전탄」
+속성 = 물리
+;계수는 없다면 없음, 아니라면 그냥 평문
+계수:0 = 75 * 힘
+계수:1 = 15 * 지성
+계수:2 = 200
+계수:3 = 없음
+계수:4 = 없음
+;-------------------
+SELECTCASE ARGS
+CASE "스킬명"
+    RESULTS '= 스킬명
+CASE "속성"
+    ;피해속성을 반환
+    RESULTS '= 속성
+CASE "계수"
+    RESULTS:0 '= 계수:0
+    RESULTS:1 '= 계수:1
+    RESULTS:2 '= 계수:2
+    RESULTS:3 '= 계수:3
+    RESULTS:4 '= 계수:4
+CASEELSE
+    THROW 지정되지 않은 인자 %ARGS%
+ENDSELECT
+RETURNF RESULTS
+
+;표시할 때 다른 색깔을 쓰고 싶은 경우 변경
+@T_SKILL412_COLOR(ARGS)
+;ARGS = 인자
+SELECTCASE ARGS
+CASE "색깔_시전가능"
+    ;시전가능, 흰색으로 빛남
+    RETURN 0xFFFFFF
+CASE "색깔_시전불가"
+    ;시전불가, 회색임
+    RETURN 0x585858
+ENDSELECT
+
+@ONGOING_T_SKILL412(사용자, ARGS)
+#DIM 사용자
+#DIM 남은지속시간, 200 ;캐릭터별 지속시간 저장 배열
+#DIM 남은쿨타임, 200 ;캐릭터별 지속시간 저장 배열
+#DIM 피해량
+#DIMS 속성
+피해량 = T_SKILL412("공격력")
+속성 '= T_SKILL412_STR("속성")
+SELECTCASE ARGS
+;스킬 발동시 남은 지속시간/쿨타임 처리 부분
+CASE "쿨타임설정"
+    남은쿨타임:사용자 = T_SKILL412("쿨타임")
+CASE "지속시간설정"
+    남은지속시간:사용자 = T_SKILL412("지속시간")
+CASE "턴엔드"
+    ;매 턴이 지날때마다 지속시간과 쿨타임처리를 하는 부분
+    IF 남은지속시간:사용자 > 0
+        남은지속시간:사용자--
+        CALL ONGOING_T_SKILL412(사용자, "지속효과발동")
+    ENDIF
+    SIF 남은쿨타임:사용자 > 0
+        남은쿨타임:사용자 --
+CASE "남은지속시간"
+    ;남은 지속시간 표시, 건들일 없다
+    RETURN 남은지속시간:사용자
+CASE "남은쿨타임"
+    ;남은쿨타임을 반환, 건들일 없다
+    RETURN 남은쿨타임:사용자
+CASE "초기화"
+    VARSET 남은쿨타임
+VARSET 남은지속시간
+CASE "시스템체크"
+    ;시스템 메시지에 따른 검사, 패시브 스킬등에 이용, 액티브는 딱히 쓸 일이 있나?
+
+CASE "지속효과발동"
+    ;지속적으로 효과가 발동하는 스킬의 경우, 여기에 효과를 입력
+    IF 남은지속시간:사용자 > 0
+
+    ENDIF
+ENDSELECT
+
+@AFTER_T_SKILL412(사용자)
+#DIM 사용자
+#DIM 명중률
+#DIM 피해량
+#DIMS 속성
+
+;쿨타임은 미리 설정함
+CALL ONGOING_T_SKILL412(사용자, "쿨타임설정")
+
+;명중 대응, 특정상황에서 명중률을 변동하고 싶으면 사용
+IF TB_SUM_REMAIN(사용자,TCV_실명)&&RAND:2 == 0
+    명중률 = T_SKILL412("명중률") / 2
+ELSE
+    명중률 = T_SKILL412("명중률")
+ENDIF
+RESULT = 0
+CALLF T_SKILL412("HP코스트")
+SIF RESULT > 0
+    TCVAR:T_시전자:T_체력 -= RESULT
+CALLF T_SKILL412("TSP코스트")
+SIF RESULT > 0&&T_시전자 == MASTER
+    BASE:T_시전자:TSP -= RESULT
+IF 스킬명중판정(명중률,412)
+    ;명중!
+    ;----------------
+    ;대사는 이쪽
+    ;----------------
+    PRINTFORML 무지개색 기의 구체가 %T_시전자반대의% 몸을 꿰뚫는다!
+    ;----------------
+    ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+    ;----------------
+
+    피해량 = T_SKILL412("공격력")
+    속성 '= T_SKILL412_STR("속성")
+    CALL T_데미지(T_턴반대, 피해량, 속성)
+    CALL 통합버프(T_시전자반대,TCV_취약,412,15,3)
+    CALL ONGOING_T_SKILL412(사용자, "지속시간설정")
+    RETURN 1
+ELSE
+    ;!감나빗!
+    SETCOLOR 0xFF4444
+    PRINTFORML 빗나감!
+    RESETCOLOR
+    ;----------------
+    ;대사는 이쪽
+    ;----------------
+    PRINTFORML 무언가 힘을 집중한것 같지만 아무런 일도 없었다
+    ;----------------
+    ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+    ;----------------
+    RETURN 0
+ENDIF
+
+@HELP_T_SKILL412
+;스킬의 설명을 출력하는 함수
+;적당히 8줄 이하의 설명을 써두자
+PRINTFORML 메이링의 스펠카드
+PRINTFORML
+PRINTFORML 더더욱 기를 모아 만들어낸 7색의 구체로 적에게 피해를 준다
+PRINTFORML 거기에 더해 다음 공격에 취약해지게 만든다
+PRINTFORML 
+PRINTFORML 탄막 놀이에는 한없이 약해지는 메이링이지만, 그것이 권법과 합쳐진다면 이야기가 달라질것이다
+PRINTFORML 
+PRINTFORML 그래도 약하지만
+
+@IS_UTIMATE412
+;TRYCALLFORM으로 호출되어 이 스킬의 습득을 억제하는 함수
+;FUCTION으로 고치면 안됨, 1인경우 습득 억제, 0인 경우 습득 허가
+RETURN 1
+
+@DENY_SILENCE412
+;TRYCALLFORM으로 호출되어 이 스킬이 침묵에 영향을 받지 않게 하는 함수
+;FUCTION으로 고치면 안됨, 2인경우 침묵 무시, 0인 경우 영향없음
+RETURN 0
+
+@SKILLTYPE_MOVE412
+;TRYCALLFORM으로 호출되어 이 스킬이 이동기임을 나타내는 함수
+;FUCTION으로 고치면 안됨, 2인경우 통상이동기, 3일경우 순간이동, 0인 경우 이동기 아님
+RETURN 0
+
+@T_SKILL412_RANGE(ARGS)
+#FUNCTION
+#DIM DYNAMIC 최대사거리
+#DIM DYNAMIC 최적사거리
+#DIM DYNAMIC 범위변동단위
+#DIM DYNAMIC 조준속성
+#DIM DYNAMIC 유도력
+;-------------------
+;성능 입력
+;-------------------
+최대사거리 = 40; 스킬이 닿는 최대 거리
+최적사거리 = 10; 명중률 +10% 가 붙는 거리
+범위변동단위 = 5; 몇 m마다 명중률이 1단위 변할지, 최적사거리에 이 값이 5번 더해질때 최악의 보정값(-20)이 된다
+조준속성 = T_조준탄;T_근거리/T_고정탄/T_조준탄/T_유도탄/T_즉발탄/T_버프기
+유도력 = 0;유도 타입 스킬이 적과의 속도차이를 무시하는 정도, '유도'타입이 아니면 무시해도 됨
+SELECTCASE ARGS
+CASE "최대사거리"
+    RESULT = 최대사거리
+CASE "최적사거리"
+    RESULT = 최적사거리
+CASE "범위변동단위"
+    RESULT = 범위변동단위
+CASE "조준속성"
+    RESULT = 조준속성
+CASE "유도력"
+    RESULT = 유도력
+ENDSELECT
+RETURNF RESULT
