@@ -8,6 +8,9 @@ IF FLAG:전화
 		PRINTFORML [1] 영원정
 	SIF !TALENT:[[레밀리아]]:사망 && !TALENT:[[사쿠야]]:사망 && MAIN_MAP != 3
 		PRINTFORML [2] 홍마관 서비스
+	IF 노예명수() > 0
+		PRINTFORML [3] 노예한테 전화
+	ENDIF
 	PRINTFORML [99] 그만둔다
 	INPUT
 	IF RESULT == 99
@@ -54,6 +57,52 @@ IF FLAG:전화
 				CALL COM630
 			ELSE
 				PRINTFORMW ...안 받는다
+			ENDIF
+		ELSEIF RESULT == 3 && 노예명수() > 0
+			PRINTFORML 누구한테?
+			FOR LOCAL,0,CHARANUM
+				IF TALENT:LOCAL:당신의노예 == 1&&!TALENT:LOCAL:사망 && !CFLAG:LOCAL:출금 && !CFLAG:LOCAL:감금됨
+					PRINTFORML [{LOCAL}] %CALLNAME:LOCAL%
+				ENDIF
+			NEXT
+			PRINTFORML [999] 그만둔다
+			$노예전화루프
+			INPUT
+			LOCAL = RESULT
+			IF LOCAL == 999
+				RETURN -1
+			ELSEIF TALENT:LOCAL:당신의노예 == 1&&!TALENT:LOCAL:사망 && !CFLAG:LOCAL:출금 && !CFLAG:LOCAL:감금됨
+				PRINTFORM 잠시 동안 연결음이 들리더니 
+				IF CFLAG:LOCAL:수면
+					PRINTFORML 살짝 졸린듯한 %CALLNAME:LOCAL%의 목소리가 들려왔다
+				ELSE
+					PRINTFORML 수화기 너머로 용건을 묻는 %CALLNAME:LOCAL%의 목소리가 들려왔다
+				ENDIF
+				PRINTFORML [0] 여기로 부른다
+				PRINTFORML [9] 끊는다
+				$노예전화루프1
+				INPUT
+				IF RESULT == 9
+					PRINTFORMW 아무것도 아니라 하고 전화를 끊었다
+					RETURN
+				ELSE
+					IF RESULT == 0
+						PRINTFORML 이쪽으로 오라는 말에 수긍하고는 전화가 끊겼다
+						TIME += 30
+						PRINTFORML 잠시뒤, %조사처리(CALLNAME:LOCAL,"이")% 찾아왔다
+						IF TALENT:LOCAL:연인 ||TALENT:LOCAL:연모 || TALENT:LOCAL:사모
+							PRINTFORML 어쩐지 곱게 차려입고 왔다
+						ENDIF
+						PRINTFORMW %조사처리(CALLNAME:LOCAL,"은")% 무슨일로 불렀는지 묻고 있다...
+						CFLAG:LOCAL:현재위치 = CFLAG:MASTER:현재위치
+						TCVAR:LOCAL:귀가지연 = 4
+						CFLAG:LOCAL:수면 = 0
+					ELSE
+						GOTO 노예전화루프1
+					ENDIF
+				ENDIF
+			ELSE
+				GOTO 노예전화루프
 			ENDIF
 		ENDIF
 	ENDIF
