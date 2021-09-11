@@ -1,0 +1,133 @@
+﻿@감금실설정
+PRINTFORML 감금실에 관한 여러가지 관리를 합니다
+PRINTFORMLC [001] - 수감 목록
+PRINTFORMLC [002] - 정책
+;PRINTFORMLC [001] - 현재 노예 수
+PRINTL
+PRINTFORMLC [999] - 돌아간다
+INPUT
+
+SELECTCASE RESULT
+    CASE 1
+        CALL 수감자명부
+    CASE 2
+        CALL 감금실정책설정
+    CASE 999
+        RETURN
+ENDSELECT
+RESTART
+
+@수감자명부
+FOR LOCAL,0,CHARANUM
+    IF CFLAG:LOCAL:감금됨 == 1
+        SETCOLOR 0xFF8000
+        PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%
+        RESETCOLOR
+    ELSEIF CFLAG:LOCAL:감금됨 == 2
+        SETCOLOR 0x00FFFF
+        PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%
+        RESETCOLOR
+    ENDIF
+NEXT
+PRINTL [999]돌아간다
+INPUT
+IF RESULT == 999
+    RETURN
+ENDIF
+
+
+@감금실정책설정
+#DIMS DYNAMIC 감금정책내용, 10 = "방치","착유"
+;,"성감강화"
+FOR LOCAL,0,CHARANUM - 1
+    IF CFLAG:LOCAL:감금됨 == 1
+        SETCOLOR 0xFF8000
+        PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%, %감금정책내용:(감금실정책:LOCAL:0)%
+        RESETCOLOR
+    ELSEIF CFLAG:LOCAL:감금됨 == 2
+        SETCOLOR 0x00FFFF
+        PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%, %감금정책내용:(감금실정책:LOCAL:0)%
+        RESETCOLOR
+    ENDIF
+NEXT
+PRINTL [999]돌아간다
+$LOOP
+INPUT
+IF RESULT == 999
+    RETURN
+ELSEIF RESULT > 0 && RESULT < CHARANUM
+    LOCAL = RESULT
+    IF !CFLAG:LOCAL:감금됨
+        GOTO LOOP
+    ELSE
+        PRINTFORML %CALLNAME:LOCAL%에게 무엇을 시킬까?
+        FOR LOCAL:1,0,10
+            IF 감금정책내용:(LOCAL:1) != ""
+                SIF 감금실정책조건(LOCAL:1,LOCAL)
+                    PRINTFORML [{LOCAL:1}] %감금정책내용:(LOCAL:1)%
+            ENDIF
+        NEXT
+        $LOOP2
+        INPUT
+        IF RESULT >= 0 && RESULT <= 10
+            IF 감금정책내용:RESULT == ""
+                GOTO LOOP2
+            ELSEIF 감금실정책조건(RESULT,LOCAL)
+                감금실정책:LOCAL:0 = RESULT
+                PRINTFORML %CALLNAME:LOCAL%에 대한 정책을 '%감금정책내용:(감금실정책:LOCAL:0)%' 로 바꿉니다
+            ENDIF
+        ELSE
+            GOTO LOOP2
+        ENDIF
+    ENDIF
+ELSE
+    GOTO LOOP
+ENDIF
+RESTART
+
+@감금실정책조건(ARG,ARG:1)
+#FUNCTION
+SELECTCASE ARG
+    CASE 0
+        RETURNF 1
+    CASE 1
+        IF TALENT:(ARG:1):모유체질
+            RETURNF 1
+        ENDIF
+    CASE 2
+        IF ITEM:로터
+            RETURNF 1
+        ENDIF
+ENDSELECT
+RETURNF 0
+
+
+@감금실정책수행(캐릭터)
+#DIM DYNAMIC 정책내용
+#DIM 캐릭터
+IF !CFLAG:캐릭터:감금됨
+    RETURN
+ENDIF
+정책내용 = 감금실정책:캐릭터:0
+
+SELECTCASE 정책내용
+    CASE 0
+        ;방치, 처리 없음
+    CASE 1
+        ;착유
+        IF TALENT:캐릭터:모유체질
+            PRINTFORML %CALLNAME:캐릭터%의 가슴을 쥐어짜 모유를 생산했다...
+            LOCAL = (ABL:캐릭터:B감각 * 100) + (TALENT:캐릭터:분유강화 * 150) + (TALENT:캐릭터:임신 * 150) + (TALENT:캐릭터:육아중 * 250) + (TALENT:캐릭터:B감도 * 50) + (TALENT:캐릭터:음유 * 100) + 50
+            LOCAL /= 100
+            IF LOCAL > 0
+                PRINTFORML {LOCAL}병의 모유를 생산했다
+                ITEM:우유 += LOCAL
+            ENDIF
+        ELSE
+            PRINTFORML %CALLNAME:캐릭터%의 가슴을 쥐어짜냈지만, 아무런 일도 일어나지 않았다...
+            PRINTFORML 결국 착유는 그만두기로 했다
+            감금실정책:캐릭터:0 = 0
+        ENDIF
+    CASE 2
+        ;성감 강화
+ENDSELECT
