@@ -177,7 +177,7 @@ ENDSELECT
 RETURNF 명중판정(MAX(ARG + 보정, 0))
 
 
-@스킬명중판정(명중률,스킬번호,추가인수 = 0)
+@스킬명중판정(명중률,스킬번호,추가인수 = 0,지점 = 0,대상 = 0)
 #FUNCTION
 #DIM DYNAMIC 명중률
 #DIM DYNAMIC 스킬번호
@@ -190,21 +190,35 @@ RETURNF 명중판정(MAX(ARG + 보정, 0))
 #DIM DYNAMIC 유도력
 #DIM DYNAMIC 판정
 #DIM DYNAMIC 상대속도
+#DIM DYNAMIC 지점
+#DIM DYNAMIC 거리
+#DIM DYNAMIC 대상
+#DIM DYNAMIC 대상반대
 
-상대속도 = ARG능력치(T_시전자,"속도") - ARG능력치(T_시전자반대,"속도")
-IF TB_SUM_REMAIN(T_시전자반대,TCV_속박)
-    상대속도 += ARG능력치(T_시전자반대,"속도")/2
+IF 대상 == 0
+    대상 = T_시전자반대
 ENDIF
-IF TB_SUM_REMAIN(T_시전자,TCV_속박)
-    상대속도 -= ARG능력치(T_시전자,"속도")/2
+대상반대 = 사용자반대(대상)
+
+상대속도 = ARG능력치(대상반대,"속도") - ARG능력치(대상,"속도")
+IF TB_SUM_REMAIN(대상,TCV_속박)
+    상대속도 += ARG능력치(대상,"속도")/2
 ENDIF
-IF TB_SUM_REMAIN(T_시전자반대,TCV_봉쇄)
-    상대속도 += ARG능력치(T_시전자반대,"속도")/2
+IF TB_SUM_REMAIN(대상반대,TCV_속박)
+    상대속도 -= ARG능력치(대상반대,"속도")/2
 ENDIF
-IF TB_SUM_REMAIN(T_시전자,TCV_봉쇄)
-    상대속도 -= ARG능력치(T_시전자,"속도")/2
+IF TB_SUM_REMAIN(대상,TCV_봉쇄)
+    상대속도 += ARG능력치(대상,"속도")/2
+ENDIF
+IF TB_SUM_REMAIN(대상반대,TCV_봉쇄)
+    상대속도 -= ARG능력치(대상반대,"속도")/2
 ENDIF
 
+IF 지점 == 0
+    거리 = TB_거리()
+ELSE
+    거리 = TB_거리(T_대상2,지점)
+ENDIF
 
 IF 추가인수 == 0
     CALLFORMF T_SKILL{스킬번호}_RANGE("최적사거리")
@@ -233,7 +247,7 @@ SELECTCASE 속성
     CASE T_근거리
         보정 += LIMIT(상대속도 / 20, 0 , 5)
     CASE T_고정탄
-        SELECTCASE TB_거리()
+        SELECTCASE 거리
             CASE IS < 최적사거리 - (5 * 사거리범위)
                 보정 -= 20
             CASE IS < 최적사거리 - (4 * 사거리범위)
@@ -261,7 +275,7 @@ SELECTCASE 속성
         ENDSELECT
         보정 += LIMIT(상대속도 / 20, 0 , 5)
     CASE T_조준탄
-        SELECTCASE TB_거리()
+        SELECTCASE 거리
             CASE IS < 최적사거리 - (5 * 사거리범위)
                 보정 -= 20
             CASE IS < 최적사거리 - (4 * 사거리범위)
@@ -289,7 +303,7 @@ SELECTCASE 속성
         ENDSELECT
         보정 += LIMIT(상대속도 / 10 , 0 , 15)
     CASE T_유도탄
-        SELECTCASE TB_거리()
+        SELECTCASE 거리
             CASE IS < 최적사거리 - (5 * 사거리범위)
                 보정 -= 20
             CASE IS < 최적사거리 - (4 * 사거리범위)
@@ -321,7 +335,7 @@ SELECTCASE 속성
     CASE T_버프기
         ;처리없어-
 ENDSELECT
-IF TB_거리() > 최대사거리 && 속성 != T_버프기
+IF 거리 > 최대사거리 && 속성 != T_버프기
     RETURNF 0
 ENDIF
 판정 = 명중판정(MAX(명중률 + 보정, 0))
