@@ -3,12 +3,32 @@
 ;특수 커맨드
 ;-------------------------------------------------
 @COM192
-IF TCVAR:강제배란
-	PRINTL 이미 복용했다
+IF (TCVAR:강제배란 || !COM_ABLE192_TARGET()) && (TCVAR:MASTER:강제배란 || !COM_ABLE192_MASTER())
+	PRINTL 이미 복용했거나 사용할 수 없다.
 	RETURN -1
 ENDIF
+PRINTL 누구에게 사용할까?
+IF !TCVAR:MASTER:강제배란 && COM_ABLE192_MASTER()
+	PRINTFORML [0] %CALLNAME:MASTER%
+ENDIF
+IF !TCVAR:강제배란 && COM_ABLE192_TARGET()
+	PRINTFORML [1] %CALLNAME:TARGET%
+ENDIF
+$INPUT_LOOP
+INPUT
+IF RESULT == 0 && !TCVAR:MASTER:강제배란 && COM_ABLE192_MASTER()
+	LOCAL = MASTER
+ELSEIF RESULT == 1 && !TCVAR:강제배란 && COM_ABLE192_TARGET()
+	CALL CAN_COM192_CHK(TARGET)
+	SIF RESULT == 0
+		RETURN 1
+	LOCAL = TARGET
+ELSE
+	GOTO INPUT_LOOP
+ENDIF
+TCVAR:LOCAL:강제배란 = 181
 ITEM:배란유발제 -= 1
-TCVAR:강제배란 = 180
+
 ;-------------------------------------------------
 ;COM별 FLAG의 설정
 ;-------------------------------------------------
@@ -18,43 +38,49 @@ TCVAR:116 = PLAYER
 ;소스 추가 처리
 ;-------------------------------------------------
 ;소비 체력, 기력
-IF FLAG:70 == 1
+IF FLAG:70 == 1 && LOCAL == TARGET
 
 ELSE
 
 ;조교자가 조합지식을 가지고 있으면 소비를 억제 당한다
 IF TALENT:PLAYER:조합지식
-	DOWNBASE:체력 += 200
-	DOWNBASE:기력 += 200
+	DOWNBASE:LOCAL:체력 += 200
+	DOWNBASE:LOCAL:기력 += 200
 ELSE
-	DOWNBASE:체력 += 100
-	DOWNBASE:기력 += 100
+	DOWNBASE:LOCAL:체력 += 100
+	DOWNBASE:LOCAL:기력 += 100
 ENDIF
-	SOURCE:일탈 = 1000
+	SOURCE:LOCAL:일탈 = 1000
 ENDIF
 
 ;-------------------------------------------------
 ;경험의 처리
 ;-------------------------------------------------
 ;동성애  레즈라면 반환값 1 동성애자라면 반환값 2
-IF FLAG:70 == 1
+IF FLAG:70 == 1 && LOCAL == TARGET
 	IF HETEROSEX(TARGET,PLAYER)
 		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 1
 	ENDIF
 ELSE
 	IF HETEROSEX(TARGET,PLAYER)
-		EXP:(50 + HETEROSEX(TARGET,PLAYER)) += 1
+		EXP:LOCAL:(50 + HETEROSEX(TARGET,PLAYER)) += 1
 		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 1
 	ENDIF
 ENDIF
 RETURN 1
-
 @CAN_COM192(ARG)
+SKIPDISP ARG
+
+RETURN 1
+
+
+
+@CAN_COM192_CHK(ARG)
 SKIPDISP ARG
 ;-------------------------------------------------
 ;실행 판정 처리
 ;-------------------------------------------------
-IF FLAG:70 == 1 || CFLAG:장난
+IF FLAG:70 == 1 || CFLAG:장난 
 
 ELSE
 A = 0
@@ -206,22 +232,69 @@ RETURN 1
 ;실행 판정
 ;-------------------------------------------------
 @COM_ABLE192
+
+;조교자 혹은 대상 중 1명 이상에게 사용 가능한지 판정
+
+IF COM_ABLE192_MASTER() || COM_ABLE192_TARGET()
+	RETURN 1
+ENDIF
+RETURN 0
+; ;배란유발제 실행 판정
+; SIF !TFLAG:100
+	; RETURN 0
+; ;일괄관리
+; SIF GLOBAL_COMABLE(192)
+	; RETURN RESULT
+; ; 아이템을 가지고 있지 않으면 안 돼
+; SIF ITEM:배란유발제 == 0
+	; RETURN 0
+; ;약독내성이라면 안 돼
+; SIF TALENT:약독내성
+	; RETURN 0
+; ;정지중은 불가
+; SIF FLAG:70 == 1
+	; RETURN 0
+; SIF SHIRAHU(TARGET) && CFLAG:생해금 != 2
+	; RETURN 0
+; RETURN 1
+
+
+;대상에게 사용 가능한지 판정
+@COM_ABLE192_TARGET
+#FUNCTION
 ;배란유발제 실행 판정
 SIF !TFLAG:100
-	RETURN 0
+	RETURNF 0
 ;일괄관리
 SIF GLOBAL_COMABLE(192)
-	RETURN RESULT
-;정지중은 불가
-SIF FLAG:70 == 1
-	RETURN 0
+	RETURNF RESULT
 ; 아이템을 가지고 있지 않으면 안 돼
 SIF ITEM:배란유발제 == 0
-	RETURN 0
+	RETURNF 0
 ;약독내성이라면 안 돼
 SIF TALENT:약독내성
-	RETURN 0
+	RETURNF 0
+;정지중은 불가
+SIF FLAG:70 == 1
+	RETURNF 0
 SIF SHIRAHU(TARGET) && CFLAG:생해금 != 2
-	RETURN 0
-RETURN 1
+	RETURNF 0
+RETURNF 1
 
+
+;조교자가 사용 가능한지 판정
+@COM_ABLE192_MASTER
+#FUNCTION
+;배란유발제 실행 판정
+SIF !TFLAG:100
+	RETURNF 0
+;일괄관리
+SIF GLOBAL_COMABLE(192)
+	RETURNF RESULT
+; 아이템을 가지고 있지 않으면 안 돼
+SIF ITEM:배란유발제 == 0
+	RETURNF 0
+;약독내성이라면 안 돼
+SIF TALENT:MASTER:약독내성
+	RETURNF 0
+RETURNF 1

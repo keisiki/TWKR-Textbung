@@ -1,10 +1,8 @@
-﻿;하루의 마지막에 불려 가는 함수
-@GET_CHILD(ARG)
+﻿@MASTERPREG(ARG)
 #DIM 임신필요치
 #DIM 중독보정
 #DIM 임신정액판정
-
-SELECTCASE ABL:ARG:질내사정중독
+SELECTCASE ABL:MASTER:질내사정중독
 	CASE 0 TO 2
 		중독보정 = 5
 	CASE 3 TO 5
@@ -13,14 +11,10 @@ SELECTCASE ABL:ARG:질내사정중독
 		중독보정 = 2
 ENDSELECT
 
-EX:ARG:자궁내정액 += EX:ARG:질내정액 / 중독보정
-
-SIF TALENT:ARG:유치 && !TALENT:ARG:초경
-	EX:ARG:자궁내정액 = 0
-SIF CFLAG:ARG:손님아이임신경과
-    EX:ARG:자궁내정액 = 0
-SIF TALENT:ARG:불임
-	EX:ARG:자궁내정액 = 0
+EX:MASTER:자궁내정액 += EX:MASTER:질내정액 / 중독보정
+	
+SIF TALENT:MASTER:유치 && !TALENT:MASTER:초경
+	EX:MASTER:자궁내정액 = 0
 	
 IF !TALENT:MASTER:만능잉태
 	IF CHECK_CHARA(ARG, "오니")
@@ -40,20 +34,20 @@ IF !TALENT:MASTER:만능잉태
 		SIF CFLAG:ARG:자식보정 >= 5
 			임신필요치 = 임신필요치 * MAX(100 - 4 * CFLAG:ARG:자식보정, 5) / 100
 	ELSEIF CHECK_CHARA(ARG, "츠쿠모가미")
-	;기본 필요치는 요정보다 높지만 도구사용경험에 의해 내린다
+	;基本必要値は妖精より高いが道具使用経験によって下がる
 		임신필요치 = MAX(5000 - EXP:MASTER:도구사용경험 * (1 + TALENT:MASTER:츠쿠모가미잉태), 2000)
 		SIF CFLAG:ARG:자식보정 >= 5
 			임신필요치 = 임신필요치 * MAX(60 - 4 * CFLAG:ARG:자식보정, 5) / 40
 	ELSEIF CHECK_CHARA(ARG, "봉래인")
-	;발원함에 의한 영향이 상대적으로 크다
+	;願掛けによる影響が相対的にでかい
 		임신필요치 = 200000
 		SIF TALENT:MASTER:봉래잉태
 			임신필요치 /= 10
 		SIF CFLAG:ARG:자식보정 >= 5
 			임신필요치 = 임신필요치 * MAX(50 - 2 * CFLAG:ARG:자식보정, 1) / 100
-	ELSEIF CHECK_CHARA(ARG, "신령")
+	ELSEIF CHECK_CHARA(ARG, "유령")
 		임신필요치 = 150000
-		SIF TALENT:MASTER:신령잉태
+		SIF TALENT:MASTER:유령잉태
 			임신필요치 /= 10
 		SIF CFLAG:ARG:자식보정 >= 5
 			임신필요치 = 임신필요치 * MAX(60 - 2 * CFLAG:ARG:자식보정, 1) / 100
@@ -67,7 +61,7 @@ IF !TALENT:MASTER:만능잉태
 		임신필요치 = MAX(3000 - CFLAG:ARG:자식보정 * 10 - 1000 * TALENT:MASTER:요괴잉태, 500)
 	ELSEIF CHECK_CHARA(ARG, "선인") || CHECK_CHARA(ARG, "천인") || CHECK_CHARA(ARG, "월인") || CHECK_CHARA(ARG, "마계인")
 		임신필요치 = MAX(2400 - CFLAG:ARG:자식보정 * 10, 500)
-	;이외의 인간
+	;その他人間
 	ELSE
 		임신필요치 = MAX(2000 - CFLAG:ARG:자식보정 * 10, 500)
 	ENDIF
@@ -76,25 +70,26 @@ IF !TALENT:MASTER:만능잉태
 ELSE
 	임신필요치 = MAX(2000 - CFLAG:ARG:자식보정 * 12, 100)
 ENDIF
-임신필요치 /= 2
+; 원본에는 없지만 한글판 tw에 있는 부분이라 임의 추가. 오류 등 문제시 주석처리
 SIF FLAG:포부 == 6
 	임신필요치 = 임신필요치 / 2
 SIF FLAG:포부 == 9
 	임신필요치 = 임신필요치 * 9 / 10
-SIF TALENT:ARG:인간
+SIF TALENT:MASTER:인간
 	임신필요치 /= 2
-SIF TALENT:ARG:스침
+SIF TALENT:MASTER:스침
 	임신필요치 /= 4
-SIF TALENT:MASTER:농후정액
+SIF TALENT:ARG:농후정액
 	임신필요치 /= 4
-SIF TALENT:ARG:임신소망
+SIF TALENT:MASTER:임신소망
 	임신필요치 = 임신필요치 * 8 / 10
-IF TCVAR:ARG:무조건임신
+;임의 추가 종료
+	;検証用
 	임신필요치 = 1
-ENDIF
-IF 충전율(ARG, 4) > 20
+	
+IF 충전율(MASTER,4) > 20
 	SETCOLOR C_CREAM
-	PRINTFORML %CALLNAME:ARG%의 자궁안은 부어 넣어진 %CALLNAME:MASTER%의 정으로 가득 차 있다…
+	PRINTFORML %CALLNAME:MASTER%의 자궁안은 부어 넣어진 %CALLNAME:ARG%의 정으로 가득 차 있다…
 	IF !FLAG:그림표시
 		SETFONT "MS PGothic"
 		PRINTL 　　　　　　　　　　　}　}　　　　　　　　　　　　 　 　 （
@@ -128,18 +123,13 @@ IF 충전율(ARG, 4) > 20
 	ENDIF
 ENDIF
 SETFONT
-IF ((EX:ARG:자궁내정액&&TCVAR:ARG:무조건임신)||(MIN(충전율(ARG, 4), 100) * REAL_ESTRUS_CYCLE(ARG) / 100 > RAND:임신필요치))&&!TALENT:ARG:임신&&!TALENT:ARG:손님의아이
-	IF TCVAR:ARG:무조건임신
-		PRINTFORML %CALLNAME:ARG%의 난자가 생식 본능을 발휘한다...!
-	ENDIF
-	CFLAG:ARG:임신경과일수 = 1
+IF MIN(충전율(MASTER,4),100) * REAL_ESTRUS_CYCLE(MASTER) / 100 > RAND:임신필요치
+	CFLAG:MASTER:임신경과일수 = 1
 	SIF FLAG:포부 == 6
 		FLAG:포부 = 9
-	SIF TCVAR:ARG:강제배란
-		TCVAR:ARG:강제배란 = 0
 	IF FLAG:1007
 		SETCOLOR C_CREAM
-		PRINTFORML 당신의 정자는 자신의 것인양 %CALLNAME:ARG%의 자궁을 헤엄쳐 돌아, 무방비인 난자로 쇄도해 갔다…
+		PRINTFORML %CALLNAME:ARG%의 정자는 자신의 것인양 %CALLNAME:MASTER%의 자궁을 헤엄쳐 돌아, 무방비인 난자로 쇄도해 갔다…
 		IF !FLAG:그림표시
 			SETFONT "MS PGothic"
 			PRINTL 　　　　　　　　　　　　　　　　..__＿....-------....＿..
@@ -172,185 +162,136 @@ IF ((EX:ARG:자궁내정액&&TCVAR:ARG:무조건임신)||(MIN(충전율(ARG, 4),
 			CALL PRINT_IMAGE("受精11")
 			WAIT
 		ENDIF
-		IF TALENT:ARG:연모
-			PRINTFORMW %CALLNAME:ARG%의 몸은 사랑하는 %CALLNAME:MASTER%의 유전자를 기뻐하며 받아들이고 있다…
+		IF TALENT:MASTER:연모
+			PRINTFORMW %CALLNAME:MASTER%의 몸은 사랑하는 %CALLNAME:ARG%의 유전자를 기뻐하며 받아들이고 있다…
 		ELSE
-			PRINTFORMW %CALLNAME:ARG%의 몸은 본인의 의사와는 관계없이 %CALLNAME:MASTER%의 유전자를 받아들였다…
-		ENDIF
-		IF TALENT:ARG:스침
-			FONTBOLD
-			PRINTFORMW %ARG는% 스친상대인 %CALLNAME:MASTER%에게 임신되어 버렸다……
-			FONTREGULAR
-			FLAG:스침잉태수 ++
+			PRINTFORMW %CALLNAME:MASTER%의 몸은 본인의 의사와는 관계없이 %CALLNAME:ARG%의 유전자를 받아들였다…
 		ENDIF
 	ENDIF
-	IF TCVAR:(ARG):씨받음자각
-		CFLAG:ARG:몸으로기억_어머니 = 1
+	IF TCVAR:(MASTER):씨받음자각
+		CFLAG:MASTER:몸으로기억_어머니 = 1
 		;PRINTFORML Succeed2
 	ELSE
-		CFLAG:ARG:무자각임신 = 1
+		CFLAG:MASTER:무자각임신 = 1
 	ENDIF
+	IF TCVAR:(ARG):씨뿌림자각
+		CFLAG:ARG:몸으로기억_아버지 = 1
+		;PRINTFORML Succeed2
+	ENDIF
+	CFLAG:MASTER:누구의아이 = ARG
 ENDIF
 RESETCOLOR
-;임신에 수반하는 이것저것
-@CHANGE_N_STATUS(ARG)
 
-CFLAG:ARG:회복속도다운 = TALENT:ARG:회복속도 + 2
-IF TALENT:ARG:회복속도 > -1
-	PRINTFORMW %ARG는% 쉽게 지쳤다
-	TALENT:ARG:회복속도 = -1
-ENDIF
-
-;무자각에의 처리
-@PERCIEVE(ARG)
-IF CFLAG:ARG:임신경과일수 == 71 / 2 ;KR판 수치조정, 일판 71
-	PRINTFORMW %CALLNAME:ARG%의 출산이 가까운 시일내에 되었다.
-	PRINTFORMW 격렬한 행위는 피하는 것이 좋을 것 같다…
-	;CFLAG:출산휴가타입=-1이외의 업무 정보가 CSV 정의된 캐릭터는 출산 휴가에 들어간다
-	IF CFLAG:ARG:출산휴가타입 > -1 && CFLAG:ARG:출산휴가중 == 0 && CSTR:ARG:3 != ""
-		PRINTFORMW 모체에 위험이 나올 가능성이 있기 때문이라고, %ARG를% 출산까지 휴양 시키는 일로 했다…
-		CFLAG:ARG:출산휴가중 = 1
-	ENDIF
-ELSEIF CFLAG:ARG:임신경과일수 == 60 / 2 ;KR판 수치조정, 일판은 60
-	IF TALENT:ARG:가슴사이즈 < 2
-		TALENT:ARG:가슴사이즈 += 1
-		PRINTFORMW %CALLNAME:ARG%의 가슴이 커졌다
-		CFLAG:ARG:가슴랭크업 = 1
-	ENDIF
-	IF !TALENT:ARG:모유체질
-		PRINTFORMW %ARG는%  모유가 나오게 되었다
-		TALENT:ARG:모유체질 = 1
-	ENDIF
-
-	PRINTFORML 이미 %ARG가% 임신하고 있는 것은 멀리서도 분명하다…
-	IF !CFLAG:ARG:무자각임신 && CFLAG:ARG:출산휴가타입 == 2
-		PRINTFORML %ARG는% 엉뚱한 짓을 하지 않고, 당분간 휴양 하기로 결정했다…
-		CFLAG:ARG:출산휴가중 = 1
-	ELSEIF CFLAG:ARG:무자각임신
-		PRINTFORML %ARG는% 몸에 기억에 없는 임신에 격렬하게 초췌하고 있다…
-		IF CFLAG:ARG:출산휴가타입 == 1 || CFLAG:ARG:출산휴가타입 == 0
-			PRINTFORMW %ARG는% 자신이 임신한 것을 받아들여 요양하기로 결정했다…
-			CFLAG:ARG:출산휴가중 = 1
-		ENDIF
-		;자신을 속이지 못하고 임신하고 있는 것을 자각하는 시기로 한다
-		CFLAG:ARG:임신자각상태 = 1
-	ENDIF
-	BASE:ARG:체력 -= 200
-	MAXBASE:ARG:체력 -= 200
-	BASE:ARG:기력 -= 200
-	MAXBASE:ARG:기력 -= 200
-ELSEIF CFLAG:ARG:임신경과일수 == 40 / 2 ;KR판 수치조정, 일판은 40
-	PRINTFORML %CALLNAME:ARG%의 배의 부푼 곳이 뚜렷해졌다…
-	IF !CFLAG:ARG:무자각임신 && CFLAG:ARG:출산휴가타입 == 1
-		PRINTFORM %ARG는% 몸의 부담을 피하기 위해, 당분간
-		IF GROUPMATCH(ARG,96,91,35)
-			PRINTFORM 천계에서의 약속
-		ELSEIF GROUPMATCH(ARG,134,95,94,76,57,31,22,21,20)
-			PRINTFORM %GET_JOBNAME(ARG)%\@ GROUPMATCH(ARG,31,76,134) ? 의 일을 # %조사만처리(GET_JOBNAME(ARG), "를")% \@
- 		ELSEIF ARG == 17
-			PRINTFORM 인형극을 
+@MASTERADDICT(ARG)
+	CFLAG:MASTER:286 = 0
+	CFLAG:MASTER:287 = 0
+	CFLAG:MASTER:288 = 0
+	CFLAG:MASTER:289 = 0
+	CFLAG:MASTER:290 = 0
+	;願掛けによる感度上昇解除
+	;좋아하는체위決定
+	SIF CFLAG:MASTER:좋아하는체위 > 10 
+		CFLAG:MASTER:좋아하는체위 = 0
+	FOR COUNT,1,10
+		SIF EXP:MASTER:(COUNT + 100) > EXP:MASTER:(CFLAG:MASTER:좋아하는체위 + 100) + 50
+			CFLAG:MASTER:좋아하는체위 = COUNT
+	NEXT
+	SELECTCASE ABL:MASTER:정액중독
+		CASE 0
+			MASTER:1 = 5
+		CASE 1 TO 3
+			MASTER:1 = 7
+		CASE 4 TO 7
+			MASTER:1 = 10
+		CASEELSE
+			MASTER:1 = 20
+	ENDSELECT
+	;機嫌
+	TALENT:MASTER:기분 = 0
+	CALL KIGEN_CHANGE(MASTER,10)
+	SIF TALENT:ARG:농후정액
+		MASTER:1 *= 2
+	SETCOLOR 0xEE60EE
+	IF EX:MASTER:질내정액 > 200 || EX:MASTER:애널내정액 > 200
+		PRINTFORM %CALLNAME:ARG%에 충분히 쏟아진 정액으로, %CALLNAME:MASTER%의
+		IF EX:MASTER:질내정액 > 200 && EX:MASTER:애널내정액 > 200
+			PRINTL 질내와 애널이 뜨겁게 쑤시고 있다…
+		ELSEIF EX:MASTER:질내정액 > 200
+			PRINTL 질내가 뜨겁게 쑤시고 있다…
 		ELSE
-			PRINTFORM 장사를 
+			PRINTL 애널이 뜨겁게 쑤시고 있다…
 		ENDIF
-		PRINTFORML 쉬기로 했다…
-		CFLAG:ARG:출산휴가중 = 1
-	ELSEIF CFLAG:ARG:무자각임신
-		PRINTFORML %ARG는%  아직 스스로의 몸의 변화를 받아들여지지 않는 것 같다
-	ENDIF
-	BASE:ARG:체력 -= 200
-	MAXBASE:ARG:체력 -= 200
-	BASE:ARG:기력 -= 200
-	MAXBASE:ARG:기력 -= 200
-
-
-ELSEIF CFLAG:ARG:임신경과일수 == 30 / 2 ;KR판 수치조정, 일판 30
-	PRINTFORML %CALLNAME:ARG%의 배의 부푼 곳은 아직 눈에 띄지 않는다…
-	;PRINTFORMW %CALLNAME:ARG%의 몸은 상당히 안정기에 접어든 것 같다…
-	IF !CFLAG:ARG:무자각임신 && GROUPMATCH(ARG,4,10,11,36,43,56,58,65,75,87,129)
-		PRINTFORM %ARG는% 몸의 부담을 피하기 위해, 당분간
-		IF ARG == 10 || ARG == 11
-			PRINTFORM 트레이닝을 
-		ELSEIF ARG == 87
-			PRINTFORM 근행을 
-		ELSE
-			PRINTFORM  %조사처리(GET_JOBNAME(ARG),"를")% 
+		IF EX:MASTER:질내정액 > 200
+			JUEL:MASTER:굴복 += MASTER:1 * (ABL:MASTER:질내사정중독 + 1) * EX:MASTER:질내정액
+			JUEL:MASTER:욕정 += MASTER:1 * (ABL:MASTER:질내사정중독 + 1) * EX:MASTER:질내정액
 		ENDIF
-		PRINTFORML 쉬기로 했다…
-		CFLAG:ARG:출산휴가중 = 1
-	ELSEIF CFLAG:ARG:무자각임신
-		PRINTFORML %ARG는% 다소의 위화감을 느끼고는 있지만, 아직도 임신했다고는 눈치채지 못한 것 같다
-	ENDIF
-	BASE:ARG:체력 -= 100
-	MAXBASE:ARG:체력 -= 100
-	BASE:ARG:기력 -= 100
-	MAXBASE:ARG:기력 -= 100
-ELSEIF CFLAG:ARG:임신경과일수 == 20 / 2 ;KR판 수치조정, 일판은 20
-	PRINTFORMW %CALLNAME:ARG%의 모습이 이상하다…
-	PRINTFORML %ARG는% 아이를 임신한 같다
-	PRINTFORMW %ARG는% [임신] 한 것 같다
-	TALENT:ARG:임신 = 1
-	IF TALENT:ARG:임신소망
-		TALENT:ARG:임신소망 = 0
-		PRINTFORMW %ARG는% [임신소망]을 잃었다
-	ENDIF
-	CALL CHANGE_N_STATUS(ARG)
-
-	;자각으로 분기
-	IF CFLAG:ARG:몸으로기억_어머니 == 1 && !CFLAG:ARG:무자각임신
-		PRINTFORML %CALLNAME:ARG%의 몸이 불안하게 되어 왔다.
-		PRINTFORML 안정기까지 무리한 행위는 피하는 것이 좋을 것 같다…
-		IF TALENT:ARG:연모
-			PRINTFORMW %ARG는% 수줍어하면서 %CALLNAME:MASTER%의 아이를 내려 주신 것을 보고해 왔다
-			CALL KOJO_MESSAGE_SEND("EVENT",24,ARG,1,0)
-		ELSEIF TALENT:ARG:사모
-			PRINTFORMW %ARG는% 흠칫흠칫%CALLNAME:MASTER%의 아이를 내려 주신 것을 보고해 왔다
-			CALL KOJO_MESSAGE_SEND("EVENT",24,ARG,2,0)
-			;CFLAG:ARG:임신경과일수 = 2
-		ELSE
-			PRINTFORMW %ARG는% 곤혹스러운 얼굴로 %CALLNAME:MASTER%의 아이를 내려 주신 것을 보고해 왔다
-			CALL KOJO_MESSAGE_SEND("EVENT",24,ARG,3,0)
-			;CFLAG:ARG:임신경과일수 = 1
+		IF EX:MASTER:애널내정액 > 200
+			JUEL:MASTER:굴복 += MASTER:1 * (ABL:MASTER:항내사정중독 + 1) * EX:MASTER:애널내정액
+			JUEL:MASTER:욕정 += MASTER:1 * (ABL:MASTER:항내사정중독 + 1) * EX:MASTER:애널내정액
 		ENDIF
-		;36=오린 을 64=유우기 로 변경. 유우기에게 출산 휴가도 설정
-		;SIF ARG == 10 || ARG == 36
-		IF ARG == 10 || ARG == 64
-			PRINTFORMW 임신한 %ARG는%, 출산할 때까지 음주를 자제하기로 했다…
-			SIF ARG == 64
-				CFLAG:ARG:출산휴가중 = 1
-		ENDIF
-		;자각사정이 있으므로 임신하고 있는 것은 곧바로 자각한다
-		CFLAG:ARG:임신자각상태 = 1
-	ELSE
-		PRINTFORMW 그러나 %ARG는% 자신의 몸에 무엇이 일어났는지 눈치채지 못한 것 같다…
-		CALL KOJO_MESSAGE_SEND("EVENT",24,ARG,4,0)
 	ENDIF
-ENDIF
-
-@MasterPregnancy
-#DIM C_ID
-VARSET LOCAL
-;임신 OFF라면 넘긴다
-SIF !FLAG:임신스위치
-	RETURN
-;남자라면 넘긴다
-SIF TALENT:MASTER:성별 == 2
-	RETURN
-;이미 임신한 채라면 넘긴다
-SIF 1 <= CFLAG:MASTER:임신경과일수
-	RETURN
-;キャラ順ランダマイズ
-CALL FISHER_YATES_SHAFFLE(CHARANUM - 1)
-
-FOR LOCAL , 0 , CHARANUM - 1
-	C_ID = SHAFFLE_ARRAY:LOCAL + 1
-	SIF 0 == TCVAR:C_ID:씨받이양
-		CONTINUE
-	SIF 1 == TALENT:C_ID:스침
-		CONTINUE
-	;ここで妊娠判定、つくってないからコメントアウトしとく。
-	;TCVAR:種付け自覚があったらCFLAG:身に覚え_父 = 1しておいてね。
-	CALL MASTERPREG(C_ID)
-	;↑ので妊娠したらループ中断
-	SIF CFLAG:MASTER:임신경과일수
-		BREAK
-NEXT
+	IF (EX:MASTER:20 + EX:MASTER:21 + EX:MASTER:22 + EX:MASTER:23 + EX:MASTER:24) > 0
+		PRINTFORM %마스터는%
+		SIF EX:MASTER:20
+			PRINT 클리토리스
+		SIF EX:MASTER:20 && (EX:MASTER:21 || EX:MASTER:22 || EX:MASTER:23 || EX:MASTER:24)
+			PRINT 와
+		SIF EX:MASTER:21
+			PRINT 질내
+		SIF EX:MASTER:21 && (EX:MASTER:22 || EX:MASTER:23 || EX:MASTER:24)
+			PRINT 와
+		SIF EX:MASTER:22
+			PRINT 애널
+		SIF EX:MASTER:22 && (EX:MASTER:23 || EX:MASTER:24)
+			PRINT 과
+		SIF EX:MASTER:23
+			PRINT 가슴
+		SIF EX:MASTER:23 && EX:MASTER:24
+			PRINT 과
+		SIF EX:MASTER:24
+			PRINT 입술
+		PRINTFORMW 의 쑤심에 괴로워하고 있다…
+		CFLAG:MASTER:욕구불만도 += (EX:MASTER:20 + EX:MASTER:21 + EX:MASTER:22 + EX:MASTER:23 + EX:MASTER:24) * 100
+	ENDIF
+	{
+	IF (TALENT:MASTER:150 || TALENT:MASTER:151) && !TALENT:MASTER:초경 && EXP:MASTER:V절정경험 > MAX(0, 200 - CFLAG:MASTER:자식보정)
+	 && !RAND:(10 - MIN(9, CFLAG:MASTER:자식보정 / 10 + ABL:MASTER:질내사정중독)) && EX:MASTER:질내정액
+	 }
+		PRINTFORML 어린 몸이 알기에는 너무 빠른 쾌락이 %마스터를%「여자」로 바꾸어 간다……
+		PRINTFORMW %마스터는% 초경을 맞이했다
+		PRINTFORMW %마스터는% 아이를 임신할 수 있는 몸이 되었다
+		TALENT:MASTER:초경 = 1
+	ENDIF
+	IF ABL:MASTER:정액중독 < 3
+		IF CFLAG:MASTER:누계뿌려짐 + CFLAG:MASTER:누계정음 * 3 +CFLAG:MASTER:누계질내정액 + CFLAG:MASTER:누계애널정액 >= 15000 * (10 - 2 * TALENT:MASTER:중독되기쉬움) / 10
+			PRINTFORML 몇 번이나 정액을 쏟아진 %CALLNAME:MASTER%의 몸은 %CALLNAME:ARG%의 정액의 맛을 기억해 버렸다…
+			PRINTL 향후는 무의식적이어도 스스로 갖고 싶어하게 될 것이다
+			PRINTFORMW %CALLNAME:MASTER%의 정액중독이 3이 되었다
+			ABL:MASTER:정액중독 = 3
+		ELSEIF CFLAG:MASTER:누계뿌려짐 + CFLAG:MASTER:누계정음 * 3 +CFLAG:MASTER:누계질내정액 + CFLAG:MASTER:누계애널정액 >= 7500 * (10 - 2 * TALENT:MASTER:중독되기쉬움) / 10 && ABL:MASTER:정액중독 < 2
+			PRINTFORML %CALLNAME:MASTER%의 몸은, 정액에 친숙해 지고 있다…
+			PRINTFORMW %CALLNAME:MASTER%의 정액중독이 2가 되었다
+			ABL:MASTER:정액중독 = 2
+		ELSEIF CFLAG:MASTER:누계뿌려짐 + CFLAG:MASTER:누계정음 * 3 +CFLAG:MASTER:누계질내정액 + CFLAG:MASTER:누계애널정액 >= 3000 * (10 - 2 * TALENT:MASTER:중독되기쉬움) / 10 && !ABL:MASTER:정액중독
+			PRINTFORML %CALLNAME:MASTER%의 몸은, 정액의 맛을 알아 버렸다…
+			PRINTFORMW %CALLNAME:MASTER%의 정액중독이 1이 되었다
+			ABL:MASTER:정액중독 = 1
+		ENDIF
+	ENDIF
+	IF CFLAG:MASTER:누계정음 > 10000 * (10 - 2 * TALENT:MASTER:중독되기쉬움) / 10 && !TALENT:MASTER:정애미각
+		PRINTFORML 정액을 계속 먹은 %CALLNAME:MASTER%의 몸은 정액의 맛 자체에서 즐거움을 느끼게 되고 말았다…
+		PRINTFORMW %마스터는% 【정애미각】을 얻었다
+		TALENT:MASTER:정애미각 = 1
+	ENDIF
+	IF ABL:MASTER:정액중독 >= 3
+		IF CFLAG:MASTER:누계질내정액 > 3000 * ABL:MASTER:질내사정중독 * (10 - 2 * TALENT:MASTER:중독되기쉬움) / 10 &&  EX:MASTER:질내정액 > 200 && ABL:MASTER:질내사정중독 < 3
+			PRINTFORMW %CALLNAME:MASTER%의 핑크색의 점막에 정액이 널리 스며든다…
+			PRINTFORMW %CALLNAME:MASTER%의 질은 \@ ABL:MASTER:질내사정중독 ? 보다 강하게# \@%CALLNAME:ARG%의 정액을 바라게 되었다
+			ABL:MASTER:질내사정중독 ++
+		ELSEIF CFLAG:MASTER:누계애널정액 > 3000 * ABL:MASTER:항내사정중독 * (10 - 2 * TALENT:MASTER:중독되기쉬움) / 10 && EX:MASTER:애널내정액 > 200 && ABL:MASTER:항내사정중독 < 3
+			PRINTFORMW %CALLNAME:MASTER%의 직장에 정액이 널리 스며든다…
+			PRINTFORMW %CALLNAME:MASTER%의 애널은 \@ ABL:MASTER:항내사정중독 ? 보다 강하게# \@%CALLNAME:ARG%의 정액을 바라게 되었다
+			ABL:MASTER:항내사정중독 ++
+		ENDIF
+	ENDIF
+	RESETCOLOR
