@@ -10,6 +10,8 @@ DRAWLINE
 PRINTFORML
 PRINTFORM 어떤 스킬을 메모라이즈 할까? (현재 메모라이즈 수 : {NUM_MEMORIZED()}/50)   
 PRINTBUTTON "[스킬 설명]" , 69745882
+PRINT 　　
+PRINTBUTTON "[프리셋]" , 893893893
 PRINTFORML
 DRAWLINE
 카운터 = 1
@@ -88,6 +90,8 @@ ELSEIF 입력 == 9999&&LOCAL:2 == 0
     페이지++
 ELSEIF 입력 == 69745882
     CALL T_HELP
+ELSEIF 입력 == 893893893
+    CALL 스킬프리셋생성
 ELSE
     IF 입력 > T_스킬한계값
 
@@ -140,3 +144,184 @@ FOR LOCAL,0,50
     ENDIF
 NEXT
 RETURNF LOCAL:1
+
+
+
+@SET_PRESET(ARG)
+FOR LOCAL,0,50
+    IF T_메모라이즈:LOCAL != 0
+        SKILL_PRESET:ARG:LOCAL = T_메모라이즈:LOCAL
+    ENDIF
+NEXT
+
+@CLEAR_PRESET(ARG)
+FOR LOCAL,0,50
+    SKILL_PRESET:ARG:LOCAL = 0
+NEXT
+
+@SET_TO_PRESET(ARG)
+FOR LOCAL,0,50
+    T_메모라이즈:LOCAL = SKILL_PRESET:ARG:LOCAL
+NEXT
+
+@IS_PRESET_(ARG)
+#FUNCTION
+IF ARG > 5
+    RETURNF 0
+ENDIF
+IF NAME_SKILL_PRESET:ARG != ""
+    RETURNF 1
+ENDIF
+RETURNF 0
+
+@스킬프리셋생성
+#DIM CONST 프리셋한계 = 6
+PRINTL
+PRINTL
+PRINTBUTTON "[현재 메모라이즈 된 것을 프리셋으로]" , 0
+PRINTL
+PRINTBUTTON "[프리셋삭제 모드]" , 6974
+PRINTL
+PRINTBUTTON "[이름 변경]" , 5882
+PRINTL
+PRINTL
+FOR LOCAL,1,프리셋한계
+    IF IS_PRESET_(LOCAL)
+        PRINTBUTTON @"[%NAME_SKILL_PRESET:LOCAL%]" , LOCAL
+        PRINTL
+    ELSE
+        SETCOLOR 0x808080
+        PRINTFORML [-------------------]
+        RESETCOLOR
+    ENDIF
+NEXT
+PRINTL
+PRINTL
+PRINTBUTTON "[취소]" , 893893
+$LOOP
+INPUT
+IF RESULT == 0
+    $입력표시루프
+    PRINTL
+    PRINTFORML 어디에 저장합니까?
+    FOR LOCAL,1,프리셋한계
+        IF IS_PRESET_(LOCAL)
+            PRINTBUTTON @"[%NAME_SKILL_PRESET:LOCAL%]" , LOCAL
+            PRINTL
+        ELSE
+            SETCOLOR 0x808080
+            PRINTBUTTON "[-------------------]" , LOCAL
+            PRINTL
+            RESETCOLOR
+        ENDIF
+    NEXT
+    PRINTL
+    PRINTL
+    PRINTBUTTON "[취소]" , 893893
+    $입력루프
+    INPUT
+    LOCAL:1 = RESULT
+    IF LOCAL:1 == 893893
+        RESTART
+    ELSEIF INRANGE(LOCAL:1,1,프리셋한계)
+        IF IS_PRESET_(LOCAL:1)
+            PRINTFORML 이 프리셋에는 저장된 내용이 있습니다, 덮어씁니까?
+            CALL ASK_YN()
+            IF RESULT
+                GOTO 입력표시루프
+            ENDIF
+        ENDIF
+        PRINTFORML 프리셋의 이름을 지정해 주세요
+        $프리셋이름입력루프
+        INPUTS
+        IF STRLENS(RESULTS) > 20
+            PRINTFORMW 전각 10자 이상 등록할 수 없습니다
+        ELSEIF RESULTS == ""
+            GOTO 프리셋이름입력루프
+        ELSE
+            NAME_SKILL_PRESET:(LOCAL:1) '= RESULTS
+        ENDIF
+        CALL SET_PRESET(LOCAL:1)
+    ELSE
+        GOTO 입력루프
+    ENDIF
+ELSEIF RESULT == 6974
+    $삭제표시루프
+    PRINTL
+    PRINTFORML 어떤 프리셋을 삭제합니까?
+    FOR LOCAL,1,프리셋한계
+        IF IS_PRESET_(LOCAL)
+            PRINTBUTTON @"[%NAME_SKILL_PRESET:LOCAL%]" , LOCAL
+            PRINTL
+        ELSE
+            SETCOLOR 0x808080
+            PRINTFORML [-------------------]
+            RESETCOLOR
+        ENDIF
+    NEXT
+    PRINTL
+    PRINTL
+    PRINTBUTTON "[취소]" , 893893
+    $삭제루프
+    INPUT
+    IF RESULT == 893893
+        RESTART
+    ELSEIF INRANGE(RESULT,1,프리셋한계)
+        CALL CLEAR_PRESET(RESULT)
+        VARSET NAME_SKILL_PRESET:RESULT
+    ELSE
+        GOTO 삭제루프
+    ENDIF
+    GOTO 삭제표시루프
+ELSEIF RESULT == 5882
+    $개명표시루프
+    PRINTL
+    PRINTFORML 어떤 프리셋의 이름을 변경합니까?
+    FOR LOCAL,1,프리셋한계
+        IF IS_PRESET_(LOCAL)
+            PRINTBUTTON @"[%NAME_SKILL_PRESET:LOCAL%]" , LOCAL
+            PRINTL
+        ELSE
+            SETCOLOR 0x808080
+            PRINTFORML [-------------------]
+            RESETCOLOR
+        ENDIF
+    NEXT
+    PRINTL
+    PRINTL
+    PRINTBUTTON "[취소]" , 893893
+    $개명루프
+    INPUT
+    LOCAL:1 = RESULT
+    IF LOCAL:1 == 893893
+        RESTART
+    ELSEIF INRANGE(LOCAL:1,1,프리셋한계) && IS_PRESET_(LOCAL:1)
+        PRINTFORML 프리셋의 이름을 지정해 주세요
+        $프리셋이름개명루프
+        INPUTS
+        IF STRLENS(RESULTS) > 20
+            PRINTFORMW 전각 10자 이상 등록할 수 없습니다
+        ELSEIF RESULTS == ""
+            GOTO 프리셋이름개명루프
+        ELSE
+            NAME_SKILL_PRESET:(LOCAL:1) '= RESULTS
+        ENDIF
+    ELSE
+        GOTO 개명루프
+    ENDIF
+    GOTO 개명표시루프
+ELSEIF RESULT == 893893
+    RETURN
+ELSEIF RESULT <= 프리셋한계 && RESULT > 0 && IS_PRESET_(RESULT)
+    LOCAL:1 = RESULT
+    PRINTFORML "%NAME_SKILL_PRESET:(LOCAL:1)%" 프리셋으로 변경합니까?
+    CALL ASK_YN()
+    IF RESULT
+        RESTART
+    ENDIF
+    CALL SET_TO_PRESET(LOCAL:1)
+    RETURN
+ELSE
+    GOTO LOOP
+ENDIF
+RESTART
