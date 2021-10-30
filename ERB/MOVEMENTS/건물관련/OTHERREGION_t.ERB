@@ -2,9 +2,23 @@
 #DIM 현재지점
 #DIM 소요시간
 #DIM 현재지MAPID
-#DIM GOAL	 
+#DIM GOAL
+#DIM ANIMATION_SEED
 
-CALL FIELDMAP
+ANIMATION_SEED = 0
+
+;Map Animation Code
+$MAPANIMATION
+LINESTART = LINECOUNT
+SIF ANIMATERECOLOREDMAPS && !FLAG:70
+	ANIMATION_SEED ++
+
+IF RECOLOREDMAPS
+	CALL DRAW_COLOREDMAP(ANIMATION_SEED, "GLOBAL")
+ELSE
+	CALL FIELDMAP
+ENDIF
+
 PRINTL 어디로 가겠습니까?
 현재지MAPID = GET_MAPID(CFLAG:MASTER:현재위치)
 ;	// 신사가 표시되지 않는 것은 조금 외롭기 때문에
@@ -49,7 +63,15 @@ ELSE
 ENDIF
 PRINT [100] - 돌아간다
 $LOOP
-INPUT
+;Map Animation Code
+IF ANIMATERECOLOREDMAPS && !FLAG:70
+	CURRENTREDRAW
+	ORIREDRAW = RESULT
+	REDRAW ORIREDRAW
+	TINPUT ANIMATERECOLOREDMAPS,1234,0,""
+ELSE
+	INPUT
+ENDIF
 ;돌아간다
 IF RESULT == 100
 	RETURN RESULT
@@ -88,6 +110,12 @@ ELSEIF RESULT == MAIN_MAP
 	ENDIF
 	CALL 외출처로부터귀가
 	RETURN MAIN_MAP
+
+ELSEIF RESULT == 1234
+	REDRAW 0
+	CLEARLINE LINECOUNT - LINESTART
+	GOTO MAPANIMATION
+
 ELSEIF RESULT != 12
 	GOAL = RESULT
 	소요시간 = TIME_REQUIRED(현재지MAPID, GOAL)
@@ -124,7 +152,7 @@ ELSEIF RESULT != 12
 		ELSEIF LOCAL:1 > 1
 		;한사람
 		ELSE
-			IF FLAG:70 && GETBIT(FLAG:순간이동, 0)
+			IF FLAG:70 && GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP >= 소요시간 * 3
 				RESULT = 1
 			ELSE
 				PRINTL TSP를 소비하여 시간 경과 없이 이동할 수 있습니다.
@@ -198,23 +226,23 @@ SIF FLAG:일일이벤트 >= 800 || FLAG:일일이벤트 % 10 == YOME % 10
 LOCALS = %CHILDNAME:YOME:CHILDNUM%
 PRINTFORMW 외출할 때 %조사처리(LOCALS,"와")% 스쳐 지나갔다.
 IF CHILD_LOVE:YOME:CHILDNUM < 0
-	PRINTFORMW %조사처리(LOCALS,"는")% %CALLNAME:MASTER%の事に気づいていないようだった…
+	PRINTFORMW %조사처리(LOCALS,"는")% %CALLNAME:MASTER%에 대해 눈치채지 못한 것 같다…
 ELSEIF CHILD_LOVE:YOME:CHILDNUM < 200
-	PRINTFORMW %조사처리(LOCALS,"는")% 軽く会釈してきた
+	PRINTFORMW %조사처리(LOCALS,"는")% 가볍게 인사해왔다
 ELSE
 	IF FLAG:데이트상대 != YOME && FLAG:데이트상대
 		PRINTDATA
 			DATAFORM %조사처리(LOCALS,"는")% %조사처리(CALLNAME:YOME,"가")% 아닌 여자를 데리고 있던 것에 대해 불평을 해 왔다…
-			DATAFORM %조사처리(LOCALS,"는")% %CALLNAME:(FLAG:데이트상대)%의 事を鋭く睨みつけた…
-			DATAFORM %조사처리(LOCALS,"는")% 呆れた様子で%CALLNAME:MASTER%に文句を言ってきた…
-			DATAFORM %조사처리(LOCALS,"는")% %마스터를% 軽蔑的な視線で見送った…
+			DATAFORM %조사처리(LOCALS,"는")% %CALLNAME:(FLAG:데이트상대)%의 일을 매섭게 노려보았다…
+			DATAFORM %조사처리(LOCALS,"는")% 어이없다는 듯이 %CALLNAME:MASTER%에게 불평해 왔다…
+			DATAFORM %조사처리(LOCALS,"는")% %마스터를% 경멸적인 시선으로 바라보았다…
 		ENDDATA
 	ELSE
 		PRINTDATA
 			DATAFORM %조사처리(LOCALS,"는")% 손을 흔들어 인사해 주었다…
-			DATAFORM %조사처리(LOCALS,"는")%再会を歓び抱きついてきた…
-			DATAFORM %조사처리(LOCALS,"는")%凛とした笑顔で見送ってくれた…
-			DATAFORM %조사처리(LOCALS,"는")%高らかに %CALLNAME:MASTER%의 名を呼んだ…
+			DATAFORM %조사처리(LOCALS,"는")% 재회를 기뻐하며 안겨왔다…
+			DATAFORM %조사처리(LOCALS,"는")% 늠름한 웃는 얼굴로 전송해 주었다…
+			DATAFORM %조사처리(LOCALS,"는")% 드높이 %CALLNAME:MASTER%의 이름을 불렀다…
 		ENDDATA
 	ENDIF
 	PRINTW

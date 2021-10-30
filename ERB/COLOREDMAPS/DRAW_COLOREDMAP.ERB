@@ -1,0 +1,445 @@
+﻿@DRAW_COLOREDMAP(ANIMATION_SEED, ARGS)
+	#DIM ANIMATION_SEED
+	#DIM COLUMN
+	#DIM LOCATION
+	#DIM ROW
+	#DIM COLUMN_LENGTH
+	#DIMS COLOR, 42
+	#DIMS COLORCOLUMNS, 128
+	#DIMS MAP, 42
+	#DIMS TYPE
+	#DIMS COLUMN_STR
+	#DIMS CURRENT_STR
+	#DIM BENCHMARKS
+	#DIM BENCHMARKE
+	#DIM EFFECT_SEED
+	#DIM EFFECT_SEEDA
+
+	VARSET MAP, "NULL"
+	VARSET COLOR, "0"
+	;If failed to retrieve map, revert back to original.
+	;If failed to retrieve color, set it to default color.
+	BENCHMARKS = GETMILLISECOND()
+	CURRENTREDRAW
+	ORIREDRAW = RESULT
+	REDRAW 0
+	IF ARGS == "ODEKAKE"		
+		TRYCCALLFORM COLOREDODEKAKEMAP_{CFLAG:MASTER:데이트중}(MAP,COLOR)
+		CATCH
+			CALL DRAW_MAP("ODEKAKE")
+			RETURN 0
+		ENDCATCH
+	ELSEIF ARGS == "GLOBAL"
+		TRYCCALLFORM COLOREDFIELD(MAP,COLOR)
+		CATCH
+			CALL FIELDMAP
+			RETURN 0
+		ENDCATCH
+	ELSE
+		CALLFORM MAP_VIEWING_{MAIN_MAP}(MAP,COLOR)
+	ENDIF
+	EFFECT_SEED = 0
+	EFFECT_SEEDA = 0
+	FOR ROW, 0, 42
+		SIF MAP:ROW == "NULL"
+			BREAK
+		
+		;Remove zero width space
+		COLUMN_STR = %REPLACE(MAP:ROW,"​","")%
+		COLUMN_LENGTH = STRLENSU(COLUMN_STR)
+		SPLIT COLOR:ROW, ",", COLORCOLUMNS
+		FOR COLUMN, 0, 128
+			CURRENT_STR = %SUBSTRINGU(COLUMN_STR, COLUMN, 1)%
+			SIF CURRENT_STR == ""
+				BREAK
+			
+			;Apply the character's color
+			IF COLORCOLUMNS:COLUMN != ""
+				IF ISNUMERIC(COLORCOLUMNS:COLUMN)
+					TYPE = NULL
+					IF COLORCOLUMNS:COLUMN == "0"
+						RESETCOLOR
+					ELSE
+						CALL APPLYCOLOR(TOINT(COLORCOLUMNS:COLUMN))
+					ENDIF
+				ELSE
+					TYPE = %COLORCOLUMNS:COLUMN%
+					CALL GETSEASONALCOLORS(TYPE,EFFECT_SEED)
+					IF RESULT > -1
+						SIF (RESULT:1 != -1)
+							CALL CREATETRANSITION(RESULT:0, RESULT:1)
+						CALL APPLYCOLOR(RESULT)
+					ENDIF
+				ENDIF
+			ENDIF
+
+			;Print the character
+			IF ISNUMERIC(CURRENT_STR)
+				LOCATION = (TOINT(CURRENT_STR) * 10)
+				COLUMN ++
+				CURRENT_STR = %SUBSTRINGU(COLUMN_STR, COLUMN, 1)%
+				LOCATION += TOINT(CURRENT_STR)
+				IF ARGS == "ODEKAKE"
+					CALL GETMAP2(LOCATION)
+				ELSEIF ARGS == "GLOBAL"
+					CALL MAPBUTTON(((LOCATION > 9)? TOSTR(LOCATION) # TOFULL(TOSTR(LOCATION))),LOCATION)
+				ELSE
+					LOCATION += (MAIN_MAP * 100)
+					CALL GETMAP(LOCATION)
+				ENDIF
+			ELSE
+				IF TYPE == "NULL"
+					PRINTS CURRENT_STR
+				ELSE
+					CALL GETANIMATIONCHARACTER(ANIMATION_SEED, TYPE, CURRENT_STR, EFFECT_SEEDA)
+				ENDIF
+			ENDIF
+		NEXT
+		PRINTL
+	NEXT
+	RESETCOLOR
+	REDRAW ORIREDRAW
+	BENCHMARKE = GETMILLISECOND()
+	LOCAL = BENCHMARKE - BENCHMARKS
+	;PRINTFORML Time taken: {LOCAL}
+
+;===============================================
+; Used by the color codes for water, fire, ground and paving, and flowers.
+; Formula is: (ANIMATION_SEED % (# of characters involved in animation) + starting animation character).
+; The result from the formula is a character with its matching color.
+;===============================================
+@GETANIMATIONCHARACTER(ANIMATION_SEED, TYPE, DEFAULT, EFFECT_SEED)
+	{
+		#DIM CONST ANIMATIONCOLORS =
+			0x555555, 0x777777, 0,
+			0x447799, 0x336688, 0x225577, 0,
+			0x114466, 0x447799, 0x336688, 0x225577, 0,
+			0x009933, 0x009900, 0x339900, 0x009933, 0x009900, 0x339900, 0,
+			0x50A0DC, 0,
+			0x996600, 0xCC6600, 0xFF6600, 0xFFCC33, 0x663300, 0x663300, 0xFF66CC, 0xFF99FF, 0,
+			0xFFFF99, 0xFFFFFF, 0x6600FF, 0x990099, 0xFF3399, 0xFF3333, 0xFFFFFF, 0,
+			0xF19751, 0xB5151F, 0x790101, 0xF19751, 0,
+			0x990099, 0x660033, 0x990000, 0x663300, 0x993300, 0,
+			0xFFFFFF, 0xEEEEEE, 0xCCCCCC, 0xFFFFFF, 0,
+			0x225577, 0x336688, 0x447799, 0
+	}
+	#DIM REF ANIMATION_SEED
+	#DIM REF EFFECT_SEED
+	#DIM CHARACTER
+	#DIM COLOR
+	#DIM INCREMENTANIMATION
+	{
+		#DIMS CONST ANIMATIONCHARACTERS =
+			"∫", "∬", "　",
+			"- ", " -", "ー", "　",
+			"~ ", " ~", "∽", "～", "　",
+			"｡ ", " ｡", "o ", " o", "о", "○", "　",
+			"◎", "　",
+			"、", "` ", " `", "´", "' ", " '", ", ", " ,", "　",
+			"ρ", "ф", "＊", "γ", "ψ", "δ", "σ", "　",
+			"ハ", "ヽ", "〉", "〈", "　",
+			".:", "･:", ":.", ":･", "｡･", "　",
+			"∴", "∵", "･.", ".･", "　",
+			"i", "j", "l"," "
+	}
+	{
+		#DIM CONST SNOW = 
+			0xFFFFFF,0xEBEBEB,0xD2D2D2,0x969696
+	}
+	#DIMS TYPE
+	#DIMS DEFAULT
+
+	COLOR = -1					;This excludes 'bamboo', 'flora', and 'sakura'
+	INCREMENTANIMATION = 1		;Should the animation be played?
+	IF ANIMATERECOLOREDMAPS
+		;Get the character depending on the animation seed
+		IF TYPE == "steam"
+			CHARACTER = (ANIMATION_SEED % 6)
+			COLOR = ANIMATIONCOLORS:CHARACTER
+			DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
+		ELSEIF TYPE == "still"
+			IF DAY:2 == 4
+				CHARACTER = 4
+				INCREMENTANIMATION = 0
+			ELSE
+				CHARACTER = ((ANIMATION_SEED % 4) + 3)
+			ENDIF
+			COLOR = ANIMATIONCOLORS:CHARACTER
+			DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
+		ELSEIF TYPE == "tides"
+			IF DAY:2 == 4
+				CHARACTER = 4
+				INCREMENTANIMATION = 0
+			ELSE
+				CHARACTER = ((ANIMATION_SEED % 5) + 7)
+			ENDIF
+			COLOR = ANIMATIONCOLORS:CHARACTER
+			DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
+		ELSEIF TYPE == "water"
+			IF DAY:2 == 4
+				;Winter. Water is frozen.
+				CHARACTER = 4
+				INCREMENTANIMATION = 0
+			ELSEIF DAY:2 == 3
+				;Autumn. No lily pads and the water becomes more quiet.
+				CHARACTER = ((ANIMATION_SEED % 11) + 9)
+				CHARACTER = ((CHARACTER < 12 || CHARACTER > 17)? CHARACTER # 18)
+			ELSE
+				;Spring and Summer. There are lily pads and water is active
+				CHARACTER = ((ANIMATION_SEED % 11) + 9)
+			ENDIF
+			COLOR = ANIMATIONCOLORS:CHARACTER
+			DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
+			
+			;A quick hack for offset. This reduces the characters of same category.
+			SIF !FLAG:70 && INCREMENTANIMATION
+				ANIMATION_SEED += 3
+		ELSEIF TYPE == "ground" || TYPE == "paving"
+			IF ((ANIMATION_SEED & 11) <= 5)
+				IF DAY:2 < 3
+					CHARACTER = ((ANIMATION_SEED % 9) + 21)
+				ELSE
+					CHARACTER = ((ANIMATION_SEED % 6) + 43)
+				ENDIF
+				
+				IF GETEFFECTCOND(EFFECT_SEED)
+					DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
+					IF DAY:2 == 2 || MAIN_MAP == 6
+						CHARACTER = ((CHARACTER > 26)? CHARACTER - 2 # CHARACTER)
+						COLOR = ANIMATIONCOLORS:CHARACTER
+					ELSEIF DAY:2 == 4
+						COLOR = SNOW:(ANIMATION_SEED % 4)
+					ELSE
+						COLOR = ANIMATIONCOLORS:CHARACTER
+					ENDIF
+				ENDIF
+			ENDIF
+		ELSEIF TYPE == "flower" || TYPE == "flowers"
+			IF DAY:2 == 4
+				COLOR = SNOW:(ANIMATION_SEED % 4)
+			ELSE
+				CHARACTER = ((ANIMATION_SEED % 7) + 30)
+				COLOR = ANIMATIONCOLORS:CHARACTER
+				DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
+			ENDIF
+		ELSEIF TYPE == "flame"
+			CHARACTER = ((ANIMATION_SEED % 4) + 38)
+			COLOR = ANIMATIONCOLORS:CHARACTER
+			DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
+		ELSEIF TYPE == "spray"
+			CHARACTER = ((ANIMATION_SEED % 4) + 49)
+			COLOR = ANIMATIONCOLORS:CHARACTER
+			DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
+		ELSEIF TYPE == "fall"
+			CHARACTER = ((ANIMATION_SEED % 4) + 54)
+			IF DAY:2 == 4
+				CHARACTER = 54
+				INCREMENTANIMATION = 0
+			ENDIF
+			COLOR = ANIMATIONCOLORS:CHARACTER
+			DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
+		ENDIF
+
+		IF !FLAG:70 && INCREMENTANIMATION
+			;Limit animation to 20, for modulo operation
+			ANIMATION_SEED ++
+			SIF ANIMATION_SEED > 20
+				ANIMATION_SEED = ANIMATION_SEED % 20
+		ENDIF
+	ELSE
+		;Apply default colors for default characters
+		IF TYPE == "still" || TYPE == "tides" || TYPE == "water" || TYPE == "fall"
+			COLOR = 0x225577
+		ELSEIF TYPE == "ground" || TYPE == "paving"
+			COLOR = 0
+		ELSEIF TYPE == "flower" || TYPE == "flowers"
+			COLOR = 0xFFFF99
+		ELSEIF TYPE == "flame"
+			COLOR = 0xF19751
+		ELSEIF TYPE == "steam" || TYPE == "spray"
+			COLOR = 0xCCCCCC
+		ENDIF
+	ENDIF
+	
+	SIF TYPE == "def"
+		RESETCOLOR
+	SELECTCASE TYPE
+		CASE "white"
+			COLOR = 0xFFFFFF
+		CASE "framel"
+			COLOR = 0x787800
+		CASE "framen"
+			COLOR = 0x3c3c00
+		CASE "framed"
+			COLOR = 0x1e1e00
+	ENDSELECT
+	SIF COLOR > -1
+		CALL APPLYCOLOR(COLOR)
+	PRINTS DEFAULT
+;===============================================
+; Applies the color with respect to timestop.
+;===============================================
+@APPLYCOLOR(COLOR)
+	#DIM COLOR
+
+	;If timestop, invert the color except the white color family
+	SIF FLAG:70 && (COLOR < 0xE3DAC9)
+		COLOR = COLOR ^ 0xFFFFFF
+	SETCOLOR COLOR
+
+;===============================================
+; Determine if effect should be applied.
+;===============================================
+@GETEFFECTCOND(EFFECT_SEED)
+	#FUNCTION
+	{
+	#DIM CONST CURVER = 
+				25,30,37,45,55,66,76,85,93,97,99,
+                100,100,100,100,100,100,100,100,100,100,
+                90,80,70,60,50,40,30,20,10,10
+	}
+	#DIM REF EFFECT_SEED
+	#DIM EFFECT
+	EFFECT_SEED++
+	EFFECT = CURVER:(DAY:3 - 1)
+	IF (EFFECT*EFFECT_SEED/100) > (EFFECT*(EFFECT_SEED-1)/100)
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+	
+;===============================================
+; Used by the color codes: 'bamboo', 'flora', and 'sakura'.
+; DAY:2 starts with Spring (1), Summer (2), Autumn (3), then Winter (4)
+;===============================================
+@GETSEASONALCOLORS(TYPE,EFFECT_SEED)
+	{
+		#DIM CONST SEASONALCOLORS =
+			0x3C2D0F, 0x2D2D00, 0x323D2D, 0x46461E,
+			0x5A4B1E, 0x787800, 0x648C4B, 0x8C8C3C,
+			0x4B3C14, 0x4B4B00, 0x50643C, 0x64642D,
+			0x2D1E0A, 0x141400, 0x141E0F, 0x28280F,
+			0x3C2D0F, 0x64963C, 0x238C32, 0x78460F,
+			0x5A4B1E, 0xA0D264, 0x50B45A, 0xB4961E,
+			0x4B3C14, 0x82B450, 0x32A046, 0x966E14,
+			0x2D1E0A, 0x3C7828, 0x00641E, 0x3C280A,
+			0x321E14, 0xF096C8, 0x643C5A, 0x5A4B32,
+			0x28190F, 0xD26496, 0x502846, 0x4B3C28,
+			0x1E140A, 0xA03C64, 0x3C1E37, 0x3C2D1E,
+			0x140A05, 0x5A283C, 0x281423, 0x2D1E14
+	}
+	{
+	#DIM CONST CURVER = 
+				25,30,37,45,55,66,76,85,93,97,99,
+                100,100,100,100,100,100,100,100,100,100,
+                90,80,70,60,50,40,30,20,10,10
+	}
+	{
+	#DIM CONST SNOW = 
+			0xFFFFFF,0xEBEBEB,0xD2D2D2,0x969696
+	}
+	#DIM OFFSET
+	#DIM REF EFFECT_SEED
+	#DIMS TYPE
+	
+	OFFSET = -1
+	SELECTCASE TYPE
+		CASE "bambood"
+			OFFSET = 0
+		CASE "bambool"
+			OFFSET = 4
+		CASE "bamboon"
+			OFFSET = 8
+		CASE "bamboos"
+			OFFSET = 12
+		CASE "florad"
+			OFFSET = 16
+		CASE "floral"
+			OFFSET = 20
+		CASE "floran"
+			OFFSET = 24
+		CASE "floras"
+			OFFSET = 28
+		CASE "sakurad"
+			OFFSET = 32
+		CASE "sakural"
+			OFFSET = 36
+		CASE "sakuran"
+			OFFSET = 40
+		CASE "sakuras"
+			OFFSET = 44
+	ENDSELECT
+	
+	;Snow Effect
+	IF (DAY:2 == 4)
+		IF GETEFFECTCOND(EFFECT_SEED)
+			SELECTCASE TYPE
+				CASE "floral", "bambool", "sakural"
+					RETURN SNOW:0
+				CASE "floran", "bamboon", "sakuran"
+					RETURN SNOW:1
+				CASE "florad", "bambood", "sakurad"
+					RETURN SNOW:2
+				CASE "floras", "bamboos", "sakuras"
+					RETURN SNOW:3
+			ENDSELECT
+		ENDIF
+	ENDIF
+	
+	;Day 10, the next season is the current DAY:2
+	;Day 22, the next season is DAY:2 + 1
+	IF OFFSET > -1
+		IF DAY:3 < 11
+			RETURN SEASONALCOLORS:(((DAY:2 - 1) % 4) + OFFSET), SEASONALCOLORS:((DAY:2 % 4) + OFFSET)
+		ELSEIF DAY:3 < 22
+			RETURN SEASONALCOLORS:((DAY:2 % 4) + OFFSET), -1
+		ELSE
+			RETURN SEASONALCOLORS:((DAY:2 % 4) + OFFSET), SEASONALCOLORS:(((DAY:2 + 1) % 4) + OFFSET)
+		ENDIF
+	ELSE
+		RETURN -1, -1
+	ENDIF
+
+;===============================================
+; Used by GETSEASONALCOLORS(TYPE).
+; Computes the gradient between two seasons.
+;===============================================
+@CREATETRANSITION(START, STOP)
+	#DIM START
+	#DIM STOP
+	#DIM COLOR, 3
+
+	;Interpolate each RGB channels
+	CALL INTERPOLATE((START >> 16), (STOP >> 16))
+	COLOR:0 = RESULT
+	CALL INTERPOLATE(((START & 0x00ff00) >> 8), ((STOP & 0x00ff00) >> 8))
+	COLOR:1 = RESULT
+	CALL INTERPOLATE((START & 0x0000ff), (STOP & 0x0000ff))
+	COLOR:2 = RESULT
+
+	RETURN ((((COLOR:0 << 8) | COLOR:1) << 8) | COLOR:2)
+
+;===============================================
+; Used by CREATETRANSITION(START, STOP).
+; Interpolates between two colors that are dependent on time.
+;===============================================
+@INTERPOLATE(START, STOP)
+	#DIM START
+	#DIM STOP
+	#DIM INCREMENT
+	{
+	#DIM CONST CURVEF = 
+	45,35,25,17,10,4,1,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    1,4,10,17,25,35,45,45
+	}
+	INCREMENT = DAY:3 - 1
+
+	IF START < STOP
+		RETURN ((((STOP - START) * CURVEF:INCREMENT) / 100) + START)
+	ELSEIF START > STOP
+		RETURN ((((START - STOP) * (100 - CURVEF:INCREMENT)) / 100) + STOP)
+	ELSE
+		RETURN START
+	ENDIF
+	
