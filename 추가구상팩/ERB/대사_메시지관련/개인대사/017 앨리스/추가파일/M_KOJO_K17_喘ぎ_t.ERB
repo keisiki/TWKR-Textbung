@@ -1,0 +1,1524 @@
+﻿;*********************************************************************************
+;
+;
+;	K17 말내에서 사용하는 우후후 관련의 함수군
+;
+;	□목차	^[ \t]*(@)로 아우트라인 엄선
+;
+;K17_SET_AUTO_PVOICE			글로벌 보존한다
+;K17_ABL_RT_EX					감각에 대해 RT, 각인의 보정을 걸친다
+;K17_AUTO_PVOICE				글로벌 보존한 RT, 계통으로 부위의 허덕여소리를 1행 낸다
+;K17_AP_NUM						글로벌 보존한 RT, 계통으로 부위의 허덕여소리 지정 회수 낸다
+;K17_AP_DEC						글로벌 보존한 계통으로 부위의 이음을 꺼낸다
+;K17_부위_CONVERT				텍스트의 식별 번호로부터 ABL의 식별 번호에 변환
+;K17_AP_FINISH					AP대응 단순 절정 호출
+;K17_허덕여소리 허덕여 계통을 통괄한 것
+;K17_봉사소리 인수 늘리는 것도 저것이었으므로 신설
+;K17_허덕여소리_감도 감도에 대한 허덕여소리
+;K17_츄파음 섬세하게 지정하는 키스음
+;K17_허덕여_연결해 섬세하게 지정하는 허덕여소리
+;K17_쾌락_허덕여소리 쾌락에 대한 텍스트
+;K17_허덕여_봉사 파이즈리와 딸딸이의 텍스트
+;K17_허덕여_사정 상대의 사정에 관한 텍스트
+;K17_허덕여_절정 절정 텍스트
+;---------------------
+;
+;K17_SEXY_CONVERT				대사에 한숨적인 것을 추가한다
+;K17_H망상기독망상의 기독판정을 실시하는 글로벌 보존한다
+;K17_H망상 앨리스의 H인 망상을 꺼낸다
+;K17_허덕여타입_H망상			↑의 허덕여타입을 꺼낸다
+;K17_H망상_허덕여					H망상에 대응한 허덕여 집
+;
+;*********************************************************************************
+
+
+;*********************************************************************************
+;	AUTO_PVOICE에 대한 설정을 한다
+;
+;	인수 생략으로 바꾸지 않는 억지로가 있으므로 서고 있으면(자) 강제
+;
+;	인수 0	：RT치 다시 세트 할 때까지 이것으로 불리는 커맨드 부를 때에 세트 하면 좋지
+;	인수 1	：허덕여 부위　-1그리고 풍미에
+;	인수 2	：허덕여타입
+;*********************************************************************************
+@K17_SET_AUTO_PVOICE(ARG=-1, ARG:1=-3, ARG:2=-1)
+	SIF ARG:0 != -1
+		CFLAG:K17C_ID:K17C_CF_허덕여RT = ARG:0
+	SIF ARG:1 != -3
+		CFLAG:K17C_ID:K17C_CF_허덕여부위 = ARG:1
+	SIF ARG:2 != -1
+		CFLAG:K17C_ID:K17C_CF_허덕여타입 = ARG:2
+	
+	;상황 변화
+	SIF GET_TARGETNUM() > 1 && CFLAG:MASTER:우후후 == 1
+		CFLAG:K17C_ID:K17C_CF_허덕여타입 = K17C_접수_도움계
+	SIF TEQUIP:밧줄
+		CFLAG:K17C_ID:K17C_CF_허덕여타입 = K17C_접수_합의덮쳐계
+	SIF TEQUIP:구속
+		CFLAG:K17C_ID:K17C_CF_허덕여타입 = K17C_접수_억지로계
+	SIF TEQUIP:새댁플레이
+		CFLAG:K17C_ID:K17C_CF_허덕여타입 = K17C_접수_애원계
+	SIF TCVAR:억지로
+		CFLAG:K17C_ID:K17C_CF_허덕여타입 = K17C_접수_억지로계
+	
+	;개서시의 플래그 보존 
+	IF ARG:2 != -1
+		;경험의 보존
+{
+		CFLAG:K17C_ID:(K17C_CF_허덕여타입선택회수 + CFLAG:K17C_ID:K17C_CF_허덕여타입) =
+			MIN(CFLAG:K17C_ID:(K17C_CF_허덕여타입선택회수 + CFLAG:K17C_ID:K17C_CF_허덕여타입)+1, 10000)
+}
+	ENDIF
+RETURN 1
+
+
+;*********************************************************************************
+;	감각에 RT보정을 걸친다
+;	실수값은 운용하지 않기 때문에 천의 보정입니다
+;
+;	인수 0	：RT치
+;	인수 1	：감각 부위
+;	인수 2	：캐릭터 ID　통상 생략으로 사용하는 앨리스
+;*********************************************************************************
+@K17_ABL_RT_EX(ARG:0=0, ARG:1=0, ARG:2=K17C_ID)
+#FUNCTION
+#DIM TEMP
+
+;실수치에 대해서 상하에 랜덤 걸친다
+;하한으로 반발과 고통
+;상한으로 괘씸과 쾌락
+TEMP = K17_RANGE_RAND((ARG:1>0? ABL:(ARG:2):(ARG:1) #ABL:(ARG:2):욕망) , MARK:(ARG:2):반발각인 +MARK:(ARG:2):고통각인 , MARK:(ARG:2):괘씸각인 +MARK:(ARG:2):쾌락각인)
+SELECTCASE ARG
+	CASE IS >= K17C_연모
+		;부위 감각사랑으로 커버
+		TEMP += RAND:2
+		SIF TEMP < 1
+			RETURNF -1
+		RETURNF TEMP
+	CASE IS >= K17C_사모
+		;부위 감각사랑으로 커버 아직 초심자라면 풍미 있으므로 사용한다
+		SIF TEMP < 1
+			RETURNF -1
+		RETURNF TEMP
+ENDSELECT
+;사모 이하는 4까지 억제한다
+RETURNF LIMIT(TEMP , 0 , 4)
+;*********************************************************************************
+;	RELATION_TYPE에 대응한 랜덤 허덕여
+;
+;	글로벌 보존한 타입으로 부위에 대해 RT보정을 걸쳐 허덕여 몇차례+쾌락 허덕여+허덕여 몇차례를 부른다
+;	이 3개(살)을 일단 패키지 해 셔플 해 되돌린다
+;	종단이 귀찮아서 셔플 한 후 1회천를 넣으면 k
+;	애무에 대해서 1행 범용의 허덕여소리로서 사용한다
+;
+;	인수 0	：상대 ID　기본 MASTER
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_AUTO_PVOICE(ARG=0)
+#FUNCTIONS
+#DIM DYNAMIC iMinRand = 0
+#DIM DYNAMIC iMaxRand = 0
+VARSET LOCALS
+SELECTCASE CFLAG:K17C_ID:K17C_CF_허덕여RT
+	CASE IS >= K17C_연모
+		iMinRand = 2
+		iMaxRand = 4
+	CASE IS >= K17C_사모
+		iMinRand = 1
+		iMaxRand = 3
+	CASEELSE
+		iMinRand = 1
+		iMaxRand = 2
+ENDSELECT
+
+LOCALS = %K17_AP_NUM( RAND(iMinRand, iMaxRand) )%\\
+
+IF CFLAG:K17C_ID:K17C_CF_허덕여부위 >= 50
+	;성 기술별
+	LOCALS += K17_허덕여_사정(CFLAG:K17C_ID:K17C_CF_허덕여타입, 0, ARG)+"\\"
+ELSEIF CFLAG:K17C_ID:K17C_CF_허덕여부위 ==  K17C_부위없음
+	;부위 없음 욕정 Lv에  1000건 것
+	LOCALS += K17_쾌락_허덕여소리(CFLAG:K17C_ID:K17C_CF_허덕여타입, GETPALAMLV(PALAM:욕정, 10)*1000 , -1)+"\\"
+ELSEIF CFLAG:K17C_ID:K17C_CF_허덕여부위 == K17C_성기술_없음
+	;성 기술 없음
+	LOCALS += K17_허덕여_사정(CFLAG:K17C_ID:K17C_CF_허덕여타입, 0, ARG)+"\\"
+ELSE
+
+	IF CFLAG:K17C_ID:K17C_CF_허덕여타입 & K17C_허덕여F_공격 && !(CFLAG:K17C_ID:K17C_CF_허덕여타입 & K17C_허덕여F_덮쳐)
+		;공격 타이프별
+		LOCALS += K17_허덕여_사정(CFLAG:K17C_ID:K17C_CF_허덕여타입, 0, ARG)+"\\"
+	
+	ELSEIF CFLAG:K17C_ID:K17C_CF_허덕여부위 != K17C_부위B_유두 && CFLAG:K17C_ID:K17C_CF_허덕여부위 != K17C_부위M_펠라
+		;감도별
+		LOCALS += K17_쾌락_허덕여소리(CFLAG:K17C_ID:K17C_CF_허덕여타입, PALAM:K17C_ID:(CFLAG:K17C_ID:K17C_CF_허덕여부위) , CFLAG:K17C_ID:K17C_CF_허덕여부위)+"\\"
+	ELSE
+		;펠라, 유두
+		IF CFLAG:K17C_ID:K17C_CF_허덕여부위 == K17C_부위B_유두
+			;유두
+			LOCALS += K17_쾌락_허덕여소리(CFLAG:K17C_ID:K17C_CF_허덕여타입, PALAM:(K17C_부위B) , CFLAG:K17C_ID:K17C_CF_허덕여부위)+"\\"
+		ELSE
+			;펠라
+			LOCALS += K17_허덕여_사정(CFLAG:K17C_ID:K17C_CF_허덕여타입, 0, ARG)+"\\"
+		ENDIF
+	ENDIF
+ENDIF
+LOCALS += K17_AP_NUM( RAND(iMinRand, iMaxRand) )
+
+RETURNF K17_SPLIT_SHUFFLE(LOCALS,"\\") +K17_AP_NUM(1,1)
+;*********************************************************************************
+;	인수로 지정한 회수 앙 앙 말하게 하는 녀석
+;	먼저 SET_AP 사용하는 것 요컨데 인수를 줄여 텍스트의 방해 하고 싶지 않다
+;
+;	인수 0	：울릴 수 있는 회수 생략으로 1회　-1그리고 1~5의 랜덤
+;	인수 1	：종단 정형 생략으로  0하지 않는다　1으로 한다
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_AP_NUM(ARG:0=1, ARG:1=0)
+#FUNCTIONS
+#DIM iSense = 0
+iSense = 0
+
+;강제 풍미 부위가 없는 녀석 타이프별로 봐 받고 공격으로 바꾼다
+IF CFLAG:K17C_ID:K17C_CF_허덕여부위 == K17C_부위없음
+	RETURNF K17_허덕여소리(CFLAG:K17C_ID:K17C_CF_허덕여타입,-1, ARG, ARG:1? 1#0)
+ELSEIF CFLAG:K17C_ID:K17C_CF_허덕여부위 == K17C_성기술_없음
+	RETURNF K17_봉사소리(CFLAG:K17C_ID:K17C_CF_허덕여타입,-1, ARG, ARG:1? 1#0)
+ENDIF
+
+;보정 걸친다
+iSense = K17_부위_CONVERT(CFLAG:K17C_ID:K17C_CF_허덕여부위)
+iSense = K17_ABL_RT_EX(CFLAG:K17C_ID:K17C_CF_허덕여RT, iSense)
+
+;성 기술인가 부위인지를 본다
+IF CFLAG:K17C_ID:K17C_CF_허덕여부위 >= 50
+	IF CFLAG:K17C_ID:K17C_CF_허덕여부위 != K17C_성기술_혀
+		RETURNF K17_봉사소리(CFLAG:K17C_ID:K17C_CF_허덕여타입, iSense, ARG, ARG:1? 1#0)
+	ELSE
+		RETURNF K17_츄파음(CFLAG:K17C_ID:K17C_CF_허덕여타입|K17C_허덕여F_덮쳐, iSense, ARG, ARG:1? 1#0)
+	ENDIF
+ENDIF
+;감각 부위
+IF CFLAG:K17C_ID:K17C_CF_허덕여부위 != K17C_부위M_키스 && CFLAG:K17C_ID:K17C_CF_허덕여부위 != K17C_부위M_펠라
+	RETURNF K17_허덕여소리(CFLAG:K17C_ID:K17C_CF_허덕여타입, iSense, ARG, ARG:1)
+ELSE
+	RETURNF K17_츄파음(CFLAG:K17C_ID:K17C_CF_허덕여타입, iSense, ARG, ARG:1)
+ENDIF
+RETURNF
+;*********************************************************************************
+;	글로벌 보존한 타입과 부위에 대한 수치에 RT보정을 걸친 이음 텍스트를 돌려준다
+;	먼저 SET_AP 사용하는 것
+;
+;	인수 0	：종단 플래그
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_AP_DEC(ARG=0)
+#FUNCTIONS
+RETURNF K17_허덕여_이음(CFLAG:K17C_ID:K17C_CF_허덕여타입, K17_ABL_RT_EX(CFLAG:K17C_ID:K17C_CF_허덕여RT, K17_부위_CONVERT(CFLAG:K17C_ID:K17C_CF_허덕여부위)), ARG)
+;*********************************************************************************
+;	텍스트의 부위 번호와 ABL의 번호가 다른 것을 Conversion(전화, 변화) 한다
+;	펠라와 유두만
+;
+;	인수 0	：부위 번호
+;	반환값	：ABL등의 부위 번호
+;*********************************************************************************
+@K17_부위_CONVERT(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE K17C_부위B_유두
+		RETURNF K17C_부위B
+	CASE K17C_부위M_펠라
+		RETURNF K17C_부위M
+	CASEELSE
+		RETURNF ARG
+ENDSELECT
+RETURNF
+;*********************************************************************************
+;	단순 절정 호출　AP
+;	ex상으로부터 세어 최초로 찾아낸 개소의 호출
+;	그렇게 무겁지 않을 것이니까 절정 개소가 있을까의 체크에도 사용해
+;
+;	인수 0	：-1으로 풍미를 부른다
+;	반환값	：어딘가가 절정 하고 있으면 텍스트
+;	RESULT	：최초로 찾아낸 부위 번호
+;*********************************************************************************
+@K17_AP_FINISH(ARG=0)
+#FUNCTIONS
+#DIM iEX_Num
+VARSET iEX_Num
+
+SIF ARG < 0
+	RETURNF K17_허덕여_절정(CFLAG:K17C_ID:K17C_CF_허덕여타입,-1)
+
+FOR i, 0, GETNUM(EX,"M절정")
+	IF NOWEX:i
+		iEX_Num = i
+		BREAK
+	ENDIF
+NEXT
+RESULT = iEX_Num
+SIF !iEX_Num
+	RETURNF
+RETURNF K17_허덕여_절정(CFLAG:K17C_ID:K17C_CF_허덕여타입, iEX_Num)
+
+;*********************************************************************************
+;	랜덤 허덕여소리
+;
+;	허덕여소리의 계통으로 판단해 각 등 하는 소리를 지정 회수 출력 랜덤으로 결정 첨부
+;
+;	10/24	같은의가 연속하지 않게 해 보았다
+;
+;	인수 0	：허덕여소리 계통　-1그리고 랜덤 생략 랜덤
+;	인수 1	：ABL 감각 수치 생략-1으로 성희롱 때의 풍미
+;	인수 2	：울릴 수 있는 회수 생략으로 1회　-1그리고 1~5의 랜덤
+;	인수 3	：종단 정형 생략으로  0하지 않는다　1으로 한다
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_허덕여소리(ARG:0=-1, ARG:1=-1, ARG:2=1, ARG:3=0)
+#FUNCTIONS
+#DIMS DYNAMIC cTEMP
+#DIMS DYNAMIC cHis
+#DIM DYNAMIC iAPCount
+VARSET LOCALS
+
+;각종 초기화
+SIF ARG:0 == -1
+	ARG:0=RAND:8
+SIF ARG:2 == -1
+	ARG:2=(RAND:5)+1
+
+FOR iAPCount, 0, ARG:2
+	WHILE 1
+		cTEMP = %K17_허덕여소리_감도(ARG, ARG:1)%
+		SIF cTEMP != cHis
+			BREAK
+	WEND
+	LOCALS += cTEMP
+	cHis = %cTEMP%
+	LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iAPCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+NEXT
+RETURNF LOCALS
+
+;*********************************************************************************
+;	랜덤 봉사소리
+;
+;	허덕여소리의 계통으로 판단해 각 등 하는 소리를 지정 회수 출력 랜덤으로 결정 첨부
+;
+;	인수 0	：허덕여소리 계통　-1그리고 랜덤 생략 랜덤
+;	인수 1	：ABL성 기술 수치
+;	인수 2	：울릴 수 있는 회수 생략으로 1회　-1그리고 1~5의 랜덤
+;	인수 3	：종단 정형 생략으로  0하지 않는다　1으로 한다
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_봉사소리(ARG:0=-1, ARG:1=-1, ARG:2=1, ARG:3=0)
+#FUNCTIONS
+#DIMS DYNAMIC cTEMP
+#DIMS DYNAMIC cHis
+#DIM DYNAMIC iAPCount
+VARSET LOCALS
+
+;각종 초기화
+SIF ARG:0 == -1
+	ARG:0=RAND:8
+SIF ARG:2 == -1
+	ARG:2=(RAND:5)+1
+
+FOR iAPCount, 0, ARG:2
+	WHILE 1
+		cTEMP = %K17_허덕여소리_봉사(ARG, ARG:1)%
+		SIF cTEMP != cHis
+			BREAK
+	WEND
+	LOCALS += cTEMP
+	cHis = %cTEMP%
+	LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iAPCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+NEXT
+RETURNF LOCALS
+;*********************************************************************************
+;	랜덤 허덕여소리 감도별
+;
+;	허덕여소리의 계통으로 판단해 각 등 하는 소리를 감도별로 랜덤 취득
+;	단발 합의에 의한 장식 없음 이음은 별도 준비
+;
+;09/26	성희롱 계로 사용하는 자그만 허덕여소리를 감도-1에 추가
+;
+;	인수 0	：허덕여소리 계통
+;	인수 1	：ABL 감각 수치
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_허덕여소리_감도(ARG:0, ARG:1)
+#FUNCTIONS
+VARSET LOCALS
+
+IF !(ARG & K17C_허덕여F_공격)
+	IF !(ARG & K17C_허덕여F_덮쳐)
+		;통상의 허덕여소리
+		SELECTCASE ARG:1
+			;최고도
+			CASE IS >= 6
+				LOCALS += K17_RS("아앙/히야앙/좀 더/좋앗/좋아앗/냐앙/좋아햇/이거좋아/좋앗/좀 더, 해줘어/조금만 더엇/하아/하아하아")
+			;좋은 감도
+			CASE IS >= 4
+				LOCALS += K17_RS("아앙/히야앙/좋앗/좋아앗/냐앙/히윽/좋아/이거좋아/조앗/하앙/하아하아")
+			;익숙해져 왔다
+			CASE IS >= 2
+				LOCALS += K17_RS("아앙/야앙/히야앙/좋앗/좋아앗/으응/히윽/하앙")
+			;초심자
+			CASE IS >= 0
+				LOCALS += K17_RS("아앙/흐윽/으읏/히야앙/앗/좋아앗/거기잇/핫/하앗")
+			;실수 지정의 풍미 허덕여소리
+			CASE -1
+				LOCALS += K17_RS("아앙/앙/냐앙/히야앙/야앙/아윽/야응/좋앗")
+		ENDSELECT
+		
+	ELSEIF ARG & K17C_허덕여F_덮쳐
+		;접수로 습격당하고 계
+		SELECTCASE ARG:1
+			;최고도
+			CASE IS >= 6
+				LOCALS += K17_RS("안댓/싫엇/시러엇/꺄악/안대앳/하지마앗/안대/시러/제발 그만해앳/안 돼엣")
+			;좋은 감도
+			CASE IS >= 4
+				LOCALS += K17_RS("안댓/싫엇/시러엇/꺄악/안대앳/하지마앗/시럿/제발 그만해앳/안 돼엣")
+			;익숙해져 왔다
+			CASE IS >= 2
+				LOCALS += K17_RS("안댓/시러/싫엇/꺄악/멈춰줘/그만햇/안대앳/하지마앗")
+			;초심자
+			CASE IS >= 0
+				LOCALS += K17_RS("안댓/그만/싫엇/크읏/꺄악/큭/무리야/하지마/그만해")
+				
+			;실수 지정의 풍미 허덕여소리
+			CASE -1
+				LOCALS += K17_RS("안대앳/시럿/시러엇/이제엣/안 돼엣")
+		ENDSELECT
+	ENDIF
+ELSEIF ARG & K17C_허덕여F_공격
+	;IF !(ARG & K17C_허덕여F_덮쳐)
+		;우선 공격계는 아직 같아 괜찮을까
+		SELECTCASE ARG:1
+			;최고도
+			CASE IS >= 6
+				LOCALS += K17_RS("기분 좋아? /하아하아/어때/이거좋앗/좋아?/좋앗/야앙/좋아하잖아/아핫/흥분해버렷/조금만 더엇/저기이/자아")
+			;좋은 감도
+			CASE IS >= 4
+				LOCALS += K17_RS("기분 좋아? /하아하아/어때/이거좋앗/좋아?/좋앗/야앙/좋아하잖아/아핫/아직 좀 더/응/이봐")
+			;익숙해져 왔다
+			CASE IS >= 2
+				LOCALS += K17_RS("기분 좋아? /하아하아/어때/이거좋앗/좋아?/야앙/좋아하잖아/아핫/으긋/히야앙/앗/시럿/여기/자아")
+			;초심자
+			CASEELSE
+				LOCALS += K17_RS("기분 좋아? /하아하아/어때/으긋/히야앙/앗/야앙/좋앗/여기")
+		ENDSELECT
+	;ELSEIF ARG & K17C_허덕여F_덮쳐
+	
+	
+	;ENDIF
+ENDIF
+RETURNF LOCALS
+
+
+
+;*********************************************************************************
+;	란담츄파음(츄파음
+;
+;	감각에 대한 반응
+;	너무 정리하지
+;
+;	인수 0	：허덕여소리 계통　-1그리고 랜덤 생략 랜덤
+;	인수 1	：ABL 감각 수치 생략-1으로 풍미
+;	인수 2	：울릴 수 있는 회수 생략으로 1회　-1그리고 1~5의 랜덤
+;	인수 3	：종단 정형 생략으로  0하지 않는다　1으로 한다
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_츄파음(ARG:0=-1, ARG:1=-1, ARG:2=1, ARG:3=0)
+#FUNCTIONS
+#DIM iCount
+VARSET LOCALS
+
+;각종 초기화
+SIF ARG:0 == -1
+	ARG:0=RAND:8
+;SIF ARG:1 == -1
+;	ARG:1=(RAND:6)+1
+SIF ARG:2 == -1
+	ARG:2=(RAND:5)+1
+
+
+FOR iCount, 0, ARG:2
+
+	IF !(ARG & K17C_허덕여F_덮쳐)
+		;보통 쭙 쪽 소리
+		SELECTCASE ARG:1
+			;좋은 감도
+			CASE IS >= 4
+				LOCALS += K17_RS("츄우/쮸웁/츄븝/츄읍/쮸압/응읏/쮸우웁/츄릅/츄루룹/읍/할짝/츄/츗/츗 츄")
+				LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+				SIF !(ARG:3 && iCount==(ARG:2)-1)
+					LOCALS += K17_RS("…/―/")
+			;익숙해져 왔다
+			CASE IS >= 2
+				LOCALS += K17_RS("츄우/쮸웁/츄븝/츄읍/쮸압/응읏/쮸우웁/할짝/츄/응읏/츗 츄")
+				LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+				SIF !(ARG:3 && iCount==(ARG:2)-1)
+					LOCALS += K17_RS("…/……/―/――/")
+			;초심자
+			CASE IS >= 0
+				LOCALS += K17_RS("하앙/츄우/츄/퓨웃/할짝/츄/츄/츗 츄")
+				LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+				SIF !(ARG:3 && iCount==(ARG:2)-1)
+					LOCALS += K17_RS("…/……/―/――")
+				
+			;풍미의 키스음으로 사용해 디프라면↑사용한다
+			CASE -1
+				LOCALS += K17_RS("으응/읍/츗/츄우")
+				LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+				SIF !(ARG:3 && iCount==(ARG:2)-1)
+					LOCALS += K17_RS("…/―/")
+		ENDSELECT
+	ELSEIF ARG & K17C_허덕여F_덮쳐
+		;계 펠라도 이것으로 대용할 수 있을까
+		SELECTCASE ARG:1
+			;좋은 감도
+			CASE IS >= 4
+				LOCALS += K17_RS("쮸웁/응읏/츄브븟/츄릅/츄루룹/쮸압/츄읍/쮸압")
+				LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+				SIF !(ARG:3 && iCount==(ARG:2)-1)
+					LOCALS += K17_RS("…/―/")
+			;익숙해져 왔다
+			CASE IS >= 2
+				LOCALS += K17_RS("흐그윽/츄우/응읏/쮸웁/츄브븟/쮸우웁/")
+				LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+				SIF !(ARG:3 && iCount==(ARG:2)-1)
+					LOCALS += K17_RS("…/……/―/――/")
+			;초심자
+			CASE IS >= 0
+				LOCALS += K17_RS("흐그윽/으응/읏/으읍/츄릅")
+				LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+				SIF !(ARG:3 && iCount==(ARG:2)-1)
+					LOCALS += K17_RS("…/……/―/――")
+				
+				;풍미의 키스음으로 사용해 디프라면↑사용한다
+			CASE -1
+				LOCALS += K17_RS("응/으읏/으응/으극")
+				LOCALS += K17_허덕여_이음(ARG:0, ARG:1, iCount==(ARG:2) -1&&ARG:3 ?  1 # 0)
+				SIF !(ARG:3 && iCount==(ARG:2)-1)
+					LOCALS += K17_RS("/―/…")
+		ENDSELECT
+	ENDIF
+NEXT
+RETURNF LOCALS
+
+
+;*********************************************************************************
+;	랜덤 받고 허덕여소리↑의 이음
+;
+;	감각에 대한 반응의 연결해 허덕여소리 계통 합의로 분기
+;
+;	인수 0	：허덕여소리 계통 합의 플래그를 본다
+;	인수 1	：ABL 감각 수치
+;	인수 2	：종단 플래그(스페이스 지워 1으로 하는 생략으로  0하지 않는다
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_허덕여_이음(ARG:0, ARG:1, ARG:2=0)
+#FUNCTIONS
+VARSET LOCALS
+
+;합의 있어(하트
+IF ARG:0 & K17C_허덕여F_합의
+
+	SELECTCASE ARG:1
+		;최고도 시끄러운 것 같다
+		CASE IS >= 4
+			;LOCALS += K17_RS(K17_HEART(2)+"/"+K17_HEART2(2)+"/"+K17_HEART()+"/"+K17_HEART2())
+			LOCALS += K17_RS(K17_HEART(2)+"/"+K17_HEART())
+			SIF ARG:2!=1
+				LOCALS += "　"
+		;좋은 감도
+		CASE IS >= 2
+			;LOCALS += K17_RS(K17_HEART()+"\\"+K17_HEART2()+"\\"+K17_BLUSH(),"\\")
+			LOCALS += K17_RS(K17_HEART2()+"\\"+K17_HEART()+"\\"+K17_BLUSH(),"\\")
+			SIF ARG:2!=1
+				LOCALS += "　"
+		;초심자
+		CASE IS >= 0
+			LOCALS += K17_RS(K17_HEART2()+"\\"+K17_BLUSH()+"\\"+K17_BLUSH()+"\\…\\……\\…","\\")
+			SIF ARG:2!=1
+				LOCALS += "　"
+		;풍미
+		CASE -1
+			LOCALS += K17_RS(K17_HEART2()+"\\"+K17_HEART()+"\\"+K17_BLUSH(),"\\")
+			SIF ARG:2!=1
+				LOCALS += "　"
+	ENDSELECT
+
+;합의없음계
+ELSE
+	SELECTCASE ARG:1
+		;최고도 시끄러운 것 같다
+		CASE IS >= 4
+			LOCALS += K17_RS("…!/…!/…!/…!")
+			SIF ARG:2!=1
+				LOCALS += "　"
+		;좋은 감도
+		CASE IS >= 2
+			LOCALS += K17_RS("…/…/…!/…!")
+			SIF ARG:2!=1
+				LOCALS += "　"
+		;초심자
+		CASEELSE
+			LOCALS += K17_RS("…/…/…!")
+			SIF ARG:2!=1
+				LOCALS += "　"
+	ENDSELECT
+ENDIF
+
+RETURNF LOCALS
+
+
+;*********************************************************************************
+;	자신의 쾌락에 대한 허덕여소리
+;
+;	부위 쾌락에 대한 소리 절정까지의 수치
+;	부위에 맞추어 사용한다
+;	조만간 상대도 만들까
+;	「이제 익?　「자지 꿈틀꿈틀 해 왔다　「안에 내면 안 돼 라든지
+;
+;	인수 0	：허덕여 계통 덮쳐 플래그를 본다
+;	인수 1	：쾌락 수치 이음은1/1000한 것
+;	인수 2	：자신 부위 생략-1이(가) 아님
+;	인수 3	：종단 플래그(스페이스 지워 1으로 하는 생략으로  0하지 않는다
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_쾌락_허덕여소리(ARG:0=0, ARG:1=0, ARG:2=0)
+#FUNCTIONS
+VARSET LOCALS
+
+IF ARG:2 != -1
+	;부위 판정
+	LOCALS:1 = %K17_CALL_P(ARG:2)%
+	LOCALS:1 += ""
+ENDIF
+
+IF !(ARG & K17C_허덕여F_덮쳐) || ARG & K17C_허덕여F_공격
+	SELECTCASE ARG:1
+		;이제 가랏 그렇게
+		CASE IS >= 6000
+			LOCALS += K17_RS("슬슬…/이제…/슬슬…/")
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("갈 거 같앗/기분 좋아졋/간닷/너무 느껴버렷/안 대는댓/움찔움찔 온닷/절정 와버렷")
+			LOCALS += K17_허덕여_이음(ARG, (ARG:1)/1000, ARG:3)
+		;느껴 왔다
+		CASE IS >= 3000
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("느낌 왔어/좀 더 해줘엇/좀 더 해앳/조아앗/잔뜩 해줘엇/느껴버렷")
+			LOCALS += K17_허덕여_이음(ARG, (ARG:1)/1000, ARG:3)
+			
+		CASEELSE
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("…아읏/…좀 더/…아앙/…저기…해줘엇/아직…으읏/…좋…앗")
+			LOCALS += K17_허덕여_이음(ARG, (ARG:1)/1000, ARG:3)
+	ENDSELECT
+ELSE
+	SELECTCASE ARG:1
+		;이제 이인가 될 것 같다
+		CASE IS >= 6000
+			LOCALS += K17_RS("안댓/이제/슬슬/")
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("가버린다앗/기분 좋아졋/너무 느껴버렷/안 대는댓/움찔움찔 온닷/절정 와버렷")
+			LOCALS += K17_허덕여_이음(ARG, (ARG:1)/1000, ARG:3)
+		
+		;느껴 왔다
+		CASE IS >= 3000
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("안 돼앳/가는 거 …싫엇/안 댓, 안대엣/안대앳")
+			LOCALS += K17_허덕여_이음(ARG, (ARG:1)/1000, ARG:3)
+		
+		CASEELSE
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("…큿/…안 돼는데/…야앙/…안댓/…싫어엇")
+			LOCALS += K17_허덕여_이음(ARG, (ARG:1)/1000, ARG:3)
+	ENDSELECT
+ENDIF
+RETURNF LOCALS
+
+;*********************************************************************************
+;	봉사의 허덕여소리
+;
+;	딸딸이와 파이즈리 때의 한숨
+;	사정과 조합하는 접수에서도 봉사는 공격계가 된다
+;
+;	인수 0	：허덕여 계통 덮쳐 플래그를 본다
+;	인수 1	：성 기술의 수치　ABL50~55　기본 앨리스는 처음부터 손가락이 흉악
+;	인수 2	：종단 플래그(스페이스 지워 1으로 하는 생략으로  0하지 않는다
+;*********************************************************************************
+@K17_허덕여소리_봉사(ARG, ARG:1=0, ARG:2=0)
+#FUNCTIONS
+VARSET LOCALS
+IF !(ARG & K17C_허덕여F_덮쳐) || ARG & K17C_허덕여F_공격
+	;통상의 허덕여소리
+	SELECTCASE ARG:1
+		;최고도
+		CASE IS >= 6
+			LOCALS += K17_RS("기분 좋아? /하아하아/어때/좋아?/좋아하지?/아핫/흥분해버렷/저기이/자아/자자")
+		;좋은 감도
+		CASE IS >= 4
+			LOCALS += K17_RS("기분 좋아? /하아하아/어때/좋아?/좋아하지?/아핫/자아")
+		;익숙해져 왔다
+		CASE IS >= 2
+			LOCALS += K17_RS("기분 좋아? /하아하아/어때/좋아하지?/아핫/으응/히야앙/자아")
+		;초심자
+		CASEELSE
+			LOCALS += K17_RS("기분 좋아? /하아하아/어때/으응/히야앙/응/야앙")
+	ENDSELECT
+	
+ELSEIF ARG & K17C_허덕여F_덮쳐
+	;습격당하고 계
+	SELECTCASE ARG:1
+		;최고도
+		CASE IS >= 6
+			LOCALS += K17_RS("큭/안 됏/싫어엇/싫다구/그만해앳/안댓/안 대는댓/안대 안댓/안 돼, 안 돼엣/제발 그만해앳/안대앳")
+		;좋은 감도
+		CASE IS >= 4
+			LOCALS += K17_RS("큭/안 됏/싫어엇/싫엇/그만해앳/안댓/안 대는댓/안대 안댓/안 돼, 안 돼엣/제발 그만해앳/안 대엣")
+		;익숙해져 왔다
+		CASE IS >= 2
+			LOCALS += K17_RS("큭/안 됏/야앙/안댓/시럿/그만햇/안대앳/안 대는댓/안대 안댓/안 돼, 안 돼엣")
+		;초심자
+		CASE IS >= 0
+			LOCALS += K17_RS("안 됏/그만두고/싫엇/큭/시럿/무리얏/하지마앗/그만해앳")
+			
+		;실수 지정의 풍미 허덕여소리
+		CASE -1
+			LOCALS += K17_RS("안 댓/야앙/시러엇/이제/안, 됀다구/안 됏")
+	ENDSELECT
+ENDIF
+RETURNF LOCALS
+;*********************************************************************************
+;	상대의 사정에 대한 허덕여소리
+;
+;	사정에 대한 소리 절정까지의 수치
+;	「이제 익?　「자지 꿈틀꿈틀 해 왔다　「안에 내면 안 돼 라든지
+;	봉사계로 사용한다
+;
+;	인수 0	：허덕여 계통 덮쳐 플래그를 본다
+;	인수 1	：종단 플래그(스페이스 지워 1으로 하는 생략으로  0하지 않는다
+;	인수 2	：상대의 ID　기본 MASTER인가
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;*********************************************************************************
+@K17_허덕여_사정(ARG:0=0, ARG:1=0, ARG:2=0)
+#FUNCTIONS
+#DIM DYNAMIC iABLnum=0
+VARSET LOCALS
+
+;여성
+SIF TALENT:(ARG:2):성별 == 1
+	RETURNF
+
+iABLnum = BASE:(ARG:2):사정
+;사정 확정으로 0이 되므로 여기로 본다
+SIF NOWEX:(ARG:2):사정
+	iABLnum = MAXBASE:(ARG:2):사정
+
+LOCALS:1 = %K17_CALL_G(ARG:2)%
+
+IF !(ARG & K17C_허덕여F_덮쳐) || ARG & K17C_허덕여F_공격
+;합의계
+	SELECTCASE iABLnum
+		CASE IS >= 10000
+			LOCALS += K17_RS("빨리…/이제…/자아…")
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("퓻퓻 해/사정해/정자 싸")
+			LOCALS += K17_허덕여_이음(ARG, iABLnum/(MAXBASE:(ARG:2):사정/10), ARG:1)
+		;이제 가랏 그렇게
+		CASE IS >= 6000
+			LOCALS += K17_RS("슬슬…/이제…/자아…/")
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("정자 나오는 거야? /사정해도 좋아/가버리는 거야? ")
+			LOCALS += K17_허덕여_이음(ARG, iABLnum/(MAXBASE:(ARG:2):사정/10), ARG:1)
+		;느껴 왔다
+		CASE IS >= 3000
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("움찔움찔/꿈틀꿈틀/핑핑")+"해선"
+			LOCALS += K17_허덕여_이음(ARG, iABLnum/(MAXBASE:(ARG:2):사정/10), ARG:1)
+			
+		CASEELSE
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("딱딱하게, 해봐/조금 더, 세워봐/좀 더, 힘내, 렴")
+			LOCALS += K17_허덕여_이음(ARG, iABLnum/(MAXBASE:(ARG:2):사정/10), ARG:1)
+	ENDSELECT
+ELSE
+;거부계
+	SELECTCASE iABLnum
+		;이제 가랏 그렇게
+		CASE IS >= 6000
+			LOCALS += K17_RS("야앙/안 대앳/시러엇/")
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("싸지 말아줘/싸면 안 댓/퓻퓻 하면 안 댓")
+			LOCALS += K17_허덕여_이음(ARG, iABLnum/(MAXBASE:(ARG:2):사정/10), ARG:1)
+		;느껴 왔다
+		CASE IS >= 3000
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("딱딱해지는 거,/움찔대는거,/움찔움찔, 하는거/단단해지는 거,") +K17_RS("시럿/시러엇/멈춰엇/안 돼앳/안 대앳")
+			LOCALS += K17_허덕여_이음(ARG, iABLnum/(MAXBASE:(ARG:2):사정/10), ARG:1)
+		
+		CASEELSE
+			LOCALS += LOCALS:1
+			LOCALS += K17_RS("…으앗/…안 대는댓/…아앙/…안댓/…시럿")
+			LOCALS += K17_허덕여_이음(ARG, iABLnum/(MAXBASE:(ARG:2):사정/10), ARG:1)
+	ENDSELECT
+ENDIF
+RETURNF LOCALS
+;*********************************************************************************
+;	랜덤 허덕여_절정
+;
+;	부위에 대응한 절정
+;
+;	인수 0	：계통 
+;	인수 1	：자신 부위 생략-1이(가) 아님
+;	인수 2	：상대의 부위 캐릭터라인 생략이(가) 아님
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문 중(안)에서%로 둘러싸 사용한다
+;	비고	：인수 2　~로」까지 넣는다　%K17_CNAME()%의 %K17_CALL_P()%로 라든지, 볼 수 있어 라든지
+;			：인수 1을 생략해 인수 2로 캐릭터라인 설정해도 된다
+;*********************************************************************************
+@K17_허덕여_절정(ARG:0=0, ARG:1=-1, ARGS="")
+#FUNCTIONS
+VARSET LOCALS
+
+IF ARG:1 >= 0
+	;부위 판정　V의외 접속 서로 붙어
+	LOCALS:1 = %K17_CALL_P(ARG:1)%
+	SIF ARG:1 != K17C_부위V && ARG:1 != K17C_부위C
+		LOCALS:1 += K17_RS("으로/")
+	LOCALS:1 += ""
+ENDIF
+
+IF !(ARG & K17C_허덕여F_공격)
+	IF !(ARG & K17C_허덕여F_덮쳐)
+		LOCALS += "간닷……"+K17_RS(" 간닷 가버렷/ 간다앗/ 가버려엇")
+		LOCALS += "……"+ARGS+LOCALS:1+K17_RS(" 간닷 가버렷/ 가버려엇/ 간다아앗")
+	ELSE
+		LOCALS += "싫엇……"+K17_RS(" 싫엇 싫다구/ 싫다구/ 그만해앳")
+		LOCALS += "……"+ARGS+LOCALS:1+K17_RS(" 싫어엇/ 시러어엇/ 그만해애앳")
+	ENDIF
+ELSEIF ARG & K17C_허덕여F_공격
+	IF !(ARG & K17C_허덕여F_덮쳐)
+		LOCALS += "아앙……"+K17_RS(" 간닷 가버렷/ 가버려엇/ 가버렸다앗")
+		LOCALS += "……"+ARGS+LOCALS:1+K17_RS(" 가버린다앗/ 가버려엇/ 가버려써엇")
+	ELSE
+		LOCALS += "안대앳……"+K17_RS(" 안 돼, 안 돼엣/ 안댄다구/ 안 돼앳")
+		LOCALS += "……"+ARGS+LOCALS:1+K17_RS(" 가버린닷/ 가버려엇/ 안대앳/ 시러어엇")
+	ENDIF
+ENDIF
+
+
+;통합 정비 계획 철거지
+;IF ARG:0 == 1	;애원 계
+;	IF ARG:1 == K17C_접수
+;		LOCALS += "가는 ……"+K17_RS("가는 가는/흐흑/말해버리는")
+;		LOCALS += "……"+ARGS+LOCALS:1+K17_RS("가요/익/이 큐의")
+;	ELSE
+;		LOCALS += "온다……"+K17_RS("빙글빙글/와버리는/오는 것")
+;		LOCALS += "……"+ARGS+LOCALS:1+K17_RS("이인가 되어버리는/익것/안되는 걸 아악/안 돼 에에에")
+;	ENDIF
+;ELSEIF ARG:0 == 2	;합의 습격당하고 계
+;	IF ARG:1 == K17C_접수
+;		LOCALS += "싫어……"+K17_RS("가는 가는/흐흑/활용되어버리는")
+;		LOCALS += "……"+ARGS+LOCALS:1+K17_RS("이인가 되어버리는/익것/이인가 되고")
+;	ELSE
+;		LOCALS += "안 돼~……"+K17_RS("안 돼, 안 돼엣/안되는 걸/안 돼요")
+;		LOCALS += "……"+ARGS+LOCALS:1+K17_RS("이인가 되어버리는/익것/안되는 걸 아악/안 돼 에에에")
+;	ENDIF
+;ELSEIF ARG:0 == 3	;억지로 계
+;	IF ARG:1 == K17C_접수
+;		LOCALS += "싫어……"+K17_RS("나다나다/나인 것/그만두어")
+;		LOCALS += "……"+ARGS+LOCALS:1+K17_RS("싫어요(아니요) 아아앙/이네의 아악/그만두어 에에에")
+;	ELSE
+;		LOCALS += "안 돼~……"+K17_RS("안 돼, 안 돼엣/안되는 걸/안 돼요")
+;		LOCALS += "……"+ARGS+LOCALS:1+K17_RS("이인가 되어버리는/이인가 되고/안되는 걸 아악/안 돼 에에에")
+;	ENDIF
+;ELSEIF ARG:0 == 4	;도움 계
+;	IF ARG:1 == K17C_접수
+;		LOCALS += "와 ……"+K17_RS("와/흐흑/활용되어버리는")
+;		LOCALS += "……"+ARGS+LOCALS:1+K17_RS("가요/익/이 큐의")
+;	ELSE
+;		LOCALS += "온다……"+K17_RS("빙글빙글/와버리는/오는 것")
+;		LOCALS += "……"+ARGS+LOCALS:1+K17_RS("온다의/키/키의")
+;	ENDIF
+
+
+
+
+LOCALS+="~~~~"
+IF ARG:1==-1
+	;각 등 개소가 없는 경우 적당하게
+	IF ARG & K17C_허덕여F_합의
+		LOCALS+=K17_HEART(3)
+	ELSE
+		LOCALS+="!"
+	ENDIF
+ELSE
+	;감도의 반의 장식 붙인다
+	IF ARG & K17C_허덕여F_합의
+		;LOCALS+=K17_HEART(ABL:(ARG:1)/2)
+		LOCALS+=K17_HEART(LIMIT( (ABL:(ARG:1) +NOWEX:(ARG:1)) /2, 1,5))
+	ELSE
+		LOCALS+=UNICODE(0xFF01)*(LIMIT(ABL:(ARG:1)/2, 1,5))
+	ENDIF
+ENDIF
+RETURNF LOCALS
+
+
+;*********************************************************************************
+;	일본어 문자열에 적당히 숨? 을 섞는다
+;
+;	이런 거 없던가 대충 만들었음 아름답지 않음 개량 필요
+;	CONVERT는 뭔가 다르지 않아?
+;	예) 오늘도 좋은 날씨　→　오…늘도 조흐으은 나을씨… (하트　같은 느낌
+;	통상 대사를 CONVERT해서 로터 달고 배회 같은 걸 할 수 있겠군!
+;
+;	인수 0	：가공하고 싶은 문자열
+;	인수 1	：덧붙이기 주기　생략으로 5문자 주기의 랜덤
+;	인수 2	：어미 옵션의 문자열 (하트 따위
+;	반환값	：문자열을 반환한다 PRINTFORML 문 안에서 %로 둘러싸서 사용함
+;*********************************************************************************
+@K17_SEXY_CONVERT(ARGS, ARG=5, ARGS:1="")
+#FUNCTIONS
+#DIM iCount = 0
+VARSET LOCALS
+VARSET LOCAL
+;길이 측정
+x=STRLENSU(ARGS)
+iCount=0
+FOR i, 0, x
+
+	;한 글자만 꺼낸다
+	SUBSTRINGU ARGS, i, 1
+	
+	;구두점 덧쓰기
+	IF RESULTS == ", " || RESULTS == ". "
+		LOCALS += "…"
+		SIF ARGS:1 != ""
+			LOCALS += ARGS:1+"　"
+			
+	ELSE
+		LOCALS += RESULTS
+	ENDIF
+	
+	IF ARG!=0 && iCount == 0
+		LOCAL=RAND:ARG
+		iCount = ARG
+	ENDIF
+	
+	;무시하고 싶은 문자
+	SIF STRCOUNT(RESULTS,"[\W 『』 「」 っぁぃぅぇぉゃゅょ\"　\"]|\\n")
+		LOCAL=1
+	
+	IF LOCAL == 0 && !(i==x-1)
+		RESULT = 0
+		SELECTCASE RESULTS
+			CASE "아"
+				LOCALS += "앙"
+				RESULT=1
+			CASE "이"
+				LOCALS += "익"
+				RESULT=1
+			CASE "우"
+				LOCALS += "응"
+				RESULT=1
+			CASE "에"
+				LOCALS += "엑"
+				RESULT=1
+			CASE "의"
+				LOCALS += "흐응"
+				RESULT=1
+			CASE "응"
+				LOCALS += "흑"
+				RESULT=1
+		ENDSELECT
+		SIF STRCOUNT(RESULTS,"[카사타나하마야라와가사다바파]")
+			LOCALS += "악"
+		SIF STRCOUNT(RESULTS,"[키시치니히미리기지지히피]")
+			LOCALS += "익"
+		SIF STRCOUNT(RESULTS,"[쿠스즈누후무유루구즈즈부푸]")
+			LOCALS += "욱"
+		SIF STRCOUNT(RESULTS,"[케세테네헤메레게제테베페]")
+			LOCALS += "엑"
+		SIF STRCOUNT(RESULTS,"[오코소토호모요로고조도보포]")
+			LOCALS += "윽"
+		SIF !RESULT
+			LOCALS += K17_RS("…/…윽/~윽/,")
+		IF ARGS:1 !="" && RAND:2
+			LOCALS += ARGS:1+"　"
+		ELSE
+			;LOCALS += K17_RS("…/…윽/~윽/,")
+		ENDIF
+	ENDIF
+	
+	SIF iCount!=0
+		iCount--
+	LOCAL--
+	;종단
+	SIF ARGS:1!="" && i==x-1
+		LOCALS += ARGS:1*2
+NEXT
+
+RETURNF LOCALS
+
+;*********************************************************************************
+;	망상의 기독판정을 한다
+;
+;	인수 0	：판정하고 싶은 망상 종류의 번호 결정하고 나서 부른다
+;	인수 1	：판정하고 싶은 망상의 번호 결정하고 나서 부른다
+;	인수 2	：기독판정 변경 플래그　0의 경우 넣을 수 있던 것을 보존해 그대로 돌려준다　1이라면 기독을 봐 읽고 있으면(자) 다른에 변경
+;	반환값	：판정 후기독이라면 미독의 번호를 돌려주는 미독이라면 그대로
+;	비고	：K17C_CF_접수기독 + ARG로 글로벌 보존의 번호를 부른다
+;*********************************************************************************
+@K17_H망상기독(ARG, ARG:1=-1, ARG:2=1)
+#FUNCTION
+;이런 것 어떻게 쓰면 좋습니까 7 bit눈을 세워―1해 6 bit눈까지를 모두 세운다
+#DIM CONST 기독마스크 = (1<<K17C_접수망상수)-1,(1<<K17C_공격망상수)-1
+#DIM iMask				;종류에 맞추어 실제 판정하는 마스크의 용기
+#DIM DYNAMIC iValue = 0	;망상의 번호 답례용
+
+
+;종류 선택
+iMask = 기독마스크:(ARG)
+
+iValue = ARG:1
+
+;우선 넣을 수 있던 것은 세운다
+IF ARG:2==0
+;DEBUGPRINTFORML 【H망상기독 iValue({(iValue)}) ARG:1({(ARG:1)})
+	SETBIT CFLAG:K17C_ID:(K17C_CF_접수기독 + ARG),iValue
+	RETURNF iValue
+ENDIF
+
+;모두기독 하고 있으면(자) 리셋
+;SIF CFLAG:K17C_ID:(K17C_CF_접수기독 + ARG) - iMask == 0
+;	VARSET CFLAG:K17C_ID:(K17C_CF_접수기독 + ARG)
+
+;기독판정
+IF (CFLAG:K17C_ID:(K17C_CF_접수기독 + ARG) < iMask)
+	;서지 않은 플래그를 찾는다
+	WHILE GETBIT(CFLAG:K17C_ID:(K17C_CF_접수기독 + ARG),iValue)
+		iValue = RAND:(K17C_망상:ARG)
+	WEND
+ELSE
+	;전취득보통으로 랜덤
+	iValue = RAND:(K17C_망상:ARG)
+ENDIF
+;보존 플래그 있으면 기독보존 돌려준다
+SIF ARG:2
+	SETBIT CFLAG:K17C_ID:(K17C_CF_접수기독 + ARG),iValue
+RETURNF iValue
+
+
+;*********************************************************************************
+;	앨리스의 것H망상을 꺼냅니다
+;
+;	가능한 한 머리가 나쁜 것 같은 느낌으로 쓰고 싶다
+;	사용법
+;	기본적으로%K17_H망상%~(설정, 망상, 상상~로 해버린다)와 사용하는, 응 사용하기 어려운 쓰기 힘들다
+;	취침 후의 자위, 강제 자위등으로 사용한다
+;
+;	10/05	후에 때문에 인수 늘려 기독치 가져 둔다
+;	11/20	조교 자위에 수반해 반환값의 것RESULT에 인수0와 인수1를 보존
+;
+;	인수0	：꺼내는 종류　1접수　2공격　3그외시츄 생략-1, 흘러넘쳐도 랜덤
+;	인수1	：지정한 번호의 시츄 캐릭터라인을 돌려준다　0(이)라면 랜덤
+;	인수2	：기독변경 플래그 읽은 것이라면 다른에 바꾸는 생략으로ON　전부 읽으면(자) 랜덤
+;	반환값	：캐릭터라인을 돌려주는 PRINTFORML 문장 중(안)에서%로 둘러싸 사용한다
+;	RESULT	：기독보존으로 번호 바꾸었을 경우는 그 번호
+;*********************************************************************************
+@K17_H망상(ARG:0=-1,ARG:1=-1,ARG:2=1)
+#FUNCTIONS
+
+VARSET LOCALS	;돌려주는 캐릭터라인
+
+;망상 종류수 흘러넘치고 있으면(자) 랜덤
+SIF !INRANGE(ARG:0,0,K17C_망상종류수-1)
+	ARG:0 = RAND:K17C_망상종류수
+;망상 흘러넘치고 있으면(자) 랜덤
+SIF !INRANGE(ARG:1,0,(K17C_망상:(ARG:0))-1)
+	ARG:1 = RAND:(K17C_망상:(ARG:0))
+	
+;기독플래그 있으면 보존 읽을 수 있는 번호로 바꾸어 준다
+IF ARG:2
+	ARG:1 = K17_H망상기독(ARG,ARG:1,ARG:2)
+ENDIF
+;----------------------------------------------------------
+;접수 상상　7씨앗이 는 묻는다
+;어떤 방법으로+ 어떤 일 + 되어버린다/해버린다/된다
+;
+;1공주 접수　2강아지 접수　3덮쳐 수　4강경세 접수　5건호감　6소악마 접수　7권유 접수
+;----------------------------------------------------------
+IF ARG:0 == K17C_접수
+	
+	;DEBUGPRINTFORML 【선택 번호 {ARG:1}】
+	;DEBUGPRINTFORML 【글로벌 보존 {CFLAG: K17C_CF_접수기독}】
+	
+	SELECTCASE ARG:1
+	
+		;공주 접수
+		CASE K17C_공주접수
+			LOCALS += K17_RS("공주님을 대하듯이/새끼고양이를 다루/귀여운 인형을 다루")+"듯이,"
+			LOCALS += K17_RS("상냥하고 소중히 대해주는/엄청 귀여워해주는/어리광 부리고 싶게 만드는/상냥히 쓰담쓰담 해주는")+"\n　"
+			LOCALS += "라고"+K17_CNAME(MASTER)+"의 눈 앞에서"
+			LOCALS += K17_RS("다리 벌리고/치마 올리고/팬티 내려서")+",\n　"
+			LOCALS += K17_CALL_G(TARGET,0,1)+","+\@ GETBIT(TALENT:TARGET:성별,1) ? 팔팔 # \@
+			LOCALS += "하면서,\n　"+K17_RS("가게해줘/기분 좋게 해줘/보내줘")+"라고"+K17_RS("부탁/조르기")+"해버릴 거야"
+			
+		;강아지 접수
+		CASE K17C_강아지접수
+			LOCALS += K17_RS("어리광 부리/부비적 거리/강아지 흉내내")+"면서"+K17_CNAME(MASTER)+"이랑 쭉,\n　"
+			LOCALS += K17_RS("츄츄/할짝할짝")+"거리면서,"
+			LOCALS += K17_RS("얼굴/"+K17_CALL_G(,,1)+"/가슴/입/전신")+"에 키스 하는 망상 해버릴 거야"
+			
+		;덮쳐 수
+		CASE K17C_덮쳐접수
+			LOCALS += K17_CNAME(MASTER)
+			LOCALS += "에게"+K17_RS("발정기의/발정난/교미할 생각 밖에 없는")
+			LOCALS += K17_RS("개/짐승/야수")+"처럼,"
+			LOCALS += K17_RS("격렬하게/몇 번이고/거칠게")+",\n"
+			
+			;MASTER에 장대가 있을까
+			IF TALENT:MASTER:성별 >= 2
+				;어느 경우 접수인 것을 고려해 여성기로 받습니다
+				LOCALS += "「내"+K17_CALL_G(TARGET, 1,1)+"는,"
+				LOCALS += "평소보다"+K17_RS("딱딱해진/더 커진/씩씩해진/늠름해진/흥분한") +K17_CALL_G(MASTER, 3,1)
+			ELSEIF TALENT:MASTER:성별 == 1 && TALENT:TARGET:성별 == 3
+				;MASTER가 여성으로 앨리스가 양성의 경우
+				LOCALS += "「내"+K17_CALL_G(TARGET, 3,1)+"는,"
+				LOCALS += "평소보다"+K17_RS("질퍽질퍽/반들반들/질척질척")+"해진"+K17_CALL_G(MASTER, 1,1)
+			ELSEIF TALENT:MASTER:성별 == 1 && TALENT:TARGET:성별 == 1
+				;어느쪽이나 여성의 경우
+				LOCALS += "「내"+K17_CALL_G(TARGET, 1,1)+"는,"
+				LOCALS += K17_RS("능란하게/격렬하게/능숙하게/쾌락")+"조교 당해서"
+			ENDIF
+			LOCALS += "에게"+K17_RS("굴복 하겠/항복하겠/져버렸/패배했/분수를 깨달았")+"습니다앗"+K17_HEART(RAND:3+1)+"」\n　이라고"
+			LOCALS += K17_RS("느끼는 얼굴로 더블 피스 하면서/녹아버린 얼굴로 피스 하면서/가는 얼굴 보여주면서//")+"말할 때까지"
+			LOCALS += K17_RS("범해질/무리하게 엣찌 당할/강제 교미 당할/무책임 엣찌 당할/난폭하게 당할")+"거야"
+			
+		;강경세 접수
+		CASE K17C_강경세접수
+			LOCALS += K17_CNAME(MASTER)
+			LOCALS += "에게"+K17_RS("꽁꽁 묶인 채로/강하게 억눌려져서/머리카락을 잡혀서/옷이 찢겨서/굴복 당해서")+","
+			LOCALS += K17_RS("싫어해봐/안 된다고 말해봐/그만두라고 말해봐/날뛰어봐/반항해봐/비명 질러봐")+"도 \n　억지로,"
+			SIF TALENT:MASTER:성별 >= 2
+				LOCALS += K17_RS("씩씩한/늠름한/기분 좋은") +K17_CALL_G(MASTER, 3,1)+"에,"
+			LOCALS += K17_RS("굴복/고통 쾌락/강제 쾌락")+"조교 당해서, \n　"
+			LOCALS += K17_RS("인형/성욕 처리용 도구/오나홀/성노예")+"같은 취급 받으면서, 엉망진창 당할 거야"
+			
+		;건호감
+		CASE K17C_건호감
+			LOCALS += K17_CNAME(MASTER)
+			LOCALS += "이"+K17_RS("음란한 기분이 되면/불끈불끈 해지면/발정하더니/서버리더니")+" 곧바로"
+			LOCALS += K17_RS("손으로/입으로/옷 입은 채로 팬티 내려서/치마 올려서")+", \n　"
+			LOCALS += K17_RS("재빨리/전희도 없이/난잡하게/빠르게") +K17_CALL_G(MASTER, , 1)+"가"
+			IF TALENT:MASTER:성별 >= 2
+				LOCALS += K17_RS("움찔움찔 가버릴 때/절정할 때/정액 퓻퓻 쌀 때/정자 퓻퓻 쌀 때/사정할 때")
+			ELSE
+				LOCALS += K17_RS("움찔움찔 가버릴 때/절정할 때/분수 뿜을 때/조수 뿜을 때/조수할 때")
+			ENDIF
+			LOCALS += "까지, \n　"+K17_RS("성욕 처리용으로 쓰일/몸만 멋대로 쓰일/몸만 장난감처럼 쓰일")+"거야"
+			
+		;소악마 접수
+		CASE K17C_소악마접수
+			LOCALS += "내 쪽에서 일부러,"
+			STRDATA
+				DATAFORM 살짝 치마 넘겨보는 식으로
+				DATAFORM 젖가슴 손대게 해보는 식으로
+				DATAFORM 넘어지는 연기 하면서 속옷 보여주는 식으로
+				DATAFORM 넘어지는 연기 하면서 젖가슴으로 꽉 눌러보는 식으로
+				DATAFORM 엉덩이 내민 채로 유혹해보는 식으로
+				DATAFORM 앞으로 숙여서 젖가슴 엿보게 만드는 식으로
+				DATAFORM 속옷 모습으로 자는척 하는 식으로
+				DATAFORM 옷 갈아입는 모습 엿보게 하는 식으로
+				DATAFORM 술에 취한 척 연기 하면서 끈적끈적하게 달라붙는 식으로
+			ENDDATA
+			LOCALS += RESULTS
+			LOCALS += K17_RS("유혹해/미인계 써/농락해")+"서, \n　"
+			LOCALS += K17_RS("흥분/발정/격분")+"한"+K17_CNAME(MASTER)+"에게,"
+			LOCALS += K17_RS("짐승처럼 먹혀질/뒤로부터 거칠게 습격 당할/엉망진창으로 범해질/옷을 찢을 기세로 덮쳐질")+"거야"
+			
+		;권유 접수
+		CASE K17C_권유접수
+			LOCALS += K17_CNAME(MASTER)+"에게"
+			STRDATA
+				DATAFORM 자위 하는 모습 들켜서
+				DATAFORM 욕실에서 정면으로 마주 쳐서
+				DATAFORM 샹하이를 인질에게 잡혀서
+				DATAFORM 팬티 잃어버린 것 들켜서
+				DATAFORM 술 잔뜩 권유 받아서
+				DATAFORM 수면제 먹여져서
+			ENDDATA
+			LOCALS += RESULTS
+			LOCALS += ", \n　그대로"+K17_RS("어떻게 할 수도 없이/약점 이용 당하고")
+			LOCALS += K17_RS("분해하면서/매도 당하면서")
+			LOCALS += K17_RS("범해져 버릴/강제로 엣찌 당할/엣찌 당할")+" 거야"
+			
+		;여기에서 아래에 CASE 추가로 쓴다
+		CASEELSE
+			;재추첨 회장
+			ARG:1 = RAND:K17C_접수망상수
+	ENDSELECT
+	
+ENDIF
+;----------------------------------------------------------
+;공격 망상　7씨앗이 는 묻는다
+;
+;1연상 공격　2 강경세 공격　3 귀축 공격　4강아지 공격　5얼간이 공격　6여왕님(이 몸) 공격　7 말공격
+;----------------------------------------------------------
+IF ARG:0 == K17C_공격
+
+	
+	SELECTCASE ARG:1
+		
+		;연상 공격 산등성이 쇼타군요 압니다
+		CASE K17C_연상공격
+			LOCALS += "내 쪽에서 먼저"+K17_CNAME(MASTER) +K17_RS("을 덮친 뒤에/을 껴안은 뒤에")+"\n　"
+			LOCALS += K17_RS("쓰담쓰담하/어리광부리게 하/아이 취급하/엄청 귀여워하")+"면서,"
+			LOCALS += K17_RS("엣찌한/에로/음란한") +K17_RS(CALLNAME:TARGET+"/누나/아가씨")+"가 되어서는 \n　"
+			LOCALS += K17_RS("기분 좋아지는 것/여자아이의 몸/달달한 엣찌")+"를"+K17_CNAME(MASTER)+"의 몸에"
+			LOCALS += K17_RS("철저히 가르쳐 버릴 거야/교육해줄 거야/깨닫게 해버릴 거야/각인시켜 버릴 거야")
+			
+		
+		;강경세 공격
+		CASE K17C_강경세공격
+			LOCALS += "내 쪽에서 먼저"+K17_CNAME(MASTER)
+			LOCALS += K17_RS("의 옷을 벗긴/을 침대에 넘어트린/를 침실에 데려간")+"뒤에"
+			LOCALS += K17_RS("몸을 깔고 앉아서/걸터 앉아서/올라타서")+"는"
+			LOCALS += "\n 「"+CALLNAME:TARGET+K17_RS("여왕님/님/공주님")
+			LOCALS += K17_RS(", 제발 용서해주세요/, 이제 무리에요/, 정말 좋아합니다/, 사랑하고 있습니다/에게 졌습니다/에게 항복합니다")+"」\n　라고 말할 때까지"
+			LOCALS += K17_CALL_G(MASTER, 0,1)
+			LOCALS += K17_RS("억지로 범해버릴/괴롭힐/철저히 범해버릴")+"거야"
+			
+		
+		;귀축 공격
+		CASE K17C_귀축공격
+			LOCALS += K17_CNAME(MASTER)
+			LOCALS += "을 마법"+K17_RS("의 실로 꽁꽁 묶어서/으로 짓눌러서/을 걸어서")+"구속한 뒤에,"
+			LOCALS += K17_RS("싫어하는/저항하는/날뛰는") +K17_CNAME(MASTER)+"을 \n　"
+			;MASTER에 장대가 있을까
+			IF TALENT:MASTER:성별 >= 2 && ABL:MASTER:호모끼
+				;호모마음이 있으면 애널을 공격한다
+				LOCALS += "나의"+ K17_CALL_G(TARGET, 3,1)+"로"+K17_RS("애널/엉덩이 구멍/뒤의 구멍")
+			ELSEIF TALENT:MASTER:성별 >= 2
+				;공격인 것을 고려해 MASTER의 불기둥을 공격한다
+				LOCALS += "나의"+K17_RS("손/발/가슴/겨드랑이/"+K17_CALL_G(TARGET, 1,1))+"로"+K17_CALL_G(MASTER, 3,1)
+			ELSEIF TALENT:MASTER:성별 == 1 && TALENT:TARGET:성별 == 3
+				;MASTER가 여성으로 앨리스가 후타나리의 경우
+				LOCALS += "나의"+K17_CALL_G(TARGET, 3)+"로,"
+				LOCALS += "평소보다"+K17_RS("질퍽질퍽/반들반들/질척질척")+"거리는"+K17_CALL_G(MASTER, 1,1)
+			ENDIF
+			LOCALS += ","+K17_RS("내 마음대로 해버릴/엉망진창 해버릴/억지로 범해버릴")+"거야"
+			
+		
+		;강아지 공격하고 이토우 라이프
+		CASE K17C_강아지공격
+			IF TALENT:MASTER:성별 >= 2
+				LOCALS += K17_CNAME(MASTER) +K17_CALL_G(, , 1)+"에게 스스로 걸터 앉아선,"
+			ELSE
+				LOCALS += K17_CNAME(MASTER) +K17_CALL_G(, , 1)+"에 스스로 짝맞추기놀이 해,"
+			ENDIF
+			LOCALS += "\n 「"
+			LOCALS:1 += K17_RS("힘내라/화이팅/굉장해/대단해")
+			;구호 2회의 규칙
+			FOR LOCAL,1,2+1
+				LOCALS += LOCALS:1
+				LOCALS += K17_HEART(LOCAL)+"　"
+			NEXT
+			LOCALS += K17_HEART() +K17_CNAME(MASTER) +K17_HEART()
+			LOCALS += "」\n　"
+			IF LOCALS:1 == "힘내라" || LOCALS:1 == "화이팅이" 
+				LOCALS += "라고"+K17_RS("응원하/격려하")
+			ELSE
+				LOCALS += "라고"+K17_RS("칭찬하/격려하")
+			ENDIF
+			LOCALS += "면서,"
+			IF TALENT:MASTER:성별 >= 2
+				LOCALS += K17_RS("무릎 위에서/안긴 채로")
+				LOCALS += "나의"+K17_CALL_G(TARGET, 1,1)+"로, \n　"
+				LOCALS += K17_RS("상냥히 감싸서/큣큣해서/질척거리는/가득 물고서")+","
+			ENDIF
+			LOCALS += K17_RS("응원 엣찌/팡팡/엣찌 춤/"+K17_CALL_G()+"기분 좋아지게")+"해버릴 거야"
+			
+		
+		;얼간이 공격 이것 이제(벌써) 모르겠어 인
+		CASE K17C_얼간이공격
+			LOCALS += K17_CNAME(MASTER)+"에 알몸으로"
+			LOCALS += K17_RS("무릎 꿇고서/도게자 하면서/복종의 포즈 취하면서")+"\n"
+			;응?
+			LOCALS += "「"+K17_RS("어떤 짓이라도 할/암컷노예가 될/성욕 처리용 인형이 될/성노예가 될/개가 될/아떤 말이든 다 들어줄")+"테니"
+			LOCALS += K17_RS("질리지 말아/버리지 말아/예의를 가르쳐/사랑해/좋아해")+"주세요」\n　"
+			LOCALS += "라고"+K17_RS("울며 매달리/간청하")+"면서"
+			LOCALS += K17_CNAME(MASTER)+"의"+K17_RS("몸/가슴/발/"+K17_CALL_G(MASTER, 0,1))+"에,"
+			LOCALS += K17_RS("물고 늘어지기/전신 봉사/교태부리기")+"엣찌 해버린다"
+			
+		
+		;여왕님(이 몸) 공격하고 어리광느낌 속박인가
+		CASE K17C_여왕님공격
+			LOCALS += K17_CNAME(MASTER)+"을"+K17_RS("구속/감금/연금/속박")+"해서"
+			LOCALS += K17_RS("무리하게/강제로/억지로/힘으로")+"나의"
+			LOCALS += K17_RS(K17_CALL_G(TARGET, 0,1)+"질퍽질퍽 한/젖가슴 물게/엉덩이 비비적/다리로 꾹꾹 누른")+" 뒤에, \n　"
+			IF TALENT:MASTER:성별 >= 2
+				LOCALS += K17_CALL_G()+"흥분해서"+K17_RS("발기하/커져 버리/단단해지/딱딱해지/서버리")+"면,"
+			ELSE
+				LOCALS += K17_CALL_G()+"흥분해서"+K17_RS("젖어버리/엣찌 준비 되어버리/흠뻑 젖으")+"면,"
+			ENDIF
+			LOCALS += "거기서"+K17_RS("그만둬/멈춰/고통스럽게 해")+"서"+K17_CNAME(MASTER)+"이 \n　"
+			LOCALS += "「"+CALLNAME:TARGET+K17_RS("가 제일 귀엽습니다/가 최고로 예쁘십니다/를 신부로 맞이하겠습니다/에게 복종합니다/을 평생 사랑하겠습니다")+"!」\n　"
+			LOCALS += "라고 나에게"+K17_RS("충성을 맹세하게 될/선언하게 될/맹세하게 될")+"때 까지"
+			LOCALS += K17_RS("애태워 버릴/괴롭힐/해버릴/슨도메 해버릴")+"거야"
+			
+			
+		;말공격
+		CASE K17C_말공격
+			LOCALS += K17_CNAME(MASTER)+"의"+K17_RS("혼자 엣찌/자위")+"하고 있는 모습 찾아내선, \n　"
+			LOCALS += "나의 어떤"+K17_RS("음란한/엣찌/섹스") +K17_RS("모습/망상/상상/망상")+","
+			LOCALS += K17_RS("재료로/딸감으로/생각하면서")+"하고 있는건지 물어 본 뒤에,"
+			LOCALS += "\n 「"
+			FOR LOCAL,1,2+1
+				LOCALS += K17_RS("엣찌/바보/색골")
+				LOCALS += K17_HEART(LOCAL)+"　"
+			NEXT
+			LOCALS += K17_HEART() +K17_RS("변태씨/변태씨") +K17_HEART()
+			LOCALS += "」\n　"
+			LOCALS += "라고"+K17_RS("매도하/고문하/속삭이")+"면서"
+			LOCALS += K17_RS("가슴을 꾹 눌러서/엉덩이을 쑥 내밀어서/치마를 걷어올려서/키스하면서")+", 도와 주고 있으니깐, \n　나의"
+			IF TALENT:TARGET:성별 >= 2
+				LOCALS += K17_CALL_G(TARGET) +K17_RS("발기해/커져 버려/단단해져/딱딱해져/서버려")+"서,"
+			ELSE
+				LOCALS += K17_CALL_G(TARGET) +K17_RS("젖어버려/엣찌 준비 되어버려/흠뻑 젖어")+"서,"
+			ENDIF
+			LOCALS += "참을 수 없어서 그대로 \n　"+K17_RS("망상 실현/억지로/흐름 좋은")+"엣찌 해버릴 거야"
+			
+		CASEELSE
+			;재추첨 회장
+			ARG:1 = RAND:K17C_공격망상수
+	ENDSELECT
+ENDIF	
+
+RESULT:0 = ARG:0
+RESULT:1 = ARG:1
+RETURNF LOCALS
+
+;
+;WHILE ARG:0 == 3
+;	;코스프레나 페티시즘 등 이상·과격한 것은 여기 조만간 만든다
+;	SELECTCASE ARG:1
+;		CASE 1
+;			LOCALS += K17_RS("강행/억지로/강제적")+"에,"
+;			LOCALS += K17_RS("외/다른 사람에게 들켜버릴 것 같은 장소/거울의 전/인형들의 앞")+"로"
+;			LOCALS += K17_RS("억지로/억지로/범")+"되어버린다"
+;		
+;			LOCALS += "와"+K17_RS("데이트 하고 있는/함께 있는/외출하고 있다")+"시에"
+;			LOCALS += K17_RS("딱딱해져/발기해/텐트 치고 있는/저기 주장하고 있는/발정해")+" 것을 깨닫으면(자),"
+;			LOCALS += "손을 잡아 당겨"+K17_RS("뒤 골목길/화장실/그늘/수풀")+"에 데리고 가져"
+;			RETURNF
+;			
+;		CASEELSE
+;			;재추첨 회장
+;			ARG:1 = RAND:망상 MAX +1
+;	ENDSELECT
+;WEND
+
+RETURNF "\n\n　미안, K17_H망상 상정외 에러니깐 보고해줘 \n　전에는 끝나세요"
+
+
+;*********************************************************************************
+;	H망상에 대응하는 허덕여소리의 종류를 취득한다
+;	
+;	인수 0	：꺼내는 종류　0 접수　1 공격　2 그외시츄　-1생략으로 랜덤
+;	인수 1	：망상 번호　-1생략으로 랜덤
+;	반환값	：번호 h참조
+;*********************************************************************************
+@K17_허덕여타입_H망상(ARG:0=-1, ARG:1=-1)
+#FUNCTION
+#DIM CONST 타입MAX = 4	;인수 1의 최대수정의 나중에 추가하는 일 생각해 적당하게
+#DIM iReValue				;반환값
+VARSET iReValue
+
+;꺼내는 방법을 보는 랜덤 초기화
+SIF !INRANGE(ARG:0, 0, K17C_망상종류수-1)
+	ARG:0 = RAND:K17C_망상종류수
+
+
+IF ARG:0 == K17C_접수
+	SIF !INRANGE(ARG:1, 0, K17C_접수망상수-1)
+		ARG:1 = RAND:K17C_접수망상수
+	SELECTCASE ARG:1
+		
+		;애원 계 이것이 통상 예정
+		CASE K17C_공주접수,K17C_강아지접수
+			iReValue=K17C_접수_애원계
+			
+		;합의 습격당하고 계(격렬하게 여겨져버리는 계
+		CASE  K17C_덮쳐접수,K17C_소악마접수
+			iReValue=K17C_접수_합의덮쳐계
+			
+		;억지로 계(습격당해버리는 계
+		CASE K17C_권유접수,K17C_강경세접수
+			iReValue=K17C_접수_억지로계
+			
+		;도움 계 성욕 처리
+		CASE K17C_건호감
+			iReValue=K17C_접수_도움계
+	ENDSELECT
+	
+ELSEIF ARG:0 == K17C_공격
+	SIF !INRANGE(ARG:1, 0, K17C_공격망상수-1)
+		ARG:1 = RAND:K17C_공격망상수
+	SELECTCASE ARG:1
+		;애원 계 부탁해 엣찌 받는 계
+		CASE K17C_얼간이공격,K17C_말공격
+			iReValue=K17C_공격_애원계
+		;합의 공격계 격렬하게 해버리는 계
+		CASE  K17C_강경세공격,K17C_연상공격
+			iReValue=K17C_공격_합의덮쳐계
+		;억지로 덮쳐 계 덮쳐버리는 계
+		CASE K17C_귀축공격,K17C_여왕님공격
+			iReValue=K17C_공격_억지로계
+		;도움 계(힘내라 힘내라
+		CASE K17C_강아지공격
+			iReValue=K17C_공격_도움계
+	ENDSELECT
+ENDIF
+
+RETURNF iReValue
+
+;*********************************************************************************
+;	H망상에 대응한 허덕여 텍스트
+;	조교는 또 따로 만든다
+;
+;	쓰는 법 어떻게든 되지 않았다 의 것인지군요……
+;
+;	인수 0	：꺼내는 허덕여소리 계통
+;	인수 1	：장난감 플래그 생략 0이(가) 아님
+;	반환값	：성공 여부 판정
+;*********************************************************************************
+@K17_H망상_허덕여(ARG:0=0, ARG:1=0)
+
+;사양 함수 메모
+;K17_허덕여소리(계통(ARG), 감각치, 회수, 종단)
+;K17_허덕여_이음(계통(ARG), 감각치, 종단)
+;여기는 자위 어째서 감각치는 앨리스가 생각하는 대로
+
+IF !(ARG & K17C_허덕여F_공격)
+	;접수
+	IF !(ARG & K17C_허덕여F_덮쳐)
+		IF ARG & K17C_허덕여F_합의
+			;애원 계
+			PRINTFORML 「해줘어%K17_허덕여_이음(ARG, 4)%……%K17_허덕여소리(ARG, 0,4,1)%」
+			;여기는 손가락 주도
+			IF ARG:1 == 0
+				PRINTFORMDL %타겟은% %K17_RS("흠칫흠칫/조심조심/천천히")% 음부에 손을 뻗고 있었다
+			ELSE
+				PRINTFORMDL %타겟은% %K17_RS("흠칫흠칫/조심조심/천천히")% 은밀한 틈에 장난감을 가져다 대었다
+			ENDIF
+			PRINTFORML 「%K17_허덕여소리(ARG, 3,5,1)%」
+			PRINTW
+			PRINTFORML 「좀 더……%K17_허덕여소리(ARG, 2,1)% 잔뜩,%K17_허덕여소리(ARG, 2,1)% 해줘엇……%K17_RS("조, 조앗/버, 범해줘")%,%K17_허덕여소리(ARG, 2,1,1)%」
+			PRINTFORML 「%K17_허덕여소리(ARG, 4,2)% 잔뜩, %K17_RS("흥분해줘/잔뜩해줘/사랑해줘")%%K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 4,2,1)%」
+		ELSE
+			;도움 계
+			PRINTFORML 「하는, 거야? …%K17_허덕여소리(ARG, 0,4,1)%」
+			IF ARG:1 == 0
+				PRINTFORMDL %타겟은% %K17_RS("흠칫흠칫/조심조심/천천히")% 음부에 손을 뻗고 있었다
+			ELSE
+				PRINTFORMDL %타겟은% %K17_RS("흠칫흠칫/조심조심/천천히")% 은밀한 틈에 장난감을 가져다 대었다
+			ENDIF
+			PRINTFORML 「%K17_허덕여소리(ARG, 3,5,1)%」
+			PRINTW
+			IF TALENT:MASTER:성별 >= 2
+				PRINTFORML 「빨릿……%K17_허덕여소리(ARG, 2,1)%끝냇,%K17_허덕여소리(ARG, 2,1)%빨리……%K17_RS("싸, 싸줘/사, 사정해")%,%K17_허덕여소리(ARG, 2,1,1)%」
+				PRINTFORML 「%K17_허덕여소리(ARG, 4,2)%구, %K17_RS("싸줘/사정해줘/끝내줘")%%K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 4,2,1)%」
+			ELSE
+				PRINTFORML 「빨릿……%K17_허덕여소리(ARG, 2,1)%끝냇,%K17_허덕여소리(ARG, 2,1)%빨리……%K17_RS("싸줘/끝내줘/절정해줘")%,%K17_허덕여소리(ARG, 2,1,1)%」
+				PRINTFORML 「%K17_허덕여소리(ARG, 4,2)%크읏, %K17_RS("싸줘/끝내줘/절정해줘")%%K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 4,2,1)%」
+			ENDIF
+		ENDIF
+	ELSE
+		IF ARG & K17C_허덕여F_합의
+			;합의 덮쳐 계 여기는 허리 주도
+			PRINTFORML 「안 돼엣 %K17_허덕여_이음(ARG, 4)%……%K17_허덕여소리(ARG, 0,4,1)%」
+			IF ARG:1 == 0
+				PRINTFORMDL 엎드린 자세로 베개를 다리 사이에다 끼워서는 %K17_RS("살랑살랑 흔들/부비부비 거리")%며 %K17_RS("허리를 흔들고 있었다/엉덩이를 흔들고 있었다")%
+			ELSE
+				PRINTFORMDL 엎드린 자세로 음부에 장난감을 갖다 대고서는 %K17_RS("살랑살랑 흔들/부비부비 거리")%며 %K17_RS("허리를 흔들고 있었다/엉덩이를 흔들고 있었다")%
+			ENDIF
+			
+			PRINTFORML 「%K17_허덕여소리(ARG, 3,5,1)%」
+			PRINTW
+			PRINTFORML 「이, 렇게, 격렬하게엣 %K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 2,1)%……%K17_RS("진정해앳/망가져버려엇")%……%K17_허덕여소리(ARG, 2,1)% 시럿……」
+			PRINTFORML 「%K17_허덕여소리(ARG, 4,1) %%K17_RS("상냥히 해앳/천천히잇/아픈건 시럿")%%K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 4,2,1)%」
+		ELSE
+			;억지로 계
+			PRINTFORML 「싫엇%K17_허덕여_이음(ARG, 4)%……%K17_허덕여소리(ARG, 0,4,1)%」
+			IF ARG:1 == 0
+				PRINTFORMDL 엎드린 자세로 베개를 다리 사이에다 끼워서는 %K17_RS("살랑살랑 흔들/부비부비 거리")%며 %K17_RS("허리를 흔들고 있었다/엉덩이를 흔들고 있었다")%
+			ELSE
+				PRINTFORMDL 엎드린 자세로 음부에 장난감을 갖다 대고서는 %K17_RS("살랑살랑 흔들/부비부비 거리")%며 %K17_RS("허리를 흔들고 있었다/엉덩이를 흔들고 있었다")%
+			ENDIF
+			PRINTFORML 「%K17_허덕여소리(ARG, 3,5,1)%」
+			PRINTW
+			PRINTFORML 「싫엇, 무리하게 하지마아 %K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 2,1)%……%K17_RS("멈춰엇/범하지마앗/범하면 안대앳")%……%K17_허덕여소리(ARG, 2,1)%부탁할 게에……」
+			PRINTFORML 「%K17_허덕여소리(ARG, 4,1) %%K17_RS("범하는 거엇/무리하겟/엉망진창")%%K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 4,2,1)%」
+		ENDIF
+	ENDIF
+ELSE
+	;공격
+	IF !(ARG & K17C_허덕여F_덮쳐)
+		IF ARG & K17C_허덕여F_합의
+			;도움 계
+			PRINTFORML 「할, 게…%K17_허덕여소리(ARG, 0,4,1)%」
+			IF ARG:1 == 0
+				PRINTFORMDL 베개에 올라타서는 %K17_RS("살랑살랑 흔들/부비부비 거리")%며 %K17_RS("허리를 흔들고 있었다/엉덩이를 흔들고 있었다")%
+			ELSE
+				PRINTFORMDL 주저앉은 채로 음부에 장난감을 갖다 대고서는 %K17_RS("살랑살랑 흔들/부비부비 거리")%며 %K17_RS("허리를 흔들고 있었다/엉덩이를 흔들고 있었다")%
+			ENDIF
+			PRINTFORML 「%K17_허덕여소리(ARG, 3,5,1)%」
+			PRINTW
+			PRINTFORML 「자아……%K17_허덕여소리(ARG, 2,1)%힘냇,%K17_허덕여소리(ARG, 2,1)%빨리……%K17_RS("싸, 싸줘/사, 사정햇")%,%K17_허덕여소리(ARG, 2,1,1)%」
+			PRINTFORML 「%K17_허덕여소리(ARG, 4,1) %%K17_RS("잘했어/힘내앳/가줘")%%K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 4,2,1)%」
+		ELSE
+			;애원 계
+		ENDIF
+			PRINTFORML 「부탁…%K17_허덕여소리(ARG, 0,4,1)%」
+			IF ARG:1 == 0
+				PRINTFORMDL 베개에 올라타서는 %K17_RS("살랑살랑 흔들/부비부비 거리")%며 %K17_RS("허리를 흔들고 있었다/엉덩이를 흔들고 있었다")%
+			ELSE
+				PRINTFORMDL 주저앉은 채로 음부에 장난감을 갖다 대고서는 %K17_RS("살랑살랑 흔들/부비부비 거리")%며 %K17_RS("허리를 흔들고 있었다/엉덩이를 흔들고 있었다")%
+			ENDIF
+			PRINTFORML 「%K17_허덕여소리(ARG, 3,5,1)%」
+			PRINTW
+			PRINTFORML 「있잖아…%K17_허덕여소리(ARG, 2,1)% 좀 더엇,%K17_허덕여소리(ARG, 2,1)%해줘……%K17_RS("응? 응?/부탁할겟/기분 좋으면섯")%,%K17_허덕여소리(ARG, 2,1,1)%」
+			PRINTFORML 「%K17_허덕여소리(ARG, 4,1) %%K17_RS("해줘엇/빨리잇")%%K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 4,2,1)%」
+		
+	ELSE
+		;합의 덮쳐 억지로
+		PRINTFORML 「―%K17_허덕여_이음(ARG, 4)%……%K17_허덕여소리(ARG, 0,4,1)%」
+		IF ARG:1 == 0
+			PRINTFORMDL 베개에 올라타서는 %K17_RS("내려 거절해/미끌미끌")%과 %K17_RS("허리를 흔들어 있던/엉덩이를 털고 있던")%
+		ELSE
+			PRINTFORMDL 주저앉은 채로 음부에 장난감을 갖다 대고서는 %K17_RS("살랑살랑 흔들/부비부비 거리")%며 %K17_RS("허리를 흔들고 있었다/엉덩이를 흔들고 있었다")%
+		ENDIF
+		PRINTFORML 「%K17_허덕여소리(ARG, 3,5,1)%」
+		PRINTW
+		PRINTFORML 「후훗……%K17_허덕여소리(ARG, 2,1)%어때,%K17_허덕여소리(ARG, 2,1)%저기……%K17_RS("좋지?/이거 좋아하잖아/좋아하는 주제엣")%,%K17_허덕여소리(ARG, 2,1,1)%」
+		PRINTFORML 「%K17_허덕여소리(ARG, 4,1) %%K17_RS("가버리는 거야?/아직이야?/아직은 안댓")%%K17_허덕여_이음(ARG, 4)%%K17_허덕여소리(ARG, 4,2,1)%」
+			
+	ENDIF
+ENDIF
+
+PRINTFORMDL %타겟은% 평소 그녀의 모습에서는 상상조차 할 수 없을 정도로, %K17_RS("망측한/문란한/음란한")% 모습으로 자위에 빠져 있었다
+
+;;절정 처리
+;PRINTFORMDW %타겟은% 평상시부터는 생각할 수 없는 것 같은, 여자답지 않은 모습으로 자위에 빠지고 있다
+;PRINTFORML 「%K17_허덕여_소리(6,1, ARG)%%K17_허덕여_쾌락(ARG & K17C_허덕여 F_수공, 8000)%%K17_허덕여_소리(6,1, ARG, 1)%」
+;PRINTFORML 「%K17_허덕여_절정(ARG, RG)%」
+
+PRINTW
+RETURN 0
+
+
+

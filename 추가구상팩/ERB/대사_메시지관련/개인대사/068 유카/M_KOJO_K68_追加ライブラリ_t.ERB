@@ -1,0 +1,180 @@
+﻿;
+;-------------------------------------------------
+;유카말에 사용하는 함수
+;-------------------------------------------------
+;
+;-------------------------------------------------
+;@UPDATE_RESET_K68()
+;첫도입시에 유카의 안면 상황·호감도·신뢰도·함락 상황·능력·경험을 리셋
+;아이 관련과 연인은 상당히 위험할 것 같다. 요점 검증
+;-------------------------------------------------
+;
+@UPDATE_RESET_K68()
+	CLEARBIT CFLAG:68:기정사실 , 1
+	CFLAG:68:호감도 = 0
+	CFLAG:68:신뢰도 = 0
+	CFLAG:68:약점잡음 = 0
+	CFLAG:68:약점잡힘 = 0
+	CFLAG:68:생해금 = 0
+	CFLAG:68:안면 = 0
+	CFLAG:68:깨끗한교제 = 0
+	CFLAG:68:딸딸이들킴 = 0
+	CFLAG:68:빡침 = 0
+	CFLAG:68:언짢음 = 0
+	CFLAG:68:면간발각 = 0
+	;CFLAG:68:출산경과일 = 0
+	CFLAG:68:육아인원수 = 0
+	CFLAG:68:아이인원수 = 0
+	IF TALENT:68:연인 == 1 && TALENT:MASTER:연인 == 1
+		TALENT:68:연인 = 0
+		TALENT:MASTER:연인 = 0
+	ENDIF
+	
+	;누계 정음경험
+	CFLAG:68:누계질내정액 = 0
+	CFLAG:68:누계애널정액 = 0
+	CFLAG:68:누계정음 = 0
+	CFLAG:68:누계뿌려짐 = 0
+	
+	;첫키스 계 키스경험 없음, 키스미경험의 소질이 있으면 외는 초기화하지 않아도 문제 없는 같아?
+	TALENT:68:키스미경험 = 1
+	
+	;함락
+	TALENT:68:약점 = 0
+	TALENT:68:연모 = 0
+	TALENT:68:사모 = 0
+	TALENT:68:음란 = 0
+	TALENT:68:애욕 = 0
+	TALENT:68:섹프 = 0
+	;TALENT:68:임신 = 0
+	;TALENT:68:육아중 = 0
+	
+	;음란계
+	TALENT:68:마조 = 0
+	TALENT:68:자위중독 = 0
+	TALENT:68:음호 = 0
+	TALENT:68:항문광 = 0
+	TALENT:68:음유 = 0
+	TALENT:68:키스마 = 0
+	TALENT:68:포르치오성감 = 0
+	
+	;캔디
+	TALENT:68:처녀 = 0
+	TALENT:68:성별 = 1
+	TALENT:68:동물귀 = 0
+	
+	;각인
+	MARK:68:시간각인 = 0
+	MARK:68:반발각인 = 0
+	MARK:68:고통각인 = 0
+	MARK:68:쾌락각인 = 0
+	MARK:68:괘씸각인 = 0
+	
+	;ABL 초기화
+	CALL INI_K68("ABL")
+	;초기 능력
+	ABL:68:0 = 1
+	ABL:68:1 = 1
+	ABL:68:11 = 1
+	ABL:68:16 = 5
+	ABL:68:17 = 2
+	ABL:68:42 = 5
+	ABL:68:43 = 2
+	
+	;EXP 초기화
+	CALL INI_K68("EXP")
+	;초기 경험
+	EXP:68:1 = 50
+	EXP:68:10 = 35
+	EXP:68:22 = 25
+	EXP:68:51 = 75
+	EXP:68:74 = 30
+	
+	;보주
+	CALL INI_K68("JUEL")
+	
+RETURN 1
+;-------------------------------------------------
+;@INI_K68(ARGS)
+;ARGS = ABL로 ABL 초기화, EXP로 EXP 초기화, JUEL로 JUEL 초기화
+;존재하지 않는 장소까지 초기화하고 있는데···
+;-------------------------------------------------
+;
+@INI_K68(ARGS)
+	IF ARGS == "ABL"
+		FOR LOCAL, 0, 56
+			ABL:68:LOCAL = 0
+		NEXT
+	ELSEIF ARGS == "EXP"
+		FOR LOCAL, 0, 111
+			EXP:68:LOCAL = 0
+		NEXT
+	ELSEIF ARGS == "JUEL"
+		FOR LOCAL, 0, 33
+			JUEL:68:LOCAL = 0
+		NEXT
+		JUEL:68:100 = 0
+	ENDIF
+RETURN 1
+;-------------------------------------------------
+;@HEARTCB_K68(ARG:1, ARG, ARGS)
+;ARG:1은 표시하는 하트 마크의 색, ARG는 표시하는 수, ARGS는 폰트
+;촉수궁에 째-실마리응으로부터 일부빌렸습니다
+;어째서 일부러 함수 만들었어? →단어 등록되어 있었기 때문에
+;-------------------------------------------------
+;
+@HEARTCB_K68(ARG:1 = 0xC07070, ARG = 1, ARGS = "Verdana")
+#LOCALSIZE 2
+#LOCALSSIZE 1
+	LOCAL = GETCOLOR()
+	LOCALS = %GETFONT()%
+	
+	SETCOLOR ARG:1
+	SETFONT CHKFONT(ARGS) ?  ARGS # LOCALS
+
+	IF GETFONT() == "Symbol"
+		FOR LOCAL:1, 0, ARG
+			PRINTS UNICODE(0xA9)
+		NEXT
+	ELSE
+		FOR LOCAL:1, 0, ARG
+			PRINTS UNICODE(0x2665)
+		NEXT
+	ENDIF
+	
+	SETFONT LOCALS
+	SETCOLOR LOCAL
+RETURN 1
+;-------------------------------------------------
+;@PLANTSELECT_K68()
+;식물의모종의 No(151,152,153,162,163,164,175,176,177,187,188,189)로부터 랜덤에 선택하는 함수
+;-------------------------------------------------
+;
+@PLANTSELECT_K68()
+#FUNCTION
+SELECTCASE RAND:12
+	CASE 0
+		RETURNF 151
+	CASE 1
+		RETURNF 152
+	CASE 2
+		RETURNF 153
+	CASE 3
+		RETURNF 162
+	CASE 4
+		RETURNF 163
+	CASE 5
+		RETURNF 164
+	CASE 6
+		RETURNF 175
+	CASE 7
+		RETURNF 176
+	CASE 8
+		RETURNF 177
+	CASE 9
+		RETURNF 187
+	CASE 10
+		RETURNF 188
+	CASEELSE
+		RETURNF 189
+ENDSELECT
