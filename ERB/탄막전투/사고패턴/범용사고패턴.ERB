@@ -220,7 +220,15 @@ RETURN 1
 ;ARG = 행동자
 WHILE 행동기회여부(ARG,T_통상행동)||행동기회여부(ARG,T_이동행동)
     IF 행동기회여부(ARG,T_통상행동)
-        IF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/5)&&RAND:6 == 0
+        IF ARG능력치(ARG,"체력") < ARG반대능력치(ARG,"체력") - (ARG능력치(ARG,"공격력") * 2) && BASEPERCENT(ARG,"체력") < 10
+           IF 항복불가 == 0
+                CALL T_항복(ARG)
+                BREAK
+            ELSEIF TB_거리() > 60
+                CALL T_COM도망간다(ARG)
+                BREAK
+            ENDIF
+        ELSEIF TCVAR:ARG:T_체력 < (TCVAR:ARG:T_최대체력/5)&&RAND:6 == 0
             IF 항복불가 == 0
                 CALL T_항복(ARG)
                 BREAK
@@ -1319,7 +1327,6 @@ FOR 스킬번호, 1, T_스킬한계값
     ELSEIF MATCH(SKILL_ARRAY, 스킬번호)
         CONTINUE
     ENDIF
-
     TRYCALLFORM CAN_T_SKILL(ARG, 스킬번호)
     IF RESULT == 1 ;스킬 시전 가능
         IF ARG:1 ;스킬타입 미리 선정시
@@ -1337,10 +1344,9 @@ FOR 스킬번호, 1, T_스킬한계값
     ELSE
         CANNOT_ARRAY:스킬번호 = 1
     ENDIF
-    
     ;배열 수 한도 초과시 종료
-    SIF 배열내위치 >= 149
-        CONTINUE
+    SIF 배열내위치 >= 199
+        BREAK
         ;RETURN 1
 NEXT
 
@@ -1413,7 +1419,7 @@ IF TYPE == "평타"
     IF TB_SUM_REMAIN(T_시전자,TCV_혼란)
         후퇴포인트 += 1
     ENDIF
-    IF ARG능력치(T_시전자,"체력") < ARG능력치(T_시전자반대,"체력") - ARG능력치(T_시전자,"공격력") && BASEPERCENT(T_시전자,"체력") < 20
+    IF ARG능력치(T_시전자,"체력") < ARG능력치(T_시전자반대,"체력") - (ARG능력치(T_시전자,"공격력") * 2) && BASEPERCENT(T_시전자,"체력") < 10
         후퇴포인트 += 2
     ENDIF
     IF TB_SUM_REMAIN(T_시전자반대,TCV_증폭) || TB_SUM_REMAIN(T_시전자,TCV_취약)
