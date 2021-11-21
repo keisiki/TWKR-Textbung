@@ -9,7 +9,6 @@ FOR LOCAL, 0, 100
 	LOCAL:1 ++
 NEXT
 DRAWLINEFORM －
-PRINTFORML [92] - 지도 종류: \@ RECOLOREDMAPS ? 컬러맵 # 디폴트 \@ \@ ANIMATERECOLOREDMAPS ? + 영상 모드 #  \@
 PRINTFORML [93] - 텍붕이모드 추가기능 관리
 PRINTFORML [94] - 오토신음일괄설정
 PRINTFORML [95] - 간이 필터의 일괄 설정
@@ -27,17 +26,6 @@ INPUT
 IF OPTION_SETNAME(RESULT) != ""
 	CALL OPTION_SETTING(RESULT)
 	CLEARLINE 12 + LOCAL:1
-ELSEIF RESULT == 92
-	IF RECOLOREDMAPS
-		IF ANIMATERECOLOREDMAPS
-			RECOLOREDMAPS = 0
-			ANIMATERECOLOREDMAPS = 0
-		ELSE
-			ANIMATERECOLOREDMAPS = 1000
-		ENDIF
-	ELSE
-		RECOLOREDMAPS = 1
-	ENDIF
 ELSEIF RESULT == 93
 	CALL 나의마음을도려내는분충은
 ELSEIF RESULT == 94
@@ -375,6 +363,8 @@ CASE 23
 	CASE 1 ;KR판 구잔재, 일판은 내방플래그.ERB 변경되어 50
 		RESULTS:1 = 호감도 0은 내방하지 않는다
 	CASE 2
+		RESULTS:1 = 함락된 캐릭터만
+	CASE 3
 		RESULTS:1 = 내방하지 않는다
 	ENDSELECT
 CASE 24
@@ -417,6 +407,24 @@ CASE 28
 		RESULTS:1 = 미입수여도 표시한다
 	ELSE
 		RESULTS:1 = 미입수를 표시하지 않는다
+	ENDIF
+CASE 29
+	RESULTS:0 = 지도 표시 타입
+	IF RECOLOREDMAPS
+		IF ANIMATERECOLOREDMAPS
+			RESULTS:1 = 컬러맵 + 영상모드
+		ELSE
+			RESULTS:1 = 컬러맵
+		ENDIF
+	ELSE
+		RESULTS:1 = 디폴트
+	ENDIF
+CASE 30
+	RESULTS:0 = 캐릭터리스트 표시 순서
+	IF FLAG:정렬
+		RESULTS:1 = 원작순
+	ELSE
+		RESULTS:1 = ＴＷ순
 	ENDIF
 CASE 36 ;KR판 오리지날
 	RESULTS:0 = 일상 호감 신뢰 상승 배율 설정
@@ -490,7 +498,7 @@ CASE "일부 캐릭터의 니삭스 착용"
 CASE "연회 발생"
 	FLAG:연회의유무 = !FLAG:연회의유무
 CASE "내방모드"
-	CALL 옵션바꿔치기("교류내방모드", 2)
+	CALL 옵션바꿔치기("교류내방모드", 3)
 CASE "탈의시 명령 선택"
 	CALL 옵션바꿔치기("탈의선택", 2)
 CASE "시간정지 탈의시 팬티 처리"
@@ -553,6 +561,19 @@ CASE "첫키스 기록 상황 설정"
 	CALL 옵션바꿔치기("FK판정", 3)
 CASE "캐릭터 만남시 의뢰 표시"
 	FLAG:의뢰패스 = !FLAG:의뢰패스
+CASE "지도 표시 타입"
+	IF RECOLOREDMAPS
+		IF ANIMATERECOLOREDMAPS
+			RECOLOREDMAPS = 0
+			ANIMATERECOLOREDMAPS = 0
+		ELSE
+			ANIMATERECOLOREDMAPS = 1000
+		ENDIF
+	ELSE
+		RECOLOREDMAPS = 1
+	ENDIF
+CASE "캐릭터리스트 표시 순서"
+	FLAG:정렬 = !FLAG:정렬
 CASE "일상 호감 신뢰 상승 배율 설정"
 	PRINTFORML 변경할 일반 호감도/신뢰 추가 획득 배율 입력 『현재 : {1 + FLAG:호감신뢰상승률}x, 최대 20』
 	INPUT
@@ -586,7 +607,18 @@ ENDIF
 @등장캐릭터변환
 PRINTL 　지정한 캐릭터가 등장하지 않도록 합니다. ("*"는 대사가 있는 캐릭터)
 DRAWLINE
-FOR LOCAL,1,CHARANUM
+SIF FLAG:정렬
+	CALL CHARASORT_EX
+FOR LOCAL:1, 1, EX_CHARANUM
+	IF FLAG:정렬
+		LOCAL = RESULT:(LOCAL:1)
+		SIF !LOCAL
+			CONTINUE
+	ELSE
+		LOCAL = LOCAL:1
+		SIF LOCAL >= CHARANUM
+			BREAK
+	ENDIF
 	SIF TALENT:LOCAL:스침
 		CONTINUE
 	SIF TALENT:LOCAL:사망

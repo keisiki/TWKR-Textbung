@@ -497,7 +497,7 @@ ENDSELECT
 #DIM  L_ID       ;REF 대책, 건네줄 뿐
 #DIM  SWAP_ID    ;현재의TARGET 지정 처리용의 일시 변수
 ;우후후 안은 TARGET를 놓친다(정사 발각등으로 어긋나버린다 것으로)
-SIF !TFLAG:현재의TARGET && (CFLAG:TARGET:우후후 || CFLAG:MASTER:초대)
+SIF !TFLAG:현재의TARGET
 	TFLAG:현재의TARGET = TARGET
 
 CALL MAKE_CHARA_LIST("TARGET 리스트", L_ID, TARGET, TARGET_CNT)
@@ -925,6 +925,23 @@ ENDIF
 ;잠복モード解除
 SIF GETBIT(FLAG:잠복,0)
 	CALL 잠복모드종료처리
+
+;-------------------------------------------------
+;関数名:ENDUFUFU_ALL
+;概　要:全員にENDUFUFU
+;人数を返す
+;-------------------------------------------------
+@ENDUFUFU_ALL
+VARSET LOCAL
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:LOCAL:우후후
+		CALL ENDUFUFU(LOCAL)
+		LOCAL:1 ++
+	ENDIF
+NEXT
+TFLAG:MASTER의P삽입중 = 0
+RETURN LOCAL:1
+
 
 ;-------------------------------------------------------------
 ;ARG와 당신이 동성이었던 경우, 양자에게 레즈비언(동성애자) 경험을 추가하는 함수
@@ -1698,13 +1715,16 @@ ENDSELECT
 ;-------------------------------------------------
 ;랭크 평가(숫자가 작을 정도 우수)의 내용을 알파벳 표기해 컬러 표시한다
 ;형식마저 있으면 별로 PRINT_RANK가 아니어도 사용할 수 있어
+;ARG=1로 전각 ; 한판 임의수정, Ph 추가에 따른 조정. 이후 함수 사용(벌레배틀)에 따라 원판대로 사용할지 결정할 예정
 ;-------------------------------------------------
-@PRINT_ALPHABET(RANK, RANK_NUM)
+@PRINT_ALPHABET(RANK, RANK_NUM, ARG)
 #DIM RANK
 #DIM RANK_NUM
 #DIMS CONST STR_RANK11, 11 = "Ph","Ex", "SS", " S", " A", " B", " C", " D", " E", " F", " G"
 #DIMS CONST STR_RANK21, 21 = "Ph","EX", "SS+", "SS", "SS-", "S+", "S", "S-", "A", "A-", "B+", "B", "C+", "C", "C-", "D+", "D", "D-", "E", "F", "F-"
 #DIMS CONST STR_RANK8,   8 = "Ph","Ex", " S", " A", " B", " C", " D", " E"
+#DIMS CONST STR_RANK11_F, 11 = "ＰＨ", "ＳＳＳ", "ＳＳ", "Ｓ", "Ａ", "Ｂ", "Ｃ", "Ｄ", "Ｅ", "Ｆ", "Ｇ"
+#DIMS CONST STR_RANK8_F,   8 = "ＰＨ", "ＥＸ", "Ｓ", "Ａ", "Ｂ", "Ｃ", "Ｄ", "Ｅ"
 {
 #DIMS  CONST C_RANK21, 21 = 
 	"Ph","SSS", "SS+", "SS", "SS-", "S+", "S", "S-", "A", "A-", "B+", "B", "C+", "C", "C-", "D+", "D", "D-", "E", "F", "F-"
@@ -1715,16 +1735,28 @@ ENDSELECT
 	"C_ORANGE", "C_YELLOW", "C_GREEN", "C_AQUA", "C_GRAY"
 }
 #DIMS  CONST C_RANK8,   8 = "C_P_PURPLE", "C_BLUE","C_WHITE", "C_PINK", "C_RED", "C_ORANGE", "C_YELLOW", "C_GRAY"
-SELECTCASE RANK_NUM
-CASE 21
-	CALL COLOR_PRINT(STR_RANK21:RANK, C_RANK21:RANK, 2)
-CASE 11
-	CALL COLOR_PRINT(STR_RANK11:RANK, C_RANK11:RANK, 2)
-CASE  8
-	CALL COLOR_PRINT(STR_RANK8:RANK, C_RANK8:RANK, 2)
-CASEELSE
-	THROW 부정한 RANK_NUM {RANK_NUM}
-ENDSELECT
+
+IF ARG
+	SELECTCASE RANK_NUM
+	CASE 10
+		CALL COLOR_PRINT(STR_RANK11_F:RANK, C_RANK11:RANK, 2)
+	CASE  7
+		CALL COLOR_PRINT(STR_RANK8_F:RANK, C_RANK8:RANK, 2)
+	CASEELSE
+		THROW 부정한 RANK_NUM {RANK_NUM}
+	ENDSELECT
+ELSE
+	SELECTCASE RANK_NUM
+	CASE 21
+		CALL COLOR_PRINT(STR_RANK21:RANK, C_RANK21:RANK, 2)
+	CASE 11
+		CALL COLOR_PRINT(STR_RANK11:RANK, C_RANK11:RANK, 2)
+	CASE  8
+		CALL COLOR_PRINT(STR_RANK8:RANK, C_RANK8:RANK, 2)
+	CASEELSE
+		THROW 부정한 RANK_NUM {RANK_NUM}
+	ENDSELECT
+ENDIF
 RESETCOLOR
 
 
@@ -1877,8 +1909,9 @@ RESETCOLOR
 ;-------------------------------------------------
 ;특정의 기호를 특정의 색으로 나란해질 수 있다
 ;MARK의 표시용이지만무슨 그 외에도 사용할 수 있겠지요
+;ARG=1이면 왼쪽 맞춤
 ;-------------------------------------------------
-@COLOR_STAMP(STAMP_NUM, MAX_NUM, STAMP_STR, STAMP_COLOR)
+@COLOR_STAMP(STAMP_NUM, MAX_NUM, STAMP_STR, STAMP_COLOR, ARG)
 #DIM  STAMP_NUM   ;늘어놓는 스탬프의 수
 #DIM  MAX_NUM     ;스탬프의 최대수
 #DIMS STAMP_STR   ;스탬프에 사용하는 캐릭터라인
@@ -1889,7 +1922,8 @@ SIF !STAMP_LENGTH
 	THROW STAMP_STR가 지정되고 있지 않습니다
 SIF STAMP_COLOR
 	SETCOLOR STAMP_COLOR
-PRINTFORM %" " * (MAX_NUM - STAMP_NUM) * STAMP_LENGTH%
+SIF !ARG
+	PRINTFORM %" " * (MAX_NUM - STAMP_NUM) * STAMP_LENGTH%
 PRINTFORM %STAMP_STR * STAMP_NUM%
 RESETCOLOR
 
@@ -2540,3 +2574,152 @@ ELSEIF (ARG == 49 && GETBIT (CFLAG:ARG:1490, 0)) || ((GETBIT (CFLAG:ARG:1 , 0) &
 ELSEIF ((GETBIT (CFLAG:ARG:1 , 0) && ARG != 61) || TALENT:ARG:사모) && ((!GETBIT (CFLAG:ARG:1490, 1) && ARG == 49) || ARG != 49)
 	RETURNF 1
 ENDIF
+
+@CHARASORT_EX
+VARSET RESULT
+RESULT:0 = MASTER
+RESULT:1 = [[레이무]]
+RESULT:2 = [[마리사]]
+RESULT:3 = [[루미아]]
+RESULT:4 = [[대요정]]
+RESULT:5 = [[치르노]]
+RESULT:6 = [[메이링]]
+RESULT:7 = [[소악마]]
+RESULT:8 = [[파츄리]]
+RESULT:9 = [[사쿠야]]
+RESULT:10 = [[레밀리아]]
+RESULT:11 = [[플랑]]
+RESULT:12 = [[레티]]
+RESULT:13 = [[첸]]
+RESULT:14 = [[앨리스]]
+RESULT:15 = [[릴리 W]]
+RESULT:16 = [[릴리 B]]
+RESULT:17 = [[리리카]]
+RESULT:18 = [[메를랑]]
+RESULT:19 = [[루나사]]
+RESULT:20 = [[요우무]]
+RESULT:21 = [[유유코]]
+RESULT:22 = [[란]]
+RESULT:23 = [[보랏빛]]
+RESULT:24 = [[스이카]]
+RESULT:25 = [[리글]]
+RESULT:26 = [[미스티아]]
+RESULT:27 = [[케이네]]
+RESULT:28 = [[테위]]
+RESULT:29 = [[우동게]]
+RESULT:30 = [[에이린]]
+RESULT:31 = [[카구야]]
+RESULT:32 = [[모코우]]
+RESULT:33 = [[아야]]
+RESULT:34 = [[메디슨]]
+RESULT:35 = [[유카]]
+RESULT:36 = [[코마치]]
+RESULT:37 = [[에이키]]
+RESULT:38 = [[시즈하]]
+RESULT:39 = [[미노리코]]
+RESULT:40 = [[히나]]
+RESULT:41 = [[니토리]]
+RESULT:42 = [[모미지]]
+RESULT:43 = [[사나에]]
+RESULT:44 = [[카나코]]
+RESULT:45 = [[스와코]]
+RESULT:46 = [[서니]]
+RESULT:47 = [[루나]]
+RESULT:48 = [[스타]]
+RESULT:49 = [[아큐]]
+RESULT:50 = [[렌코]]
+RESULT:51 = [[메리]]
+RESULT:52 = [[이쿠]]
+RESULT:53 = [[텐시]]
+RESULT:54 = [[토요히메]]
+RESULT:55 = [[요리히메]]
+RESULT:56 = [[레이센]]
+RESULT:57 = [[키스메]]
+RESULT:58 = [[야마메]]
+RESULT:59 = [[파르시]]
+RESULT:60 = [[유기]]
+RESULT:61 = [[사토리]]
+RESULT:62 = [[오린]]
+RESULT:63 = [[오쿠]]
+RESULT:64 = [[코이시]]
+RESULT:65 = [[토키코]]
+RESULT:66 = [[나즈린]]
+RESULT:67 = [[코가사]]
+RESULT:68 = [[이치린]]
+RESULT:69 = [[무라사]]
+RESULT:70 = [[별]]
+RESULT:71 = [[뱌쿠렌]]
+RESULT:72 = [[누에]]
+RESULT:73 = [[하타테]]
+RESULT:74 = [[카센]]
+RESULT:75 = [[쿄코]]
+RESULT:76 = [[요시카]]
+RESULT:77 = [[청아]]
+RESULT:78 = [[토지코]]
+RESULT:79 = [[후토]]
+RESULT:80 = [[미코]]
+RESULT:81 = [[마미조]]
+RESULT:82 = [[코스즈]]
+RESULT:83 = [[코코로]]
+RESULT:84 = [[와카사기히메]]
+RESULT:85 = [[반키]]
+RESULT:86 = [[카게로]]
+RESULT:87 = [[벤벤]]
+RESULT:88 = [[야츠하시]]
+RESULT:89 = [[세이자]]
+RESULT:90 = [[신묘마루]]
+RESULT:91 = [[라이코]]
+RESULT:92 = [[스미레코]]
+RESULT:93 = [[세이란]]
+RESULT:94 = [[링고]]
+RESULT:95 = [[도레미]]
+RESULT:96 = [[사구메]]
+RESULT:97 = [[클라운피스]]
+RESULT:98 = [[순호]]
+RESULT:99 = [[헤카티아]]
+RESULT:100 = [[라바]]
+RESULT:101 = [[네무노]]
+RESULT:102 = [[아운]]
+RESULT:103 = [[나루미]]
+RESULT:104 = [[마이]]
+RESULT:105 = [[사토노]]
+RESULT:106 = [[오키나]]
+RESULT:107 = [[조온]]
+RESULT:108 = [[시온]]
+RESULT:109 = [[에이카]]
+RESULT:110 = [[우루미]]
+RESULT:111 = [[쿠타카]]
+RESULT:112 = [[야치에]]
+RESULT:113 = [[마유미]]
+RESULT:114 = [[케이키]]
+RESULT:115 = [[사키]]
+RESULT:116 = [[미요이]]
+RESULT:117 = [[미케]]
+RESULT:118 = [[타카네]]
+RESULT:119 = [[코마쿠사]]
+RESULT:120 = [[미스마루]]
+RESULT:121 = [[츠카사]]
+RESULT:122 = [[메구무]]
+RESULT:123 = [[치마타]]
+RESULT:124 = [[모모요]]
+
+RESULT:201 = [[미마]]
+RESULT:202 = [[리카]]
+RESULT:203 = [[메이라]]
+RESULT:204 = [[엘렌]]
+RESULT:205 = [[카나]]
+RESULT:206 = [[리카코]]
+RESULT:207 = [[치유리]]
+RESULT:208 = [[유메미]]
+RESULT:209 = [[루코토]]
+RESULT:210 = [[쿠루미]]
+RESULT:211 = [[엘리]]
+RESULT:212 = [[무게츠]]
+RESULT:213 = [[겐게츠]]
+RESULT:214 = [[루이즈]]
+RESULT:215 = [[유키]]
+RESULT:216 = [[마이]]
+RESULT:217 = [[유메코]]
+RESULT:218 = [[신키]]
+
+RESULT:299 = [[모브코]]

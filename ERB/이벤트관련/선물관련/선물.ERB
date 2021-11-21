@@ -52,6 +52,7 @@ RETURN RESULT:0
 #DIMS GIFTNAME_MAIN
 #DIMS GIFTNAME_ADJECT
 #DIM SCORE
+#DIMS GIFT_SENSE
 VARSET RESULT
 SIF SCORE_MAX <= SCORE_MIN
 	SCORE_MAX = 1000
@@ -76,10 +77,12 @@ GIFT_ID = ADJECT * 1000 + MAIN
 ;評価
 CALL REVIEW_GIFT(CHARA, GIFT_ID)
 SCORE = RESULT
+GIFT_SENSE = %RESULTS%
 
 IF INRANGE(RESULT, SCORE_MIN, SCORE_MAX)
 	RESULT:1 = SCORE
 	RESULTS = %GIFTNAME%
+	RESULTS:1 = %GIFT_SENSE%
 	RETURN GIFT_ID
 ELSE
 	RESTART
@@ -123,7 +126,7 @@ RETURN GIFT_ADJECT
 ;-------------------------------------------------
 ;선물을평가하는함수
 ;-------------------------------------------------
-@REVIEW_GIFT(CHARA, GIFT_ID)
+@REVIEW_GIFT(CHARA, GIFT_ID, ORIGINAL_SENSE, ORIGINAL_PRICE)
 #DIM CHARA
 #DIM GIFT_ID
 #DIMS SENSE_CHARA_GOOD
@@ -133,22 +136,33 @@ RETURN GIFT_ADJECT
 #DIM SENSE_BAD
 #DIM MAGNIF_PRICE
 #DIM BASIC_PRICE
+#DIMS ORIGINAL_SENSE
+#DIM ORIGINAL_PRICE
 
+IF ORIGINAL_SENSE != ""
+	SENSE_GIFT = %ORIGINAL_SENSE%
+	IF ORIGINAL_PRICE >= 10000
+		SENSE_GIFT += "고급/"
+	ELSEIF ORIGINAL_PRICE < 1500
+		SENSE_GIFT += "싸구려/"
+	ENDIF
+ELSE
 ;SENSE추출
-SENSE_GIFT = 
-CALL GIFTDATA_ADJECT(GET_GIFTDATA(GIFT_ID, "형용사"))
-SENSE_GIFT += RESULTS:1
-MAGNIF_PRICE = RESULT:1
+	SENSE_GIFT = 
+	CALL GIFTDATA_ADJECT(GET_GIFTDATA(GIFT_ID, "형용사"))
+	SENSE_GIFT += RESULTS:1
+	MAGNIF_PRICE = RESULT:1
 
-CALL GIFTDATA_MAIN(GET_GIFTDATA(GIFT_ID, "본체"))
-SENSE_GIFT += RESULTS:1
-BASIC_PRICE = RESULT:1
+	CALL GIFTDATA_MAIN(GET_GIFTDATA(GIFT_ID, "본체"))
+	SENSE_GIFT += RESULTS:1
+	BASIC_PRICE = RESULT:1
 
-;정가를 보고 10,000이상이면고급、1,500미만이면싸구려
-IF BASIC_PRICE * MAGNIF_PRICE / 100 >= 10000
-	SENSE_GIFT += "고급/"
-ELSEIF BASIC_PRICE * MAGNIF_PRICE / 100 < 1500
-	SENSE_GIFT += "싸구려/"
+	;정가를 보고 10,000이상이면고급、1,500미만이면싸구려
+	IF BASIC_PRICE * MAGNIF_PRICE / 100 >= 10000
+		SENSE_GIFT += "고급/"
+	ELSEIF BASIC_PRICE * MAGNIF_PRICE / 100 < 1500
+		SENSE_GIFT += "싸구려/"
+	ENDIF
 ENDIF
 
 
@@ -180,21 +194,21 @@ SENSE_CHARA_GOOD += "캐논볼/"
 SIF 1
 	SENSE_CHARA_BAD += "조악/" * 6
 ;요괴・유령は주술が好きでないなら주술は嫌い
-IF (CHECK_CHARA(CHARA, "요괴") || CHECK_CHARA(CHARA, "유령")) && STRFIND(SENSE_CHARA_GOOD, "주술/") < 0
+IF (CHECK_CHARA(CHARA, "요괴") || CHECK_CHARA(CHARA, "유령")) && !STRCOUNT(SENSE_CHARA_GOOD, "주술/")
 	SENSE_CHARA_BAD += "주술/" * 3
 	;법구를 좋아하지 않는다면 법구는 싫어함
-	SIF STRFIND(SENSE_CHARA_GOOD, "법구/") < 0
+	SIF !STRCOUNT(SENSE_CHARA_GOOD, "법구/")
 		SENSE_CHARA_BAD += "법구/" * 3
 ENDIF
 ;요괴ではなく요술が好きでないなら요술は嫌い,もしくは주술が好きなら요술は嫌い
-IF (!CHECK_CHARA(CHARA, "요괴") && STRFIND(SENSE_CHARA_GOOD, "요술/") < 0) || (STRFIND(SENSE_CHARA_GOOD, "주술/") >= 0)
+IF (!CHECK_CHARA(CHARA, "요괴") && !STRCOUNT(SENSE_CHARA_GOOD, "요술/")) || STRCOUNT(SENSE_CHARA_GOOD, "주술/")
 	SENSE_CHARA_BAD += "요술/" * 3
 	;거듭해서 뼈、피、독 또한 마찬가지
-	SIF STRFIND(SENSE_CHARA_GOOD, "뼈/") < 0
+	SIF !STRCOUNT(SENSE_CHARA_GOOD, "뼈/")
 		SENSE_CHARA_BAD += "뼈/" * 3
-	SIF STRFIND(SENSE_CHARA_GOOD, "피/") < 0
+	SIF !STRCOUNT(SENSE_CHARA_GOOD, "피/")
 		SENSE_CHARA_BAD += "피/" * 3
-	SIF STRFIND(SENSE_CHARA_GOOD, "독/") < 0
+	SIF !STRCOUNT(SENSE_CHARA_GOOD, "독/")
 		SENSE_CHARA_BAD += "독/" * 3
 ENDIF
 ;술내성이 낮으면 술을 싫어한다
@@ -233,7 +247,7 @@ SIF FESTIVAL() != ""
 SENSE_BAD = 300 + 100 * STR_MULTI_COUNT(SENSE_CHARA_BAD, SENSE_GIFT)
 
 ;総평가
-RESULT = SENSE_GOOD * 1000 / (SENSE_GOOD + SENSE_BAD)
+RESULT = MIN(SENSE_GOOD * 1000 / (SENSE_GOOD + SENSE_BAD), 999)
 [IF_DEBUG]
 ;	PRINTFORML 좋아함：%SENSE_CHARA_GOOD%
 ;	PRINTFORML 싫어함：%SENSE_CHARA_BAD%
@@ -243,6 +257,7 @@ RESULT = SENSE_GOOD * 1000 / (SENSE_GOOD + SENSE_BAD)
 ;	PRINTFORML 결과：{RESULT}
 ;	WAIT
 [ENDIF]
+RESULTS = %SENSE_GIFT%
 RETURN RESULT
 
 
@@ -269,25 +284,28 @@ FOR CHARA, 1, CHARANUM
 	;선물데이터 참조
 	CALL GIFTDATA_ADJECT(GIFT_ADJECT)
 	LOCALS:1 = %RESULTS:0%
-	CALL GIFTDATA_MAIN(GIFT_MAIN)
 	SENSE = %RESULTS:1%
+	CALL GIFTDATA_MAIN(GIFT_MAIN)
+	SENSE += RESULTS:1
 	LOCALS:2 = %RESULTS:0%
-	GIFT_NAME = %LOCALS:1%%LOCALS:2%
+	CALL GIFTNAME(TCVAR:CHARA:오늘의선물, CHARA)
+	GIFT_NAME = %RESULTS%
 ;	PRINTFORMW SCORE{GIFT_SCORE:1}
 	
 	
 	PRINTL 
 	PRINTFORM %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:MASTER%에게 받은 %GIFT_NAME%
 	IF GIFT_SCORE:1 >= 700
-		IF STRFIND(SENSE, "움켜쥠") >= 0
+		IF STRCOUNT(SENSE, "움켜쥠/")
 			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 소중하게 움켜쥐고 잠들었다……。
-		ELSEIF STRFIND(SENSE, "품음") >= 0
+		ELSEIF STRCOUNT(SENSE, "품음/")
 			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 생각하며 끌어안았다……。
-		ELSEIF STRFIND(SENSE, "몸에걸침") >= 0
+		ELSEIF STRCOUNT(SENSE, "몸에걸침/")
 			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 시험삼아 몸에 걸치고, 거울 앞에서 얼굴을 붉혔다……。
 		ELSE
 			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 넋을 잃고 바라보다가 잠이 들었다……。
 		ENDIF
+		CALL KOJO_MESSAGE_SEND("GIFT", 2, CHARA, GIFT_ID, GIFT_SCORE:1, GIFT_NAME, SENSE)
 		;현재의 선물과 비교해서 마음에 들게한다
 		IF CFLAG:CHARA:받은선물
 			GIFT_SCORE:2 = GET_GIFTDATA(CFLAG:CHARA:받은선물, "득점")
@@ -297,19 +315,22 @@ FOR CHARA, 1, CHARANUM
 		IF GIFT_SCORE:1 >= GIFT_SCORE:2
 			CFLAG:CHARA:받은선물 = TCVAR:CHARA:오늘의선물
 			CALL COLORMESSAGE(@"%조사처리(GIFT_NAME,"는")% %CALLNAME:CHARA%의 마음에 들었다!", C_YELLOW, 2)
+			CALL KOJO_MESSAGE_SEND("GIFT", 3, CHARA, GIFT_ID, GIFT_SCORE:1, GIFT_NAME, SENSE)
 		ENDIF
 	ELSEIF GIFT_SCORE:1 >= 400
-		IF STRFIND(SENSE, "움켜쥠") >= 0
+		IF STRCOUNT(SENSE, "움켜쥠/")
 			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 선반 위에 놓았다……。
-		ELSEIF STRFIND(SENSE, "품음") >= 0
+		ELSEIF STRCOUNT(SENSE, "품음/")
 			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 책상 위에 놓았다……。
-		ELSEIF STRFIND(SENSE, "몸에걸침") >= 0
+		ELSEIF STRCOUNT(SENSE, "몸에걸침/")
 			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 옷장에 넣었다……。
 		ELSE
 			PRINTFORMW %조사만처리(GIFT_NAME,"를")% 일단 보관했다……。
 		ENDIF
+		CALL KOJO_MESSAGE_SEND("GIFT", 4, CHARA, GIFT_ID, GIFT_SCORE:1, GIFT_NAME, SENSE)
 	ELSE
 		PRINTFORMW %조사만처리(GIFT_NAME,"를")% 슬쩍 저당잡았다……。
+		CALL KOJO_MESSAGE_SEND("GIFT", 5, CHARA, GIFT_ID, GIFT_SCORE:1, GIFT_NAME, SENSE)
 	ENDIF
 	PRINTL 
 NEXT
@@ -330,7 +351,7 @@ IF CFLAG:CHARA:받은선물
 	PRINTL 
 	PRINT 【마음에 듦】
 	CALL COLORMESSAGE("★", C_YELLOW, 0)
-	CALL GIFTNAME(CFLAG:CHARA:받은선물)
+	CALL GIFTNAME(CFLAG:CHARA:받은선물, CHARA)
 	PRINTFORM %RESULTS%
 	[IF_DEBUG]
 		CALL PRINT_GIFTDATA(CFLAG:CHARA:받은선물, CHARA, "디버그")
@@ -343,12 +364,12 @@ ELSEIF CFLAG:CHARA:선물스톡
 		RETURN
 	ELSE
 		;평가득점이 높을수록 휴대하기 쉽다
-		SIF FLAG:일일이벤트 * 10 > GIFT_SCORE
+		SIF CFLAG:CHARA:오늘의운세 > GIFT_SCORE
 			RETURN
 	ENDIF
 	PRINTL 
 	PRINT 【 휴대 】
-	CALL GIFTNAME(CFLAG:CHARA:선물스톡)
+	CALL GIFTNAME(CFLAG:CHARA:선물스톡, CHARA)
 	PRINTFORM %RESULTS%
 ENDIF
 
@@ -380,13 +401,35 @@ GIFT_MAIN = GET_GIFTDATA(GIFT_ID, "본체")
 CALL GIFTDATA_ADJECT(GIFT_ADJECT)
 MAGNIF_PRICE = RESULT:1
 SELL_AREA_ADJECT = RESULT:2
-LOCALS:1 = %RESULTS:0%
+IF GIFT_ADJECT == 9999
+	IF ARGS == "당신의"
+		LOCALS:1 = %GIFT_GAVE_ORI_ADJECT:CHARA:(횟수 %100)%
+	ELSE
+		LOCALS:1 = %GIFT_GOT_ORI_ADJECT:CHARA:(횟수 %100)%
+	ENDIF
+ELSE
+	LOCALS:1 = %RESULTS:0%
+ENDIF
 SENSE = %RESULTS:1%
 CALL GIFTDATA_MAIN(GIFT_MAIN)
 BASIC_PRICE = RESULT:1
 SELL_AREA_MAIN = RESULT:2
-LOCALS:2 = %RESULTS:0%
-GIFT_NAME = %LOCALS:1%%LOCALS:2%
+IF GIFT_MAIN == 999
+	IF ARGS == "당신의"
+		LOCALS:2 = %GIFT_GAVE_ORI_MAIN:CHARA:(횟수 %100)%
+	ELSE
+		LOCALS:2 = %GIFT_GOT_ORI_MAIN:CHARA:(횟수 %100)%
+	ENDIF
+ELSE
+	LOCALS:2 = %RESULTS:0%
+ENDIF
+IF ARGS == "당신의"
+	CALL GIFTNAME(GIFT_ID, CHARA, 1)
+	GIFT_NAME = %RESULTS%
+ELSE
+	CALL GIFTNAME(GIFT_ID, CHARA)
+	GIFT_NAME = %RESULTS%
+ENDIF
 SENSE += RESULTS:1
 
 IF ARGS == "당신의"
@@ -394,8 +437,12 @@ IF ARGS == "당신의"
 	CALL REVIEW_STARS(GIFT_SCORE)
 	PRINT 　
 	CALL PRINT_DATE(받은날)
+	IF 산장소 == 99
+		PRINTFORM %조차처리(CALLNAME:CHARA,"로")%부터 직접 받은
+	ELSE
 	PRINTFORM %GET_MAPNAME(산장소)%에서 돌아오는 길에 \@ 횟수 == 1 ? 初めて # \@貰った
 	PRINTL 
+	ENDIF
 ELSEIF ARGS == "캐릭터의"
 	IF CFLAG:CHARA:받은선물 == GIFT_ID
 		CALL COLORMESSAGE("★", C_YELLOW, 0)
@@ -406,12 +453,14 @@ ELSEIF ARGS == "캐릭터의"
 	CALL REVIEW_STARS(GIFT_SCORE)
 	PRINT 　
 	CALL PRINT_DATE(받은날)
-	PRINTFORM %GIFTSHOP_NAME(산장소)%에서 \@ 횟수 == 1 ? 初めて # {횟수}回目に \@買ってあげた
+	;PRINTFORM %GIFTSHOP_NAME(산장소)%에서 \@ 횟수 == 1 ? 初めて # {횟수}回目に \@買ってあげた
+	PRINTFORM \@ 산장소 == 99 ? 特注して # %GIFTSHOP_NAME(산장소)%で \@\@ 횟수 == 1 ? 初めて # {횟수}回目に \@買ってあげた
 	PRINTL 
 ELSEIF ARGS == "디버그"
 	PRINTL 
 	CALL PRINT_DATE(받은날)
-	PRINTFORML %GIFTSHOP_NAME(산장소)%에서 %CALLNAME:CHARA%に{횟수}回目に買ってあげた%GIFT_NAME%
+	;PRINTFORML %GIFTSHOP_NAME(산장소)%에서 %CALLNAME:CHARA%に{횟수}回目に買ってあげた%GIFT_NAME%
+	PRINTFORM \@ 산장소 == 99 ? 特注して # %GIFTSHOP_NAME(산장소)%で \@\@ 횟수 == 1 ? 初めて # {횟수}回目に \@買ってあげた
 	PRINTFORML 정가는 {BASIC_PRICE} * {MAGNIF_PRICE}\% = \\{BASIC_PRICE * MAGNIF_PRICE / 100}
 	PRINTFORML 평가득점은　{GIFT_SCORE}점
 	PRINTFORM 이 형용사를 파는 곳은
@@ -462,11 +511,11 @@ ELSEIF ARGS == "디버그"
 	SIF GETBIT(SELL_AREA_MAIN, 10)
 		PRINT 　달　
 	PRINTL 
-	IF STRFIND(SENSE, "움켜쥠") >= 0
+	IF STRCOUNT(SENSE, "움켜쥠/")
 		PRINTFORML 움켜쥘 수 있는 것이다
-	ELSEIF STRFIND(SENSE, "품음") >= 0
+	ELSEIF STRCOUNT(SENSE, "품음/")
 		PRINTFORML 껴안을 수 있는 것이다
-	ELSEIF STRFIND(SENSE, "몸에걸침") >= 0
+	ELSEIF STRCOUNT(SENSE, "몸에걸침/")
 		PRINTFORML 몸에 걸치는 것이다
 	ELSE
 		PRINTFORML 바라보는 것이다
@@ -499,17 +548,36 @@ ENDSELECT
 ;선물 이름을 출력하는 함수
 ;FUNCTIONS으로 하고싶었지만 CALL하지못하고 울다가 이모양으로…
 ;-------------------------------------------------
-@GIFTNAME(GIFT_ID)
+@GIFTNAME(GIFT_ID, CHARA, FROM)
+#DIM CHARA
 #DIM GIFT_ID
 #DIM GIFT_ADJECT
 #DIM GIFT_MAIN
+#DIM FROM
+#DIM 횟수
 GIFT_ADJECT = GET_GIFTDATA(GIFT_ID, "형용사")
 GIFT_MAIN = GET_GIFTDATA(GIFT_ID, "본체")
-
-CALL GIFTDATA_ADJECT(GIFT_ADJECT)
-LOCALS:1 = %RESULTS:0%
-CALL GIFTDATA_MAIN(GIFT_MAIN)
-LOCALS:2 = %RESULTS:0%
+횟수 = GET_GIFTDATA(GIFT_ID, "횟수") % 100
+IF GIFT_ADJECT == 9999
+	IF FROM
+		LOCALS:1 = %GIFT_GAVE_ORI_ADJECT:CHARA:횟수%
+	ELSE
+		LOCALS:1 = %GIFT_GOT_ORI_ADJECT:CHARA:횟수%
+	ENDIF
+ELSE
+	CALL GIFTDATA_ADJECT(GIFT_ADJECT)
+	LOCALS:1 = %RESULTS:0%
+ENDIF
+IF GIFT_MAIN == 999
+	IF FROM
+		LOCALS:2 = %GIFT_GAVE_ORI_MAIN:CHARA:횟수%
+	ELSE
+		LOCALS:2 = %GIFT_GOT_ORI_MAIN:CHARA:횟수%
+	ENDIF
+ELSE
+	CALL GIFTDATA_MAIN(GIFT_MAIN)
+	LOCALS:2 = %RESULTS:0%
+ENDIF
 
 RESULTS = %LOCALS:1%%LOCALS:2%
 RETURN
@@ -523,33 +591,33 @@ RETURN
 @AREA_SETBIT(ARGS)
 #FUNCTION
 VARSET RESULT
-SIF STRFIND(ARGS, "전부") >= 0
+SIF STRCOUNT(ARGS, "전부")
 	RETURNF 2047
 
-SIF STRFIND(ARGS, "신사") >= 0
+SIF STRCOUNT(ARGS, "신사")
 	SETBIT RESULT, 0
-SIF STRFIND(ARGS, "절") >= 0
+SIF STRCOUNT(ARGS, "절")
 	SETBIT RESULT, 1
-SIF STRFIND(ARGS, "마을") >= 0
+SIF STRCOUNT(ARGS, "마을")
 	SETBIT RESULT, 2
-SIF STRFIND(ARGS, "호수") >= 0
+SIF STRCOUNT(ARGS, "호수")
 	SETBIT RESULT, 3
-SIF STRFIND(ARGS, "죽림") >= 0
+SIF STRCOUNT(ARGS, "죽림")
 	SETBIT RESULT, 4
-SIF STRFIND(ARGS, "숲") >= 0
+SIF STRCOUNT(ARGS, "숲")
 	SETBIT RESULT, 5
-SIF STRFIND(ARGS, "명계") >= 0
+SIF STRCOUNT(ARGS, "명계")
 	SETBIT RESULT, 6
-SIF STRFIND(ARGS, "산록") >= 0
+SIF STRCOUNT(ARGS, "산록")
 	SETBIT RESULT, 7
-SIF STRFIND(ARGS, "산정") >= 0
+SIF STRCOUNT(ARGS, "산정")
 	SETBIT RESULT, 8
-SIF STRFIND(ARGS, "지저") >= 0
+SIF STRCOUNT(ARGS, "지저")
 	SETBIT RESULT, 9
-SIF STRFIND(ARGS, "달") >= 0
+SIF STRCOUNT(ARGS, "달")
 	SETBIT RESULT, 10
 
-IF STRFIND(ARGS, "이외") >= 0
+IF STRCOUNT(ARGS, "이외")
 	FOR LOCAL, 0, 11
 		INVERTBIT RESULT, LOCAL
 	NEXT
@@ -609,6 +677,8 @@ RETURNF 0
 #DIMS GIFT_NAME
 #DIM 渡した횟수
 #DIM 点数
+#DIM 本人の評価点
+#DIMS GIFT_SENSE
 
 PRINTL 
 PRINTFORM デートからの帰り道、
@@ -639,11 +709,12 @@ CALL CREATE_GIFT_FROM_CHARA(CHARA, 701, 1000)
 GIFT_ID = RESULT
 GIFT_NAME = %RESULTS%
 渡した횟수 = GET_GIFTDATA(CFLAG:CHARA:건네준선물, "횟수") + 1
+本人の評価点 = RESULT:1
 ;ID의 설정
 GIFT_ID = 渡した횟수 * 10000000000000000 + 点数 * 10000000000000 + DAY * 1000000000 + CFLAG:MASTER:데이트중 * 10000000 + GIFT_ID
 GIFT_GAVE:CHARA:(渡した횟수 % 100) = GIFT_ID
 CFLAG:CHARA:건네준선물 = GIFT_ID
-TRYCALLFORM M_KOJO_EVENT_K{CHARA}_GIFT(GIFT_NAME)
+CALL KOJO_MESSAGE_SEND("GIFT", 1, CHARA, GIFT_ID, 本人の評価点, GIFT_NAME, GIFT_SENSE)
 PRINTFORMW 【%GIFT_NAME%】を貰った！
 
 ;-------------------------------------------------
@@ -735,8 +806,7 @@ RESTART
 #DIM GIFT_NUM
 #DIM LINE
 #DIM FAVO
-PRINTFORML 　●選択するとレビューできます
-PRINTFORML 　☆%CALLNAME:CHARA%から받은선물
+PRINTFORML 　☆%CALLNAME:CHARA%から貰った贈り物　　　　　　　　　　●選択するとレビューできます
 FOR LOCAL, 0, 100
 	;フラグ0番が100を兼ねているのでこの形に
 	SIF GIFT_GAVE:CHARA:((LOCAL + 1) % 100)
@@ -747,9 +817,11 @@ FOR LOCAL, 0, 100
 	ENDIF
 NEXT
 DRAWLINE
-CALL GIFTNAME(ITEM:마음에드는아이템)
+CALL GIFTNAME(ITEM:마음에드는아이템, CHARA, 1)
 PRINTFORML ☆現在の마음에드는：%RESULTS%
-CALL GIFTNAME(FAVO)
+CALL GIFTNAME(FAVO, CHARA, 1)
+PRINTFORML [996] - 前のキャラ
+PRINTFORML [997] - 次のキャラ
 PRINTFORML [999] - 戻る　　　　　　　　　　　　　　 \@ FAVO ? [998] %RESULTS%を마음에드는にする # \@
 INPUT
 IF RESULT == 999
@@ -757,6 +829,38 @@ IF RESULT == 999
 	RETURN
 ELSEIF RESULT == 998
 	ITEM:마음에드는아이템 = FAVO
+ELSEIF RESULT == 997
+	FOR LOCAL, CHARA + 1, CHARANUM
+		IF GIFT_GAVE:LOCAL:1
+			CHARA = LOCAL
+			CLEARLINE 7 + LINE
+			RESTART
+		ENDIF
+	NEXT
+	FOR LOCAL, 1, CHARA + 1
+		IF GIFT_GAVE:LOCAL:1
+			CHARA = LOCAL
+			CLEARLINE 7 + LINE
+			RESTART
+		ENDIF
+	NEXT
+ELSEIF RESULT == 996
+	FOR LOCAL, 1, CHARA
+		LOCAL:1 = CHARA - LOCAL
+		IF GIFT_GAVE:(LOCAL:1):1
+			CHARA = LOCAL:1
+			CLEARLINE 7 + LINE
+			RESTART
+		ENDIF
+	NEXT
+	FOR LOCAL, 1, CHARANUM
+		LOCAL:1 = CHARANUM - LOCAL
+		IF GIFT_GAVE:(LOCAL:1):1
+			CHARA = LOCAL:1
+			CLEARLINE 7 + LINE
+			RESTART
+		ENDIF
+	NEXT
 ELSEIF INRANGE(RESULT, 0, 100) && GIFT_GAVE:CHARA:RESULT
 	GIFT_NUM = RESULT
 	;星の数が変則的なので
@@ -776,5 +880,628 @@ ELSEIF INRANGE(RESULT, 0, 100) && GIFT_GAVE:CHARA:RESULT
 	GIFT_GAVE:CHARA:GIFT_NUM += (SCORE * 10000000000000)
 	FAVO = GIFT_GAVE:CHARA:GIFT_NUM
 ENDIF
-CLEARLINE 6 + LINE
+CLEARLINE 7 + LINE
 RESTART
+
+;-------------------------------------------------
+;キャラ→あなたの贈り物オーダーメイドする関数
+;◆使い方◆
+;CHARA    あなたに渡すキャラの番号
+;ARGS:1   形容詞名
+;ARGS:2   本体名
+;
+;口上等のイベントで使われることを想定した贈り物をオーダーメイド生成して、あなたの貰った贈り物に登録する関数です
+;形容詞と本体名を設定して呼び出すと、指定の贈り物がキャラからあなたへ渡されます
+;あなたの貰った贈り物はシステム上では完全にフレーバーなので何を渡しても自由です
+;【레트로한＋사진】等、既存のものでも良いですし
+;【%CALLNAME:CHARA%モデルの＋오나홀】みたいなオリジナルアイテムも生成可能です
+;口上内の専用フラグを使えば連動させることもできます
+;ARGSに"ランダム"を入れると、ランダムなものが選ばれます
+;関数を呼んだ時点であなたの貰った贈り物として登録されます
+;地の文等はありません
+;RESULTS:0に贈り物の名前(ARGS:1＋ARGS:2）が入ります
+;GIFT_IDに登録される日付は現在のDAY、場所は99(特注品）になります
+;-------------------------------------------------
+@GIFT_ORDER_MADE_FROM_CHARA(CHARA, ARGS:1, ARGS:2)
+#DIM CHARA
+#DIM MAIN
+#DIM ADJECT
+#DIM BASIC_PRICE
+#DIM MAGNIF_PRICE
+#DIMS GIFTNAME_MAIN
+#DIMS GIFTNAME_ADJECT
+#DIMS SENSE
+#DIMS GIFTNAME
+#DIM 渡した回数
+#DIM 点数
+#DIM GIFT_ID
+SENSE = 
+;渡した回数の設定
+渡した回数 = GET_GIFTDATA(CFLAG:CHARA:건네준선물, "回数") + 1
+
+MAIN = 0
+IF ARGS:2 == "ランダム"
+	CALL DRAW_GIFT_MAIN(99)
+	MAIN = RESULT
+	BASIC_PRICE = RESULT:1
+	GIFTNAME_MAIN = %RESULTS:0%
+	SENSE += RESULTS:1
+ELSE
+	FOR LOCAL, 11, 550
+		CALL GIFTDATA_MAIN(LOCAL)
+		IF RESULTS == ARGS:2
+			MAIN = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	IF MAIN
+		CALL GIFTDATA_MAIN(MAIN)
+		BASIC_PRICE = RESULT:1
+		GIFTNAME_MAIN = %RESULTS:0%
+		SENSE += RESULTS:1
+	ELSE
+		MAIN = 999
+		BASIC_PRICE = 10000
+		GIFTNAME_MAIN = %ARGS:2%
+		SENSE += ARGS:2 + "オリジナル/"
+		GIFT_GAVE_ORI_MAIN:CHARA:(渡した回数 % 100) = %GIFTNAME_MAIN%
+	ENDIF
+ENDIF
+
+ADJECT = 0
+IF ARGS:1 == "ランダム"
+	CALL DRAW_GIFT_ADJECT(99)
+	ADJECT = RESULT
+	MAGNIF_PRICE = RESULT:1
+	GIFTNAME_ADJECT = %RESULTS:0%
+	SENSE += RESULTS:1
+ELSE
+	FOR LOCAL, 101, 2200
+		CALL GIFTDATA_ADJECT(LOCAL)
+		IF RESULTS == ARGS:1
+			ADJECT = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	IF ADJECT
+		CALL GIFTDATA_ADJECT(ADJECT)
+		MAGNIF_PRICE = RESULT:1
+		GIFTNAME_ADJECT = %RESULTS:0%
+		SENSE += RESULTS:1
+	ELSE
+		ADJECT = 9999
+		MAGNIF_PRICE = 300
+		GIFTNAME_ADJECT = %ARGS:1%
+		SENSE += ARGS:1 + "オリジナル/"
+		GIFT_GAVE_ORI_ADJECT:CHARA:(渡した回数 % 100) = %GIFTNAME_ADJECT%
+	ENDIF
+ENDIF
+
+;値段の設定(意味はない）
+RESULT:1 = BASIC_PRICE * MAGNIF_PRICE / 100
+;名前の設定
+GIFTNAME = %GIFTNAME_ADJECT%%GIFTNAME_MAIN%
+;IDの設定
+GIFT_ID = ADJECT * 1000 + MAIN
+;RESULTS設定
+RESULTS:0 = %GIFTNAME%
+RESULTS:1 = %SENSE%
+;便宜上の点数
+点数 = 0
+;IDの設定
+GIFT_ID = 渡した回数 * 10000000000000000 + 点数 * 10000000000000 + DAY * 1000000000 + 99 * 10000000 + GIFT_ID
+;渡す処理
+GIFT_GAVE:CHARA:(渡した回数 % 100) = GIFT_ID
+CFLAG:CHARA:건네준선물 = GIFT_ID
+[IF_DEBUG]
+	CALL PRINT_GIFTDATA(GIFT_ID, CHARA, "デバッグ")
+	PRINTFORMW 【%GIFTNAME%】を貰った！
+[ENDIF]
+
+;-------------------------------------------------
+;あなた→キャラの贈り物オーダーメイドする関数
+;◆使い方◆
+;CHARA       あなたが渡すキャラの番号
+;RETURN      1=あげた,-1=キャンセルした
+;
+;口上等のイベントで使われることを想定した贈り物をオーダーメイド生成してプレゼントする関数です
+;指定したキャラへあなたがその場で贈り物を特注してプレゼントします
+;※その日のうちにすでに土産屋で贈り物を買っていると重複してしまうので、必ず発生条件で"TCVAR:오늘의선물"を弾いてください
+;全ての本体＆形容詞から自由に組み合わせることができます
+;さらに【外国産の＋自動車】みたいなオリジナルアイテムも生成可能です
+;その場合は各種特徴も同時に設定します
+;※オリジナル扱いで既存の名称を使うと偽物認定されます(安価で指輪とか作ったり）
+;ただし高得点を取ると携帯するので(自動車等だと）違和感が出ることを留意してください
+;呼んだ時点で今日の贈り物として登録され、土産屋と同じ様に一日の終わりで評価点に応じてお気に入りになったりします
+;当然ですが所持金を消費します(定価です）
+;オリジナル本体は\10000、オリジナル形容詞は300%の倍率がかかります
+;地の文等はありません
+;RESULTS:0に贈り物の名前(形容詞＋本体名称）が入ります
+;RESULT:1に点数(1～999）が入ります
+;GIFT_IDに登録される日付は現在のDAY、場所は99(特注品）になります
+;オリジナル品はデバッグ表示するとSENSEがズレてたりしますが、評価時にはちゃんと機能してます
+;-------------------------------------------------
+@GIFT_ORDER_MADE_FROM_MASTER(CHARA)
+#DIM CHARA
+#DIM START,20
+#DIM ページ
+#DIM 最後のページ
+#DIM 本体
+#DIM 形容詞
+#DIMS 本体名称
+#DIMS 形容詞名称
+#DIMS 本体センス
+#DIMS 形容詞センス
+#DIMS GIFT_NAME
+#DIMS SENSE
+#DIM 全体価格
+#DIM GIFT_ID
+#DIM 点数
+#DIM 貰った回数
+#DIM 渡した回数
+IF TCVAR:CHARA:오늘의선물
+	PRINTFORMW ※注意：この関数を呼ぶ際は"TCVAR:오늘의선물"が有る場合は弾いてください
+	RETURN
+ENDIF
+;▼本体部分
+;各ページの頭番を設定する
+IF !START
+	VARSET LOCAL
+	FOR LOCAL, 11, 550
+		CALL GIFTDATA_MAIN(LOCAL)
+		SIF RESULTS == ""
+			CONTINUE
+		LOCAL:1 ++
+		IF LOCAL:1 == 21
+			LOCAL:2 ++
+			START:(LOCAL:2) = LOCAL
+			LOCAL:1 = 1
+		ENDIF
+		LOCAL:3 = LOCAL
+	NEXT
+	START = 1
+	ページ = 1
+	;最後のページと最後のページの頭番を設定
+	最後のページ = LOCAL:2 + 1
+	START:最後のページ = LOCAL:3 + 1
+ENDIF
+VARSET LOCAL
+PRINTFORML \@ CHARA ? %CALLNAME:CHARA%に渡す # \@プレゼントを設定しよう(所持金：%金額表示(MONEY)%）
+DRAWLINE
+FOR LOCAL, START, START:ページ
+	CALL GIFTDATA_MAIN(LOCAL)
+	SIF RESULTS == ""
+		CONTINUE
+	PRINTFORML [{LOCAL, 3}] %RESULTS, 18, LEFT%%金額表示(RESULT:1), 9%
+	LOCAL:1 ++
+NEXT
+WHILE LOCAL:1 < 20
+	PRINTL 
+	LOCAL:1 ++
+WEND
+DRAWLINE
+PRINTL [999] 次のページ
+PRINTL [998] 前のページ
+PRINTFORML [997] オリジナル（%金額表示(30000)%）
+PRINTL [  0] 역시 그만둔다
+INPUT
+;그만둔다
+IF !RESULT
+	VARSET START
+	RETURN -1
+;次のページ
+ELSEIF RESULT == 999
+	ページ ++
+	IF ページ > 最後のページ
+		ページ = 1
+		START = 1
+	ELSE
+		START = START:(ページ - 1)
+	ENDIF
+;前のページ
+ELSEIF RESULT == 998
+	ページ --
+	IF ページ < 1
+		ページ = 最後のページ
+		START = START:(最後のページ - 1)
+	ELSEIF ページ == 1
+		START = 1
+	ELSE
+		START = START:(ページ - 1)
+	ENDIF
+;オリジナル
+ELSEIF RESULT == 997
+	PRINTFORML 선물(本体部分）の名称を入力してください
+	PRINTL [ 0] 역시 그만둔다
+	INPUTS
+	IF RESULTS == "0"
+		RESTART
+	ELSE
+		本体 = 999
+		本体名称 = %RESULTS%
+		CALL GIFT_ORDER_MADE_ORIGINAL_DESIGN("本体", 本体名称)
+		本体センス = %RESULTS%
+		;違法チェック
+		FOR LOCAL, 11, 550
+			CALL GIFTDATA_MAIN(LOCAL)
+			IF RESULTS == 本体名称
+				本体センス += "조악/조악/조악/"
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
+;選択
+ELSEIF INRANGE(RESULT, 11, 550)
+	LOCAL = RESULT
+	CALL GIFTDATA_MAIN(RESULT)
+	IF RESULTS != ""
+		本体 = LOCAL
+		本体名称 = %RESULTS%
+		本体センス = %RESULTS:1%
+	ENDIF
+ENDIF
+IF !本体
+	CLEARLINE 28
+	RESTART
+ENDIF
+;▼形容詞部分
+CALL GIFT_ORDER_MADE_FROM_MASTER_2(CHARA, 本体, 本体名称)
+SIF RESULT == -1
+	RESTART
+VARSET START
+形容詞 = RESULT
+全体価格 = RESULT:1
+形容詞名称 = %RESULTS%
+形容詞センス = %RESULTS:1%
+GIFT_NAME = %形容詞名称 + 本体名称%
+SENSE = %本体センス + 形容詞センス%
+GIFT_ID = 形容詞 * 1000 + 本体
+DRAWLINE
+PRINTFORML 【%GIFT_NAME%】%金額表示(全体価格)%
+PRINTL 
+IF MONEY < 全体価格
+	CALL COLORMESSAGE(@"所持金が足りません！", C_ORANGE, 1)
+	CALL COLORMESSAGE(@"最初に戻ります", C_ORANGE, 1)
+	FORCEWAIT
+	RESTART
+ELSE
+	PRINTFORML これで決定します。よろしいですか？
+	PRINTL [1] 決定
+	PRINTL [0] やり直す
+	INPUT
+	SIF !RESULT
+		RESTART
+ENDIF
+MONEY -= 全体価格
+貰った回数 = GET_GIFTDATA(CFLAG:CHARA:선물스톡, "回数") + 1
+渡した回数 = CFLAG:MASTER:건네준선물 / 1000 + 1
+CALL REVIEW_GIFT(CHARA, GIFT_ID, SENSE, 全体価格)
+点数 = RESULT
+GIFT_ID = 貰った回数 * 10000000000000000 + 点数 * 10000000000000 + DAY * 1000000000 + 99 * 10000000 + GIFT_ID
+;ストックにGIFT_IDを保存
+CFLAG:CHARA:선물스톡 = GIFT_ID
+;ストレージにも保存
+GIFT_GOT:CHARA:(貰った回数 % 100) = CFLAG:CHARA:선물스톡
+;CHARAはID,MASTERは渡したキャラを保存
+TCVAR:CHARA:오늘의선물 = CFLAG:CHARA:선물스톡
+TCVAR:MASTER:오늘의선물 = CHARA
+;MASTERは渡した回数と渡したキャラを保存
+CFLAG:MASTER:건네준선물 = 渡した回数 * 1000 + CHARA
+;オリジナル名称を設定
+GIFT_GOT_ORI_ADJECT:CHARA:(貰った回数 % 100) = %形容詞名称%
+GIFT_GOT_ORI_MAIN:CHARA:(貰った回数 % 100) = %本体名称%
+;点数
+RESULT:1 = 点数
+;이름
+RESULTS = %GIFT_NAME%
+[IF_DEBUG]
+	CALL PRINT_GIFTDATA(GIFT_ID, CHARA, "デバッグ")
+	PRINTFORMW 【%GIFT_NAME%】をプレゼントした
+[ENDIF]
+RETURN 1
+
+;-------------------------------------------------
+;あなた→キャラの贈り物オーダーメイドする関数の形容詞部分
+;@GIFT_ORDER_MADE_FROM_MASTERの内部関数
+;-------------------------------------------------
+@GIFT_ORDER_MADE_FROM_MASTER_2(CHARA, 本体, 本体名称)
+#DIM CHARA
+#DIM START,50
+#DIM ページ
+#DIM 最後のページ
+#DIM 本体
+#DIM 形容詞
+#DIMS 本体名称
+#DIMS 形容詞名称
+#DIM 本体価格
+#DIM 全体価格
+#DIMS 形容詞センス
+;各ページの頭番を設定する
+IF !START
+	VARSET LOCAL
+	FOR LOCAL, 101, 2200
+		CALL GIFTDATA_ADJECT(LOCAL)
+		SIF RESULTS == ""
+			CONTINUE
+		LOCAL:1 ++
+		IF LOCAL:1 == 21
+			LOCAL:2 ++
+			START:(LOCAL:2) = LOCAL
+			LOCAL:1 = 1
+		ENDIF
+		LOCAL:3 = LOCAL
+	NEXT
+	START = 1
+	ページ = 1
+	;最後のページと最後のページの頭番を設定
+	最後のページ = LOCAL:2 + 1
+	START:最後のページ = LOCAL:3 + 1
+ENDIF
+VARSET LOCAL
+PRINTFORML \@ CHARA ? %CALLNAME:CHARA%に渡す # \@プレゼントを設定しよう(所持金：%金額表示(MONEY)%）
+CALL GIFTDATA_MAIN(本体)
+本体価格 = RESULT:1
+本体名称 = \@ 本体 == 999 ? %本体名称% # %RESULTS% \@
+DRAWLINE
+FOR LOCAL, START, START:ページ
+	CALL GIFTDATA_ADJECT(LOCAL)
+	SIF RESULTS == ""
+		CONTINUE
+	PRINTFORML [{LOCAL, 4}] %RESULTS + 本体名称, 38, LEFT%%金額表示(本体価格 * RESULT:1 / 100), 12%
+	LOCAL:1 ++
+NEXT
+WHILE LOCAL:1 < 20
+	PRINTL 
+	LOCAL:1 ++
+WEND
+DRAWLINE
+PRINTL [ 999] 次のページ
+PRINTL [ 998] 前のページ
+PRINTFORML [ 997] オリジナル（%金額表示(本体価格 * 300 / 100)%）
+PRINTL [   0] 戻る
+INPUT
+;戻る
+IF !RESULT
+	VARSET START
+	RETURN -1
+;次のページ
+ELSEIF RESULT == 999
+	ページ ++
+	IF ページ > 最後のページ
+		ページ = 1
+		START = 1
+	ELSE
+		START = START:(ページ - 1)
+	ENDIF
+;前のページ
+ELSEIF RESULT == 998
+	ページ --
+	IF ページ < 1
+		ページ = 最後のページ
+		START = START:(最後のページ - 1)
+	ELSEIF ページ == 1
+		START = 1
+	ELSE
+		START = START:(ページ - 1)
+	ENDIF
+;オリジナル
+ELSEIF RESULT == 997
+	PRINTFORML 선물(形容詞部分）の名称を入力してください
+	PRINTL [ 0] 역시 그만둔다
+	INPUTS
+	IF RESULTS == "0"
+		RESTART
+	ELSE
+		形容詞 = 9999
+		形容詞名称 = %RESULTS%
+		CALL GIFT_ORDER_MADE_ORIGINAL_DESIGN("形容詞", 形容詞名称 + 本体名称)
+		形容詞センス = %RESULTS%
+		全体価格 = 本体価格 * 300 / 100
+		;違法チェック
+		FOR LOCAL, 101, 2200
+			CALL GIFTDATA_ADJECT(LOCAL)
+			IF RESULTS == 形容詞名称
+				形容詞センス += "조악/조악/조악/"
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
+;選択
+ELSEIF INRANGE(RESULT, 101, 2200)
+	LOCAL = RESULT
+	CALL GIFTDATA_ADJECT(RESULT)
+	IF RESULTS != ""
+		形容詞 = LOCAL
+		形容詞名称 = %RESULTS%
+		形容詞センス = %RESULTS:1%
+		全体価格 = 本体価格 * RESULT:1 / 100
+	ENDIF
+ENDIF
+IF !形容詞
+	CLEARLINE 28
+	RESTART
+ENDIF
+VARSET START
+RESULT:1 = 全体価格
+RESULTS = %形容詞名称%
+RESULTS:1 = %形容詞センス%
+RETURN 形容詞
+
+;-------------------------------------------------
+;贈り物オーダーメイドのSENSEを決める関数
+;@GIFT_ORDER_MADE_FROM_MASTERの内部関数
+;-------------------------------------------------
+@GIFT_ORDER_MADE_ORIGINAL_DESIGN(ARGS, 名称)
+#DIMS 名称
+VARSET LOCALS
+IF ARGS == "本体"
+	PRINTFORML ◆【%名称%】に思いを込めるならどうするもの？
+	PRINTL [ 1] 眺めるもの
+	PRINTL [ 2] 握るもの
+	PRINTL [ 3] 抱くもの
+	PRINTL [ 4] 身につけるもの
+	INPUT
+	IF RESULT == 2
+		LOCALS:1 = 움켜쥠/
+	ELSEIF RESULT == 3
+		LOCALS:1 = 품음/
+	ELSEIF RESULT == 4
+		LOCALS:1 = 몸에걸침/
+	ELSE
+		LOCALS:1 = 바라봄/
+	ENDIF
+	PRINTFORML ◆【%名称%】はどんなもの？
+	PRINTL [ 1] 도구　　　　　　[ 2] 소형장식물　　　　　　[ 3] 装飾品
+	PRINTL [ 4] 인형　　　　　　[ 5] 도서　　　　　　[ 6] 식기
+	PRINTL [ 7] 악기　　　　　　[ 8] 날붙이　　　　　　[ 9] 탄환
+	PRINTL [10] 미술품　　　　　[11] 생체품　　　
+	INPUT
+	IF RESULT == 2
+		LOCALS:2 = 소형장식물/
+	ELSEIF RESULT == 3
+		LOCALS:2 = 장식/
+	ELSEIF RESULT == 4
+		LOCALS:2 = 인형/
+	ELSEIF RESULT == 5
+		LOCALS:2 = 도서/
+	ELSEIF RESULT == 6
+		LOCALS:2 = 식기/
+	ELSEIF RESULT == 7
+		LOCALS:2 = 악기/
+	ELSEIF RESULT == 8
+		LOCALS:2 = 날붙이/
+	ELSEIF RESULT == 9
+		LOCALS:2 = 탄환/
+	ELSEIF RESULT == 10
+		LOCALS:2 = 미술품/
+	ELSEIF RESULT == 11
+		LOCALS:2 = 생체품/
+	ELSE
+		LOCALS:2 = 도구/
+	ENDIF
+	PRINTFORML ◆【%名称%】はもっというとどんなもの？（任意）
+	PRINTL [ 1] 부적　　　　　　[ 2] 법구　　　　　　[ 3] 유물
+	PRINTL [ 4] 안경　　　　　　[ 5] 탈　　　　　　　[ 6] 시계
+	PRINTL [ 7] 문구　　　　　　[ 8] 조명　　　　　　[ 9] 부채
+	PRINTL [ 0] どれでもない
+	INPUT
+	IF RESULT == 1
+		LOCALS:3 = 부적/
+	ELSEIF RESULT == 2
+		LOCALS:3 = 법구/
+	ELSEIF RESULT == 3
+		LOCALS:3 = 유물/
+	ELSEIF RESULT == 4
+		LOCALS:3 = 안경/
+	ELSEIF RESULT == 5
+		LOCALS:3 = 탈/
+	ELSEIF RESULT == 6
+		LOCALS:3 = 시계/
+	ELSEIF RESULT == 7
+		LOCALS:3 = 문구/
+	ELSEIF RESULT == 8
+		LOCALS:3 = 조명/
+	ELSEIF RESULT == 9
+		LOCALS:3 = 부채/
+	ENDIF
+	RESULTS = %LOCALS:1 + LOCALS:2 + LOCALS:3%
+ELSEIF ARGS == "形容詞"
+	PRINTFORML ◆【%名称%】は何色？
+	PRINTL [ 1] 흰빛　　　　　　　[ 2] 흑빛
+	PRINTL [ 3] 빨강빛　　　　　　　[ 4] 푸른빛　　　　　　　[ 5] 초록빛
+	PRINTL [ 6] 黄色　　　　　　[ 7] 보랏빛　　　　　　　[ 8] 朱色
+	PRINTL [ 9] 핑크　　　　　[10] 茶色　　　　　　[11] 灰色
+	PRINTL [12] 金色　　　　　　[13] 銀色　　　　　　[14] 虹色
+	INPUT
+	IF RESULT == 2
+		LOCALS:1 = 흑빛/흑빛/
+	ELSEIF RESULT == 3
+		LOCALS:1 = 빨강빛/빨강빛/
+	ELSEIF RESULT == 4
+		LOCALS:1 = 푸른빛/푸른빛/
+	ELSEIF RESULT == 5
+		LOCALS:1 = 초록빛/초록빛/
+	ELSEIF RESULT == 6
+		LOCALS:1 = 노랑빛/노랑빛/
+	ELSEIF RESULT == 7
+		LOCALS:1 = 보랏빛/보랏빛/
+	ELSEIF RESULT == 8
+		LOCALS:1 = 주홍빛/주홍빛/
+	ELSEIF RESULT == 9
+		LOCALS:1 = 핑크/핑크/
+	ELSEIF RESULT == 10
+		LOCALS:1 = 찻빛/찻빛/
+	ELSEIF RESULT == 11
+		LOCALS:1 = 잿빛/잿빛/
+	ELSEIF RESULT == 12
+		LOCALS:1 = 금빛/금빛/
+	ELSEIF RESULT == 13
+		LOCALS:1 = 은빛/은빛/
+	ELSEIF RESULT == 14
+		LOCALS:1 = 무지갯빛/무지갯빛/
+	ELSE
+		LOCALS:1 = 흰빛/흰빛/
+	ENDIF
+	PRINTFORML ◆【%名称%】はどんな印象？
+	PRINTL [ 1] 귀여운
+	PRINTL [ 2] 근사함
+	PRINTL [ 3] 아름다운
+	PRINTL [ 4] 무서움
+	INPUT
+	IF RESULT == 2
+		LOCALS:2 = 근사함/근사함/근사함/
+	ELSEIF RESULT == 3
+		LOCALS:2 = 아름다운/아름다운/아름다운/
+	ELSEIF RESULT == 4
+		LOCALS:2 = 무서움/무서움/무서움/
+	ELSE
+		LOCALS:2 = 귀여운/귀여운/귀여운/
+	ENDIF
+	PRINTFORML ◆【%名称%】はどんな見た目？（任意）
+	PRINTL [ 1] 심플
+	PRINTL [ 2] 기묘
+	PRINTL [ 3] 예술적
+	PRINTL [ 4] 멋쟁이
+	PRINTL [ 0] どれでもない
+	INPUT
+	IF RESULT == 1
+		LOCALS:3 = 심플/심플/
+	ELSEIF RESULT == 2
+		LOCALS:3 = 기묘/기묘/
+	ELSEIF RESULT == 3
+		LOCALS:3 = 예술적/예술적/
+	ELSEIF RESULT == 4
+		LOCALS:3 = 멋쟁이/멋쟁이/
+	ENDIF
+	PRINTFORML ◆【%名称%】はどんな雰囲気？（任意）
+	PRINTL [ 1] 地味　　　　　　[ 2] 화려
+	PRINTL [ 3] 섬세　　　　　　[ 4] 力強い
+	PRINTL [ 5] 子供っぽい　　　[ 6] 지적
+	PRINTL [ 7] 불가사의　　　　[ 8] 厳つい
+	PRINTL [ 9] 장대　　　　　　[10] 매니악
+	PRINTL [ 0] どれでもない
+	INPUT
+	IF RESULT == 1
+		LOCALS:4 = 시크/시크/
+	ELSEIF RESULT == 2
+		LOCALS:4 = 화려/화려/
+	ELSEIF RESULT == 3
+		LOCALS:4 = 섬세/섬세/
+	ELSEIF RESULT == 4
+		LOCALS:4 = 파워풀/파워풀/
+	ELSEIF RESULT == 5
+		LOCALS:4 = 로리타/로리타/
+	ELSEIF RESULT == 6
+		LOCALS:4 = 지적/지적/
+	ELSEIF RESULT == 7
+		LOCALS:4 = 불가사의/ 불가사의/
+	ELSEIF RESULT == 8
+		LOCALS:4 = 위엄/위엄/
+	ELSEIF RESULT == 9
+		LOCALS:4 = 장대/장대/
+	ELSEIF RESULT == 10
+		LOCALS:4 = 매니악/매니악/
+	ENDIF
+	RESULTS = %LOCALS:1 + LOCALS:2 + LOCALS:3 + LOCALS:4%
+ENDIF
+
