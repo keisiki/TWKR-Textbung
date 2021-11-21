@@ -64,10 +64,6 @@ ENDIF
 TCVAR:ARG:일개시 = -1
 TCVAR:ARG:일종료 = -1
 
-IF TALENT:ARG:창녀||TALENT:ARG:렌탈창녀
-	RETURN
-ENDIF
-
 ;일의 처리
 SELECTCASE ARG
 CASE [[레이무]]
@@ -661,8 +657,27 @@ CASE [[파르시]]
 		TCVAR:ARG:급료 = 2
 	ENDIF
 CASE [[카구야]]
-	;공주님은 매일 분재 를 돌보는 것
-	IF !CFLAG:ARG:우후후
+	IF (DAY:2 == 3 && DAY:3 == 14)
+	;높은 급료로 답례는 고급품.
+		MAXBASE:ARG:일량 = 600 * 6
+		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
+		TCVAR:ARG:일종료 = CLOCK_TO_TIME(19, 0)
+		CFLAG:ARG:직장 = 401
+		CFLAG:ARG:직종 = 43
+		TCVAR:ARG:급료 = 5
+		TCVAR:ARG:도울수없다 = 2
+		SELECTCASE RAND:4
+			CASE 3
+				TCVAR:ARG:답례 = GETNUM(ITEM, "선향옥토")
+			CASE 2
+				TCVAR:ARG:답례 = GETNUM(ITEM, "현자의돌")
+			CASE 1
+				TCVAR:ARG:답례 = GETNUM(ITEM, "엘릭서")
+			CASE 0
+				TCVAR:ARG:답례 = GETNUM(ITEM, "킹크림존")
+		ENDSELECT
+	ELSEIF !CFLAG:ARG:우후후
+	;공주는 기본적으로 매일 분재를 돌본다. 우후후에서 게으름을 피운다.
 		MAXBASE:ARG:일량 = 600
 		TCVAR:ARG:일개시 = CLOCK_TO_TIME(13, 0)
 		TCVAR:ARG:일종료 = CLOCK_TO_TIME(14, 0)
@@ -800,11 +815,14 @@ CASE [[히나]]
 			CASE 712 TO 730
 				CONTINUE
 		ENDSELECT
-		IF YOGORE:LOCAL > 1000
-			CFLAG:ARG:직장 = LOCAL
-			청소하기 = 1
-		ENDIF
+		SIF YOGORE:LOCAL > 1000
+			청소하기 = LOCAL
 	NEXT
+	IF !청소하기
+		CFLAG:ARG:직장 = 701
+	ELSE
+		CFLAG:ARG:직장 = 청소하기
+	ENDIF
 	IF FESTIVAL() == "히나마츠리"
 		MAXBASE:ARG:일량 = 600 * 10
 		TCVAR:ARG:일개시 = CLOCK_TO_TIME( 7, 0)
@@ -999,9 +1017,7 @@ CASE [[미요이]]
 		TCVAR:ARG:급료 = 2
 		TCVAR:ARG:도울수없다 = 2
 	ENDIF
-
 ;다른 사람들은 지금 바쁜 일에는 붙지 않았습니다. 일안 모집. 아마 요우무와 란 님은 부정기에 바쁘겠지……
-
 ENDSELECT
 
 ;휴가 플래그 사용하지 않아도 TCVAR:ARG:일개시에 판별할 수 있었으므로
@@ -1128,7 +1144,6 @@ CASE [[에이키]]
 	ELSE
 		TCVAR:ARG:도울수없다 = 1
 	ENDIF
-
 CASE [[카센]]
 	IF YOUBI_MATCH(DAY, "토")
 		IF TIME >= CLOCK_TO_TIME(14, 0)
@@ -1285,6 +1300,8 @@ CASE [[미스티아]]
 	ELSE
 		LOCALS = 포장마차 일
 	ENDIF
+CASE [[아야]]
+	LOCALS = 기사 집필
 CASE [[에이키]]
 	IF INRANGE(TIME, CLOCK_TO_TIME(9, 0), CLOCK_TO_TIME(11, 59))
 		LOCALS = 재판
@@ -1295,9 +1312,6 @@ CASE [[에이키]]
 	ELSE
 		LOCALS = 서류정리
 	ENDIF
-
-CASE [[아야]]
-	LOCALS = 기사 집필
 CASE [[사나에]]
 	LOCALS = 권유
 CASE [[카나코]]
@@ -1360,7 +1374,11 @@ CASE [[소악마]]
 CASE [[파르시]]
 	LOCALS = 다리 파수꾼
 CASE [[카구야]]
-	LOCALS = 분재 가꾸기
+	IF (DAY:2 == 3 && DAY:3 == 14)
+		LOCALS = 월도만상전의 사회
+	ELSE
+		LOCALS = 분재 가꾸기
+	ENDIF
 CASE [[유기]]
 	LOCALS = 음주
 CASE [[모미지]]

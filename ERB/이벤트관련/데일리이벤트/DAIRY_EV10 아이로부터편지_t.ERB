@@ -25,40 +25,33 @@ NEXT
 
 TARGET = ARG
 ;말전용의 편지 이벤트 분기(없으면 통상 이벤트)
-;口上存在判定
-RESULTS =
-IF CFLAG:TARGET:구상셀렉터
-	TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
-ELSE
-	TRYCALLFORM M_KOJO_K{NO:TARGET}
-ENDIF
+;口上専用の手紙イベント分岐（なければ通常イベント）,存在しないならRESULT = 2
 IF !RAND:2
-	TRYCCALLFORM M_KOJO%RESULTS%_EVENT_K{ARG}_CHILD_DAILY_말편지(ARG:1)
-	CATCH
+	CALL KOJO_MESSAGE_SEND("CHILD", 0, TARGET, ARG:1, 0, "DAILY_말편지")
+	SIF RESULT == 2
 		GOTO TEGAMI
-	ENDCATCH
 ELSE
 	$TEGAMI
 	IF LOCAL:1 >= 3
-		TRYCCALLFORM M_KOJO%RESULTS%_EVENT_K{ARG}_CHILD_DAILY_공통편지(ARG:1, "바람둥이")
-		CATCH
+		CALL KOJO_MESSAGE_SEND("CHILD", 0, TARGET, ARG:1, 0, "DAILY_공통편지", "바람둥이")
+		;存在しないならRESULT = 2（以下同様）
+		IF RESULT == 2
 			PRINTFORMW 좀 더 %ARG를% 소중히 하라고 적혀있었다……
-		ENDCATCH
+		ENDIF
 	ELSEIF !RAND:5
-		TRYCCALLFORM M_KOJO%RESULTS%_EVENT_K{ARG}_CHILD_DAILY_공통편지(ARG:1, "염치없는돈") ;염치없는돈
+		CALL KOJO_MESSAGE_SEND("CHILD", 0, TARGET, ARG:1, 0, "DAILY_공통편지", "염치없는돈")
 		;金銭を無遠慮にねだって得ようとすること、思慮なく金をせびることを意味する語。親に小遣いをたかることを指す場合が多い。 
 		;용돈 달라는 뜻
-		CATCH
+		IF RESULT == 2
 			PRINTFORMW 용돈을 달라고 한다……
-			;金の無心だ……
-		ENDCATCH
+		ENDIF
 		PRINTFORMW %마스터는% \@ MONEY > 45000? ￥45000을# 가진 돈 전부를\@ 보내기로 했다
 		MONEY = MAX(MONEY - 45000,0)
 	ELSE
-		TRYCCALLFORM M_KOJO%RESULTS%_EVENT_K{ARG}_CHILD_DAILY_공통편지(ARG:1, "송금")
-		CATCH
-			PRINTFORMW %조사처리(CALLNAME:ARG,"와")% %마스터를% 신경쓰는 말과 송금\\30000이 들어가 있었다
-		ENDCATCH
+		CALL KOJO_MESSAGE_SEND("CHILD", 0, TARGET, ARG:1, 0, "DAILY_공통편지", "송금")
+		IF RESULT == 2
+			PRINTFORMW %ARG와% %마스터를% 신경쓰는 말과 송금\\30000이 들어가 있었다
+		ENDIF
 		MONEY += 30000
 	ENDIF
 ENDIF

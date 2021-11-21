@@ -1,0 +1,190 @@
+﻿;-----------------------------------------------------------
+;사냥한 조수 목록 표시
+;-----------------------------------------------------------
+@SHOW_COLLECTION_HUNTED
+#DIM 선택한짐승
+#DIM 전체종수
+#DIM 사냥한종수
+#DIM 사냥한총수
+#DIM 소거행수
+#DIM 개행
+
+VARSET LOCAL
+전체종수 = 0
+사냥한종수 = 0
+사냥한총수 = 0
+소거행수 = 0
+개행 = 0
+
+CLEARLINE 1
+PRINTFORML 지금까지 사냥한 조수 목록
+DRAWLINE
+FOR LOCAL, 1, 51
+	CALL CRITTER_DATA(LOCAL)
+	;獣が無名でない
+	IF CritterName != ""
+		전체종수 ++
+		SIF LOCAL < 10
+			PRINTFORM  
+		IF CAPTURE_RECORD:LOCAL
+			사냥한종수 ++
+			PRINTFORM [{LOCAL}] %CritterName, 20, LEFT%
+			SETCOLOR C_L_GRAY
+			PRINTFORM （사냥한 개체 수：
+			SELECTCASE CAPTURE_RECORD:LOCAL
+				CASE IS < 10
+					PRINTFORM     
+				CASE IS < 100
+					PRINTFORM    
+				CASE IS < 1000
+					PRINTFORM   
+				CASE IS < 10000
+					PRINTFORM  
+			ENDSELECT
+			사냥한총수 += CAPTURE_RECORD:LOCAL
+			PRINTFORM {CAPTURE_RECORD:LOCAL}마리 ）
+		ELSE
+			PRINTFORM [{LOCAL}] ????????????                                
+		ENDIF
+		개행 ++
+		IF 개행 == 2
+			PRINTL 
+			개행 = 0
+		ELSE
+			PRINT 　　　
+		ENDIF
+	ENDIF
+	RESETCOLOR
+	;獣関連の変数リセット
+	CALL CRITTER_V_RESET
+NEXT
+SETCOLOR 0x00FF00
+PRINTFORM 사냥한 조수의 종류：{사냥한종수}／{전체종수}
+IF 사냥한총수
+	PRINTFORML 　사낭한 조수의 총수：{사냥한총수}마리
+ELSE
+	PRINTL 
+ENDIF
+RESETCOLOR
+DRAWLINE
+PRINT [0] - 돌아간다
+
+$LOOP
+INPUT
+
+선택한짐승 = RESULT
+SELECTCASE 선택한짐승
+	CASE 1 TO 50
+		CALL CRITTER_DATA(선택한짐승)
+		IF CritterName != ""
+			CLEARLINE 1
+			CALL PRINT_CRITTERINFO(선택한짐승)
+			IF CAPTURE_RECORD:선택한짐승
+				소거행수 = 5
+			ELSE
+				소거행수 = 2
+			ENDIF
+			CLEARLINE 소거행수
+			GOTO LOOP
+		ELSE
+			CLEARLINE 1
+			GOTO LOOP
+		ENDIF
+	CASE 0
+		RETURN
+		;獣関連の変数リセット
+		CALL CRITTER_V_RESET
+	CASEELSE
+		CLEARLINE 1
+		GOTO LOOP
+ENDSELECT
+
+;-----------------------------------------------------------
+;選択した獣の説明／ヒント表記
+;ARG …선택한짐승番号
+;-----------------------------------------------------------
+@PRINT_CRITTERINFO(ARG)
+
+DRAWLINE
+IF CAPTURE_RECORD:ARG
+	FONTSTYLE 1
+	PRINTPLAINFORM [{ARG}] %CritterName%
+	FONTREGULAR
+	PRINTFORML （사냥한 수：{CAPTURE_RECORD:ARG}마리 ）
+	IF ABL:MASTER:교양 < 3
+		CALL COLORMESSAGE(@"　　（교양Lv을 올리면、분포 영역·사냥 시기를 알수 있겠다…）",C_L_GRAY,1)
+	ELSE
+		CALL HUNTING_HINT(ARG)
+	ENDIF
+	PRINTFORML 　　◇평균적인 수확물： %ITEMNAME:CritterMeat% × {CritterMeat_Value} ◇
+	PRINTFORML 　　%CritterIntro%
+ELSE
+	PRINTPLAINFORM [{ARG}] ?????????????
+	CALL HUNTING_HINT(ARG)
+ENDIF
+WAIT
+
+;-----------------------------------------------------------
+;選択した獣のヒント文
+;ARG …선택한짐승番号
+;-----------------------------------------------------------
+@HUNTING_HINT(ARG)
+
+SELECTCASE ARG
+	CASE 1 ;ネズミ 쥐
+		PRINTFORML 　　모든 환경에 분포／소형 동물
+	CASE 2 ;イタチ 족제비
+		PRINTFORML 　　극단적으로 어두컴컴한 환경 이외에 분포／소형 동물
+	CASE 3 ;テン
+		PRINTFORML 　　극단적으로 어두컴컴한 환경 이외에 분포／소형 동물
+	CASE 4 ;ミンク  밍크
+		PRINTFORML 　　극단적으로 어두컴컴한 환경 이외에 분포／소형 동물
+	CASE 5 ;リス 다람쥐
+		PRINTFORML 　　죽림과 극단적으로 어두컴컴한 환경 이외에 분포。동면한다／소형 동물
+	CASE 6 ;アライグマ 미국넉리
+		PRINTFORML 　　고산과 극단적으로 어두컴컴한 환경 이외에 분포／중형 동물
+	CASE 7 ;タヌキ 너구리
+		PRINTFORML 　　고산과 극단적으로 어두컴컴한 환경 이외에 분포／중형 동물
+	CASE 8 ;アナグマ 오소리
+		PRINTFORML 　　고산 이외에 분포。동면한다／중형 동물
+	CASE 9 ;ハクビシン 흰코사향고양이
+		PRINTFORML 　　고산과 극단적으로 어두컴컴한 환경 이외에 분포／중형 동물
+	CASE 10 ;キツネ 여우
+		PRINTFORML 　　극단적으로 어두컴컴한 환경 이외에 분포／중형 동물
+	CASE 11 ;ノイヌ 야생견
+		PRINTFORML 　　인계에 가까운 환경을 좋아한다／중형 동물
+	CASE 12 ;ノネコ 야생고양이
+		PRINTFORML 　　인계에 가까운 환경을 좋아한다／중형 동물
+	CASE 13 ;ノウサギ 멧토끼
+		PRINTFORML 　　극단적으로 어두컴컴한 환경 이외에 분포／중형 동물
+	CASE 14 ;ヌートリア 뉴트리아
+		PRINTFORML 　　늪이나 강 등 물길을 좋아한다／중형 동물
+	CASE 15 ;イノシシ 멧돼지
+		PRINTFORML 　　극단적으로 어두컴컴한 환경 이외에 분포。겨울에 가장 살이 오른다／대형 동물
+	CASE 16 ;シカ 사슴
+		PRINTFORML 　　죽림과 극단적으로 어두컴컴한 환경 이외에 분포。가을에 가장 살이 오른다／대형 동물
+	CASE 17 ;カモシカ 영양
+		PRINTFORML 　　죽림과 극단적으로 어두컴컴한 환경 이외에 분포。가을에 가장 살이 오른다／대형 동물
+	CASE 18 ;サル 원숭이
+		PRINTFORML 　　인계에 가까운 환경을 좋아한다／중형 동물
+	CASE 19 ;ツキノワグマ 반달곰
+		PRINTFORML 　　인계에 가까운 환경을 좋아한다。동면한다。가을에 가장 살이 오른다／대형 동물
+	CASE 20 ;ヘビ 뱀
+		PRINTFORML 　　고산 이외에 분포。동면한다／소형 동물
+	CASE 21 ;オオコウモリ 큰박쥐
+		PRINTFORML 　　어두컴컴한 환경을 좋아한다。동면한다／중형 동물
+	CASE 22 ;モグラ 두더쥐
+		PRINTFORML 　　어두컴컴한 환경을 좋아한다／소형 동물
+	CASE 23 ;デスワーム 데스웜
+		PRINTFORML 　　희소종。어두컴컴한 환경의 땅속에 숨어 있는 것 같다／대형 동물
+	CASE 24 ;ツチノコ 츠치노코
+		PRINTFORML 　　희소종。임야에 숨어 숨어 있는 것 같다／중형 동물
+	CASE 25 ;スライム 슬라임
+		PRINTFORML 　　……짐승？　어두컴컴한 환경을 좋아하는 것 같다／중형 동물
+	CASE 26 ;マタンゴ 마탕고
+		PRINTFORML 　　희소종。버섯이 자라는 환경에 나타나는 것 같다／대형 동물
+	CASE 27 ;ヤベオオツノジカ 야베오오츠지노카
+		PRINTFORML 　　희소종。신성한 숲의 영수로 나타난다고 한다／대형 동물
+	CASE 28 ;ハナイズミモリウシ 하나이즈미모리우시
+		PRINTFORML 　　희소종。고산에 조용히 산다고 한다／대형 동물
+ENDSELECT

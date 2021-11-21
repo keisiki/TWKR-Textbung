@@ -53,9 +53,12 @@ ENDSELECT
 
 ;-------------------------------------------------
 ;의뢰 수탁
+;21/08/25 수락시 일부 의뢰내용을 표시하도록 변경
 ;-------------------------------------------------
 @IRAI_START(CHARA)
 #DIM CHARA
+#DIM 수락		;수탁 의뢰가 들어온 슬롯 번호
+#DIM 의뢰ID	;의뢰 자체 ID
 ;의뢰 제시시
 PRINTFORMW 아무래도 %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:MASTER%에게 부탁할 일이 있는 것 같다
 CALL SHOW_IRAI_MESSAGE(CHARA, CFLAG:CHARA:의뢰내용, "의뢰 제시시")
@@ -67,8 +70,30 @@ IF RESULT
 	PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 유감스러운 얼굴을 하고 있다
 	RETURN -1
 ELSE
+	수락 = SEARCH_IRAI_EMPTY()
 	CALL SET_IRAI_SLOT(CHARA)
-	PRINTFORMW %마스터는% %CALLNAME:CHARA%의 의뢰를 받았다
+	의뢰ID = (CFLAG:CHARA:의뢰내용) % 1000
+	PRINTFORML %마스터는% %CALLNAME:CHARA%의 의뢰를 받았다
+	SELECTCASE IRAI_SLOT_TO_TASKNAME(수락)
+		CASE "전령(인물)"
+			;固有依頼は提示済なのでカット
+			SIF 의뢰ID < 100
+				PRINTFORML %CALLNAME:(IRAI_SLOT_TO_PERSON(수락))% 앞으로 온 편지를 받았다
+		CASE "수색(인물)"
+			IF 의뢰ID == 9
+				PRINTFORML %CALLNAME:CHARA%로부터 분실물을 맡겨졌다
+				PRINTFORM 물건의 특징：
+			ELSE
+				PRINTFORM 단서：
+			ENDIF
+			CALL SHOW_IRAI_HINT("수색(인물)", IRAI_SLOT_TO_PERSON(수락), IRAI_SUB:수락)
+		CASE "수색(장소)"
+			PRINTFORM 단서：
+			CALL SHOW_IRAI_HINT("수색(장소)", IRAI_SLOT_TO_PLACE(수락), IRAI_SUB:수락)
+		CASE "토벌"
+			PRINTFORML 탄막 승부의 상대는 %CALLNAME:(IRAI_SLOT_TO_PERSON(수락))%(이)다
+	ENDSELECT
+	WAIT
 	CALL SHOW_IRAI_MESSAGE(CHARA, CFLAG:CHARA:의뢰내용, "의뢰 수탁시")
 	RETURN 1
 ENDIF

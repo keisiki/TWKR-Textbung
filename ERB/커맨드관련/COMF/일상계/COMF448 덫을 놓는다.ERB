@@ -1,0 +1,1305 @@
+﻿;罠を仕掛ける／罠の様子を見る
+;キャラクターの技能や経験依存ではなく、プレイヤーの眼力で수렵물がいそうかどうかを判定する感じのデザイン。
+;虫トラップと兼用
+@COM448
+;どっちも可能なら選択
+IF HUNTING_SPOT(CFLAG:MASTER:현재위치) && MUSHITORI_SPOT(CFLAG:MASTER:현재위치) && ITEM:곤충채집세트 && (!MUSHI_TRAP || GROUPMATCH(CFLAG:MASTER:현재위치, GET_MUSHIDATA(MUSHI_TRAP, "場所")))
+	IF GROUPMATCH(CFLAG:MASTER:현재위치, TRAP_POINT:1, TRAP_POINT:2, TRAP_POINT:3)
+		PRINTL 　[ 1] 狩猟罠の様子を見る
+	ELSE
+		PRINTL 　[ 1] 狩猟罠を仕掛ける
+	ENDIF
+	IF GROUPMATCH(CFLAG:MASTER:현재위치, GET_MUSHIDATA(MUSHI_TRAP, "場所"))
+		PRINTL 　[ 2] 虫トラップの様子を見る
+	ELSE
+		PRINTL 　[ 2] 虫トラップを仕掛ける
+	ENDIF
+	PRINTL 　[ 0] キャンセル
+	INPUT
+	IF RESULT == 1
+		CALL TRAP_HUNTING
+	ELSEIF RESULT == 2
+		CALL MUSHI_TRAP
+	ELSE
+		RETURN -1
+	ENDIF
+ELSEIF HUNTING_SPOT(CFLAG:MASTER:현재위치)
+	CALL TRAP_HUNTING
+ELSEIF MUSHITORI_SPOT(CFLAG:MASTER:현재위치)
+	CALL MUSHI_TRAP
+ELSE
+	RETURN -1
+ENDIF
+RETURN RESULT
+
+@TRAP_HUNTING
+#DIM CHARA
+#DIM Hunt_Power
+#DIM Serch
+#DIM 서식밀도
+#DIM 탐색횟수
+#DIM 삭제행수
+#DIM 결과
+#DIM 수렵물
+
+수렵물 = 0
+탐색횟수 = 0
+
+;夕方～夜の狩猟はやめる
+IF TIME:2 >= 5 && !FLAG:70
+	DRAWLINE
+	PRINTFORML この時間からでは猟をしているうちに真っ暗になってしまう…
+	RETURN -1
+ENDIF
+;大雨、台風、吹雪のときはやめる
+IF GROUPMATCH(날씨, 5, 9) || GROUPMATCH(FLAG:이상기상, 9, 10)
+	DRAWLINE
+	PRINTFORML この天候での罠猟は危険だろう
+	RETURN -1
+ENDIF
+;あからさまな人の敷地での密猟はやめる
+SELECTCASE CFLAG:MASTER:현재위치
+	CASE 25, 50
+		IF ABL:[[레이무]]:친밀 < 5
+			DRAWLINE
+			PRINTFORML ここで密猟をするのはマズい気がする
+			RETURN -1
+		ENDIF
+	CASE 사각의죽림, 433
+		IF ABL:[[모코우]]:친밀 < 5 && ABL:[[테위]]:친밀 < 5 && ABL:[[카구야]]:친밀 < 5 && ABL:[[에이린]]:친밀 < 5
+			DRAWLINE
+			PRINTFORML ここで密猟をするのはマズい気がする
+			RETURN -1
+		ENDIF
+	CASE 절경의언덕, 805
+		IF ABL:[[아야]]:친밀 < 5 && ABL:[[하타테]]:친밀 < 5
+			DRAWLINE
+			PRINTFORML ここで密猟をするのはマズい気がする
+			RETURN -1
+		ENDIF
+ENDSELECT
+
+;参加者判定
+IF FLAG:데이트상대 && !FLAG:70
+	CHARA = FLAG:데이트상대
+ELSEIF TARGET && ABL:TARGET:친밀 >= 5 && SHIRAHU(TARGET) && CFLAG:TARGET:동행 != 5
+	CHARA = TARGET
+ELSE
+	CHARA = 0
+ENDIF
+
+TFLAG:무드상승억제 = 1
+
+;◆罠を仕掛けてある場合は様子を見る
+IF GROUPMATCH(CFLAG:MASTER:현재위치, TRAP_POINT:1, TRAP_POINT:2, TRAP_POINT:3)
+	;①罠が破損している場合
+	IF TRAP_DURABILITY:(TP_TO_PLACE()) == 0
+		PRINTFORML 罠が壊れてしまっている…
+		IF DAY:0 - TRAP_CAPTUREDATA:(TP_TO_PLACE()) >= 30
+			PRINTFORMW 수렵물はかかっていたようだが、時間が経ちすぎてしまったようだ…
+		ELSEIF TRAP_CAPTUREDATA:(TP_TO_PLACE())
+			PRINTFORMW 수렵물はかかっていたようだが、逃げられてしまったようだ…
+		ELSE
+			PRINTFORMW 見込みがなさそうなら、回収してセットしなおしたほうが良かったかもしれない
+		ENDIF
+		;変数をリセット
+		CALL TRAP_V_RESET(TP_TO_PLACE())
+		TFLAG:193 = -1
+		
+	;②수렵물がかかっている場合
+	ELSEIF TRAP_CAPTURE:(TP_TO_PLACE())
+		수렵물 = TRAP_CAPTURE:(TP_TO_PLACE())
+		CAPTURE_RECORD:수렵물 ++ 
+		;獣の各種変数をセット
+		CALL CRITTER_DATA(수렵물)
+		PRINTL 
+		PRINTFORMW ………！
+		PRINTFORMW 수렵물がかかっていた！
+		PRINTL 
+		DRAWLINE
+		PRINTFORML 　【かかっていた수렵물】
+		PRINTFORM 　　
+		CALL SPOIL_TEXT(SPOIL_ENHANCEMENT(수렵물), 0, 1)
+		PRINTFORML 　　%CritterIntro%
+		DRAWLINE
+		PRINTW 
+		
+		;一部キャラだと逃がしてあげようよ、に
+		IF SPOIL_RELEASE(CHARA, 수렵물) == 1 && !FLAG:70
+			PRINTFORML %CALLNAME:CHARA%が何か言いたげな目でこちらを見つめてくる…
+			PRINTFORM いたたまれなくなって、%CALLNAME:MASTER%は
+
+			$RELEASE
+			CALL SPOIL_TEXT(SPOIL_ENHANCEMENT(수렵물), 2, 0)
+			PRINTFORML を逃がしてやった
+			
+			LOCALS = %ITEMNAME:(TRAP_TYPE:TP_TO_PLACE())%
+			CALL GET_ITEM(LOCALS, 1, 2)
+			수렵물 = 0
+			;変数をリセット
+			CALL TRAP_V_RESET(TP_TO_PLACE())
+			CALL CRITTER_V_RESET
+		ELSE
+			PRINTFORML この수렵물を解体しますか？
+			CALL ASK_YN("解体する", "逃がしてやる")
+			IF !RESULT
+				CLEARLINE 4
+			ELSE
+				GOTO RELEASE
+			ENDIF
+			IF FLAG:70
+				PRINTFORMW %CALLNAME:MASTER%は時間停止して수렵물の止めさし・解体に勤しんだ…
+			ELSEIF CHARA
+				PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:CHARA%と協力して、수렵물の止めさし・解体を進めた…
+				
+			ELSE
+				PRINTFORMW %CALLNAME:MASTER%は수렵물の止めさし・解体を進めた…
+			ENDIF
+			LOCALS = %ITEMNAME:(TRAP_TYPE:TP_TO_PLACE())%
+			CALL GET_ITEM(LOCALS, 1, 1)
+		ENDIF
+	;③まだ何もかかっていないよ
+	ELSE
+		PRINTFORML 仕掛けた罠にはまだ何もかかっていないようだ
+		IF TRAP_DURABILITY:(TP_TO_PLACE()) < 21
+			PRINTFORML 罠を検めてみたところ、部品に少し緩みが出ている…
+		ELSEIF TRAP_DURABILITY:(TP_TO_PLACE()) < 11
+			PRINTFORML 罠を検めてみたところ、だいぶ傷みが見られる…
+		ENDIF
+		PRINTFORML 罠を回収しますか？
+		PRINTL 
+		$INPUT_LOOP02
+		PRINTFORML 　[0]そのままにする
+		PRINTFORML 　[1]罠を回収する
+		INPUT
+		SELECTCASE RESULT
+			CASE 0
+				RETURN -1
+			CASE 1
+				PRINTFORML 罠を回収することにした
+				;罠をアイテムに戻す
+				LOCALS = %ITEMNAME:(TRAP_TYPE:TP_TO_PLACE())%
+				CALL GET_ITEM(LOCALS, 1, 2)
+				;変数をリセット
+				CALL TRAP_V_RESET(TP_TO_PLACE())
+			CASEELSE
+				CLEARLINE 3
+				GOTO INPUT_LOOP02
+		ENDSELECT
+	ENDIF
+;◆罠を仕掛ける
+ELSE
+	;罠を持っていなければリターン
+	IF !ITEM:덫사냥용품【소형】 && !ITEM:덫사냥용품【중형】 && !ITEM:덫사냥용품【대형】
+		DRAWLINE
+		PRINTFORML 罠を用意しなくては
+		RETURN -1
+	;３ポイントに仕掛けてある
+	ELSEIF TRAP_POINT:1 && TRAP_POINT:2 && TRAP_POINT:3
+		DRAWLINE
+		PRINTFORML 罠を３か所に渡って仕掛けているので、これ以上はいいだろう
+		RETURN -1
+	ELSE
+		;①先に各種係数を算出
+		;基礎パワー １～１１０程度
+		Hunt_Power = MAX((ABL:MASTER:교양 * 2) + (ABL:MASTER:전투능력 * 2) + (TFLAG:행운보정 * 10) + (CFLAG:MASTER:오늘의행운 / 20), 1)
+
+		;参加者がいる場合は狩猟パワー追加　２人のほうが単純に目が２倍なので、良い結果を引きやすい
+		SIF CHARA && !FLAG:70
+		Hunt_Power += MAX((ABL:CHARA:교양 * 2) + (ABL:CHARA:전투능력 * 2) + (FLAG:일일이벤트 / 20), 1)
+
+		$LOOP_SELECT
+	
+		탐색횟수 ++
+		;奥地に踏み込んでいくイメージで
+		SIF 탐색횟수 != 1
+			Hunt_Power += RAND:16
+		
+		;②탐색횟수が10回を超えた場合は無限ループ除けのためにリターンする
+		IF 탐색횟수 >= 10
+			PRINTFORMW ……あんまり熱中してると迷いそうなので、今回はこれくらいにしておこう
+			GOTO AFTER
+		ENDIF
+
+		REPEAT 5
+			REUSELASTLINE  \@ CHARA ? %CALLNAME:CHARA%と一緒に #  \@獣の痕跡を捜索中.%"." * COUNT%
+			TWAIT 150, 1
+		REND
+
+		;③狩猟パワーからサーチ値を固定・서식밀도をセットし、フィールドサインのテキスト（ヒント）を流す
+		Serch = RAND:Hunt_Power
+		IF Serch
+			서식밀도 = Serch / 10
+		ELSE
+			서식밀도 = 0
+		ENDIF
+		PRINTL 
+		PRINTFORML ◇現在地の様子◇
+		PRINT 　
+		CALL FIELDSIGN(Serch)
+		DRAWLINE
+		;④どの罠を仕掛けるか選択
+		PRINTFORML ここに罠を仕掛けますか？
+		PRINTL 
+		$INPUT_LOOP01
+		삭제행수 = 0
+		FOR LOCAL, 132, 135
+			삭제행수 ++
+			IF ITEM:LOCAL == 0
+				SETCOLOR C_GRAY
+				PRINTPLAINFORM 　[{LOCAL}]%ITEMNAME:LOCAL%
+			ELSE
+				PRINTFORM 　[{LOCAL}]%ITEMNAME:LOCAL%
+			ENDIF
+			SELECTCASE LOCAL
+				CASE 132
+					PRINTFORML …入門者向けの廉価品、耐久度は低め。小型～中型獣を捕獲できる
+				CASE 133
+					PRINTFORML …入門者からベテランまで、耐久度はそこそこ。小型～大型獣まで幅広く捕獲できる
+				CASE 134
+					PRINTFORML …大物狙いの熟練猟師向け、耐久面も万全。中型～大型獣を捕獲できる
+				CASEELSE
+					PRINTFORML 
+			ENDSELECT
+			RESETCOLOR
+		NEXT
+		PRINTL 
+		PRINTFORML 　[998]探索を続ける
+		PRINTFORML 　[999]罠猟をやめる
+		삭제행수 += 3
+		
+		INPUT
+		
+		결과 = RESULT
+		SELECTCASE 결과
+			CASE 132 TO 134
+				IF ITEM:결과 == 0
+					CLEARLINE 삭제행수 + 1
+					GOTO INPUT_LOOP01
+				;⑤罠を仕掛ける処理
+				ELSE
+					CALL TRAP_FLAVORTEXT(결과)
+					PRINTFORML %ITEMNAME:결과%を仕掛けた　しばらくして様子を見に来よう
+					TFLAG:193 = 0
+					ITEM:결과 -= 1
+					FOR LOCAL, 1, 4
+						;空いてる一番若い番号に、各種変数を挿入
+						IF TRAP_POINT:LOCAL == 0
+							TRAP_POINT:LOCAL = CFLAG:MASTER:현재위치
+							TRAP_SETUPDATA:LOCAL = DAY:0
+							TRAP_TYPE:LOCAL = 결과
+							TRAP_ALERTNESS:LOCAL = 75
+							TRAP_DENSITY:LOCAL = 서식밀도
+							;罠に応じて耐久度をセット
+							SELECTCASE 결과
+								CASE 132
+									TRAP_DURABILITY:LOCAL = 30
+								CASE 133
+									TRAP_DURABILITY:LOCAL = 45
+								CASE 134
+									TRAP_DURABILITY:LOCAL = 60
+								CASEELSE
+									TRAP_DURABILITY:LOCAL = 30
+							ENDSELECT
+							BREAK
+						ENDIF
+					NEXT
+				ENDIF
+			CASE 998
+				CLEARLINE 삭제행수 + 8
+				GOTO LOOP_SELECT
+			CASE 999
+				PRINTL 
+			CASEELSE
+				CLEARLINE 삭제행수 + 1
+				GOTO INPUT_LOOP01
+		ENDSELECT
+	ENDIF
+ENDIF
+
+$AFTER
+;◆罠を仕掛けた or 수렵물を解体した（成功扱い） or 罠が壊れていた（失敗扱い）
+;時間経過と체력消費、공복시각と参加者の疲労度
+IF FLAG:70
+	;狩り成功
+	IF 수렵물
+		BASE:MASTER:TSP -= CritterEffort * 3
+	;수렵물を逃がしてやったか、罠を回収した
+	ELSEIF 탐색횟수 == 0 && 수렵물 == 0
+		BASE:MASTER:TSP -= 150
+	ELSE
+		;罠を仕掛けた
+		IF TP_TO_PLACE()
+			BASE:MASTER:TSP -= (탐색횟수 * 6) + 180
+		;探索しただけ
+		ELSE
+			BASE:MASTER:TSP -= 탐색횟수 * 6
+		ENDIF
+	ENDIF
+ELSE
+	IF 수렵물
+		DOWNBASE:MASTER:체력 = MAX((CritterEffort * 3) - (ABL:MASTER:전투능력 * 10), 40)
+		DOWNBASE:MASTER:기력 = CritterEffort * 2
+		TIME += CritterEffort
+		TCVAR:MASTER:공복시각 -= 25
+		IF CHARA
+			TCVAR:CHARA:공복시각 -= 25
+			CALL ADD_TIRED(CHARA, CritterEffort)
+		ENDIF
+	ELSEIF 탐색횟수 == 0 && 수렵물 == 0
+		DOWNBASE:MASTER:체력 = 100
+		DOWNBASE:MASTER:기력 = 50
+		TIME += 45
+		TCVAR:MASTER:공복시각 -= 10
+		IF CHARA
+			TCVAR:CHARA:공복시각 -= 10
+			CALL ADD_TIRED(CHARA, 50)
+		ENDIF
+	ELSE
+		IF TP_TO_PLACE()
+			DOWNBASE:MASTER:체력 = 120 + 탐색횟수 * 5
+			DOWNBASE:MASTER:기력 = 60 + 탐색횟수 * 3
+			TIME += 30 + 탐색횟수 * 6
+		ELSE
+			DOWNBASE:MASTER:체력 = 탐색횟수 * 5
+			DOWNBASE:MASTER:기력 = 탐색횟수 * 3
+			TIME += 탐색횟수 * 6
+		ENDIF
+	ENDIF
+ENDIF
+
+;데이트경험
+IF CHK_DATENOW(CFLAG:CHARA:데이트중) && CHARA > 0
+	EXP:MASTER:데이트경험 ++
+	EXP:CHARA:데이트경험 ++
+ENDIF
+
+;アイテム入手処理
+IF 수렵물
+	TFLAG:193 = 1
+	TFLAG:194 = 수렵물
+	LOCALS = %ITEMNAME:(CritterMeat)%
+	CALL GET_ITEM(LOCALS, (CritterMeat_Value + SPOIL_ENHANCEMENT(수렵물)), 2)
+	;罠の各種変数リセット
+	CALL TRAP_V_RESET(TP_TO_PLACE())
+	;獣関連の変数をリセット
+	CALL CRITTER_V_RESET
+ENDIF
+PRINTL 
+
+;参加者のソース、罠が壊れていると半減
+IF CHARA > 0
+	;固定で獲得するソース
+	SOURCE:CHARA:환락 = 400
+	SOURCE:CHARA:사랑 = 100
+	
+	;ABL:순종をみる
+	IF ABL:순종 <= 1
+		SOURCE:CHARA:환락 += (ABL:순종 * 40)
+		SOURCE:CHARA:사랑 += (ABL:친밀 * 20)
+	ELSEIF ABL:순종 <= 3
+		SOURCE:CHARA:환락 += 200 + (ABL:순종 * 40)
+		SOURCE:CHARA:사랑 += 50 + (ABL:친밀 * 30)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:CHARA:환락 += 500 + (ABL:순종 * 40)
+		SOURCE:CHARA:사랑 += 200 + (ABL:친밀 * 30)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:CHARA:환락 += 750 + (ABL:순종 * 60)
+		SOURCE:CHARA:사랑 += 300 + (ABL:친밀 * 40)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:CHARA:환락 += 1000 + (ABL:순종 * 60)
+		SOURCE:CHARA:사랑 += 600 + (ABL:친밀 * 40)
+	ELSE
+		SOURCE:CHARA:환락 += 1600 + (ABL:순종 * 30)
+		SOURCE:CHARA:사랑 += 1000 + (ABL:친밀 * 20)
+	ENDIF
+	SIF CHARA != FLAG:데이트상대 
+		SOURCE:CHARA:사랑 = 0
+	
+	;好感度はみない
+	
+	SOURCE:CHARA:수동 = 200 + 100 * ABL:순종
+	SOURCE:CHARA:정복 = 200 + 100 * ABL:새드끼
+	
+	;수렵물をみる
+	IF 수렵물
+		SELECTCASE 수렵물
+			CASE 20, 21, 22, 25
+				TIMES SOURCE:CHARA:환락 , 1.00
+				TIMES SOURCE:CHARA:수동 , 1.00
+				TIMES SOURCE:CHARA:정복 , 1.00
+				SOURCE:CHARA:달성 = 80
+			CASE 1 TO 5
+				TIMES SOURCE:CHARA:환락 , 1.10
+				TIMES SOURCE:CHARA:수동 , 1.10
+				TIMES SOURCE:CHARA:정복 , 1.10
+				SOURCE:CHARA:달성 = 115
+			CASE 6 TO 12, 14, 18
+				TIMES SOURCE:CHARA:환락 , 1.25
+				TIMES SOURCE:CHARA:수동 , 1.25
+				TIMES SOURCE:CHARA:정복 , 1.15
+				SOURCE:CHARA:달성 = 125
+			CASE 13
+				TIMES SOURCE:CHARA:환락 , 1.50
+				TIMES SOURCE:CHARA:수동 , 1.50
+				TIMES SOURCE:CHARA:정복 , 1.25
+				SOURCE:CHARA:달성 = 150
+			CASE 15 TO 17
+				TIMES SOURCE:CHARA:환락 , 1.75
+				TIMES SOURCE:CHARA:수동 , 1.75
+				TIMES SOURCE:CHARA:정복 , 1.50
+				SOURCE:CHARA:달성 = 200
+			CASE 19
+				TIMES SOURCE:CHARA:환락 , 2.00
+				TIMES SOURCE:CHARA:수동 , 2.00
+				TIMES SOURCE:CHARA:정복 , 1.75
+				SOURCE:CHARA:달성 = 300
+			;デスワーム。달성感はあるが、食べるのこれ？
+			CASE 23
+				TIMES SOURCE:CHARA:환락 , 0.70
+				TIMES SOURCE:CHARA:수동 , 0.70
+				TIMES SOURCE:CHARA:정복 , 0.70
+				SOURCE:CHARA:달성 = 300
+			;ツチノコ、マタンゴなどユニーク系統
+			CASEELSE
+				TIMES SOURCE:CHARA:환락 , 2.25
+				TIMES SOURCE:CHARA:수동 , 2.25
+				TIMES SOURCE:CHARA:정복 , 2.00
+				SOURCE:CHARA:달성 = 350
+		ENDSELECT
+	;罠が壊れていた
+	ELSEIF TFLAG:193 == -1
+		TIMES SOURCE:CHARA:환락 , 0.50
+		TIMES SOURCE:CHARA:수동 , 0.50
+		TIMES SOURCE:CHARA:정복 , 0.50
+	;罠をしかけた
+	ELSEIF TP_TO_PLACE()
+		SOURCE:CHARA:달성 = 70
+	ENDIF
+	;수렵물のキャラに応じた固有反応（上書き）
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行可能判定
+;-------------------------------------------------
+;罠を仕掛ける
+@COM_ABLE448
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(448)
+	RETURN RESULT
+SIF CFLAG:우후후
+	RETURN 0
+;罠猟可能な場所or昆虫採集可能な場所でのみ
+SIF !HUNTING_SPOT(CFLAG:MASTER:현재위치) && !MUSHITORI_SPOT(CFLAG:MASTER:현재위치)
+	RETURN 0
+IF MUSHITORI_SPOT(CFLAG:MASTER:현재위치) && !HUNTING_SPOT(CFLAG:MASTER:현재위치)
+	;虫トラップは昆虫採集セットがないとダメ
+	SIF !ITEM:곤충채집세트
+		RETURN 0
+	;虫トラップを仕掛けてたら仕掛けた場所でしかダメ
+	SIF MUSHI_TRAP && CFLAG:MASTER:현재위치 != GET_MUSHIDATA(MUSHI_TRAP, "場所")
+		RETURN 0
+ENDIF
+;デート中は데이트상대とだけ
+SIF FLAG:데이트상대 && TARGET != FLAG:데이트상대
+	RETURN 0
+;수면中
+SIF CFLAG:MASTER:수면
+	RETURN 0
+;체력・기력不足
+SIF BASE:MASTER:기력 < 800 || BASE:MASTER:체력 < 800
+	RETURN 0
+RETURN 1
+
+;-----------------------------------------------------------
+;현재위치から罠猟スポットを割り出す関数
+;ARG 基本はCFLAG:MASTER:현재위치
+;	 罠発動判定時はTRAP_POINT:X
+;-----------------------------------------------------------
+@HUNTING_SPOT(ARG)
+#FUNCTION
+IF !IN_HOME(ARG)
+	SELECTCASE ARG
+		CASE 50
+			RETURNF 1
+		CASE 사각의죽림
+			RETURNF 2
+		CASE 숲의입구
+			RETURNF 3
+		CASE 산록의수해
+			RETURNF 4
+		CASE 절경의언덕
+			RETURNF 5
+		CASE 환상풍혈
+			RETURNF 6
+	ENDSELECT
+ELSE
+	SELECTCASE ARG
+		CASE 25;鎮守の森
+			RETURNF 1
+		CASE 433;斜角の竹林
+			RETURNF 2
+		CASE 507 ;キノコ群生地
+			RETURNF 3
+		CASE 702;山道・沢へ続く道
+			RETURNF 4
+		CASE 805;山頂
+			RETURNF 5
+		CASE 948;縦穴の底
+			RETURNF 6
+	ENDSELECT
+ENDIF
+RETURNF 0
+
+;-----------------------------------------------------------
+;土地番号からスポット名を当てはめる関数
+;ARG 基本はTRAP_POINT:X
+;-----------------------------------------------------------
+@猟場名(ARG)
+#FUNCTIONS
+IF !IN_HOME(ARG)
+	SELECTCASE ARG
+		CASE 50
+			LOCALS = 博麗神社の【妖精の大樹】周辺
+		CASE 사각의죽림
+			LOCALS = 永遠亭の【斜角の竹林】周辺
+		CASE 숲의입구
+			LOCALS = 魔法の森の【森の入り口】周辺
+		CASE 산록의수해
+			LOCALS = 妖怪の山・山麓の【麓の樹海】周辺
+		CASE 절경의언덕
+			LOCALS = 妖怪の山・山頂の【絶景の丘】周辺
+		CASE 환상풍혈
+			LOCALS = 地底の【幻想風穴】周辺
+		CASEELSE
+			LOCALS = エラーサブ
+	ENDSELECT
+ELSE
+	SELECTCASE ARG
+		CASE 25;鎮守の森
+			LOCALS = 拠点の【鎮守の森】周辺
+		CASE 433;斜角の竹林
+			LOCALS = 拠点の【斜角の竹林】周辺
+		CASE 507 ;キノコ群生地
+			LOCALS = 拠点の【キノコ群生地】周辺
+		CASE 702;山道・沢へ続く道
+			LOCALS = 拠点の【山道・沢へ続く道】周辺
+		CASE 805;山頂
+			LOCALS = 拠点の【山頂】周辺
+		CASE 948;縦穴の底
+			LOCALS = 拠点の【縦穴の底】周辺
+		CASEELSE
+			LOCALS = エラーメイン
+	ENDSELECT
+ENDIF
+RETURNF LOCALS
+;-----------------------------------------------------------
+;罠猟スポットに生息する獣を割り出す関数
+;ARG:0 HUNTING_SPOT
+;ARG:1 罠アイテム番号 132小 133中 134大
+;-----------------------------------------------------------
+@CRITTER_SPECIES(HUNTING_SPOT, 덫번호)
+#DIM C_ID
+#DIM HUNTING_SPOT
+#DIM 덫번호
+#DIM 계절
+
+;계절異変に関する補正
+계절 = DAY:2
+SIF GatheringSeason
+	계절 = GatheringSeason
+
+$LOOP
+
+C_ID = 1 + RAND:28
+;変数を読み込み
+CALL CRITTER_DATA(C_ID)
+;レアな生物は１／２で再抽選に
+SIF GROUPMATCH(C_ID, 23, 24, 26, 27, 28) && RAND:2
+	GOTO LOOP
+;地底以外で冬眠しているものは弾く
+SIF 계절 == 4 && GROUPMATCH(C_ID, 5, 8, 19, 20, 21) && HUNTING_SPOT != 6
+	GOTO LOOP
+;罠に応じて捕獲できる수렵물のレンジを変える  小…基本の肉の量が3以下  中…肉の量が2～7  大…肉の量が3以上
+SELECTCASE 덫번호
+	CASE 132
+		SIF CritterMeat_Value > 3
+			GOTO LOOP
+	CASE 133
+		SIF CritterMeat_Value > 8 || CritterMeat_Value == 1
+			GOTO LOOP
+	CASE 134
+		SIF CritterMeat_Value < 4
+			GOTO LOOP
+ENDSELECT
+SELECTCASE HUNTING_SPOT
+	CASE 1;鎮守の森、妖精の大樹…普通の山の獣たち ユニークはツチノコ、ヤベオオツノジカ
+		SIF !GROUPMATCH(C_ID, 14, 18, 19, 21, 23, 25, 26, 28)
+			RETURN C_ID
+	CASE 2;斜角の竹林…ノウサギ祭り。大型獣は少ない ユニークはツチノコ
+		SIF RAND:3 == 0
+			RETURN 13
+		SIF !GROUPMATCH(C_ID, 5, 14, 16, 17, 19, 21, 23, 25, 26, 27, 28)
+			RETURN C_ID
+	CASE 3;魔法の森…多様、ゲテモノも少々 ユニークはマタンゴ
+		SIF !GROUPMATCH(C_ID, 18, 23, 24, 25, 27, 28)
+			RETURN C_ID
+	CASE 4;麓の樹海…多様、ユニークはツチノコ
+		SIF !GROUPMATCH(C_ID, 11, 12, 21, 23, 25, 26, 27, 28)
+			RETURN C_ID
+	CASE 5;絶景の丘…小型獣が少し減る、ユニークはハナイズミモリウシ
+		SIF !GROUPMATCH(C_ID, 6, 7, 9, 11, 12, 14, 20, 21, 22, 23, 24, 25, 26, 27)
+			RETURN C_ID
+	CASE 6;幻想風穴、縦穴の底…ゲテモノが取れる ユニークはデスワーム
+		SIF GROUPMATCH(C_ID, 1, 20, 21, 22, 23, 25)
+			RETURN C_ID
+	CASEELSE
+		;エラーによる無限ループ除け
+		RETURN C_ID
+ENDSELECT
+;獣関連の変数をリセット
+CALL CRITTER_V_RESET
+GOTO LOOP
+
+;-----------------------------------------------------------
+;フィールドサインのテキストを返す関数
+;계절、罠猟スポットを参照しテキストを変える
+;-----------------------------------------------------------
+@FIELDSIGN(Serch)
+#DIM Serch
+#DIM 계절
+
+;계절異変に関する補正
+계절 = DAY:2
+SIF GatheringSeason
+	계절 = GatheringSeason
+
+
+SELECTCASE Serch
+	CASE 0 TO 19
+		SETCOLOR 0x00D787
+		;地底だけ特殊
+		IF HUNTING_SPOT(CFLAG:MASTER:현재위치) == 6
+			PRINTDATAL
+				DATAFORM 特に手がかりとなるものは見当たらない…
+				DATAFORM なんの変哲もない踏み跡が続いている…
+				DATAFORM 岩肌から染み出した水が細い流れを作っている…
+				DATAFORM 乾ききったフンが点々と転がっている…
+				DATAFORM 僅かな土の上には、コケが生えている
+				DATAFORM 生き物の気配のない岩石の壁を、ゆっくりと超えていく…
+				DATAFORM 光の少ない世界は、情景にあまり変わるところがない…
+			ENDDATA
+		ELSE
+			PRINTDATAL
+				DATAFORM 特に手がかりとなるものは見当たらない…
+				DATAFORM なんの変哲もない小道が続いている…
+				DATAFORM \@ 계절 == 4 ? 綺麗な雪原が続いている… # 歩きやすい草原が続いている… \@
+				DATAFORM \@ 계절 == 4 ? 葉を落とした枝の隙間から空が見える… # 枝葉に遮られて景色が見えない… \@
+				DATAFORM 小さな沢が流れている…
+				DATAFORM \@ 계절 == 4 ? 雪に包まれた林が続いている… # 苔むした森が続いている… \@
+				DATAFORM 乾ききったフンが点々と転がっている…
+				DATAFORM 崩れた落ち葉に覆い隠されたような足跡がある…
+				DATAFORM \@ 계절 == 4 ? 雪の上に不明瞭な足跡のような凹みが見える… # 枝葉に埋もれた足跡らしきものを見つけた… \@
+				DATAFORM \@ 계절 == 4 ? 滑らかな雪面に不自然な凹みが見つかった… # 地面をほじくり返した跡があるが、もう乾いている… \@
+				DATAFORM 木に擦りつけられた毛のようなものがかすかに目についた…
+				DATAFORM \@ 계절 == 3 ? かじられたキノコが四散している… # 枝葉をかじられ、枯れきった低木がある… \@
+				DATAFORM \@ 계절 == 4 ? 冷たい風が吹きつけ、肌に叩きつけてくる… # 樹間を渡る風が、梢を揺らして駆け抜けていく… \@
+				DATAFORM 霧が出始めたな…道を見失いそうだ…
+			ENDDATA
+		ENDIF
+	CASE 20 TO 39
+		SETCOLOR 0x5EE555
+		IF HUNTING_SPOT(CFLAG:MASTER:현재위치) == 6
+			PRINTDATAL
+				DATAFORM フンが落ちている…だいぶ乾いて形が崩れている
+				DATAFORM 岩石の上に、乾ききった土の足跡がついている…
+				DATAFORM わずかな水が集い、水たまりのようなものができている…
+				DATAFORM 岩の上に、何かがへばりついて乾いたあとのようなものがある
+				DATAFORM わずかにコケを食んだあとがある
+				DATAFORM 岩に擦りつけられた毛のようなものがかすかに目についた…
+				DATAFORM かじられたキノコ？が四散している…
+				DATAFORM 大きな岩盤が行く手を遮っている…上るのは一苦労だ
+			ENDDATA
+		ELSE
+			PRINTDATAL
+				DATAFORM フンが落ちている…だいぶ乾いて形が崩れている
+				DATAFORM 周囲と比べて、草木が薄い踏み跡がとぎれとぎれに続いている…
+				DATAFORM \@ 계절 == 4 ? 追うもの追われるもの、二重の足跡が雪上に残っている… # 砕けた落ち葉が入った足跡を見つけた… \@
+				DATAFORM \@ 계절 == 4 ? 枝の皮を食み、剥がした跡が点々と見られる… # 藪の中に泥場の跡がある…もう乾いているようだ \@
+				DATAFORM \@ 계절 == 4 ? 風化しかかった、雪上の足跡を見つけた… # だいぶ輪郭の崩れた足跡を見つけた… \@
+				DATAFORM \@ 계절 == 4 ? 深雪にはまったのか、雪がへこんだ場所がある # 点々と、地面をほじくり返した跡がある… \@
+				DATAFORM \@ 계절 == 3 ? かじられたキノコがあるが、だいぶ傷んでいるようだ… # 低木の葉を食み散らした跡がある。噛み跡は枯れ始めている… \@
+				DATAFORM 石についたコケが、点々と剥げて枯れ落ちている…
+				DATAFORM わずかな足掛かりを頼りに、人が通るには厳しい斜面を上り詰めていく…
+				DATAFORM 木々の枝が折れて固まっているところがある…人為的なものだろうか、それとも？
+				DATAFORM 下草に隠された凹みに足を取られて、危うく転倒しかけた…
+			ENDDATA
+		ENDIF
+	CASE 40 TO 59
+		SETCOLOR 0xA3F030
+		IF HUNTING_SPOT(CFLAG:MASTER:현재위치) == 6
+			PRINTDATAL
+				DATAFORM フンが落ちている…少しだけ乾き始めているが、形は保っている
+				DATAFORM 岩石の上に、土の足跡がべたべたとついている…行き交いがあるようだ
+				DATAFORM 清らかな湧水がある…これはありがたい
+				DATAFORM 岩の上に、何か粘性のあるものが動いたあとがある
+				DATAFORM コケが剥がされたあとがある…まだ枯れてそんなに経っていない感じだ
+				DATAFORM 岩と岩の隙間に、穴倉のような空間が広がっている…
+				DATAFORM かじられたキノコがあるが、だいぶ傷んでいるようだ…
+				DATAFORM 下から見ると、そり立つように見える岩々が登攀を困難にしている…
+			ENDDATA
+		ELSE
+			PRINTDATAL
+				DATAFORM フンが落ちている…少しだけ乾き始めているが、形は保っている
+				DATAFORM 周囲と比べて、少し落ち葉や草木がはけた踏み跡が続いている…
+				DATAFORM \@ 계절 == 4 ? 雪上のかすかな足跡が、稜線へ向けて続いている… # 水がたまった足跡を見つけた… \@
+				DATAFORM \@ 계절 == 4 ? わずかに残った枝葉をかじった跡が見える… # 泥で濁った水たまりが残っている…泥場として使われていたようだ \@
+				DATAFORM \@ 계절 == 4 ? 雪の上に寝そべったような跡が残っている… # 草木を踏みつけて曲げた跡が残っている… \@
+				DATAFORM \@ 계절 == 4 ? 二体の獣がはしゃいだような、雪の荒れた面がある # 地面をほじくり返した跡を、たくさんの蟻が大慌てで駆けずり回っている… \@
+				DATAFORM 石についたコケが削げた跡がある…剥がれたものが枯れかかっている
+				DATAFORM 獣の影を認めた岩場へ登り、眼下の光景を見下ろしてみる…こわい
+				DATAFORM 何者かの遠吠えが、山野に木霊した…
+			ENDDATA
+		ENDIF
+	CASE 60 TO 79
+		SETCOLOR 0xE7FB0C
+		IF HUNTING_SPOT(CFLAG:MASTER:현재위치) == 6
+			PRINTDATAL
+				DATAFORM フンが落ちている…割と新しいもののようだ
+				DATAFORM 岩石の上に、土の足跡が無数についている
+				DATAFORM 岩盤に白っぽいものが帯状に広がっている…岩塩のようだ
+				DATAFORM 岩の上に、何かがのたくったような粘液が残っている
+				DATAFORM コケの園が不自然にかじり取られている…まだ新しい
+				DATAFORM どこからか、かつん、と石が跳ねてぶつかる音がした…
+				DATAFORM 虫食い状にかじられたキノコが、原形をとどめたまま折れ残っている…
+				DATAFORM だいぶ地上に近いのか、光がわずかに差し込んでいる…
+				DATAFORM きぃきぃ、と黒板を引っ掻いたような耳障りな音が頭上から響いてくる…
+			ENDDATA
+		ELSE
+			PRINTDATAL
+				DATAFORM フンが落ちている…割と新しいもののようだ
+				DATAFORM ガサリと枝葉の擦れた音が聞こえた気がする…
+				DATAFORM \@ 계절 == 4 ? 雪上の足跡が、木立に向かって続いている…何度か往復したようだ # 足跡が藪の中に続いていくのがよく見える… \@
+				DATAFORM \@ 계절 == 4 ? 吹き付ける風が急に収まった…地形柄、うまい具合に風よけになっているようだ # 藪の中に泥場ができている…現役のものだろう \@
+				DATAFORM \@ 계절 == 4 ? くっきりとした輪郭の、雪上の足跡を見つけた… # わりとはっきりとした足跡を見つけた… \@
+				DATAFORM \@ 계절 == 4 ? 雪を押しのけて通ったような、新しめの雪面の凹みが見つかった… # 地面をほじくり返した真新しい跡がそこら中に見られる… \@
+				DATAFORM 石についたコケが削げた跡がある……まだ緑っぽいので、わりと新しめのもののようだ
+				DATAFORM なんだか視線を感じる気がして振り返るも、\@ 계절 == 4 ? 雪の反射光が目に痛いだけだった… # 覆いかぶさる鬱蒼とした梢と葉が見えるだけだった… \@
+				DATAFORM 良く通る細く鋭い鳴き声が、交互に呼び交わされるように響いている…
+				DATAFORM 見上げても振り返っても山と木々…人跡未踏にも思える原生林を進んでいく
+				DATAFORM 天を衝くような大樹の脇へ回りこんだ……幹に穿たれたうろは、人ひとりをゆうに呑み込むほど大きい
+				DATAFORM 音を立てるでもなく、密やかな一条の滝が滝つぼに飲み込まれている…
+			ENDDATA
+		ENDIF
+	CASEELSE
+		SETCOLOR C_YELLOW
+		IF HUNTING_SPOT(CFLAG:MASTER:현재위치) == 6
+			PRINTDATAL
+				DATAFORM フンが固まって落ちている…かなり最近のもののようだ
+				DATAFORM 岩石の上に、泥の足跡がくっきり残っている…まだ新しいようだ
+				DATAFORM 僅かな土の上に、くっきりと足跡が残っている…
+				DATAFORM 岩の上に、べったりと粘液がへばりついている…コケか何かを齧ったあとらしい
+				DATAFORM 壁を伝って、木の根と思われるものがびっしりと降りてきている空間に出た…なかなか気色悪い
+				DATAFORM がら、と岩石が頭上から落ちてきた…危ない、危ない
+				DATAFORM キノコが食い散らかされたあとが残っている…まだ新しい
+				DATAFORM 岩石の裂け目から、地表の光が挿し込む不思議な空間に出た…わずかだか緑が息吹いている
+				DATAFORM 地鳴りのような、低く長い唸りが聴こえた…気がした
+				DATAFORM ぎしぎし、と何かが擦れるような音が岩の隙間のそこかしこから聞こえる
+			ENDDATA
+		ELSE
+			PRINTDATAL
+				DATAFORM フンが固まって落ちている…かなり最近のもののようだ
+				DATAFORM 樹林のただなかに、はっきりとした獣道が見て取れる
+				DATAFORM ガサガサ、とそこらじゅうから枝葉の擦れた音が聞こえてくる…
+				DATAFORM ツタや草が敷き詰められたような痕跡がある…
+				DATAFORM 地面がサークル状にならされた跡がある…
+				DATAFORM \@ 계절 == 4 ? 群れが動いたものか、幾重ににも重なる雪上の足跡が見られる… # くっきりとした輪郭の足跡が、幾重にも見つかった… \@
+				DATAFORM \@ 계절 == 4 ? わりと雪が薄く、通りやすい場所に足跡が集中している… # 藪の中に泥場がある…今さっきまで使われていたような泥の撥ね方だ \@
+				DATAFORM \@ 계절 == 4 ? 枝の皮を剥いだ後が見られる…まだ新しい # 緑の枝葉がかじりとられた跡がある…まだ新しい \@
+				DATAFORM \@ 계절 == 4 ? 雪がほじくり返され、地面が露出している… # 地面をほじくり返した跡がある…まだ湿っている。掘られたばかりのようだ \@
+				DATAFORM 石についていたコケが、剥がれて落ちている…まだ緑色をしている、最近はがれたもののようだ
+				DATAFORM \@ 계절 == 4 ? 窪地のようなところで、雪が吹き黙っている…妙に穏やかだ # 鬱蒼とした森林の只中に、妙に開けた、穏やかな芝地が広がっている… \@
+				DATAFORM 森閑とした山中の気配に中てられたものか、ぞわり、と肌が粟立った…
+				DATAFORM 何者かがひそひそ話をしているような「声」が聞こえる…こんな深山で？　まさか…
+				DATAFORM 雲の切れ間から、谷の底から、風の音とは明確に異なる、呻き声のような「呼び声」が聴こえる…
+			ENDDATA
+		ENDIF
+ENDSELECT
+RESETCOLOR
+PRINTL 
+
+;-----------------------------------------------------------
+;罠紹介のフレーバーテキストを流す
+;紹介は６行で固定
+;-----------------------------------------------------------
+@TRAP_FLAVORTEXT(결과)
+#DIM 결과
+
+SELECTCASE 결과
+	CASE 132
+		PRINTDATAL
+			DATALIST
+				DATAFORM 　　┌───────────────────────┐
+				DATAFORM 　　│■箱罠　　　　　　　　　　　　　　　　　　　　│
+				DATAFORM 　　│　箱の中に수렵물を誘い込み、入り込むと　　　　　│
+				DATAFORM 　　│　侵入口の扉が閉まって수렵물を閉じ込める　　　　│
+				DATAFORM 　　│　小型で量を携帯しやすく、仕掛けやすい　　　　│
+				DATAFORM 　　└───────────────────────┘
+			ENDLIST
+		ENDDATA
+	CASE 133
+		PRINTDATAL
+			DATALIST
+				DATAFORM 　　┌───────────────────────┐
+				DATAFORM 　　│■くくり罠　　　　　　　　　　　　　　　　　　│
+				DATAFORM 　　│　ワイヤーの一端を樹木などに括り付ける　　　　│
+				DATAFORM 　　│　もう一端には輪がしつらえられており、　　　　│
+				DATAFORM 　　│　輪に수렵물の足が入ると締まって拘束される　　　│
+				DATAFORM 　　└───────────────────────┘
+			ENDLIST
+			DATALIST
+				DATAFORM 　　┌───────────────────────┐
+				DATAFORM 　　│■戸板落とし　　　　　　　　　　　　　　　　　│
+				DATAFORM 　　│　戸板の一方を地面に、一方に支柱を建て浮かし　│
+				DATAFORM 　　│　戸板の下に餌などを撒いて수렵물を誘引する　　　│
+				DATAFORM 　　│　餌に誘われた수렵물を、戸板で潰し捕獲する　　　│
+				DATAFORM 　　└───────────────────────┘
+			ENDLIST
+		ENDDATA
+	CASE 134
+		PRINTDATAL
+			DATALIST
+				DATAFORM 　　┌───────────────────────┐
+				DATAFORM 　　│■トラバサミ　　　　　　　　　　　　　　　　　│
+				DATAFORM 　　│　罠の中央の板に脚が乗ると、金属板が　　　　　│
+				DATAFORM 　　│　跳ね上がり脚を強く挟み込む罠　　　　　　　　│
+				DATAFORM 　　│　現代日本では使用が禁止されている　　　　　　│
+				DATAFORM 　　└───────────────────────┘
+			ENDLIST
+			DATALIST
+				DATAFORM 　　┌───────────────────────┐
+				DATAFORM 　　│■アマッポ　　　　　　　　　　　　　　　　　　│
+				DATAFORM 　　│　仕掛けた石弓の引き金に糸をかけ、近くの　　　│
+				DATAFORM 　　│　樹木等にその糸を張っておく　通りかかった　　│
+				DATAFORM 　　│　수렵물が張り糸に触れると、自動で矢を放つ　　　│
+				DATAFORM 　　└───────────────────────┘
+			ENDLIST
+		ENDDATA
+ENDSELECT
+CALL DQPRINT("…………", 1)
+CALL DQPRINT("………", 1)
+CALL DQPRINT("……", 1)
+
+;-----------------------------------------------------------
+;かかった수렵물のステータス補正をする描写関数
+;同一日では(행운보정が変わらない限り)何度参照しても同じ数を返す
+;ARG TRAP_CAPTURE:Xから引く　수렵물のID
+;RETURN 0 補正無し  1 少し太った  2 まるまる太った 3 旬で脂がのっている
+;-----------------------------------------------------------
+@SPOIL_ENHANCEMENT(ARG)
+#FUNCTION
+#DIM 계절
+
+;계절異変に関する補正
+계절 = DAY:2
+SIF GatheringSeason
+	계절 = GatheringSeason
+
+;旬のものを先に判定
+SELECTCASE ARG
+	CASE 16, 17, 19, 27;シカ、カモシカ、ツキノワグマ、ヤベオオツノジカは秋
+		SIF 계절 == 3
+			RETURNF 3
+	CASE 15;イノシシは冬
+		SIF 계절 == 4
+			RETURNF 3
+ENDSELECT
+
+RANDOMIZE DAY:0
+SELECTCASE MAX(RAND:100 + (TFLAG:행운보정 * 10), 0)
+	CASE 0 TO 40
+		RETURNF 0
+	CASE 41 TO 80
+		RETURNF 1
+	CASEELSE
+		RETURNF 2
+ENDSELECT
+
+;-----------------------------------------------------------
+;かかった수렵물名を補正テキストとともに描写
+;上の関数を利用
+;STYLE =  0,L  = 1,W =  =2, 改行無し
+;FONT = 0,なし = 1,太字
+;-----------------------------------------------------------
+@SPOIL_TEXT(수렵물, STYLE = 0, FONT = 0)
+#DIM 수렵물
+#DIM STYLE
+#DIM FONT
+
+SELECTCASE SPOIL_ENHANCEMENT(TRAP_CAPTURE:TP_TO_PLACE())
+	CASE 0
+		LOCALS = %CritterName%
+	CASE 1
+		LOCALS = 大きな%CritterName%
+	CASE 2
+		LOCALS = まるまる太った%CritterName%
+	CASE 3
+		LOCALS = よく肥えている%CritterName%
+	CASEELSE
+		LOCALS = %CritterName%
+ENDSELECT
+
+SIF FONT
+	FONTSTYLE 1
+
+SELECTCASE STYLE
+	CASE 1
+		SETCOLOR C_YELLOW
+		PRINTFORMW %LOCALS%
+	CASE 2
+		PRINTFORM  %LOCALS%
+	CASEELSE
+		SETCOLOR C_YELLOW
+		PRINTFORML %LOCALS%
+ENDSELECT
+FONTREGULAR
+RESETCOLOR
+
+;-----------------------------------------------------------
+;かかった수렵물と同行キャラから、強制リリースの判定をする関数
+;RETURNF 1　で強制リリース
+;-----------------------------------------------------------
+@SPOIL_RELEASE(CHARA, 수렵물)
+#FUNCTION
+#DIM CHARA
+#DIM 수렵물
+
+SELECTCASE CHARA
+	CASE [[레밀리아]], [[플랑]]
+		SIF 수렵물 == 21;オオコウモリ
+			RETURNF 1
+	CASE [[첸]], [[오린]], [[쇼]], [[미케]]
+		SIF 수렵물 == 12;ノネコ
+			RETURNF 1
+	CASE [[란]], [[츠카사]]
+		SIF 수렵물 == 10;キツネ
+			RETURNF 1
+	CASE [[리글]], [[야마메]], [[라바]], [[모모요]]
+		SIF 수렵물 == 23;デスワーム
+			RETURNF 1
+	CASE [[나즈린]]
+		SIF 수렵물 == 1 || 수렵물 == 5 || 수렵물 == 14;ネズミ、リス、ヌートリア
+			RETURNF 1
+	CASE [[우동게]], [[테위]], [[레이센]], [[세이란]], [[링고]]
+		SIF 수렵물 == 13;ノウサギ
+			RETURNF 1
+	CASE [[카게로]], [[모미지]]
+		SIF 수렵물 == 11;ノイヌ
+			RETURNF 1
+	CASE [[마미조]]
+		SIF 수렵물 == 7;タヌキ
+			RETURNF 1
+	CASE [[우루미]]
+		SIF 수렵물 == 28;ハナイズミモリウシ
+			RETURNF 1
+ENDSELECT
+RETURNF 0
+
+;-----------------------------------------------------------
+;現地点がTRAP_POINT:X　のどこかを返す関数
+;-----------------------------------------------------------
+@TP_TO_PLACE()
+#FUNCTION
+
+FOR LOCAL, 1, 4
+	SIF CFLAG:MASTER:현재위치 == TRAP_POINT:LOCAL
+		RETURNF LOCAL
+NEXT
+RETURNF 0
+
+;-----------------------------------------------------------
+;罠関連の変数の全リセット
+;-----------------------------------------------------------
+@TRAP_V_ALLRESET
+
+VARSET TRAP_SETUPDATA
+VARSET TRAP_TYPE
+VARSET TRAP_ALERTNESS
+VARSET TRAP_DURABILITY
+VARSET TRAP_DENSITY
+VARSET TRAP_CAPTURE
+VARSET TRAP_CAPTUREDATA
+VARSET TRAP_POINT
+
+;-----------------------------------------------------------
+;指定した罠関連の変数の全リセット
+;ARG TP_TO_PLACE()
+;-----------------------------------------------------------
+@TRAP_V_RESET(ARG)
+
+TRAP_SETUPDATA:(ARG) = 0
+TRAP_TYPE:(ARG) = 0
+TRAP_ALERTNESS:(ARG) = 0
+TRAP_DURABILITY:(ARG) = 0
+TRAP_DENSITY:(ARG) = 0
+TRAP_CAPTURE:(ARG) = 0
+TRAP_CAPTUREDATA:(ARG) = 0
+TRAP_POINT:(ARG) = 0
+
+;-----------------------------------------------------------
+;獣関連の変数のリセット
+;-----------------------------------------------------------
+@CRITTER_V_RESET
+
+VARSET CritterName
+VARSET CritterMeat
+VARSET CritterMeat_Value
+VARSET CritterEffort
+VARSET CritterIntro
+
+;-----------------------------------------------------------
+;引っ越し時の罠の設置ポイントの張替えを行う関数
+;-----------------------------------------------------------
+@TRAP_MOVING
+#DIM 트랩번호
+
+FOR 트랩번호, 1, 4
+	;メイン→サブマップへの張替え
+	SELECTCASE TRAP_POINT:트랩번호
+		CASE 25
+			SIF MAIN_MAP != 0
+				TRAP_POINT:트랩번호 = 50
+		CASE 433
+			SIF MAIN_MAP != 4
+				TRAP_POINT:트랩번호 = 430
+		CASE 507
+			SIF MAIN_MAP != 5
+				TRAP_POINT:트랩번호 = 510
+		CASE 702
+			SIF MAIN_MAP != 7
+				TRAP_POINT:트랩번호 = 710
+		CASE 805
+			SIF MAIN_MAP != 8
+				TRAP_POINT:트랩번호 = 820
+		CASE 948
+			SIF MAIN_MAP != 9
+				TRAP_POINT:트랩번호 = 910
+	;サブ→メインマップへの張替え
+		CASE 50
+			SIF MAIN_MAP == 0
+				TRAP_POINT:트랩번호 = 25
+		CASE 430
+			SIF MAIN_MAP == 4
+				TRAP_POINT:트랩번호 = 433
+		CASE 510
+			SIF MAIN_MAP == 5
+				TRAP_POINT:트랩번호 = 507
+		CASE 710
+			SIF MAIN_MAP == 7
+				TRAP_POINT:트랩번호 = 702
+		CASE 820
+			SIF MAIN_MAP == 8
+				TRAP_POINT:트랩번호 = 805
+		CASE 910
+			SIF MAIN_MAP == 9
+				TRAP_POINT:트랩번호 = 948
+	ENDSELECT
+NEXT
+;-----------------------------------------------------------
+;罠の日数経過による変化について変数に記入を行う
+;-----------------------------------------------------------
+@TRAP_PROGRESS
+#DIM 트랩번호
+#DIM 기대치
+#DIM 서식밀도
+
+FOR 트랩번호, 1, 4
+	IF TRAP_POINT:트랩번호
+		;未捕獲の場合
+		IF TRAP_CAPTURE:트랩번호 == 0 && TRAP_DENSITY:트랩번호 >= 1
+			;罠発動判定 서식밀도の回数繰り返し
+			FOR LOCAL:1, 1, TRAP_DENSITY:트랩번호 + 1
+				;기대치 1～…100 - 罠警戒度 + 행운보정*10(-50～+50) + 오늘의행운/20（0～50）+ RAND:(罠設置からの経過日数 * 10)
+				기대치 = MAX(100 - TRAP_ALERTNESS:트랩번호 + (TFLAG:행운보정 * 10) + (CFLAG:MASTER:오늘의행운 / 20) + RAND:((1 + DAY:0 - TRAP_SETUPDATA:트랩번호) * 8), 1)
+				DEBUGPRINTFORML 罠{트랩번호}　수렵물{LOCAL:1}　기대치…{기대치}
+				IF RAND:기대치 > 50
+					CALL CRITTER_SPECIES(HUNTING_SPOT(TRAP_POINT:트랩번호), TRAP_TYPE:트랩번호)
+					TRAP_CAPTURE:트랩번호 = RESULT
+					TRAP_CAPTUREDATA:트랩번호 = DAY:0
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		;時間経過に伴う罠の警戒度の変動　一日あたり－２
+		IF TRAP_ALERTNESS:트랩번호
+			TRAP_ALERTNESS:트랩번호 = MAX(TRAP_ALERTNESS:트랩번호 - 2, 0)
+			
+			;天候によってさらに低下
+			SIF !GROUPMATCH(TIME:5, 0, 1, 2, 3) && TRAP_ALERTNESS:트랩번호 > 0
+				TRAP_ALERTNESS:트랩번호 --
+		ENDIF
+		;時間経過に伴う罠の耐久度の変動
+		IF TRAP_DURABILITY:트랩번호 > 0
+			TRAP_DURABILITY:트랩번호 --
+			;悪天候でさらに低下
+			SIF GROUPMATCH(TIME:5, 5, 9) && TRAP_DURABILITY:트랩번호 > 0
+				TRAP_DURABILITY:트랩번호 --
+			;수렵물がかかっているとさらに低下
+			IF TRAP_CAPTURE:트랩번호 && TRAP_DURABILITY:트랩번호 > 0
+				CALL CRITTER_DATA(TRAP_CAPTURE:트랩번호)
+				TRAP_DURABILITY:트랩번호 --
+				;大型の수렵물がかかっているとさらに低下
+				SIF CritterMeat_Value >= 5 && TRAP_DURABILITY:트랩번호 > 0
+					TRAP_DURABILITY:트랩번호 --
+				CALL CRITTER_V_RESET
+			ENDIF
+		ENDIF
+		;獣の서식밀도の変動
+		TRAP_DENSITY:트랩번호 = MAX(TRAP_DENSITY:트랩번호 + RAND:4 - RAND:3, 0)
+		
+		DEBUGPRINTFORML 　罠{트랩번호}：{TRAP_CAPTURE:트랩번호}
+		DEBUGPRINTFORML 　　 　警戒度：{TRAP_ALERTNESS:트랩번호}
+		DEBUGPRINTFORML 　　 　耐久度：{TRAP_DURABILITY:트랩번호}
+		DEBUGPRINTFORML 　　 서식밀도：{TRAP_DENSITY:트랩번호}
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;虫トラップ
+;-------------------------------------------------
+@MUSHI_TRAP
+;虫トラップはMASTERの一人作業なのでデート経験やTARGETへのソースは無い
+;虫トラップの様子を見る
+IF GROUPMATCH(CFLAG:MASTER:현재위치, GET_MUSHIDATA(MUSHI_TRAP, "場所"))
+	IF !GET_MUSHIDATA(MUSHI_TRAP, "ムシ番号")
+		PRINTFORML 仕掛けたエサ：%ITEMNAME:(GET_MUSHIDATA(MUSHI_TRAP, "エサ番号"))%
+		PRINTFORML 　　エサの質：%"☆" * MUSHI_ESA_DATA(GET_MUSHIDATA(MUSHI_TRAP, "エサ番号"))%
+		PRINTFORML 　エサタイプ：%RESULTS:10%
+		DRAWLINE
+		PRINTFORML まだムシはかかっていないようだ
+		PRINTFORML 　[ 0]そのままにする
+		PRINTFORML 　[ 1]トラップを破棄する
+		INPUT
+		IF RESULT
+			MUSHI_TRAP = 0
+			TFLAG:193 = 11
+			IF FLAG:시간정지
+				BASE:MASTER:TSP -= 20
+			ELSE
+				TIME += 5
+			ENDIF
+		ELSE
+			RETURN -1
+		ENDIF
+	ELSE
+		PRINTL 
+		PRINTFORMW ………！
+		PRINTFORMW ムシがかかっていた！
+		PRINTL 
+		MUSHI_TRAP += DAY * 1000000000000 
+		CALL SHOW_MUSHI_DATA(MUSHI_TRAP)
+		DRAWLINE
+		PRINTFORML 虫トラップで%MUSHI_NAME%を捕まえた！
+		CALL MUSHI_CAPTURE(MUSHI_TRAP)
+		MUSHI_TRAP = 0
+		TFLAG:193 = 12
+		EXP:MASTER:채집경험 ++
+		IF FLAG:시간정지
+			BASE:MASTER:TSP -= 20
+		ELSE
+			TIME += 5
+		ENDIF
+	ENDIF
+;虫トラップを仕掛ける
+ELSE
+	PRINTL ◆虫トラップに使うエサを選んでください（消費します）
+	DRAWLINE
+	FOR LOCAL, 0, 800
+		SIF ITEMNAME:LOCAL == ""
+			CONTINUE
+		SIF !ITEM:LOCAL
+			CONTINUE
+		SIF MUSHI_ESA_DATA(LOCAL)
+			PRINTFORMC %ITEMNAME:LOCAL%({ITEM:LOCAL})[{LOCAL, 3}]
+	NEXT
+	PRINTL 
+	DRAWLINE
+	PRINTC やっぱりやめる[999]
+	INPUT
+	IF INRANGE(RESULT, 0, 800) && ITEM:RESULT
+		ITEM:RESULT --
+		MUSHI_TRAP = RESULT * 1000000000000 + CFLAG:MASTER:현재위치 * 100000000
+		TFLAG:193 = 10
+		IF FLAG:시간정지
+			BASE:MASTER:TSP -= 50
+		ELSE
+			DOWNBASE:MASTER:체력 = 50
+			DOWNBASE:MASTER:기력 = 50
+			TIME += 20
+		ENDIF
+	ELSE
+		RETURN -1
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;虫トラップでムシを捕まえる関数
+;@MUSHITORIを参考に
+;-------------------------------------------------
+@MUSHI_TRAP_PROGRESS
+#DIM パワー
+#DIM 初期レアリティ指定
+#DIM レアリティ指定
+#DIM ランク
+#DIM Ｇ型
+#DIM Ｘ型
+#DIM MUSHI_ID
+#DIM 捕まえたムシ
+IF MUSHI_TRAP && !GET_MUSHIDATA(MUSHI_TRAP, "ムシ番号")
+	パワー = LIMIT(5 + MUSHI_ESA_DATA(GET_MUSHIDATA(MUSHI_TRAP, "エサ番号")), 1, 10)
+	;捕獲判定
+	SIF RAND:パワー < 2
+		RETURN
+	;特定好物と好物で2回回す
+	初期レアリティ指定 = 0
+	FOR LOCAL, 1, 3
+		SIF !初期レアリティ指定
+			初期レアリティ指定 = RAND:パワー
+		レアリティ指定 = 初期レアリティ指定
+		Ｇ型 = 0
+		Ｘ型 = 0
+		MUSHI_ID = 0
+		WHILE レアリティ指定 >= 0
+			;1回目は特定好物で優先的に拾う
+			IF LOCAL == 1
+				CALL DRAW_MUSHI("虫トラップ特定好物", GET_MUSHIDATA(MUSHI_TRAP, "場所"), レアリティ指定)
+			ELSE
+				CALL DRAW_MUSHI("虫トラップ", GET_MUSHIDATA(MUSHI_TRAP, "場所"), レアリティ指定)
+			ENDIF
+			IF RESULT
+				捕まえたムシ = RESULT
+				MUSHI_CAPTURE ++
+				;ランク判定
+				ランク = MIN(RAND:(20 * MUSHI_ESA_DATA(GET_MUSHIDATA(MUSHI_TRAP, "エサ番号"))), 99)
+				SIF RAND:100 < (パワー / 2)
+					Ｇ型 = 1
+				SIF RAND:100 < (パワー / 2)
+					Ｘ型 = 1
+				;ID設定,日付は実際に捕まえた時
+				MUSHI_ID = MUSHI_CAPTURE * 1000000000000 + GET_MUSHIDATA(MUSHI_TRAP, "場所") * 100000000 + ランク * 10000 + MUSHI_RARE * 1000 + 捕まえたムシ
+				SIF Ｇ型
+					MUSHI_ID += 1000000
+				SIF Ｘ型
+					MUSHI_ID += 10000000
+				MUSHI_TRAP = MUSHI_ID
+				RETURN
+			ELSE
+				レアリティ指定 --
+			ENDIF
+		WEND
+	NEXT
+ENDIF
