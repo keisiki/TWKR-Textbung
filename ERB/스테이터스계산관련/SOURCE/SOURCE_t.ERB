@@ -4,14 +4,16 @@
 #DIM 경험증가량
 #DIM 체위보존
 #DIM V섹스보존
+#DIM A섹스보존
 #DIM PLAYER체위보존
 #DIM PLAYERV섹스보존
-
+#DIM PLAYERA섹스보존
+#DIMS ゴム 
 #DIM 중독보정
 VARSET LOCAL
 SELECTCOM = TFLAG:3
 중독보정 = 0
-
+ゴム =
 ;조교 SELECTCOM의 시간경과
 CALL TRACHECK_TIME
 
@@ -92,9 +94,10 @@ CALL CALL_COM(TARGET)
 
 체위보존 = TEQUIP:체위
 V섹스보존 = TEQUIP:V섹스
+A섹스보존 = TEQUIP:A섹스
 PLAYER체위보존 = TEQUIP:MASTER:체위
 PLAYERV섹스보존 = TEQUIP:PLAYER:V섹스
-
+PLAYERA섹스보존 = TEQUIP:PLAYER:A섹스
 TFLAG:전회커맨드결과 = RESULT
 ;RESULT가-1이라면 캔슬 판정
 SIF TFLAG:전회커맨드결과 < 0
@@ -103,7 +106,7 @@ SIF TFLAG:전회커맨드결과 < 0
 SIF !TFLAG:전회커맨드결과
 	GOTO SOURCE_SKIP
 ;구상 내에서 소스 추가 처리
-TRYCALLFORM M_KOJO_EXTRASOURCE_COM_K{TARGET}_{SELECTCOM}
+CALL KOJO_MESSAGE_SEND("EXTRASOURCE", SELECTCOM, TARGET)
 
 IF OAZUKE(TARGET)
 	PRINTFORML 미뤄짐을 당한 %타겟은% 불만스러운 듯 하다…
@@ -148,8 +151,8 @@ FOR LOCAL,0,CHARANUM
 		ENDIF
 	ENDIF
 	IF TFLAG:키스마크 && LOCAL > 0 && !TFLAG:붕대 && !FLAG:70 && !CFLAG:LOCAL:수면
-		IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치 && TFLAG:키스마크 != LOCAL
-			PRINTFORMW %조사처리(CALLNAME:LOCAL,"는")% %CALLNAME:MASTER%의 키스마크를 보고 비난했다…
+		IF CFLAG:LOCAL:현재위치 == CFLAG:MASTER:현재위치 && TFLAG:키스마크 != LOCAL && !TFLAG:거품목욕
+			PRINTFORMW %CALLNAME:LOCAL%는 %CALLNAME:MASTER%의 키스마크를 보고 비난했다…
 			IF TALENT:LOCAL:연모
 				키스마크반감 = 500
 			ELSEIF TALENT:LOCAL:사모
@@ -377,7 +380,7 @@ FOR LOCAL,0,CHARANUM
 		ENDIF
 	ENDIF
 	;-------------------------------------------------
-	;수간으로부터의 복귀 사전 처리
+	;면간으로부터의 복귀 사전 처리
 	;-------------------------------------------------
 	CALL DRUNK_RECOVER_BEFORE(TARGET)
 	;-------------------------------------------------
@@ -550,7 +553,28 @@ IF PLAYERV섹스보존 != -1 && GROUPMATCH(PLAYER체위보존, 1,2,3,4,5) && !FL
 			CALL PRINT_IMAGE_ANIMATION_후배위("後背位_挿入")
 	ENDSELECT
 ENDIF
-	
+
+IF A섹스보존 != -1 && GROUPMATCH(체위보존,1,2,3,4,5) && !FLAG:삽입애니메이션필터 & 아니메필터_삽입
+	SIF FLAG:그림표시 && FLAG:삽화표시
+		PRINTL
+	SELECTCASE 체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_정상위("Ａ正常位_挿入")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_후배위("Ａ後背位_挿入")
+	ENDSELECT
+ENDIF
+IF PLAYERA섹스보존 != -1 && GROUPMATCH(PLAYER체위보존,1,2,3,4,5) && !FLAG:삽입애니메이션필터 & 아니메필터_삽입
+	SIF FLAG:그림표시 && FLAG:삽화표시
+		PRINTL
+	SELECTCASE PLAYER체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_정상위("Ａ正常位_挿入" )
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_후배위("Ａ後背位_挿入" )
+	ENDSELECT
+ENDIF
+
 
 ;카운터
 IF TARGET
@@ -636,6 +660,16 @@ IF NOWEX:V절정 && V섹스보존 != -1 && GROUPMATCH(체위보존, 1,2,3,4,5)
 		ENDSELECT
 	ENDIF
 ENDIF
+IF NOWEX:A절정 && A섹스보존 != -1 && GROUPMATCH(체위보존,1,2,3,4,5)
+	IF !GETBIT(TCVAR:50,2)
+		SELECTCASE 체위보존
+			CASE 1,3,4
+				CALL PRINT_IMAGE_ANIMATION_정상위("Ａ正常位_絶頂")
+			CASE 2,5
+				CALL PRINT_IMAGE_ANIMATION_후배위("Ａ後背位_絶頂")
+		ENDSELECT
+	ENDIF
+ENDIF
 
 ;挿絵　PALYER삽입∨절정
 IF NOWEX:MASTER:V절정 && PLAYERV섹스보존 != -1 && GROUPMATCH(PLAYER체위보존,1,2,3,4,5)
@@ -648,6 +682,17 @@ IF NOWEX:MASTER:V절정 && PLAYERV섹스보존 != -1 && GROUPMATCH(PLAYER체위�
 		ENDSELECT
 	ENDIF
 ENDIF
+IF NOWEX:MASTER:A절정 && PLAYERA섹스보존 != -1 && GROUPMATCH(PLAYER체위보존,1,2,3,4,5)
+	IF NOWEX:TARGET:사정 == 0
+		SELECTCASE PLAYER체위보존
+			CASE 1,3,4
+				CALL PRINT_IMAGE_ANIMATION_정상위("Ａ正常位_絶頂")
+			CASE 2,5
+				CALL PRINT_IMAGE_ANIMATION_후배위("Ａ後背位_絶頂")
+		ENDSELECT
+	ENDIF
+ENDIF
+
 ;DEBUG	CALL KOJO_MESSAGE_PALAMCNG_B
 
 
@@ -686,6 +731,16 @@ IF GETBIT(TCVAR:50,1) && TEQUIP:V섹스 != -1 && !TCVAR:PLAYER:콘돔 && GROUPMA
 			CALL PRINT_IMAGE_ANIMATION_후배위("後背位_射精")
 	ENDSELECT
 ENDIF
+IF GETBIT(TCVAR:50,2) && TEQUIP:A섹스 != -1 && !TCVAR:PLAYER:콘돔 && GROUPMATCH(체위보존,1,2,3,4,5)
+	SIF FLAG:그림표시 && FLAG:삽화표시
+		PRINTL
+	SELECTCASE 체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_정상위("Ａ正常位_射精")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_후배위("Ａ後背位_射精")
+	ENDSELECT
+ENDIF
 
 ;삽화 삽입 사정
 ;相手がコンドーム付けることあるのかな？
@@ -697,6 +752,16 @@ IF NOWEX:TARGET:사정 > 0 && PLAYERV섹스보존 != -1 && !TCVAR:TARGET:콘돔 
 			CALL PRINT_IMAGE_ANIMATION_정상위("正常位_射精")
 		CASE 2,5
 			CALL PRINT_IMAGE_ANIMATION_후배위("後背位_射精", 1)
+	ENDSELECT
+ENDIF
+IF NOWEX:TARGET:사정 > 0 && PLAYERA섹스보존 != -1 && !TCVAR:TARGET:콘돔 && GROUPMATCH(PLAYER체위보존,1,2,3,4,5)
+	SIF FLAG:그림표시 && FLAG:삽화표시
+		PRINTL
+	SELECTCASE PLAYER체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_정상위("Ａ正常位_射精")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_후배위("Ａ後背位_射精", 1)
 	ENDSELECT
 ENDIF
 
@@ -860,6 +925,32 @@ IF NOWEX:TARGET:사정 > 0 && PLAYERV섹스보존 != -1 && !TCVAR:TARGET:콘돔 
 		PRINTL
 	ENDIF
 ENDIF
+
+IF GETBIT(TCVAR:50,2) && TEQUIP:A섹스 != -1 && !TCVAR:PLAYER:콘돔 && GROUPMATCH(체위보존,1,2,3,4,5)
+	SELECTCASE 체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_사정후("Ａ正常位_中出し")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_사정후("Ａ後背位_中出し")
+	ENDSELECT
+	IF FLAG:그림표시 && FLAG:삽화표시
+		WAIT
+		PRINTL
+	ENDIF
+ENDIF
+
+IF NOWEX:TARGET:사정 > 0 && PLAYERA섹스보존 != -1 && !TCVAR:TARGET:콘돔 && GROUPMATCH(PLAYER체위보존,1,2,3,4,5)
+	SELECTCASE PLAYER체위보존
+		CASE 1,3,4
+			CALL PRINT_IMAGE_ANIMATION_사정후("Ａ正常位_中出し")
+		CASE 2,5
+			CALL PRINT_IMAGE_ANIMATION_사정후("Ａ後背位_中出し", 1)
+	ENDSELECT
+	IF FLAG:그림표시 && FLAG:삽화표시
+		WAIT
+		PRINTL
+	ENDIF
+ENDIF
 DRAWLINE
 ;-------------------------------------------------
 ;욕구불만도상승
@@ -888,10 +979,17 @@ CALL FAVOR_CALC(TARGET)
 SIF (TFLAG:98 && !CFLAG:TARGET:우후후) && !CFLAG:TARGET:수면
 	CALL TRUST_CALC(TARGET)
 ;-------------------------------------------------
-;잠복율の増減処理
+;泡風呂タイムアップ処理
+;-------------------------------------------------
+SIF TFLAG:거품목욕 && (DAY * 1440 + TIME >= TFLAG:거품목욕)
+	CALL 泡風呂終了判定("タイムアップ")
+
+;-------------------------------------------------
+;잠복율の증감처리
 ;-------------------------------------------------
 SIF GETBIT(FLAG:잠복,0)
 	CALL 잠복율증감처리
+	
 ;-------------------------------------------------
 ;수면심도 0에 의한 각성 처리
 ;-------------------------------------------------
