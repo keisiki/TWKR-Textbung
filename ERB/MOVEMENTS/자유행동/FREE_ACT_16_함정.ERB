@@ -1,0 +1,195 @@
+﻿@EXIST_FreeAct16
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;오브젝트 본체
+@FreeAct16(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;자유행동에 맡긴다コマンドの명칭
+CASE "명칭"
+	IF GROUPMATCH(TARGET, 5, 6, 7, 14, 111)
+		CALLF MAKE_STR(V_NAME, "장난을 같이한다")
+	ELSE
+		CALLF MAKE_STR(V_NAME, "상황을 살핀다")
+	ENDIF
+CASE "CHAIN"
+;他キャラに連쇠사슬しない場合コメントアウトすること
+	;CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;자유행동에 맡긴다コマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	CALLF MAKE_INT(V_NAME, 10)
+ENDSELECT
+
+@자유행동내용_16(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+#DIM 장치인 = 5, 6, 7, 14, 111
+#DIM 발안자
+#DIM 기록, 200
+#DIM 낙하자
+#DIM 랭크
+#DIM 리셋
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+IF 리셋 != DAY
+	VARSET 기록
+	VARSET FA16_HOLE
+	발안자 = 0
+	낙하자 = 0
+	리셋 = DAY
+ENDIF
+SELECTCASE ARGS
+	CASE "발생"
+		;屋外で発生
+		SIF !OUTROOF(현위치)
+			RETURN 0
+		;仕事予定あれば장치인ない
+		SIF MATCH(장치인, CHARA, 0) && !CHARA_HOLIDAY(CHARA)
+			RETURN 0
+		;三요정と치르노・클라운피스が起点
+		IF MATCH(장치인, CHARA, 0) && !(발안자 || FA16_HOLE:0)
+			발안자 = CHARA
+			FA16_HOLE:0 = 현위치
+			GOTO ACT
+		ENDIF
+		;すでに落とし穴があれば一回だけ参加
+		IF MATCH(장치인, CHARA, 0)
+			SIF 현위치 != FA16_HOLE:0 || 기록:CHARA
+				RETURN 0
+			GOTO ACT
+		ENDIF
+		
+		;落とし穴に落ちる側判定
+		SIF !발안자 || 낙하자
+			RETURN 0
+		SIF 기록:CHARA || FA16_HOLE:0 != 현위치
+			RETURN 0
+		랭크 = CSVABL(CHARA, GETNUM(ABL, "전투능력"))
+		;原作の強キャラに回避補正
+		SIF 랭크 > 4 && !RAND:4
+			RETURN 0
+		SIF 메시지표시
+			PRINTFORMW %CALLNAME:CHARA%가 %CALLNAME:발안자%가 파놓은 함정에 빠졌다！！
+		기록:CHARA = 1
+		낙하자 = CHARA
+		;引っかかった人と参加者の행동시간を1に設定
+		FOR COUNT, 0, 5
+			SIF 기록:(장치인:COUNT) != 2 || Activity_Type:(장치인:COUNT) != 16 || !Activity_Duration:(장치인:COUNT)
+				CONTINUE
+			Activity_Duration:(장치인:COUNT) = 1
+		NEXT
+		RETURN 1
+		
+		;落とし穴장치인る側処理
+		$ACT
+		기록:CHARA = 2
+		IF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% \@ CHARA == 발안자 ? 장난으로 함정을 파냈다 # %CALLNAME:발안자%의 함정을 손질하기 시작했다 \@…
+			SIF !FA16_HOLE:1
+				FA16_HOLE:1 = 1
+		ENDIF
+		;自由행동にかける時間をRETURNする
+		SIF CHARA == 발안자
+			RETURN 40 + RAND:30
+		SIF !Activity_Duration:발안자
+			RETURN 30 + RAND:20
+		RETURN Activity_Duration:발안자
+	CASE "행동중"
+		;행동中の処理、地の아야もここで
+		SIF !메시지표시
+			RETURN
+		IF 낙하자
+			SELECTCASE 랭크
+				CASE IS <= 1
+					PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR(@"깔깔 웃고 있다/덩실거리며 기뻐하고 있다/화려하게 승리의 포즈를 취하고 있다")%.
+				CASE 2, 3, 4
+					PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR(@"애써 웃음을 참고 있다/살짝 승리의 포즈를 취했다")%.
+				CASEELSE
+					PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR("도망갈 준비를 하고/얼굴이 파랗게 질려")% 있다…
+			ENDSELECT
+		ELSE
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 함정%TEXTR(@"에서 파낸 흙을 숨기고 있다/에 \@ DAY:2 == 4 ? 눈 # 낙엽 \@을 씌우고 있다/을 늘리고 있다")%.
+		ENDIF
+	CASE "완료"
+		;행동시간を使い切ったときの処理、地の아야もここで
+		IF !MATCH(장치인, CHARA, 0)
+			IF 메시지표시
+				SELECTCASE 랭크
+					CASE IS <= 1
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 잠시 %TEXTR("기절해/뒤집혀")% 있다가、허둥지둥 함정에서 기어 나왔다…
+					CASE 2, 3, 4
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 바로 함정에서 뛰쳐나와 %TEXTR("범인을 찾기 시작했다/주위를 두리번두리번 둘러보고 있다")%…
+					CASEELSE
+						PRINTFORML %조사처리(CALLNAME:CHARA,"가")% 함정에서 사뿐히 올라왔다。
+						PRINTFORMW %TEXTR(@"왠지 분위기가 험악하다/\@ TALENT:CHARA:기분 == 1 ? 웃는 얼굴 그대로인 # 무표정한 \@ 것이 오히려 더 무섭다/")%…
+				ENDSELECT
+			ENDIF
+		ELSEIF 낙하자
+			IF 메시지표시
+				SELECTCASE 랭크
+					CASE IS <= 1
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %CALLNAME:낙하자%%TEXTR("을 끌어 올렸다/에게 웃으며 사과했다")%.
+					CASE 2, 3, 4
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR("모르는 체하고 있다/웃음을 참고 있다")%.
+					CASEELSE
+						PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR("식은땀을 흘리고 있다/몸을 숨기고 있다")%…
+				ENDSELECT
+			ENDIF
+		ELSEIF 메시지표시
+			PRINTFORMW \@ FA16_HOLE:1 == 2 ? %CALLNAME:MASTER%밖에 # 아무도 \@ 걸리지 않아 %조사처리(CALLNAME:CHARA,"는")% 질려 버린 것 같다。
+		ENDIF
+		Activity_Type:CHARA = 0
+		SIF !낙하자
+			RETURN
+		FOR COUNT, 0, 5
+			SIF Activity_Type:(장치인:COUNT) == 16 && FA16_HOLE:0 == CFLAG:(장치인:COUNT):현재위치
+				RETURN
+		NEXT
+		낙하자 = 0
+		RETURN
+	CASE "중단"
+		;中断メッセージは우후후突入時等でも表示されてしまうので表示しない
+	CASE "같이한다"
+		;自由행동に付き合ったとき用メッセージ
+		IF 낙하자 || !MATCH(장치인, TARGET, 0)
+			SIF !MATCH(장치인, TARGET, 0)
+				낙하자 = TARGET
+			PRINTFORM %조사처리(CALLNAME:PLAYER,"는")% \@ TARGET != 낙하자 ? %조사처리(CALLNAME:TARGET,"과")% 함께 # \@
+			SELECTCASE 랭크
+				CASE IS <= 1
+					PRINTFORML %조사처리(CALLNAME:낙하자,"가")% 떨어진 함정을 들여다보았다。
+					PRINTFORML 함정의 바닥에 %TEXTR("엉덩방아를 찧은/팬티를 그대로 드러낸/눈을 뱅뱅 돌리고 있는")% %조사처리(CALLNAME:낙하자,"가")% 보였다。
+				CASE 2, 3, 4
+					PRINTFORML 함정의 모습을 \@ TARGET != 낙하자 ? 몰래 # \@ 엿보았다。
+					PRINTFORML 함정의 바닥에서 %조사처리(CALLNAME:낙하자,"는")% 기운차게 욕을 하고 있다.
+				CASEELSE
+					PRINTFORML %조사처리(CALLNAME:낙하자,"가")% 떨어진 함정에 조심조심 다가갔다.
+					PRINTFORMW 함정 밑바닥에서 걷잡을 수 없을 정도의 살기가 치솟아 오르고 있다…
+			ENDSELECT
+		ELSE
+			PRINTFORML %조사처리(CALLNAME:PLAYER,"는")% %조사처리(CALLNAME:TARGET,"과")% 함께 함정을 %TEXTR("하나 더 팠다/더 깊게 했다/눈에 띄지 않도록 작업했다")%.
+			SIF !FA16_HOLE:1
+				FA16_HOLE:1 = 1
+		ENDIF
+	CASE "소스"
+		;付き合うコマンド選択時の入手ソース、시간계수は付き合った時間の1/10
+		IF CHARA == 낙하자
+			SOURCE:울굴 += 50 + 랭크 * 50
+			SOURCE:고통 += 350 - 랭크 * 50
+		ELSE
+			SOURCE:환락 = 20 + ((ABL:친밀 * 15)) * 시간계수
+			SOURCE:수동 = 10 + ((ABL:순종 * 10)) * 시간계수
+		ENDIF
+ENDSELECT

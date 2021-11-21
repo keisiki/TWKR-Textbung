@@ -261,10 +261,10 @@ RETURN 1
 ;실제로 음식을 먹는 처리
 ;-------------------------------------------------
 @식사(ARG)
-#DIM 정력회복량
-#DIM 기력회복량
-#DIM 체력회복량
-#DIM TSP회복량
+; #DIM 정력회복량
+; #DIM 기력회복량
+; #DIM 체력회복량
+; #DIM TSP회복량
 #DIM 정력회복율
 #DIM 기력회복율
 #DIM 체력회복율
@@ -273,7 +273,7 @@ RETURN 1
 ;회복율은 0.1%단위
 
 FLAG:오늘밥 = 1
-TSP회복량 = 0
+;TSP회복량 = 0
 TSP회복율 = 0
 
 IF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치
@@ -315,19 +315,27 @@ SIF STRCOUNT(DISH_TASTE, "선술/")
 	TSP회복율 += 200
 SIF STRCOUNT(DISH_TASTE, "비술/")
 	TSP회복율 += 200
+IF STRCOUNT(DISH_TASTE, "약효/")
+	기력회복율 = 1000
+	CALL BUFF_BASE(ARG, BASE_기력, MIN(MAXBASE:ARG:기력 * 10 / 100, 300))
+ENDIF
 IF STRCOUNT(DISH_TASTE, "오니의마력/")
 	정력회복율 = 1000
-	;정력最大値バフ(미실장）
+	CALL BUFF_BASE(ARG, BASE_정력, MIN(MAXBASE:ARG:정력 * 50 / 100, 500))
 ENDIF
-IF STRCOUNT(DISH_TASTE, "피의마력/")
+IF STRCOUNT(DISH_TASTE, "피의마력/") && ARG == MASTER
 	TSP회복율 = 1000
-	;TSP最大値バフ(미실장）
+	CALL BUFF_BASE(ARG, BASE_TSP, MIN(MAXBASE:ARG:TSP * 50 / 100, 500))
 ENDIF
 IF STRCOUNT(DISH_TASTE, "정력/")
 	정력회복율 += 500
 	SIF ARG == MASTER
 		TALENT:MASTER:농후정액 = 1
 ENDIF
+SIF STRCOUNT(DISH_TASTE, "기적/")
+	TFLAG:행운보정 = 5
+SIF STRCOUNT(DISH_TASTE, "행운/")
+	TFLAG:행운보정 = 3
 ;添加物
 SELECTCASE DISH_DRG_2
 CASE GETNUM(ITEM, "영양강화제")
@@ -337,23 +345,19 @@ CASE GETNUM(ITEM, "영양강화제")
 CASE GETNUM(ITEM, "히스테리큐")
 	TCVAR:ARG:히스테리큐 = 1
 ENDSELECT
-;버프계,미실장
-[SKIPSTART]
-SIF STRCOUNT(DISH_TASTE, "약효/") && ARG == MASTER
-	;미정
-SIF STRCOUNT(DISH_TASTE, "祝福/") && ARG == MASTER
-	;미정
-SIF STRCOUNT(DISH_TASTE, "인챈트/") && ARG == MASTER
-	;戦闘力強化１
-SIF STRCOUNT(DISH_TASTE, "가호/") && ARG == MASTER
-	;戦闘力強化２
-SIF STRCOUNT(DISH_TASTE, "기적/") && ARG == MASTER
-	;ラックアップ１
-SIF STRCOUNT(DISH_TASTE, "행운/") && ARG == MASTER
-	;ラックアップ２
-SIF STRCOUNT(DISH_TASTE, "풍요/") && ARG == MASTER
-	;미정
-[SKIPEND]
+;特殊バフ系
+;祝福：妊娠率がほんの少し上昇,妊娠対象に付与されていないと効果なし（種側は効果なし）
+SIF STRCOUNT(DISH_TASTE, "축복/")
+	TCVAR:ARG:축복 = 1
+;エンチャント：弾幕勝負で自分のダイス目がアップ,対戦相手に付与されてると対戦相手もアップ
+SIF STRCOUNT(DISH_TASTE, "인챈트/")
+	TCVAR:ARG:인챈트 = 1
+;加護：弾幕勝負で相手のダイス目がダウン,対戦相手に付与されてると自分もダウン
+SIF STRCOUNT(DISH_TASTE, "가호/")
+	TCVAR:ARG:가호 = 1
+;豊穣：野菜収穫時の収穫量アップ
+SIF STRCOUNT(DISH_TASTE, "풍요/")
+	TCVAR:ARG:풍요 = 1
 
 ;MASTER 이외의 처리
 IF ARG != MASTER
@@ -396,10 +400,10 @@ IF ARG != MASTER
 ENDIF
 
 ;회복량 계산
-체력회복량 = MAXBASE:ARG:체력 * 체력회복율 / 1000
-기력회복량 = MAXBASE:ARG:기력 * 기력회복율 / 1000
-정력회복량 = MAXBASE:ARG:정력 * 정력회복율 / 1000
-TSP회복량 = MAXBASE:ARG:TSP * TSP회복율 / 1000
+; 체력회복량 = MAXBASE:ARG:체력 * 체력회복율 / 1000
+; 기력회복량 = MAXBASE:ARG:기력 * 기력회복율 / 1000
+; 정력회복량 = MAXBASE:ARG:정력 * 정력회복율 / 1000
+; TSP회복량 = MAXBASE:ARG:TSP * TSP회복율 / 1000
 
 IF 주문내용_술
 	CALL DRUNKEN(ARG,주문내용_술)
@@ -422,11 +426,15 @@ ELSE
 ENDIF
 
 ;回復処理
-CALL RECOVER(ARG, 체력회복량, "체력", "식사에 의한 회복")
-CALL RECOVER(ARG, 기력회복량, "기력", "식사에 의한 회복")
+; CALL RECOVER(ARG, 체력회복량, "체력", "식사에 의한 회복")
+; CALL RECOVER(ARG, 기력회복량, "기력", "식사에 의한 회복")
+CALL RECOVER_PERMIL(ARG, 체력회복율, "체력", 0, "식사에 의한 회복")
+CALL RECOVER_PERMIL(ARG, 기력회복율, "기력", 0, "식사에 의한 회복")
+CALL RECOVER_PERMIL(ARG, 정력회복율, "정력", 0, "식사에 의한 회복")
 IF ARG == MASTER
-	CALL RECOVER(ARG, 정력회복량, "정력", "식사에 의한 회복")
-	CALL RECOVER(ARG, TSP회복량, "TSP", "식사에 의한 회복")
+	; CALL RECOVER(ARG, 정력회복량, "정력", "식사에 의한 회복")
+	; CALL RECOVER(ARG, TSP회복량, "TSP", "식사에 의한 회복")
+	CALL RECOVER_PERMIL(ARG, TSP회복율, "TSP", 0, "식사에 의한 회복")
 ELSE
 	PRINTFORML %CALLNAME:ARG + "의 평가…………", 40, LEFT%{TCVAR:ARG:요리평가치, 3}점
 ENDIF
@@ -484,6 +492,9 @@ SIF CHARA == DISH_ASSI
 ;BASEPOINTが500以上なら숨김맛は好き(보너스）
 SIF DISH_BASEPOINT >= 500
 	TASTE_CHARA_GOOD += "숨김맛/" * 2
+;[動物耳]はまんまが好き
+SIF TALENT:CHARA:동물귀
+	TASTE_CHARA_GOOD += "맘마/" * 3
 ;夏は冷たいものが、冬は温かいものが好き(嫌いじゃなければ）
 IF GET_MONTH() == "여름의 달" && !STRCOUNT(TASTE_CHARA_BAD, "차가운/")
 	TASTE_CHARA_GOOD += "차가운/"
@@ -551,20 +562,24 @@ SIF STRCOUNT(DISH_TASTE, ARGS + "/") >= 5
 ;-------------------------------------------------
 ;만복도상승
 ;-------------------------------------------------
-@만복도상승(ARG, ARGS)
+@만복도상승(ARG, ARGS, ARG:1 = 0)
 #DIM 만복도
-SELECTCASE ARGS
-	CASE "경식"
-		만복도 = 180
-	CASE "주식"
-		만복도 = 360
-	CASE "디저트"
-		만복도 = 180
-ENDSELECT
+IF ARG:1 == 0
+	SELECTCASE ARGS
+		CASE "경식"
+			만복도 = 180
+		CASE "주식"
+			만복도 = 360
+		CASE "디저트"
+			만복도 = 180
+	ENDSELECT
+ELSE
+	만복도 = ARG:1
+ENDIF
 
 SIF TALENT:ARG:대식가
 	TIMES 만복도, 0.7
-IF ARGS == "디저트" ;KR판 임의수정, 일판(4.782)는 디저트공복과 일반공복이 반대임.
+IF ARGS == "디저트"
 	TCVAR:ARG:디저트공복시각 = 1440 * DAY + TIME + 만복도
 	IF 주문내용_술
 		주문내용_술 = 0

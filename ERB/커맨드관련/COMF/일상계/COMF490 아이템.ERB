@@ -2,29 +2,12 @@
 ;アイテム画面
 ;-------------------------------------------------
 @COM490
-#DIM 회복전체력1
-#DIM 회복전기력1
-#DIM 회복전정력1
-#DIM 회복후체력1
-#DIM 회복후기력1
-#DIM 회복후정력1
-#DIM 회복전체력2
-#DIM 회복전기력2
-#DIM 회복전정력2
-#DIM 회복후체력2
-#DIM 회복후기력2
-#DIM 회복후정력2
 #DIM 대상
 #DIM 전원
 #DIM CLIENT_ID
 #DIM 공허로회귀
 #DIM 사용아이템
-회복전체력1 = BASE:MASTER:체력
-회복전기력1 = BASE:MASTER:기력
-회복전정력1 = BASE:MASTER:정력
-회복전체력2 = BASE:TARGET:체력
-회복전기력2 = BASE:TARGET:기력
-회복전정력2 = BASE:TARGET:정력
+#DIMS 식품특징
 VARSET LOCAL
 VARSET LOCALS
 대상 = MASTER
@@ -33,7 +16,7 @@ PRINTL 무엇을 사용합니까？
 $LOOP
 DRAWLINE
 FOR LOCAL,120, 699
-	IF 대상
+	IF 대상 != MASTER
 		IF 사용가능아이템(LOCAL) == 2 && ITEM:LOCAL
 			CALL PRINT_ITEM_EXPLANATION(LOCAL)
 		ENDIF
@@ -53,70 +36,103 @@ SIF ITEM:1037&&사용가능아이템(1037)
 	CALL PRINT_ITEM_EXPLANATION(1037)
 PRINTL
 DRAWLINE
+SIF ITEM:곤충채집세트
+	PRINTFORML [901] 곤충 채집통을 확인한다
 PRINTFORML [900] 콜렉션의 스키마 자동 사양 변환（현재\@ FLAG:C스키마자동사양 ? ON# OFF\@）
 IF TARGET && SHIRAHU(TARGET)
-	SIF 대상
+	SIF 대상 != MASTER
 		SETCOLOR C_YELLOW
-	PRINTFORMLC [998] %CALLNAME:TARGET%에 사용한다
+	PRINTFORML [998] %CALLNAME:TARGET%에 사용한다
 	RESETCOLOR
 ENDIF
 
-PRINTLC [999] 그만둔다
+PRINTL [999] 그만둔다
 INPUT
 사용아이템 = RESULT
+;アイテム以外の処理
+SELECTCASE RESULT
+	CASE 999
+		RETURN -1
+	CASE 900
+		FLAG:C스키마자동사양 = !FLAG:C스키마자동사양
+		PRINTFORMW 자동 사양을\@ FLAG:C스키마자동사양 ? ON# OFF\@(으)로 했습니다
+		GOTO LOOP
+	CASE 901
+		;[虫捕りをする]へ転送
+		CALL SHOW_MUSHI_CAGE
+		GOTO LOOP
+	CASE 998
+		IF 대상 != MASTER
+			대상 = MASTER
+		ELSEIF SHIRAHU(TARGET) && TARGET
+			대상 = TARGET
+		ENDIF
+		GOTO LOOP
+ENDSELECT
+
+;使用可能アイテム以外の入力、またはアイテム未所持の場合は再入力
+IF 사용가능아이템(사용아이템) == 0 || ITEM:사용아이템 <= 0
+	GOTO LOOP
+ENDIF
+;相手使用時にMASTERのみアイテムの選択は再入力
+IF 대상 != MASTER && 사용가능아이템(사용아이템) == 1
+	GOTO LOOP
+ENDIF
 IF DRUG(사용아이템,대상)
-	PRINTL 오늘은 이제 그만두자
+	PRINTL 이미 약을 복용했으니 오늘은 이제 그만두자
 	GOTO LOOP
 ENDIF
 IF ITEM_SWEETS(사용아이템) && !TIME_PROGRESS(TCVAR:대상:디저트공복시각)
-	PRINTL 아직 먹고 싶지 않다
-	GOTO LOOP
-ENDIF
-IF RESULT == 900
-	FLAG:C스키마자동사양 = !FLAG:C스키마자동사양
-	PRINTFORMW 자동 사양을\@ FLAG:C스키마자동사양 ? ON# OFF\@(으)로 했습니다
+	PRINTL 간식은 아직 먹고 싶지 않다
 	GOTO LOOP
 ENDIF
 SELECTCASE 사용아이템
 	CASE 120
-		IF 대상 == MASTER
-			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
+		PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
+		SIF 대상 == MASTER
 			PRINTL ……싸구려 맛이 났다
-			CALL RECOVER(MASTER,50, "체력", "초코에 의한 회복")
-			TCVAR:대상:디저트공복시각 = 1440 * DAY + TIME + 180
-			LOCAL:1 ++
-		ENDIF
+		식품특징 = %ITEMNAME:사용아이템%/단/정키/사각사각/
+		CALL RECOVER(대상, ITEM_TASTE(대상, 50, 식품특징), "체력", "초코에 의한 회복")
+		CALL RECOVER(대상, ITEM_TASTE(대상, 50, 식품특징), "기력", "초코에 의한 회복")
+		CALL 만복도상승(대상, "디저트", 60)
+		LOCAL:1 ++
 	CASE 121
 		IF 대상 == MASTER
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
-			CALL RECOVER(MASTER,300, "체력", "초코에 의한 회복")
-			CALL RECOVER(MASTER,300, "기력", "초코에 의한 회복")
-			TCVAR:대상:디저트공복시각 = 1440 * DAY + TIME + 180
+			식품특징 = %ITEMNAME:사용아이템%/단/
+			CALL RECOVER(MASTER, ITEM_TASTE(MASTER, 300, 식품특징), "체력", "초코에 의한 회복")
+			CALL RECOVER(MASTER, ITEM_TASTE(MASTER, 300, 식품특징), "기력", "초코에 의한 회복")
+			CALL 만복도상승(대상, "디저트")
 			LOCAL:1 ++
 		ENDIF
 	CASE 122
 		IF 대상 == MASTER
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
 			PRINTFORML 맛있어!
-			CALL RECOVER(MASTER,500, "체력", "초코에 의한 회복")
-			CALL RECOVER(MASTER,500, "기력", "초코에 의한 회복")
-			TCVAR:대상:디저트공복시각 = 1440 * DAY + TIME + 180
+			식품특징 = %ITEMNAME:사용아이템%/단/품위있는/호화/고급식재/
+			CALL RECOVER(MASTER, ITEM_TASTE(MASTER, 500, 식품특징), "체력", "초코에 의한 회복")
+			CALL RECOVER(MASTER, ITEM_TASTE(MASTER, 500, 식품특징), "기력", "초코에 의한 회복")
+			CALL 만복도상승(대상, "디저트")
 			LOCAL:1 ++
 		ENDIF
 	CASE 123
 		IF 대상 == MASTER
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
 			PRINTFORML 사랑이 느껴져!
-			CALL RECOVER(MASTER,1000, "체력", "초코에 의한 회복")
-			CALL RECOVER(MASTER,1000, "기력", "초코에 의한 회복")
-			TCVAR:대상:디저트공복시각 = 1440 * DAY + TIME + 180
+			식품특징 = %ITEMNAME:사용아이템%/애정/단/
+			CALL RECOVER(MASTER, ITEM_TASTE(MASTER, 1000, 식품특징), "체력", "초코에 의한 회복")
+			CALL RECOVER(MASTER, ITEM_TASTE(MASTER, 1000, 식품특징), "기력", "초코에 의한 회복")
+			CALL 만복도상승(대상, "디저트")
 			LOCAL:1 ++
 		ENDIF
 	CASE 212
-			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
-			LOCAL:1 ++
-			CALL RECOVER(MASTER,100, "체력", "떡잎으로 싼 떡에 의한 회복")
-			TCVAR:대상:디저트공복시각 = 1440 * DAY + TIME + 180
+		PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
+		LOCAL:1 ++
+		;端午の節句は여름의季語だそうなので봄철じゃなかった
+		식품특징 = %ITEMNAME:사용아이템%/단/
+		CALL RECOVER(대상, ITEM_TASTE(대상, 100, 식품특징), "체력", "떡잎으로 싼 떡에 의한 회복")
+		CALL RECOVER(대상, ITEM_TASTE(대상,   0, 식품특징), "기력", "떡잎으로 싼 떡에 의한 회복")
+		CALL 만복도상승(대상, "디저트")
 	CASE 213
 		SIF TARGET && SHIRAHU(TARGET)
 			PRINT 둘이 나란히 
@@ -135,11 +151,12 @@ SELECTCASE 사용아이템
 				DATAFORM 「눈구경 큰 복」
 			ENDDATA
 		PRINTFORML (을)를 먹었다
-			CALL RECOVER(MASTER,150, "기력", "아이스크림에 의한 회복")
-			TCVAR:MASTER:디저트공복시각 = 1440 * DAY + TIME + 180
+		식품특징 = %ITEMNAME:사용아이템%/차가운/단/
+		CALL RECOVER(MASTER, ITEM_TASTE(MASTER, 150, 식품특징), "기력", "아이스크림에 의한 회복")
+		CALL 만복도상승(MASTER, "디저트")
 			IF  TARGET && SHIRAHU(TARGET)
-				CALL RECOVER(TARGET,150, "기력", "아이스크림에 의한 회복")
-				TCVAR:디저트공복시각 = 1440 * DAY + TIME + 180
+			CALL RECOVER(TARGET, ITEM_TASTE(TARGET, 150, 식품특징), "기력", "아이스크림에 의한 회복")
+			CALL 만복도상승(TARGET, "디저트")
 			ENDIF
 		LOCAL:1 ++
 	CASE 215
@@ -148,22 +165,22 @@ SELECTCASE 사용아이템
 		LOCAL:1 ++
 	CASE 352
 		PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
-		CALL RECOVER(대상,50, "기력", "딸기에 의한 회복")
-		SIF 대상 == (NO:9)
-			CALL RECOVER(대상,50, "기력", "딸기에 의한 회복")
+		식품특징 = %ITEMNAME:사용아이템%/야채/과일/단/
+		CALL RECOVER(대상, ITEM_TASTE(대상, 50, 식품특징), "기력", "딸기에 의한 회복")
 		LOCAL:1 ++
 	CASE 364
+		식품특징 = %ITEMNAME:사용아이템%/야채/과일/단/
 		IF FLAG:70 == 1
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
-			CALL RECOVER(MASTER,100, "기력", "수박에 의한 회복")
+			CALL RECOVER(MASTER, ITEM_TASTE(대상, 100, 식품특징), "기력", "수박에 의한 회복")
 		ELSE
-			PRINTFORML 다같이 %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
+			PRINTFORML \@ TARGET != MASTER ? 다같이# \@ %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
 			FOR 전원, 0, CHARANUM
 				SIF CFLAG:전원:현재위치 != CFLAG:MASTER:현재위치
 					CONTINUE
 				SIF !SHIRAHU(전원)
 					CONTINUE
-				CALL RECOVER(전원,100, "기력", "수박에 의한 회복")
+				CALL RECOVER(전원, ITEM_TASTE(대상, 100, 식품특징), "기력", "수박에 의한 회복")
 			NEXT
 		ENDIF
 		LOCAL:1 ++
@@ -174,27 +191,29 @@ SELECTCASE 사용아이템
 	CASE 500
 		PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
 		PRINTL 맛없어! 한잔 더!
+		; 한판 주, 맛 데이터에 苦い가 없는데 苦い를 쓰고 있음. 일단 주의
+		식품특징 = %ITEMNAME:사용아이템%/苦い/苦い/苦い/건강한/야채/이파리/야취/
 		CALL RECOVER(대상,100, "체력", "녹즙에 의한 회복")
-		CALL RECOVER(대상,200, "기력", "녹즙에 의한 회복")
+		CALL RECOVER(대상, ITEM_TASTE(대상, 200, 식품특징), "기력", "녹즙에 의한 회복")
 		LOCAL:1 ++
 	CASE 501
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
-			CALL RECOVER(대상,200, "체력", "영양드링크에 의한 회복")
-			CALL RECOVER(대상,100, "기력", "영양드링크에 의한 회복")
+			CALL RECOVER(대상, 약학지식(200), "체력", "영양드링크에 의한 회복")
+			CALL RECOVER(대상, 약학지식(100), "기력", "영양드링크에 의한 회복")
+			CFLAG:대상:졸음쫒기강도 = 약학지식(20)
 			TCVAR:대상:약 = 1
 			LOCAL:1 ++
 	CASE 502
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
-			SIF GETBIT(TALENT:대상:성별, 1)
-				CALL RECOVER(대상,300, "정력", "정력제에 의한 회복")
+			CALL RECOVER(대상, 약학지식(300), "정력", "정력제에 의한 회복")
 			TCVAR:대상:약 = 1
 			LOCAL:1 ++
 	CASE 503
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
-			PRINTL 실 있고 개, -응！
-			CALL RECOVER(대상,500, "체력", "불끈불끈Z에 의한 회복")
-			CALL RECOVER(대상,300, "기력", "불끈불끈Z에 의한 회복")
-			CFLAG:대상:385 = 60
+			PRINTL 파이팅 한발, 가득！
+			CALL RECOVER(대상, 약학지식(500), "체력", "불끈불끈Z에 의한 회복")
+			CALL RECOVER(대상, 약학지식(300), "기력", "불끈불끈Z에 의한 회복")
+			CFLAG:대상:졸음쫒기강도 = 약학지식(60)
 			TCVAR:대상:약 = 1
 			LOCAL:1 ++
 	;CASE 504
@@ -212,37 +231,37 @@ SELECTCASE 사용아이템
 	CASE 505	;반짝반짝Ｘ
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
 			PRINTL 24시간 싸울 수 있을 것 같은 생각이 든다…！
-			CALL RECOVER(대상,800, "체력", "반짝반짝Ｘ에 의한 회복")
-			CALL RECOVER(대상,600, "기력", "반짝반짝Ｘ에 의한 회복")
-			CFLAG:대상:졸음쫒기강도 = 180
+			CALL RECOVER(대상, 약학지식(800), "체력", "반짝반짝Ｘ에 의한 회복")
+			CALL RECOVER(대상, 약학지식(600), "기력", "반짝반짝Ｘ에 의한 회복")
+			CFLAG:대상:졸음쫒기강도 = 약학지식(180)
 			CFLAG:대상:철야 = 1
 			TCVAR:대상:약 = 1
 			LOCAL:1 ++
 	CASE 506	;정력제『천원凸파』
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
 			PRINTL 너의××× 그리고 하늘을 찔러라!
-			CALL RECOVER(대상,400, "체력", "정력제『천원凸파』에 의한 회복")
-			CALL RECOVER(대상,300, "기력", "정력제『천원凸파』에 의한 회복")
-			CALL RECOVER(대상,800, "정력", "정력제『천원凸파』에 의한 회복")
+			CALL RECOVER(대상, 약학지식(400), "체력", "정력제『천원凸파』에 의한 회복")
+			CALL RECOVER(대상, 약학지식(300), "기력", "정력제『천원凸파』에 의한 회복")
+			CALL RECOVER(대상, 약학지식(800), "정력", "정력제『천원凸파』에 의한 회복")
 			TCVAR:대상:약 = 1
 			LOCAL:1 ++
 	CASE 507
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
-			CALL RECOVER(대상,150, "기력", "포션에 의한 회복")
-			CALL RECOVER(대상,150, "TSP", "포션에 의한 회복")
+			CALL RECOVER(대상, 약학지식(150), "기력", "포션에 의한 회복")
+			CALL RECOVER(대상, 약학지식(150), "TSP", "포션에 의한 회복")
 			TCVAR:대상:약 = 1
 			LOCAL:1 ++
 	CASE 508
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
 			PRINTL 마력이 넘쳐 온다…
-			CALL RECOVER(대상,300, "기력", "매직포션에 의한 회복")
-			CALL RECOVER(대상,600, "TSP", "매직포션에 의한 회복")
+			CALL RECOVER(대상, 약학지식(300), "기력", "매직포션에 의한 회복")
+			CALL RECOVER(대상, 약학지식(600), "TSP", "매직포션에 의한 회복")
 			TCVAR:대상:약 = 1
 			LOCAL:1 ++
 	CASE 509
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
-			CALL RECOVER(대상,200, "기력", "잠깨기포션에 의한 회복")
-			CFLAG:대상:졸음쫒기강도 = 240
+			CALL RECOVER(대상, 약학지식(200), "기력", "잠깨기포션에 의한 회복")
+			CFLAG:대상:졸음쫒기강도 = 약학지식(240)
 			CFLAG:대상:철야 = 1
 			TCVAR:대상:약 = 1
 			LOCAL:1 ++
@@ -252,16 +271,15 @@ SELECTCASE 사용아이템
 			TFLAG:멀미약 = 1
 			LOCAL:1 ++
 	CASE 511	;엘릭서
-			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
-			PRINTL 피로가 저 쪽으로 물리쳤다…！
-			CALL RECOVER(대상, MAXBASE:대상:체력, "체력", "엘릭서에 의한 회복")
-			CALL RECOVER(대상,9999, "기력", "엘릭서에 의한 회복")
-			SIF 대상 == MASTER
-				CALL RECOVER(대상,9999, "TSP", "엘릭서에 의한 회복")
-			CALL RECOVER(대상,9999, "정력", "엘릭서에 의한 회복")
-			CFLAG:대상:졸음쫒기강도 = 300
-			TCVAR:대상:약 = 1
-			LOCAL:1 ++
+		PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
+		PRINTL 피로가 저 쪽으로 물리쳤다…！
+		CALL RECOVER(대상, MAXBASE:대상:체력 < 9999 ? 9999 # MAXBASE:대상:체력, "체력", "엘릭서에 의한 회복")
+		CALL RECOVER(대상, MAXBASE:대상:기력 < 9999 ? 9999 # MAXBASE:대상:기력, "기력", "엘릭서에 의한 회복")
+		CALL RECOVER(대상, MAXBASE:대상:정력 < 9999 ? 9999 # MAXBASE:대상:정력, "정력", "엘릭서에 의한 회복")
+		CALL RECOVER(대상, MAXBASE:대상:TSP  < 9999 ? 9999 # MAXBASE:대상:TSP,  "TSP",  "엘릭서에 의한 회복")
+		CFLAG:대상:졸음쫒기강도 = 300
+		TCVAR:대상:약 = 1
+		LOCAL:1 ++
 	CASE 512	;선단
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 마셨다
 			PRINTL 심상하지 않은 힘이 넘친다……！
@@ -284,8 +302,7 @@ SELECTCASE 사용아이템
 		IF TCVAR:대상:국사무쌍약 < 3
 			PRINTL 힘이 넘쳐 흐른다……！
 			CALL BUFF_BASE(대상, BASE_체력, MAX(MAXBASE:대상:체력 / 15, 150))
-			SIF GETBIT(TALENT:대상:성별, 1)
-				CALL BUFF_BASE(대상, BASE_정력, MAX(MAXBASE:대상:정력 / 10, 150))
+			CALL BUFF_BASE(대상, BASE_정력, MAX(MAXBASE:대상:정력 / 10, 150))
 			TCVAR:대상:국사무쌍약 ++
 			LOCAL:1 ++
 		ELSE
@@ -295,8 +312,7 @@ SELECTCASE 사용아이템
 			PRINTFORML ……폭발해서 아프로 머리가 되었다……너무 많이 마신 것 같다……
 			RESETCOLOR
 			CALL BUFF_BASE(대상, BASE_체력, MIN((-1 * (MAXBASE:대상:체력 / 5)), -450))
-			SIF GETBIT(TALENT:대상:성별, 1)
-				CALL BUFF_BASE(대상, BASE_정력, MIN((-1 * (MAXBASE:대상: 정력 / 3)), -450))
+			CALL BUFF_BASE(대상, BASE_정력, MIN((-1 * (MAXBASE:대상: 정력 / 3)), -450))
 			TCVAR:대상:국사무쌍약 = 0
 			LOCAL:1 ++
 		ENDIF
@@ -352,7 +368,7 @@ SELECTCASE 사용아이템
 			PRINTFORML %마스터는% 역서를 열었다
 			PRINTFORML 점쟁이가 나왔다
 			PRINTFORMW 
-			IF CFLAG:1:현재위치 == CFLAG:MASTER:현재위치
+			IF CFLAG:[[레이무]]:현재위치 == CFLAG:MASTER:현재위치
 				PRINTFORML 재빠르게 레이무는 점쟁이의 머리에 불제봉을 내려쳤다.
 				PRINTFORML 가련한 점쟁이는 머V리 가 되서 떠나갔다.
 				FOR LOCAL,1,CHARANUM
@@ -459,7 +475,7 @@ SELECTCASE 사용아이템
 		ELSE
 			LOCAL:1 ++
 		ENDIF
-	CASE 550
+	CASE 550	;야트메꼬치
 		IF !TIME_PROGRESS(TCVAR:대상:공복시각)
 			PRINTFORML %조사처리(CALLNAME:대상,"은")% 아직 공복이 되지 않다
 			GOTO LOOP
@@ -467,37 +483,30 @@ SELECTCASE 사용아이템
 			PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
 			CALL 만복도상승(대상,"경식")
 			CALL TB외식하기("좋음")
-			CALL RECOVER_PERMIL(대상,40,"체력")
-			CALL RECOVER_PERMIL(대상,80,"기력")
-			CALL RECOVER_PERMIL(대상,50,"정력")
+			식품특징 = %ITEMNAME:사용아이템%/생선 요리/안주/
+			CALL RECOVER_PERMIL(대상, ITEM_TASTE(대상, 40, 식품특징), "체력", 0, "야트메꼬치에 의한 회복")
+			CALL RECOVER_PERMIL(대상, ITEM_TASTE(대상, 80, 식품특징), "기력", 0, "야트메꼬치에 의한 회복")
+			CALL RECOVER_PERMIL(대상, ITEM_TASTE(대상, 50, 식품특징), "정력", 0, "야트메꼬치에 의한 회복")
 			LOCAL:1 ++
 		ENDIF
 	CASE 626	;나무딸기
 		PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
-		CALL RECOVER(대상,50, "기력", "나무딸기에 의한 회복")
+		식품특징 = %ITEMNAME:사용아이템%/과일/단/시큼한/야취/
+		CALL RECOVER(대상, ITEM_TASTE(대상, 50, 식품특징), "기력", "나무딸기에 의한 회복")
 		LOCAL:1 ++
 	CASE 628	;으름덩굴
 		PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
+		식품특징 = %ITEMNAME:사용아이템%/과일/단/야취/
 		CALL RECOVER(대상,80, "체력", "으름덩굴에 의한 회복")
-		CALL RECOVER(대상,80, "기력", "으름덩굴에 의한 회복")
+		CALL RECOVER(대상, ITEM_TASTE(대상, 80, 식품특징), "기력", "으름덩굴에 의한 회복")
 		LOCAL:1 ++
 	CASE 630	;선도
 		PRINTFORML %조사처리(ITEMNAME:사용아이템,"를")% 먹었다
 		PRINTL 힘이 넘친다……！
 		CALL BUFF_BASE(대상, BASE_체력, MAX(MAXBASE:대상:체력 / 10, 500))
 		CALL BUFF_BASE(대상, BASE_기력, MAX(MAXBASE:대상:기력 / 10, 500))
-		SIF GETBIT(TALENT:대상:성별, 1)
-			CALL BUFF_BASE(대상, BASE_정력, MAX(MAXBASE:대상:정력 / 10, 500))
+		CALL BUFF_BASE(대상, BASE_정력, MAX(MAXBASE:대상:정력 / 10, 500))
 		LOCAL:1 ++
-	CASE 998
-		IF 대상
-			대상 = MASTER
-		ELSEIF SHIRAHU(TARGET) && TARGET
-			대상 = TARGET
-		ENDIF
-		GOTO LOOP
-	CASE 999
-		RETURN -1
 	CASE 1023
 		IF TFLAG:아드레날린
 			PRINTFORML 이미 사용하고 있다
@@ -562,32 +571,6 @@ IF LOCAL:1
 		BASE:MASTER:TSP -= 5
 	ENDIF
 	ITEM:사용아이템 -= 1
-	회복후체력1 = BASE:대상:체력
-	회복후기력1 = BASE:대상:기력
-	회복후정력1 = BASE:대상:정력
-	회복후체력2 = BASE:대상:체력
-	회복후기력2 = BASE:대상:기력
-	회복후정력2 = BASE:대상:정력
-	;@RECOVERとの二重表記を避けるために、100未満を回復量にとるもののみ、以下の表記を行う
-	IF GROUPMATCH(사용아이템, 120, 352, 626, 628)
-		SETCOLOR C_GREEN
-		IF !대상
-			SIF ABS(회복후체력1 - 회복전체력1)
-				PRINTFORML 체력＋{ABS(회복후체력1 - 회복전체력1)}（%CALLNAME:대상%）
-			SIF ABS(회복후기력1 - 회복전기력1)
-				PRINTFORML 기력＋{ABS(회복후기력1 - 회복전기력1)}（%CALLNAME:대상%）
-			SIF ABS(회복후정력1 - 회복전정력1)
-				PRINTFORML 정력＋{ABS(회복후정력1 - 회복전정력1)}（%CALLNAME:대상%）
-		ELSE
-			SIF ABS(회복후체력2 - 회복전체력2)
-				PRINTFORML 체력＋{ABS(회복후체력2 - 회복전체력2)}（%CALLNAME:대상%）
-			SIF ABS(회복후기력2 - 회복전기력2)
-				PRINTFORML 기력＋{ABS(회복후기력2 - 회복전기력2)}（%CALLNAME:대상%）
-			SIF ABS(회복후정력2 - 회복전정력2)
-				PRINTFORML 정력＋{ABS(회복후정력2 - 회복전정력2)}（%CALLNAME:대상%）
-		ENDIF
-		RESETCOLOR
-	ENDIF
 	SIF 공허로회귀
 		CALL OYASUMI
 	RETURN 0
@@ -597,7 +580,18 @@ ENDIF
 @SET_MIRADA
 PRINTFORML 대상을 선택해 주세요.
 PRINTFORML 황색은 이미 유효, 핑크는 이미 함락 소질이 붙어 있는 캐릭터입니다.
-FOR LOCAL,1,CHARANUM
+SIF FLAG:정렬
+	CALL CHARASORT_EX
+FOR LOCAL:1, 1, EX_CHARANUM + 1
+	IF FLAG:정렬
+		LOCAL = RESULT:(LOCAL:1)
+		SIF !LOCAL
+			CONTINUE
+	ELSE
+		LOCAL = LOCAL:1
+		SIF LOCAL >= CHARANUM
+			BREAK
+	ENDIF
 	;SIF TALENT:LOCAL:스침
 	;	CONTINUE
 	SIF CFLAG:LOCAL:출금
@@ -658,7 +652,61 @@ SETCOLOR C_L_GRAY
 	PRINTFORML %ITEM_EXPLANATION(ARG)%
 RESETCOLOR
 
-;アイテム
+@약학지식(ARG)
+#FUNCTION
+#DIM 회복량
+#DIM 강화횟수
+회복량 = ARG
+;回復量 = 基準値 * (1.1 ^ (조제Lv + 薬に関係しそうな知識))
+강화횟수 = TALENT:MASTER:조제Lv + TALENT:MASTER:금단의지식 + TALENT:MASTER:조합지식
+WHILE 강화횟수 > 0
+	TIMES 회복량, 1.1
+	강화횟수 --
+WEND
+RETURNF 회복량
+
+;미각에 대한 회복 보정
+;만복도가 오르지 않는 식품은 기력만 보정
+@ITEM_TASTE(CHARA, 기준치, 식품특징)
+#FUNCTION
+#DIM CHARA
+#DIM 기준치
+#DIMS 식품특징
+#DIMS TASTE_CHARA_GOOD
+#DIMS TASTE_CHARA_BAD
+#DIM 회복량
+TASTE_CHARA_GOOD = %GET_STR(, "캐릭터데이터", CHARA, "요리：좋아하는 맛")%
+TASTE_CHARA_BAD = %GET_STR(, "캐릭터데이터", CHARA, "요리：싫어하는 맛")%
+
+회복량 = 기준치 + (STR_MULTI_COUNT(TASTE_CHARA_GOOD, 식품특징) - STR_MULTI_COUNT(TASTE_CHARA_BAD, 식품특징)) * 10
+
+;제철 등 계절에 따른 보정
+SELECTCASE GET_MONTH()
+	CASE "봄의 달"
+		IF STRCOUNT(식품특징, "봄철/") && !STRCOUNT(TASTE_CHARA_BAD, "봄철/")
+			TIMES 회복량, 1.3
+		ENDIF
+	CASE "여름의 달"
+		;夏は아이스크림が2.0倍(嫌いじゃなければ）
+		IF STRCOUNT(식품특징, "아이스크림/") && !STRCOUNT(TASTE_CHARA_BAD, "아이스크림/")
+			TIMES 회복량, 2.0
+		ELSEIF STRCOUNT(식품특징, "수박/")
+			TIMES 회복량, 1.3
+		ENDIF
+	CASE "가을의 달"
+		IF STRCOUNT(식품특징, "으름덩굴/")
+			TIMES 회복량, 1.3
+		ENDIF
+	CASE "겨울의 달"
+		;冬は아이스크림が0.5倍(好きじゃなければ）
+		IF STRCOUNT(식품특징, "아이스크림/") && !STRCOUNT(TASTE_CHARA_GOOD, "아이스크림/")
+			TIMES 회복량, 0.5
+		ENDIF
+ENDSELECT
+
+RETURNF 회복량
+
+;아이템
 @COM_ABLE490
 ;移動実行判定
 SIF !TFLAG:100

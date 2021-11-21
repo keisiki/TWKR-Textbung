@@ -1,0 +1,221 @@
+﻿@EXIST_FreeAct15
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;오브젝트 본체
+@FreeAct15(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "상황을 살핀다")
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	CALLF MAKE_INT(V_NAME, 0)
+ENDSELECT
+
+@자유행동내용_15(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;屋外で発生
+		SIF INROOM(현위치)
+			RETURN 0
+		;仕事予定の邪魔をしない
+		SIF !CHARA_HOLIDAY(CHARA)
+			RETURN 0
+		;에이키様は常に起点
+		SIF CHARA == 30
+			GOTO START
+		;코마치/쿠타카以外の신령と蓬莱人は対象外
+		SIF CHECK_CHARA(CHARA, "봉래인") || (TALENT:CHARA:신령 && !GROUPMATCH(CHARA, 76, 129))
+			RETURN 0
+		;에이키様がすでに説教中なら発生
+		SIF Activity_Type:30 != 15 || 현위치 != CFLAG:30:현재위치 || !Activity_Duration:30
+			RETURN 0
+		$START
+		IF 메시지표시
+			;PRINTFORM %CALLNAME:CHARA% KR판 임의수정, 조사처리에 따른 CALLNAME 호출위치 이동
+			IF CHARA == 30 
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %FA15_TARGET(0)%에게 설교를 시작했다。
+			ELSE
+				PRINTFORMW %CALLNAME:CHARA%도 \@ CHAIN ? 말려들어 설교를 듣기 시작했다 # 에이키의 설교에 붙잡혔다 \@…
+			ENDIF
+		ELSEIF CHARA == 30
+			CALLF FA15_TARGET(0)
+		ENDIF
+		;自由행동にかける時間をRETURNする。코마치のみ最低保障2時間
+		IF CHARA == 30
+			RETURN 60 + RAND:30
+		ELSE
+			LOCAL = 30 + RAND:60 + ((CHARA == 76) * 90)
+			Activity_Duration:30 = MAX(Activity_Duration:30, LOCAL)
+			RETURN LOCAL
+		ENDIF
+	CASE "행동중"
+		;행동중の処理、地の아야もここで。
+		IF 메시지표시
+			IF CHARA == 30
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %FA15_TARGET(1)%에게 %TEXTR("간곡하게/장황하게/길게/")% 설교하고 있다…
+			ELSEIF 현위치 != CFLAG:30:현재위치 || Activity_Type:30 != 15
+				CALL FA15_RESET(CHARA)
+			ELSE
+				PRINTFORM %조사처리(CALLNAME:CHARA,"는")% 에이키의 설교
+				SELECTCASE CFLAG:CHARA:성격경향
+					;気弱系
+					CASE 1
+						PRINTFORMW %TEXTR("에 눈물짓고/를 듣고 고개를 떨구고")% 있다…
+					;強気系
+					CASE 2
+						PRINTFORMW %TEXTR("몰래 혀를 내밀고/를 적당히 흘려 듣고")% 있다…
+					;素直系
+					CASE 3
+						PRINTFORMW %TEXTR("를 듣고 풀이 죽어/에 일일이 고개를 끄덕이고")% 있다…
+					;真面目系
+					CASE 4
+						PRINTFORMW を%TEXTR("를 듣고 반성하고/진지하게 듣고")% 있다…
+					;その他
+					CASEELSE
+						PRINTFORMW を%TEXTR("를 얌전히 받아들이고/를 가만히 듣고")% 있다…
+				ENDSELECT
+			ENDIF
+		ELSEIF CHARA != 30 && 현위치 != CFLAG:30:현재위치
+			CALL FA15_RESET(CHARA)
+		ENDIF
+	CASE "완료"
+		;행동시간を使い切ったときの処理、地の아야もここで
+		IF 메시지표시
+			IF CHARA == 30
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 겨우 설교를 마친 것 같다。
+			ELSE
+				PRINTDATAW
+					DATAFORM 겨우 설교가 끝나서 %조사처리(CALLNAME:CHARA,"는")% \@ CFLAG:CHARA:성격경향 == 2 ? 녹초가 되어 # 안심하고 \@ 있다.
+					DATAFORM %조사처리(CALLNAME:CHARA,"는")% 설교가 끝나고 \@ CFLAG:CHARA:성격경향 == 1 ? 눈시울을 적시고 있다 # 작게 한숨을 내쉬었다 \@.
+					DATAFORM 설교가 끝나고 %조사처리(CALLNAME:CHARA,"는")% \@ CFLAG:CHARA:성격경향 == 4 ? 성실하게 감사의 말을 전했다 # 멋쩍은 얼굴을 했다 \@.
+				ENDDATA
+			ENDIF
+		ENDIF
+	CASE "중단"
+		;中断メッセージは우후후突入時等でも表示されてしまうので表示しない
+		;説教する側がいなくなった場合の処理
+		IF CHARA == 30
+			FOR COUNT, 1, CHARANUM
+				SIF Activity_Type:COUNT != 15
+					CONTINUE
+				CALL FA15_RESET(COUNT)
+			NEXT
+		ENDIF
+	CASE "같이한다"
+		;自由행동に付き合ったとき用メッセージ
+		PRINTFORML %조사처리(CALLNAME:PLAYER,"는")% 왠지 모르게 설교를 들어보았다。
+		IF TFLAG:193
+			PRINTFORML 에이키에게 들켜서 설교당하고 말았다…
+		ELSE
+			LOCALS = %\@ CHARA == 30 ? %FA15_TARGET(1)% # %CALLNAME:CHARA% \@%
+			PRINTDATAL
+				DATAFORM ……언제 끝날지 짐작도 안 간다。
+				DATAFORM ……자신이 아니라서 정말 다행이야。
+				DATAFORM ……운이 없는 %LOCALS%에게 좀 동정하고 말았다。
+			ENDDATA
+		ENDIF
+	CASE "소스"
+		;付き合うコマンド選択時の入手ソース、시간계수は付き合った時間の1/10
+		;ソースの基準よくわかんないので適当
+		DOWNBASE:MASTER:기력 += 20 * 시간계수
+		;15%でいっしょに説教されて入手ソース増/MASTER消費기력激増
+		IF !RAND:6
+			TFLAG:193 = 1
+			SOURCE:30:환락 = (100 + ((ABL:30:친밀 + 호감도계수(TARGET)) * 40)) * 시간계수
+			SOURCE:30:정복 = (60 + (ABL:30:새드끼 * 60)) * 시간계수
+			IF TARGET != 30
+				SOURCE:TARGET:수동 = (30 + ((ABL:순종 + 호감도계수(TARGET)) * 50)) * 시간계수
+				SOURCE:TARGET:굴종 = (30 + ((ABL:순종 + 호감도계수(TARGET)) * 50)) * 시간계수
+				DOWNBASE:TARGET:기력 += 10 * 시간계수
+			ENDIF
+			DOWNBASE:MASTER:기력 += 150 * 시간계수
+		ELSE
+			SOURCE:환락 = (50 + ((ABL:친밀 + 호감도계수(TARGET)) * 30)) * 시간계수
+			SOURCE:정복 = (20 + (ABL:새드끼 * 50)) * 시간계수
+			IF TARGET != 30
+				SOURCE:TARGET:수동 = (20 + ((ABL:순종 + 호감도계수(TARGET)) * 20)) * 시간계수
+				SOURCE:TARGET:굴종 = (20 + ((ABL:순종 + 호감도계수(TARGET)) * 20)) * 시간계수
+				DOWNBASE:TARGET:기력 += 10 * 시간계수
+			ENDIF
+		ENDIF
+ENDSELECT
+;説教相手を表示する式中関数
+@FA15_TARGET(ARG)
+#FUNCTIONS
+#DIM 누계
+#DIMS 모브
+#DIMS 네임드
+;説教開始は仕様上常に모브キャラ
+IF !ARG
+	SELECTCASE GET_MAPID(CFLAG:30:현재위치)
+		CASE 0
+			모브 = 요괴
+		CASE 1
+			모브 = 참배객
+		CASE 2
+			모브 = %TEXTR("마을 아가씨/마을 사람/")%
+		CASE 3
+			모브 = %TEXTR("메이드 요정/홉고블린/")%
+		CASE 4
+			모브 = 이나바
+		CASE 5
+			모브 = 둔갑%TEXTR("고양이/너구리/여우/")%
+		CASE 6
+			모브 = %TEXTR("좀비 페어리/사신/")%
+		CASE 7
+			모브 = 캇파
+		CASE 8
+			모브 = %TEXTR("참배객/텐구/캇파/")%
+			SIF INRANGE(CFLAG:30:현재위치, 830, 850)
+				모브 = 천인
+		CASE 9
+			모브 = 오니
+		CASE 10
+			모브 = %TEXTR("옥토/월인/")%
+	ENDSELECT
+	LOCALS = %TEXTR("지나가던/눈이 마주친/근처에 있었던/운 나쁘게 도망치지 못한")%%모브%
+	RETURNF LOCALS
+;에이키様と同じ場所にいて自由행동=15且つ행동시간中のキャラが説教され中
+ELSE
+	네임드 =
+	누계 = 0
+	FOR COUNT, 1, CHARANUM
+		SIF COUNT == 30
+			CONTINUE
+		SIF CFLAG:30:현재위치 != CFLAG:COUNT:현재위치
+			CONTINUE
+		SIF Activity_Type:COUNT != 15 || !Activity_Duration:COUNT
+			CONTINUE
+		네임드 += @"%\@ 누계 ? 와 # \@%%CALLNAME:COUNT%"
+		누계 ++
+	NEXT
+	SIF 누계
+		RETURNF 네임드
+	RETURNF 모브
+ENDIF
+;집합等での強制中断処理
+@FA15_RESET(ARG)
+Activity_Type:ARG = 0
+Activity_Duration:ARG = 0
+RETURN

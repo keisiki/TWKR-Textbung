@@ -557,49 +557,79 @@ RETURNF 1 + (ABL:PLAYER:ARG - 2) / 10
 ;-------------------------------------------------
 ;함수명 :RECOVER
 ;개요:BASE 회복 처리
-;인수 :ARGS
-;		ARG:0…참조하는 캐릭터 번호
-;       ARGS…베이스
-;		ARGS:1	표시 첨부
+;		표시 문자열이 빈 경우 회복량이 100 미만 숨김
+;		표시 문자열이 있는 경우 표시
+;인수 :ARG:0	참조하는 캐릭터 번호
+;		회복량	ARGS에 대응하는 BASE에 가산하는 값(음수의 경우는 줄임)
+;       ARGS	베이스명
+;		ARGS:1	표시문자열
 ;-------------------------------------------------
-@RECOVER(ARG, 회복량, ARGS, ARGS:1)
-#DIM  BASE_ID
+@RECOVER(ARG,회복량,ARGS,ARGS:1)
+#DIM BASE_ID
 #DIM 회복량
-;정력의 경우장대 없음이라면 스킵
-SIF !HAS_PENIS(ARG) && ARGS == "정력"
+SIF 회복량 == 0 || !CHECKE_BASE(ARG, ARGS)
 	RETURN
-;아나타 이외 TSP 스킵
-SIF ARG != MASTER && ARGS == "TSP"
-	RETURN
-BASE_ID = FINDELEMENT(BASENAME, ARGS)
+;회복처리
 BASE:ARG:(ARGS) = LIMIT(BASE:ARG:(ARGS) + 회복량, 0, MAXBASE:ARG:(ARGS))
-SIF 회복량 > 0 && 회복량 < 100
+;표시처리
+SIF 회복량 > 0 && 회복량 < 100 && ARGS:1 == ""
 	RETURN
-IF ARGS != "" && CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
+	BASE_ID = FINDELEMENT(BASENAME, ARGS)
+	LOCALS = \@ ARGS:1 != "" ? （%ARGS:1%） # \@
 	IF 회복량 > 0
-		CALL COLORMESSAGE(@"%BASENAME:BASE_ID%＋{회복량} (%CALLNAME:ARG%)(%ARGS:1%)", C_GREEN, 1)
+		CALL COLORMESSAGE(@"%BASENAME:BASE_ID%＋{회복량} （%CALLNAME:ARG%）%LOCALS%",C_GREEN,1)
 	ELSEIF 회복량 < 0
-		CALL COLORMESSAGE(@"%BASENAME:BASE_ID%－{회복량 * -1} (%CALLNAME:ARG%) (%ARGS:1%)", C_RED, 1)
+		CALL COLORMESSAGE(@"%BASENAME:BASE_ID%－{ABS(회복량)} （%CALLNAME:ARG%）%LOCALS%",C_RED,1)
 	ENDIF
 ENDIF
 
 ;-------------------------------------------------
 ;함수명 :RECOVER_PERMIL
 ;개요:BASE 비율 회복 처리
-;인수 :ARGS
-;		ARG:0…참조하는 캐릭터 번호
-;       ARGS…베이스
-;회복량은 0.1%단위
+;인수 :ARG:0		참조하는 캐릭터 번호
+;		회복비율	MAXBASE에 대해 산출하는 값(음수인 경우에는 줄임)
+;       ARGS		베이스명
+;       회복속도의영향	
+;		ARGS:1		표시문자열
+;회복비율은 0.1% 단위
 ;-------------------------------------------------
-@RECOVER_PERMIL(ARG, 회복량, ARGS, 회복속도의영향)
-#DIM 회복량
+@RECOVER_PERMIL(ARG,회복비율,ARGS,회복속도의영향,ARGS:1="")
+#DIM 회복비율
 #DIM 회복속도의영향
-SIF !HAS_PENIS(ARG) && ARGS == "정력"
-	회복량 = 0
-LOCAL = MAXBASE:ARG:(ARGS) * 회복량 / 1000
+#DIM 회복량
+SIF !CHECKE_BASE(ARG, ARGS)
+	RETURN
+회복량 = MAXBASE:ARG:(ARGS) * 회복비율 / 1000
 SIF 회복속도의영향
-	LOCAL = LOCAL * (TALENT:ARG:회복속도 + 4) / 4
-BASE:ARG:(ARGS) = LIMIT(BASE:ARG:(ARGS) + LOCAL, 0, MAXBASE:ARG:(ARGS))
+	회복량 = 회복량 * (TALENT:ARG:회복속도 + 4) / 4
+CALL RECOVER(ARG, 회복량, ARGS, ARGS:1)
+
+;-------------------------------------------------
+;함수명:CHECKE_BASE
+;개요  :ARG를 사용할 수 있는 BASE인지 판정
+;반환값:0：사용불가
+;		1：사용가능
+;-------------------------------------------------
+@CHECKE_BASE(ARG, ARGS)
+#FUNCTION
+SELECTCASE ARGS
+	; 한판 임의수정, 번역 누락에 의한 오류 방지를 위해 원문/변역 병기
+	CASE "체력", "기력", "体力", "気力"
+	;竿なしならスキップ
+	CASE "정력", "발기", "사정", "精力", "勃起", "射精"
+		SIF !HAS_PENIS(ARG)
+			RETURNF 0
+	;あなた以外TSPスキップ
+	CASE "TSP"
+		SIF ARG != MASTER
+			RETURNF 0
+	CASE "모유", "母乳"
+		SIF !TALENT:ARG:모유체질
+			RETURNF 0
+ENDSELECT
+RETURNF 1
+
 
 ;-------------------------------------------------
 ;함수명 :BUFF_BASE
@@ -609,8 +639,8 @@ BASE:ARG:(ARGS) = LIMIT(BASE:ARG:(ARGS) + LOCAL, 0, MAXBASE:ARG:(ARGS))
 #DIM 변동치
 #DIM 강화능력
 #DIM 메시지
-SIF !HAS_PENIS(ARG) && 강화능력 == 6
-	변동치 = 0
+SIF !CHECKE_BASE(ARG, BASENAME:강화능력)
+	RETURN
 SIF 변동치 < 0 && ABS(변동치) > MAXBASE:ARG:강화능력
 	변동치 = (MAXBASE:ARG:강화능력 - 1) * -1
 
