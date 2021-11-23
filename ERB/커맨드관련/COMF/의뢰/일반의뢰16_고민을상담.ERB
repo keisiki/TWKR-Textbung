@@ -1,0 +1,940 @@
+﻿;존부 함수
+;F함수는 TRYCALL계를 사용할 수 없기 때문에 통상 함수로 존부 배열을 만들어버린다
+@EXIST_일반의뢰16
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;오브젝트 본체
+;ここでARGで渡されるのはCLIENT_IDです
+@일반의뢰16(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "의뢰명"
+	CALLF MAKE_STR(V_NAME, "悩み事を聞いて！")
+CASE "의뢰내용 표시"
+	CALLF MAKE_STR(V_NAME, @"悩み事を聞いてあげる")
+CASE "의뢰 보수 표시"
+	CALLF MAKE_STR(V_NAME, @"野菜か果物(解消できたら）")
+CASE "의뢰실행 커맨드 이름"
+	CALLF MAKE_STR(V_NAME, "お悩み相談")
+CASE "의뢰내용"
+	CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "그 외"))
+CASE "의뢰 서브"
+CASE "의뢰기한"
+;発生時ではなく受託時に確定します
+CASE "의뢰 발생율"
+;これは他の일반의뢰との相対確率なんで10％ではありません
+	CALLF MAKE_INT(V_NAME, 5)
+CASE "의뢰 발생 조건"
+	SIF ABL:MASTER:화술기능 >= 1
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰 수탁 가능 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰실행 가능 조건"
+	SIF TARGET == ARG && SHIRAHU(ARG)
+		CALLF MAKE_INT(V_NAME, 1)
+;成功/失敗処理はCARRYOUTで直接書く
+;SOURCEやITEM入手、消費が煩雑になるので
+CASE "의뢰 소멸 조건"
+	SIF RAND:100 < 30
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰인 데리고 나가 가능"
+ENDSELECT
+
+
+
+@IRAI_일반16(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+#DIM 正解の選択肢
+#DIM 逆張りナシ
+#DIM お悩みナンバー
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE SCENE
+CASE "의뢰 조건 표시"
+;何か専用の表示情報を設けたい時用
+;受託済みの依頼表示で使用されます
+;
+;PRINT系だけでSOURCEとかは入れちゃダメ、WAITも無しで
+;ここ以外の表示項目は
+;PRINTFORML 　　　　　：
+;となっているのでスペースを揃えたほうが見栄えが良いです
+
+CASE "의뢰실행시"
+;このCASEに限り、RESULTが意味を持ちます
+;依頼実行時のRESULTにはIRAI_CONST_RESULT()を使用してください
+;可能な引数は"キャンセル", "実行して成功", "実行して失敗", "実行して未解決"です
+;独自処理を仕込みたい時は"実行して未解決"で先延ばしするなりしてください
+	VARSET RESULT
+	;口上に委託するか判定
+	CALL KOJO_MESSAGE_SEND("IRAI", TARGET, IRAI_ID, 0, 0, "TARGET", "口上委託率")
+	;口上専用ルート
+	IF RESULT:1 > RAND:100
+		VARSET RESULT
+		VARSET RESULTS
+		CALL KOJO_MESSAGE_SEND("IRAI", TARGET, IRAI_ID, 0, 0, "TARGET", "口上専用")
+	;汎用ルート
+	ELSE
+		RESULT = 0
+		WHILE !RESULT
+			;お悩みパターンを増やしたらここを調整(あえてちょっと多めにしてます）
+			お悩みナンバー = RAND:26
+			CALL IRAI_一般16_お悩みデータベース(お悩みナンバー, TARGET)
+		WEND
+	ENDIF
+	正解の選択肢 = RESULT:1
+	逆張りナシ = RESULT:2
+	DRAWLINE
+	[IF_DEBUG]
+		PRINTFORML ｺﾀｴﾊ No.{正解の選択肢} ﾀﾞﾖ
+	[ENDIF]
+	PRINTFORML ～%CALLNAME:TARGET%の今日のお悩み～
+	PRINTFORML 　　　『%RESULTS%』
+	PRINTFORML [ 1] - %RESULTS:1%
+	PRINTFORML [ 2] - %RESULTS:2%
+	PRINTFORML [ 3] - %RESULTS:3%
+	INPUT
+	LOCAL = RESULT
+	TIME += 10
+	;正解の選択肢を選ぶ
+	IF RESULT == 正解の選択肢
+		;6分の5の確率でそのまま正解
+		IF RAND:6 || 逆張りナシ
+			CALL COLORMESSAGE(@"＜NICE!!＞", C_YELLOW, 0)
+			PRINTFORML 【%RESULTS:LOCAL%】
+			PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の答えに満足した！
+			TFLAG:193 = 1
+			SOURCE:환락 = 500 + ABL:친밀 * 50
+			EXP:MASTER:회화경험 += 5
+			TFLAG:호감도보너스 = ABL:친밀 * 5
+			TFLAG:신뢰도관리 = 2
+			RETURN IRAI_CONST_RESULT("실행해 성공")
+		;6分の1の確率で逆にハズレ
+		ELSE
+			CALL COLORMESSAGE(@"＜SAD…＞", C_P_PURPLE, 0)
+			PRINTFORML 【%RESULTS:LOCAL%】
+			PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%のありきたりな返答にがっかりしている…
+			SOURCE:환락 = 100 + ABL:친밀 * 10
+			SOURCE:반감 = 50
+			EXP:MASTER:회화경험 += 1
+			TFLAG:193 = -2
+			RETURN IRAI_CONST_RESULT("실행해 실패")
+		ENDIF
+	;6分の1の確率で逆に正解
+	ELSEIF !RAND:6 && !逆張りナシ
+		CALL COLORMESSAGE(@"＜COOL!!＞", C_AQUA, 0)
+		PRINTFORML 【%RESULTS:LOCAL%】
+		PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の意外な返答にときめいた！
+		TFLAG:193 = 2
+		SOURCE:환락 = 2000 + ABL:친밀 * 100
+		EXP:MASTER:회화경험 += 10
+		TFLAG:호감도보너스 = ABL:친밀 * 10
+		TFLAG:신뢰도관리 = 5
+		RETURN IRAI_CONST_RESULT("실행해 성공")
+	;ハズレの選択肢を選ぶ
+	ELSE
+		CALL COLORMESSAGE(@"＜BAD…＞", C_RED, 0)
+		PRINTFORML 【%RESULTS:LOCAL%】
+		PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の答えに満足しなかった…
+		SOURCE:환락 = 50 + ABL:친밀 * 5
+		SOURCE:반감 = 100
+		TFLAG:193 = -1
+		RETURN IRAI_CONST_RESULT("실행해 실패")
+	ENDIF
+CASE "의뢰 성공시"
+;성공 보고시の報酬など
+	IF TFLAG:192 == 2
+		CALL CHANGE_CFLAG(4, TARGET, 10 + ABL:친밀 * 2)
+		TALENT:기분 = MIN(TALENT:기분 + 1, 1)
+		LOCAL:1 = 3
+	ELSE
+		CALL CHANGE_CFLAG(4, TARGET, 5 + ABL:친밀)
+		TALENT:기분 = MIN(TALENT:기분 + 1, 0)
+		LOCAL:1 = 1
+	ENDIF
+	;野菜召喚の儀
+	LOCALS = 
+	WHILE LOCALS == ""
+		LOCAL = RAND:40 + GETNUM(ITEM, "양배추")
+		LOCALS = %ITEMNAME:LOCAL%
+	WEND
+	CALL GET_ITEM(LOCALS, LOCAL:1, 2)
+CASE "의뢰 실패시"
+;실패 보고시の処理
+	IF TFLAG:192 == -2
+		CALL CHANGE_CFLAG(4, TARGET, -5)
+	ELSE
+		CALL CHANGE_CFLAG(4, TARGET, -1)
+	ENDIF
+ENDSELECT
+
+
+;---------------------------------------
+;お悩み相談のデータ
+;ARG           お悩みナンバー
+;RETURN        発生判定
+;RESULT:1      正解の選択肢
+;RESULT:2      逆張り正解／ハズレ判定の消去
+;RESULTS:0     お悩み文章
+;RESULTS:1～3  選択肢１～３
+;---------------------------------------
+@IRAI_一般16_お悩みデータベース(ARG, CHARA)
+#DIM CHARA
+VARSET RESULT
+VARSET RESULTS
+VARSET LOCAL
+SELECTCASE ARG
+CASE 1, 2
+	;弾幕ごっこの悩み
+	;もともとの戦闘能力がないなら除外
+	SIF CSVABL(CHARA, GETNUM(ABL, "전투능력")) <= 0
+		RETURN
+	RESULTS:0 = 新しいスペルカードはどんなのがいい%性格傾向語尾(CHARA, "かな？")%
+	IF ARG % 2 == 0
+		RESULTS:1 = ばらまき弾幕
+		RESULTS:2 = 足止め弾幕
+		RESULTS:3 = 誘導弾幕
+		SELECTCASE CFLAG:CHARA:성격경향
+		;気弱系
+		CASE 1
+			RESULT:1 = 3
+		;強気系
+		CASE 2
+			RESULT:1 = 2
+		;素直系
+		CASE 3
+			RESULT:1 = 1
+		;真面目系
+		CASE 4
+			RESULT:1 = 3
+		;その他
+		CASEELSE
+			RESULT:1 = 1
+		ENDSELECT
+	ELSE
+		RESULTS:1 = 見栄え重視の美しい弾幕
+		RESULTS:2 = 殺意剥き出しの鬼畜弾幕
+		RESULTS:3 = 幻惑するような不思議弾幕
+		SELECTCASE CFLAG:CHARA:성격경향
+		;気弱系
+		CASE 1
+			RESULT:1 = 1
+		;強気系
+		CASE 2
+			RESULT:1 = 2
+		;素直系
+		CASE 3
+			RESULT:1 = 2
+		;真面目系
+		CASE 4
+			RESULT:1 = 1
+		;その他
+		CASEELSE
+			RESULT:1 = 3
+		ENDSELECT
+	ENDIF
+CASE 3, 4
+	;晩酌の悩み
+	;お酒が飲めないなら除外
+	SIF TALENT:CHARA:술내성 <= 0
+		RETURN
+	IF ARG % 2 == 0
+		RESULTS:0 = 今日の晩酌は何がいいと%性格傾向語尾(CHARA, "思う？")%
+		RESULTS:1 = ビール
+		RESULTS:2 = 와인
+		RESULTS:3 = 日本酒
+		IF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "요리：好きな味"), "일식")
+			RESULT:1 = 3
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "요리：好きな味"), "양식")
+			RESULT:1 = 2
+		ELSE
+			SELECTCASE CFLAG:CHARA:성격경향
+			;気弱系
+			CASE 1
+				RESULT:1 = 2
+			;強気系
+			CASE 2
+				RESULT:1 = 3
+			;素直系
+			CASE 3
+				RESULT:1 = 1
+			;真面目系
+			CASE 4
+				RESULT:1 = 2
+			;その他
+			CASEELSE
+				RESULT:1 = 1
+			ENDSELECT
+		ENDIF
+	ELSE
+		RESULTS:0 = 今日の晩酌は%性格傾向語尾(CHARA, "どうしよう？")%
+		RESULTS:1 = 浴びるほどのビールで深酔い
+		RESULTS:2 = ほんのり甘いリキュールでほろ酔い
+		RESULTS:3 = 今日は禁酒！
+		IF TALENT:CHARA:술내성 > 2
+			RESULT:1 = 1
+		ELSEIF TALENT:CHARA:술내성 < 1
+			RESULT:1 = 2
+		ELSE
+			SELECTCASE CFLAG:CHARA:성격경향
+			;気弱系
+			CASE 1
+				RESULT:1 = 3
+			;強気系
+			CASE 2
+				RESULT:1 = 1
+			;素直系
+			CASE 3
+				RESULT:1 = 1
+			;真面目系
+			CASE 4
+				RESULT:1 = 3
+			;その他
+			CASEELSE
+				RESULT:1 = 2
+			ENDSELECT
+		ENDIF
+	ENDIF
+CASE 5, 6
+	;本の悩み
+	;本を読まないようなら除外
+	SIF ABL:CHARA:교양 <= 0
+		RETURN
+	RESULTS:0 = 新しく本を読むならどれがいい%性格傾向語尾(CHARA, "かな？")%
+	IF ARG % 2 == 0
+		RESULTS:1 = 恋愛小説
+		RESULTS:2 = 推理小説
+		RESULTS:3 = SF小説
+		IF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(장대|불가사의|매니악|미래)")
+			RESULT:1 = 3
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(위엄|지적|섬세|기묘|레트로)")
+			RESULT:1 = 2
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(귀여운|팝|로리타)")
+			RESULT:1 = 1
+		ELSE
+			RESULT:1 = RAND:3 + 1
+		ENDIF
+	ELSE
+		RESULTS:1 = 流行りのライトノベル
+		RESULTS:2 = 厳かな純文学
+		RESULTS:3 = マニアックな奇書
+		IF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(매니악|지적|기묘)")
+			RESULT:1 = 3
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(위엄|레트로|시크)")
+			RESULT:1 = 2
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(귀여운|팝|로리타)")
+			RESULT:1 = 1
+		ELSE
+			RESULT:1 = RAND:3 + 1
+		ENDIF
+	ENDIF
+CASE 7, 8
+	;香料の悩み
+	;条件なし
+	RESULTS:0 = 部屋に香料を置くならどれがいい%性格傾向語尾(CHARA, "かな？")%
+	IF ARG % 2 == 0
+		RESULTS:1 = フレッシュ系
+		RESULTS:2 = メロウ系
+		RESULTS:3 = ディープ系
+		IF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(요술|불가사의|위엄)")
+			RESULT:1 = 2
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(예술적|멋쟁이|섬세)")
+			RESULT:1 = 3
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(자연|심플)")
+			RESULT:1 = 1
+		ELSE
+			RESULT:1 = RAND:3 + 1
+		ENDIF
+	ELSE
+		RESULTS:1 = シンプルな消臭剤
+		RESULTS:2 = アロマオイル
+		RESULTS:3 = %CALLNAME:CHARA%の匂いでいい
+		IF TALENT:CHARA:악취내성 < 0
+			RESULT:1 = 1
+		ELSEIF GROUPMATCH(GET_TRIBENAME(CHARA, GETNUM(TALENT, "요괴")), "요수", "요조", "요충", "오니")
+			RESULT:1 = 3
+		ELSEIF GROUPMATCH(GET_TRIBENAME(CHARA, GETNUM(TALENT, "요괴")), "흡혈귀", "악마")
+			RESULT:1 = 2
+		ELSEIF GROUPMATCH(GET_TRIBENAME(CHARA, GETNUM(TALENT, "인간")), "천인", "월인", "마계인")
+			RESULT:1 = 2
+		ELSEIF TALENT:CHARA:요정
+			RESULT:1 = 2
+		ELSEIF TALENT:CHARA:조합지식
+			RESULT:1 = 2
+		ELSE
+			RESULT:1 = 1
+		ENDIF
+	ENDIF
+CASE 9, 10
+	;音楽の悩み
+	;条件なし
+	IF ARG % 2 == 0
+		RESULTS:0 = 気分転換にいい音楽はどれ%性格傾向語尾(CHARA, "かな？")%
+		RESULTS:1 = オシャレなジャズ
+		RESULTS:2 = イカしたロック
+		RESULTS:3 = 渋いクラシック
+		IF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(근사함|팝|멋쟁이|불가사의)")
+			RESULT:1 = 1
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(무서움|멋쟁이|파워풀|화려)")
+			RESULT:1 = 2
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(아름다운|예술적|지적|위엄|장대)")
+			RESULT:1 = 3
+		ELSE
+			RESULT:1 = RAND:3 + 1
+		ENDIF
+	ELSE
+		RESULTS:0 = 東方の曲ってどれがいい%性格傾向語尾(CHARA, "かな？")%
+		RESULTS:1 = やっぱりボス曲！
+		RESULTS:2 = 通は道中曲！
+		RESULTS:3 = 旧作曲もいいよ！
+		;めんどいけどちまちま
+		IF GROUPMATCH(CHARA, [[미마]], [[리카]], [[메이라]], [[엘렌]], [[카나]], [[리카코]], [[치유리]], [[유메미]], [[루코토]])
+			RESULT:1 = 3
+		ELSEIF GROUPMATCH(CHARA, [[쿠루미]], [[엘리]], [[무게츠]], [[겐게츠]], [[루이즈]], [[유키]], [[마이]], [[유메코]], [[신키]])
+			RESULT:1 = 3
+		ELSEIF GROUPMATCH(CHARA, [[아큐]], [[유카]], [[렌코]], [[메리]], [[토요히메]], [[요리히메]], [[레이센]], [[토키코]], [[코스즈]], [[츠카사]])
+			RESULT:1 = 3
+		ELSEIF GROUPMATCH(CHARA, [[대요정]], [[소악마]], [[릴리 W]], [[릴리 B]], [[테위]], [[시즈하]], [[모미지]], [[키스메]], [[토지코]])
+			RESULT:1 = 2
+		ELSEIF CSVABL(CHARA, GETNUM(ABL, "전투능력")) >= 5
+			RESULT:1 = 1
+		ELSE
+			;3番にはならない
+			RESULT:1 = RAND:2 + 1
+		ENDIF
+	ENDIF
+CASE 11, 12
+	;服の悩み
+	;条件なし
+	RESULTS:0 = 衣替えするならどんな服がいい%性格傾向語尾(CHARA, "かな？")%
+	IF ARG % 2 == 0
+		RESULTS:1 = かわいいワンピース
+		RESULTS:2 = クールなカッターシャツ
+		RESULTS:3 = セクシーなキャミソール
+		IF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "귀여운")
+			RESULT:1 = 1
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "근사함")
+			RESULT:1 = 2
+		ELSE
+			;무서움/美しい派
+			RESULT:1 = 3
+		ENDIF
+	ELSE
+		RESULTS:1 = 斬新なファッションコーデ
+		RESULTS:2 = 落ち着いたカジュアルコーデ
+		RESULTS:3 = 今の服装がスキ
+		IF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(예술적|팝|멋쟁이|화려)")
+			RESULT:1 = 1
+		ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(심플|시크|섬세|지적)")
+			RESULT:1 = 2
+		ELSE
+			RESULT:1 = 3
+		ENDIF
+	ENDIF
+CASE 13
+	;髪型の悩み
+	;条件なし
+	RESULTS:0 = 髪を切ろうと思うんだけど、どんな髪型にしよう%性格傾向語尾(CHARA, "かな？")%
+	RESULTS:1 = 今の髪型がスキ
+	;めんどいけどちまちま
+	IF GROUPMATCH(CHARA, [[코마치]], [[니토리]], [[서니]], [[키스메]], [[하타테]], [[코스즈]], [[치유리]])
+		RESULTS:2 = ポニーテール
+	ELSE
+		RESULTS:2 = ツインテール
+	ENDIF
+	;参考『東方ロング化タグ』,ありがとうございます
+	IF GROUPMATCH(CHARA, [[미마]], [[메이라]], [[엘렌]], [[리카코]], [[쿠루미]], [[엘리]], [[신키]])
+		RESULTS:3 = ショートヘア
+	ELSEIF GROUPMATCH(CHARA, [[메이링]], [[소악마]], [[파츄리]], [[릴리 W]], [[릴리 B]], [[유카리]], [[스이카]])
+		RESULTS:3 = ショートヘア
+	ELSEIF GROUPMATCH(CHARA, [[케이네]], [[우동게]], [[에이린]], [[카구야]], [[모코우]], [[사나에]], [[텐시]], [[유기]], [[오쿠]])
+		RESULTS:3 = ショートヘア
+	ELSEIF GROUPMATCH(CHARA, [[뱌쿠렌]], [[후토]], [[코코로]], [[카게로]], [[벤벤]], [[클라운피스]], [[순호]])
+		RESULTS:3 = ショートヘア
+	ELSEIF GROUPMATCH(CHARA, [[시온]], [[네무노]], [[아운]], [[나루미]], [[오키나]], [[스타]], [[토요히메]], [[요리히메]])
+		RESULTS:3 = ショートヘア
+	ELSE
+		RESULTS:3 = ロングヘア
+	ENDIF
+	IF TALENT:CHARA:성적흥미 < 0
+		RESULT:1 = 1
+	ELSEIF TALENT:CHARA:담력 < 0
+		RESULT:1 = 1
+	ELSEIF TALENT:CHARA:자존심 > 0
+		RESULT:1 = 1
+	ELSEIF TALENT:CHARA:수치심 > 0
+		RESULT:1 = 1
+	ELSEIF TALENT:CHARA:명랑／음침 < 0
+		RESULT:1 = 1
+	ELSEIF TALENT:CHARA:성적흥미 > 0
+		RESULT:1 = 2
+	ELSEIF TALENT:CHARA:명랑／음침 > 0
+		RESULT:1 = 2
+	ELSEIF TALENT:CHARA:수치심 < 0
+		RESULT:1 = 2
+	ELSEIF TALENT:CHARA:응답 < 0
+		RESULT:1 = 2
+	ELSEIF TALENT:CHARA:태도 < 0
+		RESULT:1 = 2
+	ELSEIF TALENT:CHARA:응답 > 0
+		RESULT:1 = 2
+	ELSEIF TALENT:CHARA:자기애 > 0
+		RESULT:1 = 3
+	ELSE
+		;1番にはならない
+		RESULT:1 = RAND:2 + 2
+	ENDIF
+CASE 14
+	;参拝の悩み
+	;所属している人らは除外
+	IF GROUPMATCH(CHARA, [[레이무]], [[루코토]], [[카나]], [[미마]], [[스이카]], [[코코로]], [[신묘마루]], [[아운]])
+		RETURN
+	ELSEIF GROUPMATCH(CHARA, [[나즈린]], [[코가사]], [[누에]], [[뱌쿠렌]], [[마미조]], [[이치린]], [[무라사]], [[쇼]], [[쿄코]], [[조온]])
+		RETURN
+	ELSEIF GROUPMATCH(CHARA, [[사나에]], [[카나코]], [[스와코]])
+		RETURN
+	;月の人たちとわかさぎ姫
+	ELSEIF GROUPMATCH(CHARA, [[요리히메]], [[토요히메]], [[레이센]], [[사구메]], [[와카사기히메]])
+		RETURN
+	ENDIF
+	;ほぼ運ゲーです
+	RESULTS:0 = 願掛けに行くならどこがいい%性格傾向語尾(CHARA, "かな？")%
+	RESULTS:1 = 하쿠레이 신사
+	RESULTS:2 = 守矢神社
+	RESULTS:3 = 명련사
+	;命蓮寺はヤダ！（3番にはならない）
+	IF GROUPMATCH(CHARA, [[요시카]], [[청아]], [[토지코]], [[후토]], [[미코]])
+		RESULT:1 = RAND:2 + 1
+	ELSEIF GROUPMATCH(CHARA, [[오린]], [[오쿠]], [[파르시]], [[키스메]], [[야마메]], [[무라사]], [[쇼]], [[쿄코]], [[조온]])
+		RESULT:1 = RAND:2 + 1
+	ELSEIF GROUPMATCH(CHARA, [[사나에]], [[카나코]], [[스와코]])
+		RESULT:1 = RAND:2 + 1
+	ELSEIF TALENT:CHARA:요정
+		RESULT:1 = RAND:2 + 1
+	ELSE
+		RESULT:1 = RAND:3 + 1
+	ENDIF
+	;この悩みは逆張りナシ
+	RESULT:2 = 1
+CASE 15
+	;ダイエットの悩み
+	;条件なし
+	RESULTS:0 = お腹のお肉が気になるのだけど、どうしたらいい%性格傾向語尾(CHARA, "かな？")%
+	RESULTS:1 = 日々の節食！
+	RESULTS:2 = 健康的な運動！
+	RESULTS:3 = お薬パワー！
+	IF TALENT:CHARA:대식가
+		RESULT:1 = 1
+	ELSEIF CSVABL(CHARA, GETNUM(ABL, "전투능력")) <= 0
+		RESULT:1 = 2
+	ELSEIF TALENT:CHARA:조합지식
+		RESULT:1 = 3
+	ELSEIF ABL:CHARA:요리기능 >= 3
+		RESULT:1 = 1
+	ELSEIF ABL:CHARA:전투능력 <= 3
+		RESULT:1 = 2
+	ELSEIF TALENT:CHARA:조제Lv >= 3
+		RESULT:1 = 3
+	ELSE
+		SELECTCASE CFLAG:CHARA:성격경향
+		;気弱系
+		CASE 1
+			RESULT:1 = 1
+		;強気系
+		CASE 2
+			RESULT:1 = 2
+		;素直系
+		CASE 3
+			RESULT:1 = 1
+		;真面目系
+		CASE 4
+			RESULT:1 = 2
+		;その他
+		CASEELSE
+			RESULT:1 = 2
+		ENDSELECT
+	ENDIF
+	;この悩みは逆張りナシ
+	RESULT:2 = 1
+CASE 16
+	;菜園の悩み
+	;冬は除外
+	SIF DAY:2 == 4
+		RETURN
+	RESULTS:0 = 家庭菜園で何を作ろう%性格傾向語尾(CHARA, "かな？")%
+	;答え＝DAY:2だと簡単すぎるのでシャッフルする
+	RESULT:1 = RAND:3 + 1
+	FOR LOCAL, 1, 4
+		;LOCAL:2に季節を入れる
+		;答えはDAY:2
+		IF LOCAL == RESULT:1
+			LOCAL:2 = DAY:2
+		;１つ目の間違い
+		ELSEIF !LOCAL:3
+			LOCAL:2 = DAY:2 + 1
+			LOCAL:3 ++
+		;２つ目の間違い
+		ELSE
+			;秋なら1つ前、それ以外なら2つ先の季節
+			IF DAY:2 == 3
+				LOCAL:2 = DAY:2 - 1
+			ELSE
+				LOCAL:2 = DAY:2 + 2
+			ENDIF
+		ENDIF
+		;キャベツを基準に季節の作物を抽選
+		LOCAL:1 = GETNUM(ITEM, "양배추") + (10 * LOCAL:2) - 10 + RAND:3
+		RESULTS:LOCAL = %ITEMNAME:(LOCAL:1)%
+	NEXT
+	;この悩みは逆張りナシ
+	RESULT:2 = 1
+CASE 17
+	;菜園の悩み～花編～
+	;条件なし
+	RESULTS:0 = プランターで何を育てよう%性格傾向語尾(CHARA, "かな？")%
+	;答え＝DAY:2だと簡単すぎるのでシャッフルする
+	RESULT:1 = RAND:3 + 1
+	FOR LOCAL, 1, 4
+		;答えには正解の花
+		IF LOCAL == RESULT:1
+			;関数化してもいいけどするほどでもないかなと思い適当に
+			SELECTCASE DAY:2
+			CASE 1
+				SELECTCASE RAND:3
+				CASE 1
+					RESULTS:LOCAL = チューリップ
+				CASE 2
+					RESULTS:LOCAL = アネモネ
+				CASEELSE
+					RESULTS:LOCAL = スミレ
+				ENDSELECT
+			CASE 2
+				SELECTCASE RAND:3
+				CASE 1
+					RESULTS:LOCAL = アサガオ
+				CASE 2
+					RESULTS:LOCAL = キキョウ
+				CASEELSE
+					RESULTS:LOCAL = ユリ
+				ENDSELECT
+			CASE 3
+				SELECTCASE RAND:3
+				CASE 1
+					RESULTS:LOCAL = コスモス
+				CASE 2
+					RESULTS:LOCAL = キク
+				CASEELSE
+					RESULTS:LOCAL = 月見草
+				ENDSELECT
+			CASE 4
+				SELECTCASE RAND:3
+				CASE 1
+					RESULTS:LOCAL = ヒナギク
+				CASE 2
+					RESULTS:LOCAL = スイセン
+				CASEELSE
+					RESULTS:LOCAL = スノードロップ
+				ENDSELECT
+			ENDSELECT
+		ELSE
+			;LOCAL:2に季節を入れる
+			;１つ目の間違い
+			IF !LOCAL:3
+				LOCAL:2 = DAY:2 + 1
+				LOCAL:3 ++
+			;２つ目の間違い
+			ELSE
+				;秋なら1つ前、それ以外なら2つ先の季節
+				IF DAY:2 == 3
+					LOCAL:2 = DAY:2 - 1
+				ELSE
+					LOCAL:2 = DAY:2 + 2
+				ENDIF
+			ENDIF
+			SELECTCASE LOCAL:2
+			CASE 1
+				SELECTCASE RAND:3
+				CASE 1
+					RESULTS:LOCAL = チューリップ
+				CASE 2
+					RESULTS:LOCAL = アネモネ
+				CASEELSE
+					RESULTS:LOCAL = スミレ
+				ENDSELECT
+			CASE 2
+				SELECTCASE RAND:3
+				CASE 1
+					RESULTS:LOCAL = アサガオ
+				CASE 2
+					RESULTS:LOCAL = キキョウ
+				CASEELSE
+					RESULTS:LOCAL = ユリ
+				ENDSELECT
+			CASE 3
+				SELECTCASE RAND:3
+				CASE 1
+					RESULTS:LOCAL = コスモス
+				CASE 2
+					RESULTS:LOCAL = キク
+				CASEELSE
+					RESULTS:LOCAL = 月見草
+				ENDSELECT
+			CASE 4
+				SELECTCASE RAND:3
+				CASE 1
+					RESULTS:LOCAL = ヒナギク
+				CASE 2
+					RESULTS:LOCAL = スイセン
+				CASEELSE
+					RESULTS:LOCAL = スノードロップ
+				ENDSELECT
+			ENDSELECT
+		ENDIF
+	NEXT
+	;この悩みは逆張りナシ
+	RESULT:2 = 1
+CASE 18
+	;休日の悩み
+	;条件なし,仕事ないキャラもいるけど
+	RESULTS:0 = 次の休日は何をして過ごそう%性格傾向語尾(CHARA, "かな？")%
+	RESULTS:1 = 外に出て散策
+	RESULTS:2 = 町で買い物
+	RESULTS:3 = 家でゴロゴロ
+	SELECTCASE CFLAG:CHARA:성격경향
+	;気弱系
+	CASE 1
+		RESULT:1 = 1
+	;強気系
+	CASE 2
+		RESULT:1 = 1
+	;素直系
+	CASE 3
+		RESULT:1 = 3
+	;真面目系
+	CASE 4
+		RESULT:1 = 2
+	;その他
+	CASEELSE
+		RESULT:1 = 2
+	ENDSELECT
+CASE 19
+	;人気の悩み
+	;条件なし
+	RESULTS:0 = 最近人気が落ちてる%性格傾向語尾(CHARA, "気がする")%……
+	RESULTS:1 = そんなことないよ！
+	RESULTS:2 = 自分を磨こう！
+	RESULTS:3 = もはや脱ぐしか無い
+	SELECTCASE CFLAG:CHARA:성격경향
+	;気弱系
+	CASE 1
+		RESULT:1 = 2
+	;強気系
+	CASE 2
+		RESULT:1 = 2
+	;素直系
+	CASE 3
+		RESULT:1 = 1
+	;真面目系
+	CASE 4
+		RESULT:1 = 2
+	;その他
+	CASEELSE
+		;3番にはならない）
+		RESULT:1 = RAND:2 + 1
+	ENDSELECT
+	;この悩みは逆張りナシ
+	RESULT:2 = 1
+CASE 20
+	;集中力の悩み
+	;条件なし
+	RESULTS:0 = 最近どうも気が抜け%性格傾向語尾(CHARA, "てるなぁ")%……
+	RESULTS:1 = ちゃんと寝たほうがいい
+	RESULTS:2 = 気晴らしをしよう
+	RESULTS:3 = 闘魂注入ビンタ！！
+	SELECTCASE CFLAG:CHARA:성격경향
+	;気弱系
+	CASE 1
+		RESULT:1 = 3
+	;強気系
+	CASE 2
+		RESULT:1 = 3
+	;素直系
+	CASE 3
+		RESULT:1 = 2
+	;真面目系
+	CASE 4
+		RESULT:1 = 1
+	;その他
+	CASEELSE
+		RESULT:1 = 2
+	ENDSELECT
+	;この悩みは逆張りナシ
+	RESULT:2 = 1
+CASE 21
+	;御三家の悩み
+	RESULTS:0 = 最初の三匹のうち%性格傾向語尾(CHARA, "どれにしよう？")%
+	RESULTS:1 = くさタイプ
+	RESULTS:2 = ほのおタイプ
+	RESULTS:3 = みずタイプ
+	IF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(흙|식물|초록빛|벌레)")
+		RESULT:1 = 1
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(불|해|빨강빛|주홍빛)")
+		RESULT:1 = 2
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(물|얼음|푸른빛|물고기)")
+		RESULT:1 = 3
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "자연")
+		RESULT:1 = 1
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "파워풀")
+		RESULT:1 = 2
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "지적")
+		RESULT:1 = 3
+	ELSE
+		RESULT:1 = RAND:3 + 1
+	ENDIF
+CASE 22
+	;進化の悩み
+	RESULTS:0 = 何タイプに進化%性格傾向語尾(CHARA, "させよう？")%
+	RESULTS:1 = みずタイプ
+	RESULTS:2 = でんきタイプ
+	RESULTS:3 = ほのおタイプ
+	IF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(물|얼음|푸른빛|물고기)")
+		RESULT:1 = 1
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(천둥|별|노랑빛)")
+		RESULT:1 = 2
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(불|해|빨강빛|주홍빛)")
+		RESULT:1 = 3
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(아름다운|지적)")
+		RESULT:1 = 1
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(근사함|화려)")
+		RESULT:1 = 2
+	ELSEIF STRCOUNT(GET_STR(, "캐릭터데이터", CHARA, "감성：좋아함"), "(귀여운|파워풀)")
+		RESULT:1 = 3
+	ELSE
+		RESULT:1 = RAND:3 + 1
+	ENDIF
+CASEELSE
+	;プレゼントの悩み,一番クイズっぽいので確率をちょっと上げてます
+	;相性のいいキャラを探す
+	CALL FISHER_YATES_SHAFFLE(CHARANUM)
+	FOR LOCAL:1, 1, CHARANUM
+		LOCAL = SHAFFLE_ARRAY:(LOCAL:1)
+		IF RELATION:CHARA:LOCAL > 100
+			LOCAL:2 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	;いないなら除外
+	SIF !LOCAL:2
+		RETURN
+	;友人キャラを隔離
+	LOCAL:10 = LOCAL:2
+	[IF_DEBUG]
+		PRINTFORML %CALLNAME:(LOCAL:10)%
+	[ENDIF]
+	;答えを先に入れるパターン
+	LOCAL = RAND:3 + 1
+	;答えの選択肢に高得点を入れる,あえて701点ではなく700点から
+	CALL CREATE_GIFT_FROM_CHARA(LOCAL:10, 700, 1000)
+	LOCALS:LOCAL = %RESULTS%
+	;ハズレの選択肢にダミーを入れる
+	FOR LOCAL:1, 1, 4
+		SIF LOCAL:1 == LOCAL
+			CONTINUE
+		CALL CREATE_GIFT_FROM_CHARA(LOCAL:10, 0, 699)
+		LOCALS:(LOCAL:1) = %RESULTS%
+	NEXT
+	;関数を呼んだのでこの時点ではRESULT/RESULTSがぐちゃってます
+	RESULTS:0 = %CALLNAME:(LOCAL:10)%にプレゼントするならどれがいい%性格傾向語尾(CHARA, "かな？")%
+	RESULTS:1 = %LOCALS:1%
+	RESULTS:2 = %LOCALS:2%
+	RESULTS:3 = %LOCALS:3%
+	RESULT:1 = LOCAL
+	RESULT:2 = 0
+[SKIPSTART]
+CASE 
+	RESULTS:0 = 
+	RESULTS:1 = 
+	RESULTS:2 = 
+	RESULTS:3 = 
+	RESULT:1 = 
+[SKIPEND]
+ENDSELECT
+RETURN 1
+
+;性格傾向によって汎用台詞の語尾を変える
+@性格傾向語尾(ARG, ARGS)
+#FUNCTIONS
+;気弱系＆素直系＆その他系はそのまま返す
+SIF !GROUPMATCH(CFLAG:ARG:성격경향, 2, 4)
+	RETURNF ARGS
+SELECTCASE ARGS
+CASE "かな？"
+	SELECTCASE CFLAG:ARG:성격경향
+	;強気系
+	CASE 2
+		RETURNF "かしら？"
+	;真面目系
+	CASE 4
+		RETURNF "でしょうか？"
+	ENDSELECT
+CASE "思う？"
+	SELECTCASE CFLAG:ARG:성격경향
+	;強気系
+	CASE 2
+		RETURNF "思うかしら？"
+	;真面目系
+	CASE 4
+		RETURNF "思いますか？"
+	ENDSELECT
+CASE "どうしよう？"
+	SELECTCASE CFLAG:ARG:성격경향
+	;強気系
+	CASE 2
+		RETURNF "どうしようかしら？"
+	;真面目系
+	CASE 4
+		RETURNF "どうしましょう？"
+	ENDSELECT
+CASE "どれにしよう？"
+	SELECTCASE CFLAG:ARG:성격경향
+	;強気系
+	CASE 2
+		RETURNF "どれにしようかしら？"
+	;真面目系
+	CASE 4
+		RETURNF "どれにしましょう？"
+	ENDSELECT
+CASE "させよう？"
+	SELECTCASE CFLAG:ARG:성격경향
+	;強気系
+	CASE 2
+		RETURNF "させようかしら？"
+	;真面目系
+	CASE 4
+		RETURNF "させましょう？"
+	ENDSELECT
+CASE "気がする"
+	SELECTCASE CFLAG:ARG:성격경향
+	;強気系
+	CASE 2
+		RETURNF "気がするわ"
+	;真面目系
+	CASE 4
+		RETURNF "気がします"
+	ENDSELECT
+CASE "てるなぁ"
+	SELECTCASE CFLAG:ARG:성격경향
+	;強気系
+	CASE 2
+		RETURNF "てるわ"
+	;真面目系
+	CASE 4
+		RETURNF "てます"
+	ENDSELECT
+ENDSELECT
