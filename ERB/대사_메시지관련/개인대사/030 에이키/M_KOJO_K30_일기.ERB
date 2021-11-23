@@ -1,0 +1,1343 @@
+﻿;일기구상＠小鈴구상を参考にしてます。わかりやすい改良共々本当にありがとうございます
+
+;小鈴구상にならって設定
+;에이키님은 几帳面に일기をつけていて分量も多いので、あなたは自分に関するところを拾い読みしている
+;一人で読み進めるのではなく横に에이키님이 いて一緒に思い出を見直している感じ
+;設定上ぼっち気質なので他キャラとの交流的なのは無し。ネタがないので汎用일기も無し
+;=============================
+@DIARY_K30_EXIST
+;存在判定
+;=============================
+RETURN 1
+
+;一日の종료 시の流れの覚書
+;残存精液/임신判定 → 会ってない日数チェック（구상）→ 데일리イベント → 夜オナニー（구상）
+;→ @DIARY_TEXT_KXX（일기本文）→ @DIARY_AFTER_CHECK_KXX（플래그の処理）→ 陥落・素質UPチェック → 一日の終了
+;=============================
+@DIARY_AFTER_CHECK_K30
+;=============================
+
+;=============================
+@DIARY_BEFORE_CHECK_K30
+;PAGENUM:0は使えません
+;=============================
+;MAXPAGEはここで記入する
+MAX_DIARY_PAGE:30:0 = 100
+
+;ここで汎用発生条件を記入する。
+;ファーストキス		No.1
+SIF DIARY:30:1 != 0 || GETBIT(CFLAG:30:1910, 2) == 1
+	GOTO THROUGH_K
+IF TALENT:30:키스미경험
+ELSE
+	CALL K30_WRITE_DIARY(1)
+ENDIF
+;처녀喪失			No.2
+$THROUGH_K
+SIF DIARY:30:2 != 0 || GETBIT(CFLAG:30:1910, 3) == 1
+	GOTO THROUGH_V
+;TALENTで判断すると誤爆するらしいのでステータス表示文で判断。空白は처녀or「出会う前に～」
+IF CSTR:30:처녀상실이력 == "" 
+ELSE
+	CALL K30_WRITE_DIARY(2)
+ENDIF
+;탄막승부에이키님勝ち	No 3	탄막승부
+;탄막승부에이키님負け	No 4	탄막승부
+;お小言もらった		No 5	関数・お설교ライブラリ
+;이상한T				No.6	金요일に遭遇
+$THROUGH_V
+SIF DIARY:30:6 == 0 && STRCOUNT(CSTR:30:0, "이상한T피로연") && YOUBI_MATCH(DAY, "금")
+	CALL K30_WRITE_DIARY(6)
+;패션ブーム	No.7	一日最初の挨拶
+;お설교たいむ		No.8	固有依頼
+;仕事手伝った		No.9	日常コマンド
+;에이키님이 ぶん殴った	No.10	関数・お설교ライブラリ
+;날씨:ぱんつの日	No.11	一日の종료 시
+;선물(GOOD)		No.12	日常コマンド
+;선물(NORMAL)		No.13	日常コマンド
+;선물(BAD)		No.14	日常コマンド
+;スカートめくり		No.15	セクハラコマンド
+;説法10回終了		No.16	関数・お설교ライブラリ
+;さとりからお手紙	No.17	依頼
+;ヘカ様からお手紙	No.18	依頼
+;風呂場追い出し		No.19	イベント구상
+
+;사모				No.20
+SIF DIARY:30:20 == 0 && TALENT:30:사모
+	CALL K30_WRITE_DIARY(20)
+;抱き付いた			No.21	セクハラコマンド
+;何か釣れた			No.22	日常コマンド
+;オナネタ			No.23	一日の종료 시
+;宴会のお知らせ		No.24	予告ありの宴会が에이키님参加可能な日
+SIF DIARY:30:24 == 0 && TALENT:30:사모 && INRANGE(FLAG:연회개최플래그, 2, 4) && (FLAG:개시일 % 2 == 1)
+	CALL K30_WRITE_DIARY(24)
+;薄い本見ちゃった	No.25	日常コマンド
+	
+;연모				No.30	一日の종료 시
+;에이키님から밀어넘어뜨림	No.31	イベント구상
+;임신소망			No.32	一日の종료 시
+;임신				No.33	懐妊구상と被るので一日ずらす
+SIF DIARY:30:33 ==0 && CFLAG:30:임신경과일수 >= 21 && GETBIT(CFLAG:30:1910, 5)
+	CALL K30_WRITE_DIARY(33)
+;출산後				No.34	출산구상と被るので一日ずらす
+SIF DIARY:30:34 ==0 && CFLAG:30:출산경과일 >= 2 && GETBIT(CFLAG:30:1910, 5)
+	CALL K30_WRITE_DIARY(34)
+;縦割れアナル		No.35	우후후時A성교경험100回以上で플래그
+SIF DIARY:30:35 ==0 && GETBIT(CFLAG:30:1910, 7)
+	CALL K30_WRITE_DIARY(35)
+	
+;첫대면				No.50	첫대면挨拶
+
+;=============================
+@DIARY_TEXT_K30, PAGENUM, MODE, PAGECOUNT
+;PAGENUM   =일기のパターン
+;MODE      =데일리:一日종료 시の데일리イベントでの読み上げ
+;          =コマンド:[일기を読む]コマンドでの読み上げ
+;PAGECOUNT =何ページ目に書かれているか
+;=============================
+#DIM PAGENUM
+#DIMS MODE
+#DIM PAGECOUNT
+#DIM 중복방지
+#DIM 날짜
+#DIMS 표정
+#DIMS 台詞
+#DIMS 복장
+#DIMS 이펙트
+VARSET LOCALS
+복장 = 服
+이펙트 =
+TFLAG:192 = 0
+;台詞색깔＠コマンドで呼び出された時、色を付ける
+SETCOLOR 0x337D5C
+;일기内容
+;グループマッチに일기のIDを入れて、表示させたい顔絵を表示する。
+IF MODE == "デイリー"
+	;一時的に拡張顔絵に変更
+	VARSET LOCAL
+	LOCAL = FLAG:스탠딩종류
+	FLAG:스탠딩종류 = 1
+	LOCAL:1 = CFLAG:30:대체적용
+	CFLAG:30:대체적용 = 1
+	;カジュアルデーor패션ブームなら素敵なＴシャツ
+	SIF YOUBI_MATCH(DAY, "금") || PAGENUM == 7
+		복장 = 服_変Ｔ
+	;ページごとに표정の指定
+	IF GROUPMATCH(PAGENUM, 1, 2, 32)
+		IF K30_DIARY_DATA(PAGENUM, 2) == "恋"
+			표정 = 笑顔
+			이펙트 = ダミー
+			TFLAG:192 = -7
+		ELSE
+			표정 = %\@ PAGENUM == 1 ? 発情 # 睡眠 \@%
+		ENDIF
+	ELSEIF GROUPMATCH(PAGENUM, 3, 4, 9, 11, 13, 14, 16, 17, 18, 20, 21, 22, 24, 32, 33, 50)
+		표정 = 通常
+	ELSEIF GROUPMATCH(PAGENUM, 5, 20, 25)
+		표정 = 反発
+	ELSEIF GROUPMATCH(PAGENUM, 6, 7, 12, 34)
+		표정 = 笑顔
+	ELSEIF GROUPMATCH(PAGENUM, 8, 10)
+		표정 = 怒り
+	ELSEIF GROUPMATCH(PAGENUM, 15, 31, 35)
+		SELECTCASE K30_DIARY_DATA(PAGENUM, 5)
+			CASE "怒"
+				표정 = 怒り
+			CASE "喜"
+				표정 = LOVE
+				이펙트 = 照れ
+			CASEELSE
+				표정 = 赤面
+				이펙트 = 照れ
+		ENDSELECT
+	ELSEIF PAGENUM == 23
+		표정 = 絶頂
+		복장 = 服_下着
+		이펙트 = ダミー
+		TFLAG:192 = -9
+	ELSEIF PAGENUM == 30
+		표정 = LOVE
+		이펙트 = ダミー
+		TFLAG:192 = -7
+	ENDIF
+	PRINTFORML 
+	CALL PRINT_FACE,30, 표정, 복장, "", 이펙트
+	;스탠딩종류を元に戻す
+	FLAG:스탠딩종류 = LOCAL
+	CFLAG:30:대체적용 = LOCAL:1
+ENDIF
+IF MODE == "コマンド"
+	;처음봄
+	IF !STRCOUNT(CSTR:30:0, "일기처음봄")
+		PRINTFORMDW 어떤 것을 쓰고 있는지 궁금해서 휙휙 페이지를 넘겨 보았다
+		PRINTFORML 
+		PRINTFORML ○월 Ｘ일 □요일　맑음
+		PRINTFORML 
+		PRINTFORML 오전 6시 기상. 컨디션-양호. 오늘 비번. 대신 순회 후보지로 인간마을……
+		PRINTFORML …오전 11시 인간마을 근처에서 일을 빠진 코마치를 발견. 지난번 건도 아울러 캐묻는다…
+		PRINTFORML ……오후 1시. 질책을 끝내고 그대로 인간마을을 순회………
+		PRINTFORMW ………………
+		PRINTFORMDW 일기라기 보다는 업무일보 같지만, 덕분에 만났을 때의 일도 쉽게 발견되었다.
+		PRINTFORML
+		CALLF FIRSTTIME("일기처음봄")
+	;2回目以降、最初のページの前に
+	ELSEIF 중복방지 != DAY
+		;適当にお설교の対象として이름だけ。神様に当たったら코마치에게 
+		LOCAL = RAND(RANDOM_CHARANUM - 1) + 1
+		SIF TALENT:LOCAL:신령
+			LOCAL = 76
+		PRINTFORMDL 우선 적당한 페이지를 넘겨 본다……
+		IF LOCAL == 76 || RAND:3 == 1
+			PRINTDATADW
+				DATAFORM 당연한 일이지만, 코마치의 땡땡이는 염마님에게 전부 파악되고 있는 것 같다
+				DATAFORM 아침과 점심과 심야에 코마치에게 설교한 일이 적혀 있었다
+				DATAFORM 3시간에 이르는 코마치에 대한 설교에 대해서 적혀있었다
+				DATAFORM 나는 그 일이 바쁘다는 것을 설명했지만 특별히 불만스럽게 여기지는 않았다
+			ENDDATA
+		ELSE
+			PRINTDATADW
+				DATAFORM %CALLNAME:LOCAL%에게 설교를 했을 때의 일이 적혀있었다
+				DATAFORM 『%K30_C_NAME(LOCAL,3)%에게 할 말』이 쭉 늘어져 있었다
+				DATAFORM 여전히 업무일보 같은 일기가 쓰여져 있었다
+				DATAFORM %CALLNAME:LOCAL%의 원래 설교를 할 계획이 쓰여져 있었다
+				DATAFORM 부하에 대한 감사와 위로의 말이 적혀 있었다
+			ENDDATA
+		ENDIF
+		PRINTFORMDL ―――――――――――――――――――――――――――――
+		PRINTFORMDL 조금 더 읽다보니 자신에 대해 쓰여져 있는 부분을 발견했다
+		PRINTFORMW 
+	ENDIF
+	중복방지 = DAY
+ENDIF
+PRINTFORMDL - %CALLNAME:30%의 일기 --------------------------------------------------------------------------------------------------------
+PRINTL
+;CSTRに保存した날짜を体裁整えて表示
+날짜 = TOINT(K30_DIARY_DATA(PAGENUM, 0))
+IF 날짜 != 0
+	SPLIT PRINT_DATE_F(날짜), " ", LOCALS
+	PRINTFORML %REPLACE(LOCALS:1, "달의", "달 ")% %GET_DAY(날짜)%요일　%K30_DIARY_DATA(PAGENUM, 1)%
+;不具合出たときの保険。記号バージョンも併記
+ELSE
+	LOCAL:1 = PAGENUM % 4
+	LOCAL:2 = PAGENUM % 9
+	LOCAL:3 = PAGENUM % 7
+	PRINTFORML %UNICODE(9829 + LOCAL:1)%의 달 %UNICODE(9824 + LOCAL:2)%일 %UNICODE(945 + LOCAL:3)%요일　%K30_DIARY_DATA(PAGENUM, 1)%
+ENDIF
+PRINTFORML 
+SELECTCASE PAGENUM
+	;ファーストキス＠オプション次第でTINKOにキスでも発生。ぼかした書き方にしておく
+	CASE 1
+		;연모と장소で簡単な分岐
+		LOCAL = (K30_DIARY_DATA(PAGENUM, 2) == "사랑")
+		PRINTFORML 자신\@ K30_DIARY_DATA(PAGENUM, 5) == "봉함" ? 이 한 # 이 당한 \@ 일의 대담함에 아직 가슴이 두근거리는 모양이다.
+		IF GROUPMATCH(K30_DIARY_DATA(PAGENUM, 4), "시비곡직청", "자기 방", "에이키의 방")
+			PRINTFORML 조금 눈을 감고 침착하려고 해도, 저 감촉과 함께 여러가지 일이 머리에 소용돌이쳐 온다
+			PRINTFORML 그렇다고 눈을 뜨고 주위를 둘러보면 하던 때의 풍경까지 또렷이 떠올리게 된다
+			PRINTFORML 이래서는 오늘 잠자리에 드는 것도 무리라는 생각이 든다.
+		ELSE
+			PRINTFORML %K30_DIARY_DATA(PAGENUM, 4)%. 한동안 그곳을 지날 때마다 이런저런 생각이 들 것 같다.
+			PRINTFORML 당분간은 그 근처에서 가르침을 설파하지 말자. 도저히 평범하게 말할 자신이 없다.
+			PRINTFORML 자신이 이렇게까지 흔들릴 수 있을 거라고는 생각도 못했다.
+		ENDIF
+		PRINTFORML 
+		PRINTFORML 딱딱한 염마\@ LOCAL ? 에서 벗어나 겨우 말길이 닿은 # 인 채로 헤매기만 하는  \@나를 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"는")% 어떻게 생각하고 있을까.
+		PRINTFORM 상스럽다고는 생각되지 않았을까.
+		IF LOCAL
+			PRINTFORML 아니면 내 기분에 부응해 줄 것인가.
+		ELSE
+			PRINTFORML 만약 환멸을 당하면 어떻게 해야 할까?
+		ENDIF
+		PRINTFORMW 무슨 일이 있을 때마다 생각에 잠겨 버리는 자신의 성격이 조금 원망스러워진다.
+		표정 = 赤面
+		TFLAG:192 = -6
+		台詞 = 「…………………………」/「…………………………」
+	;처녀喪失
+	CASE 2
+		;陥落、積極具合で簡単な分岐。사모以下はキャンセル구상前提
+		LOCALS = %K30_DIARY_DATA(PAGENUM, 2)%
+		SELECTCASE LOCALS
+			CASE "無"
+				PRINTFORML 역시 내겐 육신따윈 필요 없었던 것 아닌가.
+				PRINTFORMW 이런 괴로운 생각을 하는 것도, 나에게 어울리지 않는 것을 가졌기 때문일텐데.
+			CASE "思"
+				PRINTFORML %K30_DIARY_DATA(PAGENUM, 3)%에게 처음을 빼앗기고 말았다.
+				PRINTFORML 염마로서 넘어서는 안될 선을 넘어서고 말았다.
+				PRINTFORML 하지만 그런 식으로 빼앗겼는데도 지금의 나는 그 사람을 진심으로 부정할 수 없어.
+				PRINTFORMW 괴로워. 너무 괴로워.
+			CASE "恋"
+				PRINTFORML 마침내 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")% 맺어질 수 있었다.
+				PRINTFORML 생각해보면 그 사람을 꽤나 기다리게 하고 말았다. 잘 버리지 못하던 것들이다.
+				PRINTFORML 오늘도 자신의 일에 힘쓰고, %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 어땠는지도 기억나지 않는다.
+				PRINTFORML 
+				PRINTFORML 앞으로는 좀 더 몸도 마음도 그 사람에게 의지해 가자.
+				PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 원하는 것, 기뻐해주는 것을 찾아주고 싶다.
+				PRINTFORMW 그걸 해주는 것이 나의 기쁨이 될 것 같다
+		ENDSELECT
+		IF MODE == "コマンド"
+			IF LOCALS == "恋" 
+				TFLAG:192 = -6
+				표정 = LOVE
+				台詞 = 「…………………………」/「………………써 있는 대로예요」
+			ELSE
+				표정 = 睡眠
+				{
+				台詞 = 「…할 말이 없는 건 아닙니다」
+					/「하지만…지금의 제 생각에 %조사처리(K30_C_NAME(MASTER),"가")% 성실하게만 있어준다면」
+					/「그걸로 괜찮습니다. 죄를 용서할 수 있습니다」
+				}
+			ENDIF
+		ENDIF
+	;탄막승부에이키님勝ち
+	CASE 3
+		PRINTFORML 오늘은 %K30_DIARY_DATA(PAGENUM, 4)%에서 %K30_DIARY_DATA(PAGENUM, 3)%에게 탄막승부를 도전 받았다.
+		IF GETBIT(CFLAG:30:1910, 0)
+			PRINTFORML 단순히 실력을 재는 것뿐이지만 아슬아슬한 지경까지 몰리고 말았다.
+			PRINTFORML 단련을 소홀히 했던 건 아니지만 염마로서 이래서는 한심스럽다.
+		ELSE
+			PRINTFORML 과연 뒤떨어지는 일은 없었지만, 위험했던 곳도 몇 번인가 있었다
+			PRINTFORML 단련하면 아직 늘어날 것이다. 이겼다고는 하지만 헛되이 지낼 수는 없다.
+		ENDIF
+		PRINTFORMW 나도 더욱 정진이 필요하다
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDL 이 다음에도 탄막승부에 대한 반성과 분석이 빽빽이 적혀 있다
+			PRINTFORMDW 염마님의 힘의 비밀은 이 착실함이 틀림없다…
+			표정 = 通常
+			IF RAND:2 == 1
+				{
+				台詞 = 「승부에 있어서 전력을 다하는 것은 피차 당연」
+				/「그렇다면 사전 준비나 전술에서 차이를 둘 수 밖에 없습니다」
+				/「이 정도는 해 두어야 마땅한 일입니다」
+				}
+			ELSE
+				{
+				台詞 = 「%\@ GETBIT(CFLAG:1910, 0) ? 첫 승부에서 거기까지 몰렸습니다 # 결과는 어떻든 완승이라고는 생각하지 않습니다 \@%」
+				/「적당히 봐주는 건 생각할 수도 없습니다」
+				/%\@ CFLAG:30:탄막승부승리 ? 「게다가 결국에는 당신에게는 져버리고 말았습니다…」/「저도 아직 많이 미숙하군요」
+				#「첫째, 내가 져버리면 염마의 위엄에 관계됩니다」/「몇 번이고 당신의 도전은 물리쳐 보이겠습니다」 \@%
+				}
+			ENDIF
+		ENDIF
+	;탄막승부에이키님負け
+	CASE 4
+		LOCAL = GETBIT(CFLAG:30:1910, 1)
+		PRINTFORML 오늘은 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")%의 탄막승부.
+		PRINTFORML 원래 비범한 힘을 지녔다고 생각했지만, 
+		IF LOCAL
+			PRINTFORML 염마를 상대에게 설욕을 하리라고는 가히 예상 밖이었다.
+		ELSE
+			PRINTFORML 설마 염마를 상대로 그대로 이겨버리다니 정말이지 그 끝을 알 수 없다.
+		ENDIF
+		PRINTFORML 나도 바쁜 일 때문에 아무래도 수련이 부족했던 것 같다.
+		PRINTFORMW 어디선가 시간을 비워 훈련에 임해야 한다.
+		표정 = 通常
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 염마님의 향상심에는 고개가 숙여질 것 같다…
+			IF RAND:2 == 1
+				{
+				台詞 = 「저를 꺾을 정도니까요」
+				/「다음에 도전한다면 역시 헤카티아 님입니까?」
+				/%\@ CFLAG:113:탄막승부승리
+				?「네…!? 이미 이겼다니…?」
+				/「정말 무서울 정도의 강함이군요……」
+				#「그 분은 정말 강합니다」
+				/「그래도 도전을 한다고 하신다면」
+				/「훈련은 저도 참여하도록 하겠습니다」 \@%
+				}
+			ELSE
+				{
+				台詞 = 「설마 %\@ LOCAL ? 당신이 여기까지 힘을 기를 # 이렇게 간단히 격파당할 \@%줄은 생각도 못했습니다」
+				/「이번에는 제가 도전자로서 당신에게 도전하는 입장이군요」
+				/「……다음에 승부할 때는 룰을 좀 바꿔 보지 않겠습니까?」
+				/「일대일 대전이 아니라 요정이나 망령, 릴리 화이트님도 말려드는 형태지만」
+				/「제가 익숙해져 있는 만큼, 당신에게는 딱 좋은 핸디캡이 될거라 생각합니다」
+				}
+			ENDIF
+		ENDIF
+	;お小言もらった
+	CASE 5
+		LOCAL:0 = (TOINT(K30_DIARY_DATA(PAGENUM, 2))) / 1000
+		LOCAL:1 = (TOINT(K30_DIARY_DATA(PAGENUM, 2))) % 1000 
+		IF LOCAL:1 <= 60
+			LOCALS = 한 시간도 얘기하지 않았는데
+		ELSEIF LOCAL:1 <= 90
+			LOCALS = 한 시간 반밖에 대화하지 안았는데
+		ELSE
+			LOCALS = 두 시간 정도 이야기하고 지금부터인데
+		ENDIF
+		PRINTFORML 만났을 때부터 무슨 일을 저지를 것 같은 사람이라고 생각했지만, 예상보다 빨라서 스스로도 깜짝 놀라고 만다.
+		SELECTCASE LOCAL:0
+			CASE 0
+				PRINTFORML 우연히 발견해서 %K30_DIARY_DATA(PAGENUM, 3)%의 모습이 좀 이상하다고 생각해서
+				PRINTFORML 조금 알아보니 어처구니없게도 여자의 속옷을 품속에 쑤셔 넣고 있지 않은가.
+			CASE 1
+				PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 어떻게 키워졌는지 모르지만, 분명히 사람과의 거리감이 이상한 것 같다.
+				PRINTFORML 별로 친하지도 않은 나에게 과도한 스킨십이라고나 할까, 그 이상의 것들을 해오지는 않을까.
+			CASE 2
+				PRINTFORML 아무래도 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"는")% 상식이란 걸 잘 모르는 것 같다.
+				PRINTFORML 있을 법한 일인지 사람들 앞에서, 나의 소중한 곳에 손을 뻗어 오지 않는가.
+		ENDSELECT
+		PRINTFORML 이런 건 당연히 흑, 새까만 흑이다. 곧 그 자리에 앉혀 바른 사람으로의 길에 대한 가르침을 주었다.
+		PRINTFORML 
+		PRINTFORML %LOCALS% %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 소리를 지르려 해서 할 수 없이 이야기를 빨리 끝맺는다
+		PRINTFORML 하지만 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 제대로 반성하고 있다고는 도저히 생각되지 않는다.
+		PRINTFORML 어쩐지 저 사람은 이쪽의 코마치와 같은 종류의 인간이라는 생각이 든다
+		PRINTFORMW 코마치와 마찬가지로 몇 번이나 반성을 촉구하게 될 것 같다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDL 그것으로 이야기를 빨리 끝냈다든가 하는 것은 용서해줬으면 한다…
+			IF TALENT:30:연모
+				PRINTFORMDW 하지만, 최근에는 설교가 줄어들고 있는 듯한…?
+			ELSE
+				WAIT
+			ENDIF
+			표정 = LOVE
+			TFLAG:192 = -7
+			台詞 = 「설교의 횟수가 줄었다…?」/「그건…그럴지도 몰라요」/「그치만……그게, 지금은…」/
+			SELECTCASE LOCAL:0
+				CASE 0
+					LOCALS = %TEXTR("「당신도…당신의 속옷에 흥미가……♥」/「제 것이라면 당신에게 …주고 싶어서…♥」")%
+				CASE 1
+					LOCALS = %TEXTR("「당신과 닿을 수 있다면… 저는…언제라도…♥」/「지금은…제가, 당신에게 …닿고 싶어서…♥」")%
+				CASE 2
+					LOCALS = %TEXTR("「여긴…이제 저와 당신의 소중한 장소니까…♥」/「제가…당신의 소중한 장소에 해주고 싶어져서…♥」")%
+			ENDSELECT
+			台詞 =%台詞%%LOCALS%
+		ENDIF
+	;이상한T
+	CASE 6
+		PRINTFORML 어째서 이런 일이.
+		PRINTFORMW 왜 내가 이런 꼴을.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 일기는 이것으로 끊겨있다…
+			IF RAND:2 == 1
+				표정 = 反発
+				台詞 = 「…설명이, 필요합니까?」
+			ELSE
+				표정 = 睡眠
+				台詞 = 「…할 말은 아무것도 없습니다」
+			ENDIF
+		ENDIF
+	;패션ブーム
+	CASE 7
+		PRINTFORML 드디어 오늘이라는 날이 끝났다.
+		PRINTFORMW 지금은 단지 그것만을 감사하고 싶다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 일기는 여기서 끝나있다…
+			표정 = 反発
+			IF FLAG:패션 == 62
+				표정 = 笑顔
+				台詞 = 「설마 또 한 번이 있을 줄이야」/「이 세상은 저도 모르는 것뿐입니다……」
+			ELSEIF RAND:2 == 1
+				台詞 = 「…이미, 끝난 일이니까」
+			ELSE
+				台詞 =「…기록은 하고 있지만 만지고 싶지는 않습니다」
+			ENDIF
+		ENDIF
+	;お설교たいむ
+	CASE 8
+		PRINTFORML %K30_DIARY_DATA(PAGENUM, 3)%에게서 편지를 받은 코마치는, 그날 내게 얼굴을 비췄다.
+		PRINTFORML 본인이 말하기를 %K30_DIARY_DATA(PAGENUM, 4)%에 있던 것은 우연이며, 땡땡이는 아닌 것 같다.
+		PRINTFORML 어째서 염마에게 금방 들킬 거짓말을 하는 것인가. 반성하는 기색이 보이지 않아 일단 한 대 때려 놓았다.
+		PRINTFORML 여하튼 이대로 내버려 두었다가는 코마치를 위해서도 도움이 되지 않겠지.
+		PRINTFORMW 알아줄 때까지 몇 번이고 가르침을 주어야 한다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDL 나머지 페이지는 설교의 내용이 상세하게 쓰여져 꽉 차 있었다.
+			PRINTFORMDW 이런 걸 몇 번이나 들었는데, 그래도 땡땡이 치는 코마치는 대체…
+			IF RAND:2 == 1
+				표정 = 通常
+				{
+				台詞 = 「타이르는 내용은 매번 기록하고 있어요」
+				/「같은 말을 하고만 있어서는 듣는 사람도 정성을 들이지 않으니까.」
+				/「……결과가 따르지 않는 것은, 아직 제가 부족하다는 것이군요.」
+				}
+			ELSE
+				표정 = 反発
+				{
+				台詞 = 「저 아이는 중요한 때는 정말로 의지가 되니까」
+				/「평소의 마음가짐 하나로 더 출세도 할 수 있을 텐데…」
+				/「유감스럽게도 지금 이대로는 제 곁에서 움직일 수 없습니다」
+				/「왜 결과물을 바라면서 더 열심히 하지 않는 걸까…」
+				}
+			ENDIF
+		ENDIF
+	;事務仕事手伝い
+	CASE 9
+		PRINTFORML 오늘은 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 일을 거들어 주었다.
+		PRINTFORML 뜻밖에도 조수로서 아주 유능했다.
+		PRINTFORML 아레의 아이만큼이나 일을 잘해내다니 정말 예상 밖이다.
+		PRINTFORMW 박봉밖에 줄 수 없서 미안하지만, 기회가 되면 또 도움을 받고싶다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 저만한 일을 혼자 처리하고 있으니 도움이 된다면 다행이다…
+			IF RAND:2 == 1
+				표정 = 笑顔
+				{
+				台詞 = 「%K30_C_NAME(MASTER)%의 도움을 받을 수 있어서 정말 다행이야」
+				/「일은 힘들지 않지만, 혼자 하는 것과 둘이서는 전혀 다르니까요」
+				/「게다가…당신이 함께 있어준다는 것이 정말 기뻐……♥」
+				}
+			ELSE
+				표정 = 笑顔
+				台詞 =「일하는 날은 하루종일 책상에 붙어있지만…」/「당신과 함께 지낼 수 있다면, 그것도 보상 같은 것일까요?」/
+				IF DAY % 2 == 1
+					台詞 = %台詞%「그러니 내일도 오후부터 기다리고 있을게. 부탁이야」
+				ELSEIF TIME < 550
+					台詞 = %台詞%「그래서 말이지…오늘도 오후부터 시간은 비어있어?」/「조금이라도 좋으니까 보러 와줬으면 좋겠어」
+				ELSEIF TCVAR:30:도운양
+					台詞 = %台詞%「오늘도 도와주셔서 감사합니다」/「또 부탁드립니다」
+				ELSEIF STRFIND(CSTR:30:1, "업무지켜보기")
+					台詞 = %台詞%「보러 와주는 것만으로도 정말 환영이야」/「또 이번에도 부탁해」
+				ELSE
+					표정 = 反発
+					台詞 = %台詞%「……그러니까 오늘은 외로웠다구?」/「대신 이 다음부터는 잘 챙겨주세요」
+				ENDIF
+			ENDIF
+		ENDIF
+	;에이키님이 ぶん殴った
+	CASE 10
+		LOCAL = (K30_DIARY_DATA(PAGENUM, 2) == "倒")
+		PRINTFORML 저질러 버렸다. 분노한 나머지 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"를")% 때려 눕히고 말았다
+		PRINTFORML 평소 같으면 거울에 비친 모습을 바탕으로 죄상을 적어낼 텐데, 그때는 충동에 맡겨 무엇을 썼는지조차 기억나지 않는다
+		PRINTFORM 그것으로 때려 눕혔으니 
+		IF LOCAL
+			PRINTFORML 조금의 힘조절도 못하고, %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 픽 쓰러지고 말았다.
+			PRINTFORML 과연 너무 과했다고 생각했지만, 비틀거리면서도 스스로 일어났다
+		ELSE
+			PRINTFORML 상당히 아플 것이다. 두드리는 소리도 내가 들어본 적 없을 정도로 대단했다
+			PRINTFORML 그런데도 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"는")% 오만상을 찌푸리는 정도로, 그 후로도 예사롭게 행동하고 있지 않은가.
+		ENDIF
+		PRINTFORMW 뭐랄까 어처구니 없을 정도로 튼튼한 사람이다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 과연 언제나 그 기세로 죄인을 때리고 있는 것은 아닌 것 같다…
+			IF RAND:2 == 1
+				표정 = 通常
+				台詞 = 「%\@ LOCAL ? 저걸로 다음 날에는 # 그런 식으로 당해도 \@% 전혀 아무렇지도 않다니까요」/「당신은 정말 튼튼한 사람이네요…」
+			ELSE
+				표정 = 反発
+				{
+				台詞 = 「%조사처리(K30_C_NAME(MASTER),"가")% 튼튼하다는 걸 알겠습니다만」
+				/「또 하나 알아낸 것이 있습니다.」
+				/「당신은 정말 질리지도 않는 사람이네요……」
+				}
+			ENDIF
+		ENDIF
+	;날씨:ぱんつの日
+	CASE 11
+		PRINTFORML 이상한 날씨도 있었던 것이다.
+		PRINTFORML 속옷이 바람에 날려 하늘을 날다니 지금까지 들어본 적이 없다.
+		PRINTFORML 어떻게 보면 이것도 이변 안에 들어가는 것일까.
+		PRINTFORML 만약에 그렇다면 흑막은 정말 욕망 덩어리와 같은 인물임에 틀림없다
+		PRINTFORML 
+		PRINTFORML 그러고 보니 한 사람, 주모자로 의심스러운 인물이 떠오른다.
+		IF GETBIT(CFLAG:1910, 4)
+			PRINTFORML 수상한 거동을 나무라면 품에서 타인의 속옷이 나올 법한 사람이다.
+			PRINTFORM 거의 흑이라고 봐도 될 정도로.
+		ELSE
+			PRINTFORML 확실한 증거는 없지만, 저만큼 욕망에 충실한 사람을 의심하지 말라고 하는 편이 어려워.
+		ENDIF
+		PRINTFORMW 앞으로도 눈을 떼지 않는 것이 좋겠다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 이름은 나오지 않았지만, 아무래도 심한 누명을 쓰고 있는 것 같다…
+			표정 = 反発
+			IF RAND:2 == 1
+				台詞 = 「……평소 행실로 미루어 보면 이렇게 생각하는 것도 당연하지 않을까 합니다」
+			ELSE
+				{
+				台詞 = 「…속옷이 하늘을 떠도는 풍경은 정말 맥이 빠집니다만」
+				/「이상한 사태가 벌어진 것은 틀림없습니다」
+				/「정말 당신은 관여하지 않은거죠…?」
+				}
+			ENDIF
+		ENDIF
+	;선물(GOOD)
+	CASE 12
+		IF K30_DIARY_DATA(PAGENUM, 5) == "恋"
+			PRINTFORML 또 하나 보물이 늘어나 버렸다
+			PRINTFORML %K30_DIARY_DATA(PAGENUM, 2)%. %K30_DIARY_DATA(PAGENUM, 3)%에게서 선물을 받은 것만으로도 기쁜데, 
+			PRINTFORML 이런 멋진 선물을 보내준다는게 꿈만 같아.
+			PRINTFORMW 머릿속까지 왠지 몽롱하다. 오늘은 당분간 잠 못 잘 것 같아.
+		ELSE
+			PRINTFORML 오늘은 %K30_DIARY_DATA(PAGENUM, 3)%에게 깜짝 놀라고 말았다.
+			IF K30_DIARY_DATA(PAGENUM, 4) == "향림당"
+				IF GIFTSHOP_NAME(5) == "향림당"
+					PRINTFORM 향림당
+				ELSE
+					PRINTFORM 마법의 숲 가게
+				ENDIF
+			ELSE
+				PRINTFORM %K30_DIARY_DATA(PAGENUM, 4)%의 가게
+			ENDIF
+			PRINTFORML 언뜻 보아 마음에 든 %조사처리(K30_DIARY_DATA(PAGENUM, 2),"를")% 그 자리에서 받았기 때문이다.
+			PRINTFORML 너무나 들떠서 선물을 바라보고 있자니 벌써 이런 시간이 되었다. 할 일도 있었는데.
+			PRINTFORML 염마로서 이래도 괜찮을까 하고 스스로도 생각하지만, 기쁜 것은 어쩔 수 없다.
+			PRINTFORML %K30_DIARY_DATA(PAGENUM, 3)%에게는 조금씩이라도 답례를 해나가자.
+		ENDIF
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 이렇게까지 기뻐해 준다면 보내는 쪽도 기쁜 법이다…
+			IF RAND:2 == 1
+				표정 = 笑顔
+				{
+				台詞 = 「당신과 함께 있으면 정말로 보물이 늘어가네」
+				/「다시 한 번 감사의 말씀을 드리지 않으면 안 되겠네요」
+				//「감사합니다, %K30_C_NAME(MASTER)%」
+				}
+			ELSE
+				표정 = 通常
+				{
+				台詞 = 「당신에게서는 여러가지로 받기만 할 뿐이군요」
+				/「제가 답례를 제대로 했을지 모르겠네요…」
+				/「왠지 해주고 싶은 것들만 쌓여 있는 것 같아」
+				/「%조사처리(K30_C_NAME(MASTER),"는")% 뭔가 해 주었으면 하는 일이 있으신가요?」
+				}
+			ENDIF
+		ENDIF
+	;선물(NORMAL)	
+	CASE 13
+		PRINTFORML %K30_DIARY_DATA(PAGENUM, 3)%에게서 멋진 %조사처리(K30_DIARY_DATA(PAGENUM, 2),"를")% 받고 말았다
+		PRINTFORML 내 취향을 생각한 마음이 담긴 선물. 역시 솔직하게 기쁘게 생각해.
+		PRINTFORML 일단 잘 간직하자. 답례도 생각하고 있어야 겠다
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 무난하게 골랐는데 틀리지 않아서 다행이다…
+			표정 =通常
+			IF RAND:2 == 1
+				{
+				台詞 = 「저기 %K30_DIARY_DATA(PAGENUM, 2)%말인데요」
+				/「물론 지금도 소중히 간직하고 있어요」
+				/「하지만 당신과 만날 때마다, 그 이상의 선물을 받고 있는 거나 마찬가지니까요」
+				/「거의 손에 가지고 있는 게 없어서… 왠지 미안해요」
+				}
+			ELSE
+				TFLAG:192 = -6
+				표정 = 赤面
+				{
+				台詞 = 「선물이나 마음…정말 이것저것 받기만 하네」
+				/「조금씩이라도 보답은 해나가야 합니다」
+				/「그러니까…저와 앞으로도 함께 있어주시면 감사하겠습니다…♥」
+				}
+			ENDIF
+		ENDIF
+	;선물(BAD)
+	CASE 14
+		IF K30_DIARY_DATA(PAGENUM, 4) == "향림당"
+			IF GIFTSHOP_NAME(5) == "향림당"
+				PRINTFORM 향림당
+			ELSE
+				PRINTFORM 마법의 숲 가게
+			ENDIF
+		ELSE
+			PRINTFORM %K30_DIARY_DATA(PAGENUM, 4)%의 가게
+		ENDIF
+		PRINTFORML 에서 받은 %조사처리(K30_DIARY_DATA(PAGENUM, 2),"를")% 어떻게 해야 할 것인가.
+		PRINTFORML %K30_DIARY_DATA(PAGENUM, 3)%에게 악의가 없는 것이 알고 있으니까, 더더욱 처리가 곤란해진다.
+		PRINTFORML 그러고 보니 옛날에 지장이었던 시절, 근처의 아이들에게 공물을 받은 적이 있었다.
+		PRINTFORML 어른의 흉내를 내서 돌멩이나 벌레를 올려주는 것을 흐뭇하게 보았던 기억이 난다.
+		PRINTFORMW 이 %조사처리(K30_DIARY_DATA(PAGENUM, 2),"를")% 보고 있으면 아무래도 그때 일을 떠올리고 만다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 그 %조사처리(K30_DIARY_DATA(PAGENUM, 2),"가")% 그렇게까지 마음에 들지 않으셨다니, 조금 의기소침해진다…
+			IF RAND:2 == 1
+				표정 = 反発
+				{
+				台詞 = 「확실히 비유로서 좀 지나친 말일지도 모르지만」
+				/「아무리 선물하는 사람의 마음이 담겨 있어도 곤란한 것은 곤란합니다…」
+				/「보낼 상대에 대해서도 잘 봐주세요」
+				}
+			ELSE
+				표정 = 赤面
+				{
+				台詞 = 「그 %조사처리(K30_DIARY_DATA(PAGENUM, 2),"는")% 결국 어떻게 했냐고요?」
+				/「그게, 그건… 그러니까……」
+				/「……죄송합니다, 전당포에 맡겨버렸습니다」
+				/「시비곡직청을 보수하는 비용에 보태기 위해…」
+				}
+			ENDIF
+		ENDIF
+	;スカートめくり
+	CASE 15
+		LOCALS = %K30_DIARY_DATA(PAGENUM, 2)%
+		IF K30_DIARY_DATA(PAGENUM, 5) == "怒"
+			PRINTFORML 믿을 수가 없어. 도대체 무슨 생각을 하고 있는 걸까.
+			IF GROUPMATCH(K30_DIARY_DATA(PAGENUM, 4), "시비곡직청", "자기 방")
+				PRINTFORML 애당초 보았을 때부터 태도가 이상하다고는 생각했지만,
+			ELSE
+				PRINTFORML %K30_DIARY_DATA(PAGENUM, 4)%같은 누가 봐도 이상하지 않을 장소에서,
+			ENDIF
+			PRINTFORML 갑자기 치마를 넘기다니 정말 믿을 수 없어.
+			PRINTFORML %조사처리(LOCALS,"를")% 하마터면 들킬 뻔했어. 어처구니없을 정도의 굴욕이다.
+			PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 괴짜인 줄 알고는 있었지만, 그 생각조차 아무래도 부족했던 것 같다.
+			PRINTFORML 
+			PRINTFORML 아니면 바깥 세계는 그런 인간으로 넘쳐나는 것일까.
+			PRINTFORML 그러고 보니 저쪽의 염마님이 바쁘신 것도 납득이 간다.
+			PRINTFORMW 가능하다면 나는 관여하고 싶지 않다.
+		ELSEIF K30_DIARY_DATA(PAGENUM, 5) == "照"
+			PRINTFORML 믿을 수가 없어. 도대체 무슨 생각을 하고 있는 걸까.
+			PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")% 얼굴을 마주치는 것에 익숙해져서 방심한 것이 잘못이었다.
+			PRINTFORMW 평소대로 행동하면서 갑자기 치마를 넘기다니 정말 믿을 수 없어.
+			PRINTFORML 
+			PRINTFORML 그런데 나는 웬일인지 화가 나지 않았다. %조사처리(LOCALS,"를")% 분명히 보였을텐데.
+			PRINTFORML 지금 돌이켜봐도 솟아나는 건 왠지 분노보다 부끄러움이다.
+			PRINTFORMW 나까지 그 사람에 맞추어서 이상해져 버린걸까?
+		ELSE
+			PRINTFORML 지금 생각해도 부끄러워. 진짜 해버렸어.
+			PRINTFORML 스스로 스커트 안을 보여주다니 어떻게 되버린 것 같아
+			IF GROUPMATCH(K30_DIARY_DATA(PAGENUM, 4), "시비곡직청", "자기 방")
+				PRINTFORML 만에 하나라도 부하 직원에게 노출되기라도 한다면 그렇다면 나는 어떻게 해야 하는 것인가.
+			ELSE
+				PRINTFORML %K30_DIARY_DATA(PAGENUM, 4)%도 누군가 보고 있을지도 모르는데.
+			ENDIF
+			PRINTFORML
+			IF LOCALS == "입지 않음" 
+				PRINTFORML 하지만 %K30_DIARY_DATA(PAGENUM, 3)%에게 정말 부끄러운 모습을 보여지고 있는 동안 
+			ELSE
+				PRINTFORML 하지만 %K30_DIARY_DATA(PAGENUM, 3)%에게 %조사처리(LOCALS,"를")% 찬찬히 보여지고 있는 동안의
+			ENDIF
+			PRINTFORML 등에서 떨리는 듯한 오싹오싹한 감각. 그게 아직도 잊혀지지 않는다.
+			PRINTFORML また%K30_DIARY_DATA(PAGENUM, 3)%에게 부탁받으면, 나는 아마도 거절할 수 없을 것 같다.
+			PRINTFORMW 오히려 기뻐질 것 같은, 그런 예감마저 든다.
+		ENDIF
+		IF MODE == "コマンド"
+			PRINTFORML 
+			IF LOCALS == "怒"
+				PRINTFORMDW 뭐 당연한 반응이다. 그 후 기분을 푸는데 고생했던 것은 기억한다…
+			ELSE
+				PRINTFORMDW 의외의 반응이라고는 생각했지만, 이건 꽤나…
+			ENDIF
+			IF LOCALS == "怒"
+				표정 = 反発
+				{
+				台詞 = 「저도 확실히 기억하고 있어요」
+				/「그 장소에서 분노에 맡기고 회오의 봉을 휘두르지 않은 일」
+				/「마지막 순간에 자제를 할 수 있어서 다행인 것 같습니다」
+				/「……그러지 않았다면 큰일 날 뻔했습니다」
+				}
+			ELSEIF LOCALS == "照"
+				TFLAG:192 = -6
+				표정 = 赤面
+				{
+				台詞 = 「앗… 거긴……」
+				/「읽혀버렸네요…」
+				/「……잊어버리셔도 괜찮아요」
+				}
+			ELSE
+				표정 = LOVE
+				TFLAG:192 = -7
+				IF K30_BE_SEEN() == 0
+					台詞 = 「……그 다음은 지금부터라도… 저는 괜찮습니다♥」
+				ELSE
+					台詞 = 「……%K30_C_NAME(K30_FIND_AROUND(),2)%에게 보이지 않는 장소라면… 좋아요♥」
+				ENDIF
+			ENDIF
+		ENDIF
+	;説法10回終了
+	CASE 16
+		LOCALS = %K30_DIARY_DATA(PAGENUM, 4)%
+		PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"는")% 자주 나에게 들러서 가르침을 들으러 온다.
+		PRINTFORML 한 번 들으면 다른 사람들과 똑같이 도망칠 줄 알았기 때문에 꽤나 의외다
+		IF GROUPMATCH(LOCALS, "시비곡직청", "백옥루", "축생계", "삼도천")
+			PRINTFORML 설마 염마의 이야기를 듣기 위해 일부러 피안에 정착했는지, 그것을 잘 모르겠다.
+		ELSE
+			PRINTFORML 염마의 가르침을 듣기 위해 일부러 %LOCALS%에서 삼도천을 건너서까지 오다니 꽤 한가한 사람이다.
+		ENDIF
+		PRINTFORML 어쨌든 감시해야 할 상대가 직접 다가오는 것은 수고도 덜고 나쁜 일은 아니다.
+		PRINTFORMW 설법할 때마다 그가 우려주는 차가 조금씩 내 취향에 가까워지는 것도 평가해 주고 싶다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 매번 제대로 얘기를 해줬던 것들에 이런 뒷면이 있었던건가…
+			표정 = 笑顔
+			IF RAND:2 == 1
+				{
+				台詞 = 「이때는 저도 이렇게 썼지만」
+				/「지금 돌이켜보면 그럴지도…」
+				/「%조사처리(K30_C_NAME(MASTER),"가")% 스스로 이야기를 들으러 와주는 게…기뻤어」
+				/「말할 것들은 전날부터 계속 생각하고 있었어」
+				}
+			ELSE
+				{
+				台詞 = 「……좀 더 그럴듯한 이유를 대고 있기는 하지만」
+				/「일부러 염마에게 가르침을 들으러 오는 사람이 없었습니다」
+				/「%조사처리(K30_C_NAME(MASTER),"가")% 오지않는 날은… 조금 쓸쓸했어요」
+				}
+			ENDIF
+		ENDIF
+	;さとりからお手紙
+	CASE 17
+		PRINTFORML 사토리 씨로부터 정기 보고가 도착한다.
+		PRINTFORML 언제나처럼 그녀의 애완동물이 아닌, 어째서인지 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"를")% 심부름꾼 삼아 왔다.
+		PRINTFORML 예전과 같은 이변이 있었을까봐 조금 걱정이 되긴 했지만 별로 그렇지도 않은 모양이다.
+		PRINTFORML 지저는 대체로 평화, 다만 조금 신경 쓰이는 소문이 떠다닌다 한다.
+		PRINTFORMW 대처 방침은 그녀에게 맡겨두면 괜찮겠지. 상황의 보고만 부탁해 두자.
+		IF MODE == "コマンド"
+			PRINTFORML
+			PRINTFORMDL 염마님은 사토리를 상당히 높이 평가하고 있는 것 같다…
+			IF RAND:2 == 1
+				표정 = 通常
+				{
+				台詞 = 「죄를 파헤치는 염마와 마음을 꿰뚫어보는 사토리」
+				/「닮은 동지네요. 인요를 불문하고 꺼려지는 점도 같습니다」
+				/「그런 의미에서 저는 그녀에게 친근감을 가지고 있습니다」
+				/「…그리고 그녀 내면의 무뚝뚝함과 높은 자기 평가」
+				/「그것은 평가하지 않을 수 없네요」
+				}
+			ELSE
+				TFLAG:192 = -6
+				표정 = 赤面
+				{
+				台詞 = 「사토리씨에게 저는 이야기하기 쉬운 상대라고 들었습니다」
+				/「마음을 읽히는 걸 괜히 경계하거나 이상하게 겹치거나 하지 않기 때문이라고 해서」
+				/「하긴 저에게는 숨길 것이 없으니까 그런 거겠죠」
+				/「…………」
+				/「단지, 최근에… 당신과 같이 있을 때만…」
+				/「그녀가 조금…곤란해 합니다…」
+				}
+			ENDIF
+		ENDIF
+	;ヘカ様からお手紙
+	CASE 18
+		LOCAL = (K30_DIARY_DATA(PAGENUM, 2) == "이상한T")
+		PRINTFORML %K30_DIARY_DATA(PAGENUM, 3)%에게 받은 편지를 읽어 보았습니다만
+		IF LOCAL
+			PRINTFORML 이 지시는 도대체 무엇인가?
+			PRINTFORML 어째서 제복을 바꿀 필요가 있는 것인가.
+			PRINTFORMW 뭔가 잘못된 꿈이었으면 좋겠다.
+		ELSE
+			PRINTFORML 헤카티아님의 지시는 다시금 기대했던 것과는 달랐다.
+			PRINTFORMW 도대체 언제까지 이어질까.
+		ENDIF
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMW ……수고하십니다, 염마님
+			표정 = 通常
+			IF LOCAL && RAND:2 == 1
+				台詞 = 「농담도 나쁜 꿈도 아니었네요…」
+			ELSEIF RAND:2 == 1
+				台詞 = 「언젠가 좋은 소식이 올 거에요…」/「언젠가… 분명히…」
+			ELSE
+				台詞 = 「이젠, 어쩔 수 없는 걸까요…」
+			ENDIF
+		ENDIF
+	;風呂場追い出し
+	CASE 19
+		PRINTFORML 확실히 %K30_DIARY_DATA(PAGENUM, 4)%의 욕실은 누가 들어갔는지 알기 어렵다.
+		PRINTFORML 그렇지만 그렇게 당당하게 들어오면 역시 어이가 없다.
+		PRINTFORML 아무리 생각해도 일부러 하는 짓이야. 정말 보잘 것 없는 사람이다
+		PRINTFORML 정말 맞힐 생각으로 탄막을 펼쳤지만, %조사처리(K30_DIARY_DATA(PAGENUM, 3),"는")% 도망치고 말았다.
+		PRINTFORML 
+		PRINTFORML 다음이 있을 때의 대처에 스펠카드도 가지고 목욕을 해야 할지 망설여진다.
+		PRINTFORMW 선언 없이 맞아주면 조금은 질려줄지도 모른다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMW 염마님의 스펠카드를 예고하지 않다니 꽤나 위험한 게… 조심하자
+			표정 = 通常
+			IF RAND:2 == 1
+				台詞 = 「이때는, 그 정도가 좋은 약이 될 거라 생각해서……」
+			ELSE
+				{
+				台詞 = 「당신은 가끔 진심인지 장난치는건지 헷갈리니까…」
+				/「이때의 저는 당신을 가차없이 흑으로 취급하는 것도 무리는 아닙니다」
+				/「실제로 스펠카드도 들고 씻었으니까요…」
+				/「지금 생각하면 정말 전개해서 직격하지 않아서 다행이에요」
+				}
+			ENDIF
+		ENDIF
+		
+	;사모
+	CASE 20
+		PRINTFORML %K30_DIARY_DATA(PAGENUM, 3)%의 일을 생각해 버리면 일이 전혀 진척되지 않는다.
+		PRINTFORMW 조금 이르지만 오늘은 우선 자자.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			IF RAND:2 == 1
+				표정 = 通常
+				{
+				台詞 = 「……이때는 여러가지로 망설이기만 했어」
+				/「첫 경험, 거기다 그것의 흑백을 확실히 가릴 수 없는 것」
+				/「정말 답답했어요」
+				}
+			ELSE
+				표정 = 赤面
+				TFLAG:192 = -6
+				台詞 = 「무슨 말인지 모르겠어?」/「별거 아니니까 신경 안 써도 돼요」
+			ENDIF
+		ENDIF
+	;抱き付いた
+	CASE 21
+		PRINTFORML %K30_DIARY_DATA(PAGENUM, 3)%에게 안겨지면 뭔가 이상한 기분이 든다.
+		PRINTFORML 얼마 전까지는 들이받아서라도 거부했을 텐데 왜 그럴까.
+		PRINTFORML 자기 자신조차 모르고 있는 염마님은 한심하기 짝이 없다.
+		PRINTFORMW 정말 왜 이러는 걸까.
+		IF MODE == "コマンド"
+			표정 = 通常
+			IF RAND:2 == 1
+				{
+				台詞 = 「대부분의 일을 저는 알고 있다고 생각하고 있었습니다만」
+				/「지금 이렇게 다시 읽으면 경험이 없는 일에 꽤나 허둥대기만 하네요…」
+				/「정말 부끄러울 따름입니다」
+				}
+			ELSE
+				{
+				台詞 = 「모르는 것을 생각하면서 불안해지는 것은 염마도 마찬가지군요」
+				/「그런 것을 겨우 이 무렵에야 깨달았습니다」
+				/「거울에 비치는 타인의 모습에는 냉정하게 대응할 수 있어도」
+				/「정작 자신의 일에 있어서는… 잘 안 되는 법이에요」
+				}
+			ENDIF
+		ENDIF
+	;何か釣れた
+	CASE 22
+		LOCALS = %K30_DIARY_DATA(PAGENUM, 2)%
+		PRINTFORML 오늘은 %K30_DIARY_DATA(PAGENUM, 4)%까지 나가서 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")% 낚시를 했다.
+		IF STRCOUNT(LOCALS, "물고기")
+			PRINTFORML 거의 처음하는 일뿐이지만, %K30_DIARY_DATA(PAGENUM, 3)%에게 도움을 받으면서 %조사처리(LOCALS,"를")% 낚을 수 있었다.
+			PRINTFORML 나 혼자만의 성과는 아니지만 너무 기뻐. 근데 그것 뿐만 아니라,
+			PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")% 함께 무언가를 할 수 있었다는 것이 더욱 기뻤을지도 모른다
+		ELSEIF LOCALS == "소재"
+			PRINTFORML 거의 처음 겪는 경험에 벌벌 떨면서 낚싯줄을 드리우니 왠지 값진 조합 소재가 잡혔다.
+			PRINTFORML 이것도 월척일까, 하는 고민을 하였으나 조합을 즐기는 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 원했기 때문에 건네주었다.
+			PRINTFORML 너무 감사하고 좋아해 주셨다. 이것만으로도 오늘 낚시 간 보람이 있었던 것 같아
+		ELSE
+			PRINTFORML 처음에 느꼈던 반응에 설레면서 끌어올렸지만 아쉽게도 낚인것은 %LOCALS%였다.
+			IF LOCALS == "그냥 개구리"
+				PRINTFORML 실망해서 원래대로 놓아주려고 했지만, %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 원했기에 양도해 주었다.
+				PRINTFORML 아무래도 요리에도 조합에도 사용할 수 있는 것 같다. 내게는 없었던 지식이다.
+				PRINTFORML 없었다면 낚시 자체가 되지 않았다면 나는 할 일도 없었을 것이다.
+				PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")% 있으면 정말 여러 가지를 경험할 수 있다.
+			ELSE
+				PRINTFORML %K30_DIARY_DATA(PAGENUM, 3)%에게는 크게 비웃음당하고 부끄러움도 정도가 있다.
+				PRINTFORML 정말 누가 그런 걸 버렸을까?
+				PRINTFORML 홧김에 %K30_DIARY_DATA(PAGENUM, 3)%에게 밀여붙였지만 평범하게 감사를 들어버렸다.
+				PRINTFORML 그쯤에서 나도 고집부리는게 바보같아져서 같이 웃고 말았다.
+				PRINTFORML 
+				PRINTFORML 그러고 보니 자신의 실수를 누군가와 웃음을 흘리는 것은 처음인 것 같았다.
+				PRINTFORML 조금 간지러운 듯한 신기한 기분. 이것도 %K30_DIARY_DATA(PAGENUM, 3)%의 덕분일까.
+			ENDIF
+		ENDIF
+		PRINTFORMW 또 낚시를 갈 일이 있으면 둘이 나란히 한가로이 지내자. 아무것도 낚지 못해도 그냥 재밌을 것 같다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 낚시 데이트는 의외로 호평을 받은 것 같다…
+			표정 = 笑顔
+			IF RAND:2 == 1
+				{
+				台詞 = 「옛날의 나라면 낚시 같은 건 할 생각도 못 했어」
+				/「낚싯줄을 드리우면서 한가롭게…같은 건 절대 무리야」
+				/「일만 잔뜩 생각하고 물고기도 도망쳐 버릴 것 같아」
+				/「당신과 알게된 이후로 나는 정말 많이 변했어」
+				}
+			ELSE
+				표정 = 赤面
+				TFLAG:192 = -6
+				{
+				台詞 = 「솔직히 %조사처리(K30_C_NAME(MASTER),"가")% 낚시를 즐기는 것은 의외였습니다」
+				/「당신이 마음을 가라앉히고 낚시에 집중한다…는 모습은 상상도 못했는걸」
+				/「낚는 와중에도 여자 생각만 하는 건 아닌지 몰라?」
+				/「…에? 나?」
+				/「나는, 그게… 생각하는 건… 그…역시…」
+				/「항상…%K30_C_NAME(MASTER)%에 대한 것 뿐이겠죠……」
+				}
+			ENDIF
+		ENDIF
+	;オナネタ
+	CASE 23
+		PRINTFORML 매우 부끄러운 일이지만, 어떻게 해서라도 쓰지 않을 수 없다.
+		PRINTFORML 평소대로의 번거로운 성욕처리, 거리낌없이 만졌다가는 그것으로 끝나는 작업이었을 것이다.
+		PRINTFORML 하지만 오늘은 중간에 웬일인지 %K30_DIARY_DATA(PAGENUM, 3)%에 대해 떠올리고 말았다.
+		PRINTFORML 
+		PRINTFORML 순간적으로 몸이 뜨거워지고 즙이 쏟아져 나와 자신도 깜짝 놀라고 만다.
+		PRINTFORML 평상시는 무서워서 만지지 않는 안쪽까지 간단하게 손가락이 들어가지만, 과연 그렇게까지는 용기가 나지 않는다.
+		PRINTFORML 그러는 동안에도 몸은 점점 고조되어 갔고, 마지막에는 지금까지 느껴 본 적이 없는 감각에 휩싸였다.
+		PRINTFORML 
+		PRINTFORML 아직도 몸이 떠있는 것 같다. 나른함도 있지만 지금은 그것조차도 너무 기분 좋다.
+		PRINTFORML 조금 %K30_DIARY_DATA(PAGENUM, 3)%에게 미안한 마음도 있지만,
+		PRINTFORMW 언제나 치덕거리며 만지는 저 사람에 대한 앙갚음으로 생각하면 될 것이다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 저래 보여도 염마님도 사실 무뚝뚝한 변태…?
+			표정 = 赤面
+			TFLAG:192 = -6
+			IF RAND:2 == 1
+				{
+				台詞 = 「ㅁ, 무뚝뚝하다는 건 무슨 소립니까!!」
+				/「이 정도는, 누구라도, 누구라도! 하고 있습니다!」
+				}
+			ELSE
+				{
+				台詞 = 「ㅇ, 이상한 소리 하지 마세요!!」
+				/「야한 건 당신! 당신입니다!!」
+				/「전부 당신의 탓이에요!!」
+				}
+			ENDIF
+		ENDIF
+	;宴会のお知らせ
+	CASE 24
+		PRINTFORML %K30_DIARY_DATA(PAGENUM, 4)%에게 %K30_DIARY_DATA(PAGENUM, 2)%의 소식이 도착했다.
+		PRINTFORML 대체로 일과 겹치는 날이 많았기 때문에 참가하는 일은 거의 없었던 것 같다.
+		PRINTFORML 그런데 이번에는 마침 쉬는 날에 하는 것 같다.
+		PRINTFORML 
+		PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"는")% 어떻게 할 것인가. 역시 여성들 때문에 참가하는 것일까.
+		PRINTFORML 내가 같이 가주면 좋겠지만 어떤 식으로 초대하면 자연스러울지 전혀 모르겠다.
+		PRINTFORML 언제나 초대해주는 답례, 가르침을 말하러 가는 수행원? 전부 이상한 것 같다.
+		PRINTFORML 빨리 약속을 잡아야 하는데, 어째서 이런 고민을 하고 있는걸까
+		PRINTFORMW 제대로 권유할 수 있을지 나 스스로도 걱정이 된다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 연회를 하는 그날 갑자기 초대받는 것은 이런 이유였을까…
+			IF RAND:2 == 1
+				표정 = 赤面
+				TFLAG:192 =-6
+				{
+				台詞 = 「이 일기를 썼을 때의 저는, 굳이 말하자면…」
+				/「당신에게 초대받으면 금방 따라갈 거면서」
+				/「스스로는 좀처럼 움직이려고 하지 않거나…」
+				/「………」
+				/「뭔가 되게 한심하다는 느낌이 드네요…」
+				}
+			ELSE
+				표정 = 通常
+				{
+				台詞 = 「네? 지금이라도 당일에 권하는 이유인가요?」
+				/「그치만… 모처럼 휴일이라면 %조사처리(K30_C_NAME(MASTER),"와")% 둘이서 지내고 싶어지잖아」
+				/「아슬아슬하지 않도록 되도록 여러가지로 조정을 해서…」
+				/「어떻게 해도 안될 때만 당신을 권유하려고 하는 거야」
+				}
+			ENDIF
+		ENDIF
+	;薄い本見ちゃった
+	CASE 25
+		LOCAL = (K30_DIARY_DATA(PAGENUM, 5) == "있음")
+		PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"는")% 여전히 눈만 떼면 이상한 짓을 저지른다
+		PRINTFORML 오늘도 둘이서 독서를 할 생각이었지만, 그 사람은 어느새 나 몰래 얇은 책을 읽기 시작했다.
+		PRINTFORML 뭔가 싶어 들여다보니, 아무래도 바깥 세계에서 유래된 의심스러운 책이었던 것 같다.
+		IF LOCAL
+			IF K30_DIARY_DATA(PAGENUM, 2) == "惨" 
+				PRINTFORML 더구나 그 내용은, 나와 꼭 닮은 여자가 처절한 능욕을 당하고 있지 않은가.
+				PRINTFORML 눈을 부릅뜨고 고통과 쾌락이 뒤섞인 표정을 띄우고 있는 것이 너무 인상에 남는다.
+			ELSE
+				PRINTFORML 더구나 그 내용이라면 나를 꼭 닮은 여자가 음란한 행위에 빠져 있는 것은 아닌가.
+				PRINTFORML 행위를 희희낙락해하며 주홍빛으로 물든 얼굴에 쾌락에 허덕이는 모습이 아직도 머릿속에서 떠나지 않는다.
+			ENDIF
+		ELSE
+			PRINTFORML 분명히 보진 않았지만 나를 닮은 여자에게 추잡한 짓을 하는 내용이었던 것 같아.
+		ENDIF
+		PRINTFORML 
+		PRINTFORML 우선 책을 집어들고 꾸짖어 두었다. 어디서부터 저런 것이 흘러나왔을까?
+		PRINTFORMW 만약 바깥 세계에서 설상가상으로 이곳에 왔다면 어디선가 막지 않았다고 쌓일 물건이 아니다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW ……확실히 인쇄본이 한꺼번에 환상들이 할 수도 있을 것 같다
+			SIF LOCAL
+				PRINTFORMDW 그건 그렇고 살짝 본 것 뿐인데 확실히 내용을 기억하고 있는 듯한…?
+			IF LOCAL
+				표정 = 赤面
+				TFLAG:192 =-6
+				台詞 = 「!!」/「그건, 그게……」/「……………………」/「저도 조금은…흥미가 있어서…」
+			ELSE
+				표정 = 反発
+				{
+				台詞 = 「솔직히 나를 저런 일의 대상으로 보다니…」
+				/「네, 너무 예상 밖이라 받아들이기 힘들어요」
+				/「…………」
+				/「혹시… 바깥 세계에서는 다른 여러분들도……」
+				/「…………」
+				/「듣기 무섭네요. 이제 이 이야기는 그만둡시다…」
+				}
+			ENDIF
+		ENDIF
+	;연모
+	CASE 30
+		SELECTCASE K30_DIARY_DATA(PAGENUM, 2)
+			;연모後未会話
+			CASE "1"
+				PRINTFORML 염마가 거짓말을 계속하다니 이제 더 이상 이러면 안 된다.
+				PRINTFORML 나는 그 사람이 좋아. 이젠 숨길 수 없고 자신도 속일 수 없어.
+				PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 특별한 사람이라는 것을 다음에 만났을 때 전하자.
+				PRINTFORML 마음을 담아 단둘이 있을때만 부르는 이름을 들어보자.
+				PRINTFORML 
+				PRINTFORML 둘만의 비밀이나 둘만의 추억을 많이 만들 수 있다면
+				PRINTFORML 언젠가 %K30_DIARY_DATA(PAGENUM, 3)%도 나를 특별하게 봐줄지도 몰라.
+			;호칭未変更
+			CASE "2"
+				PRINTFORML 자신의 마음에 솔직해지기로 결정하자마자, 이러다가는 조금 움츠러들고 만다.
+				PRINTFORML 친밀감을 담은 이름으로 부를 것을 그 사람에게 제안했는데 깨끗이 각하되고 말았다.
+				PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")% 호칭은 결국 변하지 않은 채.
+				PRINTFORML 내가 이름을 부를 때마다 어떤 마음인지 그 사람은 눈치채고 있는 걸까.
+				PRINTFORMW %K30_DIARY_DATA(PAGENUM, 3)%. 정말 좋아해요.
+			;호칭変更
+			CASEELSE
+				PRINTFORML 나와 %K30_DIARY_DATA(PAGENUM, 5)%만의 비밀이 오늘 하나 생겼다.
+				PRINTFORML 다른사람에게는 들려주고 싶지 않은 그 사람과 나만의 비밀스러운 호칭
+				PRINTFORMW %K30_DIARY_DATA(PAGENUM, 3)%. 정말 좋아해요.
+		ENDSELECT
+		IF MODE == "コマンド"
+			표정 = LOVE
+			TFLAG:192 = -7
+			IF RAND:2 == 1
+				台詞 = 「…다시 돌아보면 역시 부끄럽지만」/「하지만 이것이 거짓없는 저의 본심입니다…♥」
+			ELSE
+				台詞 = 「이제와서 당신에게 숨길 것도 없네요」/「이것이 솔직해질 수 있었던 제 마음입니다…♥」
+			ENDIF
+		ENDIF
+	;에이키님から밀어넘어뜨림
+	CASE 31
+		PRINTFORML 지금부터는 %K30_DIARY_DATA(PAGENUM, 3)%의 앞에서 고지식한 염마님으로 꾸미지 않아도 괜찮겠지.
+		PRINTFORML 다른사람에게는 보이고 싶지 않은 것도 저 사람이면 상관없어.
+		PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"가")% 나를 원해 오듯이, 나도 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")% 피부를 겹치고 싶다.
+		PRINTFORMW 이런 나를 받아줄까 조금 불안하지만, 이젠 스스로도 말릴 수 없을 것 같아.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 확실히 요즘에는 특히나 격렬하다고 할까, 염마님은 굉장히 야하게 바뀐 것 같은……?
+			표정 = LOVE
+			TFLAG:192 = -7
+			IF RAND:2 == 1
+				台詞 = 「…실례네요」/「………………」/「하지만 틀린건 아니네요…♥」
+			ELSE
+				台詞 = 「당신의 덕분에 솔직해질 수 있었던 나인걸」/「이런 일을 하는 것도 당신의 탓이에요…♥」
+			ENDIF
+		ENDIF
+	;임신소망
+	CASE 32
+		PRINTFORML 아이 둘을 낳는 일에 그 사람은 예전부터 적극적이었다고 생각한다
+		PRINTFORML 나도 %K30_DIARY_DATA(PAGENUM, 3)%에게 등을 떠밀릴 때마다 마음이 흔들렸지만 차마 한 발 내딛을 용기가 나지 않았다.
+		PRINTFORML 하지만 이제 망설이지 않는다. 곰곰이 생각한 끝에 내린 결단이다.
+		PRINTFORML 지금부터는 두 아이를 얻기 위해 할 수 있는 일을 해보자.
+		PRINTFORMW 언젠가 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")%의 아이를 이 손에 품을 수 있다면, 얼마나 행복할까.
+		IF MODE == "コマンド"
+			IF GETBIT(CFLAG:1910, 5)
+				표정 = 笑顔
+				IF EXP:출산경험
+					{
+					台詞 = 「이때는 아직 몰랐습니다」
+					/「처음으로 %조사처리(K30_DIARY_DATA(34, 2),"를")% 안아올렸을 때의 그 감동…」
+					/「자신의 생각보다 훨씬… 행복하다는 것을」
+					/「네, 정말로… 행복했어요……」
+					}
+				ELSE
+					台詞 = 「너무 기다려져서 못 견디겠어요…」
+				ENDIF
+			ELSE
+				표정 = 通常
+				{
+				台詞 = 「종족의 차나 염마로서의 입장…」
+				/「저희들에게는 여러 가지로 어려운 일이 있지만」
+				/「괜찮아, 당신과는 반드시 극복할 수 있습니다」
+				/「%K30_C_NAME(MASTER)%, 같이 힘냅시다」
+				}
+			ENDIF
+		ENDIF
+	;임신
+	CASE 33
+		;願望あり
+		IF GETBIT(CFLAG:1502, 3)
+			PRINTFORML 드디어 우리 아기를 가졌다.
+			PRINTFORML 염마인 이 몸으로는 혹시나 하는 것도 있었지만
+			PRINTFORML 드디어 이 아이가 나를 엄마로 선택해 준 것이다.
+			PRINTFORML 기뻐. 정말 기뻐.
+			PRINTFORML 마음이 좀 가라앉은 지금도 방심하면 갑자기 울어버릴 것만 같다.
+			PRINTFORMW 빨리 %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")% 둘이서 훌륭한 아빠와 엄마가 되어야지.
+		ELSE
+			PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")%의 아이를 드디어 받았다.
+			PRINTFORML 원래부터 자녀를 지키고 자비를 베푸는 일을 하고 있었던 주제에,
+			PRINTFORML 나는 아직도 엄마가 될 자신이 있다고 단언할 수 없다.
+			PRINTFORML 그래도 이 아이는 나를 엄마로 선택해 주었다.
+			PRINTFORML 기쁘게 생각하는 반면, 그 이상의 불안으로 인해 무너질 것 같다.
+			PRINTFORMW 빨리 이 아이를 위해서도 강한 엄마가 되어야겠다.
+		ENDIF
+		IF MODE == "コマンド"
+			IF EXP:출산경험
+				표정 = 通常
+				{
+				台詞 =「신체 변화에 아기를 낳는 것에 대한 기쁨과 불안과」
+				/「계속 자신에게는 인연이 없다고 생각했던 것들이 한꺼번에 쏟아져 내려와서…」
+				/「요즘의 저, 지금 돌이켜보면 왠지 위태로운 느낌이 듭니다」
+				/「%조사처리(K30_C_NAME(MASTER),"가")% 지탱해 주었기 때문에, 저는 노력할 수 있었습니다」
+				}
+			ELSE
+				표정 = 睡眠
+				台詞 = 「%K30_C_NAME(MASTER)%, 부탁드립니다」/「저를 꼭 지탱해 주세요…」
+			ENDIF
+		ENDIF
+	;출산後
+	CASE 34
+		PRINTFORML 자고 있는 %K30_DIARY_DATA(PAGENUM, 2)%의 옆에서 드디어 자신이 엄마가 된 것을 실감하고 있다.
+		PRINTFORML 작은 손, 온화하게 잠자는 얼굴을 바라보고 있으면 사랑스러운 마음이 넘쳐나 억제할 수 없다.
+		IF GETBIT(CFLAG:1502, 3)
+			PRINTFORML 나는 이 아이와 보내는 날들을 계속 바랐던 모양이다.
+		ELSE
+			PRINTFORML 그렇게 느끼던 불안도 이 아이 덕분에 모두 날아가 버렸다.
+		ENDIF
+		PRINTFORMW %K30_DIARY_DATA(PAGENUM, 2)%, 태어나줘서 정말 고마워.
+		IF MODE == "コマンド"
+			표정 = 笑顔
+			LOCAL = DAY - (TOINT(K30_DIARY_DATA(PAGENUM, 2)))
+			SELECTCASE LOCAL
+				CASE IS >= 56
+					{
+					台詞 = 「아이의 성장은 정말 눈 깜짝할 사이의 일」
+					/「당연한 일이지만, 언제까지나 작은 상태로 있어 주지 않을 거예요」
+					/「그러니까, 더욱 더 %조사처리(K30_DIARY_DATA(PAGENUM, 2),"와")% 놀아주세요」
+					}
+				CASE 61 TO 121
+					표정 = 通常
+					{
+					台詞 = 「바로 얼마전까지 이렇게 하루 종일 함께 있었네요」
+					/「하지만 조금씩 제 손길을 떠나서」
+					/「지금은 이제 %K30_DIARY_DATA(PAGENUM, 2)% 혼자서 걷기 시작했습니다」
+					/「조금 외로울지도…」
+					}
+				CASEELSE
+					{
+					台詞 = 「그 아이는 이미 집을 떠났지만…」
+					/「%조사처리(K30_DIARY_DATA(PAGENUM, 2),"를")% 처음 가슴에 품었을 때의 기분」
+					/「그 기쁨과 행복은 아직도 생생히 기억납니다」
+					/「또 언젠가 만날 때에는 웃는 얼굴로 맞아주고 싶습니다」
+					}
+			ENDSELECT
+		ENDIF
+	;縦割れアナル
+	CASE 35
+		PRINTFORML %조사처리(K30_DIARY_DATA(PAGENUM, 3),"와")% 사랑하고 있을 때, 들은 것이 아무래도 신경이 쓰였다.
+		PRINTFORML 청결에는 늘 신경을 쓰지만 내 엉덩이의 구멍까지 볼 기회가 없으니 어쩔 수 없다.
+		PRINTFORML 매우 부끄럽지만, 큰맘 먹고 거울을 사용해 내 눈으로 확인하기로 했다.
+		PRINTFORML 
+		PRINTFORML 말한 대로였다.
+		PRINTFORML 남에게 보일만한 곳이 아닌게 그나마 다행이겠지.
+		PRINTFORMW 이런 사실을 다른 누군가에게 알려지면 부끄러워 죽을 것 같다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 염마님, 굳이 이런 일까지 일기에 남기지 않아도…
+			표정 = 赤面
+			TFLAG:192 = -6
+			IF RAND:2 == 1
+				{
+				台詞 = 「……쓰고남겨야 제 머리도 정리가 되고 마음도 안정됩니다」
+				/「ㅇ, 아무튼 이런 부끄러운 일! 절대로! 누구에게도 비밀이에요!」
+				/「염마와의 약속이니까요!!」
+				}
+			ELSE
+				{
+				台詞 = 「……다른 일을 쓴 김에 같이 쓴겁니다」
+				/「중간에 쓰는 것도 불안해서요」
+				/「이것도 어쩔 수 없어요」
+				/「게다가……」
+				/「ㅇ, 아뇨, 아무것도 아닙니다…」
+				}
+			ENDIF
+		ELSE
+			PRINTFORML 
+			CALL K30_D_LINE
+			PRINTFORML 「하아……어쩌다가 일이 이렇게 되었을까…」
+			PRINTFORML 「염마가 남에게 말할 수 없는 비밀을 가지다니, 나쁜 농담도 정도가 있지……」
+			PRINTFORMDW 일기를 다쓴 에이키는 새삼스레 길게 찢어진 듯한 자기 항문을 관찰 중이다…
+			PRINTFORML 
+			PRINTFORML 「하여튼… 이것도 전부 %K30_C_NAME(MASTER)%의 탓이잖아」
+			PRINTFORML 「그 사람이 이렇게……」
+			PRINTFORML （이렇게… 자지로, 엉덩이를, 기분 좋게 해주니까…）
+			PRINTFORMDW 에이키는 애널섹스로 흐트러진 자신의 모습을 떠올려 얼굴을 붉힌다
+			PRINTFORML 
+			PRINTFORML 「그렇다 치더라도…」
+			PRINTFORMDW 에이키는 확인하듯이 손가락으로 자기 항문을 덧그리기 시작했다
+			PRINTFORML （이런…무척 야한 느낌이 들어…）
+			PRINTFORML （정말 엉덩이가…%K30_C_NAME(MASTER)%의 모양으로…）
+			PRINTFORMW （%K30_C_NAME(MASTER)%의 자지가, 들어가기 위한 형태로…）
+			PRINTFORMDL 에이키의 항문은 가로 주름이 활짝 늘어나 깔끔한 세로 줄에 가까워 것을 쉽게 알 수 있다
+			PRINTFORMDW 반들반들한 엉덩이와 비하면 색소는 침착되어 있지만, 그것도 또 외형의 야함을 더한다
+			PRINTFORML 
+			PRINTFORMDL 손가락 끝으로 애널을 쿡쿡 찌르고 있자, 어느새 질구 속에서 애액이 넘쳐흘러 흠뻑 젖어 있었다
+			PRINTFORMDW 몸이 뒷구멍의 쾌락을 완전히 받아들인 것을 에이키는 새삼스럽게 실감한다…
+			CALL HPH_PRINT, @"「……HPHHPH」", "L"
+			PRINTFORMDW 에이키는 애액을 자신의 손가락으로 파내고, 그대로 항문을 서슴없이 후비기 시작했다…
+			PRINTFORML 
+			CALL PrintOnanismImage(30)
+			PRINTFORMDL 항문을 쑤시는 행위를 억제할 수 없어진 에이키는 세로로 갈라진 애널을 자기 손가락으로 심하게 만지작거렸다…
+			CALL HPH_PRINT, @"「엉덩이HPH　기분 좋아…HPH　기분 좋아앗HPHHPH」", "L"
+			CALL HPH_PRINT, @"「엉덩이가HPH　보지HPH　보지보다 좋아앗……HPH」", "L"
+			CALL HPH_PRINT, @"「보지보다, 기분 좋아아앗HPHHPH」", "L"
+			EXP:자위경험 += ABL:A감각
+			CALL COLORMESSAGE(@"자위경험＋{ABL:A감각}", C_PINK, 1)
+			;C자위
+			CALL JUEL_UP_SPECIAL(30, "쾌C", "C감각", 1, 1)
+			;A자위
+			CALL JUEL_UP_SPECIAL(30, "쾌A", "A감각", 5, 1)
+			;恥情
+			CALL JUEL_UP_SPECIAL(30, "치정", "자위중독", 6, 1)
+			;욕정
+			CALL JUEL_UP_SPECIAL(30, "욕정", "욕망", 3, 1)
+		ENDIF
+	;첫대면
+	CASE 50
+		IF CFLAG:30:1900 % 3 == 1
+			PRINTFORML %K30_DIARY_DATA(PAGENUM, 4)%에서 %NAME:MASTER%씨와 첫대면.
+			PRINTFORML 산 사람이면서 시치미를 떼고 피안에 정착한 외래인이다.
+			PRINTFORMW 수상스럽기 짝이 없다. 뭔가 이변의 전조만 아니면 좋겠는데.
+		ELSEIF CFLAG:30:1900 % 3 == 2
+			PRINTFORML %K30_DIARY_DATA(PAGENUM, 4)%에서 %CALLNAME:MASTER%씨와 조우.
+			PRINTFORML 살아있는 채로 피안을 왕래할 수 있다는, 정말 수상한 외래인이다.
+			PRINTFORML 이변 조사에 무녀가 방문한 적도 있지만 그것과는 전혀 다르다.
+			PRINTFORML 저 사람은 누구의 도움도 없이 삼도천을 건너온다. 어림없는 소리다.
+			PRINTFORMW 만약을 위해 코마치에게도 확인을 했지만 물론 그 아이는 관여하지 않았다.
+		ELSE
+			PRINTFORML %K30_DIARY_DATA(PAGENUM, 4)%에서 %CALLNAME:MASTER%씨를 발견.
+			PRINTFORML 어느덧 환상향에 자리 잡은, 소문대로 수상한 외래인이다.
+			PRINTFORML %K30_C_NAME(CFLAG:1901)%도 어째서 그를 머무르게 해 주는 것일까.
+			PRINTFORMW 뭔가 약점을 잡혀 협박이라도 당할까봐 걱정된다.
+		ENDIF
+		PRINTFORML 
+		PRINTFORML 그리고 무엇보다 문제인 것은 %CALLNAME:MASTER%씨에게 염마의 힘이 미치지 못하는 것이다.
+		PRINTFORML 정파리 거울에 비치지 않는 인간이 있으리라고는 생각도 못했다.
+		PRINTFORML 사실, 정말로 인간인지도 의문스럽다. 이것은 나 스스로 제대로 감시를 해야한다.
+		PRINTFORMW 만약 악행을 저지른다면, 그에 대한 응보를 받게 해야 한다.
+		IF MODE == "コマンド"
+			PRINTFORML 
+			PRINTFORMDW 기억에 없는 것, 은 아니지만…그건 그렇고 심하게 쓰여져 있다…
+			표정 = 笑顔
+			IF RAND:2 == 1
+				{
+				台詞 = 「응? 그것도 꽤 적당히 조절해서 쓴 거야」
+				/「왜냐면 어쩔 수 없잖아. 첫인상, 정말 최악이었어…」
+				/「정파리 거울로 내다볼 수 없는 인간은 경계하는게 마땅하잖아?」
+				}
+			ELSE
+				{
+				台詞 = 「그래? 적어도 이때까지는 정당한 평가라고 생각하지만」
+				/「……%조사처리(K30_C_NAME(MASTER),"가")% 환상향에 이사 왔을 때」
+				/「어떤 마음으로 뭘 하려고 했는지 좀 떠올려봐」
+				/「봐, 그렇게 틀린 말은 안 했잖아?」
+				}
+			ENDIF
+		ENDIF
+ENDSELECT
+IF SHIRAHU(30) && MODE == "コマンド" && CFLAG:30:현재위치 == CFLAG:MASTER:현재위치
+	;一時的に拡張顔絵に変更
+	VARSET LOCAL
+	LOCAL = FLAG:스탠딩종류
+	FLAG:스탠딩종류 = 1
+	LOCAL:1 = CFLAG:30:대체적용
+	CFLAG:30:대체적용 = 1
+	PRINTFORML 
+	CALL K30_SPTALK, 표정, 台詞
+	;元に戻す
+	FLAG:스탠딩종류 = LOCAL
+	CFLAG:30:대체적용 = LOCAL:1
+ENDIF
+;데일리イベントで呼び出されてた時、元通りにする
+RESETCOLOR
+
+;=============================
+@M_KOJO_MESSAGE_COM_K30_406
+;=============================
+;CALL TRAIN_MESSAGE
+;CALL M_KOJO_MESSAGE_COM_K30_406_1
+RETURN RESULT
+
+;=============================
+@M_KOJO_MESSAGE_COM_K30_406_1
+;=============================
+
