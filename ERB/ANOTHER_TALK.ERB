@@ -789,25 +789,66 @@ SELECTCASE ARG
 		ENDSELECT
 		PRINTL 
 	CASE 15
-		IF !CHARA_HOLIDAY(30)
-			;裁判中
-			IF BETWEENTIME(540, 719)
-				IF !FLAG:70
-					PRINTFORML 法廷は厳粛な雰囲気に包まれている
-					IF RAND:2
-						PRINTFORML %CALLNAME:(ARG:1)%は\@ 충전율(TARGET,3) >= 10 ? %SHOW_BOTTOM(TARGET,1)%の中をぐしょぐしょにしながら、# \@厳かに裁判を進めている…
-					ELSE
-						PRINTFORML \@ 충전율(30,3) >= 30 ? たっぷりと# \@\@ 충전율(30,3) >= 10 ? お腹に精液を溜めた # \@%CALLNAME:(ARG:1)%は神妙な顔つきで裁判を進めている…
-					ENDIF
-				ELSEIF !CFLAG:MASTER:우후후
-					PRINTFORML 裁判は停止中だ…
+		IF !CHARA_HOLIDAY(30) && BETWEENTIME(540, 719)
+			IF !FLAG:70
+				IF RAND:2
+					PRINTFORML %CALLNAME:30%は\@ 충전율(30,3) >= 10 ? %SHOW_BOTTOM(TARGET,1)%の中をぐしょぐしょにしながら、# \@%TEXTR("厳かに/粛々と/しめやかに")%裁判を進めている…
 				ELSE
-					PRINTFORML %CALLNAME:(ARG:1)%は神聖な法廷で襲われている…
+					PRINTFORML \@ 충전율(30,3) >= 30 ? たっぷりと# \@\@ 충전율(30,3) >= 10 ? お腹に精液を溜めた # \@%CALLNAME:30%は%TEXTR("神妙な顔つき/厳粛な雰囲気の中/")%で裁判を進めている…
 				ENDIF
+			ELSEIF !CFLAG:MASTER:우후후
+				PRINTFORML 裁判は停止中だ…
+			ELSE
+				PRINTFORML %CALLNAME:TARGET%は死者の魂の前で襲われている…
 			ENDIF
 		ENDIF
 	CASE 16
 		CALL 잠복묘사
+	;落とし穴描写
+	CASE 17
+		;穴掘り実行中の妖精が居るか見る
+		同室 = 0
+		LOCAL = 5, 6, 7, 14, 111
+		FOR COUNT, 0, 5
+			SIF CFLAG:MASTER:현재위치 != CFLAG:(LOCAL:COUNT):현재위치
+				CONTINUE
+			SIF Activity_Type:(LOCAL:COUNT) != 16 || !Activity_Duration:(LOCAL:COUNT)
+				CONTINUE
+			同室 ++
+		NEXT
+		;あなたが落ちた
+		IF FA16_HOLE:1 == 2 && FA16_HOLE:2 == TIME
+			IF 同室
+				PRINTFORML イタズラ好きの妖精\@ 同室 > 1 ? 達 # \@がこちらを指差して大笑いしている…
+			ELSEIF GET_TARGETNUM() > 0
+				PRINTFORM 近くにいた%CALLNAME:TARGET%が%CALLNAME:MASTER%を見て
+				SELECTCASE CFLAG:TARGET:성격경향
+					CASE 1, 5
+						PRINTFORML クスクスと笑っている…
+					CASE 2
+						PRINTFORML 鼻で笑っている…
+					CASE 3
+						PRINTFORML \@ TARGET == 57 && !TALENT:연모 ? ひょっとこの面を揺らし # 楽しそうに笑っ \@ている…
+					CASE 4
+						PRINTFORML こらえきれずに吹き出している…
+				ENDSELECT
+			ELSE
+				PRINTFORML 落とし穴は妖精達のイタズラに違いない…他にもいくつかあるようだ
+			ENDIF
+		;穴掘り中
+		ELSEIF 同室
+			PRINTFORML イタズラ好きの妖精\@ 同室 > 1 ? 達 # \@が何かやっている…
+		ELSE
+			PRINTDATA
+				DATAFORM 地面が不自然に盛り上がっている…
+				DATAFORM 土を掘り返した跡がわずかに残っている…
+				DATAFORM 周りより妙に\@ DAY:2 == 4 ? 雪の積もった # 落ち葉の多い \@場所がある…
+			ENDDATA
+			PRINTDATAL
+				DATAFORM 面白いものが見られそうだ
+				DATAFORM 何かが起きそうだ
+			ENDDATA
+		ENDIF
 ENDSELECT
 ;아이의 묘사가 없다면 플래그를 끄고, 정경묘사에서 불린 건 제외
 SIF ARG != 14 && !GROUPMATCH(ARG, 1, 6, 15, 7)
@@ -832,6 +873,9 @@ IF KROOM_DESC
 	;関数がないなら続行
 	ENDCATCH
 ENDIF
+;自由行動：落とし穴の描写
+SIF CFLAG:MASTER:현재위치 == FA16_HOLE:0
+	CALL MESSAGE_TALK(17)
 ;부근에서 연회를 하고 있다면 떠들썩한 모습이 보인다
 IF FLAG:연회개최플래그 >= 98 && CAN_MOVE(CFLAG:MASTER:현재위치, TFLAG:연회장) >= 2
 	CALL MESSAGE_TALK(1)
@@ -840,7 +884,7 @@ ELSEIF CFLAG:MASTER:현재위치 == 240 && CFLAG:67:행동 == 5
 		CALL MESSAGE_TALK(6)
 ;에이키님의 裁判風景描写文章
 ELSEIF ((CFLAG:MASTER:현재위치 == 640 && MAIN_MAP != 6) || (CFLAG:MASTER:현재위치 == 612 && MAIN_MAP == 6)) && CFLAG:30:행동 == 5
-		CALL MESSAGE_TALK(15, 30)
+		CALL MESSAGE_TALK(15)
 	;ELSEIF CFLAG:MASTER:우후후 && GET_TARGETNUM() > 1
 	;	CALL EASY_TARGET_CHANGER
 ELSEIF GROUPMATCH(CFLAG:MASTER:현재위치, 210,220,230,250,270) 

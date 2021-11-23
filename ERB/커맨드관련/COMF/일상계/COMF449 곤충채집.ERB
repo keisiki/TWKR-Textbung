@@ -1,0 +1,1346 @@
+﻿;곤충채집
+@COM449
+#DIM CHARA
+#DIM ラックM
+#DIM ラックT
+#DIM パワーM
+#DIM パワーT
+#DIM 相方が捕った
+相方が捕った = 0
+
+;参加者判定
+IF FLAG:데이트상대
+	CHARA = FLAG:데이트상대
+;仕事中はダメ
+ELSEIF TARGET && ABL:TARGET:친밀 >= 5 - TALENT:TARGET:채집Lv && SHIRAHU(TARGET) && CFLAG:행동 != 5
+	CHARA = TARGET
+ELSE
+	CHARA = 0
+ENDIF
+
+;ラック=1～1000
+ラックM = MIN((CFLAG:MASTER:오늘의운세 + 1 + (TFLAG:행운보정 * 100)), 1000)
+SIF CHARA
+	ラックT = CFLAG:CHARA:오늘의운세 + 1
+;最低1,最大10
+パワーM = LIMIT(ラックM / 200 + TALENT:MASTER:채집Lv, 1, 10)
+SIF CHARA
+	パワーT = LIMIT(ラックT / 200 + TALENT:CHARA:채집Lv, 1, 10)
+
+FOR LOCAL, 0, 5
+	REUSELASTLINE  \@ CHARA ? %CALLNAME:CHARA%と一緒に #  \@虫捕り中.%"." * LOCAL%
+	TWAIT 150, 1
+NEXT
+
+;捕獲判定
+IF RAND:パワーM < 2
+	MUSHI_CAGE = 0
+	IF CHARA
+		IF RAND:パワーT < 2
+			MUSHI_CAGE = 0
+		ELSE
+			CALL MUSHITORI(パワーT, ラックT)
+			MUSHI_CAGE = RESULT
+			相方が捕った = 1
+		ENDIF
+	ENDIF
+ELSE
+	CALL MUSHITORI(パワーM, ラックM)
+	MUSHI_CAGE = RESULT
+ENDIF
+
+;基本経験値
+EXP:MASTER:채집경험 ++
+SIF CHARA
+	EXP:CHARA:채집경험 ++
+;捕った人の追加経験値
+IF MUSHI_CAGE
+	IF 相方が捕った
+		EXP:CHARA:채집경험 ++
+	ELSE
+		EXP:MASTER:채집경험 ++
+	ENDIF
+ENDIF
+;데이트경험
+IF CHK_DATENOW(CFLAG:CHARA:데이트중) && CHARA
+	EXP:MASTER:데이트경험 ++
+	EXP:CHARA:데이트경험 ++
+ENDIF
+
+;成果に関わらず気力体力減少
+DOWNBASE:MASTER:체력 = 150
+DOWNBASE:MASTER:기력 = 200
+IF CHARA
+	DOWNBASE:CHARA:체력 = 150
+	DOWNBASE:CHARA:기력 = 200
+ENDIF
+
+IF MUSHI_CAGE
+	;処理の関係でここで捕獲メッセージを流す,
+	IF 相方が捕った
+		CALL SHOW_MUSHI_DATA(MUSHI_CAGE)
+		DRAWLINE
+		PRINTFORML %CALLNAME:CHARA%が%MUSHI_NAME%を捕まえた！
+		;＠口上を挟むかも
+		PRINTL [ 1] なかなかやるじゃん
+		CALL COLORMESSAGE(@"[ 2] 殺してでも　うばいとる", C_RED, 1)
+		PRINTL [ 3] ゆずってくれ　たのむ！！
+		INPUT
+		;結果はメッセージの方で
+		IF RESULT == 3
+			IF ABL:CHARA:순종 < 6 || ABL:CHARA:친밀 < 6 || MARK:CHARA:반발각인 || TALENT:CHARA:기분 < 0
+				TFLAG:193 = -1
+			ELSEIF ABL:CHARA:순종 < 8 || ABL:CHARA:친밀 < 8
+				TFLAG:193 = 3
+			ELSE
+				TFLAG:193 = 4
+			ENDIF
+		ELSEIF RESULT == 2
+			TFLAG:193 = -2
+		ELSE
+			TFLAG:193 = 2
+		ENDIF
+	ELSE
+		CALL SHOW_MUSHI_DATA(MUSHI_CAGE)
+		PRINTFORML %MUSHI_NAME%を捕まえた！
+		TFLAG:193 = 1
+	ENDIF
+ELSE
+	TFLAG:193 = 0
+ENDIF
+
+;参加者のソース,同一コマンド制限を受けないので控えめに,ただし捕まえられないと毎回半減
+IF CHARA
+	;固定で獲得するソース
+	SOURCE:CHARA:환락 = 400
+	SOURCE:CHARA:사랑 = 50
+	
+	;ABL:従順をみる
+	IF ABL:순종 <= 1
+		SOURCE:CHARA:환락 += (ABL:순종 * 40)
+		SOURCE:CHARA:사랑 += (ABL:친밀 * 20)
+	ELSEIF ABL:순종 <= 3
+		SOURCE:CHARA:환락 += 200 + (ABL:순종 * 40)
+		SOURCE:CHARA:사랑 += 50 + (ABL:친밀 * 30)
+	ELSEIF ABL:순종 <= 5
+		SOURCE:CHARA:환락 += 500 + (ABL:순종 * 40)
+		SOURCE:CHARA:사랑 += 200 + (ABL:친밀 * 30)
+	ELSEIF ABL:순종 <= 8
+		SOURCE:CHARA:환락 += 750 + (ABL:순종 * 60)
+		SOURCE:CHARA:사랑 += 300 + (ABL:친밀 * 40)
+	ELSEIF ABL:순종 <= 11
+		SOURCE:CHARA:환락 += 1000 + (ABL:순종 * 60)
+		SOURCE:CHARA:사랑 += 600 + (ABL:친밀 * 40)
+	ELSE
+		SOURCE:CHARA:환락 += 1600 + (ABL:순종 * 30)
+		SOURCE:CHARA:사랑 += 1000 + (ABL:친밀 * 20)
+	ENDIF
+	SIF CHARA != FLAG:데이트상대 
+		SOURCE:CHARA:사랑 = 0
+	
+	SOURCE:CHARA:수동 = 200 + 100 * ABL:순종
+	SOURCE:CHARA:정복 = 200 + 100 * ABL:새드끼
+	
+	;面倒なので[낚시를 한다]をトレースして2倍(時間効率で等倍）
+	TIMES SOURCE:CHARA:환락 , 2.00
+	TIMES SOURCE:CHARA:수동 , 2.00
+	TIMES SOURCE:CHARA:정복 , 2.00
+	TIMES SOURCE:CHARA:사랑 , 2.00
+	
+	;結果による補正
+	SELECTCASE TFLAG:193
+	;殺してでもうばいとる
+	CASE -2
+		TIMES SOURCE:CHARA:환락 , 0.50
+		TIMES SOURCE:CHARA:수동 , 0.50
+		TIMES SOURCE:CHARA:정복 , 0.50
+		SOURCE:CHARA:반감 = 500
+		DOWNBASE:MASTER:체력 += 150
+		DOWNBASE:MASTER:기력 += 200
+		IF CHARA
+			DOWNBASE:CHARA:체력 += 150
+			DOWNBASE:CHARA:기력 += 200
+		ENDIF
+	;ゆずってくれ→拒否された
+	CASE -1
+		SOURCE:CHARA:반감 = 50
+	;捕獲失敗
+	CASE 0
+		TIMES SOURCE:CHARA:환락 , 0.50
+		TIMES SOURCE:CHARA:수동 , 0.50
+		TIMES SOURCE:CHARA:정복 , 0.50
+	;MASTERが捕まえた,補正なし
+	CASE 1
+	;なかなかやるじゃん
+	CASE 2
+		TIMES SOURCE:CHARA:환락 , 1.50
+		TIMES SOURCE:CHARA:수동 , 1.50
+		TIMES SOURCE:CHARA:정복 , 1.50
+	;ゆずってくれ→渋々オッケー
+	CASE 3
+		TIMES SOURCE:CHARA:수동 , 1.50
+	;ゆずってくれ→オールオッケー
+	CASE 4
+		TIMES SOURCE:CHARA:환락 , 1.50
+		TIMES SOURCE:CHARA:수동 , 1.50
+		TIMES SOURCE:CHARA:사랑 , 1.50
+	ENDSELECT
+
+	;その他の補正
+	;虫の妖怪は喜ぶ
+	IF GET_TRIBENAME(CHARA, GETNUM(TALENT, "요괴")) == "요충"
+		TIMES SOURCE:CHARA:환락 , 2.00
+		TIMES SOURCE:CHARA:수동 , 2.00
+		TIMES SOURCE:CHARA:정복 , 2.00
+		TIMES SOURCE:CHARA:사랑 , 2.00
+	;チョウチョウはハッピー
+	ELSEIF STRCOUNT(MUSHI_TRIBE, "蝶/")
+		IF CHARA == [[라바]]
+			TIMES SOURCE:CHARA:환락 , 2.00
+			TIMES SOURCE:CHARA:수동 , 2.00
+			TIMES SOURCE:CHARA:정복 , 2.00
+		ELSE
+			TIMES SOURCE:CHARA:환락 , 1.50
+			TIMES SOURCE:CHARA:수동 , 1.50
+			TIMES SOURCE:CHARA:정복 , 1.50
+		ENDIF
+	;カブト・クワガタもハッピー
+	ELSEIF STRCOUNT(MUSHI_TRIBE, "(カブト|クワガタ)")
+		TIMES SOURCE:CHARA:환락 , 1.50
+		TIMES SOURCE:CHARA:수동 , 1.50
+		TIMES SOURCE:CHARA:정복 , 1.50
+	ELSEIF MUSHI_RARE <= 3
+	;レア度4～7
+	ELSEIF MUSHI_RARE <= 7
+		TIMES SOURCE:CHARA:환락 , 1.50
+		TIMES SOURCE:CHARA:수동 , 1.50
+		TIMES SOURCE:CHARA:정복 , 1.50
+	;レア度8～9
+	ELSE
+		TIMES SOURCE:CHARA:환락 , 2.00
+		TIMES SOURCE:CHARA:수동 , 2.00
+		TIMES SOURCE:CHARA:정복 , 2.00
+	ENDIF
+	;로터
+	SIF MUSHI_NAME == "로터"
+		SOURCE:CHARA:욕정 = 500
+ENDIF
+
+;시간경과
+TIME += 40
+
+;フラグ引き渡し
+TFLAG:194 = CHARA
+
+RETURN 1
+
+
+;-------------------------------------------------
+;実行可能判定
+;-------------------------------------------------
+;곤충채집
+@COM_ABLE449
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(449)
+	RETURN RESULT
+;昆虫採集セットがない
+SIF !ITEM:곤충채집세트
+	RETURN 0
+;昆虫採集できる場所である
+SIF !MUSHITORI_SPOT(CFLAG:MASTER:현재위치)
+	RETURN 0
+;冬の間はおやすみ
+SIF GET_MONTH() == "겨울의 달"
+	RETURN 0
+;デート中はデート相手とだけ
+SIF FLAG:데이트상대 && TARGET != FLAG:데이트상대
+	RETURN 0
+;동침중
+SIF CFLAG:MASTER:동침중
+	RETURN 0
+;うふふ中
+SIF CFLAG:MASTER:우후후
+	RETURN 0
+;睡眠中
+SIF CFLAG:MASTER:수면
+	RETURN 0
+;時間停止中
+SIF FLAG:시간정지
+	RETURN 0
+;체력・気力不足
+SIF BASE:MASTER:기력 < 800 || BASE:MASTER:체력 < 800
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;ムシを捕まえる関数
+;-------------------------------------------------
+@MUSHITORI(パワー, ラック)
+#DIM パワー
+#DIM ラック
+#DIM レアリティ指定
+#DIM ランク
+#DIM Ｇ型
+#DIM Ｘ型
+#DIM MUSHI_ID
+レアリティ指定 = RAND:パワー
+Ｇ型 = 0
+Ｘ型 = 0
+MUSHI_ID = 0
+;ムシを抽選,見つからない場合はレアリティ指定をひとつ下げる
+RESULT = 0
+WHILE レアリティ指定 >= 0
+	CALL DRAW_MUSHI("곤충채집", CFLAG:MASTER:현재위치, レアリティ指定)
+	IF RESULT
+		MUSHI_CAPTURE ++
+		;ランク判定
+		ランク = MIN(RAND:(ラック / 10), 99)
+		SIF RAND:100 < (パワー / 2)
+			Ｇ型 = 1
+		SIF RAND:100 < (パワー / 2)
+			Ｘ型 = 1
+		;ID設定
+		MUSHI_ID = MUSHI_CAPTURE * 1000000000000 + DAY * 1000000000000 + CFLAG:MASTER:현재위치 * 100000000 + ランク * 10000 + MUSHI_RARE * 1000 + RESULT
+		SIF Ｇ型
+			MUSHI_ID += 1000000
+		SIF Ｘ型
+			MUSHI_ID += 10000000
+		BREAK
+	ELSE
+		レアリティ指定 --
+	ENDIF
+WEND
+RETURN MUSHI_ID
+
+;-------------------------------------------------
+;ムシを抽選する関数
+;SPOT = 0だと分布無視(出現地形・出現地域）
+;-------------------------------------------------
+@DRAW_MUSHI(ARGS, SPOT, レアリティ指定)
+#DIM SPOT
+#DIM レアリティ指定
+#DIM MUSHI_RESULT
+MUSHI_RESULT = 0
+;シャッフルして順番に判定していく
+CALL FISHER_YATES_SHAFFLE(MAXMUSHI)
+FOR LOCAL, 1, MAXMUSHI
+	CALL MUSHI_DATA(SHAFFLE_ARRAY:LOCAL, SPOT)
+	SIF !RESULT
+		CONTINUE
+	SIF INRANGE(レアリティ指定, 0, 9) && レアリティ指定 != MUSHI_RARE
+		CONTINUE
+	IF ARGS == "곤충채집"
+		;出現条件を満たしていない
+		SIF !RESULT:1
+			CONTINUE
+	ELSEIF ARGS == "虫トラップ特定好物"
+		;好物がない(虫トラップで捕獲不可）
+		SIF RESULTS == "" || RESULTS == "無し"
+			CONTINUE
+		;ITEMNAMEと一致しているか判定
+		SIF !STRCOUNT(RESULTS, ITEMNAME:GET_MUSHIDATA(MUSHI_TRAP, "エサ番号"))
+			CONTINUE
+	ELSEIF ARGS == "虫トラップ"
+		SIF RESULTS == "" || RESULTS == "無し"
+			CONTINUE
+		;好物が全ての場合はスキップ
+		IF RESULTS != "すべて"
+			;エサタイプと一致しているか判定(CALLFでRESULTS:10を引っ張ってくる,RESULTSは保持）
+			CALLF MUSHI_ESA_DATA(GET_MUSHIDATA(MUSHI_TRAP, "エサ番号"))
+			SIF !STR_MULTI_COUNT(RESULTS, RESULTS:10)
+				CONTINUE
+		ENDIF
+	ENDIF
+	;ムシ決定
+	MUSHI_RESULT = SHAFFLE_ARRAY:LOCAL
+	BREAK
+NEXT
+RETURN MUSHI_RESULT
+
+;-------------------------------------------------
+;指定条件のムシを抽選する、IDを生成する関数
+;-------------------------------------------------
+@DRAW_MUSHI_DESIGN(CHARA, RARE_MIN, RARE_MAX, RANK_MIN, RANK_MAX, D_MUTA, D_FIELD, D_AREA, D_TRIBE, D_TYPE)
+#DIM CHARA
+#DIM RARE_MIN
+#DIM RARE_MAX
+#DIM RANK_MIN
+#DIM RANK_MAX
+#DIM D_MUTA
+#DIM D_FIELD
+#DIM D_AREA
+#DIMS D_TRIBE
+#DIMS D_TYPE
+#DIM MUSHI_RESULT
+#DIM MUSHI_ID
+MUSHI_RESULT = 0
+VARSET RESULT
+SIF RARE_MAX < RARE_MIN || !INRANGE(RARE_MAX, 0, 9)
+	THROW
+SIF RANK_MAX < RANK_MIN || !INRANGE(RANK_MAX, 0, 100)
+	THROW
+;シャッフルして順番に判定していく
+CALL FISHER_YATES_SHAFFLE(MAXMUSHI)
+FOR LOCAL, 1, MAXMUSHI
+	CALL MUSHI_DATA(SHAFFLE_ARRAY:LOCAL)
+	SIF !RESULT
+		CONTINUE
+	;レアリティ指定
+	SIF RARE_MAX && !INRANGE(MUSHI_RARE, RARE_MIN, RARE_MAX)
+		CONTINUE
+	;地形指定
+	SIF D_FIELD && !(MUSHI_FIELD & D_FIELD)
+		CONTINUE
+	;地域指定
+	SIF D_AREA && !(RESULT:2 & D_AREA)
+		CONTINUE
+	;種族指定
+	SIF D_TRIBE != "" && !STRCOUNT(MUSHI_TRIBE, D_TRIBE)
+		CONTINUE
+	;属性指定
+	SIF D_TYPE != "" && !STRCOUNT(MUSHI_TYPE, D_TYPE)
+		CONTINUE
+
+	;特殊な設定
+	;虫捕りで捕れないムシはダメ(あれとか）
+	SIF GROUPMATCH(MUSHI_NAME, "あれ", "ゲジゲジ", "ハエ", "カ", "ノミ")
+		CONTINUE
+	;月人は機械のみ(輝夜と永琳を除く）
+	IF GET_TRIBENAME(CHARA, GETNUM(TALENT, "인간")) == "월인"
+		IF !GROUPMATCH(CHARA, [[카구야]], [[에이린]])
+			SIF !STRCOUNT(MUSHI_TRIBE, "기계")
+				CONTINUE
+		ENDIF
+	;月人か河童でなければ機械は使えない
+	ELSEIF GET_TRIBENAME(CHARA, GETNUM(TALENT, "요괴")) != "캇파"
+		SIF STRCOUNT(MUSHI_TRIBE, "기계")
+			CONTINUE
+	ENDIF
+
+	;ムシ決定
+	MUSHI_RESULT = SHAFFLE_ARRAY:LOCAL
+	BREAK
+NEXT
+;条件が厳しすぎると出力できないのでエラー
+IF !MUSHI_RESULT
+	PRINTL 条件に合うムシがいません！
+	THROW
+ENDIF
+;ランク指定,LIMITにすると数値が偏るのでループ処理
+MUSHI_RANK = -1
+IF RANK_MAX
+	WHILE MUSHI_RANK < RANK_MIN
+		MUSHI_RANK = RAND:RANK_MAX
+	WEND
+ELSE
+	MUSHI_RANK = RAND:100
+ENDIF
+;変異指定
+VARSET RESULT
+IF D_MUTA
+	SIF RAND:100 < D_MUTA
+		RESULT:1 = 1
+	SIF RAND:100 < D_MUTA
+		RESULT:2 = 1
+ELSE
+	SIF RAND:100 < 3
+		RESULT:1 = 1
+	SIF RAND:100 < 3
+		RESULT:2 = 1
+ENDIF
+;ID設定
+MUSHI_ID = MUSHI_RANK * 10000 + MUSHI_RARE * 1000 + MUSHI_RESULT
+SIF RESULT:1
+	MUSHI_ID += 1000000
+SIF RESULT:2
+	MUSHI_ID += 10000000
+;被らないように適当に数字を入れる
+MUSHI_ID += RAND:1000000  * 100000000
+RETURN MUSHI_ID
+
+;-------------------------------------------------
+;ムシを捕まえた後処理の関数
+;-------------------------------------------------
+@MUSHI_CAPTURE(MUSHI_ID)
+#DIM MUSHI_ID
+#DIM 保管
+#DIM 結果保存
+保管 = 0
+;捕まえた時点で図鑑登録,相方が捕まえただけではダメ
+MUSHI_COLLECT:GET_MUSHIDATA(MUSHI_ID, "ムシ番号") = 1
+;空きに登録する
+FOR LOCAL, 1, MUSHI_MAXCAGE + 1
+	IF !MUSHI_CAGE:LOCAL
+		MUSHI_CAGE:LOCAL = MUSHI_ID
+		保管 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+IF 保管
+	;WAITは外に任せる
+	PRINTFORML %MUSHI_NAME%を虫カゴ【%TOFULL(TOSTR(保管))%】に入れた！
+;空きがない場合
+ELSE
+	PRINTFORMW 虫カゴがいっぱいです！
+	FOR LOCAL, 1, MUSHI_MAXCAGE + 1
+		PRINTFORM [{LOCAL + 10}]逃がす　[{LOCAL + 20}]素材にする　│【%TOFULL(TOSTR(LOCAL))%】
+		CALL SHOW_MUSHI_DATA(MUSHI_CAGE:LOCAL, "一行")
+		PRINTL 
+		MUSHI_NAME:LOCAL = %MUSHI_NAME%
+		MUSHI_RARE:LOCAL = MUSHI_RARE
+		MUSHI_TRIBE:LOCAL = %MUSHI_TRIBE%
+	NEXT
+	DRAWLINE
+	;今捕まえたムシ,LOCALはMAXCAGE+1になってる
+	PRINTFORM [{LOCAL + 10}]逃がす　[{LOCAL + 20}]素材にする　│【　】
+	CALL SHOW_MUSHI_DATA(MUSHI_ID, "一行")
+	PRINTL 
+	MUSHI_NAME:LOCAL = %MUSHI_NAME%
+	MUSHI_RARE:LOCAL = MUSHI_RARE
+	MUSHI_TRIBE:LOCAL = %MUSHI_TRIBE%
+	INPUT
+	結果保存 = RESULT
+	;素材にする
+	IF INRANGE(結果保存, 21, 21 + MUSHI_MAXCAGE)
+		PRINTFORM %MUSHI_NAME:(結果保存 % 10)%は
+		;レア度6以上はレアな虫
+		IF MUSHI_RARE:(結果保存 % 10) > 5
+			PRINTFORMW レアな虫に生まれ変わった…
+			CALL GET_ITEM("희귀한벌레", 1, 1)
+		;レア度5以下
+		ELSE
+			PRINTFORMW 素材になった…
+			;カエルはカエルに
+			IF STRCOUNT(MUSHI_TRIBE:(結果保存 % 10), "개구리")
+				CALL GET_ITEM("개구리", 1, 1)
+			ELSE
+				CALL GET_ITEM("벌레", 1, 1)
+			ENDIF
+		ENDIF
+	;逃がす
+	ELSEIF INRANGE(結果保存, 11, 11 + MUSHI_MAXCAGE)
+		PRINTFORMW %MUSHI_NAME:(結果保存 % 10)%を野に放った…
+	;適当な数値を入力したら逃がす
+	ELSE
+		結果保存 = 11 + MUSHI_MAXCAGE
+		PRINTFORMW %MUSHI_NAME:(結果保存 % 10)%を野に放った…
+	ENDIF
+	;入れ替えた
+	IF INRANGE(結果保存 % 10, 1, MUSHI_MAXCAGE)
+		MUSHI_CAGE:(結果保存 % 10) = MUSHI_ID
+		PRINTFORML %MUSHI_NAME%を虫カゴ【%TOFULL(TOSTR(結果保存 % 10))%】に入れた！
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;ムシデータを抽出する関数
+;-------------------------------------------------
+@GET_MUSHIDATA(MUSHI_ID, ARGS)
+#FUNCTION
+#DIM MUSHI_ID
+SELECTCASE ARGS
+;回数
+CASE "回数"
+	RETURNF MUSHI_ID / 1000000000000000000
+;日付とエサ番号は同位置
+CASE "日付", "エサ番号"
+	RETURNF MUSHI_ID / 1000000000000 % 100000
+CASE "場所"
+	RETURNF MUSHI_ID / 100000000 % 10000
+;CASE "ランクブロック"
+;	RETURNF MUSHI_ID / 10000 % 10000
+CASE "Ｘ型"
+	RETURNF MUSHI_ID / 10000000 % 10
+CASE "Ｇ型"
+	RETURNF MUSHI_ID / 1000000 % 10
+CASE "ランク"
+	RETURNF MUSHI_ID / 10000 % 100
+CASE "レアリティ"
+	RETURNF MUSHI_ID / 1000 % 10
+CASE "ムシ番号"
+	RETURNF MUSHI_ID % 1000
+ENDSELECT
+
+;-------------------------------------------------
+;ムシデータを表示する関数
+;-------------------------------------------------
+@SHOW_MUSHI_DATA(MUSHI_ID, 表示タイプ)
+#DIM MUSHI_ID
+#DIMS 表示タイプ
+#DIM 日付
+#DIM 場所
+#DIM Ｘ型
+#DIM Ｇ型
+#DIM ランク
+#DIM レアリティ
+#DIM ムシ番号
+#DIMS DYNAMIC ELM_LIST, 100
+#DIM  DYNAMIC ELM_CNT,  100
+#DIM  DYNAMIC ELM_NUM
+日付 = GET_MUSHIDATA(MUSHI_ID, "日付")
+場所 = GET_MUSHIDATA(MUSHI_ID, "場所")
+Ｘ型 = GET_MUSHIDATA(MUSHI_ID, "Ｘ型")
+Ｇ型 = GET_MUSHIDATA(MUSHI_ID, "Ｇ型")
+ランク = GET_MUSHIDATA(MUSHI_ID, "ランク")
+レアリティ = GET_MUSHIDATA(MUSHI_ID, "レアリティ")
+ムシ番号 = GET_MUSHIDATA(MUSHI_ID, "ムシ番号")
+;能力値を設定する,ついでに解説文設定
+CALL MUSHI_PALAM(MUSHI_ID)
+IF 表示タイプ == "一行"
+	IF ランク >= 90
+		CALL COLORMESSAGE(@"★", C_ORANGE, 0, 1)
+	ELSEIF ランク >= 80
+		CALL COLORMESSAGE(@"★", C_YELLOW, 0, 1)
+	ELSEIF ランク >= 60
+		CALL COLORMESSAGE(@"★", C_WHITE, 0, 1)
+	ELSE
+		PRINT 　
+	ENDIF
+	CALL PRINT_MUSHINAME(MUSHI_NAME, MUSHI_ID, 40)
+	CALL MUSHI_TYPE_PRIINT(MUSHI_TYPE)
+	PRINTFORM ／
+	CALL PRINT_ALPHABET(9 - レアリティ, 10, 1)
+	;改行は外に任せる
+ELSEIF 表示タイプ == "図鑑一覧"
+	IF MUSHI_COLLECT:ムシ番号
+		PRINTFORM [{ムシ番号, 3}] %MUSHI_NAME, 30, LEFT%
+		CALL PRINT_ALPHABET(9 - レアリティ, 10, 1)
+	ELSE
+		PRINTPLAINFORM [{ムシ番号, 3}] %"？" * (STRLENS(MUSHI_NAME) / 2), 30, LEFT%
+		CALL PRINT_ALPHABET(9 - レアリティ, 10, 1)
+	ENDIF
+	PRINTL 
+ELSE
+	PRINTFORML %"━" * 50%
+	PRINTFORM 　 No.{ムシ番号, 3, LEFT}
+	IF 表示タイプ == "図鑑"
+		PRINT 　
+	ELSE
+		IF ランク >= 90
+			CALL COLORMESSAGE(@"★", C_ORANGE, 0, 1)
+		ELSEIF ランク >= 80
+			CALL COLORMESSAGE(@"★", C_YELLOW, 0, 1)
+		ELSEIF ランク >= 60
+			CALL COLORMESSAGE(@"★", C_WHITE, 0, 1)
+		ELSE
+			PRINT 　
+		ENDIF
+	ENDIF
+	CALL PRINT_MUSHINAME(MUSHI_NAME, MUSHI_ID)
+	PRINTL 
+	PRINTFORML %"━" * 50%
+	PRINTFORM 　　レア度：
+	CALL PRINT_ALPHABET(9 - レアリティ, 10, 1)
+	PRINT ／
+	CALL COLOR_STAMP(レアリティ + 1, 0, "★", RANKCOLOR(レアリティ + 1), 1)
+	PRINTL 
+	PRINTFORM 　　　属性：
+	CALL MUSHI_TYPE_PRIINT(MUSHI_TYPE)
+	PRINTL 
+	PRINTFORML 　　　종족：%MUSHI_TRIBE%
+	PRINTFORML 　　サイズ：{MUSHI_SIZE / 100}.{MUSHI_SIZE % 100}mm
+	PRINTFORM 　得意地形：
+	CALL PRINT_FIELDTYPE(MUSHI_FIELD)
+	PRINTL 
+	PRINTFORML 　　　　HP：{MUSHI_HP, 6, LEFT}
+	PRINTFORML 　　　 ATK：{MUSHI_ATK, 6, LEFT}
+	PRINTFORML 　　　 SPD：{MUSHI_SPD, 6, LEFT}
+	PRINTFORML 　　スキル：%MUSHI_SKL%
+	PRINTFORML %"--" * 50%
+	FOR LOCAL, 1, 6
+		PRINTFORML %RESULTS:LOCAL%
+	NEXT
+ENDIF
+;WAITは外に任せる
+;-------------------------------------------------
+;虫カゴを確認する関数
+;[아이템]から転送
+;-------------------------------------------------
+@SHOW_MUSHI_CAGE
+#DIM 並び替えモード
+#DIM 並び替え対象
+IF 並び替えモード
+	CALL COLORMESSAGE(@"並び替え対象を選んでください", C_AQUA, 1)
+ELSE
+	PRINTFORML ◆%CALLNAME:MASTER%の虫カゴ◆
+ENDIF
+DRAWLINE
+FOR LOCAL, 1, MUSHI_MAXCAGE + 1
+	IF MUSHI_CAGE:LOCAL
+		SIF 並び替え対象 == LOCAL
+			SETCOLOR C_AQUA
+		PRINTFORM [{LOCAL, 2}] 
+		CALL SHOW_MUSHI_DATA(MUSHI_CAGE:LOCAL, "一行")
+		PRINTL 
+		MUSHI_NAME:LOCAL = %MUSHI_NAME%
+	ELSE
+		PRINTPLAINFORM [{LOCAL, 2}] からっぽ
+		PRINTL 
+	ENDIF
+NEXT
+DRAWLINE
+SIF 並び替えモード
+	SETCOLOR C_AQUA
+PRINTL [99] 並び替える
+RESETCOLOR
+PRINTL [ 0] 戻る
+INPUT
+IF INRANGE(RESULT, 1, MUSHI_MAXCAGE)
+	IF 並び替えモード
+		IF !MUSHI_CAGE:RESULT
+			並び替え対象 = 0
+		ELSEIF !並び替え対象
+			並び替え対象 = RESULT
+		ELSEIF 並び替え対象 == RESULT
+			並び替え対象 = 0
+		ELSE
+			SWAP MUSHI_CAGE:並び替え対象, MUSHI_CAGE:RESULT
+			並び替え対象 = 0
+		ENDIF
+	ELSE
+		CALL SHOW_MUSHI_CAGE_2(RESULT)
+		RESTART
+	ENDIF
+ELSEIF RESULT == 99
+	並び替えモード = !並び替えモード
+	SIF !並び替えモード
+		並び替え対象 = 0
+ELSE
+	並び替えモード = 0
+	並び替え対象 = 0
+	RETURN 
+ENDIF
+CLEARLINE 12
+RESTART
+
+;-------------------------------------------------
+;虫カゴを確認する関数２
+;ARG = 虫カゴ番号
+;-------------------------------------------------
+@SHOW_MUSHI_CAGE_2(ARG)
+#DIM LINE
+LINE = 24
+PRINTFORML 虫カゴ【%TOFULL(TOSTR(ARG))%】
+CALL SHOW_MUSHI_DATA(MUSHI_CAGE:ARG)
+DRAWLINE
+PRINTL [ 1] 次のカゴ
+PRINTL [ 2] 前のカゴ
+PRINTL [ 0] 戻る
+INPUT
+IF RESULT == 1
+	FOR LOCAL, ARG + 1, MUSHI_MAXCAGE + 1 
+		IF MUSHI_CAGE:LOCAL
+			ARG = LOCAL
+			CLEARLINE LINE
+			RESTART
+		ENDIF
+	NEXT
+	FOR LOCAL, 1, ARG + 1
+		IF MUSHI_CAGE:LOCAL
+			ARG = LOCAL
+			CLEARLINE LINE
+			RESTART
+		ENDIF
+	NEXT
+ELSEIF RESULT == 2
+	FOR LOCAL, 1, ARG
+		LOCAL:1 = ARG - LOCAL
+		IF MUSHI_CAGE:(LOCAL:1)
+			ARG = LOCAL:1
+			CLEARLINE LINE
+			RESTART
+		ENDIF
+	NEXT
+	FOR LOCAL, 1, MUSHI_MAXCAGE + 1 
+		LOCAL:1 = MUSHI_MAXCAGE + 1 - LOCAL
+		IF MUSHI_CAGE:(LOCAL:1)
+			ARG = (LOCAL:1)
+			CLEARLINE LINE
+			RESTART
+		ENDIF
+	NEXT
+ELSE
+	RETURN
+ENDIF
+RESTART
+
+
+;-------------------------------------------------
+;ムシの能力値を設定する関数
+;-------------------------------------------------
+@MUSHI_PALAM(MUSHI_ID, 特殊補正, 戦闘中HP, 状態変化)
+#DIM MUSHI_ID
+#DIM 特殊補正
+#DIM 戦闘中HP
+#DIMS 状態変化
+#DIM 補正値
+MUSHI_RANK = GET_MUSHIDATA(MUSHI_ID, "ランク")
+;ムシデータを引き出す
+CALL MUSHI_DATA(GET_MUSHIDATA(MUSHI_ID, "ムシ番号"))
+補正値 = 80 + ((MUSHI_RANK + 1) / 2) + 特殊補正
+MUSHI_MAXHP = MUSHI_HP * 補正値 / 100
+MUSHI_ATK = MUSHI_ATK * 補正値 / 100
+MUSHI_SPD = MUSHI_SPD * 補正値 / 100
+MUSHI_SIZE = MUSHI_SIZE * 補正値 / 100
+;変異による補正
+IF GET_MUSHIDATA(MUSHI_ID, "Ｇ型")
+	TIMES MUSHI_MAXHP, 1.50
+	TIMES MUSHI_ATK, 1.50
+	TIMES MUSHI_SIZE, 2.00
+ENDIF
+IF GET_MUSHIDATA(MUSHI_ID, "Ｘ型")
+	TIMES MUSHI_SPD, 1.50
+	TIMES MUSHI_SIZE, 0.50
+ENDIF
+;状態変化による補正
+IF STRCOUNT(状態変化, "<得意季節>")
+	TIMES MUSHI_ATK, 1.20
+	TIMES MUSHI_SPD, 1.20
+ENDIF
+IF STRCOUNT(状態変化, "<得意地形>")
+	TIMES MUSHI_ATK, 1.20
+	TIMES MUSHI_SPD, 1.20
+ENDIF
+IF STRCOUNT(状態変化, "<大将>")
+	TIMES MUSHI_ATK, 1.20
+	TIMES MUSHI_SPD, 1.20
+ENDIF
+IF STRCOUNT(状態変化, "<高揚>")
+	TIMES MUSHI_ATK, 1.50
+	TIMES MUSHI_SPD, 1.50
+ENDIF
+IF STRCOUNT(状態変化, "<逆襲>")
+	TIMES MUSHI_ATK, 1.50
+	TIMES MUSHI_SPD, 1.50
+ENDIF
+SIF STRCOUNT(状態変化, "<悪臭>")
+	TIMES MUSHI_ATK, 0.50
+SIF STRCOUNT(状態変化, "<マヒ>")
+	TIMES MUSHI_SPD, 0.50
+SIF STRCOUNT(状態変化, "<スロウ>")
+	TIMES MUSHI_SPD, 0.50
+IF 戦闘中HP
+	MUSHI_HP = 戦闘中HP
+ELSE
+	MUSHI_HP = MUSHI_MAXHP
+ENDIF
+
+;-------------------------------------------------
+;ムシバトル用のフラグを設定する関数
+;@MUSHI_PALAMを呼んだ直後に呼ぶ
+;-------------------------------------------------
+@MUSHI_FLAGSETTING(MUSHI_ID, ARG)
+#DIM MUSHI_ID
+MUSHI_CAGE:ARG = MUSHI_ID
+MUSHI_NAME:ARG = %MUSHI_NAME%
+MUSHI_RARE:ARG = MUSHI_RARE
+MUSHI_RANK:ARG = MUSHI_RANK
+MUSHI_TYPE:ARG = %MUSHI_TYPE%
+MUSHI_TRIBE:ARG = %MUSHI_TRIBE%
+MUSHI_FIELD:ARG = MUSHI_FIELD
+MUSHI_MAXHP:ARG = MUSHI_MAXHP
+MUSHI_HP:ARG = MUSHI_HP
+MUSHI_ATK:ARG = MUSHI_ATK
+MUSHI_SPD:ARG = MUSHI_SPD
+MUSHI_SKL:ARG = %MUSHI_SKL%
+
+;-------------------------------------------------
+;虫捕りできる場所を判定する関数
+;bitを入れて返す
+;-------------------------------------------------
+@MUSHITORI_SPOT(ARG)
+#FUNCTION
+IF !IN_HOME(ARG)
+	;サブマップ
+	SELECTCASE ARG
+	;벚꽃길 토리이
+	CASE 10
+		RETURNF FIELD_SETBIT("花樹土")
+	;신사 경내
+	CASE 20
+		RETURNF FIELD_SETBIT("土岩家")
+	;요정의 큰나무
+	CASE 50
+		RETURNF FIELD_SETBIT("草花樹土")
+	CASE 수양버들아래
+		RETURNF FIELD_SETBIT("草土樹")
+	CASE 명련사경내
+		RETURNF FIELD_SETBIT("土岩家")
+	CASE 묘지
+		RETURNF FIELD_SETBIT("草花土岩")
+	CASE 광장
+		RETURNF FIELD_SETBIT("土岩家")
+	CASE 주택가
+		RETURNF FIELD_SETBIT("家")
+	CASE 안개의호수
+		RETURNF FIELD_SETBIT("草水")
+	CASE 폐양관
+		RETURNF FIELD_SETBIT("家")
+	CASE 정문
+		RETURNF FIELD_SETBIT("草花樹土")
+	CASE 죽림입구
+		RETURNF FIELD_SETBIT("草土樹")
+	CASE 미혹의샛길
+		RETURNF FIELD_SETBIT("草土樹")
+	CASE 사각의죽림
+		RETURNF FIELD_SETBIT("草土樹")
+	CASE 토끼동굴
+		RETURNF FIELD_SETBIT("土岩")
+	CASE 무명의언덕
+		RETURNF FIELD_SETBIT("草花土")
+	CASE 태양의밭
+		RETURNF FIELD_SETBIT("草花土")
+	CASE 숲의입구
+		RETURNF FIELD_SETBIT("草樹土")
+	CASE 고목의큰나무
+		RETURNF FIELD_SETBIT("草樹土")
+	CASE 재고의길
+		RETURNF FIELD_SETBIT("草花土")
+	CASE 무연총
+		RETURNF FIELD_SETBIT("草樹花土岩")
+	CASE 중유의길
+		RETURNF FIELD_SETBIT("草土")
+	CASE 삼도천
+		RETURNF FIELD_SETBIT("草水")
+	CASE 피안
+		RETURNF FIELD_SETBIT("花水")
+	CASE 백옥루정원
+		RETURNF FIELD_SETBIT("花樹土家")
+	CASE 지옥
+		RETURNF FIELD_SETBIT("土岩")
+	CASE 산록의수해
+		RETURNF FIELD_SETBIT("草樹土")
+	CASE 현무의늪
+		RETURNF FIELD_SETBIT("水岩")
+	CASE 큰두꺼비의연못
+		RETURNF FIELD_SETBIT("草水")
+	CASE 절경의언덕
+		RETURNF FIELD_SETBIT("草樹土岩")
+	CASE 산의호수
+		RETURNF FIELD_SETBIT("草水")
+	CASE 모리야신사경내
+		RETURNF FIELD_SETBIT("土岩家")
+	CASE 환상풍혈
+		RETURNF FIELD_SETBIT("土岩")
+	CASE 지옥의깊은길
+		RETURNF FIELD_SETBIT("土岩水")
+	CASE 옛지옥가도
+		RETURNF FIELD_SETBIT("土家")
+	CASE 지령전
+		RETURNF FIELD_SETBIT("家")
+	CASE 고요의바다
+		RETURNF FIELD_SETBIT("달")
+	ENDSELECT
+ELSE
+	;メインマップ
+	SELECTCASE MAIN_MAP
+	CASE 0
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "경내"
+			RETURNF FIELD_SETBIT("土岩家")
+		CASE "脱衣所"
+			RETURNF FIELD_SETBIT("草花樹土家")
+		CASE "본전 뒷편"
+			RETURNF FIELD_SETBIT("土岩家")
+		CASE "참배길"
+			RETURNF FIELD_SETBIT("草樹土")
+		CASE "수호신의 숲"
+			RETURNF FIELD_SETBIT("草花樹土")
+		ENDSELECT
+	CASE 1
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "경내"
+			RETURNF FIELD_SETBIT("土岩家")
+		CASE "뒷마당"
+			RETURNF FIELD_SETBIT("草花樹土家")
+		CASE "묘지"
+			RETURNF FIELD_SETBIT("草花土岩")
+		CASE "영묘 광장"
+			RETURNF FIELD_SETBIT("土岩家")
+		CASE "고산수"
+			RETURNF FIELD_SETBIT("草花岩")
+		ENDSELECT
+	CASE 2
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "인간마을 문"
+			RETURNF FIELD_SETBIT("土岩家")
+		CASE "중앙 광장"
+			RETURNF FIELD_SETBIT("土樹岩家")
+		ENDSELECT
+	CASE 3
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "脱衣所"
+			RETURNF FIELD_SETBIT("草花樹土家")
+		CASE "뒷마당"
+			RETURNF FIELD_SETBIT("草花樹土家")
+		CASE "호숫가"
+			RETURNF FIELD_SETBIT("草水")
+		CASE "안개의 호수"
+			RETURNF FIELD_SETBIT("草水")
+		ENDSELECT
+	CASE 4
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "脱衣所"
+			RETURNF FIELD_SETBIT("草花樹土家")
+		CASE "뒷마당"
+			RETURNF FIELD_SETBIT("草花樹土家")
+		CASE "토끼 동굴"
+			RETURNF FIELD_SETBIT("土岩")
+		CASE "사각의 죽림"
+			RETURNF FIELD_SETBIT("草土樹")
+		CASE "미혹의 샛길"
+			RETURNF FIELD_SETBIT("草土樹")
+		CASE "무명의 언덕"
+			RETURNF FIELD_SETBIT("草花土")
+		CASE "태양의 밭"
+			RETURNF FIELD_SETBIT("草花土")
+		ENDSELECT
+	CASE 5
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "魔法の森入口"
+			RETURNF FIELD_SETBIT("草樹土")
+		CASE "갈림길"
+			RETURNF FIELD_SETBIT("草樹土")
+		CASE "무연총"
+			RETURNF FIELD_SETBIT("草樹花土岩")
+		CASE "버섯 군생지"
+			RETURNF FIELD_SETBIT("草樹土")
+		CASE "마법의 광장"
+			RETURNF FIELD_SETBIT("草樹土家")
+		CASE "재고의 길"
+			RETURNF FIELD_SETBIT("草花土")
+		CASE "고목의 큰나무"
+			RETURNF FIELD_SETBIT("草樹土")
+		CASE "리글의 거처"
+			RETURNF FIELD_SETBIT("草土")
+		ENDSELECT
+	CASE 6
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "중유의 길"
+			RETURNF FIELD_SETBIT("草土")
+		CASE "삼도천 모래밭"
+			RETURNF FIELD_SETBIT("草水")
+		CASE "피안"
+			RETURNF FIELD_SETBIT("花水")
+		CASE "脱衣所"
+			RETURNF FIELD_SETBIT("草花樹岩家")
+		CASE "사이교"
+			RETURNF FIELD_SETBIT("花樹")
+		CASE "야쿠모 가 정원"
+			RETURNF FIELD_SETBIT("草花樹土家")
+		ENDSELECT
+	CASE 7
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "수해도 입구"
+			RETURNF FIELD_SETBIT("草樹土")
+		CASE "산길·늪으로 가는 길"
+			RETURNF FIELD_SETBIT("草樹土岩")
+		CASE "현무의 늪"
+			RETURNF FIELD_SETBIT("水岩")
+		CASE "산길·산비탈"
+			RETURNF FIELD_SETBIT("草樹土岩")
+		CASE "산길·분기점"
+			RETURNF FIELD_SETBIT("草樹土岩")
+		CASE "큰두꺼비의 연못"
+			RETURNF FIELD_SETBIT("草水")
+		CASE "아키 자매의 집·밭"
+			RETURNF FIELD_SETBIT("草花土家")
+		CASE "선인 저택·마당"
+			RETURNF FIELD_SETBIT("草花樹土家")
+		CASE "댑싸리"
+			RETURNF FIELD_SETBIT("樹")
+		CASE "산정으로 가는 길"
+			RETURNF FIELD_SETBIT("草樹土岩")
+		ENDSELECT
+	CASE 8
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "산정 입구"
+			RETURNF FIELD_SETBIT("草樹土岩")
+		CASE "정상"
+			RETURNF FIELD_SETBIT("草樹土岩")
+		CASE "폭포 뒤"
+			RETURNF FIELD_SETBIT("水岩")
+		CASE "경내"
+			RETURNF FIELD_SETBIT("土岩家")
+		CASE "호숫가"
+			RETURNF FIELD_SETBIT("草水")
+		CASE "脱衣所"
+			RETURNF FIELD_SETBIT("草花樹土家")
+;		CASE "도원",天界に虫はいない？
+;			RETURNF FIELD_SETBIT("")
+		ENDSELECT
+	CASE 9
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "지령전 앞"
+			RETURNF FIELD_SETBIT("家")
+		CASE "뒷마당"
+			RETURNF FIELD_SETBIT("草花樹土岩家")
+		CASE "장미정원"
+			RETURNF FIELD_SETBIT("草花")
+		CASE "안뜰"
+			RETURNF FIELD_SETBIT("草花岩家")
+		CASE "뒷골목"
+			RETURNF FIELD_SETBIT("土家")
+		CASE "강가"
+			RETURNF FIELD_SETBIT("土水岩")
+		CASE "수혈의 바닥"
+			RETURNF FIELD_SETBIT("土岩")
+		ENDSELECT
+	CASE 10
+		SELECTCASE NAME_FROM_PLACE(ARG)
+		CASE "入り江"
+			RETURNF FIELD_SETBIT("달")
+		ENDSELECT
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+;フィールドタイプのbitを入れて返す関数
+;@AREA_SETBITと同様
+;"모두"を入れると全てを入れた数値(2^8 - 1)を返す、が、おそらく使わない(月があるので）
+;"以外"を入れると反転する
+;-------------------------------------------------
+@FIELD_SETBIT(ARGS)
+#FUNCTION
+VARSET LOCAL
+SIF STRCOUNT(ARGS, "모두")
+	RETURNF 256 - 1
+
+SIF STRCOUNT(ARGS, "草")
+	SETBIT LOCAL, 0
+SIF STRCOUNT(ARGS, "花")
+	SETBIT LOCAL, 1
+SIF STRCOUNT(ARGS, "樹")
+	SETBIT LOCAL, 2
+SIF STRCOUNT(ARGS, "흙")
+	SETBIT LOCAL, 3
+SIF STRCOUNT(ARGS, "물")
+	SETBIT LOCAL, 4
+SIF STRCOUNT(ARGS, "岩")
+	SETBIT LOCAL, 5
+SIF STRCOUNT(ARGS, "家")
+	SETBIT LOCAL, 6
+SIF STRCOUNT(ARGS, "달")
+	SETBIT LOCAL, 7
+
+IF STRCOUNT(ARGS, "以外")
+	FOR LOCAL:1, 0, 8
+		INVERTBIT LOCAL:1, LOCAL
+	NEXT
+ENDIF
+RETURNF LOCAL
+
+;-------------------------------------------------
+;ムシの名前をＧＸ付きで表示する関数
+;ARG    空きスペース数
+;ARG:1  RIGHT
+;-------------------------------------------------
+@PRINT_MUSHINAME(ARGS, MUSHI_ID, ARG, ARG:1)
+#DIM MUSHI_ID
+#DIM Ｇ型
+#DIM Ｘ型
+Ｇ型 = GET_MUSHIDATA(MUSHI_ID, "Ｇ型")
+Ｘ型 = GET_MUSHIDATA(MUSHI_ID, "Ｘ型")
+LOCAL = MAX(ARG - STRLENS(ARGS) - Ｇ型 * 2 - Ｘ型 * 2, 0)
+SIF ARG:1
+	PRINTFORM %" " * LOCAL%
+PRINTFORM %ARGS%
+IF  Ｇ型 && Ｘ型
+	CALL COLORMESSAGE(@"ＧＸ", 0xffff78)
+ELSEIF Ｇ型
+	CALL COLORMESSAGE(@"Ｇ", 0xff5a5a)
+ELSEIF Ｘ型
+	CALL COLORMESSAGE(@"Ｘ", 0x64c8ff)
+ENDIF
+SIF !ARG:1
+	PRINTFORM %" " * LOCAL%
+
+;-------------------------------------------------
+;ランクに応じたカラーだけ抽出する関数
+;-------------------------------------------------
+@RANKCOLOR(RANK)
+#FUNCTION
+#DIM RANK
+#DIM RANK_NUM
+SELECTCASE RANK
+CASE 1
+	RETURNF C_GRAY
+CASE 2
+	RETURNF C_AQUA
+CASE 3
+	RETURNF C_GREEN
+CASE 4
+	RETURNF C_YELLOW
+CASE 5
+	RETURNF C_ORANGE
+CASE 6
+	RETURNF C_RED
+CASE 7
+	RETURNF C_PINK
+CASE 8
+	RETURNF C_WHITE
+CASE 9
+	RETURNF C_WHITE
+CASE 10
+	RETURNF C_P_PURPLE
+ENDSELECT
+
+;-------------------------------------------------
+;ムシの属性をカラースタンプする関数
+;TYPE:1   ムシバトル表示専用の先に次のムシの属性数をカウントする引数
+;-------------------------------------------------
+@MUSHI_TYPE_PRIINT(TYPE, TYPE:1)
+#DIMS TYPE, 2
+CALL COLOR_STAMP(STRCOUNT(TYPE, "無"), 5, "○", C_WHITE, 1)
+CALL COLOR_STAMP(STRCOUNT(TYPE, "빨강빛"), 5, "●", C_RED, 1)
+CALL COLOR_STAMP(STRCOUNT(TYPE, "초록빛"), 5, "●", C_GREEN, 1)
+CALL COLOR_STAMP(STRCOUNT(TYPE, "푸른빛"), 5, "●", C_BLUE, 1)
+CALL COLOR_STAMP(STRCOUNT(TYPE, "흰빛"), 5, "●", C_WHITE, 1)
+CALL COLOR_STAMP(STRCOUNT(TYPE, "흑빛"), 5, "●", C_GRAY, 1)
+IF TYPE:1 != ""
+	RESULT:1 = STRCOUNT(TYPE:1, "無") + STRCOUNT(TYPE:1, "빨강빛") + STRCOUNT(TYPE:1, "초록빛") + STRCOUNT(TYPE:1, "푸른빛") + STRCOUNT(TYPE:1, "흰빛") + STRCOUNT(TYPE:1, "흑빛")
+	TIMES RESULT:1, 2.0
+ENDIF
+RESULT = STRCOUNT(TYPE, "無") + STRCOUNT(TYPE, "빨강빛") + STRCOUNT(TYPE, "초록빛") + STRCOUNT(TYPE, "푸른빛") + STRCOUNT(TYPE, "흰빛") + STRCOUNT(TYPE, "흑빛")
+TIMES RESULT, 2.0
+RETURN RESULT
+
+;-------------------------------------------------
+;フィールドタイプに色を着けてプリントする関数
+;-------------------------------------------------
+@PRINT_FIELDTYPE(ARG)
+SIF GETBIT(ARG, 0)
+	CALL COLORMESSAGE(@"[草原]", 0x78ff78)
+SIF GETBIT(ARG, 1)
+	CALL COLORMESSAGE(@"[花畑]", C_PINK)
+SIF GETBIT(ARG, 2)
+	CALL COLORMESSAGE(@"[森林]", 0x00c832)
+SIF GETBIT(ARG, 3)
+	CALL COLORMESSAGE(@"[砂地]", 0xffc864)
+SIF GETBIT(ARG, 4)
+	CALL COLORMESSAGE(@"[水辺]", 0x64c8ff)
+SIF GETBIT(ARG, 5)
+	CALL COLORMESSAGE(@"[岩場]", 0xb49678)
+SIF GETBIT(ARG, 6)
+	CALL COLORMESSAGE(@"[家屋]", 0xff7878)
+SIF GETBIT(ARG, 7)
+	CALL COLORMESSAGE(@"[タイル]", 0xc8dcff)
+
+;-------------------------------------------------
+;フィールドタイプを文字列にして返す関数
+;-------------------------------------------------
+@NAME_FIELD_TYPE(ARG)
+#FUNCTIONS
+LOCALS = 
+SIF GETBIT(ARG, 0)
+	LOCALS += "[草原]"
+SIF GETBIT(ARG, 1)
+	LOCALS += "[花畑]"
+SIF GETBIT(ARG, 2)
+	LOCALS += "[森林]"
+SIF GETBIT(ARG, 3)
+	LOCALS += "[砂地]"
+SIF GETBIT(ARG, 4)
+	LOCALS += "[水辺]"
+SIF GETBIT(ARG, 5)
+	LOCALS += "[岩場]"
+SIF GETBIT(ARG, 6)
+	LOCALS += "[家屋]"
+SIF GETBIT(ARG, 7)
+	LOCALS += "[タイル]"
+RETURNF LOCALS
+
+;-------------------------------------------------
+;SHOPから呼ばれる表示関数
+;-------------------------------------------------
+@SHOW_COLLECTION_MUSHI
+#DIM START,10
+#DIM ページ
+#DIM 最後のページ
+#DIM MUSHI_ID
+;各ページの頭番を設定する
+IF !START
+[IF_DEBUG]
+	FOR LOCAL, 1, MAXMUSHI
+		MUSHI_COLLECT:LOCAL = RAND:2
+	NEXT
+[ENDIF]
+	VARSET LOCAL
+	FOR LOCAL, 1, MAXMUSHI
+		CALL MUSHI_DATA(LOCAL)
+		SIF !RESULT
+			CONTINUE
+		LOCAL:1 ++
+		IF LOCAL:1 == 21
+			LOCAL:2 ++
+			START:(LOCAL:2) = LOCAL
+			LOCAL:1 = 1
+		ENDIF
+		LOCAL:3 = LOCAL
+	NEXT
+	START = 1
+	ページ = 1
+	;最後のページと最後のページの頭番を設定
+	最後のページ = LOCAL:2 + 1
+	START:最後のページ = LOCAL:3 + 1
+ENDIF
+VARSET LOCAL
+PRINTFORML ◆捕った虫リスト PAGE.{ページ}
+DRAWLINE
+FOR LOCAL, START, START:ページ
+	CALL MUSHI_DATA(LOCAL)
+	SIF !RESULT
+		CONTINUE
+	MUSHI_ID = MUSHI_RARE * 1000 + LOCAL
+	CALL SHOW_MUSHI_DATA(MUSHI_ID, "図鑑一覧")
+	LOCAL:1 ++
+NEXT
+WHILE LOCAL:1 < 20
+	PRINTL 
+	LOCAL:1 ++
+WEND
+DRAWLINE
+PRINTL [999] 次のページ
+PRINTL [998] 前のページ
+PRINTL [  0] 戻る
+INPUT
+;戻る
+IF !RESULT
+	VARSET START
+	RETURN
+;次のページ
+ELSEIF RESULT == 999
+	ページ ++
+	IF ページ > 最後のページ
+		ページ = 1
+		START = 1
+	ELSE
+		START = START:(ページ - 1)
+	ENDIF
+;前のページ
+ELSEIF RESULT == 998
+	ページ --
+	IF ページ < 1
+		ページ = 最後のページ
+		START = START:(最後のページ - 1)
+	ELSEIF ページ == 1
+		START = 1
+	ELSE
+		START = START:(ページ - 1)
+	ENDIF
+;閲覧
+ELSEIF INRANGE(RESULT, 1, MAXMUSHI) && MUSHI_COLLECT:RESULT
+	;虫のデータを引き出す,ランクは表記通りの設定で固定
+	LOCAL = RESULT
+	CALL MUSHI_DATA(RESULT)
+	MUSHI_ID = 39 * 10000 + MUSHI_RARE * 1000 + LOCAL
+	CALL SHOW_MUSHI_DATA(MUSHI_ID, "図鑑")
+	DRAWLINE
+	PRINTL [  0] 戻る
+	INPUT
+	CLEARLINE 21
+ENDIF
+CLEARLINE 27
+RESTART

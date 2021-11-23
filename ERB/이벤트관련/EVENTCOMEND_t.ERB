@@ -33,8 +33,8 @@ IF BASE:MASTER:술기운 >= MAXBASE:MASTER:술기운
 ENDIF
 IF (BASE:MASTER:체력 <= 500 && !TCVAR:TARGET:마음대로해) || BASE:MASTER:체력 <= 0
 	PRINTL (체력이 한계에 와 있습니다)
-	;발정 없이 방에 들어갈 경우에는 선택지를 내놓지 않는다.
-	IF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && !TALENT:TARGET:연모
+	;발정 없이 방에 들어갈 경우or 뉴 플랜 에는 선택지를 내놓지 않는다.
+	IF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && (!TALENT:TARGET:연모 || TFLAG:거품목욕)
 
 	ELSE
 		;밀어넘어뜨려지고 안이라면 분기
@@ -96,6 +96,18 @@ IF (BASE:MASTER:체력 <= 500 && !TCVAR:TARGET:마음대로해) || BASE:MASTER:�
 			CFLAG:MASTER:현재위치 = ENTRANCE
 			PRINTW 
 		ENDIF
+	ELSEIF TFLAG:거품목욕 && CFLAG:우후후
+		PRINTFORMW 
+		CALL 泡風呂終了判定("あなた限界")
+		IF MAIN_MAP != 9
+			PRINTFORMW %CALLNAME:MASTER%は最後の力を振り絞って、%GET_MAPNAME(MAIN_MAP)%まで戻ってきた
+			FLAG:기절중단 = 100 + CFLAG:MASTER:현재위치 / 100
+			CFLAG:MASTER:현재위치 = ENTRANCE
+		ELSE
+			PRINTFORMW %CALLNAME:MASTER%はふらつく足取りで、私室へと戻った
+			CFLAG:MASTER:현재위치 = CFLAG:MASTER:311
+			FLAG:기절중단 = 0
+		ENDIF
 	ELSEIF TARGET > 0 && TALENT:TARGET:연모 && BASE:TARGET:체력 >= 500 && !CFLAG:TARGET:수면 && !CFLAG:MASTER:동침중 && ((CFLAG:TARGET:동행 && CHK_DATENOW(CFLAG:MASTER:데이트중)) || !CHK_DATENOW(CFLAG:MASTER:데이트중))
 		IF CHK_DATENOW(CFLAG:MASTER:데이트중)
 			PRINTFORMW %CALLNAME:TARGET%에게 업혀서 %마스터는% %GET_MAPNAME(MAIN_MAP)%까지 돌아왔다
@@ -103,9 +115,12 @@ IF (BASE:MASTER:체력 <= 500 && !TCVAR:TARGET:마음대로해) || BASE:MASTER:�
 		IF CFLAG:MASTER:현재위치 != CFLAG:MASTER:초기위치
 			PRINTFORMW %타겟이% %마스터를% 사실로 옮겨 주었다…
 			CFLAG:MASTER:현재위치 = CFLAG:MASTER:311
-			CALL KOJO_MESSAGE_SEND("EVENT", 3, TARGET, 6,0)
+			;おやすみ口上,6-0,MASTERがダウン（部屋に運ばれる）
+			CALL KOJO_MESSAGE_SEND("EVENT", 3, TARGET, 6, 0)
 		ELSE
 			PRINTFORMW %타겟이% %마스터를% \@ INROOM(CFLAG:MASTER:현재위치) == 2 ? 침대 # 이불 \@로 옮겨 주었다…
+			;おやすみ口上,6-1,MASTERがダウン（自室）
+			CALL KOJO_MESSAGE_SEND("EVENT", 3, TARGET, 6, 1)
 		ENDIF
 		CFLAG:MASTER:데이트중 = MAIN_MAP
 		FLAG:기절중단 = 0
@@ -157,11 +172,13 @@ IF TARGET && CFLAG:언짢음 && !FLAG:70
 	IF !TCVAR:억지로 && FLAG:모리야복권데이트상대 != TARGET && !FLAG:개인실입장 && !TCVAR:패배강간
 		IF CFLAG:감금됨&&CFLAG:현재위치 == 1445
 		ELSE
-		FOR LOCAL, 0, CHARANUM
-			CALL ENDUFUFU(LOCAL)
-		NEXT
-		TFLAG:106 = 0
+			FOR LOCAL, 0, CHARANUM
+				CALL ENDUFUFU(LOCAL)
+			NEXT
+			TFLAG:106 = 0
 		ENDIF
+	ELSEIF CFLAG:우후후 && TFLAG:거품목욕
+		CALL 泡風呂終了判定("女の子フキゲン")
 	ENDIF
 ENDIF
 
@@ -300,6 +317,8 @@ IF TARGET && BASE:체력 < 500
 		FLAG:데이트상대 = 0
 		TFLAG:데이트전호감도 = 0
 		TFLAG:106 = 0
+	ELSEIF TFLAG:거품목욕
+		CALL 泡風呂終了判定("体力限界")
 	ELSE
 		IF !CFLAG:쇠약
 			PRINTFORMW (%CALLNAME:TARGET%의 체력이 한계에 다다랐습니다)
@@ -307,7 +326,7 @@ IF TARGET && BASE:체력 < 500
 			FLAG:70 = 0
 			RESETBGCOLOR
 		ENDIF
-		CALL CHARA_SLEEP, TARGET, 0
+		CALL CHARA_SLEEP, TARGET, 1
 		FOR LOCAL, 0, CHARANUM
 			CALL ENDUFUFU(LOCAL)
 			CALL SET_PRANK(0, LOCAL, 1)

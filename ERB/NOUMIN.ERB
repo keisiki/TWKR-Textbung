@@ -603,3 +603,153 @@ ELSE
 ENDIF
 PRINTFORMW ――――――――――――――――――――――――――――――――
 
+;CONFIGからの農民再設定(試作）
+@RESTART_NOUMIN
+#DIM LOCAL_지주
+#DIM LOCAL_밭일성과
+#DIM LOCAL_변제연체회수
+#DIM LOCAL_수확납입회수
+#DIM LOCAL_누적수확평가
+#DIM LOCAL_전회수확평가
+#DIM LOCAL_농민난이도
+#DIM LOCAL_밭확장
+#DIM LOCAL_지주대출금
+#DIM LOCAL_연시대출금
+#DIMS LOCALS_원지주
+#DIMS LOCALS_신지주
+#DIMS LOCALS_원난이도
+#DIMS LOCALS_신난이도
+
+LOCAL_지주 = FLAG:지주
+LOCAL_밭일성과 = FLAG:밭일성과
+LOCAL_변제연체회수 = FLAG:변제연체회수
+LOCAL_수확납입회수 = FLAG:수확납입회수
+LOCAL_누적수확평가 = FLAG:누적수확평가
+LOCAL_전회수확평가 = FLAG:전회수확평가
+LOCAL_농민난이도 = FLAG:농민난이도
+LOCAL_밭확장 = FLAG:밭확장
+LOCAL_지주대출금 = FLAG:지주대출금
+LOCAL_연시대출금 = FLAG:연시대출금
+LOCALS_원지주 = %CALLNAME:(FLAG:지주)%
+
+IF FLAG:지주
+	PRINTFORML %CALLNAME:MASTER%は%LOCALS_원지주%の下で働く農民です
+	SIF FLAG:지주대출금 > 0
+		PRINTFORML 残りの借金は\\{FLAG:지주대출금}だ
+	SELECTCASE FLAG:농민난이도
+	CASE 1
+		LOCALS_원난이도 = ノーマル
+	CASE 2
+		LOCALS_원난이도 = ハードコア
+	CASE 3
+		LOCALS_원난이도 = エクストリーム
+	ENDSELECT
+ELSE
+	PRINTFORML %CALLNAME:MASTER%は身軽な自由人です
+ENDIF
+
+PRINTFORML 農家の設定を変更しますか？
+PRINTFORML [1] - はい
+PRINTFORML [0] - いいえ
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 0
+		PRINTFORML 
+		RETURN
+	CASE 1
+	CASEELSE
+		REUSELASTLINE 無効な入力です
+		CONTINUE
+	ENDSELECT
+	BREAK
+LOOP 1
+
+DO
+	CALL RESET_NOUMIN
+	CALL SET_NOUMIN
+	PRINTFORML 
+
+	LOCALS_신지주 = %CALLNAME:(FLAG:지주)%
+	IF LOCAL_지주 && FLAG:지주 && LOCAL_지주 != FLAG:지주
+		PRINTFORML %CALLNAME:MASTER%は%LOCALS_원지주%の下を별채、今後は%LOCALS_신지주%の下で働くことになります
+		IF LOCAL_지주대출금 > 0
+			PRINTFORML %LOCALS_원지주%への借金\\{LOCAL_지주대출금}は%LOCALS_신지주%が肩代わりするため
+			FLAG:지주대출금 += LOCAL_지주대출금
+		ENDIF
+		PRINTFORML %LOCALS_신지주%への借入金は合計\\{FLAG:지주대출금}となります
+
+	ELSEIF LOCAL_지주 && FLAG:지주 && LOCAL_지주 == FLAG:지주
+		; 雇い主の変更がないので元に戻す
+		SETCOLOR C_YELLOW
+		PRINTFORML 雇い主に変更が無い為、上記の借入金は発生しません
+		SIF LOCAL_지주대출금 > 0
+			PRINTFORML %LOCALS_신지주%への借入金は今のまま\\{LOCAL_지주대출금}となります
+		RESETCOLOR
+		FLAG:밭일성과 = LOCAL_밭일성과
+		FLAG:변제연체회수 = LOCAL_변제연체회수
+		FLAG:수확납입회수 = LOCAL_수확납입회수
+		FLAG:누적수확평가 = LOCAL_누적수확평가
+		FLAG:전회수확평가 = LOCAL_전회수확평가
+		FLAG:지주대출금 = LOCAL_지주대출금
+		FLAG:연시대출금 = LOCAL_연시대출금
+
+		; 난이도が変更されたか
+		IF LOCAL_농민난이도 != FLAG:농민난이도
+			SELECTCASE FLAG:농민난이도
+			CASE 1
+				LOCALS_신난이도 = ノーマル
+			CASE 2
+				LOCALS_신난이도 = ハードコア
+			CASE 3
+				LOCALS_신난이도 = エクストリーム
+			ENDSELECT
+			PRINTFORML 난이도を[%LOCALS_원난이도%]から[%LOCALS_신난이도%]に変更します
+		ELSE
+			PRINTFORML 난이도の設定に変更ありません
+		ENDIF
+
+	ELSEIF !LOCAL_지주 && !FLAG:지주
+		PRINTFORML 設定に変わりはありません
+	ELSEIF LOCAL_지주 && !FLAG:지주
+		IF LOCAL_지주대출금 > 0
+			PRINTFORML 借金が残っている間は農民を辞める事はできない
+			CONTINUE
+		ENDIF
+		PRINTFORML 農民を辞め自由人になります
+	ENDIF
+
+	PRINTFORML 
+	PRINTFORML 設定を変更しますか？
+	PRINTFORML [1] - はい
+	PRINTFORML [2] - もう一度決めなおす
+	PRINTFORML [0] - 変更しない
+	DO
+		INPUT
+		SELECTCASE RESULT
+		CASE 0
+			FLAG:지주 = LOCAL_지주
+			FLAG:밭일성과 = LOCAL_밭일성과
+			FLAG:변제연체회수 = LOCAL_변제연체회수
+			FLAG:수확납입회수 = LOCAL_수확납입회수
+			FLAG:누적수확평가 = LOCAL_누적수확평가
+			FLAG:전회수확평가 = LOCAL_전회수확평가
+			FLAG:농민난이도 = LOCAL_농민난이도
+			FLAG:밭확장 = LOCAL_밭확장
+			FLAG:지주대출금 = LOCAL_지주대출금
+			FLAG:연시대출금 = LOCAL_연시대출금
+			PRINTFORML 設定変更を中止しました
+			PRINTFORML 
+			RETURN
+		CASE 1
+			PRINTFORML 設定を変更しました
+			PRINTFORML 
+			RETURN
+		CASE 2
+		CASEELSE
+			REUSELASTLINE 無効な入力です
+			CONTINUE
+		ENDSELECT
+		BREAK
+	LOOP 1
+LOOP 1

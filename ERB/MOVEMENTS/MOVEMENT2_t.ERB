@@ -40,16 +40,20 @@ IF !TCVAR:ARG:패배강간
 				PRINTFORMW %ARG는% 잠자리에 들었다.
 			;데이트중
 			ELSEIF CHK_DATENOW(CFLAG:(ARG):데이트중)
-				PRINTFORMW %귀가이유% %ARG와%의 데이트는 여기까지다.
+				;うふふ中は非表示
+				SIF !CFLAG:ARG:우후후
+					PRINTFORMW %귀가이유% %ARG와%의 데이트는 여기까지다.
 				;자택에 있을 때, 초대방에 있을 때는 우후후 하고 있지 않을 때
-				IF (CFLAG:(ARG):현재위치 == CFLAG:(ARG):자택위치 || (CFLAG:(ARG):현재위치 == OMANEKIBEYA() && !CFLAG:(ARG):우후후))
-					CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,3,0)
+				IF CFLAG:ARG:현재위치 == CFLAG:ARG:자택위치 || (CFLAG:ARG:현재위치 == OMANEKIBEYA() && !CFLAG:ARG:우후후)
+					;帰宅口上,3,玄関先で見送り
+					CALL KOJO_MESSAGE_SEND("EVENT", 20, ARG, 3)
 				;통상의 데이트중
 				ELSE
 					;お誘い
 					IF (TALENT:ARG:연모 || TALENT:ARG:섹프 == 2) && CFLAG:ARG:욕구불만도 >= (700 + TALENT:ARG:수치심 * 150) && !CFLAG:ARG:신사거주 && !TCVAR:ARG:연속숙박금지 && CFLAG:(ARG):현재위치 != OMANEKIBEYA()
 						PRINTFORML %ARG로%부터 방에 오지 않겠냐고 권유받았다.
-						CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,4,0)
+						;帰宅口上,4,部屋に来ないかと誘う
+						CALL KOJO_MESSAGE_SEND("EVENT", 20, ARG, 4)
 						CALL ASK_YN("간다","그만둔다")
 						IF !RESULT
 							IF CFLAG:ARG:자택위치
@@ -61,17 +65,20 @@ IF !TCVAR:ARG:패배강간
 								PRINTFORMW +30분
 								TIME += 30
 							ENDIF
-							CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,5,0)
+							;帰宅口上,5,誘われるまま行く
+							CALL KOJO_MESSAGE_SEND("EVENT", 20, ARG, 5, 0)
 							CALL OMANEKI_ENTER(ARG)
 							CALL TARGETSET_CHACK
 						ELSE
 							PRINTFORMW %ARG는% 섭섭해 보인다……
-							CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,6,0)
+							;帰宅口上,6,誘いを断る
+							CALL KOJO_MESSAGE_SEND("EVENT", 20, ARG, 6)
 							SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
 								CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
 						ENDIF
 					ELSE
-						CALL KOJO_MESSAGE_SEND("EVENT",20,ARG,2,0)
+						;帰宅口上,2,デート中帰宅
+						CALL KOJO_MESSAGE_SEND("EVENT", 20, ARG, 2)
 						SIF (CFLAG:MASTER:현재위치 % 100) % 10 && CHK_DATENOW(CFLAG:MASTER:데이트중) && FLAG:데이트상대 == ARG && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
 							CFLAG:MASTER:현재위치 = CFLAG:MASTER:데이트중 * 100
 					ENDIF
@@ -102,7 +109,7 @@ IF !TCVAR:ARG:패배강간
 		ENDIF
 		CFLAG:ARG:동행 = 0
 
-		IF !TCVAR:ARG:휴식안 && !CFLAG:ARG:초대
+		IF !TCVAR:ARG:휴식중 && !CFLAG:ARG:초대
 			;활동시간외는 자택이 있으면 잘 때까지 자택에 있다
 			IF CFLAG:ARG:자택위치 && !IN_HOME(CFLAG:ARG:자택위치) && !수면시간(ARG)
 				CFLAG:ARG:현재위치 = CFLAG:ARG:자택위치
@@ -130,8 +137,10 @@ SIF !SHIRAHU(ARG)
 	;잠입중
 SIF CFLAG:ARG:은밀중
 	RETURN
-;그 이외
+SIF 침실허가(ARG, 1)
+	RETURN
 
+[SKIPSTART]
 SIF CFLAG:ARG:빡침
 	GOTO OIDASHI
 ;연모나 시지중이라면 입실을 허락한다
@@ -164,6 +173,25 @@ ELSE
 	;원거리이동 플래그 OFF
 	TFLAG:원거리이동 = 0
 ENDIF
+[SKIPEND]
+;なんのためのCLEARLINE？
+;CLEARLINE 1
+PRINTFORMW 졸린 듯한 %CALLNAME:ARG%에게 쫓겨났다…
+;おやすみ口上,7-1,部屋から追い出して寝た
+CALL KOJO_MESSAGE_SEND("EVENT", 3, ARG, 7, 1)
+;잠입해 OFF
+CALL SET_SNEAK(0,ARG,2)
+;장난 OFF
+CALL SET_PRANK(0,ARG,2)
+;우후후 리셋
+FOR LOCAL:1,0,CHARANUM
+	SIF !TCVAR:(LOCAL:1):패배강간
+		CALL ENDUFUFU(LOCAL:1)
+NEXT
+;밤 침입 성공 플래그 클리어
+CLEARBIT CFLAG:ARG:요바이, 8
+;이동 가능한 장소에 이동
+CALL GETOUT(MASTER)
 
 
 @목욕탕으로부터내쫒아(ARG)
@@ -305,6 +333,8 @@ SIF ABL:ARG:욕망 < REQUIRED_DESIRE
 	RETURN
 
 PRINTFORML %ARG는% 오늘 밤은 돌아가기 싫다고 말을 꺼냈다…
+;帰宅口上,7,今夜は帰りたくない
+CALL KOJO_MESSAGE_SEND("EVENT", 20, ARG, 7)
 CALL ASK_YN("묵게 한다","묵게 하지 않는다")
 IF !RESULT
 	IF YANUSHI
@@ -316,9 +346,13 @@ IF !RESULT
 	CFLAG:ARG:초기위치 = CFLAG:MASTER:초기위치
 	CFLAG:ARG:신사거주 = CFLAG:ARG:초기위치
 	PRINTFORMW %ARG는% %NAME_FROM_PLACE(CFLAG:MASTER:초기위치)%에서 자고 가게 되었다.
+	;帰宅口上,8,泊まっていくことになる
+	CALL KOJO_MESSAGE_SEND("EVENT", 20, ARG, 8)
 ELSE
 	$REFUSAL
 	PRINTFORMW %마스터는% 정중히 거절했다.
+	;帰宅口上,9,断った
+	CALL KOJO_MESSAGE_SEND("EVENT", 20, ARG, 9)
 ENDIF
 
 @SET_OneNightStay()

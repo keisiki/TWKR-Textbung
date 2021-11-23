@@ -23,9 +23,16 @@
 #DIMS ACCESSORY_TYPE_1 ;装飾品種別(STR:2300以降)
 #DIMS ACCESSORY_TYPE_2 ;装飾品種別(STR:2300以降)
 #DIMS ACCESSORY_TYPE_3 ;装飾品種別(STR:2300以降)
+#DIM WORD_COLOR_TYPE   ;口上色(髪色に準拠)
 
 #DIM pauseNo
 #DIM nudeFlag
+
+;販売員は専用関数で作成
+IF GROUPMATCH(ARGS, "販売員", "茨たぬき")
+	CALL 別絵モブ子STR設定(iID, ARGS, NUMBER)
+	RETURN RESULT
+ENDIF
 
 ;パーツを랜덤に設定
 HAIR_TYPE        = %STR:(RAND:22 + 2000)%
@@ -142,7 +149,7 @@ SELECTCASE ARGS
 		ACCESSORY_TYPE_1 = ウサ耳
 		;ウサ耳とテール系は見てくれの相性が悪い？ので制限
 		HAIR_TYPE = %TEXTR("長髪/セミロング/ショートカット/三つ編み/短髪/おさげ髪/ポンパドール/サイドダウン/お団子髪/まとめ髪/ボブカット/シニヨン/ロングヘア")%
-	CASE "마을 아가씨","유부녀","店番","赤巫女","緑巫女"
+	CASE "마을 아가씨","유부녀","店番","赤巫女","緑巫女","泡姫"
 		IF RAND:5 > 0
 			CLOTH_TYPE = 和服
 		ELSE
@@ -202,6 +209,9 @@ SELECTCASE ARGS
 		ACCESSORY_TYPE_3 = %STR:(RAND:32 + 2300)%
 ENDSELECT
 
+;お風呂屋の店員用
+SIF iID == RANDOM_CHARANUM && NUMBER == 1
+	CLOTH_TYPE = バスタオル
 ;化け狸以外も確率で太眉
 IF GROUPMATCH(FACE_TYPE, "だる目", "ワル目") && !RAND:4
 	FACE_TYPE    = %FACE_TYPE%(太眉)
@@ -221,6 +231,8 @@ IF STRFIND(FACE_TYPE, "太眉") >= 0 && ARGS != "イナバ"
 ELSEIF RAND:2 && !GROUPMATCH(ARGS, "スク水河童", "バニー妖精") && STRFIND(FACE_TYPE, "太眉") == -1
 	CLOTH_COLOR_TYPE = %HAIR_COLOR_TYPE%
 ENDIF
+;髪色に合わせ口上色を指定
+WORD_COLOR_TYPE = GET_CN_WORD_COLOR(HAIR_COLOR_TYPE)
 
 ;可変画像の設定
 CN_PARTS_STRUCT = ""
@@ -257,11 +269,16 @@ IF iID
 	CSTR:iID:모브코화상문자열_알몸_통상 = %CN_PARTS_STRUCT_NUDE%%GET_CN_STR_FACE(FACE_TYPE, "通常", HAIR_COLOR_TYPE)%
 	CSTR:iID:모브코화상문자열_알몸_미소 = %CN_PARTS_STRUCT_NUDE%%GET_CN_STR_FACE(FACE_TYPE, "笑顔２", HAIR_COLOR_TYPE)%
 	CSTR:iID:모브코화상문자열_알몸_분노 = %CN_PARTS_STRUCT_NUDE%%GET_CN_STR_FACE(FACE_TYPE, "怒り", HAIR_COLOR_TYPE)%
-;開始時にモブ店員顔作成。セーブはしないので広域変数に格納
+	CFLAG:iID:1000 = WORD_COLOR_TYPE
+;モブ店員顔。セーブはしないので広域変数に格納
 ELSE
-	モブ子店員画像文字列_服_通常:NUMBER = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "通常", HAIR_COLOR_TYPE)%
-	モブ子店員画像文字列_服_笑顔:NUMBER = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "笑顔", HAIR_COLOR_TYPE)%
-	モブ子店員画像文字列_服_怒り:NUMBER = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "怒り", HAIR_COLOR_TYPE)%
+	モブ子店員画像文字列:NUMBER:0 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "通常", HAIR_COLOR_TYPE)%
+	モブ子店員画像文字列:NUMBER:1 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "笑顔", HAIR_COLOR_TYPE)%
+	モブ子店員画像文字列:NUMBER:2 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "怒り", HAIR_COLOR_TYPE)%
+	モブ子店員画像文字列:NUMBER:3 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "通常", HAIR_COLOR_TYPE)%
+	モブ子店員画像文字列:NUMBER:4 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "笑顔", HAIR_COLOR_TYPE)%
+	モブ子店員画像文字列:NUMBER:5 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "怒り", HAIR_COLOR_TYPE)%
+	モブ子店員口上色:NUMBER = %TOSTR(WORD_COLOR_TYPE, "X")%
 ENDIF
 RETURN RESULT
 
@@ -583,3 +600,41 @@ RETURNF @"[耳色:%COLOR_TYPE%]"
 #DIMS COLOR_TYPE
 
 RETURNF @"[尾色:%COLOR_TYPE%]"
+
+;=========================================================
+;モブ子の口上色を指定する式中関数
+;=========================================================
+@GET_CN_WORD_COLOR(ARGS)
+#FUNCTION
+SELECTCASE ARGS
+	CASE "黒"
+		RETURNF 0X888888
+	CASE "栗"
+		RETURNF 0XA75A12
+	CASE "金"
+		RETURNF 0XFFFEA5
+	CASE "赤"
+		RETURNF 0XA84F66
+	CASE "銀"
+		RETURNF 0XD8FFFE
+	CASE "青"
+		RETURNF 0X7BAEED
+	CASE "緑"
+		RETURNF 0X50A160
+	CASE "桃"
+		RETURNF 0XCE6F75
+	CASE "紫"
+		RETURNF 0XFFBEFF
+	CASE "白"
+		RETURNF 0XFFFFFF
+	CASE "橙"
+		RETURNF 0XFF9400
+	CASE "水"
+		RETURNF 0XC0FFFD
+	CASE "灰"
+		RETURNF 0XCECECE
+	;エラー対策。デフォルト色を返す
+	CASEELSE
+		RETURNF 0XD5DEDF
+ENDSELECT
+

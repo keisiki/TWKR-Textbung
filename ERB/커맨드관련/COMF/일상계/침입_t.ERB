@@ -1,10 +1,11 @@
-﻿@방에숨어든다(ARG,ARG:1)
-;ARG=행선지　ARG:1 = 원거리이동
+﻿@방에숨어든다(ARG,직전위치)
+#DIM 직전위치
+;ARG=행선지
 FOR LOCAL, 1, CHARANUM
 	IF CFLAG:LOCAL:311 == ARG
 		IF CFLAG:LOCAL:빡침
 			IF FLAG:70 == 1
-				;시간정지중
+				;시간정지중,현상사에 분기
 				PRINTFORML 방에 잠입하려고 문을 열자 %조사처리(CALLNAME:LOCAL,"이")% 분노의 형상으로 굳어 있다
 				PRINTFORMW 말할 수 없는 박력에 %마스터는% 잠입하는 것을 단념했다…
 			ELSE
@@ -21,7 +22,10 @@ FOR LOCAL, 1, CHARANUM
 					PRINTFORMW %마스터는% 잠입하는 것을 단념했다…
 				;ENDIF
 			ENDIF
-			NEXTCOM = -1
+			;침입 성공 플래그 클리어
+			CLEARBIT CFLAG:LOCAL:42,8
+			LOCK:(CFLAG:LOCAL:현재위치) = 1
+			CFLAG:MASTER:현재위치 = 직전위치
 		ELSE
 			IF (!RAND:3 || !CFLAG:LOCAL:수면) && !FLAG:70 && !CFLAG:LOCAL:출금 && !TCVAR:LOCAL:수면제강도 && EXP:LOCAL:수면간경험 < 300 && !TALENT:LOCAL:사망
 				;PRINT 소리를 눈치챘다
@@ -56,24 +60,18 @@ FOR LOCAL, 1, CHARANUM
 						LOCK:(CFLAG:LOCAL:현재위치) = 1
 					ENDIF
 				ENDIF
-				;원거리이동 플래그 소거
-				SIF ARG:1
-					NEXTCOM = -1
 			ELSE
 				PRINTFORML 자고 있는 %CALLNAME:LOCAL%의 방에 잠입했다
 				CALL KOJO_MESSAGE_SEND("EVENT",12,LOCAL,1,1)
 				;이동 성립
 				CFLAG:MASTER:현재위치 = ARG
-				;원거리이동 플래그 소거
-				SIF ARG:1
-					NEXTCOM = -1
 				;침입 성공 플래그 세트
 				SETBIT CFLAG:LOCAL:42,8
 			ENDIF
 		ENDIF
 	ENDIF
 NEXT
-SIF CFLAG:MASTER:현재위치 != ARG && !ARG:1
+SIF CFLAG:MASTER:현재위치 != ARG
 	RETURN -1
 
 @화장실침입(ARG,ARG:1)

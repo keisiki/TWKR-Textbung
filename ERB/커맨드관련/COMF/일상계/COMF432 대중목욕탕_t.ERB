@@ -118,8 +118,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 2
 				PRINTW …
 				;대중목욕탕은 30분 고정
 				TIME += 30
-				;대중목욕탕총입탕회수+1
-				CFLAG:400 += 1
+				;大衆浴場総入湯回数はフラグごとオミット
 				;대중목욕탕시한입탕회수+1
 				TFLAG:210 += 1
 				;대중목욕탕플래그를 1으로 설정
@@ -148,6 +147,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 2
 		ENDIF
 	ENDIF
 ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
+	LOCAL = 0
 	;접수대를 화나게 해 버렸을 경우
 	IF TFLAG:211 == 4
 		PRINTFORML 접수대 쪽에서 날선 시선이 날아오고 있다……
@@ -155,45 +155,77 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 		RETURN -1
 	;접수대 요괴 통상 운행
 	ELSE
+		;처음으로 구 지옥 온천에서 입욕 명령을 선택한 경우. 주위를 돌린 후 뉴 플랜 개방
+		IF !STRCOUNT(CSTR:0:0, "지옥온천/")
+			CSTR:0:0 = %CSTR:0:0%지옥온천/
+			PRINTL 「いらっしゃいましぇだぎゃー！」
+			PRINTL 「おんやぁー！　珍しいぎゃ、人間がこげんにゃ所ににゃーの用だぎゃ？」
+			PRINTFORMW  %CALLNAME:PLAYER%は番台の妖怪に入浴したいことを告げた
+			PRINTL 「にゃーぎゃて？……ふん……ふん」
+			PRINTL 「……にゃーのにゃーの、お客しゃまだったぎゃ！」
+			IF !FLAG:주회수
+				PRINTL 「やけんど、よおーこぎゃな所まで来ただぎゃ！　あんしゃん、変わりモンだぎゃねー」
+			ELSE
+				PRINTW 「そんにゃら、あんしゃん…ぐっーどてゃーみんぐぎゃ！」
+				PRINTL 「きょーはぎゃーが考ギャーた『にゅーぷらん』とーとーお披露目の日なんだぎゃ！」
+				PRINTL 「きれーどころのメスっこをてゃーくしゃん揃えて」
+				PRINTW 「お客しゃまぎゃ、てゃーっぷり金を落っことすの、お待ちしとったぎゃ！」
+				PRINTL 「ほれっ、ほれっ！　みゃよってにゃーで、しゃっしゃと入るぎゃ！」
+				PRINTFORMW 番台の妖怪は、げっへっへと厭らしい笑みを浮かべ、%CALLNAME:PLAYER%を急き立ててくる……
+				GOTO SKIP
+			ENDIF
 		;돈 부족했다 이벤트를 보고 있다
-		IF TFLAG:211 == 3
+		ELSEIF TFLAG:211 == 3
 			PRINTL 「돈 없는 놈은 상대하기 싫타. 돈을 두둑히 얹으면 손님 나리로 대해야쥐!」
 		;그만둔다를 선택했지만 역시 들어가고 싶어졌다
 		ELSEIF TFLAG:211 == 2
 			PRINTL 「모―처럼 요런 데까지 와놓고 온천에나 가겠다니 평생의 6할은 손해 본다야!」
 		;그 이외
 		ELSE
-			;모브 요괴
-			PRINTL 「어서 오십시여다―!」
-			;처음으로 옛지옥온천에서 입욕 커맨드를 선택했을 경우
-			IF TFLAG:211 == 0 && TFLAG:212 == 0 && CFLAG:401 == 0
-				PRINTL 「잉야―! 웬 일이대야. 인간이 요기까지 웬 용무디야?」
-				PRINTFORMW  %조교자는% 접수대를 보는 요괴에 입욕하고 싶다는 뜻을 전했다
-				PRINTL 「무에라―? ……흠. ……흠」
-				PRINTL 「……뭐꼬 뭐꼬, 손님이었남!」
-				PRINTL 「근댜 용케도 이런 데까지 다 왔네! 댁도 별종이댜―」
-			ENDIF
+			;PRINTL 「어서 오십시여다―!」
+			;;처음으로 옛지옥온천에서 입욕 커맨드를 선택했을 경우
+			;IF TFLAG:211 == 0 && TFLAG:212 == 0 && CFLAG:401 == 0
+			;	PRINTL 「잉야―! 웬 일이대야. 인간이 요기까지 웬 용무디야?」
+			;	PRINTFORMW  %조교자는% 접수대를 보는 요괴에 입욕하고 싶다는 뜻을 전했다
+			;	PRINTL 「무에라―? ……흠. ……흠」
+			;	PRINTL 「……뭐꼬 뭐꼬, 손님이었남!」
+			;	PRINTL 「근댜 용케도 이런 데까지 다 왔네! 댁도 별종이댜―」
+			;ENDIF
 		ENDIF
+		;それ以外
 		PRINTL 「그럼, 받아둘 건 받아두겠다야―」
 		;옛지옥온천입탕회수가 통산 15회 이상 나와 아직에 -등응을 한번도 선택하고 있지 않다
-		IF CFLAG:401 >= 15 && CFLAG:402 == 0
-			PRINTL 「댁한테는 두둑하게 벌어재꼈다야!」
-			PRINTL 「더더 벌어재껴야지! 돈! 돈!! 돈!!! 돈을 원한댜―!」
-			PRINTL 「하니 돈 원하니까, 나가 생각한 뉴 플랜이 있다야!」
-			PRINTFORMW  접수대의 요괴는 %CALLNAME:PLAYER%에 그렇게 말하고는, 크힐힐 징그러운 웃음을 내며 얼른! 얼른! 하고 %조교자를% 재촉해댔다……
-		ELSE
-			PRINTL 「이맨치 다 주라!」
-			PRINTFORML  접수대의 요괴는, 바로 옆에 놓여 있던 메모 같은 것을 손가락으로 가리키고 얼른! 얼른! 하고 %조교자를% 재촉해댔다……
-		ENDIF
+		; IF CFLAG:401 >= 15 && CFLAG:402 == 0
+		; 	PRINTL 「댁한테는 두둑하게 벌어재꼈다야!」
+		; 	PRINTL 「더더 벌어재껴야지! 돈! 돈!! 돈!!! 돈을 원한댜―!」
+		; 	PRINTL 「하니 돈 원하니까, 나가 생각한 뉴 플랜이 있다야!」
+		; 	PRINTFORMW  접수대의 요괴는 %CALLNAME:PLAYER%에게 그렇게 말하고는, 크힐힐 징그러운 웃음을 내며 얼른! 얼른! 하고 %조교자를% 재촉해댔다……
+		; ELSE
+		PRINTL 「이맨치 다 주라!」
+		PRINTFORML 접수대의 요괴는, 바로 옆에 놓여 있던 메모 같은 것을 손가락으로 가리키고 얼른! 얼른! 하고 %조교자를% 재촉해댔다……
+		$SKIP
 		DRAWLINE
 		PRINTL [1] \5000 내고 입욕한다
 		;옛지옥온천입탕회수가 통산 15회가 되었을 때 출현
-		SIF CFLAG:401 >= 15
-			PRINTL [2] \10000 내고 입욕한다
+		;뉴 플랜 선택사항
+		SIF FLAG:주회수
+			PRINTFORML [2] \\10000払って%\@ STRCOUNT(CSTR:0:0,"거품목욕") ? お風呂を借りる # 『にゅーぷらん』を試してみる \@%
 		PRINTL [0] 그만둔다
 		$LOOP_titei
 		INPUT
 		SELECTCASE RESULT
+			CASE 0
+				;番台ブチギレ
+				IF TFLAG:211 >= 2
+					PRINTL 「んがー！！　んがー！！　んがー！！」
+					PRINTL 「金を落としゃん奴に構ってるヒマはにゃーだぎゃー！！」
+					TFLAG:211 = 4
+				ELSE
+					PRINTL 「んあー、入らないんだったらしゃっしゃとどっか行くぎゃー！」
+					PRINTL 「金にならん奴はお客しゃまでもなんでもにゃいぎゃー！」
+					TFLAG:211 = 2
+				ENDIF
+				RETURN -1
 			CASE 1
 				IF MONEY < 5000
 					PRINTW  접수대의 요괴는 열심히 금액이 맞는지 아닌지 세면서 확인하고 있다……
@@ -221,6 +253,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 						PRINTFORMW %타겟은% %조교자가% 보내는 시선에 부끄러운 내색이다……
 						회복전체력2 = BASE:TARGET:체력
 						회복전기력2 = BASE:TARGET:기력
+						$OFURO
 						CALL ODEKAKE_OFURO(TARGET,2)
 						IF CHK_DATENOW(CFLAG:TARGET:데이트중)
 							;붉은실은 KR판 고유기능 또는 구잔재
@@ -239,7 +272,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 					PRINTW ……
 					PRINTW …………
 					IF TARGET > 0 && CFLAG:TARGET:6 > 0 && !CFLAG:TARGET:수면
-						PRINTFORMW %조교자와% %타겟은% 둘이 사이좋게 온천에서 편히 쉬었다
+						PRINTFORMW %조교자는% \@ LOCAL ? 혼자 쓸쓸하게 개인실의 # \@ 온천에서 편히 쉬었다
 					ELSE
 						PRINTFORMW %조교자는% 온천에서 편히 쉬었다
 					ENDIF
@@ -248,8 +281,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 					PRINTW …
 					;옛지옥온천은 30분 고정
 					TIME += 30
-					;옛지옥온천입탕회수+1
-					CFLAG:401 += 1
+					;旧地獄温泉総入湯回数はフラグごとオミット
 					;옛지옥온천시한입탕회수+1
 					TFLAG:212 += 1
 					;옛지옥온천플래그를 1로 설정
@@ -269,21 +301,30 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 						RETURN 1
 				ENDIF
 			CASE 2
-				PRINTL 「미안하데야―! 지금 암컷 야들을 조달 중이얌―!」
-				PRINTL  현재 이벤트 작성 중이므로 기다려 주세요
-				GOTO LOOP_titei
-			CASE 0
-				;접수대 빡침
-				IF TFLAG:211 >= 2
-					PRINTL 「우가―!! 우가―!! 우가―!!」
-					PRINTL 「돈을 안 낸 놈이랑 어울릴 짬은 없대야―!!」
-					TFLAG:211 = 4
-				ELSE
-					PRINTL 「아오―, 안 들어가면 빨리 어디 가부리라―!」
-					PRINTL 「돈 안 되는 놈은 손님이고 뭐고 아녀―!」
-					TFLAG:211 = 2
+				SIF !FLAG:주회수
+					GOTO LOOP_titei
+				IF FLAG:생활능력무
+					PRINTL 「おみゃーしゃん…手足も声も震えとるぎゃ」
+					PRINTL 「やめとけやめとけ。こーんな意気地なし、メスっこも呆れてみゃうぎゃー」
+					GOTO LOOP_titei
+				ELSEIF FLAG:데이트상대
+					PRINTL 「おみゃーしゃん、今はやめたほーがいーんでにゃーぎゃ？」
+					PRINTW 「隣の娘っこ、えっれぇー顔してにらんでくるぎゃ…」
+					GOTO LOOP_titei
+				ELSEIF GETBIT(TFLAG:일일일회, 9)
+					PRINTL 「……おんやぁ？」
+					PRINTW 「わりぃーな、おみゃーしゃん。いみゃ部屋はいっぴゃーだぎゃ」
+					GOTO LOOP_titei
+				ELSEIF (TARGET > 0 && CFLAG:TARGET:태도 > 0 && !CFLAG:TARGET:수면) || CFLAG:MASTER:동행
+					PRINTL 「わりぃーな、おみゃーしゃん」
+					PRINTL 「このぷらんは、ひとりよーなんだぎゃ！」
+					GOTO LOOP_titei
 				ENDIF
-				RETURN -1
+				CALL INVITE_NEWPLAN
+				SIF RESULT < 2
+					RETURN RESULT
+				LOCAL = 1
+				GOTO OFURO
 			CASEELSE
 				GOTO LOOP_titei
 		ENDSELECT
@@ -318,6 +359,9 @@ SIF CFLAG:동침중
 	RETURN 0
 ;욕실이 있는 장소 이외는 불가
 SIF !PLACE_SENTO(CFLAG:MASTER:현재위치)
+	RETURN 0
+;物陰
+SIF FLAG:잠복
 	RETURN 0
 SIF CFLAG:우후후 == 2
 	RETURN 0

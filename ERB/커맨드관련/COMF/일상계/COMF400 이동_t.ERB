@@ -542,7 +542,7 @@ ELSEIF LOCK:(RESULT)
 		ELSEIF LOCAL:4 != CFLAG:MASTER:초기위치
 			CALL ASK_YN("방에 숨어든다","그만둔다")
 			IF RESULT == 0
-				CALL 방에숨어든다(LOCAL:4)
+				CALL 방에숨어든다(LOCAL:4, 직전위치)
 				GOTO END
 			ELSEIF RESULT == 1
 				CFLAG:MASTER:현재위치 = 직전위치
@@ -571,6 +571,28 @@ ELSE
 	IF CFLAG:93:동행 && !GETBIT (FLAG:풀장, 0)
 		TIME += 2 * 경과시간
 		BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - (5 * 경과시간), 500)
+	ENDIF
+ENDIF
+;21/09/01 자유행동에 대응하는 플레이버 추가
+IF CFLAG:MASTER:현재위치 == FA16_HOLE:0 && !FA16_HOLE:1
+	IF (50 - (ABL:MASTER:전투능력 * 7)) < RAND:100
+		PRINTFORMW ……발밑에 함정이 있었지만 %MASTER는% 쉽게 피했다
+		FA16_HOLE:1 = 1
+	ELSE
+		PRINTFORMW %MASTER는% 함정에 빠졌다！！
+		SELECTCASE RAND(15) + TFLAG:행운보정 
+			CASE IS < 2
+				PRINTFORML 아프다！！ 제대로 엉덩이로 떨어지고 말았다…
+				CALL RECOVER(MASTER, -50, "체력", "엉덩이가 아프다")
+				WAIT
+			CASE IS > 12
+				MONEY += 100
+				PRINTFORML …구멍 밑바닥에서 100엔을 발견했다
+				PRINTFORMW 현재의 소지금 : %금액표시(MONEY)%
+		ENDSELECT
+		TIME += 3
+		FA16_HOLE:1 = 2
+		FA16_HOLE:2 = TIME
 	ENDIF
 ENDIF
 

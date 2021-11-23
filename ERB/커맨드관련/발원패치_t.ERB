@@ -99,9 +99,13 @@ FOR LOCAL:1, 1, EX_CHARANUM
 		PRINTFORMLC [{LOCAL, 3}] %CALLNAME:LOCAL,15,LEFT%
 NEXT
 
+;21/08/27 반발 이력 삭제 추가, 반발 해제 시 반발 이력도 삭제 가능으로 변경
+;한판 수정, 8~13 한판 고유기능으로 인한 충돌로 반발이력삭제를 8 > 14로 이동
+
 @IKENIE(ARG,ARG:1)
 ;ARG 대상
-;ARG:1 소원(1=반발 해제 2=감도 일시 상승 3=요술망치 4=시간정지들킴 해제 5=천벌)
+;ARG:1 소원(1=반발 해제 2=감도 일시 상승 3=요술망치 4=시간정지들킴 해제[オミット]
+;			 5=천벌 6=자식 기원 7=새드끼 감소 14=반발이력삭제)
 #DIM 총계
 #DIM 종류수
 #DIM 중복
@@ -123,7 +127,7 @@ SELECTCASE ARG:1
 		필요매수 = 3
 	CASE 3
 		필요매수 = CFLAG:MASTER:마력회수 / 2 + 1
-	CASE 4,6
+	CASE 4,6,14
 		필요매수 = 1
 	CASE 5,7
 		필요매수 = 3
@@ -171,9 +175,13 @@ IF RESULT == 1
 				BREAK
 		NEXT
 	ENDIF
+	SIF ARG:1 == 1
+		CALL ASK_M("이력도 지운다",1,"이력은 남긴다",1)
 	SELECTCASE ARG:1
 		CASE 1
 			MARK:ARG:반발각인 --
+			SIF !RESULT
+				MARK:ARG:반발취득이력 --
 			TFLAG:193 = 30
 		CASE 2
 			FLAG:발원내용 = 999
@@ -215,7 +223,9 @@ IF RESULT == 1
 			TALENT:ARG:((ARG:1)-8+100)++
 		CASE 13
 			TALENT:ARG:M감도++
-		
+		CASE 14
+			MARK:ARG:반발취득이력 = 0
+			TFLAG:193 = 35
 	ENDSELECT
 	PRINTFORML %마스터가% 비장의 콜렉션을 늘어놓고 빌자, 이 세상 아닌 불꽃이{필요매수}매의 팬티를 타다 남은것 하나 남기지 않고 다 태워 버렸다!
 	FLAG:독신 += 필요매수
