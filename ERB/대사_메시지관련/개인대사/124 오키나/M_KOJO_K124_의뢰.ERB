@@ -1,93 +1,108 @@
-﻿@M_KOJO_IRAI_K124(ROLE, SCENE, IRAI_ID)
+﻿; 개인 임의수정, 구버전 의뢰 템플릿을 현버전 템플릿 양식에 맞게 일부분 수정함
+
+@M_KOJO_IRAI_K124(ROLE, SCENE, IRAI_ID)
 #DIMS ROLE     ;キャラの立場、의뢰자かそうでないか
 #DIMS SCENE    ;セリフの表示されるタイミング
 #DIM  IRAI_ID  ;依頼自体のID
 #DIM  CLIENT_ID;의뢰자IDだけ抜き出したもの
 #DIM  CHK_ID   ;依頼IDだけ抜き出したもの
+#DIMS IRAI_NAME;의뢰명
 CHK_ID    = IRAI_ID % 1000
 CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
-SELECTCASE ROLE
-CASE "CLIENT"
-	;일반의뢰
-	IF IS_COMMON_IRAI(IRAI_ID)
-		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
-		CASE "일반의뢰명"
-			SELECTCASE SCENE
-			CASE "의뢰 제시시"
-			PRINTFORMW 「%CALLNAME:MASTER%, 조금 부탁이 있는 데 괜찮은가?」
-			;依頼を持ちかけられる時
-			CASE "의뢰비수탁시"
-			PRINTFORMW 「뭐야, 바쁜가? 그럼, 다음에 부탁해야지」
-			;内容だけ見て受託しなかった時
-			CASE "의뢰 수탁시"
-			PRINTFORMW 「그럼 부탁한다고. 아무쪼록 실수하지 않도록!」
-			;依頼を受託した時
-			CASE "의뢰 확인시"
-			PRINTFORMW 「너에게 부탁한 것은 다음과 같다. 잊지 말라고?」
-			;[366]で依頼内容を依頼人に確認した時
-			CASE "의뢰 파기시"
-			PRINTFORMW 「에ー? 싫다고? 어쩔 수 없구나..」
-			;受託した依頼を破棄する時
-			CASE "의뢰실행 직전"
-			;[367]で依頼を実行する時、実行処理の前に呼び出される
-			CASE "의뢰실행 직후"
-			;[367]で依頼を実行する時、実行処理の後に呼び出される
-			CASE "성공 보고시"
-			PRINTFORMW 「오오, 잘했다. 후후후, 너에게 부탁하길 잘했구나!」
-			;報告時（成功）
-			CASE "실패 보고시"
-			;報告時（失敗）
-			;この他、報告忘れや期限切れで失敗扱いになり後日依頼人に遭遇した際にも表示
-				PRINTFORML 「%CALLNAME:MASTER%, 전에 부탁한 용무 말인데..」
-				PRINTFORML 「너라면 해줄 줄 알았는데. 아무래도 내가 잘못 생각한 것 같구나」
-				PRINTFORMW 오키나는 실망한 듯 크게 한숨을 내쉬었다
-			ENDSELECT
-		ENDSELECT
-		RETURN
-	ENDIF
-CASE "TARGET"
-	;ここで表示されるSCENEは"의뢰실행 직전", "의뢰실행 직후"だけです
-	;일반의뢰
-	IF IS_COMMON_IRAI(IRAI_ID)
-		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
-		;個々の의뢰명で分岐してください
-		CASE "일반의뢰명"
-		;人物が鍵になっていた・もしくは場所にたまたま居合わせた
-			SELECTCASE SCENE
-			;TARGETが呼ばれるのはこのタイミングだけ
-			CASE "의뢰실행 직전"
-			CASE "의뢰실행 직후"
-			ENDSELECT
-		ENDSELECT
-		RETURN
-	ENDIF
-	SELECTCASE CSVCALLNAME(CLIENT_ID)
-	;의뢰자のCALLNAMEによる分岐（CSV準拠）
-	CASE "의뢰자"
-		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
-		CASE "고유 의뢰명"
-			SELECTCASE SCENE
-			CASE "의뢰실행 직전"
-			CASE "의뢰실행 직후"
-			ENDSELECT
-		ENDSELECT
-	ENDSELECT
-CASE "NO_REPORT"
-	;日数経過時、報告不要依頼を達成していた場合に呼ばれる口上
-	;ここで表示されるSCENEは"依頼報告不要"だけです
-	;SCENEが一つしか無いので分岐は不要
-	;また、必ず依頼主の口上が呼ばれます
-	;일반의뢰
-	IF IS_COMMON_IRAI(IRAI_ID)
-		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
-		;個々の의뢰명で分岐してください
-		CASE "일반의뢰명"
-		CASE "꽃에 물을 줘"
-		CASE "누군가의 유실물"
-		ENDSELECT
-		RETURN
-	ENDIF
-	SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
-	CASE "고유 의뢰명"
-	ENDSELECT
+IRAI_NAME = %STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)%
+RESULT = 0
+IF CHK_ID > 100
+	TRYCALLFORM M_KOJO_IRAI_%IRAI_NAME%_K124(ROLE, SCENE, CLIENT_ID)
+ELSE
+	TRYCALLFORM M_KOJO_IRAI_{CHK_ID}_K124(ROLE, SCENE, CLIENT_ID)
+ENDIF
+SIF RESULT
+	RETURN 1
+
+; SELECTCASE ROLE
+; CASE "CLIENT"
+; 	;일반의뢰
+; 	IF IS_COMMON_IRAI(IRAI_ID)
+; 		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+; 		CASE "일반의뢰명"
+SELECTCASE SCENE
+CASE "의뢰 제시시"
+	PRINTFORMW 「%CALLNAME:MASTER%, 조금 부탁이 있는 데 괜찮은가?」
+;依頼を持ちかけられる時
+CASE "의뢰비수탁시"
+	PRINTFORMW 「뭐야, 바쁜가? 그럼, 다음에 부탁해야지」
+;内容だけ見て受託しなかった時
+CASE "의뢰 수탁시"
+	PRINTFORMW 「그럼 부탁한다고. 아무쪼록 실수하지 않도록!」
+;依頼を受託した時
+CASE "의뢰 확인시"
+	PRINTFORMW 「너에게 부탁한 것은 다음과 같다. 잊지 말라고?」
+;[366]で依頼内容を依頼人に確認した時
+CASE "의뢰 파기시"
+	PRINTFORMW 「에ー? 싫다고? 어쩔 수 없구나..」
+;受託した依頼を破棄する時
+CASE "의뢰실행 직전"
+;[367]で依頼を実行する時、実行処理の前に呼び出される
+CASE "의뢰실행 직후"
+;[367]で依頼を実行する時、実行処理の後に呼び出される
+CASE "성공 보고시"
+	PRINTFORMW 「오오, 잘했다. 후후후, 너에게 부탁하길 잘했구나!」
+;報告時（成功）
+CASE "실패 보고시"
+;報告時（失敗）
+;この他、報告忘れや期限切れで失敗扱いになり後日依頼人に遭遇した際にも表示
+	PRINTFORML 「%CALLNAME:MASTER%, 전에 부탁한 용무 말인데..」
+	PRINTFORML 「너라면 해줄 줄 알았는데. 아무래도 내가 잘못 생각한 것 같구나」
+	PRINTFORMW 오키나는 실망한 듯 크게 한숨을 내쉬었다
 ENDSELECT
+	; 	ENDSELECT
+	; 	RETURN
+	; ENDIF
+RETURN 1
+
+; CASE "TARGET"
+; 	;ここで表示されるSCENEは"의뢰실행 직전", "의뢰실행 직후"だけです
+; 	;일반의뢰
+; 	IF IS_COMMON_IRAI(IRAI_ID)
+; 		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+; 		;個々の의뢰명で分岐してください
+; 		CASE "일반의뢰명"
+; 		;人物が鍵になっていた・もしくは場所にたまたま居合わせた
+; 			SELECTCASE SCENE
+; 			;TARGETが呼ばれるのはこのタイミングだけ
+; 			CASE "의뢰실행 직전"
+; 			CASE "의뢰실행 직후"
+; 			ENDSELECT
+; 		ENDSELECT
+; 		RETURN
+; 	ENDIF
+; 	SELECTCASE CSVCALLNAME(CLIENT_ID)
+; 	;의뢰자のCALLNAMEによる分岐（CSV準拠）
+; 	CASE "의뢰자"
+; 		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+; 		CASE "고유 의뢰명"
+; 			SELECTCASE SCENE
+; 			CASE "의뢰실행 직전"
+; 			CASE "의뢰실행 직후"
+; 			ENDSELECT
+; 		ENDSELECT
+; 	ENDSELECT
+; CASE "NO_REPORT"
+; 	;日数経過時、報告不要依頼を達成していた場合に呼ばれる口上
+; 	;ここで表示されるSCENEは"依頼報告不要"だけです
+; 	;SCENEが一つしか無いので分岐は不要
+; 	;また、必ず依頼主の口上が呼ばれます
+; 	;일반의뢰
+; 	IF IS_COMMON_IRAI(IRAI_ID)
+; 		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+; 		;個々の의뢰명で分岐してください
+; 		CASE "일반의뢰명"
+; 		CASE "꽃에 물을 줘"
+; 		CASE "누군가의 유실물"
+; 		ENDSELECT
+; 		RETURN
+; 	ENDIF
+; 	SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+; 	CASE "고유 의뢰명"
+; 	ENDSELECT
+; ENDSELECT
