@@ -65,6 +65,7 @@ VARSET 데미지스택_피해
 VARSET T_위치
 VARSET T_행동기회
 VARSET TA_평타사거리
+VARSET T_반격기
 
 FOR LOCAL, 1, 2000
     T_시전자 = T_대상1
@@ -599,7 +600,17 @@ CALL 공방세팅(ARG, ARG:1)
 T_행동기회:T_턴주인:T_통상행동 = 1
 SIF T_MOVEABLE(T_턴주인)
     T_행동기회:T_턴주인:T_이동행동 = 1
-
+FOR LOCAL,0,99
+    IF T_반격기:LOCAL:0 == ARG && T_반격기:LOCAL:1 > 0
+        T_반격기:LOCAL:2--
+        IF T_반격기:LOCAL:2 <= 0
+            [IF_DEBUG]
+                PRINTFORML 반격기{T_반격기:LOCAL:1} 해제됨
+            [ENDIF]
+            CALL T_반격기_삭제(LOCAL)
+        ENDIF
+    ENDIF
+NEXT
 ;상태이상에 따른 종료처리
 IF TB_SUM_REMAIN(ARG,TCV_기절)
     PRINTFORMW %ARG는% 기절중이라 행동할 수 없다!
@@ -705,7 +716,10 @@ FOR LOCAL,0,24
     IF 데미지스택_존재:LOCAL == 0
         데미지스택_존재:LOCAL = 1
         데미지스택_대상:LOCAL = ARG
-        데미지스택_피해:LOCAL = 데미지
+        데미지스택_피해:LOCAL:0 = 데미지
+        IF T_반격중
+            데미지스택_피해:LOCAL:1 = 1
+        ENDIF
         데미지스택_속성:LOCAL = %속성%
         RETURN 1
     ENDIF
@@ -721,14 +735,16 @@ FOR LOCAL,0,24
     IF 데미지스택_존재:LOCAL == 1
         데미지스택_존재:LOCAL = 0
         대상 = 데미지스택_대상:LOCAL
-        데미지 = 데미지스택_피해:LOCAL
+        데미지 = 데미지스택_피해:LOCAL:0
         속성 = %데미지스택_속성:LOCAL%
+        T_반격억제 = 1
         DRAWLINE
         PRINTFORML 피해 스택 : {LOCAL+1}
         SETCOLOR 0XFFFF00
         CALL T_데미지(대상,데미지,속성)
         RESETCOLOR
         DRAWLINE
+        T_반격억제 = 0
     ENDIF
 NEXT
 스택처리중 = 0
@@ -836,11 +852,12 @@ PRINTL
 ;일반적인 공격
 LOCAL:1 = 0
 IF ARG == T_턴반대 && 크리티컬판정(TCVAR:T_턴주인:T_운)
-    PRINTFORML 급소에 \@ ARG == MASTER ? 맞았# 맞혔\@다!
+    PRINTFORM 급소에 \@ ARG == MASTER ? 맞았# 맞혔\@다!
     데미지 += MAX(TCVAR:T_턴주인:T_운/2 - (완전방어여부 * ARG능력치(ARG, "관통내성")) , 0)
     TIMES 데미지 , 1.5
     LOCAL = MAX(TCVAR:T_턴주인:T_운/2 - (완전방어여부 * ARG능력치(ARG, "관통내성")) , 0)
     TIMES LOCAL , 1.5
+    PRINTFORML  (추가피해 : {LOCAL})
     IF 데미지 == LOCAL
         IF T_턴주인 == MASTER
             LOCAL:1 == 1
@@ -856,7 +873,7 @@ ELSEIF ARG == T_턴주인 && 크리티컬판정(TCVAR:T_턴반대:T_운)
     TIMES 데미지 , 1.5
     LOCAL = MAX(TCVAR:T_턴주인:T_운/2 - (완전방어여부 * ARG능력치(ARG, "관통내성")) , 0)
     TIMES LOCAL , 1.5
-    PRINTFORM  (추가피해 : LOCAL)
+    PRINTFORML  (추가피해 : {LOCAL})
     IF 데미지 == LOCAL&&스택처리중 == 0
         IF ARG != MASTER
             LOCAL:1 == 1
@@ -869,9 +886,14 @@ ENDIF
 
 IF ARG != MASTER
     CALL T_시스템처리(106,데미지,원래데미지,ARG)
+    T_반격타이밍 = 1
+    CALL T_반격기적용(TARGET,데미지)
 ELSE
     CALL T_시스템처리(107,데미지,원래데미지,ARG)
+    T_반격타이밍 = 1
+    CALL T_반격기적용(MASTER,데미지)
 ENDIF
+
 IF 데미지 > 0
     IF TB_SUM_REMAIN(ARG,TCV_면역) 
         PRINTFORMW \@ ARG == TARGET ? %CALLNAME:ARG%에게 # \@ {데미지}만큼의 %속성% 피해를 \@ ARG == TARGET ? 주어# 받아\@야 했지만, 가볍게 흘려져버렸다!
@@ -901,11 +923,16 @@ ELSEIF LOCAL:1 == 2
 ENDIF
 IF ARG != MASTER
     CALL T_시스템처리(104,데미지,원래데미지,ARG)
+    T_반격타이밍 = 2
+    CALL T_반격기적용(TARGET,데미지)
 ELSE
     CALL T_시스템처리(105,데미지,원래데미지,ARG)
+    T_반격타이밍 = 2
+    CALL T_반격기적용(MASTER,데미지)
 ENDIF
 SIF 스택처리중 == 0
     CALL 데미지스택호출
+T_반격타이밍 = 0
 RETURN 데미지
 
 @T_회복(ARG,ARG:1)
@@ -1115,3 +1142,68 @@ IF ARG < 0
     ENDIF
 ENDIF
 RETURNF ARG
+
+
+
+@T_반격기등록(사용자,스킬번호,유효턴수)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 스킬번호
+#DIM DYNAMIC 유효턴수
+
+FOR LOCAL,0,99
+    IF T_반격기_EMPTY(LOCAL)
+        T_반격기:LOCAL:0 = 사용자
+        T_반격기:LOCAL:1 = 스킬번호
+        T_반격기:LOCAL:2 = 유효턴수
+        BREAK
+    ENDIF
+NEXT
+
+@T_반격기_EMPTY(ARG)
+#FUNCTION
+IF T_반격기:ARG:2 == 0
+    RETURNF 1
+ENDIF
+RETURNF 0
+
+@T_반격기_삭제(ARG)
+IF T_반격기:ARG:1
+    T_반격기:ARG:0 = 0
+    T_반격기:ARG:1 = 0
+    T_반격기:ARG:2 = 0
+ENDIF
+
+@T_반격기_자삭(ARG,ARG:1)
+FOR LOCAL,0,99
+    IF T_반격기:LOCAL:1 == ARG:1 && T_반격기:LOCAL:0 == ARG
+        CALL T_반격기_삭제(LOCAL)
+        BREAK
+    ENDIF
+NEXT
+
+@T_반격기적용(사용자,피해량)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 피해량
+#DIM DYNAMIC 대피소,2
+SIF T_반격중 == 1
+    RETURN
+SIF T_반격억제
+    RETURN
+대피소:0 = T_시전자
+대피소:1 = T_시전자반대
+
+
+T_시전자 = 사용자
+T_시전자반대 = 사용자반대(사용자)
+T_반격중 = 1
+FOR LOCAL,0,99
+    IF T_반격기:LOCAL:0 == 사용자 && T_반격기:LOCAL:2 > 0
+        TRYCALLFORM RV_CONDITION_T_SKILL{T_반격기:LOCAL:1}(사용자,피해량)
+        IF RESULT == 2
+            CALLFORM RV_AFTER_T_SKILL{T_반격기:LOCAL:1}(사용자,피해량)
+        ENDIF
+    ENDIF
+NEXT
+T_시전자 = 대피소:0
+T_시전자반대 = 대피소:1
+T_반격중 = 0

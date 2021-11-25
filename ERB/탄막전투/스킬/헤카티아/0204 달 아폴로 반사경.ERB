@@ -142,7 +142,7 @@ CASE "초기화"
 VARSET 남은지속시간
 CASE "시스템체크"
     ;시스템 메시지에 따른 검사, 패시브 스킬등에 이용, 액티브는 딱히 쓸 일이 있나?
-    IF 남은지속시간:사용자 > 0
+    IF 남은지속시간:사용자 > 0 && 0
         IF T_시스템 == 106||T_시스템 == 107
             IF T_턴주인 == T_시전자반대&&T_턴반대 == T_시스템:3
                 DRAWLINE
@@ -212,6 +212,7 @@ IF 스킬명중판정(명중률,204)
     피해량 = T_SKILL204("공격력")
     속성 '= T_SKILL204_STR("속성")
     ;CALL T_데미지(T_턴반대, 피해량, 속성)
+    CALL T_반격기등록(T_시전자,204,2)
     CALL ONGOING_T_SKILL204(사용자, "지속시간설정")
     RETURN 1
 ELSE
@@ -308,3 +309,37 @@ CASE "유도력"
     RESULT = 유도력
 ENDSELECT
 RETURNF RESULT
+
+@RV_CONDITION_T_SKILL204(사용자,피해량)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 피해량
+;반격기의 실행 조건, 2을 리턴하면 시전가능, 아니면 시전 불가능
+;반격기가 아니면 0으로
+;IF T_반격타이밍 == 1
+    RETURN 2
+;ENDIF
+
+@RV_AFTER_T_SKILL204(사용자,피해량)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 피해량
+#DIMS 속성
+;피해량 = T_SKILL204("공격력")
+속성 '= T_SKILL204_STR("속성")
+;반격기의 내용
+IF T_반격타이밍 == 1
+    CALL PRINT_SPELLNAME(204)
+    DRAWLINE
+    PRINTFORML 반사판에 공격이 튕겨난다!
+    IF TB_SUM_REMAIN(T_시전자,TCV_면역) == 0
+        CALL 통합버프(T_시전자,TCV_면역,204,1,1)
+    ENDIF
+ELSEIF T_반격타이밍 == 2
+    CALL PRINT_SPELLNAME(204)
+    IF 스킬명중판정(70,204,1)
+        PRINTFORML %T_시전자반대는% 튕겨진 공격에 맞았다!
+        CALL T_데미지스택(T_시전자반대,피해량,속성)
+    ELSE
+        PRINTFORML 튕겨난 공격은 저 멀리 %T_시전자반대의% 뒤로 날아갔다..
+    ENDIF
+ENDIF
+RETURN 0
