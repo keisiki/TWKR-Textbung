@@ -1,0 +1,153 @@
+﻿@EXIST_FreeAct17
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct17(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "함께 눈으로 만들기")
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;未入力だと最大30分
+;	CALLF MAKE_INT(V_NAME, 0)
+ENDSELECT
+
+@자유행동내용_17(CHARA, ARGS, 시간계수, CHAIN=0)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+#DIMS 작품
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;冬の屋外で訓練できる場所
+		SIF !OUTROOF(현위치)
+			RETURN 0
+		SIF !전투훈련가능(현위치)
+			RETURN 0
+		SIF DAY:2 != 4
+			RETURN 0
+		SIF BASE:CHARA:기력 <= 500
+			RETURN 0
+		;積もってないとダメ
+		SIF YOGORE:현위치 < 500
+				RETURN 0
+		;吹雪,猛吹雪中はダメ
+		SIF GROUPMATCH(날씨, 10)
+			RETURN 0
+		SIF FLAG:이상기상 == 10
+			RETURN 0
+		;連鎖でない場合は先に作ってあったらダメ
+		SIF !CHAIN && FA17_OBJ:(현위치 % 100)
+			RETURN 0
+			
+		;ここから作成決定後の処理
+		;連鎖でない場合、作成位置と作成者を記録
+		IF !CHAIN
+			CALL FA17_OBJNAME(CHARA)
+			FA17_OBJ:(현위치 % 100) = CHARA
+			작품 = %RESULTS%
+		ENDIF
+		IF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% \@ CHAIN ? %CALLNAME:CHAIN%을 돕기 시작했다。# %작품%을 만들기 시작했다。\@
+			FA17_EXIST:(현위치 % 100) += 10
+		ENDIF
+		RESULT = CHAIN ? 1 # RESULT
+		RETURN RESULT
+	CASE "행동중"
+		;ちょっとだけ掃除される
+		YOGORE:(현위치) = MAX(YOGORE:(현위치) -50 * TIME_PROGRESS(TIME:1) / 5, 0)
+		IF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR("눈을 모으고 있다/눈을 뭉치고 있다/형태를 다듬고 있다")%。
+			FA17_EXIST:(현위치 % 100) += 10
+		ENDIF
+	CASE "완료"
+		IF 메시지표시
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %작품%을 완성시키고 만족한 것 같다。
+			FA17_EXIST:(현위치 % 100) += 10
+		ENDIF
+		;作成完了のフラグ
+		FA17_OBJ:(현위치 % 100) += 1000
+	CASE "중단"
+		;中断メッセージはうふふ突入時等でも表示されてしまうので表示しない
+	CASE "같이한다"
+		PRINTFORML %조사처리(CALLNAME:PLAYER,"는")% %타겟의% %작품%만들기를 도왔다
+	CASE "소스"
+		;遊びに付き合うと一緒
+		DOWNBASE:MASTER:체력 += 40 * 시간계수
+		DOWNBASE:MASTER:기력 += 40 * 시간계수
+		DOWNBASE:TARGET:체력 += 20 * 시간계수
+		DOWNBASE:TARGET:기력 += 20 * 시간계수
+		SOURCE:환락 = (150 + ((ABL:친밀 + 호감도계수(TARGET)) * 50)) * 시간계수
+		SOURCE:수동 = (100 + ((ABL:순종 + 호감도계수(TARGET)) * 50)) * 시간계수
+		SOURCE:정복 = (100 + (ABL:새드끼 * 100)) * 시간계수
+		TFLAG:98 = 1
+ENDSELECT
+
+@FA17_OBJNAME(CHARA)
+#DIM CHARA
+#DIM 제작자
+LOCAL = 30
+제작자 = CHARA > 1000 ? CHARA % 1000 # CHARA
+RESULTS:1 = 가 장식되어 있다
+SELECTCASE 제작자
+	CASE [[에이카]]
+		RESULTS = 초다단 눈사람
+		RESULTS:1 = 이 우뚝 솟아 있다
+		LOCAL = 90
+	CASE [[유카]]
+		RESULTS = 아이스 플라워
+		LOCAL = 40
+	CASE [[누에]]
+		RESULTS = 눈우주인
+		RESULTS:1 = 이 이쪽을 보고 있다…
+	CASE [[마미조]]
+		RESULTS = 눈너구리
+		RESULTS:1 = 에 잎사귀가 얹혀 있다
+	CASE [[미케]]
+		RESULTS = 눈마네키네코
+	CASE [[미스마루]]
+		RESULTS = 음양설옥
+		RESULTS:1 = 이 둥실둥실 떠 있다
+	CASE [[마유미]], [[케이키]]
+		RESULTS = 눈하니와
+		RESULTS:1 = 가 %\@ CHARA == [[마유미]] ? 서 있다 # 돌아다니고 있다… \@%
+		LOCAL = 40
+	CASE [[리카]]
+		RESULTS = 눈전차
+		RESULTS:1 = 가 놓여 있다
+		LOCAL = 60
+	CASEELSE
+		;ウサミミ
+		IF TALENT:제작자:동물귀 == 2
+			RESULTS = 눈토끼
+		;月人
+		ELSEIF GET_TRIBENAME(제작자, GETNUM(TALENT, "인간")) == "월인"
+			RESULTS = 눈토끼
+		;教養3以上
+		ELSEIF CSVABL(제작자, GETNUM(ABL, "교양")) >= 3
+			RESULTS = 눈토끼
+		ELSE
+			RESULTS = 눈사람
+			RESULTS:1 = 이 서 있다
+		ENDIF
+		SIF CHARA > 1000
+			RESULTS = %\@ RESULTS == "눈사람" ? 커다란 # 귀여운 \@% %RESULTS%
+ENDSELECT
+RETURN LOCAL + RAND:30

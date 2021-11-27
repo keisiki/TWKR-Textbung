@@ -1,19 +1,31 @@
 ﻿@SHOW_COLLECTION
+#DIM 총수
+#DIM 착용가능수
 DRAWLINE
-CALL DISPLAY_ALL_COLLECTION
-LOCAL = RESULT:0
+IF FLAG:팬티수집상황타입B
+	PRINT [0] - 디폴트 정렬 
+	PRINT [1] - 미소지 수 오름차순 정렬
+	INPUT
+ENDIF
+IF FLAG:팬티수집상황타입B && RESULT
+	CALL DISPLAY_SORT_ALL_COLLECTION
+ELSE
+	CALL DISPLAY_ALL_COLLECTION
+ENDIF
+총수 = RESULT:0
 FLAG:획득팬티총수 = RESULT:1
+착용가능수 = RESULT:2
 PRINTL 　 
 IF FLAG:팬티수집상황타입B == 0
-	PRINTFORML 총수：{LOCAL}매종별：{FLAG:획득팬티총수}종 중복：{LOCAL - FLAG:획득팬티총수}매
+	PRINTFORML 총수：{총수}매　　종별：{FLAG:획득팬티총수}종　　중복：{총수 - FLAG:획득팬티총수}매
 ELSE
-	PRINTFORML 총수：{LOCAL}매종별：{FLAG:획득팬티총수}/{RESULT:2}종 중복：{LOCAL - FLAG:획득팬티총수}매
+	PRINTFORML 총수：{총수}매　　종별：{FLAG:획득팬티총수}/{착용가능수}종　　중복：{총수 - FLAG:획득팬티총수}매
 ENDIF
 PRINT [0] - 돌아간다 
-SIF LOCAL - FLAG:획득팬티총수
+SIF 총수 - FLAG:획득팬티총수
 	PRINT [1] - 1장만 남기고 전부 매각한다
 INPUT
-IF RESULT == 1 && (LOCAL - FLAG:획득팬티총수) != 0
+IF RESULT == 1 && (총수 - FLAG:획득팬티총수) != 0
 	CALL SPEND_COLLECTION
 	PRINTFORMW 총 {RESULT:0}장 \\{100 * RESULT:0}로 팔렸습니다
 	MONEY += 100 * RESULT:0
@@ -55,6 +67,43 @@ FOR 대상, 1, CHARANUM
 		총수 += RESULT:0
 		소유종류수 += RESULT:1
 	ENDIF
+NEXT
+RETURN 총수, 소유종류수, 착용가능수
+
+;전체 컬렉션 오름차순 표시
+@DISPLAY_SORT_ALL_COLLECTION
+#DIM 대상
+#DIM 총수
+#DIM 소유종류수
+#DIM 착용가능수
+#DIM 미소지수
+;사실은 999가 아니라 CHARANUM 사용하고 싶어
+#DIM 미소지수배열,999
+#DIM 캐릭터배열,999
+미소지수배열:0 = -1
+VARSET RESULT
+총수 = 0
+소유종류수 = 0
+착용가능수 = 0
+
+SIF !FLAG:팬티수집상황타입B
+	RETURN
+
+FOR 대상,1,CHARANUM
+	CALL CHECK_COLLECTION(대상)
+	미소지수 = RESULT:2 - RESULT:1
+	;0 대입하면 ARRAYMSORT가 기능을 하지 않기 때문에 -1을 대신 넣는
+	미소지수배열:대상 = 미소지수 ? 미소지수 # -1
+	캐릭터배열:대상 = 대상
+NEXT
+ARRAYMSORT 미소지수배열,캐릭터배열
+FOR 대상,1,CHARANUM
+	PRINTL
+	PRINTFORML 【%CALLNAME:(캐릭터배열:대상)%】
+	CALL DISPLAY_COLLECTION_B(캐릭터배열:대상)
+	총수 += RESULT:0
+	소유종류수 += RESULT:1
+	착용가능수 += RESULT:2
 NEXT
 RETURN 총수, 소유종류수, 착용가능수
 
@@ -152,6 +201,7 @@ RETURN (RESULT:0)
 ;인수	ARG:1		표시 대상	0=콜렉션	,1=소지
 ;반환값	RESULT:0	총수
 ;		RESULT:1	종류수
+;		RESULT:2	착용가능수
 @CHECK_COLLECTION(대상, ARG:1=0)
 #DIM 대상
 #DIM 종류
@@ -168,10 +218,13 @@ FOR 종류, 0, MAXPANTS
 	IF 소지수
 		RESULT:0 += 소지수
 		RESULT:1 ++
+		RESULT:2 ++
+	ELSEIF GET_INT(대상, "하반신속옷_비켜놓기불가", 종류, "콜렉션 표시 가능")
+		RESULT:2 ++
 	ENDIF
 NEXT
 
-RETURN RESULT:0, RESULT:1
+RETURN RESULT:0, RESULT:1, RESULT:2
 
 ;수중에 있는 콜렉션 1장 소비(DISPLAY_COLLECTION(1,1)와 병용)
 ;인수	ARG:0	소비 대상 종류
@@ -315,7 +368,7 @@ IF 소유수
 ELSE
 	조건 '= GET_STR(대상, "하반신속옷_비켜놓기가능", 종류, "콜렉션 해금 조건")
 	IF 종류 == 18
-		조건 '= "? "
+		조건 '= "?????"
 		;부여 캐릭터라인은 「XXX장　」(으)로 전각3+반각 1
 		팬티캐릭터라인 '= @"%조건, 22, LEFT%" + " " + "　" * 3
 	ELSEIF STRLENS(조건)

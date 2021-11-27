@@ -72,10 +72,15 @@ CASE "의뢰실행시"
 ;可能な引数は"キャンセル", "実行して成功", "実行して失敗", "実行して未解決"です
 ;独自処理を仕込みたい時は"実行して未解決"で先延ばしするなりしてください
 	VARSET RESULT
+	VARSET LOCAL
 	;口上に委託するか判定
 	CALL KOJO_MESSAGE_SEND("IRAI", TARGET, IRAI_ID, 0, 0, "TARGET", "구상위탁률")
+	;LOCAL:1～に発生させない番号を保存
+	FOR LOCAL, 1, 100
+		LOCAL:LOCAL = RESULT:LOCAL
+	NEXT
 	;口上専用ルート
-	IF RESULT:1 > RAND:100
+	IF RESULT:100 > RAND:100
 		VARSET RESULT
 		VARSET RESULTS
 		CALL KOJO_MESSAGE_SEND("IRAI", TARGET, IRAI_ID, 0, 0, "TARGET", "구상전용")
@@ -83,8 +88,11 @@ CASE "의뢰실행시"
 	ELSE
 		RESULT = 0
 		WHILE !RESULT
+			RESULT = 0
 			;お悩みパターンを増やしたらここを調整(あえてちょっと多めにしてます）
 			お悩みナンバー = RAND:26
+			SIF LOCAL:お悩みナンバー
+				CONTINUE
 			CALL IRAI_一般16_お悩みデータベース(お悩みナンバー, TARGET)
 		WEND
 	ENDIF
@@ -102,10 +110,17 @@ CASE "의뢰실행시"
 	INPUT
 	LOCAL = RESULT
 	TIME += 10
-	;正解の選択肢を選ぶ
-	IF RESULT == 正解の選択肢
-		;6分の5の確率でそのまま正解
-		IF RAND:6 || 逆張りナシ
+	;ひとつだけハズレのパターン（"正解の選択肢"がハズレの選択肢）
+	IF GROUPMATCH(正解の選択肢, 4, 5, 6)
+		IF LOCAL == 正解の選択肢 - 3
+			CALL COLORMESSAGE(@"＜BAD…＞", C_RED, 0)
+			PRINTFORML 【%RESULTS:LOCAL%】
+			PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の答えに満足しなかった…
+			SOURCE:환락 = 50 + ABL:친밀 * 5
+			SOURCE:반감 = 100
+			TFLAG:193 = -1
+			RETURN IRAI_CONST_RESULT("실행해 실패")
+		ELSE
 			CALL COLORMESSAGE(@"＜NICE!!＞", C_YELLOW, 0)
 			PRINTFORML 【%RESULTS:LOCAL%】
 			PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の答えに満足した！
@@ -115,30 +130,20 @@ CASE "의뢰실행시"
 			TFLAG:호감도보너스 = ABL:친밀 * 5
 			TFLAG:신뢰도관리 = 2
 			RETURN IRAI_CONST_RESULT("실행해 성공")
-		;6分の1の確率で逆にハズレ
-		ELSE
-			CALL COLORMESSAGE(@"＜SAD…＞", C_P_PURPLE, 0)
-			PRINTFORML 【%RESULTS:LOCAL%】
-			PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%のありきたりな返答にがっかりしている…
-			SOURCE:환락 = 100 + ABL:친밀 * 10
-			SOURCE:반감 = 50
-			EXP:MASTER:회화경험 += 1
-			TFLAG:193 = -2
-			RETURN IRAI_CONST_RESULT("실행해 실패")
 		ENDIF
-	;6分の1の確率で逆に正解
-	ELSEIF !RAND:6 && !逆張りナシ
-		CALL COLORMESSAGE(@"＜COOL!!＞", C_AQUA, 0)
+	;全部正解のパターン
+	ELSEIF 正解の選択肢 == 7
+		CALL COLORMESSAGE(@"＜NICE!!＞", C_YELLOW, 0)
 		PRINTFORML 【%RESULTS:LOCAL%】
-		PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の意外な返答にときめいた！
-		TFLAG:193 = 2
-		SOURCE:환락 = 2000 + ABL:친밀 * 100
-		EXP:MASTER:회화경험 += 10
-		TFLAG:호감도보너스 = ABL:친밀 * 10
-		TFLAG:신뢰도관리 = 5
+		PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の答えに満足した！
+		TFLAG:193 = 1
+		SOURCE:환락 = 500 + ABL:친밀 * 50
+		EXP:MASTER:회화경험 += 5
+		TFLAG:호감도보너스 = ABL:친밀 * 5
+		TFLAG:신뢰도관리 = 2
 		RETURN IRAI_CONST_RESULT("실행해 성공")
-	;ハズレの選択肢を選ぶ
-	ELSE
+	;全部ハズレのパターン
+	ELSEIF 正解の選択肢 == 8
 		CALL COLORMESSAGE(@"＜BAD…＞", C_RED, 0)
 		PRINTFORML 【%RESULTS:LOCAL%】
 		PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の答えに満足しなかった…
@@ -146,6 +151,57 @@ CASE "의뢰실행시"
 		SOURCE:반감 = 100
 		TFLAG:193 = -1
 		RETURN IRAI_CONST_RESULT("실행해 실패")
+	ELSE
+		;もし正解の選択肢がおかしい場合、警告を出して修正する
+		IF !GROUPMATCH(正解の選択肢, 1, 2, 3)
+			PRINTFORMW ※正解の選択肢が異常です（{正解の選択肢}）
+			正解の選択肢 = RAND:3 + 1
+		ENDIF
+	;正解の選択肢を選ぶ
+		IF LOCAL == 正解の選択肢
+			;6分の5の確率でそのまま正解
+			IF RAND:6 || 逆張りナシ
+				CALL COLORMESSAGE(@"＜NICE!!＞", C_YELLOW, 0)
+				PRINTFORML 【%RESULTS:LOCAL%】
+				PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の答えに満足した！
+				TFLAG:193 = 1
+				SOURCE:환락 = 500 + ABL:친밀 * 50
+				EXP:MASTER:회화경험 += 5
+				TFLAG:호감도보너스 = ABL:친밀 * 5
+				TFLAG:신뢰도관리 = 2
+				RETURN IRAI_CONST_RESULT("실행해 성공")
+			;6分の1の確率で逆にハズレ
+			ELSE
+				CALL COLORMESSAGE(@"＜SAD…＞", C_P_PURPLE, 0)
+				PRINTFORML 【%RESULTS:LOCAL%】
+				PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%のありきたりな返答にがっかりしている…
+				SOURCE:환락 = 100 + ABL:친밀 * 10
+				SOURCE:반감 = 50
+				EXP:MASTER:회화경험 += 1
+				TFLAG:193 = -2
+				RETURN IRAI_CONST_RESULT("실행해 실패")
+			ENDIF
+		;6分の1の確率で逆に正解
+		ELSEIF !RAND:6 && !逆張りナシ
+			CALL COLORMESSAGE(@"＜COOL!!＞", C_AQUA, 0)
+			PRINTFORML 【%RESULTS:LOCAL%】
+			PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の意外な返答にときめいた！
+			TFLAG:193 = 2
+			SOURCE:환락 = 2000 + ABL:친밀 * 100
+			EXP:MASTER:회화경험 += 10
+			TFLAG:호감도보너스 = ABL:친밀 * 10
+			TFLAG:신뢰도관리 = 5
+			RETURN IRAI_CONST_RESULT("실행해 성공")
+		;ハズレの選択肢を選ぶ
+		ELSE
+			CALL COLORMESSAGE(@"＜BAD…＞", C_RED, 0)
+			PRINTFORML 【%RESULTS:LOCAL%】
+			PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%の答えに満足しなかった…
+			SOURCE:환락 = 50 + ABL:친밀 * 5
+			SOURCE:반감 = 100
+			TFLAG:193 = -1
+			RETURN IRAI_CONST_RESULT("실행해 실패")
+		ENDIF
 	ENDIF
 CASE "의뢰 성공시"
 ;성공 보고시の報酬など
@@ -606,41 +662,13 @@ CASE 17
 			;関数化してもいいけどするほどでもないかなと思い適当に
 			SELECTCASE DAY:2
 			CASE 1
-				SELECTCASE RAND:3
-				CASE 1
-					RESULTS:LOCAL = チューリップ
-				CASE 2
-					RESULTS:LOCAL = アネモネ
-				CASEELSE
-					RESULTS:LOCAL = スミレ
-				ENDSELECT
+				RESULTS:LOCAL '= TEXTR("チューリップ/アネモネ/スミレ")
 			CASE 2
-				SELECTCASE RAND:3
-				CASE 1
-					RESULTS:LOCAL = アサガオ
-				CASE 2
-					RESULTS:LOCAL = キキョウ
-				CASEELSE
-					RESULTS:LOCAL = ユリ
-				ENDSELECT
+				RESULTS:LOCAL '= TEXTR("アサガオ/キキョウ/ユリ")
 			CASE 3
-				SELECTCASE RAND:3
-				CASE 1
-					RESULTS:LOCAL = コスモス
-				CASE 2
-					RESULTS:LOCAL = キク
-				CASEELSE
-					RESULTS:LOCAL = 月見草
-				ENDSELECT
+				RESULTS:LOCAL '= TEXTR("コスモス/キク/月見草")
 			CASE 4
-				SELECTCASE RAND:3
-				CASE 1
-					RESULTS:LOCAL = ヒナギク
-				CASE 2
-					RESULTS:LOCAL = スイセン
-				CASEELSE
-					RESULTS:LOCAL = スノードロップ
-				ENDSELECT
+				RESULTS:LOCAL '= TEXTR("ヒナギク/スイセン/スノードロップ")
 			ENDSELECT
 		ELSE
 			;LOCAL:2に季節を入れる
@@ -659,41 +687,13 @@ CASE 17
 			ENDIF
 			SELECTCASE LOCAL:2
 			CASE 1
-				SELECTCASE RAND:3
-				CASE 1
-					RESULTS:LOCAL = チューリップ
-				CASE 2
-					RESULTS:LOCAL = アネモネ
-				CASEELSE
-					RESULTS:LOCAL = スミレ
-				ENDSELECT
+				RESULTS:LOCAL '= TEXTR("チューリップ/アネモネ/スミレ")
 			CASE 2
-				SELECTCASE RAND:3
-				CASE 1
-					RESULTS:LOCAL = アサガオ
-				CASE 2
-					RESULTS:LOCAL = キキョウ
-				CASEELSE
-					RESULTS:LOCAL = ユリ
-				ENDSELECT
+				RESULTS:LOCAL '= TEXTR("アサガオ/キキョウ/ユリ")
 			CASE 3
-				SELECTCASE RAND:3
-				CASE 1
-					RESULTS:LOCAL = コスモス
-				CASE 2
-					RESULTS:LOCAL = キク
-				CASEELSE
-					RESULTS:LOCAL = 月見草
-				ENDSELECT
+				RESULTS:LOCAL '= TEXTR("コスモス/キク/月見草")
 			CASE 4
-				SELECTCASE RAND:3
-				CASE 1
-					RESULTS:LOCAL = ヒナギク
-				CASE 2
-					RESULTS:LOCAL = スイセン
-				CASEELSE
-					RESULTS:LOCAL = スノードロップ
-				ENDSELECT
+				RESULTS:LOCAL '= TEXTR("ヒナギク/スイセン/スノードロップ")
 			ENDSELECT
 		ENDIF
 	NEXT

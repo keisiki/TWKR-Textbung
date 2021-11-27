@@ -56,7 +56,11 @@ ENDIF
 IF !FLAG:70
 	;벌레 바구니에 들어가지 않는 캐릭터를 벌레 바구니로부터 내쫓는다
 	IF CFLAG:ARG:현재위치 == 54 && TALENT:ARG:체형 > -5
-		CFLAG:ARG:현재위치 = 9
+		IF ARG == [[신묘마루]]
+			TALENT:ARG:체형 = -5
+		ELSE
+			CFLAG:ARG:현재위치 = 9
+		ENDIF
 	ENDIF
 
 	;거점의 밖으로 쇠약중의 캐릭터가 있는 경우 스키마에 보낸다
@@ -148,7 +152,7 @@ IF RESULT
 				IF CFLAG:MASTER:현재위치 == CFLAG:ARG:현재위치 && !CFLAG:MASTER:수면
 					IF CFLAG:ARG:우후후 || CHK_DATENOW(CFLAG:ARG:데이트중)
 						PRINTFORMW %ARG는% 졸음을 참을 수 없게 돼서、\@ CFLAG:ARG:신사거주 ? 자기 방 # 자택 \@으로 돌아가기로 했습니다
-					ELSE
+					ELSEIF IN_HOME(CFLAG:ARG:현재위치)
 						PRINTFORMW %ARG는% 작별 인사를 하며, 졸린 듯이 떠나 갔습니다
 					ENDIF
 				ENDIF
@@ -249,9 +253,19 @@ RETURNF 0
 IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치 && !CHK_DATENOW(CFLAG:ARG:데이트중)
 	IF CFLAG:태도 && !FLAG:데이트상대
 		PRINTFORMW %ARG는% %GET_MAPNAME(MAIN_MAP)%에 가고 싶은 것 같다
-		PRINTL [0] - 함께 간다　[1] - 전송한다
+		PRINTFORMW %ARG는% %GET_MAPNAME(MAIN_MAP)%에 가는 듯 하다
+		PRINTL [1] - 데이트를 신청한다
+		PRINTL [2] - 함께 간다
+		PRINTL [0] - 전송한다
 		INPUT
-		IF !RESULT
+		IF RESULT == 1
+			PRINTFORMW %CALLNAME:ARG%와 데이트하기로 했다
+			CFLAG:MASTER:동행 = 60
+			CFLAG:ARG:동행 = 60
+			CFLAG:ARG:데이트중 = CFLAG:MASTER:현재위치 / 100
+			FLAG:데이트상대 = ARG
+			TFLAG:데이트전호감도 = CFLAG:ARG:호감도
+		ELSEIF RESULT == 2
 			PRINTFORMW %CALLNAME:ARG%를 데려 돌아가기로 했다
 			CALL 귀가의시간경과
 			CALL SET_DATE(99, ARG)

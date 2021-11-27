@@ -208,7 +208,7 @@ IF BONUS
 	TIMES SOURCE:정복, 1.50
 ENDIF
 
-IF TCVAR:CHARA:요리평가치 >= 700
+IF TCVAR:CHARA:요리평가치 >= 750
 	IF TALENT:CHARA:기분 < 0
 		CALL KIGEN_CHANGE(CHARA, 100, 1)
 	ELSE
@@ -284,17 +284,17 @@ ENDIF
 ;기본 회복율과 포만도
 SELECTCASE DISH_TYPE
 	CASE "경식"
-		체력회복율 = 300
+		체력회복율 = 200
 		기력회복율 = 300
 		정력회복율 = 100
 		만복도 = 180
 	CASE "주식"
-		체력회복율 = 500
-		기력회복율 = 500
+		체력회복율 = 400
+		기력회복율 = 400
 		정력회복율 = 200
 		만복도 = 360
 	CASE "디저트"
-		체력회복율 = 300
+		체력회복율 = 100
 		기력회복율 = 500
 		정력회복율 = 100
 		만복도 = 180
@@ -307,30 +307,37 @@ SIF STRCOUNT(DISH_TASTE, "요력/")
 SIF STRCOUNT(DISH_TASTE, "생명력/")
 	TIMES 체력회복율, 1.2
 SIF STRCOUNT(DISH_TASTE, "영장/")
-	TSP회복율 += 200
+	TSP회복율 += 100
 ;오니의마력と区別
 SIF STRCOUNT(DISH_TASTE, "/마력/")
-	TSP회복율 += 200
+	TSP회복율 += 100
 SIF STRCOUNT(DISH_TASTE, "선술/")
-	TSP회복율 += 200
+	TSP회복율 += 100
 SIF STRCOUNT(DISH_TASTE, "비술/")
-	TSP회복율 += 200
+	TSP회복율 += 100
 IF STRCOUNT(DISH_TASTE, "약효/")
-	기력회복율 = 1000
-	CALL BUFF_BASE(ARG, BASE_기력, MIN(MAXBASE:ARG:기력 * 10 / 100, 300))
+	기력회복율 += 100
 ENDIF
-IF STRCOUNT(DISH_TASTE, "오니의마력/")
-	정력회복율 = 1000
-	CALL BUFF_BASE(ARG, BASE_정력, MIN(MAXBASE:ARG:정력 * 50 / 100, 500))
+IF STRCOUNT(DISH_TASTE, "약선/")
+	기력회복율 += 100
+	CALL BUFF_BASE(ARG, BASE_기력, MIN(MAXBASE:ARG:기력 * 10 / 100, 200))
 ENDIF
-IF STRCOUNT(DISH_TASTE, "피의마력/") && ARG == MASTER
-	TSP회복율 = 1000
-	CALL BUFF_BASE(ARG, BASE_TSP, MIN(MAXBASE:ARG:TSP * 50 / 100, 500))
-ENDIF
+; IF STRCOUNT(DISH_TASTE, "오니의마력/")
+; 	정력회복율 = 1000
+; 	CALL BUFF_BASE(ARG, BASE_정력, MIN(MAXBASE:ARG:정력 * 50 / 100, 500))
+; ENDIF
+; IF STRCOUNT(DISH_TASTE, "피의마력/") && ARG == MASTER
+; 	TSP회복율 = 1000
+; 	CALL BUFF_BASE(ARG, BASE_TSP, MIN(MAXBASE:ARG:TSP * 50 / 100, 500))
+; ENDIF
+
 IF STRCOUNT(DISH_TASTE, "정력/")
-	정력회복율 += 500
-	SIF ARG == MASTER
-		TALENT:MASTER:농후정액 = 1
+	정력회복율 += 100
+ENDIF
+IF STRCOUNT(DISH_TASTE, "강정/")
+	정력회복율 += 100
+	CALL BUFF_BASE(ARG, BASE_정력, MIN(MAXBASE:ARG:정력 * 10 / 100, 200))
+
 ENDIF
 SIF STRCOUNT(DISH_TASTE, "기적/")
 	TFLAG:행운보정 = 5
@@ -339,9 +346,9 @@ SIF STRCOUNT(DISH_TASTE, "행운/")
 ;添加物
 SELECTCASE DISH_DRG_2
 CASE GETNUM(ITEM, "영양강화제")
-	TIMES 기력회복율, 1.2
-	TIMES 체력회복율, 1.2
-	TIMES 정력회복율, 1.2
+	TIMES 기력회복율, 1.1
+	TIMES 체력회복율, 1.1
+	TIMES 정력회복율, 1.1
 CASE GETNUM(ITEM, "히스테리큐")
 	TCVAR:ARG:히스테리큐 = 1
 ENDSELECT
@@ -387,10 +394,10 @@ IF ARG != MASTER
 	CASE IS < 400
 		TIMES 체력회복율, 0.6
 		TIMES 기력회복율, 0.6
-	CASE IS < 500
+	CASE IS < 600
 		TIMES 체력회복율, 0.8
 		TIMES 기력회복율, 0.8
-	CASE IS < 600
+	CASE IS < 750
 		TIMES 체력회복율, 1.0
 		TIMES 기력회복율, 1.0
 	CASEELSE
@@ -417,13 +424,8 @@ SIF STRCOUNT(DISH_TASTE, "로터/")
 	EXP:ARG:C경험 += 30
 
 ;만복도 상승
-SIF TALENT:ARG:대식가
-	TIMES 만복도, 0.7
-IF DISH_TYPE == "디저트"
-	TCVAR:ARG:디저트공복시각 = 1440 * DAY + TIME + 만복도
-ELSE
-	TCVAR:ARG:공복시각 = 1440 * DAY + TIME + 만복도
-ENDIF
+CALL 만복도상승(ARG, DISH_TYPE, 만복도)
+
 
 ;回復処理
 ; CALL RECOVER(ARG, 체력회복량, "체력", "식사에 의한 회복")
