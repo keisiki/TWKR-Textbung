@@ -140,18 +140,11 @@ CASE "초기화"
 VARSET 남은지속시간
 CASE "시스템체크"
     ;시스템 메시지에 따른 검사, 패시브 스킬등에 이용, 액티브는 딱히 쓸 일이 있나?
-    IF T_시스템 == 106||T_시스템 == 107
-        IF T_턴반대 == T_시전자&&남은지속시간:사용자 > 0&&!TB_SUM_REMAIN(T_시전자,TCV_면역)&&T_시스템:3 == T_시전자
-            PRINTL
-            DRAWLINE
-            CALL PRINT_SPELLNAME(280)
-            PRINTFORML %T_시전자를% 노린 탄막의 일부를 %T_시전자반대에게% 다시 날려보냈다!
-            CALL 통합버프(T_시전자,TCV_회피,272,100,1)
-            CALL T_데미지스택(T_시전자반대,MIN((T_시스템:2)/2,100*ARG능력치(T_시전자,"지성")),속성)
-            DRAWLINE
-            PRINTL
-        ENDIF
-    ENDIF
+    ;IF T_시스템 == 106||T_시스템 == 107
+    ;    IF T_턴반대 == T_시전자&&남은지속시간:사용자 > 0&&!TB_SUM_REMAIN(T_시전자,TCV_면역)&&T_시스템:3 == T_시전자
+            
+    ;    ENDIF
+    ;ENDIF
 CASE "지속효과발동"
     ;지속적으로 효과가 발동하는 스킬의 경우, 여기에 효과를 입력
     IF 남은지속시간:사용자 > 0
@@ -195,6 +188,7 @@ IF 스킬명중판정(명중률,280)
     속성 '= T_SKILL280_STR("속성")
     ;CALL T_데미지(T_턴반대, 피해량, 속성)
     CALL ONGOING_T_SKILL280(사용자, "지속시간설정")
+    CALL T_반격기등록(T_시전자,280,T_SKILL280("지속시간"))
     RETURN 1
 ELSE
     ;!감나빗!
@@ -228,6 +222,41 @@ PRINTFORML
 ;TRYCALLFORM으로 호출되어 이 스킬의 습득을 억제하는 함수
 ;FUCTION으로 고치면 안됨, 1인경우 습득 억제, 0인 경우 습득 허가
 RETURN 1
+
+@RV_CONDITION_T_SKILL280(사용자,피해량,원래피해량)
+#DIM DYNAMIC 원래피해량
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 피해량
+;반격기의 실행 조건, 2을 리턴하면 시전가능, 아니면 시전 불가능
+;반격기가 아니면 0으로
+SIF T_반격타이밍 != 1
+    RETURN 0
+CALL ONGOING_T_SKILL282(사용자,"남은지속시간")
+SIF RESULT <= 0
+    RETURN 0
+SIF T_턴주인 == 사용자
+    RETURN 0
+RETURN 2
+
+@RV_AFTER_T_SKILL280(사용자,받은피해량,받은원래피해량)
+#DIM DYNAMIC 받은원래피해량
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 피해량
+#DIM DYNAMIC 받은피해량
+#DIMS 속성
+피해량 = T_SKILL280("공격력")
+속성 '= T_SKILL280_STR("속성")
+;반격기의 내용
+PRINTL
+DRAWLINE
+CALL PRINT_SPELLNAME(280)
+PRINTFORML %T_시전자를% 노린 탄막의 일부를 %T_시전자반대에게% 다시 날려보냈다!
+CALL 통합버프(사용자,TCV_회피,272,100,1)
+CALL T_데미지스택(T_시전자반대,MIN((받은피해량)/2,100*ARG능력치(사용자,"지성")),속성)
+DRAWLINE
+PRINTL
+RETURN 0
+
 
 @T_SKILL280_RANGE(ARGS)
 #FUNCTION
