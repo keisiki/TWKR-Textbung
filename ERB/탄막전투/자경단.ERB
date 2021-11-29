@@ -1,0 +1,57 @@
+﻿@자경단발동()
+#FUNCTION
+IF !GROUPMATCH(CFLAG:MASTER:현재위치,202,203,204,205,206,207,214, 210,220,230,240,270)
+    RETURNF 0
+ENDIF
+;테스트용 RETURNF 1
+SIF !FLAG:자경단조직
+    RETURNF 0
+IF 사망자수() < 10
+    RETURNF 0
+ENDIF
+
+SIF 명중판정(96)
+    RETURNF 0
+RETURNF 1
+
+@자경단의추격
+PRINTFORML 현상수배된 %마스터를% 발견한 자경단이 호루라기를 불며 달려들었다!
+ADDCHARA 143
+TARGET = CHARANUM -1
+CALLNAME:TARGET = 자경단
+NAME:TARGET = 자경단
+BASE:TARGET:체력 = (100 * RAND:20) + 1800
+ABL:TARGET:전투능력 = RAND:6 + 3
+ABL:TARGET:레벨 = RAND:55 + 35 + (ABL:MASTER:레벨/4)
+CFLAG:TARGET:힘 = RAND:50 + 35 + (CFLAG:MASTER:힘/4)
+CFLAG:TARGET:지성 = RAND:50 + 10 + (CFLAG:MASTER:지성/4)
+CFLAG:TARGET:속도 = RAND:50 + 35 + (CFLAG:MASTER:속도/4)
+CFLAG:TARGET:인내 = RAND:55 + 30 + (CFLAG:MASTER:인내/4)
+CFLAG:TARGET:운 = RAND:55 + 30 + (CFLAG:MASTER:운/4)
+TALENT:TARGET:기분 = -1
+TALENT:TARGET:정화 = 1
+TALENT:TARGET:탄막소사 = 1
+TALENT:TARGET:전투스타일 = 1
+후처리인터셉트 = 1
+;탄막전투화상무시 = 1
+CALL 뉴탄막전투(MASTER,TARGET,1)
+DRAWLINE
+DELCHARA TARGET
+TARGET = 0
+SELECTCASE 후처리인터셉트승패여부
+    CASE 0
+        ;타겟 패배
+        PRINTFORML 중상을 입은 자경단원을 뒤늦게 나타난 다른 자경단이 끌고 도망갔다...
+        고로시수++
+        BASE:MASTER:체력 -= 250 
+    CASE 1
+        ;무승부
+        PRINTFORML 지쳐 쓰러지기 직전인 자경단원을 뒤늦게 나타난 다른 자경단이 끌고 도망갔다...
+        BASE:MASTER:체력 -= 750
+    CASE 2
+        ;마스터 패배
+        PRINTFORML 자경단은 쓰러진 %마스터를% 끌고 지하 감옥으로 내려갔다...
+        BASE:MASTER:체력 -= 9000
+        CALL 투옥
+        CALL OYASUMI
+ENDSELECT
