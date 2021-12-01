@@ -1,0 +1,255 @@
+﻿
+@TSC_15
+IF !INRANGE(TIME,1200,1440)
+	PRINTFORMW 지금은 경비가 삼엄해서 무리다, 오후 8시부터 12시까지가 적기일터다.
+	RETURN
+ENDIF
+PRINTFORML 은행을 털?까
+CALL ASK_YN()
+IF RESULT
+	RETURN -1
+ENDIF
+PRINTFORMW 털!자
+CALL 은행털이본체
+FLAG:은행털기기회 = 0
+IF B_금고
+	PRINTFORML 가진 금을 암시장에 내다팔아 수수료떼고 {B_금고 * 80000}원을 받았다
+	MONEY += B_금고 * 80000
+	B_금고 = 0
+ENDIF
+ALIGNMENT LEFT
+FLAG:은행털기쿨타임 = 30
+
+@TSC_NAME15
+#DIMS DYNAMIC 커맨드이름
+커맨드이름 = 은행 강도
+RESULTS = %커맨드이름%
+
+@TSC_ABLE15
+
+IF !FLAG:은행털기기회
+    RETURN 0
+ENDIF
+IF !GROUPMATCH(CFLAG:MASTER:현재위치,220,202)
+    RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 2
+
+
+@은행털이본체
+#DIM DYNAMIC 커맨드횟수
+#DIM DYNAMIC 체력감소
+#DIM DYNAMIC 기력감소
+#DIM DYNAMIC 침입플래그
+커맨드횟수 = 0
+VARSET B_맵,"　"
+FOR LOCAL,0,30
+	B_맵:LOCAL:0 = ■
+	B_맵:LOCAL:27 = ■
+NEXT
+FOR LOCAL,1,3
+	FOR LOCAL:1,1,13
+		B_맵:LOCAL:(2*LOCAL:1) = 金
+	NEXT
+NEXT
+FOR LOCAL,0,27
+	B_맵:0:LOCAL = ■
+	B_맵:6:LOCAL = ■
+	B_맵:11:LOCAL = ■
+	B_맵:13:LOCAL = ■
+	B_맵:16:LOCAL = ■
+	B_맵:20:LOCAL = ■
+	B_맵:29:LOCAL = ■
+NEXT
+B_맵:6:13 = 門
+B_맵:7:14 = ■
+B_맵:8:14 = ■
+B_맵:9:14 = ■
+B_맵:10:14 = ■
+B_맵:11:14 = ■
+B_맵:7:21 = ■
+B_맵:8:17 = ■
+B_맵:8:18 = ■
+B_맵:8:19 = ■
+B_맵:8:20 = ■
+B_맵:8:21 = ■
+B_맵:8:22 = ■
+B_맵:8:23 = ■
+B_맵:8:25 = ■
+B_맵:8:26 = ■
+B_맵:16:24 = 門
+B_맵:20:26 = 門
+B_맵:29:13 = 入
+B_맵:11:6 = 門
+FOR LOCAL,15,27
+	B_맵:11:LOCAL= 　
+NEXT
+
+B_맵:13:6 = 門
+B_맵:13:17 = 門
+B_맵:13:21 = 門
+B_맵:13:24 = 　
+B_맵:13:26 = 門
+B_맵:14:23 = ■
+B_맵:14:25 = ■
+B_맵:15:23 = ■
+B_맵:15:25 = ■
+B_맵:14:13 = ■
+B_맵:15:13 = ■
+B_맵:14:18 = ■
+B_맵:15:18 = ■
+B_맵:20:2 = 川
+B_맵:20:5 = 川
+B_맵:20:8 = 川
+B_맵:20:11 = 川
+B_맵:20:14 = 川
+B_맵:20:17 = 川
+B_맵:20:20 = 川
+B_맵:20:23 = 川
+
+;전체 렌더링, 실 게임에서는 주위 8칸만 보이게
+;FOR LOCAL,0,30
+;	FOR LOCAL:1,0,28
+;		PRINTFORM %B_맵:LOCAL:(LOCAL:1)%
+;	NEXT
+;	PRINTL
+;NEXT
+
+B_플레이어:0 = 13
+B_플레이어:1 = 28
+
+$표시루프
+ALIGNMENT CENTER
+FOR LOCAL,0,30
+	FOR LOCAL:1,0,28
+		IF LOCAL == 0 || LOCAL == 29
+			PRINTFORM %B_맵:LOCAL:(LOCAL:1)%
+		ELSEIF LOCAL:1 == 0 || LOCAL:1 == 27
+			PRINTFORM %B_맵:LOCAL:(LOCAL:1)%
+		ELSEIF B_플레이어:0 == LOCAL:1 && B_플레이어:1 == LOCAL
+			PRINT ＠
+		ELSEIF ABS(B_플레이어:0 - LOCAL:1) <= 2 && ABS(B_플레이어:1 - LOCAL) <= 2
+			PRINTFORM %B_맵:LOCAL:(LOCAL:1)%
+		ELSE
+			PRINT ＊
+		ENDIF
+	NEXT
+	PRINTL
+NEXT
+PRINTL
+PRINTFORML [8] - 위
+PRINTFORMLC [4] - 왼쪽
+PRINTFORMC [6] - 오른쪽
+PRINTL
+PRINTFORML [2] - 아래
+$입력루프
+INPUT
+IF RESULT == 8
+	IF B_맵:(B_플레이어:1 - 1):(B_플레이어:0) == "■" || B_맵:(B_플레이어:1 - 1):(B_플레이어:0) == "川"
+		CLEARLINE 1
+		GOTO 입력루프
+	ENDIF
+	B_플레이어:1 --
+ELSEIF RESULT == 6
+	IF B_맵:(B_플레이어:1):(B_플레이어:0 + 1) == "■" || B_맵:(B_플레이어:1):(B_플레이어:0 + 1) == "川"
+		CLEARLINE 1
+		GOTO 입력루프
+	ENDIF
+	B_플레이어:0 ++
+ELSEIF RESULT == 4
+	IF B_맵:(B_플레이어:1):(B_플레이어:0 - 1) == "■" || B_맵:(B_플레이어:1):(B_플레이어:0 - 1) == "川"
+		CLEARLINE 1
+		GOTO 입력루프
+	ENDIF
+	B_플레이어:0 --
+ELSEIF RESULT == 2
+	IF B_맵:(B_플레이어:1 + 1):(B_플레이어:0) == "■" || B_맵:(B_플레이어:1 + 1):(B_플레이어:0) == "川"
+		CLEARLINE 1
+		GOTO 입력루프
+	ENDIF
+	B_플레이어:1++
+ELSE
+	CLEARLINE 1
+	GOTO 입력루프
+ENDIF
+IF B_맵:(B_플레이어:1):(B_플레이어:0) == "金"
+	IF B_금고 > 10
+		PRINTFORMW 너무 무거워서 못 든다
+		CLEARLINE 1
+	ELSE
+		B_금고++
+		PRINTFORMW 금괴를 주웠다!
+		;공백치환
+		B_맵:(B_플레이어:1):(B_플레이어:0) = 　
+		CLEARLINE 1
+	ENDIF
+ENDIF
+IF B_맵:(B_플레이어:1):(B_플레이어:0) == "入"
+	PRINTFORMW %마스터는% 밖으로 탈출했다
+	
+	TIME += 커맨드횟수 * 2
+	DOWNBASE:MASTER:체력 = 체력감소 + (커맨드횟수*5)
+	DOWNBASE:MASTER:기력 = 기력감소 + (커맨드횟수*5)
+	RETURN
+ENDIF
+CLEARLINE 35
+IF 침입플래그 == 1 || B_플레이어:1 <= 18
+	침입플래그 = 1
+	IF !명중판정(70)
+		ALIGNMENT LEFT
+		PRINTFORMW 경비원이 나타났다!!
+		ADDCHARA 143
+		TARGET = CHARANUM -1
+		CALLNAME:TARGET = 경비원
+		NAME:TARGET = 경비원
+		BASE:TARGET:체력 = (100 * RAND:25) + 1800
+		EQUIP:상반신윗도리2 = 1
+		EQUIP:상반신속옷1 = 1
+		TEQUIP:상반신착의상황 = 1
+		TEQUIP:하반신착의상황 = 1
+		ABL:TARGET:전투능력 = RAND:7 + 4
+		ABL:TARGET:레벨 = RAND:55 + 45 + (ABL:MASTER:레벨/2)
+		CFLAG:TARGET:힘 = RAND:50 + 60 + (CFLAG:MASTER:힘/3)
+		CFLAG:TARGET:지성 = RAND:50 + 35 + (CFLAG:MASTER:지성/3)
+		CFLAG:TARGET:속도 = RAND:50 + 65 + (CFLAG:MASTER:속도/3)
+		CFLAG:TARGET:인내 = RAND:55 + 60 + (CFLAG:MASTER:인내/3)
+		CFLAG:TARGET:운 = RAND:55 + 60 + (CFLAG:MASTER:운/3)
+		TALENT:TARGET:기분 = -1
+		TALENT:TARGET:정화 = 1
+		TALENT:TARGET:탄막소사 = 1
+		TALENT:TARGET:전투스타일 = 1
+		후처리인터셉트 = 1
+		;탄막전투화상무시 = 1
+		CALL 뉴탄막전투(MASTER,TARGET,1)
+		DRAWLINE
+		DELCHARA TARGET
+		TARGET = 0
+		SELECTCASE 후처리인터셉트승패여부
+			CASE 0
+				;타겟 패배
+				PRINTFORML 경비원이 쓰러졌다!
+				고로시수++
+				체력감소 += 100
+			CASE 1
+				;무승부
+				PRINTFORML 경비원은 어둠속으로 도망쳤다...
+				체력감소 += 250
+			CASE 2
+				;마스터 패배
+				PRINTFORML 뒤이어 나타난 경비원들이 쓰러진 %마스터를% 끌고 지하 감옥으로 내려갔다...
+				CALL 투옥
+				CALL OYASUMI
+				RETURN
+		ENDSELECT
+	ENDIF
+ENDIF
+
+GOTO 표시루프
