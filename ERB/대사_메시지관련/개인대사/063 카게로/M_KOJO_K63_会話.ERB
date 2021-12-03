@@ -1,0 +1,1039 @@
+﻿;==================================================
+;300,会話
+;==================================================
+@M_KOJO_MESSAGE_COM_K63_300
+;成否判定
+;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
+;발정中は必ず失敗
+IF TCVAR:발정
+	TFLAG:192 = -1
+	CALL COLORMESSAGE(@"욕구불만이 올랐다",C_YELLOW,1)
+	CFLAG:욕구불만도 += 50
+	IF PALAM:TARGET:윤활 < 3000
+		CALL COLORMESSAGE(@"윤활이 올랐다",C_YELLOW,1)
+		PALAM:TARGET:윤활 += 100
+	ENDIF
+ENDIF
+;コマンド共通メッセージ(TRAIN_MESSAGE) 
+;削除すると「～話をした。」とかが消えます
+;CALL TRAIN_MESSAGE
+;口上メイン呼出
+CALL M_KOJO_MESSAGE_COM_K63_300_1
+RETURN RESULT
+
+@M_KOJO_MESSAGE_COM_K63_300_1
+;-------------------------------------------------
+;기입체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------------------------------------------
+IF LOCAL && !FLAG:70 
+;;満月で逃げる時
+;IF DAY:3 == 15 && !TALENT:연모
+;	;満月の下
+;	IF MOON_WATCH(DAY:3) == 9
+;		PRINTFORMW 「꺄아! %CALLNAME:MASTER%!?」
+;		PRINTL 
+;		PRINTFORML 쿠－－－－－－－－웅!!!
+;		PRINTFORMW 
+;		PRINTFORMW 눈앞이 깜깜해졌다!
+;	;まだ昼or夜だけど晴れてない
+;	ELSEIF TIME:2 >=1 && TIME:2 <= 4 || TIME:5 > 1
+;		PRINTFORMW 「앗! 당신은 %CALLNAME:MASTER%!」
+;	;夜で晴れてるけど室内
+;	ELSE
+;		PRINTFORMW 「꺄아! %CALLNAME:MASTER%!?」
+;		PRINTL 
+;		PRINTFORML 쿠－－－－－－－－웅!!!
+;		PRINTFORMW 
+;		PRINTFORMW 눈앞이 깜깜해졌다!
+;	ENDIF
+;	CALL KAGEROU_ESCAPE
+	IF TCVAR:발정
+		PRINTFORML 「……」
+		PRINTFORMW 카게로는 어딘가 붕 떠있는 느낌이다
+		PRINTFORML 「후엣!?　미, 미안해, 무슨 이야기하고 있었지?」
+	ENDIF
+	;添い寝（住み込み前提）
+	IF CFLAG:동침중
+		SELECTCASE RAND:5
+		CASE 0
+			PRINTFORMW 「%CALLNAME:MASTER%… 빨리 안 자도 괜찮아…?」
+			PRINTFORMW 「앗, 졸린 건 나뿐인건가……」
+		CASE 1
+			PRINTFORMW 「저기…… 조금만 더 가까이 가도 돼…?」
+		CASE 2
+			PRINTFORMW 「…새근……새근……」
+		CASE 3
+			PRINTFORMW 「%CALLNAME:MASTER%…… 혹시 깨어있어…?」
+			PRINTFORMW 「후훗…… 고마워……」
+		CASE 4
+			PRINTFORMW 「지금가지 누군가와 잔 적은 없어서……」
+			PRINTFORMW 「나… 무척 행복해……」
+		ENDSELECT
+	;お月見の会話（挨拶を済ましてから）
+	ELSEIF TCVAR:350 && !TCVAR:351 && MOON_WATCH(DAY:3) > 0
+		CALL K63_OTSUKIMI_TALK
+	;人狼ゲーム
+	ELSEIF TALENT:연모 && (CFLAG:63:현재위치 == 9 || CFLAG:63:현재위치 == 10 || CFLAG:63:현재위치 == 15 || (FLAG:더부살이캐릭터 == 63 && CFLAG:63:현재위치 == 16)) && CFLAG:63:현재위치 == CFLAG:1:현재위치 && CFLAG:63:현재위치 == CFLAG:11:현재위치
+		PRINTFORMW 「맞다! 모처럼 모였으니까 늑대인간 게임이라도 할까!」
+		$JINROU_INPUT_LOOP
+		PRINTL ※늑대인간 게임을 간략화한 원나잇 늑대인간 게임을 더욱 간략화한 eratoho늑대인간으로 놀 수 있습니다.(늑대인간 게임 = 마피아 게임)
+		PRINTL 　게임 내용에는 일절 영향이 없습니다.
+		PRINTL  [0] 놀자!
+		PRINTL  [1] 과정을 건너뛴다!
+		INPUT
+		SIF !RESULT
+			CALL ERATOHO_JINROU_GAME
+		PRINTL
+		PRINTFORMW 「아ー 재밌었다! 한 번 더 할까?」
+	;お天気会話
+	ELSEIF !TCVAR:352 && TIME:2 >= 3
+		CALL K63_WEATHER
+		TCVAR:352 = 1
+	;デートの会話
+	ELSEIF CHK_DATENOW(CFLAG:TARGET:데이트중)
+		SELECTCASE CFLAG:63:현재위치
+		;道中
+		CASE 100 TO 109,200 TO 209,300 TO 309,400 TO 409,500 TO 509,600 TO 609,700 TO 709,800 TO 809,900 TO 909
+			SELECTCASE RAND:10
+			CASE 0,1,2
+				PRINTFORMW 「후후훗, %조사처리(CALLNAME:MASTER, "와")% 데이트라니 나도 모르게 들떠버려♪」
+			CASE 3,4,5
+				PRINTFORMW 「아직 더 가야하는 데 괜찮아? 피곤하진 않아?」
+			CASE 6,7,8
+				PRINTFORMW 「앗, 잠깐 기다려!」
+				PRINTFORMW 「정말, 숙녀를 두고 가다니 매너 위반이야」
+			CASE 9
+				PRINTFORMW 「어라? 우리 지금 어디 가고 있었지?」
+			ENDSELECT
+		;到着後
+		CASEELSE
+			;デート慣れ
+			IF EXP:63:데이트경험 > 49 && TALENT:연모
+				SELECTCASE RAND:13
+				CASE 0,1,2
+					;場所の話,気が向いたら詳細分岐
+					SELECTCASE CFLAG:63:현재위치
+					;命蓮寺
+					CASE 110 TO 190
+						PRINTFORMW 「여기가 최근에 생겼다고 소문난 절이구나」
+						PRINTFORMW 「뭔가 굉장한 승려가 있다고 들었는데……」
+						PRINTFORMW 「요괴에게도 상냥하다니 정말이야?」
+						PRINTFORMW 「사실은 함정이고 제거되거나 퇴치당하거나 하진 않을까……?」
+					;人里
+					CASE 210 TO 290
+						PRINTFORML 「인간 마을에는 가끔씩 찾아와」
+						PRINTFORMW 「당연히 몰래 숨어서 말이야」
+						SELECTCASE RAND:3
+						CASE 0
+							PRINTFORMW 「일단 얌전히 있으면 티 나지 않으니까 괜찮아」
+							PRINTFORMW 「들키지만 않으면 인간 마을 사람들은 의외로 상냥하니까」
+							PRINTFORMW 「후후후…… 정말 별거 아니잖아♪」
+						CASE 1
+							PRINTFORMW 「제일 많이 이용하는 곳은 역시 고깃집이야」
+							PRINTFORMW 「그리고 야채가게랑 생선가게도 가끔……」
+							PRINTFORMW 「쉽게 말해서 식량 조달이야」
+						CASE 2
+							PRINTFORMW 「하지만 %조사처리(CALLNAME:MASTER, "와")% 데이트를 오면」
+							PRINTFORMW 「시선이 쏠리는 것 같아서 너무 긴장 돼……」
+							PRINTFORMW 「저기 지금 나 괜찮은걸까… 귀가 삐져나오진 않았지……?」
+						ENDSELECT
+					;紅魔館(휘침성 사쿠야B 스토리)
+					CASE 310 TO 390
+						PRINTFORMW 「흡혈귀의 저택이구나……」
+						PRINTFORMW 「평소에 안 오니까 흥미가 생기는 것 같아」
+						PRINTFORMW 「일단 늑대남 놀이의 정체부터……」
+					;斜角の竹林
+					CASE 430
+						PRINTFORMW 「후후, 여긴 내 집이 있는 죽림이야」
+						PRINTFORMW 「집이라고 해도 사는 곳이라…… %CALLNAME:MASTER%가 보면 새 둥지처럼 보일지도……」
+						PRINTFORMW 「그래서 미안하지만 보여줄 수는 없어!」
+					;迷いの竹林
+					CASE 410 TO 490
+						SELECTCASE RAND:3
+						CASE 0
+							PRINTFORMW 「이 근처에는 의사님이 있는 영원정이나 참새의 집이나…」
+							PRINTFORMW 「그리고 입구 근처에서 이따금씩 밤참새가 포장마차를 하고 있어」
+							PRINTFORMW 「아, 물론 내 집도 있고♪」
+						CASE 1
+							PRINTFORMW 「여기 죽림은 헤메게 되니까 조심해」
+							PRINTFORMW 「나도 전부 파악할 수 없을 정도로 신기한 죽림이야」
+							PRINTFORMW 「게다가 여기저기에 요괴들이 있으니까」
+							PRINTFORMW 「떨어지면 안 돼, %CALLNAME:MASTER%」
+						CASE 2
+							PRINTFORMW 「신기할 정도로 신기한 환상향이라도 여기는 특히 신기한 장소야」
+							PRINTFORMW 「빛나는 대나무가 있다든지, 닌자가 있다든지, 해독 불능의 메모가 있었다든지, 수상한 소문이 끊이질 않아」
+							PRINTFORMW 「그 탓인지 달도 더욱 이상하게 빛나서 주로 요수들이 모이기 쉽다고 한다든가」
+							PRINTFORMW 「나도 그 중 한 명이지만. 후후, 정든 곳이 좋다는 거지」
+						ENDSELECT
+					;魔法の森
+					CASE 510 TO 590
+						;	PRINTFORMW 「아직(미구현)」
+					;霧の湖
+					CASE 610 TO 690
+						PRINTFORMW 「호수는 보통 수영을 하러 와」
+						PRINTFORMW 「그리고 와카사기히메라는 인어 친구도 있어」
+						PRINTFORMW 「오늘은 있을까?」
+					;妖怪の山　山麓
+					CASE 710 TO 790
+					;	PRINTFORMW 「아직(미구현)」
+					;妖怪の山　山頂
+					CASE 810 TO 890
+					;	PRINTFORMW 「아직(미구현)」
+					;地霊殿
+					CASE 910 TO 990
+					;	PRINTFORMW 「아직(미구현)」
+					ENDSELECT
+				CASE 3
+					PRINTFORMW 「결국 데이트란 건 특별히 뭔가를 하는 건 아니구나」
+					PRINTFORMW 「%조사처리(CALLNAME:MASTER, "와")% 같이 외출하고」
+					PRINTFORMW 「논다든가 이런저런 걸 하면서 추억을 쌓는」
+					PRINTFORMW 「굳이 말한다면 이런 느낌일까」
+				CASE 4
+					IF TIME:2 >=1 && TIME:2 <= 4
+						PRINTFORMW 「이 근처는 밝을 때는 아무렇지도 않지만」
+						PRINTFORMW 「어두워지면 인기척이 없어져서 밤의 얼굴을 비추는 거야」
+						PRINTFORMW 「어때 %CALLNAME:MASTER%? 이번엔 밤 산책이라도 나가지 않을래?」
+					ELSE
+						PRINTFORMW 「역시 이 시간에는 인간은 커녕 요정의 기척도 없네」
+						PRINTFORMW 「그치만 그 덕분에 단 둘이서 있을 수 있겠어……」
+						PRINTFORMW 「쿡쿡, 아무것도 아니야～♪」
+					ENDIF
+				CASE 5
+					PRINTFORMW 「역시 데이트는 긴장되는구나……」
+					PRINTFORMW 「그, 그치만 둘이서 나란히 걷다니」
+					PRINTFORMW 「누군가 봤다간 오해 받잖아…」
+					IF TALENT:MASTER:연인 == NO:63 && TALENT:63:연인 == NO:63
+						PRINTFORMW 「아, 이제 오해가 아니게 되버렸지……」
+						PRINTFORMW 「그건 그것대로 긴장되네……」
+					ENDIF
+				CASE 6
+					PRINTFORMW 「즐겁냐고?」
+					PRINTFORMW 「물론이지, %조사처리(CALLNAME:MASTER, "와")% 같이 있잖아♪」
+					PRINTFORMW 「어디서 뭘하든 %조사처리(CALLNAME:MASTER, "와")% 함께 있으면 즐거워♪」
+				CASE 7
+					PRINTFORMW 「뭔가 이렇게 %조사처리(CALLNAME:MASTER, "와")% 놀고 있으면」
+					PRINTFORMW 「내가 늑대인간라는 걸 잊어버리게 돼」
+					PRINTFORMW 「늑대인간을 자랑스럽게 여겼는데」
+					PRINTFORMW 「%CALLNAME:MASTER% 앞에서는 마치 이빨을 뽑힌 것처럼 되어버려」
+				CASE 8
+					PRINTFORMW 「%조사처리(CALLNAME:MASTER, "는")% 이상의 데이트라던가 있어?」
+					PRINTFORMW 「킥킥, 말해주면 같이 어울려줄게♪」
+				CASE 9
+					PRINTFORMW 「저기 %CALLNAME:MASTER%, 부르잖아!」
+					PRINTFORMW 「아이, 뭘 멍 때리고 있는 거야」
+					PRINTFORMW 「뭔가 생각하고 있었어? 무슨 생각인데? 알려줘～!」
+				CASE 10
+					PRINTFORMW 「후우…… 슬슬 배가 고프네」
+					IF !TIME_PROGRESS(TCVAR:312)
+						PRINTFORMW 「뭐!? 아까 먹고 왔어?」
+						PRINTFORMW 「으…… 그랬었지…」
+						PRINTFORMW 「싫다ー, 이러면 완전히 먹보 캐릭터잖아!」
+					ELSE
+						PRINTFORMW 「어디서 식사라도 할까?」
+					ENDIF
+				CASE 11
+					SELECTCASE TIME:5
+					CASE 0,1
+						PRINTFORMW 「오늘은 날씨가 맑아서 다행이네」
+						PRINTFORMW 「데이트하기 좋은 날이야♪」
+					CASE 2,3
+						PRINTFORMW 「오늘은 좀 흐리네」
+						PRINTFORMW 「비가 안 왔으면 좋겠는데……」
+					CASE 4,6,7
+						PRINTFORMW 「으ㅡ응, 오늘은 비가 내려 버리는구나」
+						PRINTFORMW 「다음에 외출할 때는 꼭 말해줘」
+						PRINTFORMW 「그럼 인형이라도 창문에 걸어둘테니까♪」
+					CASE 8,10,11,12,13
+					;かげわかのイラストが凄くいいので一度見てくれ
+						IF TALENT:MASTER:연인 == NO:63 && TALENT:63:연인 == NO:63
+							PRINTFORMW 「연인과 있을때의 눈은 특별한 기분에 젖어서 나는 좋아해」
+						ELSE
+							PRINTFORMW 「좋아하는 사람과 있을때의 눈은 특별한 기분에 젖어서 나는 좋아해」
+						ENDIF
+						PRINTFORMW 「……미안, 그냥 말하고 싶었어……」
+						PRINTFORMW 「죽을만큼 부끄러워……」
+					CASE 5,9
+						PRINTFORMW 「잠깐 %CALLNAME:MASTER%, 오늘은 날씨도 이런데」
+						PRINTFORMW 「오늘은 돌아가는 게 좋지 않을까…?」
+					ENDSELECT
+				CASE 12
+					PRINTFORMW 「그러고 보니 %조사처리(CALLNAME:MASTER, "는")% 환상향의 어느 장소가 좋아?」
+					$DATESPOT_LOOP
+					PRINTL [0]하쿠레이 신사 [1]인간 마을 [2]안개의 호수 [3]미혹의 죽림
+				;	PRINTL [4]모리야 신사 [5]죽림 [6]홍마관 [7]요괴의 산 [8]명련사 [9]마법의 숲 [10]지저
+					INPUT
+					SELECTCASE RESULT
+					CASE 0
+						PRINTFORMW 「흐ー응. 역시 사는 곳이라 그런거야?」
+						PRINTFORMW 「아니면 그 무녀를……」
+						PRINTFORMW 「농담이야ㅡ」
+					CASE 1
+						PRINTFORMW 「흐ー응, 뭐 가까우니까」
+						IF CFLAG:현재위치 >= 210 && CFLAG:현재위치 <= 290
+							PRINTFORMW 「이렇게 여러가지를 즐길 수 있어서, 싫지는 않지만…」
+						ELSE
+							PRINTFORMW 「나도 자주 가고 싫어하진 않지만…」
+						ENDIF
+						PRINTFORMW 「역시 요괴가 갈 곳은 아니겠지」
+					CASE 2
+						IF CFLAG:현재위치 >= 610 && CFLAG:현재위치 <= 690
+							PRINTFORMW 「후후후, 그래서 데려왔구나. 고마워」
+							PRINTFORMW 「나도 자주 오고, 친구도 살고 있어서 호수는 좋아해」
+						ELSE
+							PRINTFORMW 「그렇구나. 나도 자주 가고 친구도 살고 있어서 좋아」
+						ENDIF
+						PRINTFORMW 「아, 혹시 수영하는 거 좋아해?」
+					CASE 3
+						IF CFLAG:현재위치 >= 410 && CFLAG:현재위치 <= 490
+							PRINTFORMW 「에헤헤, 여기서 캐묻는 건 바보같은 짓이겠네」
+							PRINTFORMW 「그렇게 말해줘서 고마워, %CALLNAME:MASTER%♪」
+						ELSE
+							PRINTFORMW 「아, 그건 혹시 내가 살고 있어서?」
+							PRINTFORMW 「하긴 요괴는 많지만, 자연도 많고 신비로운 곳이니까」
+							PRINTFORMW 「다음에 꼭 가자♪」
+						ENDIF
+					CASEELSE
+						GOTO DATESPOT_LOOP
+					ENDSELECT
+				ENDSELECT
+			;まだ慣れてない
+			ELSE
+				SELECTCASE RAND:9
+				CASE 0,1
+					PRINTFORMW 「데이트에서는 뭘 하면 좋을까…」
+					PRINTFORMW 「많이 안 해봐서 잘 모르겠네」
+				CASE 2,3
+					IF TIME:2 >=1 && TIME:2 <= 4
+						PRINTFORMW 「이 근처는 밝을 때는 아무렇지도 않지만」
+						PRINTFORMW 「어두워지면 인기척이 없어져서 밤의 얼굴을 비추는 거야」
+					ELSE
+						PRINTFORMW 「역시 이 시간에는 인간은 커녕 요정의 기척도 없네」
+						PRINTFORMW 「대신 있는 건 수상한 기색 정도……」
+						PRINTFORMW 「다음엔 밝을 때 오도록 하자」
+					ENDIF
+				CASE 4,5
+					PRINTFORMW 「데이트라고 하니까 좀 떨렸는데」
+					PRINTFORMW 「별거 없었네, 평소 교제의 연장선이잖아」
+				CASE 6,7
+					PRINTFORMW 「즐겁냐구?」
+					PRINTFORMW 「굳이 묻지 않아도 난 충분히 즐기고 있어♪」
+				CASE 8
+					PRINTFORMW 「저기, 잠깐 딴 데로 가지 않을래?」
+					PRINTFORMW 「음, 별 뜻은 없어」
+					PRINTFORMW 「왠지 모르게, 말이지」
+				ENDSELECT
+			ENDIF
+		ENDSELECT
+	ELSEIF DAY:3 != 15 && !TCVAR:354
+		CALL K63_職場見学
+	;ウルフ・レッドムーン
+	ELSEIF !RAND:15
+		EXP:가창경험 ++
+		PRINTFORMW 「소리 쳐ー 이 목소리가ー닿는ー한ー」
+		PRINTFORMW 「갈라지는ー 정적ー 어디까지나ー♪」(ウルフ・レッドムーン)
+	;연모の会話
+	ELSEIF TALENT:연모
+		SELECTCASE RAND:40
+		;幻想郷に英語という概念はある
+		CASE 0
+			PRINTFORMW 「언제나 "늑대남"이라는 소리를 자주 들어버려」
+			PRINTFORMW 「영어로는 "웨어울프"라고 하는데」
+			PRINTFORMW 「"웨어"라는 것도 "남자"라는 뜻인 것 같아」
+			PRINTFORMW 「늑대녀의 수난은 세계 공통인가봐」
+		CASE 1
+			PRINTFORMW 「나는 일본의 늑대녀야」
+			PRINTFORMW 「예전엔 많이 있었지만, 지금은 나만 남아버렸어」
+			$INPUT_LOOP_03
+			PRINTL [0]슬픈 이야기네　[1]정말 혼자야?
+			INPUT
+			SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「후후, 괜찮아. 환상향은 멋진 곳이고」
+				PRINTFORMW 「%CALLNAME:MASTER%도 있으니까♪」
+			CASE 1
+				PRINTFORMW 「하지만 어쩌면 바깥 세상에 생존자가 있을지도」
+				PRINTFORMW 「답답한 바깥 세계에서 살고 있다는 건」
+				PRINTFORMW 「상당히 이성이 강하거나, 혹은 교묘하게 숨는 기술을 가지고 있을지도……」
+			CASEELSE
+				GOTO INPUT_LOOP_03
+			ENDSELECT
+		CASE 2
+			PRINTFORMW 「요괴인데 별로 무섭지 않다고?」
+			PRINTFORMW 「그거야 지금은 사람이니까」
+			PRINTFORMW 「보름달의 밤이 되면 늑대로 변신하니까」
+			$INPUT_LOOP_04
+			PRINTL [0]（힘들겠네）　[1]（귀여워）
+			INPUT
+			SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「하지만 지나친 힘은 자신을 망쳐」
+				PRINTFORMW 「향락에 빠지면 인간으로 돌아갈 수 없게 된 채 사흘 밤낮 날뛰며」
+				PRINTFORMW 「이윽고 죽고 만다고들 하더라」
+			CASE 1
+				PRINTFORMW 「하지만 털이 많아져서 당신에겐 보여줄 수 없어……」
+				PRINTFORMW 「뭐? 머릿결이 좋다고?」
+				PRINTFORMW 「으으, 기쁘지만……」
+				PRINTFORMW 「하지만 안 돼! 절대로 싫어ー!」
+			CASEELSE
+				GOTO INPUT_LOOP_04
+			ENDSELECT
+		CASE 3
+			PRINTFORMW 「귀는 숨길 수가 없어」
+			PRINTFORMW 「그래서 평소에 인간마을로 갈 때는 후드 같은 물리적인 걸로 가리는 거야」
+			PRINTFORMW 「하지만 %CALLNAME:MASTER%에게는 필요 없겠지」
+			PRINTFORMW 「지금 생각해보니 왜 처음부터 괜찮았던걸까? 이상하네」
+		CASE 4
+			IF FLAG:더부살이캐릭터 == 63
+				PRINTFORMW 「신사생활도 이젠 익숙해졌어」
+				PRINTFORMW 「처음에는 당황했지만 의외로 즐거워」
+				PRINTFORMW 「%CALLNAME:MASTER%도 있으니까, 후후, 사치스러운 생활이네♪」
+			ELSE
+				PRINTFORMW 「神社の生活はどうかしら」
+				PRINTFORMW 「내가 할 수 있는 일이라면 도와줄 수 있어」
+				PRINTFORMW 「으음ー 청소…는 안 되겠지……」
+				PRINTFORMW 「아! 식량 조달이라든가!」
+			ENDIF
+		CASE 5
+			PRINTFORMW 「안개의 호수에는 와카사기히메라는 내 인어 친구가 살고 있어」
+			PRINTFORMW 「대범하고 아주 얌전한 아이야」
+			PRINTFORMW 「돌을 모으는 특이한 취미도 있고…」
+			PRINTFORMW 「그리고 노래를 정말 잘 해. 물가에서 노래하는 모습은 환상적이라서」
+			PRINTFORMW 「넋을 잃고 보게된달까～」
+		CASE 6
+			PRINTFORMW 「아무래도 배가 고파서 식량이 없을 때는 몰래 마을로 가는 편이야」
+			PRINTFORMW 「언제나 들키지 않을까 하고 조마조마해……」
+			PRINTFORMW 「그치만 의외로 인간마을에도 요괴는 섞여있잖아」
+			PRINTFORMW 「흐흥♪ 내 후각은 속일 수 없거든」
+		CASE 7
+			PRINTFORMW 「죽림에도 사람이 살고 있는 걸 알고 깜짝 놀랐어」
+			PRINTFORMW 「게다가 가끔 인간답지 않은 다툼도 하고……」
+			PRINTFORMW 「어쨌든 가까이 가지 않는 편이 안전할 것 같아……」
+		CASE 8
+			PRINTFORMW 「바깥 세게의 늑대인간 게임이란 놀이 말인데, 룰을 조금 들었어!」
+			PRINTFORMW 「늑대 인간이 인간에 섞여 매일 밤 한 명씩 먹고 간대」
+			PRINTFORMW 「그렇게 무서운 짓을 할 수 있을리 없잖아……」
+		CASE 9
+			PRINTFORMW 「저기 %CALLNAME:MASTER%, 희귀한 돌 같은거 가진 거 없어?」
+			PRINTFORMW 「아니, 와카사기히메라는 내 친구가 돌 모으기를 좋아해서」
+			PRINTFORMW 「마음이 내켰을 때 협조해 주는 거야」
+			PRINTFORMW 「없다면 딱히 상관 없어」
+		CASE 10
+			PRINTFORMW 「%조사처리(CALLNAME:MASTER, "는")% 늑대가 뭐라고 생각해?」
+			$INPUT_LOOP_05
+			PRINTL [0]날카로운 후각　[1]강인한 송곳니와 발톱 　[2]울려퍼지는 울음소리　[3]복실복실 
+			INPUT
+			SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「그렇구나. 특히 피냄새에는 민감……한 건 아니지만」
+				PRINTFORMW 「상대를 쫓아다닌다는 느낌일까?」
+				PRINTFORMW 「아, 새로운 탄막에 참고하고 싶어서」
+			CASE 1
+				PRINTFORMW 「역시 그렇지～.」
+				PRINTFORMW 「새로운 탄막에 참고하려고 했는데」
+				PRINTFORMW 「역시 날카롭게 찢는 느낌이 좋을까ㅡ」
+			CASE 2
+				PRINTFORMW 「아～우♪ 라는 느낌이네!」
+				PRINTFORMW 「변신했을 때는 상쾌한데 인간으로 있을 때는 부끄럽네……」
+				PRINTFORMW 「포효계는 강력하지만 그다지 볼품없단 말이지ㅡ」
+				PRINTFORMW 「아, 새로운 탄막에 참고하고 싶어서」
+			CASE 3
+				PRINTFORMW 「뭐어!? 정말ㅡ! 새로운 탄막에 참고하려고 했는데!」
+				PRINTFORMW 「복실복실은 뭐야～! 전혀 참고가 안 되잖아～」
+				PRINTFORMW 「%CALLNAME:MASTER%에게 물어본 게 실수였을까……」
+			CASEELSE
+				GOTO INPUT_LOOP_05
+			ENDSELECT
+		CASE 11
+			PRINTFORMW 「밤중에 멀리서 울부짖는 소리가 들려도 나는 아니니까!」
+			PRINTFORMW 「내가 우는 건 보름달이 뜨는 날뿐!」
+			PRINTFORMW 「그거 변신한 상태에서는 상쾌하거든♪」
+			PRINTFORMW 「근데 인간으로 있을 때는 조금 부끄러워서……」
+		CASE 12
+			IF FLAG:더부살이캐릭터 ==63
+				PRINTFORMW 「신사생활도 꽤 즐거운걸」
+				PRINTFORMW 「무녀랑 사는 건 조금 무섭지만」
+				PRINTFORMW 「소문대로 너그러운 인간으로 살았어」
+				PRINTFORMW 「무엇보다 %조사처리(CALLNAME:MASTER, "가")% 있어줄 테니까♪」
+			ELSE
+				PRINTFORMW 「가끔은 신사에서 있었던 재미있는 일 들려줘」
+				PRINTFORMW 「뭔가 없어?」
+				PRINTFORMW 「그 무녀의 약점을 잡았다든가, 같은거」
+				PRINTFORMW 「반대로 %조사처리(CALLNAME:MASTER, "가")% 약점을 잡혔다든가?」
+			ENDIF
+		CASE 13
+			PRINTFORMW 「예전에는 늑대인간이라고 하면 다들 무서워했어」
+			PRINTFORMW 「근데 퇴치되거나 하면서 수가 줄어들어서」
+			PRINTFORMW 「공포의 대상이 되지 않게 되고 결국은 존재를 잊혀져」
+			PRINTFORMW 「정신을 차렸을 때는 이곳에 넘어와 버렸어」
+		CASE 14
+			PRINTFORMW 「풀뿌리 요괴 네트워크가 뭐냐고?」
+			PRINTFORMW 「주로 단독 행동을 하는 요괴끼리 독자적으로 만들어 낸 정보망을 말하는 거야」
+			PRINTFORMW 「참가 멤버는……」
+			PRINTFORMW 「아 맞다, %CALLNAME:MASTER%같은 인간에게는 가르쳐줄 수 없는게 규칙이었어」
+		CASE 15
+			PRINTFORMW 「죽림 입구에서 가끔씩 밤참새가 포장마차를 하고 있어」
+			PRINTFORMW 「칠성장어는 냄새가 심하지만 꽤 맛있어」
+			PRINTFORMW 「괜찮다면 다음에 같이 가지 않을래?」
+		CASE 16
+			PRINTFORMW 「보름달에 변신하는 요괴는 늑대인간뿐만이 아니야」
+			PRINTFORMW 「『와』……뭐였지……」
+			PRINTFORMW 「그렇지!『와』가 아니라『워』였어」
+			PRINTFORMW 「그리고, 그게ー …워…… 어라? 뭐였을까?」
+		CASE 17
+			PRINTFORMW 「으ー, 배고파졌어～」
+			PRINTFORMW 「고기가 먹고 싶어～」
+			PRINTFORMW 「저기 %CALLNAME:MASTER%, 당신은 배고프지 않아?」
+			PRINTFORMW 「어디서 먹고 가자～」
+		CASE 18
+			PRINTFORMW 「꾸벅꾸벅……」
+			PRINTFORMW 「어제 잠을 못자서 졸려……」
+		CASE 19
+			PRINTFORMW 「요새 인간마을이 어수선하다던데 무슨 일이 있었던걸까?」
+			PRINTFORMW 「뭐 의외로 가까운 곳에 요괴가 도사리고 있으니까」
+			PRINTFORMW 「딱히 하루 이틀도 아니고……」
+			PRINTFORMW 「내, 내가 한 거 아니야!」
+		CASE 20
+			PRINTFORMW 「바깥 세계에는『케시그』라는 늑대인간의 성지가 있다고 하던데」
+			PRINTFORMW 「하지만 환상향에만 늑대인간이 있으니까 진작에 죽었겠지?」
+			PRINTFORMW 「애초에 늑대인간의 성지란 게 대체 무슨 의미야?」
+			PRINTFORMW 「밤새도록 울부짖는 곳이야?」(매직 더 개더링)
+		CASE 21
+			IF FLAG:더부살이캐릭터 == 63
+			ELSE
+				PRINTFORMW 「나는 사각의 죽림에 살고 있어」
+				PRINTFORMW 「언제부턴가 달맞이 명소가 되어버려서, 어느새 거기서 살게 되버렸어」
+				PRINTFORMW 「영원정의 토끼들과도 다소 안면은 있지만」
+				PRINTFORMW 「거기 사는 사람들이 달에서 왔다던데 정말일까?」
+			ENDIF
+		CASE 22
+			PRINTFORMW 「보름달을 제일 좋아하지만 초승달도 운치가 있어서 좋아」
+			PRINTFORMW 「반달은 왠지 맛있어 보여……」
+			PRINTFORMW 「“다음 밤에서 지는 보름달보다 14번째 달이 제일 좋아”」
+			PRINTFORMW 「라는 시도 있다든가」
+			PRINTFORMW 「후후, 재미있는 말을 하네」(아라이 유이 《14番目の月》)
+		CASE 23
+			PRINTFORMW 「옛날엔 사냥을 하고 지내서, 지금도 작은 동물 정도는 사냥할 수 있어」
+			PRINTFORMW 「근데 변신하지 않으면 잘 안 되고 사람들이 헷갈려하는 것도 무서웠으니까」
+			PRINTFORMW 「나는 늑대인간 중에서 낙오자였나봐」
+			PRINTFORMW 「다행인지 불행인지 그 덕분에 끝까지 살아남아 버렸어」
+		CASE 24
+			PRINTFORMW 「우동인가 소바인가 고르면? 그거야 츠키미소바지!」
+			PRINTFORMW 「응, 츠키미우동?」
+			PRINTW 
+			PRINTFORMW 「그런 것도 있었구나」
+			PRINTFORMW 「관계는 없지만 그 계란을 국물에 풀어서 덮밥 자체를 달에 비춘다는 설도 있다던가」
+			PRINTFORMW 「으ー음, 하지만 난 그냥 먹는 게 더 좋아」
+		CASE 25
+			PRINTFORMW 「최근에 생긴 절도 뭔가 성황이 있나 보네」
+			PRINTFORMW 「정말이지 인간과 요괴가 친해지다니」
+			PRINTFORMW 「저런 구멍 때문에 전체적인 밸런스가 무너지지 않았으면 좋겠는데」
+			PRINTFORMW 「……근데, 남한테 뭐라 말할 처지는 아니구나, 아하하……」
+		CASE 26
+			PRINTFORMW 「이 드레스의 무늬?」
+			PRINTFORMW 「그럼 무엇일까요!?」
+			CALL ASK_YN("억새의 달","뭐야")
+			IF !RESULT
+				PRINTFORMW 「정답～! 억새(すすき)의 달이야! 20점!」
+				PRINTFORMW 「억새는 8월, 엽월의 도안인 그 8광이야」
+				PRINTFORMW 「9월 국화에 술잔과 가지런히 놓으니 달맞이술!」
+				PRINTFORMW 「나 이 그림이 정말 좋아♪」
+			ELSE
+				PRINTFORMW 「화투패중에 억새과 달이 있는 패야」
+				PRINTFORMW 「본 적 없어? 검은 반원에 빨간 하늘인데」
+				PRINTFORMW 「하얀 보름달이 왼쪽 위에 둥둥 떠 있는거야」
+			ENDIF
+		CASE 27
+			PRINTFORMW 「저기 %CALLNAME:MASTER%, 낮과 밤 중에 어느 쪽이 좋아?」
+			$INPUT_LOOP_07
+			PRINTL [0] 낮
+			PRINTL [1] 밤
+			INPUT
+			SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「어라, 솔직하네」
+				SELECTCASE TIME:3
+				;18시 이후 일어나기
+				CASE 1080 TO 1440,0 TO 240
+					PRINTFORMW 「그런 말을 하는 것 치고는 밤을 새고 있지 않아～?」
+					PRINTFORMW 「%조사처리(CALLNAME:MASTER, "가")% 낮에 깨어있는 걸 본 적이 없다구?」
+				CASEELSE
+					PRINTFORMW 「뭐 %CALLNAME:MASTER%도 역시 인간이구나」
+					PRINTFORMW 「날이 밝을 때 생활을 영위하는 것이 당연한거겠지」
+					PRINTFORMW 「애초에 좋고 싫은 문제가 아니기도 하니까」
+				ENDSELECT
+			CASE 1
+				PRINTFORMW 「후훗, 나랑 똑같네」
+				SELECTCASE TIME:3
+				;18時以降起き
+				CASE 1080 TO 1440,0 TO 240
+					PRINTFORMW 「완전히 야행성이 되버렸으니까」
+					PRINTFORMW 「그러다가 이상한 능력에라도 눈을 떴다간」
+					PRINTFORMW 「사람의 길에서 벗어나 버릴지도 몰라?」
+				CASEELSE
+					PRINTFORMW 「밤의 고요, 맑은 공기, 불안과 고양에 넘치는 마음」
+					PRINTFORMW 「그런 밤의 매력에 홀린다면」
+					PRINTFORMW 「당신도 야행성이 되어버릴 거야」
+				ENDSELECT
+			CASEELSE
+				GOTO INPUT_LOOP_07
+			ENDSELECT
+		CASE 28
+			PRINTFORMW 「저기저기, 다음에 책을 써볼까 생각 중이야」
+			PRINTFORMW 「늑대인간이 쓴 책이라면 틀림없이 비싸게 팔릴 거야!」
+			PRINTFORMW 「문제는 뭐에 대해서 쓰느냐인데…」
+			PRINTFORMW 「어느쪽이 좋을 것 같아?」
+			$INPUT_LOOP_08
+			PRINTL [0] “큰 늑대인간의 알려지지 않은 그 생태”
+			PRINTL [1] “늑대 인간에게 배우는 요괴 잠복술”
+			INPUT
+			SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「그렇구나, 이쪽은 나에 대해서 쓰면 되겠지만」
+				PRINTFORMW 「문제는 요괴인 자신에 대해 적나라하게 말해도 되느냐는 건데」
+				PRINTFORMW 「아 근데 대충 꾸며대면 평가를 높게 쳐줄 수도 있어!」
+			CASE 1
+				PRINTFORMW 「그렇구나, 이쪽은 내가 잘하는 분야를 쓰면 되는데」
+				PRINTFORMW 「문제는 인간에게 가르쳐줘도 되는 것인가 인데……」
+				PRINTFORMW 「반대로 요괴에게 팔아넘긴다는 것은 어떨까!」
+			CASEELSE
+				GOTO INPUT_LOOP_08
+			ENDSELECT
+		CASE 29
+			$INPUT_LOOP_09
+			PRINTFORMW 「있잖아 %조사처리(CALLNAME:MASTER, "는")% 어떤 걸 잘해?」
+			PRINTL [0]청소 [1]요리 [2]전투 [3]엣찌
+			INPUT
+			SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「와아～! 보기와는 달리 깔끔한 성격이구나」
+				IF  EXP:MASTER:이상청소경험 > 100
+					PRINTFORMW 「근데 뭔가 이상하게 낌새가 풍기는 것 같은……」
+					PRINTFORMW 「너, 너무 깔끔떠는 것도 적당히 해야 해?」
+				ELSEIF ABL:MASTER:청소기능 > 2
+					PRINTFORMW 「확실히 언제 봐도 신사는 청소되어 있었지?」
+					PRINTFORMW 「설마 그게 %CALLNAME:MASTER%의 공적이었다니」
+				ELSE
+					PRINTFORMW 「뭐어ㅡ, 그 무녀랑 같이 살고 있다면」
+					PRINTFORMW 「싫어도 청소를 시켰겠지…」
+				ENDIF
+			CASE 1
+				PRINTFORMW 「우와～! 의외로 재주가 좋구나」
+				IF ABL:MASTER:요리기능 > 2
+					PRINTFORMW 「저기저기! 나중에 나한테도 요리 가르쳐줘!」
+					PRINTFORMW 「평소에는 통으로 굽거나, 그대로 먹어버리니까 몸에 배지 않아서……」
+					PRINTFORMW 「아앗! 그대로라는 건 물론 변신해 있을 때 뿐이니까!!」
+				ELSE
+					PRINTFORMW 「나는 전혀 아니라서 부러워～」
+					PRINTFORMW 「혹시 식사 당번 같은 거 있어?」
+				ENDIF
+			CASE 2
+				PRINTFORMW 「그렇구나ー, 그건 탄막승부를 말하는 거지?」
+				IF ABL:MASTER:전투능력 > 2
+					PRINTFORMW 「나도 나름대로 자신은 있는데」
+					PRINTFORMW 「다음에 한 수 배워볼까?」
+				ELSE
+					PRINTFORMW 「흐흥, 그래도 나에게 당할 수는 없을걸?」
+					PRINTFORMW 「나는 이렇게 봐도 3면 보스……가 아니라, 상당한 실력자야」
+				ENDIF
+			CASE 3
+				PRINTFORMW 푸흡!
+				PRINTL
+				PRINTFORMW 「갑자기 무슨 말을 하는거야! 콜록콜록!」
+				PRINTFORMW 「지, 지금 그런 걸 묻는 게 아니잖아! 이 바보!」
+			CASEELSE
+				GOTO INPUT_LOOP_09
+			ENDSELECT
+		CASE 30
+			;怪物くんを見ておけばと思った
+			PRINTFORMW 「흡혈귀의 저택, 홍마관은 알고 있지?」
+			PRINTFORMW 「거기의 메이드가 저택에서 늑대남 놀이를 하고 있다고 말했어」
+			PRINTFORMW 「으으…… 너무 얕보인 것 같아서 열받긴 한데……」
+			PRINTFORMW 「어떤 놀이인지 궁금해 죽겠어……」
+		CASE 31
+			PRINTFORMW 「영원정이 죽림 근처에 있어서 갈 수 있으면 바로 갈 수는 있는데」
+			PRINTFORMW 「별로 놀러갈 분위기가 못 돼」
+			PRINTFORMW 「조금만 가까이 다가가면 경계가 너무 심해서」
+			PRINTFORMW 「설마 내가 늑대라서……?」
+		CASE 32
+			PRINTFORMW 「요괴의 산? 나도 알고 있어」
+			PRINTFORMW 「멀어서 가 본 적은 없지만 이래뵈도 요괴 나부랭이니까」
+			PRINTFORMW 「근데 솔직히 말해서 산은 강자들이 많아 보여서 무서워……」
+			PRINTFORMW 「분명히 산의 무녀는 간이 큰 거겠지……?」
+		CASE 33
+			PRINTFORMW 「헤에～, 구지옥에는 온천이 있구나」
+			PRINTFORMW 「아, 그래서 신사에서도 온천이 솟아나는구나」
+			PRINTFORMW 「지옥에서 데운 온천인가…… 약간 들어가보고 싶어졌어……」
+		CASE 34
+			;少なくとも面識はあるでしょうから
+			PRINTFORMW 「키리사메 마법점은 마리사의 집, 상점을 했었구나」
+			PRINTFORMW 「요전에 가봤더니 이상한 물건을 살 뻔 했어」
+			PRINTFORMW 「그리고 괜히 버섯이 많았어. 좋아하는거겠지 분명히」
+			PRINTFORMW 「그것보다 나는 고기가 먹고 싶어」
+		CASE 35
+			PRINTFORMW 「응?…… 킁킁」
+			SELECTCASE TIME:5
+			;そんな機能はない
+			CASE 0,1,2,3
+				PRINTFORMW 「왠지 비가 올 것 같은 분위기네…」
+			CASEELSE
+				PRINTFORMW 「왠지 맑아질 것 같은 분위기네…」
+			ENDSELECT
+		CASE 36
+			PRINTFORMW 「오늘은 바람이 많이 부네」
+			IF DAY:2 == 3 && DAY:3 == 1
+				PRINTFORMW 「아! 210일째였구나!」
+			ELSEIF DAY:2 == 1 && DAY:3 < 11
+				PRINTFORMW 「봄바람의 시작일까?」
+			ELSEIF DAY:2 == 4
+				PRINTFORMW 「추워 죽을 것 같아……」
+			ELSE
+				PRINTFORMW 「으응～ 시원해서 기분 좋아♪」
+			ENDIF
+		CASE 37
+			PRINTFORMW 「그러니까ー 이번 달 예정이……」
+			SELECTCASE DAY:2
+			CASE 1
+				PRINTFORMW 「설날, 히나마츠리, 어머니의 날, 화이트데이, 예대제」
+			CASE 2
+				PRINTFORMW 「칠석, 오봉」
+			CASE 3
+				PRINTFORMW 「210일, 정월, 수확제, 할로윈」
+			CASE 4
+				PRINTFORMW 「절분, 밸런타인데이, 크리스마스, 이브, 섣달 그믐날」
+			ENDSELECT
+			PRINTFORMW 「이상!」
+			PRINTFORMW 「축제의 예정이야♪」
+			SIF DAY:2 == 3 && DAY:3 < 15
+				PRINTFORMW 「정월이 기다려져～♪」
+		CASE 38
+			SELECTCASE ABL:MASTER:화술기능
+			CASE IS > 4
+				PRINTFORMW 「%조사처리(CALLNAME:MASTER, "는")% 말주변이 좋잖아」
+				PRINTFORMW 「좀처럼 흉내낼 수 없는 스킬이야, 그거」
+				PRINTFORMW 「%TEXTR("신사의 선전/결투의 실황")%에서도 발휘할 수 있지 않을까?」
+			CASE 4
+				PRINTFORMW 「%조사처리(CALLNAME:MASTER, "는")% 말하는 걸 좋아하는구나」
+				PRINTFORMW 「나도 이야기하는 게 즐겁고, 말 맞추기도 쉬워」
+				PRINTFORMW 「상담원이라도 해보면 어때?」
+			CASE 3
+				PRINTFORMW 「%조사처리(CALLNAME:MASTER, "는")% 말하는 거 좋아해?」
+				PRINTFORMW 「아니, 말을 잘하는구나~ 하고 생각했을 뿐이야」
+				PRINTFORMW 「누구와도 사이좋게 지낼 수 있어서 부러워」
+			CASEELSE
+			;いくらでもではない
+				PRINTFORMW 「왠지 맨날 나만 얘기해서 미안하네」
+				PRINTFORMW 「가끔씩은 %CALLNAME:MASTER%도 얘기해줘」
+				PRINTFORMW 「내가 얼마든지 어울려 줄게」
+			ENDSELECT
+		CASE 39
+			PRINTFORMW 「킁킁…… 늑대니까…… 킁킁……」
+			PRINTFORMW 「코가 좋으니까…… 킁킁……」
+			CALL KUNKUN_KAGEROU
+		ENDSELECT
+	;会話不能
+	ELSEIF TCVAR:302
+		PRINTFORMW 「어라? 왜 그래?」
+		PRINTFORMW 「…………………」
+
+	;普段の会話
+	ELSE
+		SELECTCASE RAND:30
+		CASE 0
+			PRINTFORMW 「언제나 "늑대남"이라는 소리를 자주 들어버려」
+			PRINTFORMW 「늑대인간＝늑대남이라는 이미지가 너무 강하니까」
+			PRINTFORMW 「늑대남이라는 어감이 좋아서 그런걸까?」
+		CASE 1
+			PRINTFORMW 「나는 일본의 늑대녀야」
+			PRINTFORMW 「예전엔 많이 있었지만, 지금은 나만 남아버렸어」
+			PRINTFORMW 「아, 별로 슬프진 않아」
+			PRINTFORMW 「멋진 장소를 찾았으니까」
+		CASE 2
+			PRINTFORMW 「별로 안 무섭다고?」
+			PRINTFORMW 「그야 지금은 인간이니까」
+			PRINTFORMW 「보름달이 뜬 밤이 되면 그것은 무서운 영악한 늑대가 될 거야」
+			IF TALENT:사모
+				SELECTCASE RAND:2
+				CASE 0
+					PRINTFORMW 「후후후…… 늑대의 힘은 무서운 거야. 당신따위」
+					PRINTFORMW 「앗」
+					PRINTFORMW 「하는 사이에 갈기갈기 찢어질 수도 있어」
+				CASE 1
+					PRINTFORMW 「하지만 털이 많아지기도 하고 빠진 털 관리도 귀찮아서……」
+					PRINTFORMW 「아ー 싫다 싫어, 아무튼 보름달이 뜬 날은 가까이 오지 않도록 해」
+				ENDSELECT
+			ELSE
+				PRINTFORMW 「후후후…… 목숨이 아깝다면 보름달이 뜬 날에는 조심하도록 해」
+			ENDIF
+		CASE 3
+			PRINTFORMW 「귀는 숨길 수가 없어」
+			PRINTFORMW 「그래서 보통 사람들 앞에 나갈 때는 물리적으로 가리는데……」
+			PRINTFORMW 「당신이라면 그럴 필요는 없겠지」
+			PRINTFORMW 「왜냐니, 처음에 말해버렸으니까……」
+		CASE 4
+			PRINTFORMW 「신사의 생활은 어때?」
+			PRINTFORMW 「연일 북적대니까 심심하지 않을 것 같아」
+			PRINTFORMW 「그래서 나도 가끔 놀러가는데」
+			PRINTFORMW 「그 무녀는 약간의 스릴같은 거야」
+		CASE 5
+			PRINTFORMW 「안개의 호수에는 인어가 살고 있어」
+			IF TALENT:사모
+				PRINTFORMW 「와카사기히메라고 해」
+				PRINTFORMW 「처음 만났을 때는 잘못해서 먹을 뻔했어♪」
+				PRINTFORMW 「아하하, 지금은 사이좋게 지내니까 괜찮아」
+			ELSE
+				PRINTFORMW 「알고 있었어?」
+			ENDIF
+		CASE 6
+			PRINTFORMW 「아무래도 배가 고파서 식량이 없을 때는 몰래 마을로 가는 편이야」
+			PRINTFORMW 「귀는 가리면 괜찮은데… 사실……」
+			PRINTFORMW 「냄새 때문에 들킬까 봐……」
+		CASE 7
+			PRINTFORMW 「죽림에도 사람이 살고 있는 걸 알고 깜짝 놀랐어」
+			PRINTFORMW 「오래 전부터 있던 것 같고, 가끔씩 죽을 각오로 싸우기까지 하고……」
+			PRINTFORMW 「정말로 인간일까?」
+		CASE 8
+			PRINTFORMW 「바깥 세계에는 늑대인간 게임이라는 놀이가 있다던데」
+			PRINTFORMW 「무슨 놀이일까?」
+			PRINTFORMW 「보름달이 뜬 밤에 서로 울부짖는다든가?」
+		CASE 9
+			PRINTFORMW 「저기, 희귀한 돌 같은거 가진 거 없어?」
+			PRINTFORMW 「아니, 내가 원하는 건 아니고……」
+			PRINTFORMW 「어, 없다면 됐어, 정말이야」
+		CASE 10
+			PRINTFORMW 「당신, 내가 개 요괴라고 생각했지?」
+			PRINTFORMW 「큰 코 다칠거야. 오늘 밤은 조심하도록 해」
+			PRINTFORMW 「하기야, 요괴보다 훨씬 무서운 감시가 있는 한 그런 일을 하고 싶어도 할 수 없어」
+		CASE 11
+			PRINTFORMW 「밤중에 멀리서 울부짖는 소리가 들려도 나는 아니니까!」
+			PRINTFORMW 「난 그런 짓은 안 해!」
+			PRINTFORMW 「……보름달이 떴을 때는 예외지만」
+		CASE 12
+			PRINTFORMW 「가끔은 신사에서 있었던 재미있는 일 들려줘」
+			PRINTFORMW 「뭔가 없어?」
+			PRINTFORMW 「그 무녀의 약점을 잡았다든가, 같은거」
+		CASE 13
+			PRINTFORMW 「예전에는 늑대인간이라고 하면 다들 무서워했어」
+			PRINTFORMW 「그래서 우쭐해하던 시기도 있었지만」
+			PRINTFORMW 「생각해 보니 성미에 안 맞았던 것 같네」
+			PRINTFORMW 「요괴도 편하지만은 않아」
+		CASE 14
+			PRINTFORMW 「풀뿌리 요괴 네트워크?」
+			PRINTFORMW 「왜 당신이 알고 있는거야」
+			PRINTFORMW 「그건 나 같은, 그……」
+			PRINTFORMW 「연약한 요괴를 위해 있는거야!」
+		CASE 15
+			PRINTFORMW 「죽림 입구에서 가끔씩 밤참새가 포장마차를 하고 있어」
+			PRINTFORMW 「근처라서 자주 가지만 꽤 맛있어」
+		CASE 16
+			PRINTFORMW 「보름달에 변신하는 요괴는 늑대인간뿐만이 아니야」
+			PRINTFORMW 「『와』……뭐였지……」
+			PRINTFORMW 「어쨌든『와』가 붙는 애들은 대부분 그랬을 거야」
+		CASE 17
+			PRINTFORMW 「으ー, 배고파졌어～」
+			PRINTFORMW 「고기가 먹고 싶어～」
+		CASE 18
+			PRINTFORMW 「꾸벅꾸벅……」
+			PRINTFORMW 「어제 잠을 못 자서 졸려……」
+		CASE 19
+			PRINTFORMW 「요새 인간마을이 어수선하다던데 무슨 일이 있었던걸까?」
+			PRINTFORMW 「나, 나는 아무 것도 몰라」
+		CASE 20
+			PRINTFORMW 「바깥 세계에는『케시그』라는 자의 성지가 있다던가」
+			PRINTFORMW 「하지만 환상향에만 늑대인간이 있으니까 진작에 죽었겠지?」
+		CASE 21
+			PRINTFORMW 「나는 죽림에서 살고 있어」
+			PRINTFORMW 「언제부턴가 달맞이 명소가 되어버려서, 어느새 거기서 살게 되버렸어」
+		CASE 22
+			PRINTFORMW 「보름달을 제일 좋아하지만 초승달도 운치가 있어서 좋아」
+			PRINTFORMW 「반달은 왠지 맛있어 보여……」
+		CASE 23
+			PRINTFORMW 「옛날엔 사냥을 하고 지내서, 지금도 작은 동물 정도는 사냥할 수 있어」
+			PRINTFORMW 「하지만 변신하지 않으면 쉽게 안 되더라구」
+		CASE 24
+			PRINTFORMW 「우동인가 소바인가 고르면? 그거야 츠키미소바지!」
+			PRINTFORMW 「응, 츠키미우동?」
+			PRINTW 
+			PRINTFORMW 「그런 것도 있었구나」
+		CASE 25
+			PRINTFORMW 「저기, 이제 와서 말하는 것도 그렇긴 하지만」
+			PRINTFORMW 「내가 늑대인간이라고 인간마을에서 말하지 마?」
+			PRINTFORMW 「사활이 걸린 문제니까」
+		CASE 26
+			PRINTFORMW 「최근에 생긴 절도 뭔가 성황이 있나 보네」
+			PRINTFORMW 「정말이지, 인간과 요괴가 친해지다니」
+			PRINTFORMW 「저런 구멍 때문에 전체적인 밸런스가 무너지지 않았으면 좋겠는데」
+			SIF TALENT:사모
+				PRINTFORMW 「벼, 별로 부럽지 않아!」
+		CASE 27
+			PRINTFORMW 「이 드레스가 예쁘다고? 어머 고마워!」
+			PRINTFORMW 「이 무늬 뭔지 알겠어?」
+			$INPUT_LOOP_01
+			PRINTL [0] 안다　[1] 모른다
+			INPUT
+			SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「그래 맞아, 화투야. 억새의 달이라는 20점의 무늬」
+				PRINTFORMW 「나 이 그림이 정말 좋아!」
+			CASE 1
+				PRINTFORMW 「화투의 억새와 달이 있는 그림이 모티프야」
+				PRINTFORMW 「실문은 가지고 있지 않지만, 누군가는 가지고 있을 테니까 다음에 보여달라고 해봐」
+			CASEELSE
+				GOTO INPUT_LOOP_01
+			ENDSELECT
+		CASE 28
+			PRINTFORMW 「저기 낮과 밤 중에 어느 쪽이 좋아?」
+			$INPUT_LOOP_02
+			PRINTL [0] 낮　[1] 밤
+			INPUT
+			SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「뭐 그게 보통이겠지. 밤에는 우리 요괴들의 시간이니까 조심해」
+			CASE 1
+				PRINTFORMW 「삐뚤어졌네. 혹시 밤낮이 뒤바뀌는 거 아니야? 피부에 안 좋을거야」
+			CASEELSE
+				GOTO INPUT_LOOP_02
+			ENDSELECT
+		CASE 29
+			PRINTFORMW 「킁킁…… 늑대니까…… 킁킁……」
+			PRINTFORMW 「코는 좋으니까…… 킁킁……」
+			CALL KUNKUN_KAGEROU
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURN 1
+
+@K63_WEATHER
+;百:季節 十:昼夜 一:天気 0,虹 9,DD 1,晴れ 2,曇り 3,雨 4,大雨 5,雪 6,吹雪
+CALL OTENKI_KAGEROU(DAY:2)
+SELECTCASE RESULT
+CASE 110,210,310,410
+	PRINTFORMW 「아! %CALLNAME:MASTER%! 무지개야 무지개!」
+	PRINTFORMW 「왠지 이득을 본 기분이야!」
+CASE 120,220,320,420
+	PRINTFORMW 「아! %CALLNAME:MASTER%! 무지개야 무지개!」
+	PRINTFORMW 「달빛에 무지개가 생기다니 로맨틱해～♪」
+CASE 419,429
+;見てみたい
+	PRINTFORMW 「어라? 뭔가 반짝반짝 빛나네」
+	PRINTFORMW 「아ㅡ, 다이아몬드 더스트라고 하는구나」
+	PRINTFORMW 「진짜 보석 같아서 멋져～♪」
+CASE 111
+	PRINTFORMW 「아ー 포근한 날씨, 기분 좋아～」
+	PRINTFORMW 「그냥 잠들고 싶을 정도야……」
+CASE 211
+	PRINTFORMW 「더워……」
+	PRINTFORMW 「이 옷 통기성이 좋아서 보기보다는 시원해」
+	PRINTFORMW 「그래도 역시 덥긴 더워……」
+CASE 311
+	PRINTFORMW 「으ーー응, 정말 상쾌한 날씨네」
+	PRINTFORMW 「이대로 밤까지 맑지는 않을까?」
+CASE 411
+	PRINTFORMW 「추워…… 추워추워……」
+	PRINTFORMW 「이런 날이라 그런지 늑대라서 다행이라는 생각이 들지도……」
+CASE 121
+;仕様上夜の時間帯は一定である
+	PRINTFORMW 「이 계절의 밤은 눈 깜짝할 사이에 끝나버려」
+	PRINTFORMW 「봄밤의 꿈과 같이…말이지」
+	SIF FLAG:더부살이캐릭터 == 63
+		PRINTFORMW 「아니면 팔베개가 좋을까♪」
+CASE 221
+	PRINTFORMW 「역시 밤은 좀 서늘하네」
+	PRINTFORMW 「더운 날이 계속되면 참을 수가 없어……」
+	PRINTFORMW 「이 계절에는 털빠짐이 심해서……」
+CASE 321
+	SELECTCASE DAY:3
+	CASE 1 TO 14
+	PRINTFORMW 「이번 달에는 정월이 있네」
+	PRINTFORMW 「날씨가 갤지 조금 걱정이야」
+		SIF TALENT:연모
+			PRINTFORMW 「뭐 여차하면……아니, 아무것도 아니야」
+	CASE 15
+		IF TCVAR:351
+			PRINTFORMW 「또 내년에 달구경 하자, %CALLNAME:MASTER%!」
+		ELSE
+			PRINTFORMW 「저기저기, %CALLNAME:MASTER%! 오늘은 정월이야!」
+			PRINTFORMW 「같이 달구경 하자!」
+		ENDIF
+	CASE 16 TO 31
+		PRINTFORMW 「아무래도 가을 밤 공기는 맑고 기후도 쾌적해서」
+		PRINTFORMW 「달도 예쁘고 좋은 일만 가득할 것 같아～!」
+	ENDSELECT
+CASE 421
+	PRINTFORMW 「겨울에는 공기가 맑아서 그런지, 별이 빛나는 하늘이 아름답네～」
+	PRINTFORMW 「뭐라고 했더라, 그 별 세 개…」
+	PRINTFORMW 「…그리고 겨울의 대삼각형도 멋지네♪」
+CASE 112,212,312,412
+	PRINTFORMW 「어두침침한 날씨네」
+	PRINTFORMW 「비가 안 왔으면 좋겠는데……」
+CASE 122,222,322,422
+	PRINTFORMW 「흐려서 달이 안 보이네……」
+	PRINTFORMW 「보름달이 아니라도 달은 보고 싶은 법이야」
+CASE 113,123
+	PRINTFORMW 「정말 공교로운 날씨네……」
+	PRINTFORMW 「봄비……는 어째서 봄비일까?」
+CASE 213,223
+	PRINTFORMW 「으ー…… 이 시기의 비는 끈적끈적해서 싫어」
+	PRINTFORMW 「왜 비가 오는데 시원해지지 않는 걸까」
+CASE 313,323
+;そんなことはない
+	PRINTFORMW 「정말 공교로운 날씨네……」
+	PRINTFORMW 「뭐어, 이맘때는 내리기 쉬우니까 어쩔 수 없지」
+	SIF TIME:3 == 3
+		PRINTFORMW 「말 그대로 비가 오는 밤의 달이네」
+CASE 413,423
+	PRINTFORMW 「으으…… 차가운 비는 뼛속까지 스며드는 것 같아……」
+	PRINTFORMW 「차라리 눈이 되어 주는 편이 좋을 텐데……」
+CASE 114,124,214,224,314,324,414,424
+	PRINTFORMW 「꽤나 거친 날씨네ー」
+	IF AT_HOME(MASTER) == 0
+		PRINTFORMW 「빨리 집에 돌아가는 편이 좋지 않을까?ㄴㄴ」
+	ELSEIF OUTROOF(CFLAG:MASTER:현재위치)
+		IF FLAG:더부살이캐릭터 == 63
+			PRINTFORMW 「자자, 방으로 돌아가자!」
+		ELSEIF TALENT:연모
+			PRINTFORMW 「저기…… 괜찮다면 방에 들여보내 줄래…?」
+		ELSE
+			PRINTFORMW 「%CALLNAME:MASTER%, 비 피하지 않는 거야?」
+		ENDIF
+	ELSE
+		IF FLAG:더부살이캐릭터 == 63
+			PRINTFORMW 「오늘은 방에서 느긋하게 있자♪」
+		ELSE
+			PRINTFORMW 「당분간은 발이 묶이겠어……」
+		ENDIF
+	ENDIF
+CASE 415,425
+;狼は庭駆け回る
+	PRINTFORMW 「봐 눈이야! 눈!」
+	PRINTFORMW 「추운 건 싫지만 눈은 오내지 기분 좋아져!」
+CASE 416,426
+	PRINTFORMW 「꺄아ー! 엄청난 눈보라!!」
+	IF AT_HOME(MASTER) == 0
+		PRINTFORMW 「이러다 못 돌아가겠어－!?」
+	ELSEIF OUTROOF(CFLAG:MASTER:현재위치)
+		IF FLAG:더부살이캐릭터 == 63
+			PRINTFORMW 「빨리 방으로 피신하자!」
+		ELSEIF TALENT:연모
+			PRINTFORMW 「부탁이야! 방에 들여보내 줘～!」
+		ELSE
+			PRINTFORMW 「으음ㅡ, 어떻게 돌아가지」
+		;	PRINTFORMW 「미안해, 오늘은 이만 돌아갈게……」
+		;	CALL KAGEROU_ESCAPE
+		ENDIF
+	ELSE
+		IF FLAG:더부살이캐릭터 == 63
+			PRINTFORMW 「오늘은 방 안에서 따뜻하게 지낼까♪」
+		ELSEIF TALENT:연모
+			PRINTFORMW 「당분간은 못 가겠네……」
+		ELSE
+			PRINTFORMW 「으음ㅡ, 어떻게 돌아가지」
+		;	PRINTFORMW 「미안해, 오늘은 이만 돌아갈게……」
+		;	CALL KAGEROU_ESCAPE
+		ENDIF
+	ENDIF
+;漏れがあったら適当に眠い影狼（「～」で判別）
+CASEELSE
+	PRINTFORMW 「꾸벅꾸벅……」
+	PRINTFORMW 「어제 잠을 못 자서 졸려～…」
+ENDSELECT

@@ -1,0 +1,1818 @@
+﻿
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;スキンシップ
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@KAGEROU_SKINSHIP
+SIF CFLAG:1001
+	RETURN RAND:10
+PRINTL [0]손을 잡는다 [1]뺨을 어루만진다 [2]귀를 만진다 [3]턱을 간질인다 [4]머리카락을 만진다 [98]랜덤
+PRINTL [5]어깨를 주무른다 [6]등을 쓰다듬는다 [7]옆구리를 찌른다 [8]코를 간질인다 [9]찰싹찰싹 [99]매일 랜덤
+INPUT
+SELECTCASE RESULT
+CASE 0 TO 9
+	RETURN RESULT
+CASE 98
+	RETURN RAND:10
+CASE 99
+	CFLAG:1001 = 1
+	PRINTW （되돌리고 싶은 땐 나와 함께 발원하는 거야）
+	PRINTL 
+	RETURN RAND:10
+;手入力で人狼ゲームを呼び出せます
+CASE 100
+	RETURN 100
+CASEELSE
+ENDSELECT
+RESTART
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;くんくん影狼
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@KUNKUN_KAGEROU
+#LOCALSIZE キャラクタ数上限
+#DIM LOCAL_ID
+;一緒に作った料理は食べない
+IF FLAG:20 && !TCVAR:353
+	PRINTFORMW 「아! 이건 %DISHNAME%의 냄새구나!」
+	PRINTL 
+	PRINTFORML 카게로는 눈에 보이지 않는 속도로 %CALLNAME:MASTER%의 들고 있던 %조사처리(DISHNAME, "를")% 빼앗고
+	PRINTFORMW 그것 또한 눈 깜짝할 사이에 먹어치웠다.
+	;EVENTCOMENDからコピペ。変更があったら対応の事。
+	IF DISH_DRG
+		CALL MESSAGE_EAT_DISH_DRG(TARGET)
+		WAIT
+	ENDIF
+	;CALL KOJO_MESSAGE_SEND("EVENT",14,TARGET,-1,-1)
+	CALL 식사(TARGET)
+	CALL RESET_DISH
+ELSE
+	CALLF FUNC_FISHER_YATES_SHAFFLE(LOCAL, CHARANUM)
+	;影狼ちゃんとモブ娘とMASTERは抽選対象から外します
+	ARRAYREMOVE LOCAL, FINDELEMENT(LOCAL, 63), 1
+	ARRAYREMOVE LOCAL, FINDELEMENT(LOCAL, MASTER), 1
+	ARRAYREMOVE LOCAL, FINDELEMENT(LOCAL, RANDOM_CHARANUM), 1
+	;FUNC_FISHER_YATES_SHAFFLE内で-1で初期化されるのでこれで全配列対象処理になる
+	;場所判定がよくわからんことになってたのでとりあえず近場のキャラ?にしてみるよ
+	FOR LOCAL_ID, 0, FINDELEMENT(LOCAL, -1)
+		;同じマップにいるキャラ限定
+		SIF GET_MAPID(CFLAG:(LOCAL:LOCAL_ID):현재위치) != GET_MAPID(CFLAG:63:현재위치)
+			CONTINUE
+		;同じ場所のキャラは除外
+		SIF CFLAG:(LOCAL:LOCAL_ID):현재위치 == CFLAG:63:현재위치
+			CONTINUE
+		PRINTFORMW 「킁킁…… 이건 %CALLNAME:(LOCAL:LOCAL_ID)%의 냄새구나」
+		BREAK
+	NEXT
+ENDIF
+RETURN 1
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;카게로는 特殊なので、関数化
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@影狼起床
+;満月の日
+SELECTCASE DAY:3
+CASE 15
+	;満月の下
+	IF MOON_WATCH(DAY:3) == 9
+		;しかも中秋の名月
+		SELECTCASE DAY:2
+		CASE 3
+			PRINTFORMW 「어라, %CALLNAME:MASTER% 일어났구나……」
+			PRINTFORMW 「오늘 밤은 그…… 정월이구나……」
+			PRINTFORMW 「그, 같이 달구경해 줄래…?」
+			PRINTFORML 「사, 사실 부끄럽지만 %CALLNAME:MASTER%에게라면」
+			PRINTFORMW 「있는 그대로의 모습, 봐줬으면 좋겠어……」
+			PRINTFORMW 「뭣하면 그……」
+			PRINTFORMW 「아니, 일단 이대로 같이 달구경하자!」
+			BASE:63:이성 = 0
+			TCVAR:발정 = 1
+		;普通の満月
+		CASEELSE
+			PRINTFORMW 「어라, %CALLNAME:MASTER% 일어났구나……」
+			PRINTFORMW 「봐, 오늘 밤은 보름달이야」
+			PRINTFORML 「부끄럽지만, %CALLNAME:MASTER%에게라면…」
+			PRINTFORMW 「지금의 나, 봐줬으면 좋겠어……」
+			PRINTFORMW 「후후, 이런 생각 해본 적 없어서 뭔가 신기한 것 같아」
+			BASE:63:이성 = 0
+			TCVAR:발정 = 1
+		ENDSELECT
+	;まだ昼で晴れてない
+	ELSEIF TIME:2 >=1 && TIME:2 <= 4 && TIME:5 > 1
+		PRINTFORMW 「어라, %CALLNAME:MASTER%, 일어났구나」
+		PRINTFORMW 「그게…… 오늘 밤은 보름달이네……」
+		PRINTFORMW 「아직 날씨가 어떨지는 모르겠지만」
+		PRINTFORMW 「혹시 맑으면 나와 달구경 해줄래?」
+		CALL K63_ASK_OTSUKIMI
+	;まだ昼
+	ELSEIF TIME:2 >=1 && TIME:2 <= 4
+		PRINTFORMW 「어라, %CALLNAME:MASTER%, 일어났구나」
+		PRINTFORMW 「그게…… 오늘 밤은 보름달이네……」
+		PRINTFORMW 「아직 날씨가 어떨지는 모르겠지만」
+		PRINTFORMW 「일단은 날이 개기를 기도해야겠네」
+	;夜だけど晴れてない
+	ELSEIF TIME:5 > 1
+		;中秋の名月
+		SELECTCASE DAY:2
+		CASE 3
+			PRINTFORMW 「어라, %CALLNAME:MASTER% 일어났구나…」
+			PRINTFORMW 「모처럼의 보름인데 날씨가 안 좋네……」
+			PRINTFORMW 「저기 %CALLNAME:MASTER%, 혹시 맑으면 나와 달구경 해줄래?」
+			CALL K63_ASK_OTSUKIMI
+		;普通の満月
+		CASEELSE
+			PRINTFORMW 「어라, %CALLNAME:MASTER%, 일어났구나」
+			PRINTFORMW 「모처럼의 보름인데 날씨가 안 좋네……」
+			PRINTFORML 「……뭐어, 일종의 생리 주기니까」
+			PRINTFORMW 「변신은 할 수 있고 지금도 어설프게 털이……」
+			PRINTFORMW 「잠깐, 어딜 보는거야!」
+		ENDSELECT
+	;夜で晴れてるけど室内（秋）
+	ELSEIF DAY:2 == 3
+		PRINTFORMW 「어라, %CALLNAME:MASTER% 일어났구나……」
+		PRINTFORMW 「오늘은 그…… 정월이네……」
+		PRINTFORMW 「그게, 같이 달구경해 줄래…?」
+		PRINTFORML 「사, 사실은 부끄럽지만 %CALLNAME:MASTER%에게라면」
+		PRINTFORMW 「있는 그대로의 모습 보여줘도 상관없어……」
+		PRINTFORMW 「뭣하면 그……」
+		PRINTFORMW 「아니, 일단 이대로 같이 달구경하자!」
+	;夜で晴れてるけど室内
+	ELSE
+		PRINTFORMW 「아… %CALLNAME:MASTER% 일어났구나……」
+		PRINTFORMW 「알고 있어? 오늘 밤은 보름달이야」
+		PRINTFORML 「부끄럽지만 %CALLNAME:MASTER%에게는…」
+		PRINTFORMW 「지금의 나를 보여줄 수 있을 것 같아서……」
+		PRINTFORMW 「하지만 그……」
+		PRINTFORMW 「아니, 아무것도 아니야!」
+	ENDIF
+;그 외の日
+CASEELSE
+	SELECTCASE TIME:2
+	;朝は寝てるんで死に分岐ですが
+	CASE 1,2
+		PRINTFORMW 「일어났구나～…」
+		PRINTFORMW 「아침부터 기운이 넘치는구나……」
+		PRINTFORMW 「나 아침엔 약해……」
+	;昼
+	CASE 3,4
+		PRINTFORMW 「아 %CALLNAME:MASTER%, 일어났구나!」
+		PRINTFORMW 「낮은 하루의 시작이니까」
+	SIF TIME:0 < 901
+		PRINTFORMW 「……후아～…졸려……」
+	;夜は分岐
+	CASE 5,6,7
+		SELECTCASE TIME:0
+		;19～22時
+		CASE 1140 TO 1320
+			SELECTCASE TIME:3
+			;18時以降起き
+			CASE 1080 TO 1320
+				PRINTFORMW 「아 %CALLNAME:MASTER%, 일어났구나!」
+				PRINTFORMW 「후후, 당신은 야행성 인간이니까」
+				PRINTFORMW 「설마 무리해서 나한테 맞춘 거 아니야?」
+				PRINTFORML 「기, 기쁘긴 해도 건강에는 좋지 않으니까」
+				PRINTFORMW 「적당히 몸 관리 정도는 하도록 해」
+			;朝～昼起き
+			CASEELSE
+				PRINTFORMW 「아 %CALLNAME:MASTER%, 일어났구나!」
+				PRINTFORMW 「후후, 해도 떨어졌고 이제 밤의 시작이네」
+			ENDSELECT
+		;22～28時
+		CASEELSE
+			SELECTCASE TIME:3
+			;22～27時起き
+			CASE 1320 TO 1440,0 TO 180
+				PRINTFORMW 「아 %CALLNAME:MASTER%, 일어났구나!」
+				PRINTFORMW 「후후, 당신은 야행성 인간이니까」
+				PRINTFORMW 「설마 무리해서 나한테 맞춘 거 아니야?」
+				PRINTFORMW 「기, 기쁘지만 역시 이 시간에 일어나는 건 좋지 않아」
+				PRINTFORMW 「나도 조금 정도는 낮에도 시간을 보내고 있어」
+			CASEELSE
+				PRINTFORMW 「아 %CALLNAME:MASTER%, 일어났구나!」
+				PRINTFORMW 「완전히 밤이 깊어졌네」
+				PRINTFORMW 「지금부터는 요괴 시간이니까 %조사처리(CALLNAME:MASTER, "는")% 너무 돌아다니지 않는 게 좋을 것 같아」
+			ENDSELECT
+		ENDSELECT
+	ENDSELECT
+ENDSELECT
+TCVAR:350 = 1
+RETURN 1
+
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;お天気影狼
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@OTENKI_KAGEROU(ARG)
+SELECTCASE ARG
+;春
+CASE 1
+	SELECTCASE TIME:2
+	;昼
+	CASE 3,4
+		SELECTCASE TIME:7
+		;虹
+		CASE 1
+		RETURN 110
+		CASEELSE
+			SELECTCASE TIME:5
+			;晴れ
+			CASE 0,1
+				RETURN 111
+			;曇り
+			CASE 2,3
+				RETURN 112
+			;雨と霧
+			CASE 4,6,7
+				RETURN 113
+			;大雨
+			CASE 5
+				RETURN 114
+			ENDSELECT
+		ENDSELECT
+	;夜
+	CASE 5 TO 7
+		SELECTCASE TIME:7
+		;虹
+		CASE 1
+			RETURN 120
+		CASEELSE
+			SELECTCASE TIME:5
+			;晴れ
+			CASE 0,1
+				RETURN 121
+			;曇り
+			CASE 2,3
+				RETURN 122
+			;雨と霧
+			CASE 4,6,7
+				RETURN 123
+			;大雨
+			CASE 5
+				RETURN 124
+			ENDSELECT
+		ENDSELECT
+	ENDSELECT
+;夏
+CASE 2
+	SELECTCASE TIME:2
+	;昼
+	CASE 3,4
+		SELECTCASE TIME:7
+		;虹
+		CASE 1
+			RETURN 210
+		CASEELSE
+			SELECTCASE TIME:5
+			;晴れ
+			CASE 0,1
+				RETURN 211
+			;曇り
+			CASE 2,3
+				RETURN 212
+			;雨と霧
+			CASE 4,6,7
+				RETURN 213
+			;大雨
+			CASE 5
+				RETURN 214
+			ENDSELECT
+		ENDSELECT
+	;夜
+	CASE 5 TO 7
+		SELECTCASE TIME:7
+		;虹
+		CASE 1
+			RETURN 220
+		CASEELSE
+			SELECTCASE TIME:5
+			;晴れ
+			CASE 0,1
+				RETURN 221
+			;曇り
+			CASE 2,3
+				RETURN 222
+			;雨と霧
+			CASE 4,6,7
+				RETURN 223
+			;大雨
+			CASE 5
+				RETURN 224
+			ENDSELECT
+		ENDSELECT
+	ENDSELECT
+;秋
+CASE 3
+	SELECTCASE TIME:2
+	;昼
+	CASE 3,4
+		SELECTCASE TIME:7
+		;虹
+		CASE 1
+			RETURN 310
+		CASEELSE
+			SELECTCASE TIME:5
+			;晴れ
+			CASE 0,1
+				RETURN 311
+			;曇り
+			CASE 2,3
+				RETURN 312
+			;雨と霧
+			CASE 4,6,7
+				RETURN 313
+			;大雨
+			CASE 5
+				RETURN 314
+			ENDSELECT
+		ENDSELECT
+	;夜
+	CASE 5 TO 7
+		SELECTCASE TIME:7
+		;虹
+		CASE 1
+			RETURN 320
+		CASEELSE
+			SELECTCASE TIME:5
+			;晴れ
+			CASE 0,1
+				RETURN 321
+			;曇り
+			CASE 2,3
+				RETURN 322
+			;雨と霧
+			CASE 4,6,7
+				RETURN 323
+			;大雨
+			CASE 5
+				RETURN 324
+			ENDSELECT
+		ENDSELECT
+	ENDSELECT
+;冬
+CASE 4
+	SELECTCASE TIME:2
+	;昼
+	CASE 3,4
+		SELECTCASE TIME:7
+		;虹
+		CASE 1
+			RETURN 410
+		;ダイヤモンドダスト
+		CASE 2
+			RETURN 419
+		CASEELSE
+			SELECTCASE TIME:5
+			;晴れ
+			CASE 0,1
+				RETURN 411
+			;曇り
+			CASE 2,3
+				RETURN 412
+			;雨と霧
+			CASE 4,6,7
+				RETURN 413
+			;大雨
+			CASE 5
+				RETURN 414
+			;雪系
+			CASE 8,10,11,12,13
+				RETURN 415
+			;吹雪
+			CASE 9
+				RETURN 416
+			ENDSELECT
+		ENDSELECT
+	;夜
+	CASE 5 TO 7
+		SELECTCASE TIME:7
+		;虹
+		CASE 1
+			RETURN 420
+		;ダイヤモンドダスト
+		CASE 2
+			RETURN 429
+		CASEELSE
+			SELECTCASE TIME:5
+			;晴れ
+			CASE 0,1
+				RETURN 421
+			;曇り
+			CASE 2,3
+				RETURN 422
+			;雨と霧
+			CASE 4,6,7
+				RETURN 423
+			;大雨
+			CASE 5
+				RETURN 424
+			;雪系
+			CASE 8,10,11,12,13
+				RETURN 425
+			;吹雪
+			CASE 9
+				RETURN 426
+			ENDSELECT
+		ENDSELECT
+	ENDSELECT
+ENDSELECT
+;━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;草の根と雑談
+;会ってない日の一日の終了時にランダム呼び出し
+;━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@草の根と雑談
+#DIMS 会話相手
+;会ってない日の一日の終了時にランダム呼び出し
+SIF CFLAG:[[와카사기히메]]:마지막에만난날 == DAY && CFLAG:[[반키]]:마지막에만난날 == DAY
+	RETURN 1
+IF CFLAG:[[와카사기히메]]:마지막에만난날 == DAY
+	会話相手 = 반키
+ELSEIF CFLAG:[[반키]]:마지막에만난날 == DAY
+	会話相手 = 히메
+ELSEIF !RAND:2
+	会話相手 = 히메
+ELSE
+	会話相手 = 반키
+ENDIF
+
+PRINTFORMW 카게로는 풀뿌리 동료와 잡담하고 있다
+PRINTFORML 
+IF TALENT:연모 && !RAND:2
+	IF TALENT:육아중
+		IF CFLAG:출산경과일 > CHILD_취학
+			IF !RAND:2
+				PRINTFORMW 「자, %会話相手% 누나에게 인사해야지」
+				PRINTFORMW 「착하다ㅡ 착해ㅡ」
+			ELSEIF !RAND:2
+				PRINTFORMW 「우리 아이도 꽤 손이 안 가서 다행이야ー」
+				PRINTFORMW 「%会話相手%에게는 신세 많이 졌어」
+			ELSE
+				PRINTFORMW 「%SHOW_CHILDNAME(63)%는 잘 지내고 있어」
+				PRINTFORMW 「%조사처리(CALLNAME:MASTER, "가")% 서당에 보낸다는 말을 꺼냈을 때는 걱정했지만, 지금은 잘하고 있는 것 같아」
+			ENDIF
+		ELSEIF CFLAG:출산경과일 > CHILD_어휘
+			IF !RAND:3
+				PRINTFORMW 「아ー 소란 피우면 안되잖니! 정말!」
+				PRINTFORMW 「미안해 %会話相手%, 아이들은 정말 곤란하다니까」
+			ELSEIF !RAND:2
+				PRINTFORMW 「많이 컸지? 이제 말할 수 있어」
+				PRINTFORMW 「자, %会話相手% 누나라고 불러봐?」
+			ELSE					
+				PRINTFORMW 「%조사처리(SHOW_CHILDNAME(63), "는")% 착하게 있었어?」
+				PRINTFORMW 「오늘은 맡아줘서 고마워, %会話相手%」
+			ENDIF
+		ELSE
+			IF !RAND:2
+				PRINTFORMW 「후후, 귀엽지?」
+				PRINTFORMW 「%조사처리(SHOW_CHILDNAME(63), "는")% %会話相手%를 좋아하는 것 같아」
+			ELSEIF !RAND:2
+				PRINTFORMW 「그래서 말이지 %会話相手%, 그 %TEXTR("요정이/토끼가/인간이/")%…」
+				PRINTFORMW 「아ー 왜 그래 %SHOW_CHILDNAME(63)%!? 배고픈거야?」
+			ELSE
+				PRINTFORMW 「역시 육아는 힘들어」
+			ENDIF
+		ENDIF
+	ELSE
+		IF !RAND:3
+			PRINTFORMW 「그래서 말이야 %会話相手%, 그때 %조사처리(CALLNAME:MASTER, "가")%…」
+		ELSEIF !RAND:2
+			PRINTFORMW 「헤ー, 그거 다음에 %CALLNAME:MASTER%に%TEXTR("만들어 줄 수 있을까/해줄 수 있을까/들어 볼까/")%?」
+		ELSE
+			PRINTFORMW 「알 것 같아ー, %CALLNAME:MASTER%도 약간 그런 편이고」
+		ENDIF
+	ENDIF
+ELSEIF TALENT:사모 && !RAND:2
+	IF 会話相手 == "히메"
+		PRINTFORMW 「있잖아 히메, 그, 깊은 뜻은 없는데」
+		PRINTFORMW 「요괴와 인간의 교제가 가능하다고 생각해?　딱히 별 의미는 없지만」
+	ELSE
+		PRINTFORML 「저기 반키, 인간에 대해서 좀 물어보고 싶은 게 있는데…」
+		PRINTFORMW 「%TEXTR("그렇구나ㅡ/…으응ー 그랬구나/아ー, 이상해/…완전 깬다ー/")%」
+	ENDIF
+ELSE
+	IF INRANGE(DAY:3,10,14)
+		PRINTFORMW 「보름달이 가까워서 털 처리가 힘들어」
+	ELSEIF !RAND:3
+		PRINTFORMW 「다음에 또 같이 인간마을에 갈까?」
+	ELSEIF !RAND:2
+		PRINTFORMW 「그거 맛있었어ー」
+	ELSE
+		PRINTFORMW 「%会話相手%는 요즘 어때?」
+	ENDIF
+ENDIF
+;━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;お月見イベントを切り出し
+;━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@K63_ASK_OTSUKIMI
+CALL ASK_YN("날이 갠다면 말이지","조금 바빠")
+;《月霧/Moonmist》
+IF !RESULT
+	PRINTFORMW 「정말!?」
+	PRINTFORML 「그럼 어쩔 수 없지……」
+	PRINTFORMW 「소중한 주문（스펠）카드를 사용할 때가 됐어!」
+	PRINTL 
+	PRINTFORMW 카게로는 그늘에 숨어 뭔가 본 적 없는 스펠카드를 꺼내 주문을 외웠다
+	PRINTFORML 순간 주변이 은빛으로 빛나는 안개에 휩싸여 밤이 되었다고 생각하니
+	PRINTFORMW 빛이 소용돌이치고, 터지더니, 이윽고 안개가 걷히며 카게로가 모습을 드러냈다.
+	PRINTFORMW 어느새 하늘에는 찬란한 태양이 떠오르고 있다
+	PRINTL
+	PRINTFORMW 「후후후… 모두에게는 비밀이야♪」
+	PRINTFORMW 「자아, 보름날을 즐겨보자」
+	TIME:5 = 1
+ELSE
+	PRINTFORMW 「……그래…」
+	PRINTFORMW 「이런 날씨에는 무리겠지… 무리한 부탁해서 미안해」
+	PRINTFORMW 「아, 신경 쓰지 않으니까 괜찮아」
+ENDIF
+
+@K63_OTSUKIMI_TALK
+SELECTCASE MOON_WATCH(DAY:3)
+;新月
+CASE 1
+	PRINTFORMW 「오늘은 초승달이니까 아무리 찾아도 달은 보이지 않아」
+	PRINTFORMW 「그 대신 봐봐, 별이 이렇게 예쁘게 잘 보여」
+	SIF TALENT:연모
+		PRINTFORMW 「%조사처리(CALLNAME:MASTER, "와")% 있으면 달이 없는 밤도 멋진 것 같아」
+;二日月
+CASE 2
+	PRINTFORMW 「아ー 마침 달이 지고 있네」
+	PRINTFORMW 「의외로 첫 달을 볼 수 있다니 드문 일이야」
+;三日月
+CASE 3
+	PRINTFORMW 「봐, 예쁜 초승달이야!」
+	PRINTFORMW 「보름달도 좋지만 초승달의 섹시한 모양도 매력적이야」
+	SIF TALENT:연모
+		PRINTFORMW 「후후, 밤하늘이 웃는 것처럼 보이네」
+;四～七日月
+CASE 4
+	PRINTFORMW 「오늘의 달님은～…」
+	PRINTFORMW 「엄밀히 말하면 초승달은 아니지만 모양으로는 초승달이네」
+;上弦
+CASE 5
+	PRINTFORMW 「예쁜 반달이네」
+	PRINTFORMW 「으음…… 평평한 면이 위니까… 상현달이네」
+;九～十二日月
+CASE 6
+	PRINTFORMW 「어머, 달님이 보이네」
+	PRINTFORMW 「볼록해져서 이제 곧 보름달이겠네」
+	SIF TALENT:연모
+		PRINTFORMW 「떡(모치)처럼 부풀어 오르니까 망월(모치즈키)…… 미안, 방금 건 없던 걸로 해줘!!」
+;十三夜
+CASE 7
+	;秋の十三夜
+	IF DAY:2 == 3
+		PRINTFORMW 「13일 밤의 달님이 아름답게 보이는구나～」
+		PRINTFORMW 「보름달이 아니라서 마음 놓고 즐길 수 있어!」
+		IF TALENT:연모
+			PRINTW 「왜냐니…… 그야, 나 변신하니까……」
+			PRINTW 「털 처리 같은 거 힘들어……」
+		ELSE
+			PRINTW 「아니야, 아무것도 아니야……」
+		ENDIF
+	;普通の十三夜
+	ELSE
+	PRINTFORMW 「오늘은 13일 밤이었네」
+	PRINTFORMW 「봐, 타원의 달님이 떠 있어」
+	PRINTFORMW 「가을이 아니라도 십삼야는 십삼야야?」
+	ENDIF
+;待宵
+CASE 8
+	PRINTFORMW 「오늘은 초저녁의 달이네.」
+	PRINTFORMW 「즉, 내일은 보름달!」
+	PRINTFORMW 「…………」
+	PRINTFORMW 「갑자기 불안해졌어……」
+;満月（挨拶の段階で恋慕が前提）
+CASE 9
+	IF TALENT:연모
+		;中秋の名月
+		SELECTCASE DAY:2
+		CASE 3
+			PRINTFORMW 카게로와 십오야를 지내기로 했다
+			PRINTL
+			$FULLMOON_INPUT_LOOP_01
+			PRINTL [0] 달이 예쁘네요
+			PRINTL [1] 가을바람에 길게 늘어선 구름 틈 사이로
+			PRINTL [2] 당고를 먹자!
+			INPUT
+			SELECTCASE RESULT
+			;I love you
+			CASE 0
+				PRINTFORMW 「아하하, 그거 알고 있어」
+				PRINTFORMW 「정말이지 창피한 줄도 모르고 그런 말을 한다니까」
+				PRINTFORMW 「기뻐, 정말 고마워……」
+				PRINTFORMW 「나도 그… %조사처리(CALLNAME:MASTER, "를")%……」
+				IF TALENT:MASTER:연인 == NO:63 && TALENT:63:연인 == NO:63
+					PRINTFORMW 「좋아해…… 정말 좋아……」
+					EXP:키스경험 += 1
+				ELSE
+					PRINTFORMW 「아니, 아무것도 아니야……」
+				ENDIF
+				TIME += 10
+				SOURCE:사랑 += 200
+				EXP:63:애정경험 += 1
+				CFLAG:63:4 += (ABL:MASTER:화술기능)
+				DOWNBASE:기력 -= 60
+			;和歌クイズ
+			CASE 1
+				$FULLMOON_INPUT_LOOP_02
+				PRINTL 
+				PRINTL [0] 스며 나온 달빛 청명하기 그지없네
+				PRINTL [1] 반드시 그리워질 한 밤중의 달이구나
+				PRINTL [2] 구름너머 어딘가 달은 숨어있겠지
+				INPUT
+				SELECTCASE RESULT
+				CASE 0
+					PRINTFORMW 「멋지다～♪」
+					PRINTFORMW 「틀림없이 지금 이런 정경을 노래한 시였어」
+					PRINTFORMW 「보름은 정말 한적함이 느껴져서 감회에 젖어버려」
+					SOURCE:환락 += 100
+					SOURCE:사랑 += 50
+					EXP:MASTER:회화경험 += (ABL:MASTER:화술기능) * 2
+					CFLAG:63:4 += (ABL:MASTER:화술기능) * 2
+					DOWNBASE:기력 -= 160
+				CASEELSE
+					PRINTFORMW 「…………저기……」
+					PRINTFORMW 「그, 말하고 싶은 건 알겠어. 응…」
+					PRINTFORMW 「다음에 백인일수라도 할까? 어때, %CALLNAME:MASTER%」
+					SOURCE:환락 += 30
+					EXP:MASTER:회화경험 += 1
+					DOWNBASE:기력 += 40
+				ENDSELECT
+				TIME += 10
+				;月より団子
+				;団子は室内でしか食べられないが、縁側は室内かつ月見できるのでおすすめじゃぞ
+			CASE 2
+				PRINTFORML 「정말ー %CALLNAME:MASTER%는 금강산도 식후경이구나…」
+				PRINTFORMW 「아니, 금강산도 식후경이지」
+				PRINTFORMW 「뭐! 좋아! 나도 먹고 싶으니까!」
+				PRINTFORMW 「역시 달맞이에는 술과 안주지～♪」
+				;雑穀は使わない。카게로가 持参してくれているのだろう
+				;料理システムは改変がくるかもいれないので要チェック
+				CALL 요리생성("달구경경단", [[카게로]])
+				SOURCE:환락 += 100 + (ABL:MASTER:요리기능) * 20
+				EXP:MASTER:요리경험 += 1
+				EXP:63:요리경험 += 1
+				DOWNBASE:MASTER:체력 += 50
+				DOWNBASE:MASTER:기력 += 100
+				TIME += 20
+			CASEELSE
+				GOTO FULLMOON_INPUT_LOOP_01
+			ENDSELECT
+		;普通の満月
+		CASEELSE
+			PRINTFORMW 「후후… 예쁜 보름달이네……」
+			PRINTFORMW 「괜찮아 갑자기 변신해서 먹고 그러지 않으니까」
+			PRINTFORMW 「하지만 봐, 소매에서도 나와버려……」
+			PRINTFORMW 「뭐냐니…… 아! 안 돼! 보지마아!」
+			PRINTFORML 「하여튼 정말……」
+			PRINTFORMW 「그 다음에는 말이지. 몸 안에서 이성이란 정반대인 사나운 흉포성이 치밀어 오르는 거야」
+			PRINTFORML 「이제는 완전히 조절할 수 있지만」
+			PRINTFORMW 「옛날에는 본능대로 움직여 인간이나 가축을 덮치기도 했어」
+			PRINTFORML 「아하하. 원래 요괴란 그런거니까」
+			PRINTFORMW 「지금부터라도 두려워해도 괜찮아」
+			PRINTFORMW 「……그래도 역시, %CALLNAME:MASTER%에게 그렇게 생각되고 싶지는 않아……」
+			PRINTFORML 「시대는 바뀌었어. 사람과 요괴가 대립하면서도 함께 살아갈 수 있는…」
+			PRINTFORMW 「모처럼 이렇게 친해질 수 있었으니까」
+			PRINTFORMW 「가능하면 계속 티격태격하는 일은 있어도 %CALLNAME:MASTER%의 곁에 있고 싶어……」
+		ENDSELECT
+		PRINTL
+		PRINTFORMW 「%조사처리(CALLNAME:MASTER, "와")% 같이 보는 보름달이 이렇게 즐거울 줄 몰랐어」
+		PRINTFORMW 「나 지금, 무척 행복해……」
+		TIME += 10
+		SOURCE:환락 += 100
+		SOURCE:사랑 += 100
+		SOURCE:노출 += 100
+		SOURCE:공포 += 50
+		SOURCE:달성 += 10
+		SOURCE:일탈 += 10
+		EXP:63:애정경험 += 1
+		DOWNBASE:기력 -= 100
+		BASE:63:체력 += 100
+		CFLAG:63:신뢰도 += (ABL:MASTER:화술기능)
+		BASE:63:무드 = MAXBASE:63:무드
+		BASE:63:이성 = 0
+		TCVAR:발정 = 1
+		;연모じゃない
+	ELSE
+		PRINTFORMW 「오늘은 동그란 달님, 보름달이야」
+		PRINTFORMW 「아아…… 황홀해져……」
+		TCVAR:발정 = 1
+	ENDIF
+;十六夜
+CASE 10
+	PRINTFORMW 「오늘 밤의 달님은 보름달이구나」
+	PRINTFORMW 「"十六夜" 라고 쓰고 "이자요이"라고 읽는 거였지」
+	PRINTFORMW 「…으윽! 그 말을 들으니까 안좋은 기억이……」
+	SIF TALENT:연모
+		PRINTFORMW 「아니 그게…… 한 번 그런 이름의 메이드에게 엉망진창으로 당한 적이 있었어……」
+;十七～二十二夜（ここかはら住み込みしないと見られない）
+CASE 11
+	PRINTFORMW 「어라, 달이 떠 있네」
+	PRINTFORMW 「보름달을 지나 서서히 작아지는 20일 전후의 달 말이야」
+	PRINTFORMW 「아침이 되면 희미해져 가고, 왠지 애수에 젖는 것 같아」
+;下弦
+CASE 12
+	PRINTFORMW 「오늘은 하현달이 예쁘네」
+	PRINTFORMW 「꼭대기까지 이르렀을 때 사라지는 것이 서글퍼지는…」
+	PRINTFORMW 「그런 달이네」
+;二十四～二十九夜
+CASE 13
+	PRINTFORMW 「옛날에는 이렇게 늦은 달을 부지런하게 기다리는 관습이 있었다든가 없었다든가」
+	PRINTFORMW 「그렇다 치더라도 거꾸로된 초승달은 왠지 기분 나쁘네」
+;三十夜（寝ずに起きてないと見られない。死に分岐?）
+CASE 14
+	PRINTFORMW 「어라, 이건 또 귀한 그믐달이잖아」
+	SELECTCASE DAY:2
+	CASE 1
+		PRINTFORMW 「30일의 그믐달이야. 곧 여름이네～」
+	CASE 2
+		PRINTFORMW 「30일의 그믐달이야. 곧 가을이네～」
+	CASE 3
+		PRINTFORMW 「30일의 그믐달이야. 곧 겨울이네～」
+	CASE 4
+		PRINTFORMW 「30일의 그믐달이야. 곧 새해네～」
+	ENDSELECT
+ENDSELECT
+TCVAR:351 = 1
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;挨拶
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@K63_GREETING
+IF FLAG:더부살이캐릭터 == 63
+	SELECTCASE TIME:2
+	;朝は寝てるんで死に分岐ですが
+	CASE 1,2
+		PRINTFORMW 「일어났구나～…」
+		PRINTFORMW 「아침부터 기운이 넘치는구나……」
+		PRINTFORMW 「나 아침엔 약해……」
+	;昼
+	CASE 3,4
+		PRINTFORMW 「아 %CALLNAME:MASTER%, 일어났구나!」
+		PRINTFORMW 「낮은 하루의 시작이니까」
+	SIF TIME:0 < 901
+		PRINTFORMW 「……후아～…졸려……」
+	;夜は分岐
+	CASE 5 TO 7
+		SELECTCASE TIME:0
+		;19～22時
+		CASE 1140 TO 1320
+			SELECTCASE TIME:3
+			;18時以降起き
+			CASE 1080 TO 1320
+				PRINTFORMW 「아 %CALLNAME:MASTER%, 일어났구나!」
+				PRINTFORMW 「후후, 당신은 야행성 인간이니까」
+				PRINTFORMW 「설마 무리해서 나한테 맞춘 거 아니야?」
+				PRINTFORML 「기, 기쁘긴 해도 건강에는 좋지 않으니까」
+				PRINTFORMW 「적당히 몸 관리 정도는 하도록 해」
+			;朝～昼起き
+			CASEELSE
+				PRINTFORMW 「어라 %CALLNAME:MASTER%, 안녕!」
+				PRINTFORMW 「후후, 해도 떨어졌고 이제 밤의 시작이네」
+			ENDSELECT
+		;22～28時
+		CASEELSE
+			SELECTCASE TIME:3
+			;22～27時起き
+			CASE 1320 TO 1440,0 TO 180
+				PRINTFORMW 「아 %CALLNAME:MASTER%, 일어났구나!」
+				PRINTFORMW 「후후, 당신은 야행성 인간이니까」
+				PRINTFORMW 「설마 무리해서 나한테 맞춘 거 아니야?」
+				PRINTFORMW 「기, 기쁘지만 역시 이 시간에 일어나는 건 좋지 않아」
+				PRINTFORMW 「나도 조금 정도는 낮에도 시간을 보내고 있어」
+			CASEELSE
+				PRINTFORMW 「어라 %CALLNAME:MASTER%, 안녕!」
+				PRINTFORMW 「완전히 밤이 깊어졌네」
+				PRINTFORMW 「지금부터는 요괴 시간이니까 %조사처리(CALLNAME:MASTER, "는")% 너무 돌아다니지 않는 게 좋을 것 같아」
+			ENDSELECT
+		ENDSELECT
+	ENDSELECT
+ELSEIF DAY - CFLAG:마지막에만난날 >= 5
+	LOCAL = DAY - CFLAG:마지막에만난날
+	IF TALENT:연모
+		PRINTFORML {LOCAL}일이나 못 봐서 허전했어
+		PRINTFORMW 저기, %조사처리(CALLNAME:MASTER, "는")% {LOCAL}일 동안, 조금이라도 나를 만나고 싶었던 적은, 있었어?
+	ELSE
+		PRINTFORML {LOCAL}일 만이네
+	ENDIF
+ELSE
+	SELECTCASE TIME:2
+	;朝は寝てるんで死に分岐ですが
+	CASE 1,2
+		PRINTFORMW 「일어났구나～…」
+		PRINTFORMW 「아침부터 기운이 넘치는구나……」
+		PRINTFORMW 「나 아침엔 약해……」
+	;昼
+	CASE 3,4
+		PRINTFORMW 「어라, 좋은 아침!」
+		PRINTFORMW 「뭐? 이제 점심시간?」
+		PRINTFORMW 「내게 점심은 하루의 시작이야!」
+	;夜は分岐
+	CASE 5,6,7
+		SELECTCASE TIME:0
+		;19～22時
+		CASE 1140 TO 1320
+			PRINTFORMW 「안녕～!」
+			PRINTFORMW 「후후후… 완전히 해도 졌고, 여기서부터는 요괴의 시간이네……」
+			PRINTFORMW 「%조사처리(CALLNAME:MASTER, "는")% 이제 자는 게 어때?」
+		;22～28時
+		CASEELSE
+			PRINTFORMW 「이런 시간이지만 좋은 저녁이야～!」
+			PRINTFORMW 「완전히 밤도 깊었고, 이제 인간의 시간은 아니야」
+			PRINTFORMW 「설마 이제 일어난 건 아니겠지……?」
+		ENDSELECT
+	ENDSELECT
+ENDIF
+
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;ふるまうでも使うので関数化
+@MOGUMOGU_KAGEROU
+;연모
+IF TALENT:[[카게로]]:연모
+;吟味前
+		SELECTCASE DISHNAME
+		;最初に例外群
+		;"義大莉而鳥苗새고기"はこっちに移動
+		CASE "モッツァレラチーズとトマトのサラダ", "ドーピングコンソメスープ", "義大莉而鳥苗새고기"
+			$KINDAN
+			PRINTFORMW 「잠깐 %CALLNAME:MASTER%, 괜찮아?」
+			PRINTFORMW 「특이하다…기보단 이상해……」
+			PRINTFORMW 「먹…어도 괜찮은 건가……」
+		CASE "ギンギー料理"
+			PRINTFORMW 「일단 묻는건데… 이건 무슨 요리야?」
+			PRINTL
+			PRINTFORMKW 깅기 요리
+			PRINTL
+			PRINTFORMW 「재료는…?」
+			PRINTL
+			PRINTFORMKW 깅기
+			PRINTL
+			PRINTFORMW 「…………」
+		
+		;お魚系、天麩羅は唯一、魚料理がつかないので先に分岐
+		;まー、TASTEにはついてないが内実は想像にまかせるということで
+		CASE "天ぷら"
+			$OSAKANA
+			PRINTFORMW 「어패류를 보는 건 오랜만이야」
+			PRINTFORMW 「환상향에서는 드물지 않아?」
+		;主食肉
+		;カエル料理もこの区分だが……
+		;だってこの娘、蛙肉だろうが喜んで食いそうなんだもん
+		CASE "ハンバーグ", "しゃぶしゃぶ", "生姜焼き", "ステーキ", "油淋鶏", "カエルのから揚げ", "カエルカレー", "カエルのソテー", "カエルの塩焼き", "ジビエ料理"
+			IF TCVAR:[[카게로]]:요리평가치 >= 700
+				CALL K63_DEVOUR
+			ELSE
+				PRINTFORMW 「역시 고기는 최고야～♪」
+				PRINTFORMW 「평소에는 날고기지만」
+				IF TCVAR:[[카게로]]:353
+					PRINTFORMW 「%조사처리(CALLNAME:MASTER, "와")% 요리하는 게 훨씬 나아♪」
+				ELSE
+					PRINTFORMW 「%CALLNAME:MASTER%의 요리를 먹는 편이 훨씬 낫겠다♪」
+				ENDIF
+			ENDIF
+		;軽食肉
+		CASE "ハンバーガー", "シウマイ", "肉まん"
+			$ONIKU
+			PRINTFORMW 「%조사처리(DISHNAME, "는")% 간편하게 먹을 수 있고」
+			PRINTFORMW 「고기도 들어있으니까 좋아」
+		[SKIPSTART]
+		;仕様変更とともに闇に消えたっぽいのでコメントアウト
+		CASE 79
+			PRINTFORMW 「우물우물」
+			PRINTFORMW 「우물우물」
+			PRINTFORMW 「우물우물」
+			PRINTFORMW 「아, 벌써 없어졌어」
+		;おでん
+		CASE 86
+			PRINTFORMW 「따뜻해서 좋네～♪」
+			PRINTFORMW 「그러면 바로 나는……」
+		[SKIPEND]
+		
+		CASEELSE
+			IF STRCOUNT(DISH_TASTE, ESCAPE("로터/"))
+				PRINTFORMW 「머, 먹어도 괜찮은걸까……」
+			ELSEIF STRCOUNT(DISH_TASTE, ESCAPE("면류/"))
+				IF TCVAR:[[카게로]]:353
+					PRINTFORMW 「계란 계란……」
+					PRINTFORMW 「자, 이걸로 달맞이 %DISHNAME%!」
+				ELSE
+					PRINTFORMW 「맛있어 보이는 %DISHNAME%이네」
+					PRINTFORMW 「어라, 계란은 안 넣어?」
+				ENDIF
+				;月見ラーメンって何だ
+			ELSEIF STRCOUNT(DISH_TASTE, ESCAPE("생선 요리/"))
+				GOTO OSAKANA
+			ELSEIF STRCOUNT(DISH_TASTE, ESCAPE("고기 요리/"))
+				GOTO ONIKU
+			ELSEIF STRCOUNT(DISH_TASTE, ESCAPE("디저트/"))
+				PRINTFORMW 「고기도 좋아하지만, 이런 디저트도 아주 좋아해.♪」
+				PRINTFORMW 「늑대인데 이상해?」
+				PRINTFORMW 「모르는구나 %CALLNAME:MASTER%」
+				PRINTFORMW 「나는 늑대녀, 늑대이기 이전에 여자야!」
+			ELSEIF STRCOUNT(DISH_TASTE, ESCAPE("야채/"))
+				PRINTFORMW 「으… 역시 채식은 질색이야……」
+				PRINTFORMW 「먹을 수 없는 건 아니지만…」
+				PRINTFORMW 「소화가 잘될지 걱정이네……」
+			ELSEIF STRCOUNT(DISH_TASTE, ESCAPE("경식/"))
+			ENDIF
+		ENDSELECT
+	PRINTL
+ENDIF
+
+;吟味後（調味料は一緒に作らない時のみ）
+;おいしくなかった
+IF TFLAG:193 == -1
+	PRINTFORMW 「으ーー음, 이번 건 좀 애매했어……」
+ELSEIF TASTE_REACTION("매움")
+	PRINTFORMW 「꺄아!!」
+	PRINTFORMW 「뭐야 이거! 매워매워! 물! 물!」
+ELSEIF TASTE_REACTION("단")
+	PRINTFORMW 「우엑!!」
+	PRINTFORMW 「뭐야 이건…? 도대체 뭘 넣어야 이렇게 되는 거야……?」
+ELSEIF TASTE_REACTION("고추냉이")
+	PRINTFORMW 「꺄앗ーーー!!」
+	PRINTFORMW 「ㅇ, 왜 와사비가 들어있는 거야 이건……」
+	PRINTFORMW 「거기다 너무 많이 넣었잖아…… 물……」
+ELSEIF TASTE_REACTION("시큼함")
+	PRINTFORMW 「으읍ーー!?」
+	PRINTFORMW 「ㅆ, 썩은 거 아니야……?」
+;おいしい
+ELSEIF TALENT:[[카게로]]:연모
+	PRINTFORMW 「잘 먹었습니다」
+	;一緒に作った
+	IF TCVAR:[[카게로]]:353 > 0
+		SELECTCASE RAND:5
+		CASE 0
+			PRINTFORMW 「역시 직접 만들면 다른 맛으로 느껴지네」
+			PRINTFORMW 「게다가 %조사처리(CALLNAME:MASTER, "와")% 같이 먹는 밥은 맛있어♪」
+		CASE 1
+		;お腹いっぱいじゃない時もあるけど
+			PRINTFORMW 「후우ー, 배불러」
+			PRINTFORMW 「%조사처리(CALLNAME:MASTER, "는")% 요리를 잘하는구나」
+		CASE 2
+			PRINTFORMW 「만드는 건 꽤나 힘들었을텐데」
+			PRINTFORMW 「먹을 때는 금방 끝나 버리네」
+		CASE 3
+		;イベントあるかもね
+			PRINTFORMW 「그러고 보니 %조사처리(CALLNAME:MASTER, "는")% 어떤 음식을 좋아해?」
+			PRINTFORMW 「…그거, 다음에 만들어 줄 수도 있는데?」
+		CASE 4
+			PRINTFORMW 「맛있었어～♪」
+			PRINTFORMW 「아, 뒷정리는 맡겨 줘」
+		ENDSELECT
+		CFLAG:1004 += 5
+	;作ってない
+	ELSEIF TFLAG:193 == 1
+		PRINTFORMW 「……!!」
+		PRINTFORMW 「이거 엄청 맛있어!」
+		CFLAG:1004 += 5
+	ELSE
+		PRINTFORMW 「%조사처리(CALLNAME:MASTER, "가")% 만든 요리는 맛있네.～」
+		CFLAG:1004 += 3
+	ENDIF
+;연모じゃない
+ELSEIF TFLAG:193 == 1
+	PRINTFORMW 「……!!」
+	PRINTFORMW 「이거 엄청 맛있어!」
+	CFLAG:1004 += 5
+ELSE
+	PRINTFORMW 「잘 먹었습니다」
+	PRINTFORMW 「맛있었어」
+	PRINTFORMW 「꽤 잘하잖아」
+	CFLAG:1004 += 3
+ENDIF
+TCVAR:[[카게로]]:353 = 0
+RETURN 1
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;寝ながら考えた暇つぶし人狼ゲーム
+;推理もくそもないクソゲー
+;いつか怪盗を加えた真ワンナイト人狼にしたい
+;これちゃんとプログラミングできてたらすごいっすね
+;影狼と人狼ゲームをやるのが夢です
+;気が向いたらパターンを増やす予定。実質無限に書ける
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@ERATOHO_JINROU_GAME
+PRINTFORMW 안녕하십니까. 안내역을 맡은 이자요이 사쿠야입니다.
+PRINTFORML eratoho 늑대인간은 저희들이 평소에 저택에서 행하는 홍마관 룰
+PRINTFORMW 원래 오리지널 룰을 적용하겠습니다.
+PRINTFORMW 바로 규칙에 대한 설명을 듣겠습니까?
+$JINROU_FIRSTTIME_INPUT_LOOP
+PRINTL  [0] 설명해 줘!
+PRINTL  [1] 됐으니 시작하자!
+INPUT
+IF !RESULT
+	PRINTL 
+	PRINTFORML 우선 플레이어 4명에게 각각 랜덤으로 마을 사람인지 늑대인간인지 점술가인지 결정됩니다.
+	PRINTFORMW 자신 이외의 직책은 알 수 없습니다. 이 때 늑대인간은 한두 명은 반드시 섞입니다. 
+	PRINTFORMW 다음으로 점쟁이는 다른 플레이어 1명의 직책을 점으로 볼 수 있습니다.
+	PRINTFORMW 그 후, 늑대인간은 동료가 누군지 알 수 있습니다. 혼자일 때는 동료가 없다는 것을 알 수 있습니다.
+	PRINTL 
+	PRINTFORML 그리고 아침이 밝으면 게임 시작입니다.
+	PRINTFORMW 논의 후, 누구를 매달지（죽일지）투표를 진행합니다.
+	PRINTFORML 가장 많은 표를 얻은 한 명 혹은 두 명의 플레이어가 줄에 매달립니다.
+	PRINTFORMW 전원 1표일 경우 아무도 달 수 없습니다.
+	PRINTL 
+	PRINTFORMW 만약 한 명이라도 늑대인간이 매달릴 경우 마을 사람 측의 모든 플레이어가 승리합니다. (점술가는 마을 사람 측)
+	PRINTFORMW 늑대인간을 한 명도 매달지 못할 경우 늑대인간 측의 모든 플레이어가 승리합니다.
+	PRINTFORMW 설명은 이상입니다. 뭐 총명한 당신이라면 금방 이해할 수 있겠죠.
+	PRINTFORMW 횡설수설이라도 느낌으로 즐기시면 좋지 않을까요?
+	PRINTFORMW 또한 이 게임은 분위기뿐이고, 실제 내용은 쿠x게이기 때문에 나쁘게 생각하지 말아 주세요.
+ELSEIF RESULT == 1
+ELSE
+	GOTO JINROU_FIRSTTIME_INPUT_LOOP
+ENDIF
+
+PRINTFORMW 그럼 들어가시죠.
+PRINTL
+PRINTFORMW 이제부터 직급이 결정됩니다.
+PRINTL 
+SELECTCASE RAND:10
+;あなた＆影狼：村人　霊夢＆魔理沙：人狼
+CASE 0,1
+	PRINTFORMW 당신은 마을 사람입니다.
+	PRINTFORMW 아침이 밝았습니다.
+	PRINTL 
+	PRINTFORMW 레이무「그럼 우선 점술가는 누구야?」
+	PRINTFORMW 마리사「내가 점술가다. %조사처리(CALLNAME:MASTER, "를")% 봤어. 마을 사람이야」
+	PRINTFORMW 카게로「잠깐잠깐, 가짜는 물러나는게 어때? 내가 점술가야!」
+	PRINTFORMW 카게로「레이무를 봤어. 레이무는 늑대인간. 즉 이 두 사람은 늑대인간이라는 거야」
+	PRINTFORMW 카게로「알겠지? %CALLNAME:MASTER%? 레이무를 매달아야 해」
+	PRINTFORMW 레이무「역시 원래 늑대인간이라 거짓말을 잘 하네」
+	PRINTFORMW 레이무「%CALLNAME:MASTER%, 마리사, 너희들이 마을사람이라면 이 녀석을 매다는거야」
+	PRINTFORMW 마리사「말하지 않아도 이 가짜 점술가를 매달거야」
+	CALL JINROU_TOUHYOU
+	SELECTCASE RESULT
+	CASE 1
+		PRINTFORMW 레이무 2표  카게로 2표  두 명이 매달렸습니다.
+		PRINTFORMW 레이무와 마리사는 늑대인간이었습니다. 당신과 카게로의 승리입니다.
+		PRINTFORMW 카게로「우으… 믿어주었구나…… 고마워 %CALLNAME:MASTER%」
+	CASE 2
+		PRINTFORMW 레이무 1표  마리사 1표  카게로 2표　카게로는 매달렸습니다.
+		PRINTFORMW 카게로는 점술가였습니다. 당신과 카게로의 패배입니다.
+		PRINTFORMW 카게로「어째서야 %CALLNAME:MASTER%! 레이무라고 말했잖아! 바보!」
+	CASE 3
+		PRINTFORMW 레이무 1표　카게로 3표　카게로는 매달렸습니다.
+		PRINTFORMW 카게로는 점술가였습니다. 당신과 카게로의 패배입니다.
+		PRINTFORMW 카게로「으으… 너무해 %CALLNAME:MASTER%……」
+	ENDSELECT
+
+;あなた＆霊夢：村人　魔理沙＆影狼：人狼
+CASE 2
+	PRINTFORMW 당신은 마을 사람입니다.
+	PRINTFORMW 아침이 밝았습니다.
+	PRINTL 
+	PRINTFORMW 레이무「그럼 우선 점술가는 누구야?」
+	PRINTFORMW 마리사「내가 점술가야. %조사처리(CALLNAME:MASTER, "를")% 봤어. 마을 사람이야」
+	PRINTFORMW 레이무「유감이네, 점술가는 나야. %CALLNAME:MASTER%의 마을 사람을 봤어」
+	PRINTFORMW 카게로「으음… 누가 진짜같아? %CALLNAME:MASTER%?」
+	PRINTFORMW 레이무「너는 관계자가 아니니까 미안하지만 생각할 필요도 없어」
+	PRINTFORMW 마리사「뭐? 무슨 뜻이야?」
+	PRINTFORMW 레이무「네 이제 투표시간ー」
+	PRINTFORMW 카게로「잠깐 너무 빠르잖아!」
+	CALL JINROU_TOUHYOU
+	SELECTCASE RESULT
+	CASE 1
+		PRINTFORMW 레이무 3표　마리사 1표　레이무는 매달렸습니다.
+		PRINTFORMW 레이무는 점술가였습니다. 카게로는 늑대인간이었습니다. 당신과 레이무의 패배입니다.
+		PRINTFORMW 카게로「헤헤헤, 수법이 너무 억지스러웠어」
+	CASE 2
+		PRINTFORMW 레이무 2표　마리사 2표　두 명이 매달렸습니다.
+		PRINTFORMW 마리사와 카게로는 늑대인간이었습니다. 당신과 레이무의 승리입니다.
+		PRINTFORMW 카게로「이럴수가ー. 간파당했구나～」
+	CASE 3
+		PRINTFORMW 레이무 2표　마리사 1표　카게로 1표　레이무는 매달렸습니다.
+		PRINTFORMW 레이무는 점술가였습니다. 카게로는 늑대인간이었습니다. 당신과 레이무의 패배입니다.
+		PRINTFORMW 카게로「%조사처리(CALLNAME:MASTER, "는")% 너무 쉬운걸～♪」
+	ENDSELECT
+
+;あなた＆魔理沙：村人　霊夢＆影狼：人狼
+CASE 3
+	PRINTFORMW 당신은 마을 사람입니다.
+	PRINTFORMW 아침이 밝았습니다.
+	PRINTL 
+	PRINTFORMW 레이무「그럼 우선 점술가는 누구야?」
+	PRINTFORMW 마리사「내가 점술가야. %조사처리(CALLNAME:MASTER, "를")% 봤어. 마을 사람이야」
+	PRINTFORMW 레이무「유감이네, 점술가는 나야. %CALLNAME:MASTER%의 마을 사람을 봤어」
+	PRINTFORMW 카게로「에에!? 그만해! 당신들이 늑대인간이지!? 나는 점술가야!」
+	PRINTFORMW 마리사「뭘 봤는데?」
+	PRINTFORMW 카게로「…%CALLNAME:MASTER%의 마을 사람……」
+	PRINTFORMW 레이무「왜 다들 %CALLNAME:MASTER%만 보는건데」
+	PRINTFORMW 마리사「그거야 너희들이 뒷북을 치니까 그런거겠지. %CALLNAME:MASTER%, 레이무를 매다는거야」
+	PRINTFORMW 카게로「흥, 늑대인간인 너에게는 듣고 싶지 않아. 마리사를 매달자」
+	PRINTFORMW 레이무「그건 이쪽이 할 말이야. 카게로를 매달아야 해」
+	CALL JINROU_TOUHYOU
+	SELECTCASE RESULT
+	CASE 1
+		PRINTFORMW 레이무 2표　마리사 2표　두 명이 매달렸습니다.
+		PRINTFORMW 레이무와 카게로는 늑대인간이었습니다. 당신과 마리사의 승리입니다.
+		PRINTFORMW 카게로「くぅ～…曇り無き眼ね……」
+	CASE 2
+		PRINTFORMW 레이무 1표　마리사 3표　마리사는 매달렸습니다.
+		PRINTFORMW 마리사는 점술가였습니다. 당신과 마리사의 패배입니다.
+		PRINTFORMW 카게로「유감이네♪ 나를 믿어줘서 고마워♪」
+	CASE 3
+		PRINTFORMW 레이무 1표　마리사 2표　카게로 1표　마리사는 매달렸습니다.
+		PRINTFORMW 마리사는 점술가였습니다. 당신과 마리사의 패배입니다.
+		PRINTFORMW 카게로「후후, 역시 속아버린거야?」
+	ENDSELECT
+
+;あなた＆影狼：人狼　霊夢＆魔理沙：村人
+CASE 4,5
+	PRINTFORMW 당신은 늑대인간입니다.
+	PRINTFORMW 카게로도 늑대인간입니다.
+	PRINTL 
+	PRINTFORMW 아침이 밝았습니다.
+	PRINTFORMW 레이무「그럼 우선 점술가는 누구야?」
+	PRINTFORMW 마리사「내가 점술가야. %조사처리(CALLNAME:MASTER, "를")% 봤어. 늑대인간이야」
+	CALL JINROU_TAIKOU
+	SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 카게로「잠깐잠깐, 거짓말은 그만두지 그래? 나는 점술가야」
+		IF RAND:2
+			PRINTFORMW 카게로「레이무를 봤어. 레이무는 늑대인간. 즉 이 두 사람은 늑대인간이라는 거야」
+			PRINTFORMW 카게로「알겠지? %CALLNAME:MASTER%? 레이무를 매달아야 해」
+			PRINTFORMW 레이무「역시 원래 늑대인간이라 거짓말을 잘 하네」
+			PRINTFORMW 레이무「%CALLNAME:MASTER%, 포기하고 이 녀석을 매다는거야」
+			PRINTFORMW 마리사「말하지 않아도 이 가짜 점술가를 낚을거야」
+			CALL JINROU_TOUHYOU
+			SELECTCASE RESULT
+			CASE 1
+				PRINTFORMW 레이무 2표  카게로 2표  두 명이 매달렸습니다.
+				PRINTFORMW 카게로는 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+			CASE 2
+				PRINTFORMW 레이무 1표  마리사 1표  카게로 2표　카게로는 매달렸습니다.
+				PRINTFORMW 카게로는 점술가였습니다. 당신과 카게로의 패배입니다.
+			CASE 3
+				PRINTFORMW 레이무 1표　카게로 3표　카게로는 매달렸습니다.
+				PRINTFORMW 카게로는 점술가였습니다. 당신과 카게로의 패배입니다.
+			ENDSELECT
+			PRINTFORMW 카게로「어라? …아 그랬지 내가 매달리면 지는거였지……」
+			PRINTFORMW 카게로「미안! %CALLNAME:MASTER%!」
+		ELSE
+			PRINTFORMW 카게로「레이무를 봤어. 레이무는 마을 사람!」
+			PRINTFORMW 카게로「사이가 좋다고 마리사를 믿는 건 없어～!」
+			PRINTFORMW 레이무「오히려 마리사라서 믿을 수 없어」
+			PRINTFORMW 레이무「그치만 너는 늑대녀니까…」
+			PRINTFORMW 마리사「핫핫하! 뭐 그런 건 제쳐두고」
+			PRINTFORMW 마리사「나는 당연히 카게로를 매달거야」
+			CALL JINROU_TOUHYOU
+			SELECTCASE RESULT
+			CASE 1
+				IF RAND:2
+					PRINTFORMW 레이무 1표　마리사 2표　카게로 1표　마리사는 매달렸습니다.
+					PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+					PRINTFORMW 카게로「휴ー 살았다! 후후후… 진짜 늑대인간의 연기 어땠어♪」
+				ELSE
+					PRINTFORMW 레이무 1표  마리사 1표  카게로 2표　카게로는 매달렸습니다.
+					PRINTFORMW 카게로는 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+					PRINTFORMW 카게로「크윽… 역시 하쿠레이의 무녀의 감은 예리하네……」
+				ENDIF
+			CASE 2
+				IF RAND:2
+					PRINTFORMW 마리사 3표　카게로 1표　마리사는 매달렸습니다.
+					PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+					PRINTFORMW 카게로「휴ー 살았다! 후후후… 진짜 늑대인간의 연기 어땠어♪」
+				ELSE
+					PRINTFORMW 마리사 2표　카게로 2표　두 명이 매달렸습니다.
+					PRINTFORMW 카게로는 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+					PRINTFORMW 카게로「크윽… 역시 하쿠레이의 무녀의 감은 예리하네……」
+				ENDIF
+			CASE 3
+				IF RAND:2
+					PRINTFORMW 마리사 2표　카게로 2표　두 명이 매달렸습니다.
+				ELSE
+					PRINTFORMW 마리사 1표　카게로 3표　카게로는 매달렸습니다.
+				ENDIF
+					PRINTFORMW 카게로는 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+					PRINTFORMW 카게로「잠깐 %CALLNAME:MASTER%! 왜 나한테 투표하는거야! 바보!」
+			ENDSELECT
+		ENDIF
+	CASE 10
+		PRINTFORMW 레이무「흐ー응. 어느 쪽이 가짜일까?」
+		PRINTFORMW 카게로「사이가 좋다고 마리사를 믿는 건 없어?」
+		PRINTFORMW 레이무「오히려 마리사라서 믿을 수 없어」
+		PRINTFORMW 마리사「잠깐잠깐! 그런 것도 없어!」
+		PRINTFORMW 마리사「어쨌든 나는 당연히 %조사처리(CALLNAME:MASTER, "를")% 매달거야」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_01(RESULT)
+	CASE 11
+		PRINTFORMW 레이무「흐ー응. 뭐, %조사처리(CALLNAME:MASTER, "가")% 가짜겠네」
+		PRINTFORMW 마리사「그런거야. 빨리 매달아버리자」
+		PRINTFORMW 카게로「뭐! 잠깐!」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_02(RESULT)
+	CASE 20
+		PRINTFORMW 마리사「뭐라고? 나는 점술가인데?」
+		PRINTFORMW 레이무「뭐, %조사처리(CALLNAME:MASTER, "는")% 이런 거겠지」
+		PRINTFORMW 카게로「무슨! 잠깐!」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_02(RESULT)
+	CASE 21
+		PRINTFORMW 마리사「호오 재밌는데, 나랑 싸우자고?」
+		PRINTFORMW 카게로「흐음ー, 어느 쪽이 진짜일까（흘끔」
+		PRINTFORMW 레이무「어느 쪽도 평소에 수상하니까 말이지…」
+		PRINTFORMW 마리사「카게로는 %조사처리(CALLNAME:MASTER, "와")% 사이가 좋은 것 같은데」
+		PRINTFORMW 마리사「진검승부에 편들기는 없다구?」
+		PRINTFORMW 카게로「에! ㄱ, 그런가, ㅁ, 뭐어 진짜 늑대의 통찰력으로 간파해보이겠어…」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_01(RESULT)
+	CASE 30
+		PRINTFORMW 카게로「그, 그래. 어느 쪽이 진짜일까…」
+		PRINTFORMW 레이무「어느 쪽도 평소에 수상하니까 말이지…」
+		PRINTFORMW 마리사「카게로는 %조사처리(CALLNAME:MASTER, "와")% 사이가 좋은 것 같은데」
+		PRINTFORMW 마리사「진검승부에 편들기는 없다구?」
+		PRINTFORMW 카게로「에! ㄱ, 그런가, ㅁ, 뭐어 진짜 늑대의 통찰력으로 간파해보이겠어…」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_01(RESULT)
+	CASE 31
+		PRINTFORMW 카게로「뭐라고!? 흥, %CALLNAME:MASTER%같은 건 이제 몰라!」
+		PRINTFORMW 레이무「어라아, 언제나 끈적끈적한 사이인데 신기하네」
+		PRINTFORMW 카게로「에!? 그, 그런 적…… 없어…… 아마도?」
+		PRINTFORMW 마리사「핫핫하! 하긴 지금은 진검승부니가 어쩔 수 없지」
+		PRINTFORMW 마리사「어쨌든 나는 당연히 %조사처리(CALLNAME:MASTER, "를")% 매달거야」
+		PRINTFORMW 레이무（%조사처리(CALLNAME:MASTER, "가")% 참이라면 어느 쪽을 매달면 좋을까…）
+		CALL JINROU_TOUHYOU
+		SELECTCASE RESULT
+		CASE 1
+			IF CFLAG:1:신뢰도 >= 2500
+				PRINTFORMW %CALLNAME:MASTER% 1표　레이무 1표　마리사 2표　마리사는 매달렸습니다.
+				PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+				PRINTFORMW 카게로「파인 플레이! %CALLNAME:MASTER%! 꽤 늑대인간에 가까워진 것 같은데?」
+			ELSE
+				SELECTCASE RAND:3
+				CASE 0
+					PRINTFORMW %CALLNAME:MASTER% 1표　레이무 1표　마리사 2표　마리사는 매달렸습니다.
+					PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+					PRINTFORMW 카게로「파인 플레이! %CALLNAME:MASTER%! 늑대인간에 소질 있는 거 아니야?」
+				CASE 1
+					PRINTFORMW %CALLNAME:MASTER% 1표　레이무 1표　마리사 1표　카게로 1표　아무도 매달리지 않았습니다.
+					PRINTFORMW 당신과 카게로는 늑대인간이었습니다. 당신과 카게로의 승리입니다.
+					PRINTFORMW 카게로「파인 플레이! %CALLNAME:MASTER%! 늑대인간에 소질 있는 거 아니야?」
+				CASE 2
+					PRINTFORMW %CALLNAME:MASTER% 2표　레이무 1표　마리사 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+					PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+					PRINTFORMW 카게로「어라 유감이네. 역시 %조사처리(CALLNAME:MASTER, "는")% 단순하니까 늑대남에는 어울리지 않을지도 모르겠네」
+				ENDSELECT
+			ENDIF
+		CASE 2
+			IF CFLAG:1:신뢰도 >= 2500
+				PRINTFORMW %CALLNAME:MASTER% 1표　마리사 3표　마리사는 매달렸습니다.
+				PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+				PRINTFORMW 카게로「파인 플레이! %CALLNAME:MASTER%! 꽤 늑대인간에 가까워진 것 같은데?」
+			ELSE
+				SELECTCASE RAND:3
+				CASE 0
+					PRINTFORMW %CALLNAME:MASTER% 1표　마리사 3표　마리사는 매달렸습니다.
+					PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+					PRINTFORMW 카게로「파인 플레이! %CALLNAME:MASTER%! 늑대인간에 소질 있는 거 아니야?」
+				CASE 1
+					PRINTFORMW %CALLNAME:MASTER% 1표　마리사 2표　카게로 1표　마리사는 매달렸습니다.
+					PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+					PRINTFORMW 카게로「파인 플레이! %CALLNAME:MASTER%! 늑대인간에 소질 있는 거 아니야?」
+				CASE 2
+					PRINTFORMW %CALLNAME:MASTER% 2표　마리사 2표　두 명이 매달렸습니다.
+					PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+					PRINTFORMW 카게로「어라 유감이네. 역시 %조사처리(CALLNAME:MASTER, "는")% 단순하니까 늑대남에는 어울리지 않을지도 모르겠네」
+				ENDSELECT
+			ENDIF
+		CASE 3
+			IF CFLAG:1:신뢰도 >= 2500
+				PRINTFORMW %CALLNAME:MASTER% 1표　마리사 2표　카게로 1표　마리사는 매달렸습니다.
+				PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+				PRINTFORMW 카게로「파인 플레이! %CALLNAME:MASTER%! 꽤 늑대인간에 가까워진 것 같은데?」
+			ELSE
+				SELECTCASE RAND:3
+				CASE 0
+					PRINTFORMW %CALLNAME:MASTER% 1표　마리사 2표　카게로 1표　마리사는 매달렸습니다.
+					PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+					PRINTFORMW 카게로「파인 플레이! %CALLNAME:MASTER%! 늑대인간에 소질 있는 거 아니야?」
+				CASE 1
+					PRINTFORMW %CALLNAME:MASTER% 1표　마리사 1표　카게로 2표　카게로는 매달렸습니다.
+					PRINTFORMW 카게로는 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+					PRINTFORMW 카게로「에!? %CALLNAME:MASTER%! 왜 나한테 투표한거야! 바보!」
+				CASE 2
+					PRINTFORMW %CALLNAME:MASTER% 2표　마리사 1표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+					PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+					PRINTFORMW 카게로「어라 유감이네. 역시 %조사처리(CALLNAME:MASTER, "는")% 단순하니까 늑대남에는 어울리지 않을지도 모르겠네」
+				ENDSELECT
+			ENDIF
+		ENDSELECT
+	ENDSELECT
+
+;あなた：人狼　霊夢＆魔理沙＆影狼：村人
+CASE 6,7
+	PRINTFORMW 당신은 늑대인간입니다.
+	PRINTFORMW 동료는 없습니다.
+	PRINTL 
+	PRINTFORMW 아침이 밝았습니다.
+	PRINTFORMW 레이무「그럼 우선 점술가는 누구야?」
+	PRINTFORMW 마리사「내가 점술가야. %조사처리(CALLNAME:MASTER, "를")% 봤어. 늑대인간이야」
+	CALL JINROU_TAIKOU
+	SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 카게로「……어라?」
+		PRINTFORMW 마리사「저기 레이무, 이건…」
+		PRINTFORMW 레이무「미안해 %CALLNAME:MASTER%, 당신에게 죽음을 선고할게」
+		PRINTFORMW 카게로「아하하…… 미안 %CALLNAME:MASTER%…」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_05(RESULT)
+		PRINTFORMW 카게로「혼자 간파당해도 맞서지 않으면 안 돼?」
+	CASE 10
+		PRINTFORMW 레이무「흐ー음, 누구일까」
+		PRINTFORMW 카게로「왠지 마리사는 항상 점술가인 것 같지않아?」
+		PRINTFORMW 마리사「어쩔 수 없잖아. 계속 걸리니까」
+		PRINTFORMW 레이무「양치기 소년이구나」
+		PRINTFORMW 마리사「소녀야」
+		PRINTFORMW 카게로「앗하하, 너희들 재미있네」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_04(RESULT)
+	CASE 11
+		PRINTFORMW 레이무「하아!?」
+		PRINTFORMW 마리사「좋아 레이무, 매달자」
+		PRINTFORMW 카게로「어라라. %CALLNAME:MASTER%, 침착하게 생각하지 않으면 안 돼」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_05(RESULT)
+		PRINTFORMW 카게로「늑대인간은 두 사람에게 들키면 지는거야」
+	CASE 20
+		PRINTFORMW 마리사「에엑」
+		PRINTFORMW 카게로「저질러 버렸네 %CALLNAME:MASTER%」
+		PRINTFORMW 레이무「투ー 표오ー」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_05(RESULT)
+		PRINTFORMW 카게로「%조사처리(CALLNAME:MASTER, "는")% 마리사를 적으로 만들어야해」
+	CASE 21
+		PRINTFORMW 마리사「오? 나랑 붙자는거야」
+		PRINTFORMW 레이무「어느 쪽도 막상막하네」
+		PRINTFORMW 카게로「에～ %조사처리(CALLNAME:MASTER, "가")% 나를 속일리가……」
+		PRINTFORMW 마리사「뭐야 너, 좋아하는 거냐」
+		PRINTFORMW 카게로「왜 그렇게 되는건데!」
+		PRINTFORMW 레이무「당신도 수상해」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_04(RESULT)
+	CASE 30
+		PRINTFORMW 카게로「어라, 고마워 %CALLNAME:MASTER%」
+		PRINTFORMW 레이무「아직 모르겠어」
+		PRINTFORMW 마리사「너, 늑대면서 늑대한테 속고 있어」
+		PRINTFORMW 카게로「아, 알고 있어 그 정도는!」
+		PRINTFORMW 레이무「글쎄, 과연 그럴까……」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_04(RESULT)
+	CASE 31
+		PRINTFORMW 카게로「에!?」
+		PRINTFORMW 레이무「지옥행이네」
+		PRINTFORMW 마리사「뭐 다음이 있으니까, 그치 %CALLNAME:MASTER%?」
+		CALL JINROU_TOUHYOU
+		CALL JINROU_PATTERN_05(RESULT)
+		PRINTFORMW 카게로「늑대인간은 두 사람에게 들키면 지는거야」
+	ENDSELECT
+
+;あなた＆霊夢＆魔理沙：村人　影狼：人狼
+;台詞が違うだけで全部同じじゃねーか!
+CASE 8,9
+	PRINTFORMW 당신은 점술가입니다
+	CALL JINROU_URANAI_01
+	PRINTL
+	PRINTFORMW 아침이 밝았습니다
+	PRINTFORMW 레이무「그럼 우선 점술가는 누구야?」
+	SELECTCASE RESULT
+	CASE 1
+		CALL JINROU_URANAI_00
+		IF RESULT
+			PRINTFORMW 카게로「후후후, 속이려고 해도 그렇게는 안 돼」
+			PRINTFORMW 카게로「나는 점술가야. 아쉽지만 본 건 %CALLNAME:MASTER%의 늑대인간이야」
+			PRINTFORMW 마리사「뒤에서 나오다니 수상한데」
+			PRINTFORMW 카게로「그런 말을 들어봤자 타이밍이란게 있잖아!」
+			PRINTFORMW 레이무「그렇지. %조사처리(CALLNAME:MASTER, "가")% 꺾어서 나를 결백으로 만들 수도 있으니까」
+			PRINTFORMW 마리사「응? 그런가?」
+			PRINTFORMW 카게로「왜 믿어 주지 않는거야～!」
+			PRINTFORMW 마리사「미안미안. 어차피 진짜 늑대인간이니까 색안경을 쓰고 보게 된다구」
+			PRINTFORMW 레이무「%CALLNAME:MASTER%도 충분히 수상하니까…」
+			CALL JINROU_TOUHYOU
+			CALL JINROU_PATTERN_03(RESULT)
+
+		;パターンが膨大になるので現在未実装。といいつつちょっと書いた。
+		ELSE
+			PRINTW
+			PRINTFORMW 마리사「없는……거야?」
+			PRINTFORMW 카게로「그렇다는 건 즉……」
+			PRINTFORMW 레이무「늑대인간이 두 명……」
+			PRINTFORMW 마리사「완전히 운이잖아!」
+			PRINTFORMW 카게로「가끔은 이런 것도 재미있지」
+			PRINTFORMW 레이무「뭐 감으로 정하면 되지, 감으로」
+		ENDIF
+	CASE 2
+		CALL JINROU_URANAI_00
+		IF RESULT
+			PRINTFORMW 카게로「후후후, 속이려고 해도 그렇게는 안 돼」
+			PRINTFORMW 카게로「나는 점술가야. 아쉽게도 본 건 %CALLNAME:MASTER%의 늑대인간이야」
+			PRINTFORMW 마리사「뒤에서 나오다니 수상한데」
+			PRINTFORMW 카게로「그런 말을 들어봤자 타이밍이란게 있잖아!」
+			PRINTFORMW 레이무「그렇지. %조사처리(CALLNAME:MASTER, "가")% 꺾어서 마리사를 결백으로 만들 수도 있어」
+			PRINTFORMW 마리사「응? 그런가?」
+			PRINTFORMW 카게로「왜 믿어 주지 않는거야～!」
+			PRINTFORMW 마리사「미안미안. 어차피 진짜 늑대인간이니까 색안경을 쓰고 보게 된다구」
+			PRINTFORMW 레이무「%CALLNAME:MASTER%도 충분히 수상하니까…」
+			CALL JINROU_TOUHYOU
+			CALL JINROU_PATTERN_03(RESULT)
+		ELSE
+		ENDIF
+	CASE 3
+		CALL JINROU_URANAI_00
+		IF RESULT
+			PRINTFORMW 카게로「후후후, 속이려고 해도 그렇게는 안 돼」
+			PRINTFORMW 카게로「나는 점술가야. 아쉽게도 본 건 %CALLNAME:MASTER%의 늑대인간이야」
+			PRINTFORMW 마리사「뒤에서 나오다니 수상한데」
+			PRINTFORMW 카게로「그런 말을 들어봤자 타이밍이란게 있잖아!」
+			PRINTFORMW 레이무「양 쪽 모두 검정을 주장한다면 완전히 두 가지 밖에 안 남네」
+			PRINTFORMW 마리사「무엇이 일어날지 어떻게 될지…」
+			PRINTFORMW 레이무「나오는 건 늑대겠지」
+			CALL JINROU_TOUHYOU
+			CALL JINROU_PATTERN_03(RESULT)
+		ELSE
+		ENDIF
+	ENDSELECT
+ENDSELECT
+RETURN 1
+
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;投票
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@JINROU_TOUHYOU
+PRINTL 
+PRINTL 누구에게 투표하겠습니까?
+PRINTL  [1] 레이무
+PRINTL  [2] 마리사
+PRINTL  [3] 카게로
+INPUT
+SIF INRANGE(RESULT, 1, 3)
+	RETURN RESULT
+RESTART
+
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;対抗占い師
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@JINROU_TAIKOU
+#DIM CHECK_CHARA
+PRINTL 
+PRINTL 가짜 점쟁이를 자처하시겠습니까?
+PRINTL  [0] 예
+PRINTL  [1] 아니오
+INPUT
+IF !RESULT
+	DO
+		PRINTL 누구를 보았다고 하시겠습니까?
+		PRINTL  [1] 레이무
+		PRINTL  [2] 마리사
+		PRINTL  [3] 카게로
+		INPUT
+		CHECK_CHARA = RESULT
+	LOOP !INRANGE(CHECK_CHARA, 1, 3)
+	DO
+		PRINTL 무엇을 보았다고 하시겠습니까?
+		PRINTL  [0] 마을 사람
+		PRINTL  [1] 늑대인간
+		INPUT
+		SIF INRANGE(RESULT, 0, 1)
+			RETURN (CHECK_CHARA * 10 + RESULT)
+	LOOP 1
+ELSE
+	RETURN 0
+ENDIF
+RETURN 0
+
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;占い師
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@JINROU_URANAI_01
+$JINROU_URANAI_INPUT_LOOP_1
+PRINTL 
+PRINTL 누구를 점치겠습니까?
+PRINTL  [1] 레이무
+PRINTL  [2] 마리사
+PRINTL  [3] 카게로
+INPUT
+SELECTCASE RESULT
+CASE 1
+	PRINTW 레이무는 마을사람이다
+	RETURN 1
+CASE 2
+	PRINTW 마리사는 마을사람이다
+	RETURN 2
+CASE 3
+	PRINTW 카게로는 늑대인간이다!
+	RETURN 3
+CASEELSE
+	GOTO JINROU_URANAI_INPUT_LOOP_1
+ENDSELECT
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@JINROU_URANAI_00
+PRINTL 
+PRINTL 점술가를 자처하시겠습니까?
+PRINTL  [0] 예
+PRINTL  [1] 아니오
+INPUT
+IF !RESULT
+	RETURN 1
+ELSE
+	PRINTW ……정말 죄송합니다, 점쟁이가 없는 패턴은 현재 미실장이 되어 있습니다.
+	RETURN 1
+ENDIF
+
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;あなた＆影狼：人狼　霊夢＆魔理沙：村人の勝利パターン
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@JINROU_PATTERN_01(ARG)
+SELECTCASE ARG
+CASE 1
+	IF CFLAG:1:신뢰도 >= 2500
+		PRINTFORMW %CALLNAME:MASTER% 1표　레이무 1표　마리사 2표　마리사는 매달렸습니다.
+		PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+		PRINTFORMW 카게로「좋았어 %CALLNAME:MASTER%! 꽤 늑대인간에 가까워진 것 같은데?」
+	ELSE
+		IF RAND:2
+			PRINTFORMW %CALLNAME:MASTER% 1표　레이무 1표　마리사 2표　마리사는 매달렸습니다.
+			PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+			PRINTFORMW 카게로「좋았어 %CALLNAME:MASTER%! 늑대인간에 소질 있는 거 아니야?」
+		ELSE
+			PRINTFORMW %CALLNAME:MASTER% 2표　레이무 1표　마리사 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+			PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+			PRINTFORMW 카게로「어라 유감이네. 역시 %조사처리(CALLNAME:MASTER, "는")% 단순하니까 늑대남에는 어울리지 않을지도 모르겠네」
+		ENDIF
+	ENDIF
+CASE 2
+	IF CFLAG:1:신뢰도 >= 2500
+		PRINTFORMW %CALLNAME:MASTER% 1표　마리사 3표　마리사는 매달렸습니다.
+		PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+		PRINTFORMW 카게로「좋았어 %CALLNAME:MASTER%! 꽤 늑대인간에 가까워진 것 같은데?」
+	ELSE
+		IF RAND:2
+			PRINTFORMW %CALLNAME:MASTER% 1표　마리사 3표　마리사는 매달렸습니다.
+			PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+			PRINTFORMW 카게로「좋았어 %CALLNAME:MASTER%! 늑대인간에 소질 있는 거 아니야?」
+		ELSE
+			PRINTFORMW %CALLNAME:MASTER% 2표　마리사 2표　두 명이 매달렸습니다.
+			PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+			PRINTFORMW 카게로「어라 유감이네. 역시 %조사처리(CALLNAME:MASTER, "는")% 단순하니까 늑대남에는 어울리지 않을지도 모르겠네」
+		ENDIF
+	ENDIF
+CASE 3
+	IF CFLAG:1:신뢰도 >= 2500
+		PRINTFORMW %CALLNAME:MASTER% 1표　마리사 2표　카게로 1표　마리사는 매달렸습니다.
+		PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+		PRINTFORMW 카게로「좋았어 %CALLNAME:MASTER%! 꽤 늑대인간에 가까워진 것 같은데?」
+	ELSE
+		IF RAND:2
+			PRINTFORMW %CALLNAME:MASTER% 1표　마리사 2표　카게로 1표　마리사는 매달렸습니다.
+			PRINTFORMW 마리사는 점술가였습니다. 당신과 카게로의 승리입니다.
+			PRINTFORMW 카게로「좋았어 %CALLNAME:MASTER%! 늑대인간에 소질 있는 거 아니야?」
+		ELSE
+			PRINTFORMW %CALLNAME:MASTER% 2표　마리사 1표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+			PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+			PRINTFORMW 카게로「어라 유감이네. 역시 %조사처리(CALLNAME:MASTER, "는")% 단순하니까 늑대남에는 어울리지 않을지도 모르겠네」
+		ENDIF
+	ENDIF
+ENDSELECT
+RETURN 1
+
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;あなた＆影狼：人狼　霊夢＆魔理沙：村人の敗北パターン
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@JINROU_PATTERN_02(ARG)
+SELECTCASE ARG
+CASE 1
+	PRINTFORMW %CALLNAME:MASTER% 2표　레이무 1표　마리사 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+	PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+CASE 2
+	PRINTFORMW %CALLNAME:MASTER% 2표　마리사 2표　두 명이 매달렸습니다.
+	PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+CASE 3
+	PRINTFORMW %CALLNAME:MASTER% 2표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+	PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신과 카게로의 패배입니다.
+ENDSELECT
+PRINTFORMW 카게로「정말ㅡ, %CALLNAME:MASTER% 뭐하는거야～!」
+RETURN 1
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;あなた＆霊夢＆魔理沙：村人　影狼：人狼の通常パターン
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@JINROU_PATTERN_03(ARG)
+SELECTCASE ARG
+CASE 1
+	IF CFLAG:1:신뢰도 >= 2500 && CFLAG:11:신뢰도 >= 2500
+		PRINTFORMW %CALLNAME:MASTER% 1표　레이무 1표　카게로 2표　카게로는 매달렸습니다.
+		PRINTFORMW 카게로만이 늑대인간이었습니다. 당신과 레이무와 마리사의 승리입니다.
+		PRINTFORMW 카게로「우왓! 다들 너무해～!」
+	ELSE
+		SELECTCASE RAND:4
+		CASE 0
+			PRINTFORMW %CALLNAME:MASTER% 1표　레이무 1표　카게로 2표　카게로는 매달렸습니다.
+			PRINTFORMW 카게로만이 늑대인간이었습니다. 당신과 레이무와 마리사의 승리입니다.
+			PRINTFORMW 카게로「우왓! 다들 너무해～!」
+		CASE 1,2
+			PRINTFORMW %CALLNAME:MASTER% 2표　레이무 1표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+			PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 점술가였습니다. 당신과 레이무와 마리사의 패배입니다.
+			PRINTFORMW 카게로「앗하하! 왜 나한테 투표 안한거야! 앗하하!」
+		CASE 3
+			PRINTFORMW %CALLNAME:MASTER% 3표　레이무 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+			PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 점술가였습니다. 당신과 레이무와 마리사의 패배입니다.
+			PRINTFORMW 카게로「흐흐ー응♪ 평소의 행실 차이일까?」
+		ENDSELECT
+	ENDIF
+CASE 2
+	IF CFLAG:1:신뢰도 >= 2500 && CFLAG:11:신뢰도 >= 2500
+		PRINTFORMW %CALLNAME:MASTER% 1표　마리사 1표　카게로 2표　카게로는 매달렸습니다.
+		PRINTFORMW 카게로만이 늑대인간이었습니다. 당신과 레이무와 마리사의 승리입니다.
+		PRINTFORMW 카게로「우왓! 다들 너무해～!」
+	ELSE
+		SELECTCASE RAND:4
+		CASE 0
+			PRINTFORMW %CALLNAME:MASTER% 1표　마리사 1표　카게로 2표　카게로는 매달렸습니다.
+			PRINTFORMW 카게로만이 늑대인간이었습니다. 당신과 레이무와 마리사의 승리입니다.
+			PRINTFORMW 카게로「우왓! 다들 너무해～!」
+		CASE 1,2
+			PRINTFORMW %CALLNAME:MASTER% 2표　마리사 1표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+			PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 점술가였습니다. 당신과 레이무와 마리사의 패배입니다.
+			PRINTFORMW 카게로「앗하하! 왜 나한테 투표 안한거야! 앗하하!」
+		CASE 3
+			PRINTFORMW %CALLNAME:MASTER% 3표　마리사 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+			PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 점술가였습니다. 당신과 레이무와 마리사의 패배입니다.
+			PRINTFORMW 카게로「흐흐ー응♪ 평소의 행실 차이일까?」
+		ENDSELECT
+	ENDIF
+CASE 3
+	IF CFLAG:1:신뢰도 >= 2500 && CFLAG:11:신뢰도 >= 2500
+		PRINTFORMW %CALLNAME:MASTER% 1표　카게로 3표　카게로는 매달렸습니다.
+		PRINTFORMW 카게로만이 늑대인간이었습니다. 당신과 레이무와 마리사의 승리입니다.
+		PRINTFORMW 카게로「우왓! 다들 너무해～!」
+	ELSE
+		SELECTCASE RAND:4
+		CASE 0
+			PRINTFORMW %CALLNAME:MASTER% 1표　카게로 3표　카게로는 매달렸습니다.
+			PRINTFORMW 카게로만이 늑대인간이었습니다. 당신과 레이무와 마리사의 승리입니다.
+			PRINTFORMW 카게로「우왓! 다들 너무해～!」
+		CASE 1,2
+			PRINTFORMW %CALLNAME:MASTER% 2표　카게로 2표　두 명이 매달렸습니다.
+			PRINTFORMW 카게로만이 늑대인간이었습니다. 당신과 레이무와 마리사의 승리입니다.
+			PRINTFORMW 카게로「으음ㅡ, 역시 상대가 나빴나보네……」
+		CASE 3
+			PRINTFORMW %CALLNAME:MASTER% 3표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+			PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 점술가였습니다. 당신과 레이무와 마리사의 패배입니다.
+			PRINTFORMW 카게로「흐흐ー응♪ 평소의 행실 차이일까?」
+		ENDSELECT
+	ENDIF
+ENDSELECT
+RETURN 1
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;あなた：人狼　の勝ちパターン
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@JINROU_PATTERN_04(ARG)
+SELECTCASE ARG
+CASE 1
+	SELECTCASE RAND:4
+	CASE 0
+		PRINTFORMW %CALLNAME:MASTER% 1표　레이무 1표　마리사 2표　마리사는 매달렸습니다.
+		PRINTFORMW 마리사는 점술가였습니다. 당신의 승리입니다.
+		PRINTFORMW 「므읏… %CALLNAME:MASTER%도 거짓말을 하는구나……」
+	CASE 1
+		PRINTFORMW %CALLNAME:MASTER% 2표　레이무 1표　마리사 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+		PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+		PRINTFORMW 「위험했어… 하마터면 %CALLNAME:MASTER%에게 속을 뻔했어…」
+	CASE 2
+		PRINTFORMW %CALLNAME:MASTER% 2표　레이무 1표　마리사 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+		PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+		PRINTFORMW 「흐흥, 날 속이려고 해도 그렇게는 안 돼」
+	CASE 3
+		PRINTFORMW %CALLNAME:MASTER% 3표　레이무 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+		PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+		PRINTFORMW 「아하하, 유감이야♪ 평소에 수상한 짓을 해서 그런거야」
+	ENDSELECT
+CASE 2
+	SELECTCASE RAND:4
+	CASE 0
+		PRINTFORMW %CALLNAME:MASTER% 1표　마리사 3표　마리사는 매달렸습니다.
+		PRINTFORMW 마리사는 점술가였습니다. 당신의 승리입니다.
+		PRINTFORMW 「므읏… %CALLNAME:MASTER%도 거짓말을 하는구나……」
+	CASE 1
+		PRINTFORMW %CALLNAME:MASTER% 2표　마리사 2표　두 명이 매달렸습니다.
+		PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+		PRINTFORMW 「위험했어… 하마터면 %CALLNAME:MASTER%에게 속을 뻔했어…」
+	CASE 2
+		PRINTFORMW %CALLNAME:MASTER% 2표　마리사 2표　두 명이 매달렸습니다.
+		PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+		PRINTFORMW 「흐흥, 날 속이려고 해도 그렇게는 안 돼」
+	CASE 3
+		PRINTFORMW %CALLNAME:MASTER% 3표　마리사 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+		PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+		PRINTFORMW 「아하하, 유감이야 평소에 수상한 짓을 해서 그런거야」
+	ENDSELECT
+CASE 3
+	SELECTCASE RAND:4
+	CASE 0
+		PRINTFORMW %CALLNAME:MASTER% 1표　마리사 2표　카게로 1표　마리사는 매달렸습니다.
+		PRINTFORMW 마리사는 점술가였습니다. 당신의 승리입니다.
+		PRINTFORMW 「므읏… %CALLNAME:MASTER%도 거짓말을 하는구나……」
+	CASE 1
+		PRINTFORMW %CALLNAME:MASTER% 2표　마리사 1표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+		PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+		PRINTFORMW 「위험했어… 하마터면 %CALLNAME:MASTER%에게 속을 뻔했어…」
+	CASE 2
+		PRINTFORMW %CALLNAME:MASTER% 2표　마리사 1표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+		PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+		PRINTFORMW 「흐흥, 날 속이려고 해도 그렇게는 안 돼」
+	CASE 3
+		PRINTFORMW %CALLNAME:MASTER% 3표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+		PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+		PRINTFORMW 「아하하, 유감이야 평소에 수상한 짓을 해서 그런거야」
+	ENDSELECT
+ENDSELECT
+RETURN 1
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;あなた：人狼　の負けパターン
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@JINROU_PATTERN_05(ARG)
+SELECTCASE ARG
+CASE 1
+	PRINTFORMW %CALLNAME:MASTER% 3표　레이무 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+	PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+CASE 2
+	PRINTFORMW %CALLNAME:MASTER% 3표　마리사 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+	PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+CASE 3
+	PRINTFORMW %CALLNAME:MASTER% 3표　카게로 1표　%조사처리(CALLNAME:MASTER, "는")% 매달렸습니다.
+	PRINTFORMW %조사처리(CALLNAME:MASTER, "는")% 늑대인간이었습니다. 당신의 패배입니다.
+ENDSELECT
+RETURN 1
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;デイリーイベントの発生
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+@K63_職場見学
+;通い狼発生済み
+SIF !GETBIT(FLAG_DAILY_EV41, 0)
+	RETURN
+;前回から10日以上経ってないと駄目
+SIF DAY - FLAG_DAILY_EV43_LASTTIME < 10
+	RETURN
+SIF MARK:[[카게로]]:반발각인
+	RETURN
+SIF ABL:[[와카사기히메]]:친밀 < 2 || ABL:[[반키]]:친밀 < 2
+	RETURN
+TCVAR:354 = 1
+;初回
+IF !GETBIT(FLAG_DAILY_EV43, 0)
+	PRINTFORML 「반키는 인간 마을의 음식점에서 사람인 척 일하는 것 같아」
+	PRINTFORML 「히메랑 가보고 싶은데 역시 좀 무서워서…… %조사처리(CALLNAME:MASTER, "가")% 에스코트해 주면 안 될까?」
+	CALL ASK_YN("기꺼이","조금 무리")
+	IF !RESULT
+		CALL SPTALK, [[카게로]], "笑顔", 0, @"「정말? 그럼 오늘 밤 마을에서 조금 떨어진 곳에서 만나기로 하자!」", 1 
+		CALL COLORMESSAGE(@"하루 종료시 이벤트가 발생합니다(실제로 이동할 필요는 없습니다)",C_YELLOW,2)
+		CFLAG:[[카게로]]:1005 = 1
+		CALL KIGEN_CHANGE(TARGET,100,1)
+	ELSE
+		PRINTFORML 「그렇구나… 마음이 바뀌면 말해줘」
+	ENDIF
+ELSE
+	PRINTFORML 「그래, 또 전의 그 가게에 가고 싶은데 오늘 밤 괜찮아?」
+	CALL ASK_YN("괜찮아","오늘 밤은 무리")
+	IF !RESULT
+		CALL SPTALK, [[카게로]], "笑顔", 0, @"「그럼 오늘 밤 언제나 같은 장소에서 만나」", 1 
+		CALL COLORMESSAGE(@"하루 종료시 이벤트가 발생합니다(실제로 이동할 필요는 없습니다)",C_YELLOW,2)
+		CFLAG:[[카게로]]:1005 = 1
+		CALL KIGEN_CHANGE(TARGET,100,1)
+	ELSE
+		PRINTFORML 「그럼 다음에 다시 날을 잡자」
+	ENDIF
+ENDIF
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+;━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@K63_DEVOUR
+IF !RAND:2
+	PRINTFORML 「덥썩! 덥썩! 덥썩! 덥썩!」
+	PRINTFORML 카게로는 대단한 기세로 탐식하고 있다……
+ELSE
+	PRINTFORML 우적! 빠직 빠직 꿀꺽… 우적!
+	PRINTFORML 카게로는 뼈째 씹어 먹고 있다……
+ENDIF
+IF !TALENT:연모
+	PRINTFORMW 저렇게 하얀 옷을 용케도 더럽히지 않는다
+	RETURN
+ENDIF
+CALL ASK_YN("음미하면서 먹어","이것도 먹어")
+IF !RESULT
+	PRINTFORMW 「아…… 정신없이 먹고 있었네」
+	RETURN
+ENDIF
+PRINTFORML 「괜찮아!? 잘 먹을게ー!」
+CALL ASK_YN("자 먹어","아ー앙")
+IF !RESULT
+ELSEIF EYEWITNESS()
+	PRINTFORMW 「엣」
+	PRINTFORMW 「보이는 건 조금 쑥스러운데……」
+ELSEIF FIRSTTIME("あーん")
+	PRINTFORMW 「호, 혼자서 먹을 수 있으니까!」
+	PRINTFORMW 「그런 얼굴은 하지마…… 알겠으니까 정말, 아ー앙」
+	PRINTFORMW 「……마히써어」
+	CALL JUEL_UP_SPECIAL([[카게로]],"치정","노출벽",2,1)
+ELSE
+	PRINTFORMW 「ㅇ, 어쩔 수 없네」
+	CALL JUEL_UP_SPECIAL([[카게로]],"치정","노출벽",2,1)
+ENDIF
+CALL RECOVER_PERMIL(MASTER, -100, "체력", 0, "食事を分けた")
+CALL RECOVER_PERMIL([[카게로]], 100, "체력", 0, "食事を貰った")
+CFLAG:1004 += 1
