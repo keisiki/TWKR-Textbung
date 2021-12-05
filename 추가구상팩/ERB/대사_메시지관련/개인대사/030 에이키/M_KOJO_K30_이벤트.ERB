@@ -1,0 +1,5595 @@
+﻿;-------------------------------------------------
+; eraTheWorld 4.782 에이키님 구상（캐릭터 이름 넣기, 밑에 컨셉 등 한마디 있으면 넣기）
+;-------------------------------------------------
+;
+;「시키님의 사랑이 담긴 설교……좋아아……!」
+;
+;**** FlagManagement **********************************************************
+;본 구상에 사용하는 CFLAG・TCVAR 들
+;TCVAR:30:358 데이트 권유(=1 상대로부터)
+;TCVAR:30:359 1일 1회 회화＠내방 이유
+;TCVAR:30:360 
+;TCVAR:30:361 강제 공수 교대 구상 플래그 1
+;TCVAR:30:362 강제 공수 교대 구상 플래그 2
+;TCVAR:30:363 아침 우후후 플래그(=TIME 아침 펠라한 시간 =-1 임신 생활 때문에 참음 -1이하 아침 우후후 실행)
+;TCVAR:30:371 에이키님 징계 플래그(=1 화났다 =2 엄청 화났다 =3 ㅈㄴ 화남)
+;TCVAR:30:372 벌레의 거처 플래그(=1 @KIGEN_CHANGE로 기분이 언짢아졌다. MASTER가 나쁜 건 아님)
+;TCVAR:30:373 아침 인사 구상 플래그(=1 아침 인사 구상을 지났다 =2 에이키님이 일어나지 않음)
+;TCVAR:30:374 스커트 넘기기 콤보 플래그(구상 분기용)
+;TCVAR:30:375 더블 펠라 구상 제어 플래그(구상 분기용)
+;TCVAR:30:376 덮치기 구상 제어 플래그(=1 덮치는 중 =2 덮쳐지는 중)
+;TCVAR:30:377 요리 플래그(=1 에이키님과 요리를 만들었다)
+;TCVAR:30:378 개인실에서 우후후한 프래그(=1 개인실에서 했다)
+;TCVAR:30:379 약 넣은 차 플래그(=1～10 구상 분기 =100～미니 이벤트 종료 =1000～ 부록 소질 소거 체크)
+;TCVAR:30:380 당일 우후후 횟수[미사용]
+;TCVAR:30:381 당일 약점잡기 모니터링
+;TCVAR:30:390 C절정 횟수
+;TCVAR:30:391 V절정 횟수
+;TCVAR:30:392 B절정 횟수
+;TCVAR:30:393 A절정 횟수
+;TCVAR:30:394 당신 사정 횟수
+;TCVAR:30:395 구내 사정 횟수
+;TCVAR:30:396 오중절정
+;TCVAR:30:397 기승위 방향(=0 대면 =1 배면)
+;CFLAG:1501 에이키님 마구로 스위치（ =1 스위치 온）
+;CFLAG:1502 임신 소망 관련 플래그
+;(Bit =0 위험일 H 해금 =1 자식 발원 끝 =2 신뢰도 도달 =3 소망 취득 필 =4 [미사용]두 번째 소망)
+;CFLAG:1503 우후후 참은 날짜 수[미사용]
+;CFLAG:1600 억지로 플래그
+;CFLAG:1601 연인 동침 플래그
+;CFLAG:1602 키스 제어 플래그
+;CFLAG:1603 다음 날 행동 예약 플래그（=1 발원하여 내방 =2 동거시 자위하고 아침에 습격 예정 =3,4 자위 참고 내방）
+;CFLAG:1605 취침 플래그 (=1 동거시, 잘자 구상 통함 o 초기위치에서 잠듦)
+;CFLAG:1607 시오후키 카운트 플래그
+;CFLAG:1698 정사 노출 모니터링
+;CFLAG:1699 약점 관련 관리
+;(Bit =0 팬티 밀수 전과 있음 =1 밀수 설교 대기 =2 지나친 설교 대기 =3 침실 지나친 설교 대기)
+;CFLAG:1700 팬티 밀수 모니터링
+;CFLAG:1701 좋은 말씀의 누계
+;CFLAG:1801 에이키님 가드 업 플래그(=1 가드력 업)
+;CFLAG:1802 
+;CFLAG:1803 메시지 억제 플래그(Bit =0 가드력 업UPDATE =1 약점 잡기 =2 호칭 변경 =3 일기UPDATE )
+;CFLAG:1900 일기 플래그(첫 조우 패턴))
+;CFLAG:1901 일기 플래그(첫 조우시 대가ID)
+;CFLAG:1910 일기 분기 관리
+;(Bit =0탄막 승부 경과 =1탄막 승부 결과 =2일기 기입 억제No.1 =3일기 기입 억제No.2 =4팬티 밀수 검거 이력 =5바라는 임신 =6키스 주도권 =7갈라진 애널
+;＊＊명확한 구강 사용 영역이 아니므로 주의＊＊
+;CSTR:30:80 연모 단 둘만의 한정 MASTER 호칭
+;CSTR:30:81 일기용 기록1([日記ID:내용]…의 형식으로 @SET_DIC에 의한 관리)
+;CSTR:30:82 일기용 기록2(한 묶음보다 처리가 빠를 것 같아 분할)
+;플래그만 미실장
+;CFLAG:1800 에이키님 진심 질리는 안건
+;(Bit =0 억지로 씨받이 =1 시간 처녀 상실 =2 가드 업 시 바이브 파과 =3 무자각 임신 발각)
+
+;******************************************************************************
+;### 구상 존재 판정 ###################################
+@M_KOJO_K30(ARG)
+;지금은 구상이 없지만 장래를 위해
+CFLAG:30:시간정지구상있음 = 1
+CFLAG:30:면간구상있음 = 1
+;에이키님은 ?????お堅いのでオナバレなし崩しックス拒否するよ
+SIF CFLAG:30:1801 == 1
+	CFLAG:30:파과캔슬구상있음 = 1
+;에이키님은 딱딱해서 연모나 섹프가 생길 때까지 덮치치 않아
+IF CFLAG:30:1801 == 1
+	IF TALENT:30:연모 || TALENT:30:섹프
+		CFLAG:30:덮침금지 = 0
+	ELSE
+		CFLAG:30:덮침금지 = 1
+	ENDIF
+ELSE
+	CFLAG:30:덮침금지 = 0
+	CFLAG:30:파과캔슬구상있음 = 0
+ENDIF
+;구상존재 판정입니다, 절대 코멘트 아웃하지 마세요
+RETURN 1
+;### 구상 색 판정 ###################################
+@M_KOJO_COLOR_K30
+;에이키님은 정신이 맑을 때만 키스 합의를 인정해요
+;이상한 위치에 뭐가 있는 것은 매턴 읽으러 가고 싶었기 때문에
+SIF CFLAG:30:1801 == 1 && CFLAG:30:1602 == 0
+	CLEARBIT CFLAG:30:기정사실, 0
+SETCOLOR 0x337D5C
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"UPDATE판정"
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+@M_KOJO_UPDATE_K30
+;구상 독자적인 UPDATE용
+;ENCOUNTER 전용으로 자체 분기 플래그를 장착했을 경우 등에 사용하시기 바랍니다
+;UPDATE 판정으로 CFLAG등의 캐릭터 변수를 사용하는 경우, 캐릭터 번호를 지정해야 합니다
+VARSET LOCALS
+IF !GETBIT(CFLAG:30:1803, 4)
+	PRINTFORMDL 
+	PRINTFORMDL 한 번 뿐인 질문입니다
+	PRINTFORMDL 에이키님을 항상 모유체질로 하십니까??
+	CALL ASK_YN
+	IF !RESULT
+		TALENT:30:모유체질 = 2
+		PRINTFORMDW 변경되었습니다
+	ENDIF
+	SETBIT CFLAG:30:1803, 4
+ENDIF
+IF CFLAG:30:안면 && MASTERNAME:30 == ""
+	PRINTFORML
+	PRINTFORML 업데이트로 에이키님의 호칭을 변경할 수 있게 되었습니다
+	PRINTFORML 「%CALLNAME:MASTER%\@ TALENT:30:연인 ? # 씨 \@」에서 변경합니까?
+	CALL ASK_YN
+	IF !RESULT
+		CALL K30_SET_C_NAME(0)
+		RESETCOLOR
+	ELSE
+		MASTERNAME:30 = %CALLNAME:MASTER%
+		PRINTFORMW 「%CALLNAME:MASTER%\@ TALENT:30:연인 ? # 씨 \@」(으)로 설정했습니다
+	ENDIF
+ENDIF
+SIF CFLAG:30:생해금 == 2
+	SETBIT CFLAG:30:1502, 0
+IF CFLAG:30:안면 && GETBIT(CFLAG:30:1803, 3) == 0
+	VARSET DIARY:30, 0, 0, 101
+	VARSET PAGESET:30, 0, 0, 101
+	DIARY:30:50 =1
+	PAGESET:30:1 = 50
+	IF CFLAG:30:1902
+		CSTR:30:82 = [50:%MASTERNAME:30%/%CSTR:30:81%/]
+		CSTR:30:81 = [50:%TOSTR(CFLAG:30:1902)%/맑음/]
+	ELSE
+		CFLAG:30:1900 = 3
+		CFLAG:30:1901 = 1
+		CSTR:30:81 = [50:3/맑음/]
+		CSTR:30:82 = [50:%MASTERNAME:30%/하쿠레이 신사/]
+	ENDIF
+	SIF !TALENT:30:키스미경험
+			CALL K30_WRITE_DIARY(1, 1)
+	SIF CSTR:30:처녀상실이력 != "" 
+			CALL K30_WRITE_DIARY(2, 1)
+	PRINTFORML 
+	PRINTFORML 사양변경에 따라 일기가 리셋되었습니다
+	PRINTFORMW 인계 데이터에서는 일기의 발생·표시가 이상하게 됩니다만 양해 바랍니다
+	PRINTFORML 
+	SETBIT CFLAG:30:1803, 3
+ENDIF
+$K30_GUARD_CHECK
+IF GETBIT(CFLAG:30:1803, 0)
+	RESETCOLOR
+	PRINTFORML
+	PRINTFORML 에이키님은 \@ CFLAG:30:1801 == 1 ? 가드가 단단한 염마님 # 평범한 환상향의 소녀 \@입니다.
+	PRINTFORML 에이키님의 가드력을 바꿉니까?
+	CALL ASK_M("한다",1 , "아직 보류한다" ,1 , "이제 바꾸지 않는다",1)
+	SELECTCASE RESULT
+		CASE 0
+			CALL K30_SELECT_TYPE
+			GOTO K30_GUARD_CHECK
+		CASE 1
+			PRINTFORMW 계속해서 UPDATE때 확인 선택지가 나옵니다
+			RETURN 1
+		CASE 2
+			CLEARBIT CFLAG:30:1803, 0
+			PRINTFORMW 선택을 종료합니다
+			RETURN 1
+	ENDSELECT
+ENDIF
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"ENCOUNTER"계 이벤트（엑스트라 구문）
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+@M_KOJO_ENCOUNTER_K30
+;첫 대면, 인사 타이밍
+;TALENT의 변경은 여기서 부탁드려요
+CALL K30_SELECT_TYPE
+SIF YOUBI_MATCH(DAY, "금")
+	CALLF FIRSTTIME("이상한T피로연")
+;BIT 0과 3을 동시에 ON
+CFLAG:30:1803 = 9
+;일기 플래그
+CALL K30_WRITE_DIARY(50, 1)
+CFLAG:30:1901 = 거점_주인
+CALLF ONCE("첫대면")
+CALL M_KOJO_COLOR_K30
+;백옥루나 시비곡직청에서 두문불출
+IF MAIN_MAP == 6 && 거점_주인 != 26
+	;이상한 T Ver.-명계 거주에서 4일간 에이키님을 계속 피한다. 아마 죽음 분기
+	IF CFLAG:30:의상일시변경 == 62
+		CFLAG:30:1900 = 4
+		PRINTFORMW 「어……!?」
+		PRINTFORMDL 목소리가 나는 곳으로 돌아보자 그 곳에는 기묘한 모습을 한 소녀가 서있었다
+		PRINTFORMDL 쓰고 있는 모자는 격조 높은 의상으로 장식되어 있어 소유자의 위치를 가늠할 수 있다
+		PRINTFORMDW 반면 복장은 러프한 검정 오프숄더 셔츠와 원색 계열의 미니스커트로 언밸런스하기 짝이 없다.
+		IF CFLAG:113:안면
+			PRINTFORMDW 지옥의 여신과 같은 옷을 벌칙같은 것으로 강제로 입혀진 걸까…
+		ELSE
+			PRINTFORMD 하이라이트로 셔츠에는 커다랗게「welcome
+			CALL COLORMESSAGE("♥", C_RED, 0, 0)
+			PRINTFORMDL  Hell」이라고 프린트 되어 있다
+			PRINTFORMDW ……환영 가장 파티라도 기획하고 있는 것일까?
+		ENDIF
+		;일부러 부르는 이름을 듣는 것은, 여자 같은 이름이 싫어서 돼지 고릴라라고 부르는 사람도 있고…라는 에이키님의 배려
+		PRINTFORML
+		PRINTFORML 「……혹시 당신이 %NAME:MASTER%씨, 인가요…?」
+		PRINTFORMW 「명계로 넘어오신 분이, 계속 보이지 않았습니다만. 설마 산 자일 줄이야…」
+		PRINTFORML 「저는 시키에이키. 환상향의 염마직을 맡고 있습니다…」
+		PRINTFORMW 「일단 당신은 어떻게 부르면 좋을까요?」
+		CALL K30_SET_C_NAME(0)
+		PRINTFORMW 「알겠습니다」
+		PRINTFORMW 「………………」
+		PRINTFORMW 「제가 확인하고 싶은 것, 당신도 의문스러운 것… 여러가지가 있을 것 같습니다만」
+		PRINTFORMW 「모든것은 훗날 다시 날을 잡아도 괜찮겠습니까?」
+		PRINTFORMW 「그럼 이만……」
+	;통상
+	ELSE
+		CFLAG:30:1900 = 1
+		PRINTFORMW 「……이것은 무슨 착오입니까. 어떻게 산 자가 피안에?」
+		PRINTFORMDL 목소리 쪽을 돌아보니, 거기에는 당신을 매섭게 바라보는 소녀가 서 있었다
+		PRINTFORMW 「확인해 두겠습니다. %NAME:MASTER%씨가 틀림 없겠죠?」
+		PRINTFORMW 「우선, 당신을 어떻게 부르면 좋을까요」
+		CALL K30_SET_C_NAME(0)
+		PRINTFORM 「제 이름은 시키에이키. 
+		SELECTCASE CFLAG:MASTER:현재위치
+			CASE 610 TO 619
+				PRINTFORMW 이곳의 책임자인 염마를 맡고 있습니다」
+			CASE 604
+				PRINTFORMW 저 건물에서 염마를 맡고 있습니다」
+			CASE 620 TO 629
+				PRINTFORMW 시비곡직청에서 염마를 맡고 있습니다」
+			CASEELSE
+				PRINTFORMW 환상향의 염마를 맡고 있습니다」
+		ENDSELECT
+		PRINTFORML 「…피안은 유세의 영역, 요괴라도 삼도천을 건너는 것은 제한되어 있습니다」
+		PRINTFORMW 「그런 곳에서 아무렇지도 않게 살려고 하다니 보통 사람 같지 않군요」
+		PRINTFORMW 「당신은 도대체 어떤 자입니까? 뭔가 숨기고 있는 것은 없습니까?」
+		PRINTFORMDL 거기까지 말한 에이키는 %마스터를% 의심스럽다는 듯 쳐다본다
+		PRINTFORMDW 겉보기에는 가련한 소녀이긴 하지만 그 위엄과 중압은 염마를 자칭할 만큼 보통이 아니다…
+	ENDIF
+ELSE
+	;후안 거주지에서 피안에서 대면
+	IF (MAIN_MAP != 6 && INRANGE(CFLAG:MASTER:현재위치, 640, 699)) || (MAIN_MAP == 6 && (INRANGE(CFLAG:MASTER:현재위치, 610, 629) || INRANGE(CFLAG:MASTER:현재위치, 640, 699)))
+		;이상한 T
+		IF CFLAG:30:의상일시변경 == 62
+			CFLAG:30:1900 = 5
+			PRINTFORMW 「누구시죠……!?」
+			PRINTFORMDL 목소리가 난 쪽을 돌아보니, 거기에는 기묘한 모습을 한 소녀가 서 있었다
+			PRINTFORMDL 쓰고 있는 모자는 격조 높은 의상으로 장식되어 있어 소유자의 위치를 가늠할 수 있다
+			PRINTFORMDW 반면 복장은 러프한 검정 오프숄더 셔츠와 원색 계열의 미니스커트로 언밸런스하기 짝이 없다
+			IF CFLAG:113:안면
+				PRINTFORMDW 지옥의 여신과 같은 옷을 벌칙같은 것으로 강제로 입혀진 걸까…
+			ELSE
+				PRINTFORMD 하이라이트로 셔츠에는 커다랗게「welcome
+				CALL COLORMESSAGE("♥", C_RED, 0, 0)
+				PRINTFORMDL  Hell」이라고 프린트 되어 있다
+				PRINTFORMDW …아무래도 명계는 생각보다 문턱이 낮은 것 같다
+			ENDIF
+			PRINTFORML 
+			PRINTFORML 「어떻게 산 자가 이곳에…? 아무렇지 않은건가요?」
+			PRINTFORML 「혹시 당신이 소문의 외래인……」
+			PRINTFORMW 「그러니까, 이름이…」
+		;통상
+		ELSE
+			CFLAG:30:1900 = 2
+			PRINTFORMW 「기다리세요. 당신 어디서부터 헤메고 있었던건가요?」
+			PRINTFORMDL 엄하게 묻는 목소리가 있는 쪽으로 돌아보니
+			PRINTFORMDL 큼직한 모자와 옷을 몸에 걸치고
+			PRINTFORMDW 위엄 있는 소녀가 서 있었다
+			PRINTFORML 「이곳은 산 자가 발을 들여놓을 수 없는 곳이야」
+			PRINTFORMW 「이런 곳까지 아무렇지도 않게 들어오다니」
+			PRINTFORML 「당신…외래인인 것 같네」
+			PRINTFORMW 「일단 이름을 물어볼까」
+		ENDIF
+	;일반적인 조우
+	ELSE
+		;이상한 T
+		IF CFLAG:30:의상일시변경 == 62
+			CFLAG:30:1900 = 6
+			PRINTFORMDW %마스터는% 기묘한 차림을 한 소녀를 발견했다
+			PRINTFORMDL 쓰고 있는 모자는 격조 높은 의상으로 장식되어 있어 소유자의 위치를 가늠할 수 있다
+			PRINTFORMDL 반면 복장은 러프한 검정 오프숄더 셔츠와 원색 계열의 미니스커트로 언밸런스하기 짝이 없다
+			IF CFLAG:113:안면
+				PRINTFORMDW 지옥의 여신과 같은 옷을 벌칙같은 것으로 강제로 입혀진 걸까…
+			ELSE
+				PRINTFORMD 하이라이트로 셔츠에는 커다랗게「welcome
+				CALL COLORMESSAGE("♥", C_RED, 0, 0)
+				PRINTFORMDL  Hell」이라고 프린트 되어 있다
+				PRINTFORMDW 조심스럽게 말한다고 쳐도, 흉내낼 수 없는 개성적인 센스가 넘친다…
+			ENDIF
+			PRINTFORMDW 남의 이목을 계속 신경쓰고 있는 그 소녀에게 흥미를 끌리고, %마스터는% 말을 걸어 보았다
+			PRINTFORML 
+			PRINTFORMW 「꺄아앗!?」
+			PRINTFORML 「ㅊ, 처음 뵙겠습니다. %K30_GREETING_EIKI()%…」
+			PRINTFORML 「…혹시 당신이 소문난 외래인입니까」
+			PRINTFORMW 「그러니까, 이름이…」
+		;통상
+		ELSE
+			CFLAG:30:1900 = 3
+			PRINTFORMW 「%K30_GREETING_EIKI()%」
+			PRINTFORMDL 등을 곧게 펴고 엄숙한 분위기를 지닌 소녀가 %CALLNAME:MASTER%에게 말을 걸어왔다
+			PRINTFORMW 「처음 뵙겠습니다. 당신이 최근에 이쪽으로 이사온 분입니까?」
+			PRINTFORML 「특이한 외래인이 있다고 해서 좀 확인하고 싶었어」
+			PRINTFORMW 「당신의 이름을 알려줄래?」
+		ENDIF
+	ENDIF
+	CALL K30_SET_C_NAME(0)
+	IF CFLAG:30:의상일시변경 == 62
+		PRINTFORML 「제 이름은 시키에이키. 환상향의 염마를 맡고 있습니다…」
+		PRINTFORMW 「………………」
+		PRINTFORML 「……여러 가지로 의문이 있는 것은 잘 알고 있습니다」
+		PRINTFORMW 「하지만 그건 또 다음 기회로…부탁드립니다」
+		PRINTFORMW 「실례하겠습니다…」
+	ELSE
+		PRINTFORMW 「내 이름은 시키에이키. 당신의 사후에 대하여 재판하는 자야.」
+		PRINTFORMW 「염마님은 알고 계시죠? 내가 환상향의 염마를 담당하고 있어.」
+		PRINTFORMW 「당신, 죄를 쌓지 않았을까? 오늘 한 행동으로 부덕에 이르는 일은 없었을까?」
+		PRINTFORMDL 거기까지 말한 에이키는 %마스터를% 미심쩍은 듯이 바라본다
+		PRINTFORMDW 이건………들켜버린건가?
+	ENDIF
+ENDIF
+IF CFLAG:30:의상일시변경 == 62
+	PRINTFORML 
+	PRINTFORMDL 일방적으로 이야기를 중단당하고 말았다
+	PRINTFORMDL 소문으로 들었던 환상향의 염마님과는 상당히 인상이 달라서 어리둥절하다
+	PRINTFORMDW 에이키는 남의 이목을 신경 쓰면서도 아직 그곳에 있는데, 무슨 영문일까…
+ELSE
+	PRINTFORML 
+	PRINTFORMW 「…뭐, 그건 넘어가죠. 금방 알 수 있는 일입니다」
+	PRINTFORML 「저는 인요를 불문하고 사후의 죄가 가벼워지도록 가르침을 펼치고 다니고 있습니다」
+	PRINTFORMW 「속세를 헤매는 자를 이끄는 것도 염마의 영역이니」
+	PRINTFORMW 「당신도 나의 가르침을 잘 지키고 선행을 쌓도록 명심하세요」
+	PRINTFORMW 「아시겠죠?」
+ENDIF
+RESETCOLOR
+RETURN 1
+@K30_SELECT_TYPE
+$K30_GUARD_UP
+PRINTFORML 
+PRINTFORMDL 당신이 생각하는 에이키님은…
+RESETCOLOR
+CALL ASK_M("그거야 era의 에이키님은 진짜",1 , "딱히 다른 환상향의 소녀와 같음", 1, "어떻게 다른데?", 1)
+SETCOLOR 0x337D5C
+	SELECTCASE RESULT
+		CASE 0
+			CFLAG:30:1801 = 1
+			RETURN 1
+		CASE 1
+			CFLAG:30:1801 = 0
+			RETURN 1
+		CASE 2
+			PRINTFORMDL 「진짜」에서는 에이키님에게 함락 소질이 붙을 때까지 파과 취소・카운터 덮치기 봉인을 붙입니다.
+			PRINTFORMDL 「딱히」에서는 구상 도입 전과 같은 상태입니다. 일부 구상에서 모순이 발생하지만 양해 바랍니다
+			PRINTFORMDL 소질변경은 하지 않으므로 통상 공략 난이도는 크게 변하지 않을 것입니다.
+			SIF !GETBIT(CFLAG:30:1803, 0)
+				PRINTFORMDL 또한 UPDATE 선택에서 다시 변경 선택지가 나옵니다. 아무거나 골라도 괜찮아요
+			PRINTFORMDL 관계를 돈독히 한 후 변경하면 플래그 처리가 이상해집니다. [사모] 취득 전에는 고정하는 것이 좋습니다.
+	ENDSELECT
+GOTO K30_GUARD_UP
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"SP_EVENT"계 이벤트
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;==================================================
+;데이트 돌아가는 중에 첫 KISS（합의도 붙는다）
+;==================================================
+@M_KOJO_SPEVENT_K30_1(ARG,ARG:1)
+;구상 주는 TARGET
+;지문 표시
+CALL SPEVENT_MESSAGE_1(ARG,ARG:1)
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+;지문
+CALL SPEVENT_MESSAGE_1(ARG,ARG:1)
+IF LOCAL
+	PRINTFORMW 「%K30_C_NAME(MASTER)%. 할 말이 있습니다」
+	PRINTFORMW 「……뭘 경계하고 있는건가요. 네? 설교할 줄 알았다?」
+	PRINTFORMW 「저를 두고 사시사철 설교를 퍼뜨리는 요괴라고 생각하는 건 아닌가요?」
+	PRINTFORMW 「저는 당신들이 사후의 심판을 받기 전에」
+	PRINTFORMW 「내가 그 죄질이 조금이라도 가벼워질 수 있도록 도와주고 있을 뿐입니다」
+	PRINTFORMW 「그걸 당신은……알겠습니까 애초에 죄라 함은………아」
+	PRINTFORMW 「………크흠」
+	PRINTFORMW 「………그러니까 말이죠, 예전에 누군가가 말했습니다」
+	PRINTFORMW 「저는 무엇에도 물들지 않고 현혹되지 않는 존재. 때문에 남을 심판할 수 있다고」
+	PRINTFORMW 「인요를 불문하고 선행을 쌓기 위한 가르침을 설파하고 거리를 두는 존재」
+	PRINTFORMW 「하지만 그런 거리를 깨부수는 사람이, 최근에 환상향으로 왔다는 것을 알고 있습니까?」
+	PRINTFORMW 「모두에게 기피당하는 염마와도 관계를 맺는 괴짜」
+	PRINTFORMW 「%K30_C_NAME(MASTER)%, 앞으로도 좋은 교제 부탁드립니다」
+	PRINTFORMW 「그리고 제가 친애의 표시로 드리는 선물입니다」
+	PRINTFORMW 「받아주세요」
+	PRINTFORMW ……쪽
+	SETBIT CFLAG:30:1910, 6
+	SIF CFLAG:1801 == 1
+		CFLAG:1602 = 4
+ENDIF
+RETURN 1
+
+;==================================================
+;데이트 돌아가는 중에 고백（연인이 붙는다）
+;==================================================
+@M_KOJO_SPEVENT_K30_2(ARG,ARG:1)
+;구상 주는 TARGET
+;지문 표시
+CALL SPEVENT_MESSAGE_2(ARG,ARG:1)
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;고백 내용
+	;이 고백 내용 표시 후에 받을지 말지의 선택분이 표시됩니다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 0
+		IF FIRSTTIME("첫고백")
+			PRINTFORMW 「………잠깐 할 이야기가 있는데…」
+			PRINTFORMW 
+			PRINTFORMW 「있잖아, %K30_C_NAME(MASTER)%…」
+			PRINTFORMW 「이미 눈치채고 있을지도 모르지만」
+			PRINTFORMW 「저는, 당신을 좋아합니다」
+			PRINTFORMW 「인간과 염마, 맺어질 수 없는 관계라고 알고 있지만」
+			PRINTFORMW 「이제, 저는 혼자 있는 것 따윈 할 수 없습니다」
+			PRINTFORMW 「부디, 저만을 바라봐 주실래요?」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;고백 오케이（연인이 붙는다）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORMW 「…고마워. %K30_C_NAME(MASTER)%」
+		PRINTFORMDW 에이키의 눈동자에 웃는 얼굴 그대로 눈물이 차오른다
+		PRINTFORMW 「거절 당하면 어떡하지, 계속, 생각해서…」
+		PRINTFORMW 「마음이 전해져서 다행이야, 정말로」
+		PRINTFORMW 「………………………………」
+		PRINTFORMW 「……정말, 고마워」
+		PRINTFORMW 「%K30_C_NAME(MASTER)%, 좋아해」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;고백 실패
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF FIRSTTIME("고백실패")
+			PRINTFORML 「그래, 그렇겠지……」
+			PRINTFORMW 「인간과 신의 사귐……그런게, 있을리……」
+			PRINTFORMW 「%K30_C_NAME(MASTER)%……, 미안해」
+			PRINTFORMW 「이상한 말을 해버렸네」
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;데이트 돌아가는 길
+;==================================================
+@M_KOJO_SPEVENT_K30_3(ARG,ARG:1)
+;구상 주는 TARGET
+;지문 표시
+CALL SPEVENT_MESSAGE_3(ARG,ARG:1)
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;통상귀가
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 0
+		IF CFLAG:30:의상일시변경 == 62
+			IF TCVAR:30:358 == 0
+				PRINTFORMW 「이런 날에 데리고 다니다니 당신은 정말 심술궂은 사람입니다…」
+			ELSE
+				PRINTFORMW 「오늘은 감사했습니다…」
+			ENDIF
+		ELSEIF TALENT:연인
+			PRINTFORML 「염마가 인간\@ TCVAR:30:358 ? 을 불러 # 과 같이 \@ 데이트를 하다니」
+			PRINTFORMW 「후훗, 주위에서는 어떻게 볼지」
+			PRINTFORMW 「고마워. 정말 즐거웠어」
+		ELSEIF TALENT:연모
+			PRINTFORMW 「오늘은 여기서 작별이네…」
+			PRINTFORMW 「즐거웠어. 또 \@ TCVAR:30:358 ? 불러 # 권유해  \@ 주세요」
+		ELSE
+			PRINTFORMW 「오늘은 \@ TCVAR:30:358 ? 불러주셔서 # 권유해 주셔서 \@ 감사합니다」
+			PRINTFORMW 「또 기회가 된다면 부탁드립니다」
+		ENDIF
+		TCVAR:30:358 = 0
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;반발각인 소멸 이벤트
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORMW 「…이제부터는 제대로 선행을 쌓아 주세요」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;반발각인 2>1 레벨 다운 이벤트
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML （모두 용서를 받았다고 착각하시면 곤란합니다만…）
+		PRINTFORMW 「…조금은 인정해 드리지요」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;반발각인 3>2 레벨 다운 이벤트
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML （죄를 심판하는 사람이 관용을 잃어서는 안되겠죠…）
+		PRINTFORMW 「…말씀만이라도 들어볼까요」
+		RETURN 1
+	ENDIF
+	PRINTFORML
+ENDIF
+RETURN 1
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"EVENT"계 이벤트
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;==================================================
+;방에서 조우
+;==================================================
+@M_KOJO_EVENT_K30_1(ARG,ARG:1)
+;구상 주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;PRINTFORMW 「방에서 조우」하는 ARG는 {ARG}
+;-------------
+IF LOCAL
+	;구상 외 우후후 강제 중단의 팔로우는 여기에
+	CFLAG:1501 = 0
+	CFLAG:1600 = 0
+	CFLAG:1601 = 0
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;MASTER가 들어왔다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF TFLAG:192 == 10 
+			TFLAG:192 = 0
+		ELSEIF 업무중체크(30) && GET_JOBNAME(30) == "재판"
+			PRINTFORMDL 에이키는 재판에 집중하고 있다…
+		ELSEIF CFLAG:30:의상일시변경 == 62
+			IF TALENT:기분 > -1
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORML 「……!!」
+						PRINTFORML 「아, %K30_C_NAME(MASTER)%…」
+						PRINTFORML 「………」
+					CASE 1
+						PRINTFORML 「……하고 싶은 말은 알겠습니다, 하지만」
+						PRINTFORML 「오늘은 아무것도… 아무 말도 하지 말아주세요…」
+					CASE 2
+						PRINTFORML 「…………!?」
+						PRINTFORML 「%K30_C_NAME(MASTER)%, 어느새 여기 있었던겁니까…」
+						PRINTFORMDL 오늘의 에이키는 설교를 할 처지는 아닌 것 같다…
+				ENDSELECT
+			ENDIF
+		ELSEIF K30_FIND_AROUND() == 76 && RAND:3 == 1 && !CFLAG:30:동행 && !CFLAG:76:동행 && !업무중체크(30)
+			PRINTDATADL
+				DATAFORM 에이키는 코마치에게 뭔가 설교를 하고 있다…
+				DATAFORM 에이키는 코마치를 꾸짖는 중이다…
+				DATAFORM 에이키는 너무나 고마운 말씀을 코마치에게 전하고 있는 것 같다…
+			ENDDATA
+		ELSEIF TALENT:기분 == -1
+		ELSEIF ((TALENT:연모 && K30_BE_SEEN() == 0) || TALENT:키스마) && RAND:(20 - TALENT:키스마 * 10) == 1 && (CFLAG:1602 == 1 || CFLAG:1801 == 0)
+			PRINTFORML 「앗, %K30_C_NAME(MASTER)%…혹시 찾으러 와 준거야?」
+			PRINTFORML 「그럼 이건 찾아준 상이야………쪽♥」
+			PRINTFORMDL 에이키가 입맞춤을 해왔다…
+		ELSEIF TALENT:연모
+			PRINTFORMDL 에이키는 %마스터를% 만나 %TEXTR("만족한/즐거운/행복한")% 모양이다
+		ELSE
+			PRINTFORMDL 에이키는 %마스터가% 있는 것을 깨닫고 인사했다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;TARGET이 들어왔다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF TFLAG:192 == 10 
+			TFLAG:192 = 0
+		ELSEIF CFLAG:30:의상일시변경 == 62
+			IF TALENT:기분 > -1
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORML 「……!!」
+						PRINTFORML 「앗, %K30_C_NAME(MASTER)%…」
+						PRINTFORML 「………」
+					CASE 1
+						PRINTFORML 「……하고 싶은 말은 알겠습니다, 하지만」
+						PRINTFORML 「오늘은 아무것도… 아무 말도 하지 말아주세요…」
+					CASE 2
+						PRINTFORML 「…………!?」
+						PRINTFORML 「%K30_C_NAME(MASTER)%, 있었군요…」
+						PRINTFORMDL 오늘의 에이키는 설교할 처지는 아닌 것 같다…
+				ENDSELECT
+			ENDIF
+		ELSEIF TALENT:기분 == -1
+		ELSEIF ((TALENT:연모 && K30_BE_SEEN() == 0) || TALENT:키스마) && RAND:(20 - TALENT:키스마 * 10) == 1 && (CFLAG:1602 == 1 || CFLAG:1801 == 0)
+			PRINTFORML 「아 %K30_C_NAME(MASTER)%, 혹시 나를 찾고 있었던 거야?」
+			PRINTFORML 「미안해. 이건 고생하게 한 사과의 표시야………쪽♥」
+			PRINTFORMDL 에이키가 입맞춤을 해왔다…
+		ELSEIF TALENT:연모
+			PRINTFORMDL 에이키는 %마스터를% 찾아서 %TEXTR("만족한/즐거운/행복한")% 모양이다
+		ELSE
+			PRINTFORMDL 에이키는 %마스터가% 있는 것을 깨닫고 인사했다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;TARGET가 욕탕에 들어와 같이 들어간다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 「엣? %K30_C_NAME(MASTER)%!?」
+		PRINTFORMW 「……………………」
+		PRINTFORMW 「………괜찮으시다면 함께 들어가시지 않겠습니까……?」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;TARGET가 욕탕에 들어왔다가 나갔다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		PRINTFORML 「엣? %K30_C_NAME(MASTER)%!?」
+		PRINTFORMW 「……………………!!」
+		PRINTFORMW 「ㅈ, 죄ㅈ, 죄송합니다!!」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;TARGET가 욕탕에 들어와 쫒겨났다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+	;그럴싸한 이유가 떠오르지 않으니까 조작
+		IF TALENT:연모
+			PRINTFORML 「%K30_C_NAME(MASTER)%!? 지금 시간은 여성 전용입니다……」
+			PRINTFORMW 「다른 사람과 마주치지 않도록 몰래 나와 주세요」
+		ELSE
+			PRINTFORML 「당신, 지금 시간은 여성 전용입니다!」
+			PRINTFORMW 「당장 나가주세요!」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;외출한 곳에서 조우했다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 6
+		IF TFLAG:192 == 10 
+			TFLAG:192 = 0
+			ELSEIF 업무중체크(30) && GET_JOBNAME(30) == "재판"
+			PRINTFORMDL 에이키는 재판에 집중하고 있다…
+		ELSEIF CFLAG:30:의상일시변경 == 62
+			IF TALENT:기분 > -1
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORML 「……!!」
+						PRINTFORML 「앗, %K30_C_NAME(MASTER)%…」
+						PRINTFORML 「………」
+					CASE 1
+						PRINTFORML 「……하고 싶은 말은 알겠습니다, 하지만」
+						PRINTFORML 「오늘은 아무것도… 아무 말도 하지 말아주세요…」
+					CASE 2
+						PRINTFORML 「…………!?」
+						PRINTFORML 「%K30_C_NAME(MASTER)%, 어느새 여기 있었던겁니까…」
+						PRINTFORMDL 오늘의 에이키는 설교할 처지는 아닌 것 같다…
+				ENDSELECT
+			ENDIF
+		ELSEIF K30_FIND_AROUND() == 76 && RAND:3 == 1 && !CFLAG:30:동행 && !CFLAG:76:동행 && !업무중체크(30)
+			PRINTDATADL
+				DATAFORM 에이키는 코마치에게 뭔가 설교를 하고 있다…
+				DATAFORM 에이키는 코마치를 꾸짖는 중이다…
+				DATAFORM 에이키는 너무나 고마운 말씀을 코마치에게 전하고 있는 것 같다…
+			ENDDATA
+		ELSEIF TALENT:기분 == -1
+		ELSEIF TALENT:연모
+			PRINTFORMDL 에이키는 %마스터를% 찾아서 %TEXTR("만족한/즐거운/행복한")% 모양이다
+		ELSE
+			PRINTFORMDL 에이키는 %마스터가% 있는 것을 깨닫고 인사했다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;타 캐릭터와 데이트 중에 조우했다
+	;ARG:1에 데이트 상대
+	;코마치 구상에서 만난 에이키님이 좋아서 영향을 받아 고쳐씀
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 7
+		IF ARG:1 == 76 && YOUBI_MATCH(DAY, "월수금") && INRANGE(TIME / 60, 11, 15) && ((CFLAG:[[코마치]]:현재위치 == 삼도천 && MAIN_MAP != 6) || (CFLAG:[[코마치]]:현재위치 == 602 && MAIN_MAP == 6))
+			PRINTFORMDW 에이키님이 무표정한 얼굴로 이쪽에 다가온다…
+			PRINTFORML 「코마치, 당신에게 부탁한 일은 뱃사공 뿐만이 아닐텐데요…」
+			PRINTFORML 「그렇군요, 업무를 빠지고 설렁설렁 \@ TALENT:연인 ? 『저의』 # \@%조사처리(K30_C_NAME(MASTER),"과")% 외출입니까」
+			PRINTFORMW 
+			PRINTFORML 「――아아, 『지금은』별로 상관없어요. 즐겁게 놀다 오세요」
+			PRINTFORMW 「코마치, 다음에 한 번 확실히『이야기』를 할 테니 기억해 두세요」
+			PRINTFORMW 「%K30_C_NAME(MASTER)%에게도 듣고 싶은 것들이 생겼으니 부탁드립니다」
+		ELSEIF TALENT:연인 
+			PRINTFORMDW 에이키님이 성큼성큼 다가왔다…
+			IF ARG:1 == 76 || ARG == 129
+				PRINTFORML 「%K30_C_NAME(ARG:1)%, 상사로서 부하직원이 길을 벗어나는 것은 묵과할 수 없습니다」
+			ELSEIF ARG:1 ==113
+				PRINTFORML 「비록 헤카티아님이라도 이것만은 양보할 수 없습니다」
+			ELSE
+				PRINTFORML 「%K30_C_NAME(ARG:1)%, 염마로서 당신의 죄를 묵과할 수는 없습니다」
+			ENDIF
+			PRINTFORMW 「확실히 %K30_C_NAME(MASTER)%은 매력적이고 같이 교제할 때가 즐거운 것을 알고 있습니다」
+			PRINTFORMW 「하지만 %K30_C_NAME(MASTER)%과 저는 이미 생각을 나누고 있습니다. \@ ARG:1 ==113 ? 부디 손을 떼 주 # 손을 떼 \@세요」
+			IF ARG:1 == 76
+				PRINTFORML 
+				PRINTFORML 「그리고 코마치, 기억해 두세요」
+				PRINTFORMDW 에이키는 가슴을 짓누르듯이 %CALLNAME:MASTER%의 팔에 안겨왔다…
+				PRINTFORMW 「%K30_C_NAME(MASTER)%은 쓸데없이 큰 것보단 귀여운 것을 좋아해요…」
+			ENDIF
+			SIF TALENT:(ARG:1):연모
+				PRINTFORMDW …잠시동안 %마스터는% 식은땀을 흘리며『양손의 꽃』을 만끽했다…
+		ELSEIF TALENT:연모
+			IF ARG:1 == 76 && TALENT:MASTER:연인 != 76
+				PRINTFORMDL 이쪽을 알아차린 에이키님이 코마치에게 말을 걸어왔다…
+				PRINTFORMW 「머리 좋은 당신이라면 제 마음도 눈치채고 있겠죠…」
+				PRINTFORML 「다만 저는 염마로서 항상 공명정대하게 행동하도록 마음쓰고 있습니다」
+				PRINTFORMW 「그러니 코마치, 안심하세요. 이 일에 있어서는 당신과 나는 대등한 입장입니다」
+				IF TALENT:76:연모
+					PRINTFORML 
+					PRINTFORMW 「그래서 %K30_C_NAME(MASTER)%에게 묻고 싶습니다만…」
+					PRINTFORMDL 에이키는 가슴을 짓누르듯이 %CALLNAME:MASTER%의 팔에 안겨왔다
+					PRINTFORMW 「쓸・데・없・이 큰 것과, 귀여운 것. 어느 쪽이 좋으신가요…」
+					PRINTFORMDW …%마스터는% 시간을 멈추고 도망치고 싶었지만 어떻게든 그 자리를 얼버무렸다
+				ENDIF
+			ELSE
+				PRINTFORMW 「……%K30_GREETING_EIKI()%, %K30_C_NAME(MASTER)%, %K30_C_NAME(ARG:1)%」
+				PRINTFORMDW 에이키는 두 사람에게 인사를 하고 총총 가버렸다
+				SIF ARG:1 == TALENT:MASTER:연인
+					PRINTFORMW （%K30_C_NAME(MASTER)%과 %K30_C_NAME(ARG:1)%. 굉장히 잘 어울리시네요…）
+			ENDIF
+		ELSE
+			PRINTFORMDW 눈치껏 에이키는 두 사람에게 목례만 했다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;MAIN_MAP에서 일일 첫인사
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && GROUPMATCH(ARG, 8, 9)
+		;아침인사구상에서 연속
+		IF TFLAG:192 == 10
+			IF TCVAR:30:373 == 1 || TCVAR:30:363 != 0
+				;기분나쁨or비동거시 방 난입은 무언
+				IF TALENT:기분 == -1 || CFLAG:1605 == 0 || CFLAG:30:의상일시변경 == 62
+				ELSE
+					;평범하게 인사했다
+					IF TCVAR:30:363 == 0
+						;하룻밤 한정
+						IF FLAG:일시체재 == 30 || TCVAR:30:연속숙박금지
+							LOCAL = 1
+							WAIT
+							PRINTFORML 「%K30_C_NAME(MASTER)%, 어제는 \@ TCVAR:30:연속숙박금지 ? 묵게해 # 머무르게 해 \@줘서 고마워」
+							PRINTFORMW 「잠깐 기다려줘. 사례를 하고 싶어…」
+						;동거중
+						ELSE
+							LOCAL = 0
+							PRINTFORMW 「………………」
+							PRINTDATAL
+								DATAFORM 「……%조사처리(K30_C_NAME(MASTER),"가")%, 그래도 제대로 알아채서 다행이야」
+								DATAFORM 「……아, 그러네… %K30_C_NAME(MASTER)%. 아직 끝나지 않았네요」
+								DATAFORM 「……다행이다. %조사처리(K30_C_NAME(MASTER),"가")% 떠올려 줘서…안심했어」
+							ENDDATA
+							PRINTFORMW 「아침 인사…%TEXTR("중요한/정말 중요한")%게, %TEXTR("끝나지 않았어/빠져있어/잊고 있었어/")%요」
+						ENDIF
+						PRINTFORML 「………쪼옥♥」
+						PRINTDATAD
+							DATAFORM 에이키는 %CALLNAME:MASTER%의 입술에 
+							DATAFORM 에이키는 %CALLNAME:MASTER%의 뺨에 손을 얹고 
+							DATAFORM 에이키는 어리광 부리듯 달려들며 
+						ENDDATA
+						PRINTFORMDW 아침 키스를 해주었다
+						IF LOCAL && RAND:5 < 3
+							PRINTDATAL
+								DATAFORM 「당신은 눈을 떼면 금방 없어지니까…」
+								DATAFORM 「계속 같이 있을 순 없지만…」
+							ENDDATA
+							PRINTFORMW 「이렇게 하면 떨어져 있는 동안에도 참을 수 있을거야…♥」
+						ELSE
+							PRINTDATAW
+								DATAFORM 「응읏……오늘 하루도 이것으로 열심히 할 수 있겠네요♥」
+								DATAFORM 「후훗…이것으로 확실히 잠은 깼을까♥」
+								DATAFORM 「…좋아하는 사람이 기뻐하도록 하는 것. 이것도 훌륭한 선행이니까요♥」
+							ENDDATA
+						ENDIF
+					;아침부터 드렸다
+					ELSE
+						PRINTFORML 「……나는…아직 준비가…끝나지 않아서」
+						PRINTFORMDL 아침부터 여러가지로 더럽혀져서 에이키의 몸단장은 큰일인 것 같다…
+					ENDIF
+					CFLAG:1605 = 0
+				ENDIF
+			ENDIF
+			RETURN
+		ELSEIF FLAG:70 || CFLAG:수면
+			RETURN
+		ENDIF
+		;패션붐의 일기 플래그
+		SIF DIARY:30:7 == 0 && FLAG:패션 == 62
+			CALL K30_WRITE_DIARY(7)
+		;여기서 언짢은 기분이라면「아침부터 기분이 언짢다」반발각인 없으면 MASTER의 탓이 아님
+		SIF TALENT:기분 == -1 && MARK:반발각인 == 0
+			TCVAR:30:372 = 1
+		TFLAG:192 = 10
+		;이상한 T셔츠
+		IF CFLAG:30:의상일시변경 == 62
+			IF YOUBI_MATCH(DAY, "금")
+				IF FIRSTTIME("이상한T피로연")
+					PRINTFORMDW …%마스터는% 그 소녀가 누군지 한순간 알 수 없었다
+					PRINTFORMDL 대담한 오프숄더 셔츠와 선명한 색상의 스커트에 간담이 서늘해졌지만
+					PRINTFORMDW 트레이드마크인 모자로 알아차릴 수 있었다. ……에이키다
+					PRINTFORMDW 라고 해도 염마님이 왜 저런 꼴을 하고 있는걸까
+					IF TALENT:기분 > -1
+						PRINTFORMDW %마스터를% 알아차린 에이키는 먼 곳을 바라보며 이유를 말해 주었다
+					ELSE
+						PRINTFORMDW %마스터를% 알아차린 에이키는 울분을 풀 방법이 없다는 듯이 말하기 시작했다
+					ENDIF
+					PRINTFORML 「……헤카티아님이 바깥세상을 보셨을 때 궁금했던 제도를 발견하셨다고 합니다.」
+					PRINTFORMW 「뭐든지『캐주얼 프라이데이ー』라고 해서, 편안한 복장으로 일을 하면 능률이 올라간다든가…」
+					PRINTFORML 「그래서 바로 도입이 됐습니다. 보시는 바와 같이 헤카티아님이 추천하는 편안한 복장과 함께…」
+					PRINTFORMW 「앞으로 매주 금요일은 이것이 염마의 제복입니다……」
+					IF TALENT:기분 > -1
+						PRINTFORMDW 멍한 눈을 한 채 에이키는 힘없이 웃었다……
+					ELSE
+						PRINTFORML 「……어떤 규칙이든 정해진 것은 지킨다. 그것도… 저의 의무입니다」
+						PRINTFORMDW 에이키는 만감이 교차하는 복잡한 표정을 하고 있다…
+					ENDIF
+				ELSEIF 업무중체크(30) && GET_JOBNAME(30) == "재판"
+					PRINTDATADL
+						DATAFORM 오늘은 금요일, 시비곡직청의 캐주얼 프라이데이다
+						DATAFORM 에이키는 그 티셔츠를 입고 재판을 하고 있다
+						DATAFORM 엄숙한 법정에 한층 눈에 띄는 모습의 에이키님이 있었다
+					ENDDATA
+					PRINTDATAL
+						DATAFORM 「…거짓말 마십시오. 염마의 눈을 속이려 하는 겁니까……?」
+						DATAFORM 「…예, 그렇습니다. 당신은 생전에 이 정도의 악행을……」
+						DATAFORM 「…이제 와서 후회해도 늦습니다. 유감스럽게도 당신은……」
+						DATAFORM 「…숨겨도 소용없습니다. 당신의 행동은 이 거울로 전부……」
+						DATAFORM 「…유감스럽지만 이건 선행이라 할 수 없습니다. 오히려……」
+						DATAFORM 「…어이가 없어서 할 말이 없군요. 지금에 이르러서도 아직 모르는겁니까……」
+						DATAFORM 「…다른 사람도 하고 있었다? 그렇다 해도 이 악행의 책임은 모두 당신에게……」
+					ENDDATA
+					PRINTFORMDL 에이키는 \@ TALENT:기분 == -1 ? 분노를 머금고  # 죽은 눈을 한 채  \@ 사자에게 설교를 하고 있다
+				ELSE
+					IF TALENT:기분 > -1
+						SELECTCASE RAND:3
+								CASE 0
+								PRINTFORMDL 오늘은 금요일, 시비곡직청의 캐주얼 프라이데이다
+								PRINTFORML 「%K30_GREETING_EIKI()%, %K30_C_NAME(MASTER)%…」
+								PRINTFORMDW 복장은 캐주얼하지만 에이키의 심경은 복잡한 것 같다
+							CASE 1
+								PRINTFORMDL 금요일이므로 에이키는 그 티셔츠를 입고 있다
+								PRINTFORML 「앗…… %K30_C_NAME(MASTER)%……%K30_GREETING_EIKI()%……」
+								PRINTFORML 「너무, 이쪽은……보지 말아주십시오…」
+							CASE 2
+								PRINTFORMDL 멍하니 있는 에이키에게 이쪽에서 먼저 말을 걸어 보았다
+								PRINTFORMW 「꺄아아앗!!?」
+								PRINTFORML 「…아앗, 그게…죄송합니다……」
+								PRINTFORMW 「아아…그게 아니라…%K30_GREETING_EIKI()%…」
+						ENDSELECT
+					ELSE
+						PRINTFORMDL 오늘은 금요일, 시비곡직청의 캐주얼 프라이데이다
+						PRINTFORML 「……………………」
+						IF RAND:2 == 1
+							PRINTFORMDL …『말 걸지 마』라는 오라가 에이키 주위에 소용돌이치고 있는 것 같다
+						ELSE
+							PRINTFORMDL …설교를 할 때도 이렇게 험악한 얼굴을 하지는 않았을 것이다
+						ENDIF
+					ENDIF
+				ENDIF
+			ELSE
+				IF STRCOUNT(CSTR:30:0, "이상한T피로연")
+					PRINTFORMDL 금요일도 아닌데 에이키는 그 티셔츠를 입고 있다…
+				ELSE
+					PRINTFORMDL 에이키님이 왠지 \@ CFLAG:113:안면 ? 헤카티아와 같은  # 굉장히 캐주얼한  \@복장을 하고 있다…
+				ENDIF
+				IF 업무중체크(30) && GET_JOBNAME(30) == "재판"
+					PRINTDATAL
+						DATAFORM 「…거짓말 마십시오. 염마의 눈을 속이려 하는 겁니까……?」
+						DATAFORM 「…예, 그렇습니다. 당신은 생전에 이 정도의 악행을……」
+						DATAFORM 「…이제 와서 후회해도 늦습니다. 유감스럽게도 당신은……」
+						DATAFORM 「…숨겨도 소용없습니다. 당신의 행동은 이 거울로 전부……」
+						DATAFORM 「…유감스럽지만 이건 선행이라 할 수 없습니다. 오히려……」
+						DATAFORM 「…어이가 없어서 할 말이 없군요. 지금에 이르러서도 아직 모르는겁니까……」
+						DATAFORM 「…다른 사람도 하고 있었다? 그렇다 해도 이 악행의 책임은 모두 당신에게……」
+					ENDDATA
+					PRINTFORMDL 에이키는 \@ TALENT:기분 == -1 ? 분노를 머금고  # 죽은 눈을 한 채  \@사자에게 설교를 하고 있는 중이다.
+					RETURN
+				ENDIF
+				IF TALENT:기분 > -1
+					PRINTFORMDW %CALLNAME:MASTER%의 시선을 알아차린 에이키는 먼 곳을 바라본 채, 이유를 말해 주었다
+				ELSE
+					PRINTFORMDW %CALLNAME:MASTER%의 시선을 알아차린 에이키는 울분을 풀 방법이 없다는 듯이 말하기 시작했다
+				ENDIF
+				PRINTFORML 「오늘 아침, 헤카티아님이 오셔서 이 옷을 건네주셔서……」
+				PRINTFORMW 「어쨌든 환상향에서 이 멋진…? 복장을 유행시킨다고 하셔서」
+				PRINTFORML 「오늘 하루는 누구나 이 옷을 입고 있을 겁니다……」
+				IF TALENT:기분 > -1
+					PRINTFORMW 「후후후훗, 저 혼자가 아니에요……후후후……」
+					PRINTFORMDW 텅 빈 눈을 한 채로 에이키는 힘없이 웃었다……
+				ELSE
+					PRINTFORML 「……거부하면 되는 거 아니냐고 말하고 싶은 겁니까? 그게 가능하다면…그렇게 했을겁니다」
+					PRINTFORMDW 염마님도 거스를 수 없는 것이 있는 모양이다…
+				ENDIF
+			ENDIF
+		;동거중=초기 위치가 동일한데도 아침 인사 구상을 통하지 않은 경우
+		ELSEIF CFLAG:MASTER:초기위치 == CFLAG:30:초기위치
+			;밤 인사 구상을 통했다(=자기 방에 돌아와 있다)때는 생활 리듬의 차이
+			IF CFLAG:1605 == 1
+				CFLAG:1605 = 0
+				LOCAL = TIME:3 / 60
+				IF TCVAR:30:373 == 2
+					PRINTFORML 「그게… 좋은 아침입니다…?」
+					PRINTFORMW 「\@ LOCAL < 4 ? …도대체 몇 시에 일어나는 겁니까? # 저보다 일찍 일어나다니 웬일이시죠? \@」
+				ELSE
+					SELECTCASE LOCAL
+						CASE 7 TO 10
+							PRINTFORML 「좋은 아침입니다, 잠꾸러기씨」
+							PRINTFORMW 「일찍 일어나는 편이 더 기분 좋을 거에요?」
+						CASE 11 TO 15
+							PRINTFORML 「좋은 아침…이라고 할 시간은 아니네요」
+							PRINTFORMW 「생활 습관이 흐트러지진 않았나요?」
+						CASEELSE
+							PRINTFORML 「그러니까…뭐라고 인사해야 좋을까…」
+							PRINTFORMW 「설마 밤에 외출하는 겁니까?」
+					ENDSELECT
+				ENDIF
+			;외박하고 아침에 귀가
+			ELSE
+				LOCAL =  DAY - CFLAG:마지막에만난날
+				IF TIME:2 < 4 && LOCAL == 1
+					PRINTFORML 「%K30_GREETING_EIKI()%, %K30_C_NAME(MASTER)%……」
+				ELSE
+					PRINTFORML 「%K30_C_NAME(MASTER)%……드디어 찾았다…」
+				ENDIF
+				;외박하고 본명을 데리고 왔다
+				IF K30_FIND_LOVER() == 2
+					PRINTFORML 「앗……」
+					PRINTFORMDW %마스터와% %조사처리(CALLNAME:(TALENT:MASTER:연인),"를")% 본 에이키는 복잡한 표정을 짓고 있다…
+				ELSE
+					IF TALENT:연인
+						IF LOCAL == 1
+							PRINTFORML 「…어젯밤…당신이 없었던 건」
+						ELSE
+							PRINTFORML 「%TOKANJIT(LOCAL)%일이나 돌아오지 않은 건」
+						ENDIF
+						PRINTFORMW 「역시, 그런거였어……?」
+						PRINTFORML 「저기, %K30_C_NAME(MASTER)%」
+						PRINTFORMW 「제대로 나만 바라봐 줬으면 좋겠어……」
+					ELSE
+						IF K30_FIND_LOVER() == 0
+							PRINTFORMW 「…우리는 무슨 관계야…?」
+							PRINTFORMW 「당신이 정말로 인기있는 건 알고있지만…」
+							PRINTFORMW 「저로는, 안되는 건가요……?」
+						ELSE
+							PRINTFORMW 「…%K30_C_NAME(MASTER)%\@ LOCAL == 1 ? , 어제는 # 은 정말, \@ 역시…」
+							PRINTFORMW 「………」
+							PRINTFORML 「……아니, 아무것도 아니야」
+							PRINTFORMW 「나야말로 틀렸던거야…」
+						ENDIF
+					ENDIF
+				ENDIF
+			ENDIF
+		;통상인사
+		ELSE
+			IF TALENT:연인
+				PRINTFORML 「%K30_GREETING_EIKI()%, %K30_C_NAME(MASTER)%」
+				PRINTFORMDL 에이키는 %CALLNAME:MASTER%\@ TALENT:기분 > -1 ? 을 발견하고 매우 기쁜 것 같다 # 에게 인사는 해 주었다 \@
+			ELSEIF TALENT:연모
+				PRINTFORML 「%K30_GREETING_EIKI()%, %K30_C_NAME(MASTER)%」
+				PRINTFORMDL 에이키는 %CALLNAME:MASTER%에게 \@ TALENT:기분 > -1 ? 미소지으며  # \@인사했다
+			ELSEIF TALENT:사모
+				PRINTFORML 「%K30_GREETING_EIKI()%, %K30_C_NAME(MASTER)%」
+				PRINTFORMDL 에이키는 이쪽을 눈치채고 가볍게 인사했다
+			ELSE
+				PRINTFORML 「%K30_GREETING_EIKI()%, %K30_C_NAME(MASTER)%」
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;아침에 일어났을 때（아침 인사 구상）
+;==================================================
+@M_KOJO_EVENT_K30_2(ARG,ARG:1)
+;구상 주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;아침 인사를 통한 플래그
+TCVAR:30:373 = 1
+;-------------
+;패션 붐의 일기 플래그
+SIF DIARY:30:7 == 0 && FLAG:패션 == 62
+	CALL K30_WRITE_DIARY(7)
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;비동거이자 상대가 먼저 깨어 있다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		;-------------------------------------------------
+		;TARGET의 방에 MASTER가 들어가있다（초대용 방은 이곳을 통한다)
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			IF YOUBI_MATCH(DAY, "금") || FLAG:패션 == 62
+				CALL K30_MORNING_STRANGE_TSHIRT
+				GOTO SKIP
+			ENDIF
+			CALL K30_CHECK_MORNING_UFUFU
+			IF TCVAR:30:363 == 0
+				IF TALENT:기분 == -1 || CFLAG:318 == 1
+					PRINTFORMW 「………좋은 아침입니다」
+					IF CFLAG:318 == 1
+						PRINTFORMDW 에이키에게서 조용한 분노와 중압감이 느껴진다
+				ELSE
+					PRINTFORMDW 에이키는 아침부터 기분이 좋지 않다…
+					SIF MARK:반발각인 == 0
+							TCVAR:30:372 = 1
+					ENDIF
+				ELSE
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORML 「좋은 아침\@ TALENT:연인 ? # 입니다 \@, %K30_C_NAME(MASTER)%」
+							PRINTFORMW 「오늘을 소중히 여겨 선행에 힘씁시다」
+						CASE 1
+							PRINTFORML 「좋은 아침입니다」
+							PRINTFORMW 「잘 자셨나요?」
+						CASE 2
+							PRINTFORMDL 눈을 뜨자 에이키님이 당신의 자는 얼굴을 바라보고 있는 것을 깨달았다
+							PRINTFORMW 「ㅈ, 좋은 아침\@ TALENT:연인 ? # 입니다 \@, %K30_C_NAME(MASTER)%」
+					ENDSELECT
+				ENDIF
+			ENDIF
+			GOTO SKIP
+		ENDIF
+		;-------------------------------------------------
+		;MASTER의 방에 TARGET이 들어와 있다(연모 없이도 들어올 수 있음
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		TCVAR:30:373 = 3
+		IF YOUBI_MATCH(DAY, "금") || FLAG:패션 == 62
+			CALL K30_MORNING_STRANGE_TSHIRT
+			GOTO SKIP
+		ENDIF
+		CALL K30_CHECK_MORNING_UFUFU
+		IF TCVAR:30:363 == 0
+			IF TALENT:기분 == -1 || CFLAG:318 == 1
+				PRINTFORMW 「………언제까지 주무실 겁니까」
+				IF CFLAG:318 == 1
+					PRINTFORMDW 일어나자마자 혼났다. 불합리하지만 대꾸할 수 있는 분위기는 아니다…
+				ELSE
+					PRINTFORMDW 에이키는 아침부터 기분이 좋지 않다…
+				SIF MARK:반발각인 == 0
+						TCVAR:30:372 = 1
+				ENDIF
+			ELSE
+				PRINTFORML 「좋은 아침\@ TALENT:연인 ? # 입니다 \@, %K30_C_NAME(MASTER)%」
+				IF TALENT:연모
+					PRINTFORMW 「아침밥이라도 함께 만들지 않겠습니까?」
+				ELSEIF TALENT:사모
+					PRINTFORMW 「어젯밤은 실례했습니다」
+				ELSE
+					PRINTFORMW 「자, 빨리 일어나서 오늘 하루도 선행에 힘씁시다」
+				ENDIF
+			ENDIF
+		ENDIF
+		GOTO SKIP
+	ENDIF
+	;-------------------------------------------------
+	;동거, 한편 상대가 일어나고 있다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF YOUBI_MATCH(DAY, "금") || FLAG:패션 == 62
+			CALL K30_MORNING_STRANGE_TSHIRT
+			GOTO SKIP
+		ENDIF
+		CALL K30_CHECK_MORNING_UFUFU
+		IF TCVAR:30:363 == 0
+			IF TALENT:기분 == -1 || CFLAG:318 == 1
+				PRINTFORMW 「………이제야 일어나셨네요」
+				IF CFLAG:318 == 1
+					PRINTFORMDW 에이키에게서 조용한 분노와 중압감이 느껴진다
+				ELSE
+					PRINTFORMDW 에이키는 아침부터 기분이 좋지 않다…
+					SIF MARK:반발각인 == 0
+						TCVAR:30:372 = 1
+				ENDIF
+			ELSE
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORML 「좋은 아침\@ TALENT:연인 ? # 입니다 \@, %K30_C_NAME(MASTER)%」
+						PRINTFORMW 「오늘을 소중히 여겨 선행에 힘씁시다」
+					CASE 1
+						PRINTFORML 「좋은 아침입니다」
+						PRINTFORMW 「잘 자셨나요?」
+					CASE 2
+						PRINTFORMDL 눈을 뜨자 에이키님이 당신의 자는 얼굴을 바라보고 있는 것을 깨달았다
+						PRINTFORMW 「ㅈ, 좋은 아침\@ TALENT:연인 ? # 입니다 \@, %K30_C_NAME(MASTER)%」
+				ENDSELECT
+			ENDIF
+		ENDIF
+		GOTO SKIP
+	ENDIF
+	;-------------------------------------------------
+	;동거, 한편 상대가 자고 있다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		SIF MARK:반발각인 == 0 && TALENT:기분 == -1
+			TCVAR:30:372 = 1
+		TCVAR:30:373 = 2
+		IF TALENT:기분 == -1
+			PRINTFORMDL 에이키님이 자면서 눈살을 찌푸리고 있다
+			PRINTFORMDW 꿈자리가 나쁜 것일까…
+		ELSEIF TIME > 240
+			PRINTFORMDL 옆에는 에이키님이 편안한 숨소리를 내고 있다
+			PRINTFORMDW 아직 깨우기에는 이른 시간이다…
+		ELSE
+			PRINTFORMDL 옆에는 에이키님이 평온한 잠에 빠져 있다
+			PRINTFORMDW 이 시간에 깨우면 불쌍하다…
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;MASTER가 일어나 있고 이 부분의 조건은 정확히 모르기 때문에 복붙
+	;동침시 TARGET 기상은 이쪽（TARGET 쇠약 or 동침 TARGET 수마가 진 후 그대로 MASTER가 일어난 후에 상대방이 기상했을 경우 한정
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		;-------------------------------------------------
+		;비동거
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			IF TIME:0 < 480
+				IF YOUBI_MATCH(DAY, "금") || FLAG:패션 == 62
+					SIF MARK:반발각인 == 0 && TALENT:기분 == -1
+						TCVAR:30:372 = 1
+					IF YOUBI_MATCH(DAY, "금")
+						IF TALENT:기분 > -1
+							PRINTFORML 「좋은 아침입니다……」
+							PRINTDATAW 
+								DATAFORM 「그렇군요. 오늘은 그랬었죠……」
+								DATAFORM 「오늘은 금요일, 이군요……」
+								DATAFORM 「……규칙이니 지키지 않으면…」
+							ENDDATA
+							PRINTFORMDW 옷을 다 갈아입을 무렵에는 에이키의 눈에서 생기가 완전히 없어져 있었다
+						ELSE
+							PRINTFORML 「……………………」
+							PRINTFORMDW 에이키는 시종일관 말없이 옷을 갈아입었다. 울분이 많이 쌓인 것 같다
+						ENDIF
+					ELSE
+						PRINTFORML 「%K30_C_NAME(MASTER)%, 좋은 아침\@ TALENT:연인 ? # 입니다 \@……어라?」
+						PRINTFORMDW 인사를 하고 에이키는 옷을 갈아입으려 했지만, 언제나 입던 제복이 보이지 않는다. 대신 자기주장이 강한 옷과 쪽지가 놓여있다.
+						;메모에서 이 어미는 이상하지만, 알기쉬움이 중점
+						PRINTL
+						PRINTFORMDL 『이건 최첨단의 유행이야. 기대하고 있다구용』
+						PRINTW
+						IF TALENT:기분 > -1
+							PRINTFORML 「…………………」
+							PRINTFORMDW 에이키는 말없이 옷을 갈아입기 시작했다. 눈이 완전히 죽어있다…
+						ELSE
+							PRINTFORML 「정말 그분은 무슨 생각을 하시는 건지…」
+							PRINTFORMDW 에이키는 마지못해 옷을 갈아입기 시작했으나, 노골적으로 기분이 나빠보인다…
+						ENDIF
+					ENDIF
+				ELSEIF TALENT:기분 == -1 || CFLAG:318 == 1
+					PRINTFORMW 「………좋은 아침입니다」
+					IF CFLAG:318 == 1
+						PRINTFORMDW 에이키에게서 조용한 분노와 중압감이 느껴진다
+					ELSE
+						PRINTFORMDW 에이키는 아침부터 기분이 좋지 않다…
+						SIF MARK:반발각인 == 0
+							TCVAR:30:372 = 1
+					ENDIF
+				ELSE
+					SELECTCASE RAND:3	
+						CASE 0
+							PRINTFORML 「아후…으응, %K30_C_NAME(MASTER)%, 좋은 아침입니다」
+							PRINTFORMW 「일찍 일어나셨군요. 항상 이 시간에 일어나는건가요?」
+						CASE 1
+							PRINTFORML 「아후, 으응…」
+							PRINTFORMW 「조금만 더…이대로 곁에…」
+						CASE 2
+							PRINTFORML 「으응… 후후후…」
+							PRINTFORMDW 무언가 행복한 꿈을 꾸고 있는 에이키를 잠시 바라보았다
+							PRINTFORMDL 번쩍 눈을 뜬 에이키와 %CALLNAME:MASTER%의 눈이 맞았다…
+							PRINTFORMW 「～～～～!!」
+							PRINTFORMW 「ㅁ, 뭘 헤실헤실 웃고있는 건가요!」
+					ENDSELECT
+				ENDIF
+			;에이키님이 8시가 지나서 자는 것은 쇠약하기만 하겠지.
+			ELSE
+				PRINTFORML 「후와아앗……, 아, %K30_C_NAME(MASTER)%, 그……, 그게…」
+				PRINTFORMW 「제게, 그건 좀… 격렬했던 것… 같아서…」
+				PRINTFORMDW 기어들어가는 목소리로 중얼거리는 에이키의 머리를 %마스터는% 상냥하게 쓰다듬어 주었다
+			RETURN 1
+			ENDIF
+			GOTO SKIP
+		ENDIF
+		;-------------------------------------------------
+		;동거중
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			IF TIME:0 < 480
+				IF YOUBI_MATCH(DAY, "금") || FLAG:패션 == 62
+					SIF MARK:반발각인 == 0 && TALENT:기분 == -1
+						TCVAR:30:372 = 1
+					IF YOUBI_MATCH(DAY, "금")
+						IF TALENT:기분 > -1
+							PRINTFORML 「좋은 아침입니다……」
+							PRINTDATAW 
+								DATAFORM 「그렇군요 오늘은 그랬었죠……」
+								DATAFORM 「오늘은 금요일, 이군요……」
+								DATAFORM 「……규칙이니 지키지 않으면…」
+							ENDDATA
+							PRINTFORMDW 옷을 다 갈아입을 무렵에는 에이키의 눈에서 생기가 완전히 없어져 있었다
+						ELSE
+							PRINTFORML 「……………………」
+							PRINTFORMDW 에이키는 시종일관 말없이 옷을 갈아입었다. 울분이 많이 쌓인 것 같다
+						ENDIF
+					ELSE
+						PRINTFORML 「%K30_C_NAME(MASTER)%, 좋은 아침\@ TALENT:연인 ? # 입니다 \@……어라?」
+						PRINTFORMDW 인사를 하고 에이키는 옷을 갈아입으려 했지만, 언제나 입던 제복이 보이지 않는다. 대신 자기주장이 강한 옷과 쪽지가 놓여있다.
+						;메모에서 이 어미는 이상하지만, 알기쉬움이 중점
+						PRINTL
+						PRINTFORMDL 『이건 최첨단의 유행이야. 기대하고 있다구용』
+						PRINTW
+						IF TALENT:기분 > -1
+							PRINTFORML 「…………………」
+							PRINTFORMDW 에이키는 말없이 옷을 갈아입기 시작했다. 눈이 완전히 죽어있다…
+						ELSE
+							PRINTFORML 「정말 그분은 무슨 생각을 하시는 건지…」
+							PRINTFORMDW 에이키는 마지못해 옷을 갈아입기 시작했으나, 노골적으로 기분이 나빠보인다…
+						ENDIF
+					ENDIF
+				ELSEIF TALENT:기분 == -1 || CFLAG:318 == 1
+					PRINTFORMW 「………좋은 아침입니다」
+					IF CFLAG:318 == 1
+						PRINTFORMDW 에이키에게서 조용한 분노와 중압감이 느껴진다
+					ELSE
+						PRINTFORMDW 에이키는 아침부터 기분이 좋지 않다…
+						SIF MARK:반발각인 == 0
+							TCVAR:30:372 = 1
+					ENDIF
+				ELSE
+					SELECTCASE RAND:3	
+						CASE 0
+							PRINTFORML 「아후…으응, %K30_C_NAME(MASTER)%, 좋은 아침\@ TALENT:연인 ? # 입니다 \@」
+							PRINTFORMW 「일찍 일어나셨네요」
+						CASE 1
+							PRINTFORML 「아후, 으응…」
+							PRINTFORMW 「조금만 더…이대로 곁에…」
+						CASE 2
+							PRINTFORML 「으응… 후후후…」
+							PRINTFORMDW 무언가 행복한 꿈을 꾸고 있는 에이키를 잠시 바라보았다
+							PRINTFORMDL 번쩍 눈을 뜬 에이키와 %CALLNAME:MASTER%의 눈이 맞았다…
+							PRINTFORMW 「～～～～!!」
+							PRINTFORMW 「ㅁ, 뭘 헤실헤실 웃고있는 건가요!」
+					ENDSELECT
+				ENDIF
+			;에이키님이 8시가 지나서 자는 것은 쇠약하기만 하겠지.
+			ELSE
+				PRINTFORML 「후와아앗……, 아, %K30_C_NAME(MASTER)%, 그……」
+				PRINTFORMW 「제게, 그건 좀… 격렬했던 것… 같아서…」
+				PRINTFORMDW 기어들어가는 목소리로 중얼거리는 에이키의 머리를 %마스터는% 상냥하게 쓰다듬어 주었다
+				RETURN 1
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+$SKIP
+;아침인사를 하면「아직 인사를～」라고 말하기 시작하는 위화감을 어떻게든 줄이고 싶다
+;정사발각. ERB의 개량은 나에게는 장벽이 너무 높아서 플래그 난립하여 얼버무린다
+TIME += 5
+RESETCOLOR
+TFLAG:192 = 10
+CALL AFFAIR_DISCLOSURE(30, 0)
+RETURN 1
+
+;-------------------------------------------------
+;아침 인사 이상한 T
+@K30_MORNING_STRANGE_TSHIRT
+;-------------------------------------------------
+SIF MARK:반발각인 == 0 && TALENT:기분 == -1
+	TCVAR:30:372 = 1
+PRINTFORML 「………좋은 아침입니다」
+IF YOUBI_MATCH(DAY, "금")
+	IF TALENT:기분 > -1
+		PRINTDATAW 
+			DATAFORM 「오늘 하루도 열심히 극복해 나갑시다……」
+			DATAFORM 「네, 맞아요. 오늘은 금요일입니다……」
+			DATAFORM 「마음을 굳게 먹고 열심히 해 나갑시다……」
+		ENDDATA
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORMDL 규칙대로 에이키는 그 티셔츠를 입고 있었다
+				PRINTFORMDW 여전히 눈이 죽어 있다. 이 옷에 익숙해질 일은 없을 것 같다
+			CASE 1
+				PRINTFORMDL …그 여신이라면 갈아입기 싫다고 해도 별로 상관하지 않을 것 같지만
+				PRINTFORMDW %마스터는% 그렇게 생각했지만, 규칙이 있는 이상 에이키는 반드시 지킬 것 같다는 생각도 했다
+			CASE 2
+				PRINTFORMDL 평상복보다 갈아입는 시간이 빠른데, 에이키는 아무것도 하지 않고 멍하니 있었던 것 같다
+				PRINTFORMDW 오늘 하루는 제대로 지낼 수 있을까. %마스터는% 조금 걱정이 되었다
+		ENDSELECT
+	ELSE
+		PRINTFORMDL 한마디 인사하고 에이키는 입을 다물어 버렸다
+		PRINTFORMDW 벌써부터 울분이 쌓인 것 같다…
+	ENDIF
+ELSE
+	PRINTFORMDW 금요일도 아닌데 에이키는 그 티셔츠를 입고 있었다
+	PRINTFORML 「아까 헤카티아님이 오셔서……」
+	PRINTFORMW 「오늘은 환상향의 사람들이 이 옷을 입게 되었다고 말씀하셨습니다…」
+	IF TALENT:기분 > -1
+		PRINTFORMW 「후후후훗, 오늘은 전 혼자가 아니라구요……후후후……」
+		PRINTFORMDW 에이키는 웃어보였지만 눈이 완전 죽어있다…
+	ELSE
+		PRINTFORML 「규칙이라고는 하지만 오늘은 입지 않아도 되는데……」
+		PRINTFORMDW 에이키는 보기에도 불쾌해 보인다…
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;잘 때（잘 자 구상）
+;==================================================
+@M_KOJO_EVENT_K30_3(ARG,ARG:1)
+;구상 주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;자기 방으로 돌아감（정시가 되면 잠）＠클라운피스 구문 참고했습니다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1 && !CFLAG:우후후
+		IF CFLAG:현재위치 == OMANEKIBEYA()
+			PRINTFORML 「벌써 이런 시간이구나……」
+			PRINTFORMW 「잘 자, %K30_C_NAME(MASTER)%……」
+			SIF !TCVAR:(CFLAG:MASTER:초대):연속숙박금지 && NEMUKE() < 720
+				PRINTFORMW 「……기다려, 당신과 떨어져 있고 싶지 않아…」
+		ELSE
+			IF TALENT:연모
+				PRINTFORML 「벌써 이런 시간……」
+				PRINTFORMW 「\@ TALENT:연인 ? 잘 자 # 안녕히 주무세요 \@, %K30_C_NAME(MASTER)%」
+			ELSE
+				PRINTFORML 「%K30_C_NAME(MASTER)%, 안녕히 주무세요」
+			ENDIF
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;졸린 듯하다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;수면중（깨어 있지 않아서 대화라기보다는 잠꼬대?）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;장난 중
+	;기입 체크（=0, 비표시、1, 표시）
+	;LOCAL:1 = 0
+	;-------------------------------------------------
+	;IF LOCAL:1 && ARG == 4
+		;PRINTFORMW 
+		;RETURN 1
+	;ENDIF
+	;-------------------------------------------------
+	;쇠약중（연모 포함 거점 내 캐릭터가 MAIN_MAP에서 쇠약 상태가 되었을 경우나 초대방에서 상대가 쇠약할 경우 발생
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+		PRINTFORML 「하아…하아……」
+		PRINTFORMW 「미안해, %K30_C_NAME(MASTER)%…」
+		PRINTFORMW 「피곤해서, 몸이…못 견뎌……」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;MASTER가 다운（방까지 운반된다）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 6
+		SIF CFLAG:MASTER:초기위치 == CFLAG:30:초기위치
+			CFLAG:1605 = 1
+		;술에 취함
+		IF K30_DRUNK() > 1
+			PRINTFORMW 「아하하핫! 뭘 쓰러져 있는거야, 정말～」
+			PRINTFORMW 「……잠깐!? 정말로!?」
+			PRINTFORMW 「어쩔 수 없네～정말～」
+		;힘껏 얻어맞음 or 질내사정 강요 중
+		ELSEIF TCVAR:30:371 > 1 || CFLAG:1600
+			PRINTFORMW 「앗……」
+			PRINTFORMW 「조금은 좋은 처방이 되었을까…?」
+			PRINTFORML 「……………」
+			PRINTFORMW 「그렇다고는 해도, 내버려 둘 수도 없겠네요…」
+		;우후후 중단, 비교적 너무해
+		ELSEIF CFLAG:우후후
+			PRINTFORML 「앗!? %K30_C_NAME(MASTER)%! %K30_C_NAME(MASTER)%!?」
+			PRINTFORMW 「아아……내가 너무 격했던걸까…?」
+			IF (TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER) && !TCVAR:억지로
+				LOCAL = 2
+				CALL HPH_PRINT, @"「…아앙앗HPH　아직, \@ TEQUIP:51 == PLAYER ? 엉덩이  # \@안에서, 커다래앳…HPHHPH」", "L"
+				CALL HPH_PRINT, @"「…응읏HPH　아아앙읏HPH %K30_C_NAME(MASTER)%…이대로, 저한테…HPH」", "W"
+			ELSEIF MASTER_POSE(4, 1) == 30
+				LOCAL = 2
+				CALL HPH_PRINT, @"「아앗HPH　……자지는, 아직 건강하네…HPH」", "W"
+				CALL HPH_PRINT, @"「…할짝, 츄우웃HPH　……후훗, 움찔거려서…귀여워…HPH」", "W"
+			ENDIF
+			PRINTFORMW 「………………」
+			PRINTFORMW 「\@ LOCAL == 2 ? ㅇ, 이상한 짓 계속 # ㅈ, 지금 이상한 걸 생각 \@하지 말고 빨리 방으로 옮겨야겠지……」
+		;통상
+		ELSE
+			PRINTFORML 「어라!?  %K30_C_NAME(MASTER)%, 괜찮아!?」
+			SIF TCVAR:30:371 != 0
+				PRINTFORML 「어떻게 하지…조금 지나쳤을까…」
+			PRINTFORMW 「일단…방으로 옮겨야……」
+		ENDIF
+		CFLAG:1501 = 0
+		CFLAG:1600 = 0
+		CFLAG:1601 = 0
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;TARGET가 자기 방까지 돌아왔다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 7
+		;-------------------------------------------------
+		;그냥 옷 갈아입고 잤다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 0
+			IF CFLAG:MASTER:초기위치 == CFLAG:30:초기위치
+				;SHOP 메뉴 표시 중
+				IF CFLAG:MASTER:수면
+					CFLAG:1605 = 1
+					PRINTFORMD 곤히 잠들어 있는 %CALLNAME:MASTER%
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORMDL 의 볼에 키스를 하고 에이키도 잠이 들었다
+						CASE 1
+							PRINTFORMDL 에게 이불을 덮어주고 에이키도 잠이 들었다
+						CASE 2
+							PRINTFORMDL 의 자는 얼굴을 바라보며 에이키도 잠이 들었다
+					ENDSELECT
+					CALL K30_D_LINE
+				;에이키님 통상 수면시각
+				ELSEIF  GROUPMATCH(TIME / 60, 0, 24)
+					IF INRANGE(TIME:3 / 60, 4, 18)
+						PRINTFORML 「\@ TALENT:연인 ? 잘 자 # 안녕히 주무세요 \@, %K30_C_NAME(MASTER)%」
+						PRINTFORMW 「너무 무리하지는 마」
+					ELSE
+						PRINTFORML 「저는 지금부터 잘 생각인데…」
+						PRINTFORMW 「함께 살 거라면, 같이 안 잘래요…?」
+					ENDIF
+				ELSE
+					CFLAG:1605 = 1
+					PRINTFORMD 먼저 쉬고 있는 %CALLNAME:MASTER%
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORMDL 의 볼에 키스를 하고 에이키도 잠이 들었다
+						CASE 1
+							PRINTFORMDL 에게 이불을 덮어주고 에이키도 잠이 들었다
+						CASE 2
+							PRINTFORMDL 의 자는 얼굴을 바라보며 에이키도 잠이 들었다
+					ENDSELECT
+					PRINTFORML 
+					CALL K30_D_LINE
+				ENDIF
+			ELSE
+				IF INRANGE(TIME:3 / 60, 4, 18)
+					PRINTFORML 「\@ TALENT:연인 ? 잘 자 # 안녕히 주무세요 \@, %K30_C_NAME(MASTER)%」
+					PRINTFORMW 「너무 무리하지는 마」
+				ELSE
+					PRINTFORML 「늦은 밤까지 일어나서 뭐하는거야…?」
+					PRINTFORMW 「좋은 꿈 꾸세요, %K30_C_NAME(MASTER)%」
+				ENDIF
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;방에서 쫓겨났다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			IF TALENT:연모
+				PRINTFORMW 「미안하지만 나가 주시겠어요?」
+			ELSE
+				PRINTFORML 「어째서 당신이 여기에……」
+				PRINTFORMW 「빨리 나가주세요」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;다른 캐릭터와의 H를 멈추게 하고 잤다＠후출의 설교를 붙이고 싶다
+		;기입 체크（=0, 비표시、1, 표시）
+		;정사가 발각되지 않으니 약점은 안 잡히지 않겠어?
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 2
+			PRINTFORML 「……여러 가지 할 말은 많지만 다음 날 하기로 하죠」
+			PRINTFORMW 「당장 나가주세요!」
+			SETBIT CFLAG:1699, 3
+			RETURN 1
+		ENDIF
+	ENDIF
+	;-------------------------------------------------
+	;비 거주 TARGET이 MAIN_MAP에서 휴식
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 8
+		PRINTFORML 「하아…하아……」
+		PRINTFORMW 「죄송합니다…%K30_C_NAME(MASTER)%, 조금… 쉬게… 해 주세요…」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;이전 턴부터 같은 방에 있는 상태에서 상대가 잠을 잔다（초대방, 자기 방에서 너무 해도 여기）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 9
+		IF BASE:30:체력 < 500
+			PRINTFORML 「하아…하아……」
+			PRINTFORMW 「이제, 한계…%K30_C_NAME(MASTER)%, 조금만… 쉬게… 해 주세요…」
+		ELSE
+			PRINTFORMW 「\@ TALENT:연인 ? 잘 자 # 안녕히 주무세요 \@, %K30_C_NAME(MASTER)%……」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+
+;==================================================
+;이동시 엇갈림
+;==================================================
+@M_KOJO_EVENT_K30_4(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+
+IF LOCAL && SHIRAHU(30)
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;멈춰 섰다
+	;이 후 조우 구상에 접속
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;가볍게 인사하고 지나갔다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF CFLAG:30:의상일시변경 == 62
+			PRINTFORMDL 에이키는 넋이 나간채 있다
+		ELSE
+			PRINTFORMDL 에이키는 %CALLNAME:MASTER%에게 가볍게 인사를 했다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;무시하고 지나갔다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		IF CFLAG:30:의상일시변경 == 62
+			PRINTFORMDL 에이키는 넋이 나간채 있다
+		ELSEIF TALENT:연인
+			PRINTFORMDL 에이키는 마음을 쓰지 않아서 섭섭한 모양이다…
+		ELSEIF TALENT:연모
+			PRINTFORMDL 에이키는 %마스터를% 눈으로 쫓고 있다
+		ELSE
+			PRINTFORMDL 에이키는 재는 듯한 눈으로 %마스터를% 슬쩍 보았다
+		RETURN 1
+		ENDIF
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+
+;==================================================
+;타자 개입으로 무드 변화
+;==================================================
+@M_KOJO_EVENT_K30_5(ARG,ARG:1)
+;구상주는 TARGET
+;ARG에 들어온 캐릭터（인원수가 방대하므로 자기파악 자기책임으로
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;코마치가 들어왔다 
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 76 && CFLAG:우후후 == 0
+		IF YOUBI_MATCH(DAY, "월수금") && INRANGE(TIME / 60, 10, 15) && ((CFLAG:[[코마치]]:현재위치 == 삼도천 && MAIN_MAP != 6) || (CFLAG:[[코마치]]:현재위치 == 602 && MAIN_MAP == 6)) && !CFLAG:76:출산휴가중
+			PRINTFORMDL 에이키가 있다는 것을 알아차린 코마치는 무척 초조해하고 있다
+			PRINTFORMDW 그것을 본 에이키의 표정이 점점 험해진다
+			PRINTFORMDW 아무래도 큰일이 벌어질 것 같다…
+		ELSEIF !TALENT:연모
+			PRINTFORMDL 에이키는 황급히 %CALLNAME:MASTER%에게서 떨어졌다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;쿠타카가 들어왔다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 129
+		IF 업무중체크(129) && CFLAG:30:현재위치 == 640 && CFLAG:우후후 == 0
+			PRINTFORMDL 에이키는 쿠타카에게 말을 걸었다
+			PRINTFORMW 「쿠타카, 근무하느라 수고가 많으십니다. 관문지기 잘 부탁합니다」
+			PRINTFORMDW 「네, 시키님. 맡겨 주세요!」
+		ELSEIF !TALENT:연모
+			PRINTFORMDL 에이키는 %마스터와% 서둘러 거리를 두었다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외（캐릭터 지정 없음
+	SIF CFLAG:우후후 == 0 && !TALENT:연인
+		PRINTFORMDL 에이키는 %마스터와% 아무렇지 않게 거리를 두었다
+ENDIF
+RETURN 1
+
+;==================================================
+;정사를 목격했다
+;==================================================
+@M_KOJO_EVENT_K30_6(ARG,ARG:1)
+;구상주는 TARGET
+;ARG에 정사 상대
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;정사를 목격했다（친숙도:저）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 1
+		;코마치. 에이키님과 코마치는 어차피 곧 어울려서 키스하기 시작할 테니까(※개인적인 소망), 사생분기 같은 것
+		;코마치 구상의 분기조건을 참고로 했습니다
+		IF ARG == 76
+			PRINTFORML 「『실례합니다』가 아닙니다…코마치」
+			PRINTFORM 「당신은 
+			IF YOUBI_MATCH(DAY, "월수금") && TIME:0 > 600 && TIME:0 < 960
+				PRINTFORM 할 일이 있으면서 
+			ELSEIF OUTROOF(CFLAG:현재위치)
+				PRINTFORM 이런 밖에서 
+			ENDIF
+			SIF TALENT:연인
+				PRINTFORM 저의 %조사처리(K30_C_NAME(MASTER),"와")% 
+			PRINTFORMW 같이 뭘 하고 있는 건가요…?」
+			PRINTFORML 「!!」
+			PRINTFORMW 「%K30_C_NAME(MASTER)%! 저는 진지하게 얘기하고 있어요!? 당신도 뭐하고 있는 건가요!!」
+			PRINTFORMW 「어쨌든! %조사처리(TOKANJIS(GET_TARGETNUM()),"과")%도! 지금 당장 떨어지세요!!」
+		;헤카님
+		ELSEIF ARG == 113
+			PRINTFORML 「%K30_C_NAME(ARG)%님 같은 분이 무슨 짓을 하고 계신겁니까…」
+			PRINTFORMW 「아마 %조사처리(K30_C_NAME(MASTER),"가")% 원인이라고는 생각합니다만, 조금은 자중해 주십시오…」
+		ELSE
+			PRINTFORML 「%K30_C_NAME(ARG)%, 뭐 하시는 건가요!?」
+			PRINTFORML 「%K30_C_NAME(MASTER)%에게 넘어간 것일 뿐이겠지만…」
+			PRINTFORMW 「아무튼! 이런 장소에서 할 일이 아닙니다! 옷을 갖추고 떨어지세요!」
+		ENDIF
+		SETBIT CFLAG:1699, 2
+		CFLAG:1698 += 10
+	RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;질세라 참여（친숙도:높음）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 2
+		;연인끼리의 우후후에게는 현장 끼어들 수 없는 사양. 이 부분은 사분기지만 각서로 남겨두겠다
+		IF TALENT:ARG:연인
+			[SKIPSTART]
+			IF GROUPMATCH(ARG, 76, 129)
+			ELSE
+			PRINTFORML 「……정말 죄송합니다, %K30_C_NAME(ARG)%」
+			PRINTFORMW 「…이 마음을 억누를 수가 없어요……%K30_C_NAME(MASTER)%」
+			PRINTFORMW 「부탁드립니다. 저에게도 정을…」
+			IF CFLAG:1801
+				CFLAG:1601 = 1
+				CFLAG:1501 = 1
+			ENDIF
+			[SKIPEND]
+		;들어오는 쪽이 애인이면 꼭 끼어든다
+		ELSEIF TALENT:연인
+			PRINTFORML 「……%K30_C_NAME(MASTER)%같이 마음이 많은 사람은, 눈을 떼면 당연하다는 듯이 이렇게 되는 건가요」
+			PRINTFORML 「그렇군요. 저도 반성해야겠네요」
+			PRINTFORML 「애인이 있어도 만족할 수 없다는 것은 나의 사랑하는 방법이 부족한 것…이란 거겠죠?」
+			PRINTFORMW 「좋습니다. 그러면 지금부터…제대로, 듬뿍 짜내 드릴게요」
+			PRINTFORML 
+			IF ARG == GROUPMATCH(ARG, 76, 129)
+				PRINTFORML 「%CALLNAME:ARG%, 물론 당신도 도와주시겠죠……아뇨, 도와주세요」
+			ELSE
+				PRINTFORML 「%K30_C_NAME(ARG)%도 그대로 도와주실 수 있나요?」
+			ENDIF
+			PRINTFORML 「%TOKANJIS(GET_TARGETNUM())% 남들이 달려들어 이 사람의 색욕을 짜내고…」
+			PRINTFORML 「그런 다음에 누가 첫번째인지 흑백을 확실히 가려볼까요?」
+			PRINTFORMDW 에이키는 화는 내지 않는 것 같지만 말 한마디 한마디가 이상한 박력으로 가득 차 있다…
+		ELSEIF TALENT:연모
+			;관계파악 이력으로 분기
+			IF GET_UWAKI_HISTORY(30, ARG) == 0
+				PRINTFORML 「…당신은 도대체 얼마나 많은 여자를 울리고 있는 거야?」
+				IF TALENT:MASTER:연인
+					PRINTFORML 「이런 사람을 좋아하게 되다니, 정말 %K30_C_NAME(TALENT:MASTER:연인)%도 힘들겠어」
+					PRINTFORMW 「정말 나도 어떻게 되버렸구나…」
+				ELSE
+					PRINTFORMW 「정말, 이런 사람을 좋아하게 되다니 어떻게 되버렸구나, 나는…」
+				ENDIF
+				PRINTFORML 
+				PRINTFORML 「……하아, 염마가 이런 말 해선 안됩니다만」
+				PRINTFORMW 「「콩깍지가 씌었다」는 거겠죠, 저도 %조사처리(K30_C_NAME(ARG),"와")% 함께 즐겨야겠습니다」
+			ELSE
+				IF TALENT:MASTER:연인
+					PRINTFORML 「%K30_C_NAME(ARG)%에게 %K30_C_NAME(TALENT:MASTER:연인)%, 게다가 저조차도 마음대로 가지고 놀고, 당신은 만족하셨나요?」
+					PRINTFORML 「…………………」
+					PRINTFORMW 「이젠 저도 솔직하게 즐기는 것만 생각하겠습니다……」
+				ELSE
+					PRINTFORML 「%K30_C_NAME(ARG)%와 저, 아마 다른 여성들도 이렇게 생각하겠죠」
+					PRINTFORML 「이젠 당신이 흑백을 분명히 가려주었으면 좋겠어, 라고」
+					PRINTFORMW 「……%K30_C_NAME(ARG)%, 저도 같이 몸을 섞도록 하겠습니다」
+				ENDIF
+			ENDIF
+		ELSE
+			PRINTFORML 「남을 심판하는 자면서도, 한심하게 색욕에 이끌려」
+			PRINTFORML 「이래서는… 염마 실격이네요……」
+			PRINTFORMDW 에이키는 자조적으로 중얼거리며 %CALLNAME:MASTER%에게 몸을 맡겼다
+			CFLAG:1501 = 1
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;서먹서먹하게 떠난다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 3
+		IF TALENT:연인
+			PRINTFORML （간음에 젖은 그대를）
+		ELSE
+			PRINTFORML （색욕에 빠지는 그녀들을）
+		ENDIF
+		PRINTFORML （이 자리에서 죄를 따져야 할 텐데）
+		PRINTFORML （어째서 나는 망설이는 거지?）
+		PRINTFORML （어째서……）
+		PRINTFORMDW 에이키는 고개를 숙인 채 도망치듯이 떠났다
+		RETURN 1
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+
+;==================================================
+;정사를 들켰다
+;다른 캐릭터와 잘 얽히는 것이 있으면 말하자, 라고 하여 대폭 확장
+;에이키님이 술술 떠들어대는 것뿐이라고 말할 수 있는 것도 아니다
+;==================================================
+@M_KOJO_EVENT_K30_7(ARG,ARG:1)
+#DIM BUNKI
+#DIM ANATA_BUI
+#DIM EIKI_BUI
+BUNKI = 0
+;어느 부위를 쓰고 우후후중인가 MASTER의 TINKO기점으로 먼저 조사해 둔다
+EIKI_BUI = 0
+FOR COUNT:0, 1, 9
+	ANATA_BUI = COUNT:0
+	FOR COUNT:1, 1, 9
+		SIF MASTER_POSE(COUNT:1, COUNT:0) == 30
+			EIKI_BUI = COUNT:1
+	NEXT
+	SIF EIKI_BUI
+		BREAK
+NEXT
+;에이키님에게 건드리지 않았을 때의 처리
+SIF EIKI_BUI == 0 
+	ANATA_BUI = 0
+;구상주는 TARGET
+;ARG에게 목격자
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;정사를 목격당했다（목격자의 친숙도:저）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORMW 「………!!」
+		IF GROUPMATCH(ARG, 29, 76, 129)
+			PRINTFORML （ㅎ, 하필이면, %K30_C_NAME(ARG)%에게 보여지다니…）
+		ELSE
+			PRINTFORML （이런 모습을 %K30_C_NAME(ARG)%에게 보여지다니…）
+		ENDIF
+		SIF ARG == 29
+			PRINTFORML （이런 모습이…만약 신문에 실리기라도 하면…）
+		PRINTFORMDW 에이키는 얼굴이 새파래져 있다
+		CFLAG:1501 = 0
+		CFLAG:1600 = 0
+		CFLAG:1601 = 0
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;목격자가 질 수없지 하고 참가（목격자의 친숙도:고）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 2
+		;목격자가 연인
+		IF TALENT:ARG:연인
+			;코마치・쿠타카 구상에 편승하고 있음
+			IF GROUPMATCH(ARG,76, 129)
+				PRINTFORML 「!!」
+				PRINTFORML 「%CALLNAME:ARG%…이건, 그게…」
+				PRINTFORML 「제가, 전부 제가 나빴습니다…」
+				PRINTFORMW 「당신들의 관계를 알면서도, \@ TFLAG:COMABLE관리 == 3 ? 단정치 못한 행위를 한 # 유혹에 넘어간 \@ 제가…」
+				PRINTFORML 
+				IF TALENT:76:연모 && TALENT:연모 && ARG == 76 
+					PRINTFORML 「뭐…? 같이…? ……에?」
+					PRINTFORML 「도망치지 말고 보고 있으라니…여기에 있어도 되는 건가요!?」
+					PRINTFORMW 「당신이 그걸로 좋다고 한다면 저도 할 말은 없지만…」
+				ELSEIF TALENT:129:연모 && ARG == 129 
+					PRINTFORML 
+					PRINTFORML 「뭐…? 불끈불끈…? ……에?」
+					PRINTFORMW 「저희가 했던 일… %ARG는% 신경 안 쓰시는 건가요!?」
+				ELSE
+					PRINTFORML 「…그래도… 이 \@ TALENT:연모 ? 마음 # 몸의 욱신거림 \@은 멈출 수 없어요」
+					PRINTFORMW 「제발, 이대로…저에게…」
+				ENDIF
+			;코마치・쿠타카이외의 애인이 동침하여 우울하게
+			ELSE
+				IF CFLAG:1801
+					CFLAG:1601 = 1
+					CFLAG:1501 = 1
+				ENDIF
+				PRINTFORML 「……모든 것은 색욕을 억누르지 못한 제가 나쁜 겁니다」
+				PRINTFORMW 「정말로 죄송합니다……%K30_C_NAME(ARG)%」
+				PRINTFORMW 「……괜찮은 건가요? 아직, 저에게 동정을 주셔도……」
+			ENDIF
+		;에이키님이 연인 @ 기합 넣어 썼지만, 현상사에 분기점이 되는게 판명・・・미련이 남은 듯 IF 분기만 남긴다
+		ELSEIF TALENT:연인
+		;에이키님이 연모、목격자의 함락이 연모 이하 
+		ELSEIF TALENT:연모
+			;부하가 첫 참가
+			IF GROUPMATCH(ARG, 76, 129) && GET_UWAKI_HISTORY(30, ARG) < 2
+				PRINTFORML 「!!」
+				PRINTFORMW 「ㄱ, 갑자기 뛰어들어와서 무슨 말을 하는거야, %CALLNAME:ARG%!?」
+				PRINTFORML 「뭐… %K30_C_NAME(MASTER)%까지 그렇게 의욕이 넘쳐서…」
+				PRINTFORMW 「아아, 정말… 이렇게 된 이상 그냥 마음대로 하세요…」
+			;그 외未認識
+			ELSEIF GET_UWAKI_HISTORY(30, ARG) == 0
+				PRINTFORML 「%K30_C_NAME(MASTER)%、도대체 당신은 얼마나 많은 여자를 속이고 있는 거야!?」
+				PRINTFORMW 「당신은 약간 지조가……」
+				PRINTFORMW 「…………………」
+				PRINTFORML 「아뇨, 그만하죠…」
+				IF TALENT:MASTER:연인
+					PRINTFORML 「…지금의 저에게 정절을 말할 자격따위는 없겠네요」
+				ELSE
+					PRINTFORML 「…쾌락에 빠져 있는 것은 저도 똑같네요」
+				ENDIF
+				PRINTFORMW 「계속할까요, 이대로…」
+			;통상
+			ELSEIF PALAM:욕정 < PALAMLV:7 || ABL:욕망 < 7 || GET_UWAKI_HISTORY(30, ARG) == 1 || GET_TARGETNUM() > 2 || ABL:노출벽 < 4
+				PRINTFORML 「!!」
+				IF GET_TARGETNUM() == 2
+					PRINTFORML 「아아, 정말…운이 나빴네」
+					PRINTFORMW 「%K30_C_NAME(MASTER)%, 지금까지는… 내 것이었는데…」
+				ELSE
+					PRINTFORMW 「뭐야, 정말…이렇게 늘면 내버려 둘 것 같잖아…」
+				ENDIF
+				PRINTFORML 
+				PRINTFORML 「%조사처리(K30_C_NAME(ARG),"를")% 멈출 권리는 없습니다, 하지만…」
+				PRINTFORML 「%TOKANJIS(GET_TARGETNUM())% 사람들 통틀어서…같은 취급은 싫습니다」
+				PRINTFORMW 「%K30_C_NAME(MASTER)%… 제대로 모두를 사랑해주세요, 아시겠죠?」
+			;대항심을 내서 의욕 모드
+			;에이키님은 이런 캐릭터가 아닌 것 같은데, 생각해 냈으니 어쩔 수 없지
+			;제한적인 장면인데도 바보같이 처리가 길어
+			ELSE
+				PRINTFORMDL 욕정한 에이키는 %CALLNAME:ARG%의 참가도 순순히 받아들였다
+				IF GROUPMATCH(ARG, 76, 129)
+					PRINTFORMW 「후훗, 나도 %조사처리(K30_C_NAME(ARG),"와")% 같이 기분 좋아지고 싶어……♥」
+				ELSEIF ARG == 113
+					PRINTFORMW 「%K30_C_NAME(ARG)%, 사양하지 마시고…이쪽으로 오세요」
+				ELSE
+					PRINTFORMW 「후후후훗♥　어서오세요…%K30_C_NAME(ARG)%」
+				ENDIF
+				;연인은 죽음의 부닉
+				IF TALENT:연인
+					PRINTFORML 「그래도, %K30_C_NAME(ARG)%에게는 조금 실망시켜 버렸을지도…」
+					PRINTFORML 「그치만, %조사처리(K30_C_NAME(MASTER),"는")%… 나에게 이렇게 열중하고 있다구요♥」
+				ELSEIF TALENT:MASTER:연인 && !(TALENT:ARG:섹프 || TALENT:ARG:애욕)
+					PRINTFORML 「저희들 %K30_C_NAME(MASTER)%의 첫번째는 될 수 없겠지만…」
+					PRINTDATAL
+						DATAFORM 「정말 마음에 드는 것은 누군지……알고 싶지 않으신가요♥」
+						DATAFORM 「신체 궁합은… 별개라고 생각하지 않나요♥」
+					ENDDATA
+				ELSE
+					PRINTFORML 「……모처럼이니까 %K30_C_NAME(MASTER)%에게 정해달라고 해볼까요」
+					IF TALENT:ARG:섹프 || TALENT:ARG:애욕 || TALENT:MASTER:연인
+						PRINTDATAL
+							DATAFORM 「어느 쪽이 더 기분좋고 만족스럽냐고…♥」
+							DATALIST
+								DATAFORM 「두 사람이 있어도 한 번에 할 수 있는 것은 한 사람뿐」
+								DATAFORM 「그럼, 어느 쪽을 사랑할 것인지…♥」
+							ENDLIST
+						ENDDATA
+					ELSE
+						PRINTDATAL 
+							DATAFORM 「누구를 %TEXTR("마음에 들어하는지/진실한 첫번째인지/진심으로 생각하는지/")%…… 선택할 수 있는지…♥」
+							DATAFORM 「어느 쪽이 신체 궁합도 좋고……진실한 첫번째에 어울리는지…♥」
+						ENDDATA
+					ENDIF
+				ENDIF
+				PRINTFORMDW 에이키는 %CALLNAME:ARG%에게 도발적인 말을 하고 나서 %CALLNAME:MASTER%의 쪽으로 시선을 보냈다
+				PRINTFORML 
+				IF RAND:2 == 1
+					PRINTFORML 「자, 어떻게 할 건가요? %K30_C_NAME(MASTER)%…」
+					PRINTFORMW 「물론…이대로 계속 하는 거겠죠♥」
+					BUNKI = 1
+				ELSE
+					PRINTFORML 「듣고 있나요? %K30_C_NAME(MASTER)%」
+					PRINTFORMW 「이대로…보여드리자구요♥」
+				ENDIF
+				;여성・후타나리 아나타, 그 근처만 사용했다면 여기까지
+				SIF GETBIT(TALENT:MASTER:성별, 0) && GROUPMATCH(ANATA_BUI, 2, 6)
+					RETURN 1
+				;[구현]들고 있는데, 나 있는 건 좀…
+				SIF GETBIT(TALENT:성별, 1) && EIKI_BUI == 1
+					RETURN 1
+				;부위 목록(1=페니스 2=클리토리스 3=손가락 4=입 5=가슴 6=질 7=애널 8=발)
+				IF ANATA_BUI == 1
+					SELECTCASE EIKI_BUI
+						CASE 2
+							PRINTFORML 「여기서 이렇게 끼우는 거야…당신, 정말 좋아하잖아♥」
+							PRINTFORMDW 흥에 취한 에이키는 흠뻑 젖은 고간을 끈적끈적하게 페니스에 문질러 댄다…
+						CASE 3
+							PRINTFORML 「이렇게 해서 확실히 내는 것까지 제대로 보이는 걸 좋아해…」
+							PRINTFORML 「…후훗♥　다시 딱딱해졌어♥」
+							PRINTFORMDW 에이키의 부드러운 손가락이 %TINKO()%에 얽혀들어, 서서히 쾌감을 끌어낸다…
+						CASE 4
+							PRINTDATAW
+								DATAFORM 「이렇게 끝부분을……키스하는 걸 좋아해, 나……알고 있으니까♥」
+								DATAFORM 「안쪽까지 입 속에 넣어주면……참을 수 없다는 듯한 얼굴이 되버려서, 자제할 수 없는 거잖아♥」
+								DATAFORM 「여기 뒷면을, 혀로 천천히 문질러주면……움찔움찔거리는 것도, 알고 있어요♥」
+							ENDDATA
+							PRINTDATAL
+								DATALIST
+									DATAFORM 「그래 맞아, 이렇게 자루도 상냥하게……후후훗♥」
+									DATAFORM 「%K30_C_NAME(MASTER)%, 또 해줬으면 하는 거…없으신가요♥」
+								ENDLIST
+								DATALIST
+									DATAFORM 「아니면… 다른 방식을 좋아하시나요?」
+									DATAFORM 「괜찮아. 나도 얼마든지… 해주고 싶으니까……♥」
+								ENDLIST
+								DATALIST
+									DATAFORM 「…………………」
+									DATAFORM 「…역시, 모처럼의 기회니까 %조사처리(K30_C_NAME(ARG),"와")% 같이 핥아줄까?」
+									DATAFORM 「양쪽에서 같이, 아니면 자루랑 끝을 따로? 취향은 어느 쪽인가요…♥」
+								ENDLIST
+							ENDDATA
+							PRINTFORMDW %조사처리(CALLNAME:ARG,"와")%의 치정싸움과는 상관없이 에이키는 펠라치오를 계속 하고 싶어 못 견디는 모양이다…
+						CASE 5
+							PRINTDATAL
+								DATAFORM 「젖꼭지로 끝을 조이는 게… 흥분 되는거지♥」
+								DATAFORM 「제 가슴에 비벼댈 때 여기가 굉장히 뜨거워지는 게… 느껴져요♥」
+							ENDDATA
+							PRINTFORMDW 에이키는 온몸을 사용하여 헌신적으로 가슴을 사용한 봉사를 계속하고 있다…
+						CASE 6
+							IF TALENT:포르치오성감 && RAND:3 == 1
+								PRINTFORML 「이렇게… 나와 가장 안쪽에서 서로 사랑하는 것이, 참을 수 없이… 좋은 거지…?♥」
+								PRINTFORML 「후훗♥　%K30_C_NAME(ARG)%의 눈 앞에서도… 나는, 이대로…♥」
+								PRINTFORMDW 에이키는 스스로 허리를 밀어붙여 개발된 자궁구로 %조사처리(TINKO(),"를")% 삼켜간다…
+							ELSEIF ABL:V감각 > 9 && RAND:2 == 1
+								PRINTFORML 「내 소중한 곳…완전히 당신의 형태를 기억했으니까…」
+								PRINTFORMW 「자… 얼마든지 기분 좋게 해 줄게♥」
+								PRINTFORML 「이젠, 다른 여자 아이와는… 만족할 수 없을 정도로 말이지♥」
+								PRINTFORMDW 에이키의 %조사처리(TEXTR("암컷 구멍/고기 구멍/질육/질내/"),"는")% 다른 생물처럼 꿈틀거리며, %CALLNAME:MASTER%의 정을 전부 빨아내려 하고 있다…
+							ELSEIF ABL:V감각 > 4 && RAND:2 == 1
+								PRINTFORML 「내 이곳은 이제…당신의 것. 당신이 좋을 대로…사용할 수 있어요♥」
+								PRINTFORML 「…놓지 말아요. 날, 이대로 사랑해 주세요…♥」
+								PRINTFORMDW 에이키의 말과 같이 %조사처리(TEXTR("암컷 구멍/고기 구멍/질육/질내/"),"가")% %마스터를% 놓치지 않기위해 휘감겨 왔다…
+							ELSE
+								PRINTFORML 「제 안에서, 굉장히…커지고 있는게, 느껴져요♥」
+								PRINTFORML 「후후훗♥　이대로 계속하는 편이, 분명, 기분 좋을 거에요…♥」
+								PRINTFORMDW %마스터를% 빼앗기고 싶지 않다고, 에이키의 %조사처리(TEXTR("암컷 구멍/고기 구멍/질육/질내/"),"는")% %조사처리(TINKO(),"를")% 죄어 온다…
+							ENDIF
+						CASE 7
+							PRINTFORMDL ……%CALLNAME:ARG%에 대한 대항의식으로 에이키는 %TEXTR("여유로운 태도를/염마의 위엄을/")% 보이려 하고 있는 것 같다
+							PRINTFORMD 에이키의 본모습을 %CALLNAME:ARG%에게도 보여주기 위해 %마스터는% 
+							PRINTDATADW
+								DATAFORM 조금 전보다 격렬하게 항문에 피스톤질을 재개했다
+								DATAFORM 그는 질을 끌어올리는 기세로 애널 깊숙이 파고들었다
+								DATAFORM 거리낌없이 뒷구멍을 찌걱거리며 유린했다
+							ENDDATA
+							CALL HPH_PRINT, @"「%TEXTR("햐아앙앗/하으으으/응햐아앗/하흐으읏")%HPHHPH　안대앳HPH　격렬해애HPH」", "L"
+							CALL HPH_PRINT, @"「%조사처리(K30_C_NAME(ARG),"가")%, 보고 있는데엣HPH　엉덩이이, 찌걱찌걱, 보고있는데에엣HPHHPH」", "L"
+							PRINTFORMDW 애널섹스로 몸부림치는 염마님을 보고 \@ ABL:ARG:A감각 > 4 ? %CALLNAME:ARG%도 기대하는 눈으로 이쪽을 보고 있다 # %ARG는% 당황하고 있다 \@…
+						CASE 8
+							PRINTFORMW 「이렇게… 중요한 곳을 발로 아무렇게나 당하는 게…」
+							PRINTFORMW 「……………………」
+							PRINTDATAL 
+								DATAFORM 「……? 정말로, 기분이 좋은걸까……?」
+								DATAFORM 「……솔직히… 이거, 즐겁지는 않아. 핥아주고 싶은데…」
+								DATAFORM 「……? 이거, 잘하거나 못하거나 그런 게 있는거야……?」
+							ENDDATA
+							PRINTFORMDW 에이키에게 풋잡의 좋은 점이 좀처럼 전해지지 않는 것 같다…
+					ENDSELECT
+				ELSEIF GROUPMATCH(ANATA_BUI, 3, 4) 
+					SELECTCASE EIKI_BUI
+						CASE 2, 6
+							IF ANATA_BUI == 3
+								PRINTFORML 「%TEXTR("나는…준비를 단단히 하고/내가… 아프지 않도록 준비를 하고/나를, 흠뻑 적시고/")%\@ BUNKI ? 있는 중인 걸 # 있는 모습 \@…♥」
+								PRINTDATAL
+									DATAFORM 「어떻게 하실 건가요…? 다음은, 넣고 싶으신가요…♥」
+									DATAFORM 「물론, 이대로… 계속하는 거겠죠…♥」
+									DATALIST
+										DATAFORM 「%조사처리(K30_C_NAME(ARG),"가")% 신경 쓰이나요?」
+										DATAFORM 「후후훗, 안 돼♥　지금은 나부터♥」
+									ENDLIST
+								ENDDATA
+								PRINTFORMW 
+							ELSE
+								PRINTFORML 「질척질척… 맛있다는 듯이 핥는 \@ BUNKI ? 중인 걸 # 모습 \@…♥」
+								PRINTFORMDW 에이키의 %SLIT(30)%에서 %조사처리(TEXTR("음란한 즙/질액/애액/"),"이")% 더욱 넘쳐흐르기 시작했다…
+							ENDIF
+						CASE 4
+							PRINTFORML 「저기, 혀를 내밀어 봐… 그래, 그대로……하읍♥」
+							PRINTFORMDL 에이키는 %CALLNAME:MASTER%의 혀를 휘감아, 머리가 저릴 정도로 농후한 키스를 계속해서 해 주었다
+							PRINTFORMW 「츄웃, 쥬르릇♥　……응츄……츄웃♥」
+							PRINTDATAL
+								DATAFORM 「후훗♥　몇 번을 해도, 모자라…♥」
+								DATAFORM 「…좀 더, 좀 더, 계속 하자♥」
+								DATAFORM 「%조사처리(K30_C_NAME(ARG),"와")%, 교대해도 좋으니까… 계속해줘…♥」
+							ENDDATA
+							PRINTFORMDW %CALLNAME:ARG%에 대한 대항 의식도 완전히 잊고 에이키는 키스에 열중하고 있다…
+						CASE 5
+							IF ANATA_BUI == 3
+								PRINTFORML 「응읏♥　당신의 손, 크고, 따뜻해서…기분 좋아♥」
+								PRINTFORML 「후훗, 내 가슴…좀 더 마음대로 해도 괜찮아♥」
+							ELSE
+								PRINTFORML 「후훗♥　얼마든지 여기로…어리광 부려도 좋아♥」
+								PRINTFORML 「꺄앗… 정말♥　갑자기 달려들면 깜짝 놀라잖아…♥」
+							ENDIF
+							PRINTFORMDW %CALLNAME:ARG%에게 \@ TALENT:ARG:가슴사이즈 >= 1 ? 왠지 우쭐해진 # 새침한 \@ 얼굴을 향하며, 에이키는 가슴을 가지고 놀아지고 있다…
+						CASE 7
+							PRINTFORMDL %마스터는% 말할 것도 없이, 아날에 \@ ANATA_BUI == 3 ? 애무 # 봉사 \@를 묵묵히 계속했다
+							IF RAND:2 == 1
+								CALL HPH_PRINT, @"「아앙앗HPH　잠깐, 지금, 그런 식으로, 당하면…아앗HPH　아아앗HPH 아아아앙HPHHPH」", "L"
+							ELSE
+								CALL HPH_PRINT, @"「ㅇ앗…HPH　잠ㄲ!? 그렇게…넓히면……햐아앙HPHHPH」", "L"
+							ENDIF
+							CALL HPH_PRINT, @"「그거엇HPH　안대앳HPH　엉덩이잇, \@ ANATA_BUI == 3 ? 말랑말랑 # 질척질척 \@거리면, 시러어어엇HPHHPH」", "W"
+							PRINTFORMW 조금 전까지의 여유는 완전히 사라지고, 에이키는 애널의 쾌락으로 완성된 풀려버린 얼굴을 %CALLNAME:ARG%에게 보여지고 있다…
+					ENDSELECT
+				ELSEIF ANATA_BUI == 5
+					PRINTFORML 「남자인데, 젖꼭지…이렇게 딱딱하게 만들고, 기분 좋아…?♥」
+					PRINTFORML 「당신의 여기…여자애처럼 상냥하게 다루는 것이 좋은 모양이네요♥」
+					PRINTFORMDW 에이키는 %마스터를% 리드하고 있는 것을 어필하듯이 몰아세우고 있다…
+				ENDIF
+			ENDIF
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;목격자가 떠난다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 3
+		PRINTFORML 「…들켜버렸네요」
+		PRINTFORMDL 에이키의 얼굴은 조금 창백하다
+	RETURN 1
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+
+;==================================================
+;목격한 정사를 캐묻는다（현재 없음
+;==================================================
+@M_KOJO_EVENT_K30_8(ARG,ARG:1)
+RETURN 1
+
+;==================================================
+;팬티를 몰수 당했다
+;==================================================
+@M_KOJO_EVENT_K30_9(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	;약점잡음 관련 플래그
+	SETBIT CFLAG:1699, 0
+	SETBIT CFLAG:1699, 1
+	CFLAG:1700 += 5
+	;일기 내용 분기의 플래그
+	SIF DIARY:30:11 == 0
+		SETBIT CFLAG:1910, 4
+	IF LOCAL:1 && ARG:1 == 1
+		;이상한T로 눈초리가 죽었을 때는 집어들기만 하면 된다
+		IF CFLAG:30:의상일시변경 == 62 && TALENT:기분 > -1
+			PRINTFORML 「……무슨 생각을 하시는 겁니까, 그건 몰수해 두겠습니다」
+			PRINTFORML 「………………」
+			PRINTFORMW 「괜찮습니다. 오늘은 이제 돌아가셔도 됩니다……」
+		ELSE
+			PRINTFORML 「제 눈을 속일 수 있다고 생각했습니까?」
+			PRINTFORMW 「이것은 몰수해 두겠습니다」
+			;팬티의 날이라면 어쩔 수 없지 
+			IF FLAG:이상기상 == 7
+				PRINTFORMW 「그래서 %K30_C_NAME(MASTER)%, 뭔가 변명의 여지는 있습니까?」
+				PRINTFORMW 
+				PRINTFORML 「그렇군요……바람에 실려왔다라」
+				PRINTFORML 「당신은 주인에게 돌려주기 위해 속옷을 주워」
+				PRINTFORMW 「그것을 제게 들켰다는 말씀이군요」
+				PRINTFORMDL 거기까지 말하자 에이키의 시선이 살짝 빛났다
+				PRINTFORMDW %CALLNAME:MASTER%도 덩달아 보니, 바람을 타고 드로워즈가 공중에서 춤을 추고 있다…
+				PRINTFORML 「……자두나무 밑에서는 갓을 고쳐쓰지 않는다, 입니다. 숨기고 있으면 당연히 의심을 받는 겁니다」
+				PRINTFORMW 「역시 이것은 몰수해 두겠습니다」
+				CFLAG:약점잡음 -= 5
+				CFLAG:1700 -= 5
+				CLEARBIT CFLAG:1699, 1
+			ELSE
+				CALL K30_LECTURE_CHECK(30 + RAND:20, 0)
+			ENDIF
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;원거리 이동 중에 팬티를 회수당했다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 2 
+		;이상한T로 눈이 죽었을 때는 집어들기만 하면 된다.
+		IF CFLAG:30:의상일시변경 == 62 && TALENT:기분 > -1
+			PRINTFORML 「……무슨 생각을 하시는 겁니까, 그건 몰수해 두겠습니다」
+			PRINTFORML 「………………」
+			PRINTFORML 「괜찮습니다. 오늘은 이제 돌아가셔도 됩니다……」
+		ELSE
+			PRINTFORML 「제 눈을 속일 수 있다고 생각했습니까?」
+			PRINTFORML 「이것은 몰수해 두겠습니다」
+				;팬티의 날
+			IF FLAG:이상기상 == 7
+				PRINTFORML 「아무리 이런 이상한 날씨라도 숨기고 있으면 의심 받을 겁니다」
+				PRINTFORML 「변명 따윈 해도 소용없으니까요」
+				CFLAG:약점잡음 -= 5
+				CFLAG:1700 -= 5
+				CLEARBIT CFLAG:1699, 1
+			ELSE
+				PRINTFORML 「그리고 좋은 기회군요. 애당초 당신에게는…… 잠깐! 기다리세요!」
+				PRINTFORMDL %마스터는% 에이키의 설교에서 도망쳤다!
+			ENDIF
+		ENDIF
+	ENDIF
+	PRINTFORML 
+ENDIF
+RETURN 1
+
+;==================================================
+;덮쳤다
+;==================================================
+@M_KOJO_EVENT_K30_10(ARG,ARG:1)
+#DIM YAJYU
+#DIM KONOMI
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;우후후==2（개시 시）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		;-------------------------------------------------
+		;MASTER를 덮쳤다（개시 시）
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			;덮쳐지는 플래그서서, 약점 줄어들었다면 제재로 중단 들어간 것…으로 해 두자
+			IF TCVAR:30:376 && (TCVAR:30:381 != CFLAG:약점잡음)
+				PRINTFORML 「역시 마음이 가라앉질 않아」
+				PRINTFORML 「좀 더 당신을 괴롭혀 주지 않으면…재미 없을 것 같아」
+				PRINTFORMW 「%K30_C_NAME(MASTER)%, 그대로 얌전히 있도록 하세요…♥」
+				CALL K30_PRESET_UFUFU
+				RETURN 1
+			ENDIF
+			;조잡하게 펠라・V・A중 어느 것을 좋아하는지 정해 둔다
+			KONOMI = 51
+			SIF ((EXP:V성교경험 > 0 && EXP:V절정경험 > EXP:펠라티오경험) || TALENT:포르치오성감) && !RAND:3
+				KONOMI = 85
+			SIF EXP:A성교경험 > 0 && EXP:A절정경험 > EXP:V절정경험 && !RAND:3
+				KONOMI = 87
+			SIF TALENT:임신소망 || GETBIT(CFLAG:1502, 4)
+				KONOMI = 85
+			IF TALENT:연모
+				IF CFLAG:30:1801 == 1 && FIRSTTIME("밀어넘어뜨림")
+					CALL K30_WRITE_DIARY(31)
+					PRINTFORMDL %마스터는% 무슨 일이 일어났는지 이해하지 못하고
+					PRINTFORMDW 눈치챘을 때에는 새빨간 얼굴을 하고 있는 에이키에게 덮쳐진 상태였다
+					PRINTFORML 「ㄴ, 나는… 왜… 어째서, 이런 상스러운 짓을…」
+					PRINTFORML 「하지만, 더 이상 참을 수가 없어서……눈치챘을 땐, 이미 몸이 마음대로…」
+					PRINTFORMDW 웬일인지 밀어 넘어뜨린 에이키 쪽이 %CALLNAME:MASTER%보다 혼란스러워 하고 있다…
+					PRINTFORMW 「………………」
+					PRINTFORML 「…어쩌면 훨씬 전부터… 이러고 싶었을 지도 몰라요」
+					PRINTFORMW 「당신에게라면…어떤 부끄러운 일도… 야한… 것도 보여줬으면 좋겠다고…」
+					PRINTFORMW 「%K30_C_NAME(MASTER)%, 이런 저라도…… 괜찮으신가요?」
+				;일 출근 전(07:00～)
+				ELSEIF !CHARA_HOLIDAY(30) && TIME >= 420
+					;일하기 전에 억제할 수 없게 되어, 외양 따위는 개의치 않고 갑자기 본방…이라는 이미지. 그것을 위해 좀 게다를 신겼다.
+					IF KONOMI > 70
+						BASE:MASTER:발기 = MAX(BASE:MASTER:발기, 1001)
+						PALAM:윤활 = MAX(PALAM:윤활, PALAMLV:3)
+					ENDIF
+					TCVAR:30:차회카운터 = KONOMI
+					PRINTFORML 「이런…시간도 없는데, 저도 참…!」
+					PRINTFORML 「그래도… 아무리 해도, 참을 수가 없어요… 이런 모습으로, 심판이라니… 너무…」
+					PRINTFORMDW 초조함과 욕정으로, 에이키는 손을 떨면서 %CALLNAME:MASTER%의 옷에 손을 댄다…
+					PRINTFORMW 「빨리… 빨리! 저한테……!」
+				;약 키메크스
+				ELSEIF INRANGE(TCVAR:30:379, 1, 10)
+					SELECTCASE TCVAR:30:379 
+						CASE 1, 6
+							PRINTFORML 「후훗♥　당신의 자지, 굉장하게 되어버렸네……」
+							PRINTFORMDW %CALLNAME:MASTER%의 속옷을 젖히고 튀어나온 %조사처리(TINKO(),"를")% 보고, 에이키의 눈은 환희의 빛을 띠고 있다
+						CASE 2, 7
+							PRINTFORML 「후후후훗♥　%K30_C_NAME(MASTER)%도 준비는 되어 있네요… 저랑 같네요」
+							PRINTFORMDW %CALLNAME:MASTER%의 텐트가 쳐진 사타구니를 에이키는 황홀해하며 어루만지고 있다
+						CASE 3, 8
+							PRINTFORML 「우후후훗♥　정말, 건강해…♥　그럼, 어느 입에 넣어볼까…」
+							PRINTFORMDW %마스터가% 아닌, 딱딱해진 페니스를 바라보며 에이키는 말을 걸고 있다
+						CASE 4, 9
+							PRINTFORML 「자궁이 쑤셔서 가만히 있을 수 없어…이런 거 참을 순 없어요…」
+							PRINTFORML 「준비도 돼 있고요, 기분 좋게 꼭 해드릴게요. 부탁이에요, 당신의 씨앗…쏟아 주세요♥」
+							PRINTFORMDW 에이키는 『잉태하고 싶다』는 욕망에, 사고를 모두 덮어버린 것 같다…
+						CASE 5, 10
+							PRINTFORML 「아아아앗♥　대단해, 몸이…뜨거워서, 참을 수 없어…♥」
+							PRINTFORML 「이제… 거기\@ KONOMI == 87 ? 도, 엉덩이도 # 가 \@…애절해서… 빨리, 빨리…」
+							PRINTFORMDW 욕정해서 떨리는 손으로 에이키는 %CALLNAME:MASTER%의 옷을 벗기려 하고 있다
+					ENDSELECT
+					TCVAR:30:차회카운터 = KONOMI
+					IF TCVAR:30:379 > 5
+						TCVAR:30:379 += 1000
+					ELSE
+						TCVAR:30:379 += 100
+					ENDIF
+				;1일 2회를 덮쳐오는 격렬한 에이키님
+				ELSEIF YAJYU == DAY
+					IF ABL:욕망 > 9 && PALAM:욕정 >= PALAMLV:9 && K30_PUSH_DOWN() > 150
+						;덮치고 바로 입에 무는…그런 흐름으로 하고 싶으니 TINKO에 게다를 신긴다
+						SIF KONOMI > 70
+							BASE:MASTER:발기 = MAX(BASE:MASTER:발기, 1001)
+						TCVAR:30:차회카운터 = KONOMI
+						PRINTFORML 「미안해… 전혀 부족해… 그것만으로는 부족하다구요」
+						PRINTFORMW 「……저의 상스러운 부탁……들어주시겠어요?」
+						SELECTCASE KONOMI
+							CASE 51
+								PRINTFORMW 「나에게, 자지…핥게 해줘, 이, 음란한 입을…사용해 주세요…」
+							CASE 85
+								IF K30_CREAMPIE()
+									PRINTFORMW 「나의, 기분좋은 곳… ㅂ, 보지를… 자지로… 찔러서, 위로해 주세요…」
+								ELSEIF (TALENT:임신소망 || GETBIT(CFLAG:1502, 4)) && 충전율(30, 4) < 21
+									PRINTFORMW 「좀 더, 임신할 정도로, 채워줘… ㅂ, 보지의… 안쪽, 자궁에… 넘칠 정도로…」
+								ELSE
+									PRINTFORMW 「당신의 정액을, 나의… ㅂ, 보지에, 주세요, 좀 더, 흘러넘칠 정도로, 쏟아 주세요…」
+								ENDIF
+							CASE 87
+								PRINTFORMW 「엉덩이 구멍에, 자지… 갖고 싶어요. 삽입해 주지 않으면, 안 돼요…」
+						ENDSELECT
+					ELSE
+						PRINTFORML 「%K30_C_NAME(MASTER)%…저도,『여자』라구요」
+						PRINTFORMW 「성인 군자도 아니에요, 이런 어중간한 걸로는, 못 견디겠어…」
+						PRINTFORMW 「제대로… 끝까지 위로해 주세요…」
+					ENDIF
+				;이상한T
+				ELSEIF CFLAG:30:의상일시변경 == 62
+					PRINTFORML 「……얌전히 있어 주세요」
+					PRINTFORMW 「지금은 제가 하고 싶어요. 하고 싶어졌어요……」
+					PRINTFORMDW ……여러가지로 쌓인 것이 아무래도 폭발한 것 같다
+					PRINTFORMW 「제 마음이 풀릴때까지 함께 해 주세요…%K30_C_NAME(MASTER)%」
+				;임신 생활일
+				ELSEIF (TALENT:임신소망 || GETBIT(CFLAG:1502, 4)) && ESTRUS_CYCLE(30) >= 100
+					PRINTFORML 「후후훗…지금부터 하는 일이 올바른 남녀의 행동이야」
+					PRINTFORMW 「야한 생각만 하는 당신에게 그것을 제대로 가르쳐 드리겠습니다」
+					PRINTFORMW 「……………」
+					PRINTFORML 「…기분 좋은 것도 싫진 않아, 하지만, 오늘은…」
+					PRINTFORMW 「나에게 부어줘. 당신과의 아이를, 만들게 해 줘」
+				;참고 있었다
+				ELSEIF CFLAG:1603 > 2
+					PRINTFORML 「%K30_C_NAME(MASTER)%, 저를… 칭찬해 주시겠어요?」
+					PRINTFORMW 「저, 참고 있었어요……혼자서, 하는 걸」
+					PRINTFORML 「너무 쓸쓸해서…그래도, 당신과…하고 싶어서…」
+					PRINTFORMW 「열심히 참았어요…그러니까, 상을…주세요」
+					PRINTFORMW 「\@ CFLAG:1603 == 4 ? 저의…엉덩이 # 저 \@를 잔뜩… 귀여워해 줄 수 있으신가요♥」
+			;[일선을 넘지않음]을 극복하고 [연모]가지고 있으면 덮쳐질 확률 2.4배 이므로 구상 넉넉해
+				ELSEIF CFLAG:욕구불만도 >= 500
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORML 「염마님을 이렇게 애태워서 어떻게 하고 싶은거야?」
+							PRINTFORMW 「후후훗……이렇게 당하는게 소원이었던걸까♥」
+						CASE 1
+							PRINTFORML 「당신을 만나고 나도 많이 솔직해졌어」
+							PRINTFORML 「이렇게 되어서 참을 필요도 없다는 것도 깨달았어」
+							PRINTFORMW 「후훗, 각오해 주세요…♥」
+						CASE 2
+							PRINTFORML 「이 쑤심은 더 이상 멈출 수 있을 것 같지 않아요」
+							PRINTFORML 「제대로 알고 있나요? %K30_C_NAME(MASTER)%의 탓, 이니까요」
+							PRINTFORMW 「이건 그 벌이야. 내가 하고 싶은 대로… 해줄 테니까♥」
+					ENDSELECT
+				ELSEIF CFLAG:욕구불만도 >= 300
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORML 「고지식했던 염마님도 완전히 %K30_C_NAME(MASTER)%에게 물들어 버렸어」
+							PRINTFORMW 「확실히 책임을 지도록 하겠습니다……♥」
+						CASE 1
+							PRINTFORML 「『상스럽다』같은 말은 하지 말아주세요……」
+							PRINTFORMW 「게다가 %K30_C_NAME(MASTER)%도 이런 게 하고 싶으셨던 거잖아요……♥」
+						CASE 2
+							PRINTFORML 「조금 애태워지는 것만으로, 더 이상 참을 수가 없어…」
+							PRINTFORML 「그래서 이렇게 바로 즐기기로 한거야」
+							PRINTFORML 「당신의 탓, 아니면…당신 덕분에? ……어느 쪽이라고 생각하시나요♥」
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORML 「후후훗… 나를 이렇게까지 타락시키다니, 정말 %조사처리(K30_C_NAME(MASTER),"는")% 죄 많은 사람이네…」
+							PRINTFORML 「제대로 재판해 주지 않으면 안 되겠네요」
+							PRINTFORMW 「야한 염마님이 당신의 욕망을…짜내 줄게요♥」
+						CASE 1
+							PRINTFORML 「정말 나… 옛날과는 달라졌어」
+							PRINTFORML 「%K30_C_NAME(MASTER)%와 말하고 행동을 보는 것만으로도… 이젠 참을 수가 없어」
+							PRINTFORML 「별로 싫지는 않아요?」
+							PRINTFORMW 「단지… 저를 바꿔놓은 책임은 꼭 져야 하니까요♥」
+						CASE 2
+							PRINTFORML 「…욕망은 누구에게나 있는 법. 염마님이라도 그것은 똑같아」
+							PRINTFORML 「그래서 말이야… 이제 와서 눈치챈 거지만, 내 욕망은…」
+							PRINTFORML 「지금까지 억눌렀던 만큼…누구보다도 대단한 걸지도 몰라」
+							PRINTFORMW 「……각오는, 되어 있는거지, %K30_C_NAME(MASTER)%♥」
+					ENDSELECT
+				ENDIF
+			ELSE
+				PRINTFORMDL 게다가 억누르는 힘이 가차없다. 에이키에게도 여유가 없는 것 같다…
+				PRINTFORMW 「당신이, 당신이 나쁜 겁니다. 무슨 짓을 한 게 분명해요!」
+				PRINTFORMW 「제가 이렇게 되다니 이상합니다. 책임져 주세요!」
+				PRINTFORMDW 확실히 \@ MARK:30:시간각인 > 0 ? 시간을 멈춰서 # 약을 사용해서 \@ 여러 가지로 한 기억은 있기 때문에 기꺼이 책임지기로 했다…
+			ENDIF
+			CALL K30_PRESET_UFUFU
+			YAJYU = DAY
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;MASTER에게 안겨짐（개시 시）＠ 껴안기는 여자끼리 한정적이므로 적당
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			;우후후시 세워지는 플래그
+			TCVAR:30:376 = 2
+			;절정횟수 등 리셋
+			VARSET TCVAR:30:0, 0, 390, 397
+			IF TALENT:연모 && CFLAG:30:의상일시변경 == 62
+				PRINTFORML 「……얌전히 있어 주세요」
+				PRINTFORMW 「지금은 제가 하고 싶어요. 하고 싶어졌어요……」
+				PRINTFORMDW 여러가지로 쌓인 것이 아무래도 폭발한 것 같다
+				PRINTFORMW 「제 마음이 풀릴때까지 함께 해 주세요…%K30_C_NAME(MASTER)%」
+			ELSEIF TALENT:연인
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORML 「고지식했던 염마님도 완전히 %K30_C_NAME(MASTER)%에게 물들어 버렸어」
+						PRINTFORMW 「확실히 책임을 지도록 하겠습니다……♥」
+					CASE 1
+						PRINTFORML 「『상스럽다』같은 말은 하지 말아주세요……」
+						PRINTFORMW 「게다가 %K30_C_NAME(MASTER)%도 이런 게 하고 싶으셨던 거잖아요……♥」
+					CASE 2
+						PRINTFORML 「애태워지면, 금방 욱신거리기 시작해서……」
+						PRINTFORMW 「그것도 전부 %K30_C_NAME(MASTER)%의 탓이에요……♥」
+				ENDSELECT
+				PRINTFORMDW 그렇게 말하며 에이키는 %마스터를% 몰아붙였다…
+			ELSEIF TALENT:연모
+				PRINTFORML 「저기 %K30_C_NAME(MASTER)%, 당신이 하고 있는 일을 알고 있습니까?」
+				PRINTFORMW 「\@ TALENT:MASTER:연인 ? 이미 마음속에 결정한 사람이 있는데 # 아무 생각 없이 기분이 내키는 대로 \@, 여러 여성들에게 손을 대고…」
+				PRINTFORMW 「끝끝내 염마님까지 발정하게 만들다니, 얼마나 지독한 사람인가요……♥」
+				PRINTFORMDW 에이키가 %CALLNAME:MASTER%의 몸을 짓누르고 귓전에 대고 속삭이듯 말한 탓에 귀가 오싹오싹하다…
+				PRINTFORML 「불성실한 색욕, 죄 많은 당신을 지금부터 제가 재판하겠습니다. 입으로 말하는 것만으로는 모르는 것 같으니까요……」
+				PRINTFORMW 「충분히 짜내면, 적어도 색욕은 억제할 수 있겠죠, %K30_C_NAME(MASTER)%……♥」
+			ELSE
+				PRINTFORMDL 게다가 억누르는 힘이 가차없다. 에이키에게도 여유가 없는 것 같다…
+				PRINTFORMW 「당신이, 당신이 나쁜 겁니다. 무슨 짓을 한 게 분명해요!」
+				PRINTFORMW 「제가 이렇게 되다니 이상합니다. 책임져 주세요!」
+				PRINTFORMDW 확실히 \@ MARK:30:시간각인 > 0 ? 시간을 멈춰서 # 약을 사용해서 \@ 여러 가지로 한 기억은 있기 때문에 기꺼이 책임지기로 했다…
+			ENDIF
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;달래졌다（종료 시）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		;우후후 플래그 지움
+		SIF ARG < 3
+			TCVAR:30:376 = 0
+		;-------------------------------------------------
+		;빠져나갔다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			PRINTFORML 「아, 그, 그렇네. 이쯤에서 그만둘게…」
+			PRINTFORMDW 약간 폭주했던 게 생각난 에이키는 얼굴을 붉게 물들이고 있다…
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;안기 모드 만족 종료
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			IF TALENT:연모
+				PRINTFORML 「이런 방법도 가끔은 괜찮네요……%K30_C_NAME(MASTER)%」
+				PRINTFORMDW 뭔가에 눈을 뜰 것 같은 모습으로 에이키는 만족하고 %CALLNAME:MASTER%에게서 떨어졌다
+			ELSE
+				PRINTFORMW 「아, 그, 그렇네요. 이번에는 여기까지 할까요」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;안기 모드 강제 종료
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 2
+			PRINTFORML 「어째서 이렇게 어중간한 때에……」
+			PRINTFORMDW 에이키는 마지못해 %CALLNAME:MASTER%에게서 떨어졌다
+			RETURN 1
+		ENDIF
+	ENDIF
+	;-------------------------------------------------
+	;빠져나가기 실패
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		;-------------------------------------------------
+		;좋을 대로 되어 상태에서 헤어나지 못했다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORML 「당신, 아까 말하셨죠『좋을대로 해』라고」
+			PRINTFORMW 「염마님에게 거짓말을 할 생각이야? 그런 짓을 내버려두지 않을 거에요」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;욕구 불만이 높아 헤어나지 못했다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 2
+			IF TCVAR:30:363 == -2
+				PRINTFORMDL 올라탄 에이키를 밀치려고 했지만 전혀 움직일 기색이 없다…
+			ELSEIF TALENT:연모
+				PRINTFORMDL %마스터는% 바둥바둥 몸을 뒤틀었으나 에이키는 개의치 않는다
+			ENDIF
+			IF TALENT:연모
+				PRINTFORML 
+				PRINTDATA
+					DATAFORM 「안・돼・요, 도망갈 길은 없으니까…♥」
+					DATAFORM 「놓치지 않을거야. 아직 얌전히 있어 주세요…♥」
+					DATAFORM 「그만하고 싶어졌어? 하지만, 미안해… 난 그럴 생각이 전혀 없어…♥」
+				ENDDATA
+			ELSE
+				PRINTFORML 「ㅈ, 저는 아직, 전혀 부족해요!」
+			ENDIF
+			IF !TALENT:연모
+				PRINTFORMDW 벗어나려 하자 안겨져서 실패했다…
+			ELSE
+				WAIT
+			ENDIF
+			RETURN 1
+		ENDIF
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+
+;==================================================
+;목욕탕에서 조우
+;==================================================
+@M_KOJO_EVENT_K30_11(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;쫓겨났다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF TALENT:연인
+			PRINTFORML 「죄송해요. 오늘은 혼자 들어가고 싶어요」
+			PRINTFORMW 「목욕탕은 나중에 사용해주세요…」
+		ELSEIF TALENT:연모
+			PRINTFORML 「으음, 같이 목욕하고 싶다고…」
+			PRINTFORMDW 에이키는 꽤 망설인 것 같지만 결국 거절당하고 말았다
+			PRINTFORML 「죄송해요. 아무래도 혼자 들어가고 싶어서…」
+		ELSE
+			SIF DIARY:30:19 == 0
+				CALL K30_WRITE_DIARY(19)
+			PRINTFORMW 「～～～～～～!!」
+			PRINTFORMDW 에이키는 소리 없는 비명을 지르며 탄막을 전개했다
+			PRINTFORMDW %마스터는% 당황해서 목욕탕에서 도망쳤다…
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;눈이 마주쳤다（쫓겨나지 않는다）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF TALENT:연인 || CFLAG:MASTER:초기위치 == CFLAG:30:초기위치
+			PRINTFORMW 「%K30_C_NAME(MASTER)%… 들어오세요, 이쪽은 비어 있어요」
+			PRINTFORMW 「나중에 등을 밀어드릴게요」
+			PRINTFORMDW 제복을 벗은 에이키는 매우 헌신적이다
+		ELSEIF TALENT:연모
+			PRINTFORMW 「그런가요, 지금 목욕하고 싶은 거네요」
+			PRINTFORMW 「좋아요. 이쪽으로 오세요」
+			PRINTFORMDW 목욕탕에 오래 잠겨있었는지 에이키의 얼굴이 빨갛다
+		ELSEIF TALENT:사모
+			PRINTFORMW 「확실히 이쪽 욕탕은 혼욕이군요」
+			PRINTFORMW 「어쩔 수 없네요. 이쪽을 사용하면 되겠네요」
+		ELSE
+			PRINTFORMDW 에이키는 소리를 지를 줄 알았는데 지금 시간이 혼욕인 것이 생각났다.
+			PRINTFORMDW 경계심을 드러내고 에이키는 욕조 구석으로 옮겨 갔다
+		ENDIF
+	RETURN 1
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+
+;==================================================
+;잠자리에 숨어 @ MAP 실장 시 대비
+;==================================================
+@M_KOJO_EVENT_K30_12(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;쫓겨났다（화남）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF TALENT:연인
+			PRINTFORMW 「……지금은 함께 있고 싶지 않습니다」
+		ELSEIF TALENT:연모
+			PRINTFORMW 「……내버려 두세요」
+		ELSE
+			PRINTFORMW 「장난치지 마. 당장 나가세요」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;잠자리에 침입
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 1
+		PRINTFORML 「zzz…」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;잠자리에 침입（상대가 연모）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 2
+		IF TALENT:연인
+			PRINTFORMW 「아, %K30_C_NAME(MASTER)%… 깜짝 놀라게 하지 마……」
+		ELSE
+			PRINTFORMW 「어라, %K30_C_NAME(MASTER)%? 어째서 여기에?」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;잠자리에 침입（상대가 연모・쇠약）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 3
+		IF TALENT:연인
+			PRINTFORMW 「으음ー……%K30_C_NAME(MASTER)%……지금은… 안 돼……」
+		ELSE
+			PRINTFORMW 「%K30_C_NAME(MASTER)%………지금은………자게 해 줘……」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;쫓겨났다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 4
+		IF TALENT:연인
+			PRINTFORMW 「아무리 당신이라도……좀 곤란한데」
+		ELSEIF TALENT:연모
+			PRINTFORMW 「몰래 숨어들다니 안 돼요」
+		ELSE
+			PRINTFORMW 「무슨 생각입니까. 나가주세요!」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;쫓겨났다（쇠약）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 5
+		IF TALENT:연인
+			PRINTFORMW 「미안해……지금은 쉬고 싶어」
+		ELSEIF TALENT:연모
+			PRINTFORMW 「피곤해요. 나가 주시겠어요?」
+		ELSE
+			PRINTFORML 「지쳤는데……」
+			PRINTFORMW 「지금 쉬고 있어요. 당장 나가세요」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+
+;==================================================
+;업무중＠코스즈 구상 구문 참고했습니다
+;==================================================
+@M_KOJO_EVENT_K30_13(ARG,ARG:1)
+#DIM 연타방지
+;구상주는 TARGET
+;ARG:1에게 남아있는 업무량
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL && 연타방지 != TIME && CFLAG:30:직종 == 43
+	연타방지 = TIME
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;업무개시（직장으로 이동한다）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		;우후후 중단
+		IF TFLAG:COMABLE관리 > 1
+			IF TALENT:연모 && CFLAG:1600 == 0
+				;덮쳐질 확률로 적당히 만족할지 판단
+				LOCAL = (K30_PUSH_DOWN() > 100)
+				PRINTFORM 「%TEXTR("안 돼/거짓말/")%! 
+				PRINTDATAL
+					DATAFORM 서두르지 않으면 늦어버려!」
+					DATAFORM 벌써 이런 시간이잖아!」
+					DATAFORM 빨리 하지 않으면 지각해버려!」
+				ENDDATA
+				;배에 가득
+				IF 충전율(30, 1) > 10
+					PRINTFORMDL 급하게 몸단장을 하는 도중에 에이키는 후 하고 숨을 삼키며 고간 부분을 누른다…
+					PRINTFORMW （응읏…♥　아까 것이, 흘러버려…）
+					SIF 충전율(30, 2) > 10
+						CALL HPH_PRINT, @"（후아…HPH　엉덩이, 에서도……HPH）", "W"
+				;엉덩이에 잔뜩
+				ELSEIF 충전율(30, 2) > 10
+					PRINTFORMDL 에이키는 서둘러서 몸치장을 하는 도중에 갑자기 엉덩이를 눌러 부자연스럽게 멈춰선다…
+					CALL HPH_PRINT, @"（하으…HPH　지금, 엉덩이에서…HPH）", "W"
+				;아직 불만
+				ELSEIF LOCAL
+					IF TCVAR:30:376 == 1
+						PRINTDATAL
+							DATAFORM 「그래서 기다리라고 했는데…」
+							DATAFORM 「일하기 전에 불만 붙여놓으면 어떻게 하라는 거야…」
+							DATAFORM 「이렇게 어중간하게 끝나면 나도 괴로운데…」
+						ENDDATA
+					ELSE
+						PRINTDATAL
+							DATAFORM 「지금은 참고… 서둘러야…」
+							DATAFORM 「제대로 바꿔야 해…」
+							DATAFORM 「아직 애절한데 시간이…」
+						ENDDATA
+					ENDIF
+				ELSE
+					PRINTDATAL
+						DATAFORM 「어떻게든 꾸며서…아아! 싫어, 이런 곳까지 튀었잖아…」
+						DATAFORM 「그러니까, 머리, 복장, 그리고 소지품……아앗, 서두르지 않으면…」
+						DATAFORM 「좀 더 몸가짐을… 아앗, 하지만 시간이…」
+					ENDDATA
+				ENDIF
+				IF LOCAL
+					PRINTDATADW
+						DATAFORM 에이키는 욕정을 억누르면서 업무에 임했다
+						DATAFORM 몸의 화끈거림도 거의 꺼지지 않은 채 에이키는 업무에 임했다
+						DATAFORM 에이키는 쑤시는 몸을 억지로 짓눌러 업무에 임했다
+					ENDDATA
+				ELSE
+					PRINTDATADW
+						DATAFORM 정사의 잔향을 몸에 밴 채 에이키는 업무에 임했다
+						DATAFORM 땀으로 엉킹 잔머리를 걱정하면서 에이키는 업무에 임했다
+						DATAFORM 흩날린 체액을 닦는 것도 하는 둥 마는 둥하며 에이키는 업무에 임했다
+					ENDDATA
+				ENDIF
+				PRINTFORML 
+				PRINTDATAW
+					DATAFORM 「이 얼굴…무엇을 하고 있었는지 들키려나…」
+					DATAFORM 「나, 냄새나거나 하지는 않을까…」
+					DATAFORM 「싫어…옷 여기저기에 얼룩이…」
+				ENDDATA
+			ENDIF
+			CFLAG:1501 = 0
+			CFLAG:1600 = 0
+			CFLAG:1601 = 0
+			TCVAR:30:376 = 0
+		;목욕탕
+		ELSEIF BATHROOM(CFLAG:현재위치)
+			PRINTFORMW 「몸도 깨끗이 씻었으니, 이제 슬슬 일을 다녀오겠습니다」
+		;이상한T
+		ELSEIF CFLAG:30:의상일시변경 == 62
+			PRINTFORML 「……………%TEXTR("……/쉬고싶어/하아…/")%」
+			PRINTFORMDW 일을 하는 에이키의 걸음걸이는 무척 무거워 보인다…
+		;통상
+		ELSE
+			PRINTDATAW
+				DATAFORM 「자, 제 의무를 다할 시간이군요」
+				DATAFORM 「자, 오늘 하루도 분발합시다」
+				DATAFORM 「자, 슬슬 일하러 갈까요」
+			ENDDATA
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;업무중
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 
+		SELECTCASE TIME
+			;재판중
+			CASE 540 TO 719
+				IF RAND:5
+					PRINTDATAL
+						DATAFORM 「…거짓말은 그만 두세요. 염마의 눈을 속일 수 있을 것 같습니까?……」
+						DATAFORM 「…네, 그렇습니다. 당신은 생전에 이다지도 악행을……」
+						DATAFORM 「…이제 와서 후회해도 늦는다구요? 유감스럽게도 당신은……」
+						DATAFORM 「…숨겨도 소용없습니다. 당신의 행동은 이 거울로 전부……」
+						DATAFORM 「…유감스럽지만 이건 선행이 아닙니다. 오히려……」
+						DATAFORM 「…어이가 없어서 말도 안 나오는군요. 지금에 이르러서는 아직 모르십니까……」
+						DATAFORM 「…다른사람도 하고 있었다? 그렇다 하더라도 이 악행의 책임은 모두 당신에게……」
+					ENDDATA
+					PRINTDATADL
+						DATAFORM 에이키는 설교를 섞어가며 재판을 진행하고 있다
+						DATAFORM 에이키는 죽은 자를 엄하게 질책하고 있다
+					ENDDATA
+				ELSE
+					PRINTDATAL
+						DATAFORM 「…다른 사람의 평가를 받지 않더라도 이와 같은 훌륭한 행동은 허사가 아닙니다……」
+						DATAFORM 「…재판하는 제가 아니라 재판을 받는 당신이 훌륭한 겁니다……」
+						DATAFORM 「…예, 이 상황에 그것을 행한 것. 가히 선행이라고 할 수 있겠군요……」
+						DATAFORM 「…당신을 재판할 수 있어서 오히려 제가 자랑스러울 정도입니다……」
+					ENDDATA
+					PRINTFORMDL 에이키는 죽은 자에게 위로의 말을 하고 있다
+				ENDIF
+				IF CFLAG:30:의상일시변경 == 62
+					PRINTFORML 
+					PRINTDATADL
+						DATAFORM 그건 그렇고 묵직한 발언과 복장이 전혀 맞지 않는다…
+						DATAFORM 죽은 자의 영혼은 염마님의 모습을 보고 난처해하고 있다…
+						DATAFORM 재판을 하는 분도 받는 분도 매우 힘들 것 같다…
+						DATALIST
+							DATAFORM 『절대 웃으면 안 되는 최종 심판 24시』
+							DATAFORM 문득 그런 문구가 머리를 스쳤다…
+						ENDLIST
+					ENDDATA
+				ENDIF
+				PRINTFORMW
+			;사무 처리
+			CASE 780 TO 1019
+				IF CFLAG:30:의상일시변경 != 62 && !RAND:22
+					PRINTFORML 「중유의 길에도 뭔가 명물이 있으면 경기 부양책이 될까…」
+					PRINTFORML 「중유의 길…포장마차……피안, 삼도천……지옥…」
+					PRINTFORMW 「명물………지옥 명물……」
+					PRINTFORML 「…………!! 이건, 가능할지도…」
+					PRINTFORMDL 아무래도 염마님은 뭔가 생각난 것 같다…
+				ELSE
+					PRINTDATAL
+						DATAFORM 「이쪽은 재결 완료… 이쪽은…」
+						DATAFORM 「됐다, 이쪽은 끝났으니까 다음에는…」
+						DATAFORM 「이 숫자… 뭔가 이상한데…」
+						DATAFORM 「응? 전에도 비슷한 보고가 있었던 것 같은…」
+						DATAFORM 「그럼, 다음은…」
+						DATAFORM 「오늘 안에 여기까지는 해놔야지…」
+						DATAFORM 「지저의 원령은 특별히 문제 없음…」
+						DATAFORM 「옛 도시 쪽은 맡겨놓았으니 문제 없음…」
+						DATAFORM 「지옥의 요정도 그 이후로는 문제 없음…」
+						DATAFORM 「바깥 세계의 영향…? 이거…조금 이상하네…」
+						DATALIST
+							DATAFORM 「아레의 자식…이런 일이…」
+							DATAFORM 「슬슬 받아들일 준비도 생각해야지…」
+						ENDLIST
+						DATALIST
+							DATAFORM 「중유의 길… 이 매상은 조금 위험한 걸…」
+							DATAFORM 「본격적으로 부양책이, 필요한 걸까…」
+						ENDLIST
+						DATALIST
+							DATAFORM 「명계의 유령들도 얌전히 있군요…」
+							DATAFORM 「그녀에게 맡겨 두면, 뭐 문제 없을 겁니다」
+						ENDLIST
+						DATALIST
+							DATAFORM 「축생계에 별난 움직임, 말이지…」
+							DATAFORM 「되도록 간섭은 피하고 싶습니다만…」
+						ENDLIST
+						DATALIST
+							DATAFORM 「우와아…뭐야… 이 엉터리 보고서…」
+							DATAFORM 「……누가 썼는지는 뻔하네」
+						ENDLIST
+						DATALIST
+							DATAFORM 「으ー응…이래서는 중요한 내용이…」
+							DATAFORM 「그 아이도 잘 잊어버리는 것만 빼면, 백점 만점인데…」
+						ENDLIST
+						DATALIST
+							DATAFORM 「강한 원한을 품은 원령이 명계에…」
+							DATAFORM 「…그녀들에게 잠시 더 맡겨볼까」
+						ENDLIST
+						DATALIST
+							DATAFORM 「검은 물이 구지옥에서도, 말인가요…」
+							DATAFORM 「조금 조사가 필요할까…」
+						ENDLIST
+						DATALIST
+							DATAFORM 「이바라카센의 건도 해결…」
+							DATAFORM 「다음은 코마치의 보고서…괜찮을까…」
+						ENDLIST
+						DATALIST
+							DATAFORM 「으음… 신청서류는, 몇 장이나 더 있는거야…」
+							DATAFORM 「사신의 도움… 뒷마무리도 힘드네…」
+						ENDLIST
+						DATALIST
+							DATAFORM 「예탄정에서 예의 망령을 무사히 데려올 수 있었다…」
+							DATAFORM 「결국 코마치의 게으름 때문이잖아…」
+						ENDLIST
+					ENDDATA
+					PRINTFORMDL 에이키는 \@ CFLAG:30:의상일시변경 == 62 ? 마음을 비우고 # \@ 대량의 사무 작업을 처리하고 있다
+				ENDIF
+				PRINTFORMW
+			;서류 정리
+			CASE 1020 TO 1139
+				PRINTDATAL
+					DATAFORM 「됐다…이쪽은 끝…」
+					DATAFORM 「이렇게 해 두면, 확인도 편할지 몰라…」
+					DATAFORM 「아, 여기는 잘 해놔야지…」
+				ENDDATA
+				PRINTFORMDL 에이키는 \@ CFLAG:30:의상일시변경 == 62 ? 마음을 비우고 # \@ 업무 인수인계 작업을 하고 있다
+				PRINTFORMW
+		ENDSELECT
+		CALLF ONCE("업무지켜보기")
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;업무 종료
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTDATAL
+			DATAFORM 「후우…인수인계 업무도 종료군요」
+			DATAFORM 「됐다… 여기까지 해두면 괜찮겠죠」
+			DATAFORM 「…최종 확인은 끝. 교대 업무, 끝…」
+		ENDDATA
+		IF TCVAR:30:도운양
+			IF TIME < 1140
+				PRINTFORML 「도와주셔서 감사합니다.덕분에 빨리 끝났습니다」
+			ELSE
+				PRINTFORML 「도와주셔서 감사합니다. 덕분에 살았습니다」
+			ENDIF
+		ENDIF
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;식사계
+;==================================================
+@M_KOJO_EVENT_K30_14(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;가지고 있던 음식을 먹을 수 있었다@
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == -1
+		IF TCVAR:30:377 == 1
+			TCVAR:30:377 = 0
+			PRINTFORML 「모처럼 만든 음식을 그대로 가져갈 생각이야?」
+			PRINTFORMW 「그럼 제가 먹을게요」
+		ELSE
+			PRINTFORML 「죄송해요, %K30_C_NAME(MASTER)%」
+			PRINTFORMW 「아무래도 배가 고파서…」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+
+;==================================================
+;MASTER가 덮침
+;==================================================
+@M_KOJO_EVENT_K30_15(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;각 부위 중 최대 절정 횟수를 넣는다
+	LOCAL = MAXARRAY(TCVAR, 390, 394)
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;미실장（덮치기 커맨드로 통합?
+	;MASTER가 덮친다（우후후 개시 시）
+	;기입 체크（=0, 비표시、1, 표시）
+	;LOCAL:1 = 0
+	;-------------------------------------------------
+	;IF LOCAL:1 && ARG == 1
+		;PRINTFORML
+		;RETURN 1
+	;ENDIF
+	;-------------------------------------------------
+	;밀회 종료（우후후 종료 시）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		;덮쳐짐 플래그를 지움
+		TCVAR:30:376 = 0
+		IF FLAG:시간정지
+			PRINTFORMDL 얼어붙은 시간 속에서 에이키를 범하기를 끝냈다
+			PRINTFORMDW 염마조차도 제멋대로 할 수 있는 자신의 능력에 감사하고 싶은 기분이다
+			PRINTFORMDW 옷을 가다듬고 에이키에게서 벗어났다. 정파리 거울이 %CALLNAME:MASTER%의 모습을 포착한 듯하다……
+			RETURN 1
+		;억지로
+		ELSEIF CFLAG:1600 == 1
+			CFLAG:1600 = 0
+			PRINTFORMW 「……믿고 있었는데」
+			PRINTFORMW 「……염마를 배신하는군요……」
+			PRINTFORMW 
+			PRINTFORMDW 울굴 +8000
+			SOURCE:울굴 += 8000
+			RETURN 1
+		;만취간 종료
+		ELSEIF TCVAR:30:만취 == 1
+			PRINTFORMW 「응～……으흐흐흐♪」
+			PRINTFORMDW 에이키의 술에서 깨기 전에 일을 끝마쳤다…
+			RETURN 1
+		;참치 판정 유효시
+		ELSEIF CFLAG:1501
+			CFLAG:1501 = 0
+			;연인이 동침＠에이키님은 속상해한다
+			IF CFLAG:1601 == 1
+				CFLAG:1601 = 0
+				PRINTFORML 「………………」
+				PRINTFORMDW 한때의 쾌락에 몸을 맡겼어도 에이키의 마음은 천 갈래 만 갈래로 흐트러져 있다
+				PRINTFORML （……나의 마음은 당신에게……하지만 당신의 마음에는 이미 %조사처리(K30_C_NAME(TALENT:MASTER:연인),"가")%……）
+				PRINTFORMW （이런 한심한 생각에 사로잡히다니, 나는 도대체……）
+				PRINTFORMW 
+				PRINTFORMW 울굴 +200
+				SOURCE:울굴 += 200
+			;섹프
+			ELSEIF TALENT:애욕 || TALENT:섹프 || TALENT:걸레
+				PRINTFORML 「………………」
+				PRINTFORMDW 몸치장을 하는 에이키의 얼굴은 어두워 보인다……
+				PRINTFORML （타인에게 가르침을 주면서, 자신은 색욕에 빠지는 꼴이라니……）
+				PRINTFORMW （한심해……이 얼마나 자신이 한심스러운 짓을……）
+				PRINTFORML （그렇게 생각하면서 더더욱 그 사람을 찾고 말다니…저는 어떻게 해야……）
+				PRINTFORMW 
+				PRINTFORMW 울굴 +200
+				SOURCE:울굴 += 200
+			;사모 이하에서의 행위는 내키지 않는다
+			ELSEIF !TALENT:연모
+				IF TALENT:사모
+					PRINTFORML 「…………………」
+					PRINTFORMDW 마음을 두고 있었다고는 하지만 %CALLNAME:MASTER%에게 몸을 허락한 것에 에이키는 망설이고 있다
+					PRINTFORMDW 술렁이는 마음을 억누르며 에이키는 옷을 가다듬었다
+					PRINTFORMDW 
+					PRINTFORMDW 울굴 +200
+					SOURCE:울굴 += 200
+				ELSE
+					PRINTFORML 「…………………」
+					PRINTFORMDW 안이하게 몸을 허락한 것에 대하여 에이키에게는 혼란과 후회심이 소용돌이치고 있다
+					PRINTFORMDW 암울한 기분 그대로, 에이키는 옷을 가다듬었다
+					PRINTFORMDW 
+					PRINTFORMDW 울굴 +800
+					SOURCE:울굴 += 800
+				ENDIF
+			ENDIF
+		;절정만족도 판정（나즈린 구상 참고했습니다）
+		;오중절정 3회 OR 2회로 2분의 1로 너무함 판정
+		ELSEIF TCVAR:30:396 > 2 || (TCVAR:30:396 == 2 && RAND:2 == 1) && CFLAG:임신자각상태 == 0
+			CALL HPH_PRINT("「으앗…HPH　아아……――앗, 아～～……HPHHPH――앗HPH」", "L")
+			PRINTFORMDW 황홀한 표정을 띄우고 눈도 텅 빈 채로 에이키는 움찔움찔 몸을 떨고 있다
+			PRINTFORMDL 눈물과 침…애액이나 장액에 땀과 정액도 섞여, 얼굴도 몸도 끈적끈적한 상태이다
+			PRINTFORMDW 엄청난 쾌감에 시달려 낙원의 염마도 육욕에 목이 메어 우는 한 마리의 암컷으로 전락해 버렸나 보다…
+			CALL HPH_PRINT("「――――으읏HPHHPH……――읏HPH」", "L")
+			PRINTFORMDW 걱정해서 %마스터가% 몸에 닿자 그것만으로 에이키는 가볍게 가버리고 말았다…
+		;공수 교대 후 즉시 종료
+		ELSEIF TCVAR:30:362
+			TCVAR:30:362 = 0
+			CALL KIGEN_CHANGE(30, 100, -1)
+			PRINTFORMW 「……짖궃어」
+		;이번에 절정 없음＠사정 횟수로 변화
+		ELSEIF TCVAR:30:390 + TCVAR:30:391 + TCVAR:30:392 + TCVAR:30:393 == 0
+			IF TCVAR:30:394 == 0
+				PRINTFORML 「…%K30_C_NAME(MASTER)%, 혹시 몸이 안좋으신가요?」
+				PRINTFORMW 「그, 전혀 격렬하게 해주지 않아서」
+				PRINTFORMW 「저도 전혀 봉사하지 못했고…」
+			ELSEIF TCVAR:30:394 < 3
+				PRINTFORML 「벌써 만족한 건가요? 참고 계신 건 아닌가요?」
+				PRINTFORMW 「좀 더… 절 사용해서 기분 좋아져도 괜찮은데요?」
+			ELSEIF TCVAR:30:394 > 5 && TCVAR:30:395 > 0 && ABL:30:정액중독 > 4 && RAND:2 == 1
+				PRINTFORML 「후훗, 잔뜩 봉사할 수 있었어요♥」
+				PRINTFORMW 「%K30_C_NAME(MASTER)%의 것이라면 얼마든지 마시고 싶어…♥」
+				PRINTFORMDL 웃으며 말하는 에이키의 입가에도 %CALLNAME:MASTER%의 %조사처리(SAMEN_DESCRIPTION(PLAYER),"가")% 붙어 있다…
+				PRINTFORMW 「아핫, 아직 남아있었네요」
+				PRINTFORMDW 에이키는 %조사처리(SAMEN_DESCRIPTION(PLAYER),"를")% 깨끗이 핥아 먹었다
+				;이런 말 시켜놓고 바로 밀리면 뭐하니까…
+				CFLAG:데일리 += 120
+			ELSE
+				PRINTFORML 「우후후, 수고 하셨습니다. 만족하셨나요?」
+				PRINTFORMW 「저요? 물론 저도 만족하고 있어요」
+				PRINTFORMW 「당신이 기분 좋은 것이 전해져 오는 것. 그게 정말 좋았습니다」
+				CFLAG:데일리 += 120
+			ENDIF
+		;모처럼 개발했다면 뭔가 플레이버 갖고 싶네 판정@죽기살기지만 써서 만족했기 때문에 좋음
+		ELSEIF TALENT:항문광 && TCVAR:30:393 == 0 && (TCVAR:30:390 + TCVAR:30:391 + TCVAR:30:392 ) >= 10
+			PRINTFORMW 「당신…이거 알고 일부러 그러는 거군요……?」
+			PRINTFORMDW %마스터는% 무슨 말이냐고 부자연스럽게 물어본다
+			PRINTFORMW 「………………엉…덩……이, …엉덩이의…구멍이, 엉덩이의………안쪽이 괴로워요」
+			PRINTFORMW 「당신의 손가락으로, 자지로, 이 상스러운 구멍을 가라앉혀 주었으면 합니다……♥」
+			PRINTFORMDW 염마님이 스스로 항문을 만지작거리며 간청하는 모습을 보고 %마스터는% 가학적인 만족감을 얻었다
+		ELSEIF TALENT:음호 && TCVAR:30:391 >= 10 && 충전율(30, 1) >= 40 && CFLAG:임신자각상태 == 0 && RAND:2 == 0
+			PRINTFORMDW 그렇게나 절정하고 %조사처리(SAMEN_DESCRIPTION(PLAYER),"를")% 쏟아 냈는데도, 아직 에이키는 채워지지 않았다…
+			PRINTFORMW 「%K30_C_NAME(MASTER)%…부탁이에요, 저에게 좀 더… 쏟아 주세요…」
+			PRINTFORMW 「욱신거려서 어쩔 수가 없어요,색욕의 죄에 젖은 나를, 좀 더 타락시켜 주세요…」
+			PRINTFORMDW 찔꺽찔꺽하며 자꾸만 %조사처리(SLIT(TARGET),"를")% 만지작거리고 있었지만 질 속까지 닿지 않아 몸부림치고 있다
+			PRINTFORMDW %마스터는% 조금 질렸다는 듯이 보고있었지만, 에이키가 회오의 봉을 잡는 것을 보고 황급히 그만두게 했다…
+		;아이 갖기에 힘썼다
+		;=피임약 없음, 임신소망을 가진 채 MASTER농후정액, 배란유발제 or 위험일 주변에서『%CALLNAME:MASTER%의 정력으로 충족되어 있다…』의 조건을 클리어
+		ELSEIF 충전율(30, 4) > 20 && TALENT:MASTER:농후정액 && (TALENT:임신소망 || GETBIT(CFLAG:1502, 4)) && (ESTRUS_CYCLE(30) >= 70 || TCVAR:강제배란) && !TCVAR:피임약
+			PRINTFORML 「%K30_C_NAME(MASTER)%도 저를 위해서 많이 참아주셨군요…」
+			PRINTFORMW 「이만큼 쏟아 주셨으니…기대해도 좋을지도♥」
+			IF RAND:2 == 1
+				SELECTCASE 충전율(30, 3)
+					CASE IS < 50
+						PRINTFORMDW 에이키는 단단히 씨를 받아낸 하복부를 소중하게 어루만지고 있다
+						PRINTFORMW 「아이…생겼으면 좋겠네요…」
+					CASE 50 TO 99
+						PRINTFORMDW 에이키는 조금 불룩한 배를 만족스러운 듯이 어루만지고 있다
+						PRINTFORMW 「이렇게까지 쏟아주다니…분명 생길 수 있을 거예요…」
+					CASEELSE
+						PRINTFORML 「……그건 그렇고 이건 농담같은 양이야」
+						PRINTFORMW 「아무리 그래도 너무 많이 낸 건 아닐까…」
+						PRINTFORMW 「……………………」
+						PRINTFORML 「뭐, 그래도…」 
+						PRINTFORMDL 에이키는 어리둥절해 하면서도 불룩한 배를 소중하게 껴안았다
+						PRINTFORMW 「이거라면 우리도 꼭 할 수 있겠지. 종족의 차이도 뛰어넘어 줄 것 같아…」
+				ENDSELECT
+			;개발 진행되면 죽음으로 분기되기 때문에
+			ELSE
+				PRINTFORMDW 에이키는 확실히 씨를 받\@ 충전율(30, 3) > 49 ? 아서 부푼 배 # 은 하복부 \@를 소중한 듯이 어루만지고 있다
+				PRINTFORMW 「아이…생겼으면 좋겠네요」
+			ENDIF
+		;각부위 절정수로 10 이상이 있다
+		ELSEIF LOCAL >= 10 
+			FOR COUNT,390, 394
+				SIF LOCAL == TCVAR:30:COUNT
+					LOCAL:1 = COUNT
+			NEXT
+			PRINTFORMDW \@ TALENT:연인 ? 사랑하는 # 애타게 그리는 \@ %마스터와%의 준비를 마친 에이키는 여운에 잠겨 있다
+			SELECTCASE LOCAL:1
+				;C절정만 시킴
+				CASE 390
+					PRINTFORMW 「ㄱ, 거기만 너무 만지면…커진 채로 있을 것 같은데…」
+					PRINTFORMW 「아직 기분 좋은 것도 계속되고 있는데, 정말 괜찮을까…」
+					PRINTFORMDW 에이키의 클리토리스는 포피에서 벗어나 볼록하게 부풀어 오른 채로 있다…
+				;V절정만 시킴
+				CASE 391
+					PRINTFORMW 「하아, 하아……잔뜩, 사랑받았어……♥」
+					;임신소망+질내정액으로 분기
+					IF 충전율(30, 1) && (TALENT:임신소망 || GETBIT(CFLAG:1502, 4)) && !TCVAR:피임약
+						PRINTFORMW 「…후후훗♥　%조사처리(K30_C_NAME(MASTER),"는")% 이런 이야기 알고 계세요?」
+						PRINTFORMW 「임신할 때에 여성이 잔뜩 느끼면… 남자 아이가 태어난다, 라고 해요」
+						PRINTFORMW 「혹시 오늘 생겼다면…이 아이는 분명히 남자 아이겠네요♥」
+						PRINTFORMDW 에이키는 절정의 행복감과 임신에 대한 기대에 도취되어 있다…
+					ELSE
+						PRINTFORMDW 에이키는 행복한 듯이 웃고 있다
+						PRINTFORMDW 질구는 또렷하게 열려서 아직 애액이 \@ 충전율(30, 1) ? 정액과 섞여 # \@ 넘쳐흐르는 것 같다…
+					ENDIF
+				;B절정만 시킴
+				CASE 392
+					PRINTFORMW 「아직 젖꼭지가 따끔거려요……%조사처리(K30_C_NAME(MASTER),"는")% 저기…」
+					PRINTFORMW 「작은 것을 좋아하시나요?」
+					PRINTFORMW 「남자분들은 아무래도 큰 게……… 꺄앗♥」
+					PRINTFORMDW 에이키의 가슴이니까 좋아하는 것이라 말하며 %마스터는% 벌떡 일어난 젖꼭지를 가볍게 튕겼다
+				;A절정만 시킴
+				CASE 393
+					PRINTFORMW 「스스로도 상스럽다…고는 생각하고 있습니다…」
+					PRINTFORMW 「하지만, 엉덩이 구멍은… 굉장히 기분 좋아서……」
+					PRINTFORMW 「지금도… 아직… 욱신거리고 있어…♥」
+					PRINTFORMDW %CALLNAME:MASTER%에게 개발된 에이키는 완전히 항문의 쾌락에 익숙해진 것 같다…
+			ENDSELECT
+		;네 군데 합계로 20회 이상 절정시킴
+		ELSEIF (TCVAR:30:390 + TCVAR:30:391 + TCVAR:30:392 + TCVAR:30:393) >= 20
+			PRINTFORML 「하아… 하아… 더 이상 돌아가지 못할 정도로…… 최고였어요…♥」
+			PRINTFORMW 「염마가 법열의 끝에 극락에 오른다… 후훗, 왠지 이상한 이야기네요…」
+		;4회 이상 내고 반은 입에 사정했다
+		ELSEIF TCVAR:30:394 < (TCVAR:30:395 * 2) && TCVAR:30:394 > 3
+			PRINTFORMW 「후훗, %K30_C_NAME(MASTER)%의 맛도 냄새도 다 기억할 것 같아♥」
+			PRINTFORMW 「당신이 기분 좋은 것이 전해져 오는 게, 그게 굉장히 기뻤어요」
+			PRINTFORMW 「하지만 목이랑 턱이 조금 아파서, 길게 말하는 건 힘들지도………!?」
+			PRINTFORMW 「ㅅ…설마, %K30_C_NAME(MASTER)%…… 그게 목적이야?」
+			PRINTFORMDW 능청을 떠는 %마스터를% 에이키는 째려보고 있다…
+		;나머지는 그럭저럭 만족하는 것으로 범용적
+		ELSE
+			PRINTFORMDW \@ TALENT:연인 ? 사랑하는 # 애타게 그리는 \@ %마스터와%의 준비를 마친 에이키는 여운에 잠겨 있다
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORML 「우후훗… 무척이나 좋았어요」
+					PRINTFORMW 「다음에도, 잔뜩 사랑해주세요」
+				CASE 1
+					PRINTFORML 「당신의 마음을 알고, 당신에게 물드는 것」
+					PRINTFORMW 「너무 멋진 일이네요」
+					PRINTFORMW 「조금만 더 이렇게 있어 주세요…」
+				CASE 2
+					PRINTFORMW 「%조사처리(K30_C_NAME(MASTER),"가")% 기분이 좋아져서 나를 원해 주는 것」
+					PRINTFORMW 「그것만으로도 저도 행복해질 수 있어요…」
+			ENDSELECT
+		ENDIF
+		;아침 우후후 플래그 처리 
+		SIF INRANGE(TCVAR:30:363, -4, -2)
+			TCVAR:30:363 = -5
+		IF CFLAG:30:의상일시변경 == 62
+			PRINTL
+			PRINTFORMDL ……정사의 여운이 가시자 에이키는 또 지금의 상황을 떠올린 것 같다
+		ENDIF
+	ENDIF
+ 	;그 외
+	;-------------------------------------------------
+	;사후 묘사
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		;-------------------------------------------------
+		;정액이 흘러내리기 시작했다.
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORML
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;애액이 늘어지기 시작했다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 2
+			PRINTFORML
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;사후의 무드
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 3
+			PRINTFORML
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;옷을 입는다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 4
+			PRINTFORML 「타이밍 확인」
+			PRINTFORML 
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;동침을 한다
+;==================================================
+@M_KOJO_EVENT_K30_16(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 0
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;동침을 하기 시작했다（개시 시）(존재하지 않음
+	;기입 체크
+	;LOCAL:1 = 0
+	;-------------------------------------------------
+	;IF LOCAL:1 && ARG == 1
+		;PRINTFORML
+		;RETURN 1
+	;ENDIF
+	;-------------------------------------------------
+	;동침을 종료했다（종료 시）
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML
+		RETURN 1
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+;==================================================
+;시간 정지 종료 시＠메이링의 구상 참고 했습니다
+;==================================================
+@M_KOJO_EVENT_K30_17(ARG,ARG:1)
+#DIM BEST
+#DIM PANTS
+;구상주는 TARGET
+;배타라고 명기되어 있지 않은 것은 상황에 따라서 연속으로 표시되기 때문에 주의
+;ARG에게 사정상황
+;ARG:1에게 사정상태
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;덮침 플래그 해제
+	TCVAR:30:376 = 0
+	;어느 부위가 제일 절정 많은지 알아둔다 
+	BEST = 50
+	FOR COUNT, 51, 55
+		SIF EX:COUNT > EX:BEST
+			BEST = COUNT
+	NEXT
+	;물론 엉덩이가 우선
+	SIF EX:무자각A절정 == EX:BEST
+		BEST = 52
+	SELECTCASE BEST
+		CASE 50
+			LOCALS = 콩
+		CASE 51
+			LOCALS = 안
+		CASE 52
+			LOCALS = 엉덩이
+		CASE 53
+			LOCALS = 가슴
+		CASE 54
+			LOCALS = 입
+	ENDSELECT
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;ARG=1～3는 배타
+	;수수께끼의 쾌감
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF BEST == 52 && ABL:30:A감각 > 5 && ABL:30:노출벽 > 4
+			CALL HPH_PRINT, @"「%TEXTR("아앙앗/아흐읏/시러엇/")%……HPH」", "L"
+			LOCAL = 0
+		ELSE
+			PRINTFORML 「%TEXTR("햐아앗/햐아앙앗/꺄아앗/")%……!?」
+		ENDIF
+		IF 업무중체크(30) && BETWEENTIME(540, 719) && CFLAG:MASTER:현재위치 == CFLAG:30:직장 && CFLAG:30:직종 == 43
+			PRINTFORMDL 마침 설교 도중에 에이키는 엉뚱한 소리를 지르고 만다…
+			PRINTFORMW 「………!!」
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORML 「크흠! 흐음, 크흠…!」
+					PRINTFORML 「…콜록. 실례……계속 하겠습니다」
+					PRINTFORMDL 억지로 기침을 해대는 것으로 어떻게든 얼버무리려 하고 있다
+					PRINTFORMDL 사정을 알면서 보고 있노라면 웃긴 광경이다
+				CASE 1
+					PRINTFORML 「………」
+					PRINTFORML 「…삶은 그 자체로 죄가 되는 겁니다. 그런데도 당신은……」
+					PRINTFORMDL …그대로 설교를 계속하여 아무 일도 없었던 척 하는 것 같다
+					PRINTFORMDL 그러나 수치심과 쾌락으로 얼굴은 붉게 물들어 얼버무릴 수 없을 정도로 목소리도 떨리고 있다
+				CASE 2
+					PRINTFORML 「………………………」
+					PRINTFORML 「실례했습니다. 계속 하죠…」
+					PRINTFORMDL 긴 침묵 뒤에 무척 어색해하면서 설교를 재개한다
+					PRINTFORMDL 에이키의 곤란해 하는 모습을 바라보면서 %마스터는% 짓궂게 미소 지었다…
+			ENDSELECT
+			PRINTFORMW 
+			LOCAL = 1
+		ELSE
+			IF LOCAL
+				PRINTFORMD 에이키는 귀여운 비명을 지르고
+				PRINTDATADL
+					DATAFORM 는 침착하게 눈을 굴리고 있다
+					DATAFORM 는 무슨 일이 일어났는지 이해하지 못하고 당황하고 있다
+					DATAFORM 는 순식간에 얼굴이 새빨개져 간다
+				ENDDATA
+				PRINTDATAL
+					DATAFORM 「아, 아무것도 아니야. 신경 쓰지 마…」
+					DATAFORM 「ㅈ, 죄송합니다. 조금 이상한 느낌이 들어서…」
+				ENDDATA
+				PRINTFORMW 
+			ELSE
+				PRINTFORMDL 남달리 민감한 애널을 괴롭혀져, 에이키는 참다못해 달콤한 소리를 내뱉어 버리다
+				PRINTFORML 「…………………………」
+				PRINTFORMDW 웬일인지 둘러댈 기미도 보이지 않고 표정을 풀어놓은 채로 가만히 있다…
+				CALL HPH_PRINT, @"「………………%TEXTR("아하앗/왔다앗/")%HPH」", "L"
+			ENDIF
+		ENDIF
+		IF LOCAL
+			PRINTDATAL 
+				DATAFORM （무야!? 무슨 일이 있었던거야…?）
+				DATAFORM （ㅁ…? 뭐야!? 대체 무슨…?）
+				DATAFORM （잠깐만… 뭐야, 이건!? 뭐냐구!?）
+			ENDDATA
+		ENDIF
+		SELECTCASE BEST
+			CASE 50
+				PRINTFORMW （만지지도 않았는데, 클리가… 쑤시고 있어…）
+			CASE 51
+				PRINTFORMW （뭔가… 무언가가 내… 안에…?）
+			CASE 52
+				IF LOCAL
+					PRINTFORMW （엉덩이가… 어째서, 절대… 말 못해…!）
+				ELSE
+					PRINTDATA
+						DATAFORM （기분좋아아앗기분져아아아기분조아앗…
+						DATAFORM （이거…좋아, 엉덩이…기분 좋은거, 완전 좋아앗…
+						DATAFORM （%K30_C_NAME(K30_FIND_AROUND(), 2)%에게도 들키지 않았어… 그렇다면, 이대로…
+					ENDDATA
+					CALL HPH_PRINT, @"HPH）", "W"
+					PRINTFORMDW ……아무래도 애널 절정의 여운에 잠겨 있는 것 같다
+				ENDIF
+			CASE 53
+				PRINTFORMW （어째서…!? 젖꼭지가, 이렇게…）
+			CASE 54
+				PRINTFORMW （나, 어느새… 침 같은 건 흘리고…?）
+		ENDSELECT
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;절정＠시간 정지 중의 절정 30 이상이 조건
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		CALL HPH_PRINT, @"「%TEXTR("시러어어어/후아아아/아아아ー앗/")%HPH　%TEXTR("안대애애앳/가버려어엇/가버려어어/")%HPH」", "L"
+		IF BEST == 52 && ABL:30:A감각 > 5 && ABL:30:노출벽 > 4
+			CALL HPH_PRINT, @"「엉덩이이잇HPH　엉덩이로옷HPH　가버려어어엇HPHHPH」", "L"
+			LOCAL = 0
+		ELSE
+			PRINTFORMDW 갑자기 엄습해 온 격렬한 쾌락을 견디지 못하고 에이키는 망측한 소리를 질러 버렸다
+		ENDIF
+		IF 업무중체크(30) && CFLAG:MASTER:현재위치 == CFLAG:30:직장 && CFLAG:30:직종 == 43
+			IF LOCAL
+				PRINTFORML 「!! …아앗♥　……아으♥　저, 기…」
+				IF TIME < 720
+					PRINTFORML 「잠시, 휴정…하겠습니다……그, 대로… 기다리, 세요…」
+				ELSEIF TIME >= 780
+					PRINTFORML 「조금… 쉬고, 나서… 조금, 휴, 식…」
+				ELSE
+					PRINTFORML 「죄송, 합니다……조금… 잠시만, 휴식을……」
+				ENDIF
+				PRINTFORMDL 혼란스러운 머리로 겨우 변명을 짜내고는 그대로 책상에 엎드려 버렸다
+				PRINTFORMDL 얼굴을 숙이고 몸을 가늘게 떨면서 절정의 파도가 물러가기를 가만히 기다리는 것 같다
+			ELSE
+				PRINTFORMDW 쥐죽은 듯이 고요한 법정에 에이키의 항문절정을 알리는 교성이 울려퍼졌다…
+				CALL HPH_PRINT, @"「아HPH　……후아HPH　………아히이잇HPHHPH」", "L"
+				CALL HPH_PRINT, @"「엉덩, 이잇…HPH　엉덩이가아앗HPH　아앗HPH　아아아앗HPH」", "L"
+				PRINTFORMDW 완전히 개발된 항문을 괴롭혀진 에이키는 절정에서 벗어나지 못하고 계속해서 가고 있는 것 같다
+				PRINTFORML 
+				PRINTFORMDL …한참 시간이 지나서야 의식을 차린 에이키는 무슨 말을 중얼거리고 있다
+				CALL HPH_PRINT, @"「…저, 저는, 염, 마………져느은, 일, 을……의무를……히이이잇HPH」", "L"
+				PRINTFORMD 의자에 몸을 던지고 눈도 텅 빈 채로 에이키는 
+				IF TIME < 720
+					PRINTFORMDL 재판을 계속하려 하고 있다…
+				ELSEIF TIME >= 780
+					PRINTFORMDL 일로 돌아가려 하고 있다…
+				ELSE
+					PRINTFORMDL 일할 준비를 계속하려 하고 있다…
+				ENDIF
+				PRINTFORMDW 염마님의 업무에 대한 열정에 %마스터는% 감탄해 버렸다
+				RETURN 1
+			ENDIF
+			SELECTCASE BEST
+				CASE 50
+					PRINTFORMDW 그러나 집요하게 괴롭힘을 당한 에이키의 클리토리스는 불룩해서 가라앉을 것 같지 않다…
+				CASE 51
+					PRINTFORMDW 하지만 질내 절정의 쾌락은 물러설 기색도 없이, 에이키의 음란한 즙으로 의자와 바닥도 축축해져 있다…
+				CASE 52
+					PRINTFORMDW 하지만 조련된 애널은 앉아 있는 자극조차도 쾌락으로 바꾸어 에이키를 몸부림치게 한다…
+				CASE 53
+					PRINTFORMDW 하지만 아플 정도로 뾰족한 젖꼭지는 속옷과 스칠때마다 달콤한 쾌락을 에이키에게 계속 주고 있다…
+				CASE 54
+					PRINTFORMDW 그러나 에이키의 입은 완전히 성감대로 변해 있었고 달콤한 저림은 가라앉을 기색이 없다…
+			ENDSELECT
+			PRINTFORML （아아아! 창피해창피해창피해창피해……）
+			IF BEST == 52
+				PRINTFORML （…창피하지만）
+				CALL HPH_PRINT, @"（엉덩이… 기분 좋아HPH　이런 걸…참는 건, 불가능해…HPH）", "W"
+			ELSE
+				PRINTFORML （그런데도, 왜…）
+				PRINTFORMW （어째서, 이렇게… %조사처리(LOCALS,"가")%, 기분 좋은거야…♥）
+			ENDIF
+		ELSE
+			IF LOCAL
+				PRINTFORML 「아앗♥　에엣…!? 뭐, 가…? ……어라?」
+				PRINTFORMDW 상황도 이해하지 못한 에이키는 맥없이 그 자리에 주저앉았다
+				PRINTFORML 「아앗…아앗♥　아아앗♥　아직…♥　%조사처리(LOCALS,"가")%앗♥」
+				PRINTFORML 「………%LOCALS%, 좋아앗…%LOCALS%, 너무… 기분, 좋아앗…♥」
+				PRINTFORMDW 에이키의 개발된 몸과 혼란스러운 사고는, 이 있을 수 없는 쾌락을 받아들이고 있는 것 같다…
+				PRINTFORML 
+				SELECTCASE BEST
+					CASE 50
+						IF CFLAG:노팬티
+							PRINTFORML （보지 않아도 알 수 있어… 클리, 노출되어 있어…♥）
+						ELSE
+							PRINTFORML （아하앗♥　속옷이랑 닿아서 기분 좋아… 이어져 있어…）
+						ENDIF
+							PRINTFORMDW 예민해진 돌기를 더 이상 자극하지 않도록 에이키는 꼼짝달싹도 않고 앉아 있다
+					CASE 51
+						PRINTFORML （아아앗♥　조금 전까지 내 안에… 안에, 들어와 있었는데…）
+						PRINTFORMDW 에이키는 삽입된 감촉이 남은 질 구멍으로 쾌락과 상실감을 느끼고 있다
+					CASE 52
+						CALL HPH_PRINT, @"（엉덩이 구멍, 근질거려HPH　뭔가…당한 것 같은데HPH）", "L"
+						CALL HPH_PRINT, @"（……좀 더, 해줘도… 괜찮은데HPH）", "L"
+						PRINTFORMDW 이토록 비정상적인 상황에도 불구하고 에이키는 애널의 쾌락에만 열중하고 있다
+					CASE 53
+						PRINTFORML （유두, 이렇게나… 서서…스쳐, 서…♥）
+						PRINTFORMDW 옷 위로도 알 수 있는 돌기를 확인하기 위해 에이키는 가슴에 손을 얹었다
+					CASE 54
+						PRINTFORML （입이… 허전해… 뭔가, 원해… 나에게…♥）
+						PRINTFORMDW 에이키의 입은 헤벌쭉하게 반쯤 열려 있는 채로 침도 흘린 채, 닦을 기색도 없다
+				ENDSELECT
+			ELSE
+				PRINTFORMDW 머리가 하얗게 질릴 정도의 강렬한 쾌감에 에이키는 비명에 가까운 교성을 질렀다…
+				CALL HPH_PRINT, @"「엉뎡이잇…엉덩이가앗HPH　…이런 거, 안대애HPH）", "L"
+				PRINTFORMDL 쾌감에 허리가 빠져 버려, 그 자리에 털썩 주저앉아 버렸다
+				CALL HPH_PRINT, @"「아앗……히이이으읏HPHHPH　ㅁ, 멈추질, 아나앗…HPH）", "L"
+				PRINTFORMDW 앉았을 때 가벼운 충격조차도 민감한 엉덩이는 쾌락으로 변환하여 에이키를 다시 절정으로 유혹한다…
+				PRINTFORML 
+				PRINTFORMDL ……겨우 절정의 파도가 잔잔해진 에이키였지만 눈물과 침으로 더러워진 채 방심한 상태에 빠져 있다
+				IF CFLAG:노팬티
+					PRINTFORMDL M자로 벌려진 다리에서 %SLIT(30,1)%까지 훤히 들여다보이는 채 그것을 고칠 기색조차 없다
+				ELSE
+					PRINTFORMDL 치마가 올라가 %PANTS_DESCRIPTION(EQUIP:TARGET:하반신속옷2, TARGET)% %조사처리(SHOW_BOTTOM(TARGET),"가")% 보이지만 그것을 생각할 여유조차 없다
+				ENDIF
+				CALL HPH_PRINT, @"「안대, 안대애……HPH　이런 거, 이런 거…무리이…HPH」", "W"
+			ENDIF
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;팬티 분실
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		IF PANTS != DAY
+			PANTS = DAY
+			PRINTFORML 「!? ………에엣! …뭐야? ……뭐냐구…이거……」
+			PRINTFORMDW ……침착함을 넘어서 분명히 거동이 수상쩍다는 것을 알게 된다
+			PRINTFORML （싫어…… %K30_C_NAME(K30_FIND_AROUND())%에게, 이런 걸 알려지면…）
+			PRINTFORMDW 고지식한 에이키에게는 노팬티의 개방감을 참을 수 없는 것 같다…
+		ELSE
+			PRINTFORMDW 혹시라도 들키지 않도록\@ CFLAG:30:의상일시변경 == 62 ?  평소보다 길이가 짧은 # \@ 스커트 자락을 꼭 누르고 있다…
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각 입 안 사정】
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		;정액중독저정음
+		IF ARG:1 == 1
+			PRINTFORML 「…? ……우읏!?」
+			PRINTFORMW 「응읏, 응그읏…………으응, 으읏」
+			PRINTFORMDL %CALLNAME:(K30_FIND_AROUND())%에게 알려지기 싫다는 생각을 순간적으로 하다가
+			PRINTFORMDW 에이키는 표정을 적당히 얼버무리면서 간신히 정액을 삼켰다.
+			PRINTFORMW 「으으읏, 으으……읏, 대체 무슨……」
+		;정액중독 낮은 토출
+		ELSEIF ARG:1 == 2
+			PRINTFORML 「――으읏!?」
+			PRINTFORMW 「으에엑, 콜록, 크읏, 우엑……」
+			PRINTFORMDL 목구멍의 위화감과 비린내 나는 악취에 당해 에이키의 구역질이 멈추지 않는다
+			PRINTFORMDL 평소에는 설교만 해대는 입에서 침과 정액을 흘리는 에이키의 모습에
+			PRINTFORMDW %마스터는% 가학적인 기쁨을 느꼈다
+		;정액중독 낮은 손으로 덮는다
+		ELSEIF ARG:1 == 3
+			PRINTFORML 「――으으읏!?」
+			PRINTFORMDL 무슨 일이 일어났는지 알아채지 못하게 하기 위해 순간적으로 손으로 입을 가린다
+			PRINTFORML 「으에엑, 콜록, 크읏, 우엑……」
+			PRINTFORMDL 에이키는 눈물을 글썽이며 끈적거리는 정액을 토해 내려고 하고 있다
+			PRINTFORMW 「콜록, 콜록…우엑…어디서…」
+		;정액중독 높은 정음
+		ELSEIF ARG:1 == 4
+			PRINTFORML 「!! ……으읏」
+			PRINTFORMDW 갑자기 나타난 구강 이물질에 순간 놀라지만 금새 평정을 유지하고
+			PRINTFORMDL 혀를 굴려 타액과 섞듯이 단숨에 삼켰다
+			PRINTFORMW 「……잘 먹었습니다♥」
+		;농후정액＆정액중독 낮은 토출
+		ELSEIF ARG:1 == 5
+			PRINTFORML 「――으읏!?」
+			PRINTFORMW 「우에엑, 콜록, 콜록… 콜록…」
+			PRINTFORMDL %마스터가% 터뜨린 농후한 정액은
+			PRINTFORMDW 토해내려고 해도 목에 찰싹 달라붙어 에이키를 괴롭히고 있다
+		;농후정액＆정액중독 높은 정음
+		ELSEIF ARG:1 == 6
+			PRINTFORML 「!! ……아하앗♥」
+			PRINTFORMDW 정액 냄새로 이성이 녹은 듯이 에이키는 놀라는 기색도 보이지 않는다
+			PRINTFORMDL 진하게 우러난 그것을 맛보려는 듯 혀를 굴린다
+			PRINTFORMDW 마치 침과 섞어서 목넘김을 즐기듯 천천히 꿀꺽 삼켰다
+			PRINTFORMW 「……맛있어」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각 안면 사정】
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+		;무지 가짐&정액 경험 100미만
+		IF ARG:1 == 1
+		;통상닦아내기
+		ELSEIF ARG:1 == 2
+			PRINTFORMW 「으읏……이 냄새는……」
+		;얼굴 사정액 핥기
+		ELSEIF ARG:1 == 3
+			PRINTFORML 「……!?」
+			PRINTFORMDW 냄새로 뭐가 얼굴에 묻었는지 눈치챈 에이키에게 스위치가 켜진다
+			PRINTFORMDL 입가를 소매로 가리고 손가락으로 정액을 건져내며 빨기 시작했다
+			PRINTFORMDL 염마의 위엄도 없는 그 모습에
+			PRINTFORMDW %마스터는% 눈치채지 못하게 웃음을 억지로 참았다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각 수음 사정】
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 6
+		;닦아내기
+		IF ARG:1 == 1
+			PRINTFORML 「……이건, 정액…?…」
+			PRINTFORMDW 혼란스러워하면서 품에서 손수건을 꺼내어 정액을 닦아냈다
+		;舐めとり
+		ELSEIF ARG:1 == 2
+			PRINTFORML 「……이건, 정액……」
+			PRINTFORMDW 에이키는 가만히 손을 바라보다가 갑자기 입에 손가락을 가져간다……
+			PRINTFORMDW ……품에서 손수건을 꺼낼 무렵에는 깨끗하게 정액은 핥아져 있었다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각애널사정】
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 7
+		;A감각 2이하
+		IF ARG:1 == 1
+			PRINTFORML 「――으읏!?」
+			PRINTFORMW 「ㅁ, 뭐야, 이건……으…읏」
+			PRINTFORMDL 에이키는 항문의 묘한 통증과 장내에 남아 있는 수수께끼의 뜨거움에 혼란스러워 하고 있다
+			PRINTFORMW 「뱃속이 ……기분 나빠……」
+		;A감각3～5＠절정분기
+		ELSEIF ARG:1 == 2
+			SELECTCASE ABL:30:A감각
+				CASE 3 TO 5
+					IF TCVAR:30:393 > 0 
+						PRINTFORMW 「…앗……뭐야…앗…!?」
+						PRINTFORMDL 엉덩이 구멍을 개발당해 쾌락을 알게 된 몸과 이성이 서로 다툰다
+						PRINTFORMW （가버린 거…… %K30_C_NAME(K30_FIND_AROUND(),1)%에게……들켰다간……）
+					ELSE
+						PRINTFORML 「그읏――――에엣!? ……에!?」
+						PRINTFORMW 「………무슨… 대체…」
+						PRINTFORMDL 엉덩이 구멍의 위화감과 쾌락이 뒤섞여 덮쳐, 에이키는 동요한다
+						PRINTFORMW （이 감각은……하지만…어떻게……）
+					ENDIF
+		;A감각 6이상＠A절정・사정량 분기
+		;감도도 10넘는것이 있기때문에, 잠궈달라고 하는것은 가능합니다
+				CASE IS >= 6
+					IF TCVAR:30:393 > 2
+						CALL HPH_PRINT, @"「――후아아HPHHPH――으읏――HPH……!!」", "L"
+						IF 충전율(30, 2) >= 30
+							PRINTFORMDW 어떻게든 체면을 차리려고 하지만 절정을 거듭한 몸으로는 제대로 힘이 들어가지 않는다
+							PRINTFORMDW 에이키는 상스러운 소리를 내며 %조사처리(SAMEN_DESCRIPTION(MASTER, 1),"를")% 흘려 버린다……
+							PRINTFORML 「히익!」
+							PRINTFORMW （아아아, 이런 것까지…%K30_C_NAME(K30_FIND_AROUND(),1)%에게 들켰다간…）
+							PRINTFORMW （으으읏……싫어…이런 건, 싫어……）
+						ELSE
+							PRINTFORMW （싫어… 새어버려, 싫어……）
+							PRINTFORMDW 항내의 이물질이 새지 않도록 울음을 터뜨릴 듯한 얼굴로 주뼛주뼛 몸을 뒤틀고 있다
+							PRINTFORMDW 얼굴을 붉히며 흐르는 것을 참는 염마님을 %마스터는% 찬찬히 보며 즐겼다
+						ENDIF
+					ELSE
+						PRINTFORMDW 개발된 엉덩이 구멍과 직장은 저항 없이 %CALLNAME:MASTER%의 %조사처리(SAMEN_DESCRIPTION(MASTER, 1),"를")% 맞아들였다
+						CALL HPH_PRINT, @"（엉덩이……뜨거워……기분 좋아아아……HPH）", "L"
+						PRINTFORMDW 쾌락으로 느슨해진 항문에서 누설하지 않도록 에이키는 여느때보다 자세를 바르게 하고 몸에 힘을 주고 있다…
+					ENDIF
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각처녀상실】
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 8
+		PRINTFORML 「!! ――아팟― 아파… 무슨, 일이…!?」
+		PRINTFORMDW 통증보다 엉덩이에서 흘러내리는 진물의 기분 나쁜 점액으로 몸이 굳어진다
+		PRINTFORML （거짓말………이건…, 하지만……）
+		PRINTFORMDW 형언할 수 없다 상실감에 사로잡혀 에이키는 자신도 모르게 눈물을 흘렸다…
+;	귀축한 사람에게는 플래그를 세워 두자
+	SETBIT CFLAG:1800, 1
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각질내사정】
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 9
+		PRINTFORML 「으읏……!? ……!?」
+		PRINTFORMDW 음부에서 흘러내리는 점액의 기분 나쁜 느낌으로 에이키의 몸이 굳어진다…
+		;비처녀 질내사정 피임약 없음
+		IF ARG:1 == 1
+			PRINTFORMW 「거짓말… 이건… 설마…… 아이가……」
+		;비처녀 질내사정 피임약 있음
+		ELSEIF ARG:1 == 2
+			PRINTFORMW （어쩌다 약이 듣고 있지만, 이런 일이 계속된다면……）
+		;처녀질내사정
+		ELSEIF ARG:1 == 3
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;시간정지해제 공통
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 0
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;생으로 해달라할 때
+;==================================================
+@M_KOJO_EVENT_K30_18(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;피임 요구 대사
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF TALENT:연인
+			PRINTFORMW 「그건 안 돼…아이가 생겨버려요」
+			PRINTFORMW 「아이는 사랑하는 부부 사이에서 태어나야 합니다」
+			PRINTFORMW 「저희들은 아직…」
+		ELSEIF TALENT:연모
+			SELECTCASE K30_FIND_LOVER()
+				CASE 0
+					PRINTFORML 「아……그건……!」
+					PRINTFORMW 「우리에게는 아직 일러요…너무 이르다고 생각합니다…」
+				CASE 1
+					PRINTFORML 「저에게… 이 이상 길을 벗어나라니…」
+					PRINTFORMW 「그건… 안 됩니다. 절대로…」
+				CASE 2
+					PRINTFORMDL 에이키는 놀라서 %마스터와% %CALLNAME:(TALENT:MASTER:연인)%의 얼굴을 쳐다보았다
+					PRINTFORMW 「이해…못하겠습니다…당신들은 정말 그걸로…」
+					PRINTFORMW 「%조사처리(K30_C_NAME(TALENT:MASTER:연인)ㅡ"는")% 정말로 괜찮은 겁니까……」
+			ENDSELECT
+		ELSE
+			PRINTFORMW 「…………」
+			PRINTFORMW 「………」
+			PRINTFORMDL 에이키는 의아한 눈으로 이쪽을 보고 있다
+			PRINTFORMDW 정말 무슨 말인지 모르겠다는 눈치다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;거절했다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF TALENT:연모
+			PRINTFORML 「곤란합니다… 다시 생각해보지 않으시겠어요…?」
+			PRINTFORMDW 어조는 부드럽지만 거절 의사는 분명하다
+		ELSE
+			PRINTFORMW 「…………………」
+			PRINTFORMDW 에이키는 아무 말도 안하고 있지만 말로 하는 것보다 알기 쉽다…
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;거절했지만 달라붙어 거절당했다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 「아이를 낳을 책임에 대해 정말 생각하고 있나요!?」
+		PRINTFORMW 「당신에게는 책임감이 너무 없습니다!!」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;위험일 이외 허가
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		IF TALENT:연모
+			PRINTFORML 「……그것은 만약 아이가 생기면 책임을 진다」
+			PRINTFORML 「그런 뜻이군요?」
+			PRINTFORML 「염라에게 거짓말을 하면 어떻게 될지…」
+			PRINTFORMW 「알고 있겠죠?」
+		ELSE
+			PRINTFORMDL 에이키는 안겼을 때와 마찬가지로 %CALLNAME:MASTER%에게 넘어가 버렸다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;위험일 허가
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+		PRINTFORML 「나와 당신의 아이…」
+		PRINTFORML 「당신은 정말로……원하시는 건가요?」
+		PRINTFORMW 「……믿어도, 되는 건가요?」
+		SETBIT CFLAG:1502, 0
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;신사 생활을 승인받음
+;==================================================
+@M_KOJO_EVENT_K30_19(ARG,ARG:1)
+;구상주는 ARG
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;인정을 받는다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF TALENT:연인
+			PRINTFORML 「%CALLNAME:거점_주인%씨가 이해가 잘 되는 분이라서 다행이야」
+			PRINTFORMW 「우리 사이라면 같이 살아서 아무 문제 없지만」
+			PRINTFORML 「당신을 피안으로 끌어들이는 것은 아무래도 좋지 않으니까……」
+			PRINTFORMW 「여기로 이사올 수 있어서 정말 다행이야」
+			PRINTFORMW 「……그래서 말이야, 다시 한 번 말할게」
+			PRINTFORMDW 에이키가 이쪽으로 돌아서서 똑바로 쳐다보았다
+			PRINTFORMW 「정말 좋아해, %K30_C_NAME(MASTER)%. 앞으로도 계속 잘 부탁해」
+		;또 연인있는 사람 집에 이사 온다는 건 왠지 무서워
+		ELSEIF TALENT:MASTER:연인
+			PRINTFORML 「……설마 %CALLNAME:거점_주인%씨가 용서해줄거라고는 생각치도 못 했어」
+			PRINTFORMW 「이미 당신에게는 마음을 정한 사람이 있는데 말야…」
+			PRINTFORML 「%K30_C_NAME(MASTER)%」
+			PRINTFORMW 「당신의 첫번째가 될 수는 없지만, 나는 어떻게든 당신 곁에 있고 싶었어」
+			PRINTFORML 「이건 내 어리광이니까 당신은 지금까지처럼 사귀는 것으로 좋아」
+			PRINTFORMW 「……앞으로도 잘 부탁해」
+		;우선 없다고 생각하지만 일단
+		ELSE
+			PRINTFORMW 「후훗, 당신도 인정해준다는 건……기대해도 좋은거지?」
+			SIF STRCOUNT(CSTR:30:0, "첫고백")
+				PRINTFORMW 「저도 포기하지 않았으니까요……」
+			PRINTFORMW 「%K30_C_NAME(MASTER)%. 기다릴게요」
+			PRINTFORMW 「앞으로도 잘 부탁해」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;인정받지 못한다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF TALENT:연인
+			PRINTFORMDL %마스터는% 에이키에게 시비곡직청을 비우지 않는 것이 좋겠다고 전했다
+			PRINTFORMW 「으ー음, 당신이 그렇게 말한다면……역시 그렇군요……」
+			PRINTFORMW 「사실 주위에서도 많이 반대했어.『염마님이 없으면 곤란합니다』하고」
+			PRINTFORMW 「…그리고 곰곰이 생각하면…제가 부재중이면 분명 그 아이는……」
+			PRINTFORMW 「……어쩔 수 없네. 이사는 포기해야 겠어」
+			RETURN 1
+		;잔당
+		ELSEIF TALENT:MASTER:연인
+			PRINTFORML 「……그렇죠, 당연한 거겠죠……」
+			PRINTFORML 「이상한 말을 꺼내서 죄송합니다……」
+		ELSE
+			PRINTFORML 「안 되……는구나. 당신은 이미 마음을 정한 사람이 있어?」
+			PRINTFORML 「………………」
+			PRINTFORML 「……사람의 마음이니까. 확실히 안 되는 일이 있겠죠」
+			SIF STRCOUNT(CSTR:30:0, "첫고백")
+				PRINTFORML （그래, 나도 포기할 수 없으니까……）
+			PRINTFORML 「죄송합니다, %K30_C_NAME(MASTER)%. 오늘은 돌아가겠습니다……」
+		ENDIF
+		PRINTFORMDW 에이키는 터벅터벅 돌아갔다
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;귀가시
+;==================================================
+@M_KOJO_EVENT_K30_20(ARG,ARG:1)
+;구상주는 LOCALS or RESULT
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;통상귀가
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF TALENT:연인
+			PRINTFORML 「떠나는건 외롭지만 참아야겠지…」
+			PRINTFORMW 「…잘 있어. …내일 봐요」
+		ELSEIF CFLAG:30:의상일시변경 == 62
+			PRINTFORML 「잘 있어. 수고하셨습니다…」
+			PRINTFORMDW 에이키는 몸을 숨기듯이 하고 휙 돌아가 버렸다
+		ELSEIF TALENT:연모
+			PRINTFORML 「당신에게는 하고 싶은 말이 많이 있습니다」
+			PRINTFORMW 「확실히 시간을 내서 다시 꼭 올 테니까」
+			PRINTFORML 「오늘은 여기까지」
+			PRINTFORMW 「……안녕히 계십시요」
+		ELSE
+			PRINTFORML 「이럴수가. 시간이 벌써 이렇게나?」
+			PRINTFORMW 「아직 당신에게는 하고 싶은 말이 많습니다만…」
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORML 「……네, 생각났습니다.요전에 들었습니다만…」
+					PRINTFORMW 「그래요, 당신은 아무래도 도덕심이 결여된 부분이 있어서………」
+				CASE 1
+					PRINTFORMW 「지금부터 이야기하지 않을 순 없습니다. 우선 오늘 들었던 말을 이해해 주세요」
+					PRINTFORMW 「그렇게 해서 내일부터 하루하루를 소중히 하고 선행을 쌓는 겁니다」
+					PRINTFORMW 「우선 그러기 위해서는 깨끗한 마음을 간직하고…………」
+				CASE 2
+					PRINTFORMW 
+					PRINTFORML 「…………? 당신, 제대로 타인의 이야기를 듣고 있습니까?」
+					PRINTFORMW 「염마를 얕보다니 무슨 생각입니까?」
+					PRINTFORMW 「자신의 힘을 과신하여 오만해지지 않았습니까?」
+					PRINTFORML 「그래, 당신은 좀 교만함이 지나쳐!」
+					PRINTFORMW 「알겠습니까…………」
+			ENDSELECT
+			PRINTFORMW 「……………………………………………」
+			PRINTFORMW 「……………………………………」
+			PRINTFORMDW 길어질 것 같으니 에이키에게 다시 한번 시간을 알려주었다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;데이트 중 귀가＠클라운피스 구문 참고했습니다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF CFLAG:현재위치 == OMANEKIBEYA()
+			IF CFLAG:우후후
+				;방해되지 않도록 표시하지 말기
+				RETURN 1
+			ELSE
+				PRINTFORMW 「죄송합니다. 슬슬 피곤해져서…」
+				PRINTFORMW 「오늘은 벌써 작별이네요, %K30_C_NAME(MASTER)%」
+				;묵을 수 있다
+				SIF !TCVAR:(CFLAG:MASTER:초대):연속숙박금지 && NEMUKE() < 720
+					PRINTFORMW 「……하지만, 실은… 떠나고 싶지 않아……」
+			ENDIF
+		ELSEIF CFLAG:30:의상일시변경 == 62
+			PRINTFORML 「이 쯤되면 슬슬 돌아가야 겠네요…」
+			PRINTFORMW 「안녕히 계세요」
+			PRINTFORMDW 에이키는 남이 볼까 신경을 쓰면서 빠르게 돌아가 버렸다
+		ELSE
+			PRINTFORML 「앗, 벌써 시간이 이렇게나…」
+			IF TALENT:연인
+				PRINTFORMW 「중간에 실례지만, 미안해」
+				PRINTFORMW 「…아쉽지만 어쩔 수 없어」
+			ELSEIF TALENT:연모
+				PRINTFORMW 「…오늘은 감사했습니다. 즐거웠어요」
+				PRINTFORMW 「정말로… 즐거웠어요. 부디 또 \@ TCVAR:30:358 ? 동행해 # 데려가 \@ 주세요」
+			ELSE
+				PRINTFORMW 「오늘은 \@ TCVAR:30:358 ? 동행해 # 데려가 \@ 주셔서 감사했습니다」
+				PRINTFORMW 「이제 시간이 이렇게 되었으니 이만」
+			ENDIF
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;현관 앞에서 배웅하다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		IF TALENT:연인
+			PRINTFORMW 「여기까지라도 괜찮아, 고마워」
+			PRINTFORMW 「…아쉽지만 어쩔 수 없어」
+			PRINTFORMDW 몇 번이고 뒤돌아보면서 에이키는 돌아갔다
+		ELSEIF TALENT:연모
+			PRINTFORMW 「…오늘은 감사했습니다. 즐거웠어요」
+			PRINTFORMW  %마스터는% 에이키와 헤어졌다
+			PRINTFORMW 「…정말… 즐거웠어…」
+		ELSE
+			PRINTFORMW 「데려다 주셔서 감사합니다」
+			PRINTFORMW 「오늘은 이만 실례하겠습니다」
+		ENDIF
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;함락 소질 취득시
+;==================================================
+@M_KOJO_EVENT_K30_21(ARG,ARG:1)
+;구상주는 ARG
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;연모 취득
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORMDL 최근 일이 손에 잡히지 않는다
+		PRINTFORMDW 생각해 보면 당연하다
+		PRINTFORMDL 무언가에 현혹되어 있는데
+		PRINTFORMDL 정당한 심판 따위는 당장 내릴 수 있을 리가 없다
+		PRINTFORMDW 아무래도 재판에 시간이 걸려 버린다
+		PRINTFORMW
+		PRINTFORMDL 가르침을 펴는 횟수도 줄어들어 버렸다
+		PRINTFORMDL …이에 대해서는 인요를 불문하고 기뻐하고 있는 것 같지만
+		PRINTFORMDW 애초에 염마의 설교를 기꺼이 받는 자 따위는 없다
+		PRINTFORMDW ……………딱 한 명 있다
+		PRINTFORMW 「%K30_C_NAME(MASTER)%………」
+		PRINTFORMDL 말로 꺼내자 가슴이 아파온다
+		PRINTFORMDW 흑백을 가리는 것이 이렇게 두려운 일인 줄이야
+		PRINTFORMW 「…………………」
+		PRINTFORMW 「이 마음을 가슴에 간직할 수 있을까……」
+		PRINTFORMW 「……………………」
+		PRINTFORMW 「……무리인 것 같아. 그렇다면, 차라리……」
+		PRINTFORMW 
+		PRINTFORMDW 에이키는 [무관심]을 잃었다
+		PRINTFORMDW 에이키는 [솔직함]을 얻었다
+		PRINTFORMW 
+		TALENT:30:태도 = -1
+		TALENT:30:무관심 = 0
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;사모 취득
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORMDW 에이키는 서류 일을 하던 손을 멈추고 문득 생각했다
+		PRINTFORMDW %MASTERNAME:30%
+		PRINTFORMDL 최근 환상향에 온 그 사람은 염마마저 속일 무언가를 가지고 있다
+		PRINTFORMDW 거울에 비출 수 없다면 직접 보는 수밖에
+		PRINTFORMDL 제대로 감시하고 가르쳐야 한다
+		PRINTFORMDW 그러면서 차를 받아 느긋하게 쉬고………
+		PRINTFORMW 「………………………………」
+		PRINTFORMDL 타인에게 물들 리가 없는 자신이 도대체 무엇을 생각하고 있는 것일까?
+		PRINTFORMW 「…………………」
+		PRINTFORMDW 한숨을 한 번 내쉬고 에이키는 일을 재개했다
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;애욕 취득
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;애인 취득
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		PRINTFORML
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;섹프 취득
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;조교종료 시에 자위
+;==================================================
+@M_KOJO_EVENT_K30_22(ARG,ARG:1)
+;구상주는 ARG
+;ARG:0에 자위상황
+;ARG:1에 자위종류
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;통상자위
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF TALENT:연모
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORML 「아앗, 아…、안 돼……안되는데…%K30_C_NAME(MASTER)%……아앗아앗♥」
+					PRINTFORMDW 에이키는 %마스터와% 짐승처럼 몸을 섞는 자신을 상상하며 격렬하게 음부를 만지작거린다…
+				CASE 1
+					PRINTFORML 「그래, %K30_C_NAME(MASTER)%………거기… 천천히……상냥하게…응읏! 으으읏♥」
+					PRINTFORMDW 에이키는 %CALLNAME:MASTER%에게 애무받는 걸 떠올리며 클리토리스를 문지르고 있다…
+				CASE 2
+					PRINTFORML 「안 돼…%K30_C_NAME(MASTER)%………이런 곳에서……하으♥　…응그읏! ……저기, 용서해 줘……♥」
+					PRINTFORMDW 에이키는 %CALLNAME:MASTER%에게 야외에서 조련당하는 자신을 망상하며 자위에 몰두하고 있다…
+			ENDSELECT
+		ELSEIF TALENT:사모
+			IF FIRSTTIME("ONANISM")
+				PRINTFORMDL 평소대로의 성욕처리중, 에이키는 문득 %CALLNAME:MASTER%에 대해 떠올린다……
+				PRINTFORML 「에엣! …뭐야…이거………히익…아아아앗♥」
+				PRINTFORMDW 순식간에 쏟아지는 애액과 예민해진 감각에 에이키는 당황하고 있다……
+				CALL K30_WRITE_DIARY(23)
+			ELSE
+				SELECTCASE RAND:2
+					CASE 0
+						PRINTFORML 「후으ー읏♥　후우ー웃♥　……응아아앗, 안대앳… %K30_C_NAME(MASTER)%, 안대앳…♥」
+						PRINTFORML 「안대애…♥　이런 걸로, 기분 좋아지면…아앗, 아아아앗! 가버려어♥」
+						PRINTFORMDW %마스터를% 떠올리며하는 자위의 쾌락에, 에이키는 거부하려 해도 이미 빠져들고 있다…
+					CASE 1
+						PRINTFORML 「하아아……하아앗…%K30_C_NAME(MASTER)%………아아아앗♥」
+						PRINTFORML 「………안대앳…이런 거…안되는데……히아아아앗♥」
+						PRINTFORMDW %마스터를% 떠올리며하는 자위에, 에이키는 죄책감과 강렬한 쾌락을 느끼고 있다……
+				ENDSELECT
+			ENDIF
+		ELSE
+			PRINTFORML 「하아……정말 무의미한 일……」
+			PRINTFORMDW 성욕처리를 담담하게 마치고 나서 아무런 느낌도 없이 에이키는 몸을 깨끗이 했다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;동실시 자위
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 「%K30_C_NAME(MASTER)%♥　그래, 거기………응읏아흣…, 후아아앗♥」
+		PRINTFORMW 「하앗, 하아아앗♥ 　히으으으읏♥♥」
+		PRINTFORMDL 어느 새 %CALLNAME:MASTER%의 손을 음부로 인도해 음핵에 문질러지고 있다……
+		IF !CFLAG:30:약점잡음&& ABL:30:정액중독 > 4
+			CFLAG:1603 = 2
+			PRINTFORMDL 기분 탓인지 에이키가 힐끔힐끔 이쪽을 보고 있는 것 같기도 했지만
+		ENDIF
+		PRINTFORMDW 들킨 것을 알게되면 어색해질 것 같아, %마스터는% 자는 척을 계속했다……
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;질내정액 자위
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;무지 가짐（자위경험(조교자위경험은 차감)의한 분기 있음
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		LOCAL:2 = EXP:자위경험 - EXP:조교자위경험
+		;무지 삭제 이벤트 있음（표시는 한 번만
+		IF LOCAL:1 >= 25
+		;지문 분기. 쓰고 싶으면 [SKIPSTART][SKIPEND]을 삭제해 주세요
+		[SKIPSTART]
+		ELSEIF LOCAL:1 >= 20
+		ELSEIF LOCAL:1 >= 15
+		ELSEIF LOCAL:1 >= 10
+		ELSEIF LOCAL:1 >= 5
+		[SKIPEND]
+		ELSE
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;함락 소질 있음 자위중독 높음
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+		;-------------------------------------------------
+		;C민감 or C감각 10이상
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;V민감 or V감각 10이상
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 2
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;A민감 or A감각 10이상
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 3
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;B민감 or B감각 10이상
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 4
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;부위 지정 없이
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 5
+			RETURN 1
+		ENDIF
+		;그 외
+		;위의 분기를 일체 쓰지 않고 여기에 적으면 함락 소질 있음 자위중독 높음 자위의 공통 구상을 표시할 수 있습니다
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;자위중독 높음
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 6
+		;-------------------------------------------------
+		;항문 자궁 동시
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;질 자궁만
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 0
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 2
+			RETURN 1
+		ENDIF
+		;그 외
+		;위의 분기를 일체 쓰지 않고 여기에 적음으로써 자위중독 높음 자위의 공통 구상를 표시할 수 있습니다
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;참고 견디다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 7
+		IF TALENT:연모
+			CFLAG:1603 = 3
+			PRINTFORML 「…응, 오늘은 참아야…」
+			PRINTFORML 「…그래…오늘만 참으면…」
+			PRINTFORM （내일… %K30_C_NAME(MASTER)%
+			SELECTCASE CFLAG:30:좋아하는체위
+				CASE 0
+					PRINT 에게……위로 받고…）
+				CASE 1
+					PRINT 에게……안겨져서… 잔뜩…♥）
+				CASE 2 
+					PRINT 에게… 뒤에서……짐승처럼…잔뜩…♥）
+				CASE 3 
+					PRINT 의 위에서……원하는 만큼…♥）
+				CASE 4 
+					PRINT 에게……꽉 안겨져서…잔뜩…♥）
+				CASE 5 
+					PRINT 에게……괴롭혀져서… 잔뜩…♥）
+				CASE 6
+					PRINT 에게……엉덩이, 귀여움 받고…
+				CASE 7 
+					PRINT 에게, 엉덩이를… 뒤에서、잔뜩…
+				CASE 8 
+					PRINT 의 위에서、엉덩이에……원하는 만큼…
+				CASE 9 
+					PRINT 에게, 안겨져서, 엉덩이로…
+				CASE 10 
+					PRINT 에게, 안겨져서……엉덩이에…
+			ENDSELECT
+			IF CFLAG:30:좋아하는체위 > 5
+				CALL HPH_PRINT("HPH）", "L")
+				CFLAG:1603 ++
+			ELSE
+				PRINTFORML 
+			ENDIF
+		ELSE
+			PRINTFORML （자신이……이렇게 한심할 줄이야……）
+			PRINTFORML （그래도…몸이 그 사람을…이렇게 몸이 찾게되버려…）
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외
+	;위의 분기를 일체 쓰지 않고 여기에 적음으로써 자위의 공통 구상를 표시할 수 있습니다
+	RETURN 1
+ENDIF
+RETURN 1
+;==================================================
+;목욕탕을 데리고 나옴
+;==================================================
+@M_KOJO_EVENT_K30_23(ARG,ARG:1)
+;구상주는 LOCAL
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;거절당했다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF TALENT:연모
+			PRINTFORMW 「미안해요. 오늘은 어떻게 해서든 혼자 들어가고 싶어……」
+		ELSEIF TALENT:사모
+			PRINTFORML 「…비뚤어진 마음이 분명히 새어나오고 있어요」
+			PRINTFORMW 「목욕은 혼자하세요」
+		ELSE
+			PRINTFORMW 「………………………」
+			PRINTFORMDW 에이키는 아무 말도 안하고 있지만 거절의 의사가 분명히 나타나 있다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;같이 들어가 준다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF TALENT:연모
+			PRINTFORMW 「좋아. 기분 좋으니까」
+		ELSEIF TALENT:사모
+			PRINTFORML 「……그렇죠, 혼욕탕이니까」
+			PRINTFORMW 「같이 들어가도 이상하지 않네요……」
+		ELSE
+			PRINTFORML 「혼욕탕이라 어쩔 수 없지만……」
+			PRINTFORMW 「이상한 짓을 하면…알고 계시죠?」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+;==================================================
+;임신＠YM 에이키님의 자○엔드가 인상에 남으므로 원치않음 임신은 쓰지 않음
+;==================================================
+@M_KOJO_EVENT_K30_24(ARG,ARG:1)
+;구상주는 LOCAL
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;연모
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1 && CFLAG:몸으로기억_어머니 == 1 && !CFLAG:무자각임신
+		LOCALS = %CSTR:30:80%
+		IF LOCALS == ""
+			LOCALS = %MASTERNAME:30%
+			SIF !TALENT:연인
+				LOCALS += "씨"
+		ENDIF
+		;자식 발원 몇번이나 하는 상정. 에이키님에게 한방 스나이프나 없어요
+		IF !EXP:출산경험
+			;일기플래그
+			SETBIT CFLAG:1910, 5
+			PRINTFORML 「%LOCALS%, 보고할 게 있어…」
+			;소망이 있다면 안심하고 설교
+			IF GETBIT(CFLAG:1502, 3)
+				PRINTFORMW 
+				PRINTFORML 「둘이서 참배를 하면서 계속 소원하고…이제야 이루어진 것 같아」
+				PRINTFORMW 「%조사처리(LOCALS,"와")% 나의, 아이를……드디어, 받았어요」
+				PRINTFORML 「열심히 빌고… 시간을, 들여서, 겨우…이루어졌어…정말, 기, 뻐…」
+				PRINTFORMDW 에이키는 감회가 복받쳐 눈물을 글썽이고 있다……
+				PRINTFORMDL %마스터는% 에이키를 진정될 때까지 안아 주었다
+				PRINTFORMDW ………………
+				PRINTFORML 「…고마워」
+				PRINTFORMDW 감사의 말을 전하고 눈물을 훔치니 평소의 마음가짐을 되찾은 것 같다
+				PRINTFORML 「아직 아무것도 안 했는데 울고 있을 때가 아니네요」
+				PRINTFORMW 「웃는 얼굴로 아이를 맞이할 수 있도록 앞으로 준비할 시간……」
+				PRINTFORML 
+				PRINTFORML 「……그렇죠, %LOCALS%도 지금부터『아빠』가 되는 거예요?」
+				PRINTFORMW 「지금까지처럼 빈둥거리고만 있을 수는 없잖아요」
+				PRINTFORML 「우선 가까운 곳부터 생활습관부터 고쳐야 합니다」
+				PRINTFORMW 「애초에 말이죠……」
+				PRINTFORMDL …반가운 보고 장소가 어느덧 설교 시간으로 바뀌어 있다
+				PRINTFORMDW 에이키가 자연스럽게 있을 수 있다면 그걸로 괜찮을까 하고 생각하여, %마스터는% 얌전히 설교를 받았다…
+			;없으면 불안한 느낌이지만, 별로 분기는 없어
+			ELSE
+				PRINTFORMW 
+				PRINTFORMW 「%조사처리(LOCALS,"와")% 나의, 아이를…아무래도, 받은 것 같아」
+				PRINTFORMW 「…………」
+				PRINTFORML 「물론 기뻐. 기쁘지만… 굉장히 불안해」
+				PRINTFORMW 「나는 좋은 엄마가 될 수 있을까…」
+			ENDIF
+		ELSE
+			PRINTFORMW 「%LOCALS%, 놀라지 말고 들어줘…」
+			PRINTFORMW 「또, 생긴 것 같아. %조사처리(LOCALS,"와")% 나의 아이가… 또 받았어」
+			PRINTFORML 「확실히 둘이서 참배한 보람이 있었습니다……기뻐요」
+			PRINTFORMW 「남동생, 아니면… 여동생? 어느 쪽일까…그 아이도 좋아해 줄 것 같아」
+			PRINTFORMDW 다시 새로운 생명을 품은 하복부를 에이키는 소중한 듯이 쓰다듬고 있다
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;사모
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;함락 소질 없음
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;무자각
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		RETURN 1
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+;==================================================
+;출산＠에이키님의 눈이 흐려지는 건 이상한T의 시간만으로 좋아
+;==================================================
+@M_KOJO_EVENT_K30_25(ARG,ARG:1)
+;구상주는 LOCAL
+;ARG:1	몇 번째 아이냐
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;연모
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1 && CFLAG:몸으로기억_어머니 == 1 && !CFLAG:무자각임신
+		LOCALS = %CSTR:30:80%
+		IF LOCALS == ""
+			LOCALS = %MASTERNAME:30%
+			SIF !TALENT:연인
+				LOCALS += "씨"
+		ENDIF
+		PRINTFORMW 「하아…하아…하아……」
+		PRINTFORMW 「아아…건강한, 울음소리……」
+		PRINTFORMW 「나의 아이……나와, %LOCALS%의, 귀여운 아이…」
+		PRINTFORMW 「태어나서 줘서, 고마워…」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;사모
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;함락 소질 없음
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;무자각
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		;에이키님의 벌은 준비중
+		SETBIT CFLAG:1800, 3
+	ENDIF
+	;그 외
+ENDIF
+RETURN 1
+;==================================================
+;자위 들킴
+;==================================================
+@M_KOJO_EVENT_K30_26(ARG,ARG:1)
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	SELECTCASE ARG
+		;-------------------------------------------------
+		CASE 0
+		;볼 수 있는 순간
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+		PRINTFORMW 「꺄아ーー!!」
+		PRINTFORMDW 주박이 풀린 것처럼 에이키가 높은 비명을 질렀다. 평소 같으면 절대 들을 수 없는 목소리다…
+		PRINTFORMDW 상의로 필사적으로 하체를 가리면서 에이키가 따지고 있다
+			IF TALENT:연모
+				PRINTFORML 「ㅇ, 어느새… 어떻게……」
+				PRINTFORMW 「ㅂ, 보, 보고있었던 건가요… ㅇ, 아닙니다! 아니에요, 이건…」
+			ELSE
+				PRINTFORML 「ㅇ, 어째서 여기에 당신이 있는거죠!!」
+				PRINTFORMW 「여성의 방에, ㅁ, 맘대로 들어가다니……」
+			ENDIF
+			PRINTFORMDW 에이키는 상기된 얼굴로 호통을 치고 있지만, 그대로 노출된 비부를 보인 뒤로는 위엄이 전혀 없다……
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 1
+		;아무 것도 하지 않는다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			PRINTFORMW 「아……… 네, ……………」
+			PRINTFORMDW 바보같은 대답을 하고 나서도 에이키는 잠시 멍하니 있다……
+			PRINTFORMW 「뭐냐구…………대체…………」
+			PRINTFORMW 「어떻게 해야 되는거야…………이건…………」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 2
+		;그대로 속행
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			PRINTFORMDW 평소 같으면 들은 척도 하지 않을 장난스러운 제안에 혼란스러운 에이키는 응해버린다
+			IF TALENT:연모
+				PRINTFORML 「ㄱ, 그렇군요…이걸로 서로가 만족할 수 있다면…괜찮겠죠」
+				PRINTFORMW 「남녀간의 정다운 모습, 색다른 모습이 있어도 좋을 것입니다. 이건 이걸로……」
+			ELSE
+				PRINTFORML 「ㅁ, 맞아. 내가 이렇게 계속하면, 당신은 엿보는 대죄인으로……」
+				PRINTFORMW 「당신의 약점을 잡게 될 거에요, 그래요, 계속하면……」
+			ENDIF
+			PRINTFORMDW 에이키는 들어도 이해가 안가는 변명을 중얼거리고 있다……
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 3
+		;내쫓음
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			PRINTFORMW 「ㄱ, 그, 그런 짓은 못합니다!!」
+			IF TALENT:연인
+				PRINTFORML 「그, 그래, 이건 비밀 연습이야! 다음에 만났을 때 당신을! 깜짝 놀라게 하기 위한!」
+				PRINTFORMW 「나쁜 게 아니에요! 비밀이니까요! 설령 연인이라도 봐서는 안 돼요!」
+			ELSEIF TALENT:연모
+				PRINTFORML 「그, 그것보다, 당신이! 여기 있는 게 이상해요!!」
+				PRINTFORMW 「에, 이름를 불렀기 때문에 왔다?」
+				PRINTFORMW 「……싫어, 나…그렇게 소리가…, 컸어?」
+			ELSE
+				PRINTFORML 「그, 그래요, 지금부터, ㄷ, 당신을 지옥에 떨어뜨리면 문제 없어요!」
+				PRINTFORMDW 공명정대한 염마님이 당치도 않은 말을 하고 있다……
+				PRINTFORMW 「어라, 그래도, 이 사람은 곧 돌아올 것 같아………」
+			ENDIF
+			PRINTFORMW 「……ㅇ, 어쨌든, 나가ーー!!」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 4
+		;해치우다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			PRINTFORMW 「에, 뭔가요…? 그…움직임은…? 에, 싫엇, 잠깐, 기다려…」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 5
+		;사후
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			IF TALENT:연모 && CFLAG:MASTER:데이트중 != MAIN_MAP
+				PRINTFORML 「………안 돼, 이런 거 버릇이 될 것 같아……」
+				PRINTFORMW 「……………굉장히…좋았어♥」
+			ELSEIF !TALENT:연모
+				PRINTFORMW 「…………으으………어째서………나…는……」
+			ELSE
+				PRINTFORMW 「오늘은………너무…강행했어………당신……」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 6
+		;사후 숙박
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		PRINTFORMW 「그래, 이대로 돌아가다니 아까운 걸」
+		SIF K30_FIND_LOVER() == 1
+			PRINTFORMW 「……오늘 하루는 우리 연인사이끼리 좋잖아……」
+		PRINTFORMW 「잠깐 쉬었다가 도와줄 게 있어」
+		PRINTFORMW 「그러니까, 밤이 되면……이어서 계속할까♥」
+		RETURN 1
+	ENDSELECT
+ENDIF
+RETURN 1
+;==================================================
+;상대방으로부터 데이트 신청
+;데이트 신청받는 건 연모부터, 상대방에게 연회참석 예정있다면 사모 이상에서 연회 동행
+;==================================================
+@M_KOJO_EVENT_K30_27(ARG,ARG:1)
+;구상주는 LOCAL
+;ARG:1는 목적지
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	SELECTCASE ARG
+		;-------------------------------------------------
+		CASE 0
+		;권유 문구
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			IF CFLAG:30:의상일시변경 == 62
+				IF TALENT:연인
+					PRINTFORMW 「%K30_C_NAME(MASTER)%, 남의 눈에 띄지 않는 장소로…가지 않으실래요…」
+				ELSEIF TALENT:연모
+					PRINTFORMW 「%K30_C_NAME(MASTER)%, 남의 눈에 띄지 않는 장소, 알고 계시나요…」
+				ELSE
+					PRINTFORMW 「부탁입니다. 따라와 주세요…」
+				ENDIF
+			ELSE
+				IF TALENT:연인
+					PRINTFORMW 「같이 놀러가지 않을래요, %K30_C_NAME(MASTER)%?」
+				ELSEIF TALENT:연모
+					PRINTFORMW 「%K30_C_NAME(MASTER)%, 함께 나가지 않겠습니까?」
+				ELSE
+					PRINTFORMW 「모처럼이니까 회장까지 함께 나가지 않겠습니까?」
+				ENDIF
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 1
+		;받아 들였다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			IF CFLAG:30:의상일시변경 == 62
+				PRINTFORMW 「감사합니다…」
+			ELSE
+				IF TALENT:연모
+					PRINTFORMW 「후후훗, 그럼 갈까요?」
+				ELSE
+					PRINTFORMW 「감사합니다」
+				ENDIF
+			ENDIF
+			TCVAR:30:358 = 1
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 2
+		;거절했다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			IF CFLAG:30:의상일시변경 == 62
+				PRINTFORMW 「그런가요…」
+			ELSE
+				PRINTFORML 「하아, 그러면 시간이 비어버리겠네…」
+				PRINTFORMW 「어쩔 수 없네요, 비는 시간은 누군가에게 가르침을 알려주는 걸로 할까…」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 3
+		;방에 초대받았다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			IF CFLAG:30:의상일시변경 == 62
+				PRINTFORMW 「저기……%K30_C_NAME(MASTER)%, 제 방에서 이야기하시 않겠습니까?」
+			ELSE
+				IF TALENT:연인
+					PRINTFORMW 「%K30_C_NAME(MASTER)%, 제 방에서 천천히 할까요?」
+				ELSEIF TALENT:연모
+					PRINTFORMW 「저기……%K30_C_NAME(MASTER)%、제 방에서 이야기하시 않겠습니까?」
+				ELSE
+					PRINTFORMW 「제 방에서 드릴 말씀이 있는데요」
+				ENDIF
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 4
+		;방에 초대받은 것을 받았다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			IF CFLAG:30:의상일시변경 == 62
+				PRINTFORMW 「감사합니다……」
+			ELSE
+				IF TALENT:연인
+					PRINTFORMW 「네, 그럼, 들어가요♪」
+				ELSEIF TALENT:연모
+					PRINTFORMW 「감사합니다. 그럼 이쪽으로 오세요」
+				ELSE
+					PRINTFORMW 「감사합니다. 그럼 따라오세요」
+				ENDIF
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 5
+		;방에 초대받은 걸 거절했다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			IF TALENT:연인
+				PRINTFORML 「어머, 연인의 부탁도 내버려 두고」
+				PRINTFORMW 「무슨 볼일이 있을까」
+			ELSEIF TALENT:연모
+				PRINTFORMW 「안타깝네요……」
+			ELSEIF TALENT:사모
+				PRINTFORMW 「그런가요? 어쩔 수 없군요……」
+			ENDIF
+				PRINTFORMW 「그럼 다음 기회에」
+			RETURN 1
+		ENDIF
+	ENDSELECT
+ENDIF
+RETURN 1
+
+;==================================================
+;탈의 구상
+;==================================================
+@M_KOJO_EVENT_K30_28(ARG,ARG:1)
+;구상주는 TARGET
+;ARG이 벗기는 방법 선택
+;ARG:1（ARG=3의 경우만 있음）타고난 반응
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	SELECTCASE ARG
+		;-------------------------------------------------
+		CASE 0
+		;발가벗기다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			;시간정지 시
+			IF FLAG:70
+			;통상
+			ELSEIF TALENT:연모
+				IF RAND:2 == 0
+					PRINTFORMW 「………당신만 봐줬으면 좋겠어」
+				ELSE
+					PRINTFORMW 「ㄴ……너무 빤히 쳐다보지 마세요……」
+				ENDIF
+			ELSE
+				PRINTFORMW 「……………………」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 1
+		;속옷 바람으로 하다
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			;시간정지 시
+			IF FLAG:70
+			;통상
+			ELSEIF TALENT:연모
+				IF RAND:2 == 0
+					PRINTFORMW 「……부끄러워……」
+				ELSE
+					PRINTFORMW 「이걸로…됐지」
+				ENDIF
+			ELSE
+				PRINTFORMW 「……………………」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 2
+		;반라
+		;기입 체크（=0, 비표시、1, 표시）
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			;시간정지 시
+			IF FLAG:70
+			;통상
+			ELSEIF TALENT:연모
+				IF RAND:2 == 0
+					PRINTFORMW 「……이 옷 다 벗어도 될까?」
+				ELSE
+					PRINTFORMW 「옷…입은 채로……?」
+				ENDIF
+			ELSE
+				PRINTFORMW 「……………………」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 3
+		;팬티 줘
+		;기입 체크（=0, 비표시、1, 표시）
+		;CFLAG:1910 Bit =4 팬티 밀수 검거 이력
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			SELECTCASE ARG:1
+				;-------------------------------------------------
+				CASE 0
+				;교환입니다
+				;기입 체크（=0, 비표시、1, 표시）
+				LOCAL:1 = 1
+				;-------------------------------------------------
+				IF LOCAL:1
+					PRINTFORMW 「후훗, 그 대신 당신 것과 교환하자」
+					RETURN 1
+				ENDIF
+				;-------------------------------------------------
+				CASE 1
+				;OK（희희
+				;기입 체크（=0, 비표시、1, 표시）
+				LOCAL:1 = 1
+				;-------------------------------------------------
+				IF LOCAL:1
+					PRINTFORMW 「좋아……자, 여기」
+					SIF GETBIT(CFLAG:1699, 0)
+						PRINTFORMW 「그러니까…이제 제것만으로 참아주세요」
+					RETURN 1
+				ENDIF
+				;-------------------------------------------------
+				CASE 2
+				;OK（마지못해
+				;기입 체크（=0, 비표시、1, 표시）
+				LOCAL:1 = 1
+				;-------------------------------------------------
+				IF LOCAL:1
+					PRINTFORMW 「……이상한 데 쓰지 마세요……」
+					SIF GETBIT(CFLAG:1699, 0)
+						PRINTFORMW 「그렇게 모아서 어디에 쓰실 생각인가요 …정말」
+					RETURN 1
+				ENDIF
+				;-------------------------------------------------
+				CASE 3
+				;싫습니다
+				;기입 체크（=0, 비표시、1, 표시）
+				LOCAL:1 = 1
+				;-------------------------------------------------
+				IF LOCAL:1
+					PRINTFORMW 「……그런 짓을 용서할 것 같아요?」
+					SIF GETBIT(CFLAG:1699, 0)
+						PRINTFORMW 「전에도 주의를 줬는데 아직도 팬티 모으기 같은 걸 하고 있습니까?」
+				ENDIF
+				RETURN 1
+			ENDSELECT
+		ENDIF
+	ENDSELECT
+ENDIF
+RETURN 1
+
+;==================================================
+;화남 구상
+;==================================================
+@M_KOJO_EVENT_K30_29(ARG,ARG:1)
+;구상주는 TARGET
+;ARG는 TARGET의 담력으로 분기
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;화나게 해 버렸다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		;MASTER가 화나게 한 플래그
+		TCVAR:30:372 = 0
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;울리고 말았다 [겁쟁이]가짐
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;상대방이 덮친 것을 해제
+;==================================================
+@M_KOJO_EVENT_K30_30(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;덮침 플래그 지움
+	TCVAR:30:376 = 0
+	;-------------------------------------------------
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+	;피곤해
+		PRINTFORMW 「하아, 하아……나, 이제 한계야……어울려줘서, 고마워……」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+	;만족하여 해방
+		IF (TALENT:임신소망 || GETBIT(CFLAG:1502, 4)) && 충전율(30, 4) > 20 && !TCVAR:피임약
+			PRINTFORML 「하아, 하아………고마워. 정말…좋았어」
+			PRINTFORML 「여기도 이렇게 꽉 채워져서… 정말, 행복해…♥」
+			PRINTFORMDW 에이키는 확실히 씨를 받은 하복부를 소중한 듯이 쓰다듬고 있다
+			PRINTFORMW 「확실히, 생기면…좋을텐데」
+		ELSEIF INRANGE(TCVAR:30:363, -4, -2)
+			PRINTFORML 「하아, 하아……굉장히……좋았어♥　아침부터…수고했어♥」
+			PRINTFORML 「아, 그래도…당신도 나도… 몸이 끈적거리네…」
+			PRINTFORMW 「목욕이라도 하면서 푹 쉴까요?」
+			TCVAR:30:363 = -100
+		ELSEIF TALENT:연모
+			PRINTFORML 「하아, 하아………후후훗、고마워. 만족했어♪」
+			PRINTFORMW 「%K30_C_NAME(MASTER)%도 이런 거, 싫어하진 않지?」
+		ELSE
+			PRINTFORML 「하아, 하아……오늘은 이것으로 마치죠」
+			PRINTFORMW 「……어울려 주셔서, 감사합니다……」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+	TCVAR:30:376 = 1
+	;만족한 것을 밀어 넘어뜨렸다.
+		IF TALENT:연모
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORML 「……%조사처리(K30_C_NAME(MASTER),"가")% 특별해? 다른사람은 어떨지……」
+					PRINTFORMDW 아직도 의욕이 있는 %CALLNAME:MASTER%에게 에이키는 약간 무서운 모양이다……
+				CASE 1
+					PRINTFORML 「……불을 붙여버린걸까」
+					PRINTFORMW 「하지만 그렇네…이렇게 되면 나도 책임을 져야지」
+				CASE 2
+					PRINTFORML 「그렇지, 평소의 너라면 이걸로 만족하진 않겠지……」
+					PRINTFORMW 「그럼 이번에는 제가…만족시킬 차례……」
+			ENDSELECT
+		ELSE
+			PRINTFORML 「ㅁ, 뭐어? 아직…계속 하고 싶은거야……?」
+			PRINTFORML 「정말, 나는 거기까지………꺄아앗!?」
+			PRINTFORMDW 조금 전과는 반대로 %마스터가% 에이키를 억지로 쓰러뜨렸다……
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+	;덮침 플래그재점등
+	TCVAR:30:376 = 2
+	;깨질 때까지 해줄게
+		PRINTFORML 「……말했구나. 그럼 시험해 볼까?」
+		PRINTFORMW 「지옥의 염마님이 진심으로 혼내 줄게………어디까지 버틸 수 있을까♥」
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+
+;==================================================
+;하루의 종료 시(AFTERTRA의 앞에)、안면이 없으면 호출되지 않는다
+;==================================================
+@M_KOJO_EVENT_K30_31(ARG,ARG:1)
+;구상주는 TARGET
+;ARG는 만나지 않은 날수
+;며칠 이상 만나지 않았다면 푸념을 하게 됩니다
+;CFLAG:자위 발각으로 분기 넣어도 될 것 같아
+;--------------------------------------------------
+;기입 체크（=0, 비표시、1, 표시）
+LOCAL = 1
+;-------------
+VARSET LOCALS
+IF LOCAL
+	;일기플래그：팬티의 날, 연모취득, 임신소망취득
+	SIF DIARY:30:11 == 0 && FLAG:이상기상 == 7
+		CALL K30_WRITE_DIARY(11)
+	SIF DIARY:30:30 == 0 && TALENT:30:연모
+		CALL K30_WRITE_DIARY(30)
+	SIF DIARY:30:32 == 0 && GETBIT(CFLAG:1502, 3)
+		CALL K30_WRITE_DIARY(32)
+	;구상외 우후후강제 중단의 팔로우
+	CFLAG:1501 = 0
+	CFLAG:1600 = 0
+	CFLAG:1601 = 0
+	;결연 플래그 세움 or 꺾음
+	IF FLAG:발원내용 == 30 && CFLAG:다음날내방 == 1 && GET_MAPID(GET_CHARAHOME(30)) != MAIN_MAP
+		CFLAG:1603 = 1
+	ELSE
+		CFLAG:1603 = 0
+	ENDIF
+	;우후후 인내 일수 기록
+	IF TCVAR:30:380
+		CFLAG:1603 = 0
+	ELSE
+		CFLAG:1603 ++
+	ENDIF
+	PRINTFORML 
+	CALL M_KOJO_COLOR_K30
+	;약으로 만지작거렸던 소질 회복시킨다.
+	IF TCVAR:30:379 > 1000
+		TALENT:30:음란 = 0
+		PRINTFORMDL 에이키에게 담은 약의 효과가 떨어졌다…
+		PRINTFORMDW 에이키는 [음란]을 잃었다
+		PRINTFORML 
+	ENDIF
+	;함수 사용하면 호칭이 안정되지 않아 먼저 고정
+	LOCALS = %CSTR:30:80%
+	IF LOCALS == ""
+		LOCALS = %MASTERNAME:30%
+		SIF !TALENT:연인
+			LOCALS += "씨"
+	ENDIF
+	;동거중에 좋은 아침 구상 지나가고 있다면 마지막으로 만난 날을 리셋
+	[SKIPSTART]
+	IF CFLAG:MASTER:초기위치 == CFLAG:30:초기위치 && TCVAR:30:373
+		TCVAR:30:오늘만났는지 = 1
+		CFLAG:30:마지막에만난날 = DAY
+	ENDIF
+	[SKIPEND]
+	;오늘 안 만났으면 잘 자 구상플래그 꺾는다
+	SIF TCVAR:30:오늘만났는지 == 0
+		CFLAG:1605 = 0
+	;동거 상대가 무단 외박이나 보통은 힘들다. 환상향의 아이, 너무 건조하지 않아?
+	;그것과는 별개로 에이키님은 무거운 여자 분이 좋다
+	IF CFLAG:MASTER:초기위치 == CFLAG:30:초기위치 && CFLAG:MASTER:현재위치 != CFLAG:30:초기위치
+		SELECTCASE RAND:3
+			CASE 0
+				LOCALS:1 = 「%LOCALS%…… 나를, 혼자…두지 마……%LOCALS%…」
+			CASE 1
+				LOCALS:1 = 「혹시…%LOCALS%의 몸에 무슨 일이 있었어? ……혹시, 그런…」
+			CASE 2
+				LOCALS:1 = 「%LOCALS%… 어째서 돌아오지 않는거야… 저기, 어째서…?」
+		ENDSELECT
+		;화난 얼굴을 우는 얼굴이라고 우기는 폭거
+		IF CFLAG:대체적용 && 顔絵付きメッセージ
+			CALL K30_SPTALK, "絶頂", @"%LOCALS:1%"
+		ELSE
+			PRINTFORML %LOCALS:1%
+		ENDIF
+		PRINTFORMDW 돌아오지 않는 %마스터를% 염려하며 에이키는 초췌해 하고 있다…
+		RESETCOLOR
+		RETURN 1
+	ENDIF
+	;구상 다니지 않아도 동거중인 방에 돌아가 있으면 잘 자요. 구상플래그 세운다
+	SIF CFLAG:MASTER:초기위치 == CFLAG:30:초기위치 && CFLAG:MASTER:초기위치 == CFLAG:MASTER:현재위치
+		CFLAG:1605 = 1
+	;임신소망취득
+	IF !EXP:출산경험 && !TALENT:임신소망 && CFLAG:1502 == 7
+		PRINTFORML 
+		LOCALS:1 = （핑계만 대서는 안 돼… 좀 더 솔직해져야지）
+		LOCALS:2 = （%MASTERNAME:30%와 함께 산 징표… 사랑받은 징표가 나는 갖고 싶어）
+		LOCALS:3 = （두 사람 사이의 사랑의 결정을 이 배에…）
+		IF CFLAG:대체적용 && 顔絵付きメッセージ
+			CALL K30_SPTALK, "LOVE", @"%LOCALS:1%/%LOCALS:2%/%LOCALS:3%"
+			PRINTFORML 
+		ELSE
+			PRINTFORML 
+			PRINTFORML %LOCALS:1%
+			PRINTFORML %LOCALS:2%
+			PRINTFORMW %LOCALS:3%
+		ENDIF
+		PRINTFORMDL 에이키는 %마스터와%의 자식을 마음속으로부터 바라게 되었다
+		PRINTFORMDW 에이키는 [임신소망]을 얻었다
+		TALENT:임신소망 = 1
+		SETBIT CFLAG:1502, 3
+		RESETCOLOR
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;안 보는 날에 한마디
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1
+		;함락없으면 확실하게 간격을 둔다. 공략 대상 밖이 나서서는 안됩니다. 내친김에 얼굴도 내밀지 않습니다
+		IF ARG % 14 == 0 && ARG != 0 && !TALENT:30:연모 && !TALENT:30:사모
+			PRINTFORMDL 염마님은 서류 일에 힘쓰고 있다…
+			PRINTFORMDL 일단락 지었을 즈음, 문득 이상한 외래인을 떠올렸다
+			PRINTDATAW
+				DATAFORM 「%K30_C_NAME(MASTER)%… 한동안 얼굴을 못 본 것 같은데」
+				DATAFORM 「%K30_C_NAME(MASTER)%… 역시 내게는 다가오지 않는구나」
+				DATAFORM 「%K30_C_NAME(MASTER)%… 요즘 가르침을 주지 않는 것 같아」
+			ENDDATA
+			PRINTFORML 「…………………」
+			PRINTFORML 「……맞아, 난 남들이 피하는 게 당연해」
+			PRINTFORML 「뭐… 늘 있는 일이니까요」
+			PRINTFORMDW 에이키는 별로 신경 쓰지 않고 일로 돌아갔다
+		;사모는 7일에 1회＠에이키님 여기서부터가 단단해서 방치하기 쉽겠지
+		ELSEIF ARG % 7 == 0 && ARG != 0 && TALENT:30:사모
+			SELECTCASE RAND:3
+				CASE 0
+					LOCALS:1 = 「%K30_C_NAME(MASTER)%… 제대로 선행을 쌓고 있을까…」
+				CASE 1
+					LOCALS:1 = 「%K30_C_NAME(MASTER)%… 그렇게 여자한테 칠칠치 않으면 좋은 사람인데…」
+				CASE 2
+					LOCALS:1 = 「%K30_C_NAME(MASTER)%… 이상한 짓 하고 있지는 않을지 걱정이네…」
+			ENDSELECT
+			IF CFLAG:대체적용 && 顔絵付きメッセージ
+				CALL K30_SPTALK, "通常", @"%LOCALS:1%"
+			ELSE
+				PRINTFORML %LOCALS:1%
+			ENDIF
+			PRINTFORMDL 오랫동안 얼굴을 보지 못한 %마스터를% 에이키는 문득 생각났다
+			PRINTFORMDW 왜 그런지는 모르겠지만 마음이 술렁이는 것을 느꼈다…
+		;연모라면 3일 안 만날 때마다 한마디
+		ELSEIF ARG % 3 == 0 && ARG != 0
+			IF TALENT:30:연인
+				IF RAND:2 == 1
+					LOCALS:1 = 「이렇게나 연인을 내버려두다니……다음에 만나면, 반드시…」
+				ELSE
+					LOCALS:1 = 「%LOCALS%는… 어차피 또 다른 여자 아이와…」
+				ENDIF
+				IF CFLAG:대체적용 && 顔絵付きメッセージ
+					CALL K30_SPTALK, "反発", @"%LOCALS:1%"
+				ELSE
+					PRINTFORML %LOCALS:1%
+				ENDIF
+				PRINTFORMDW 만나러 오지 않는 연인을 생각한 에이키는 안절부절 못하고 있다…
+			ELSEIF TALENT:30:연모
+				IF RAND:2 == 1
+					LOCALS:1 = 「……내가 갑자기 만나러 가면, 이상할까?」
+				ELSE
+					LOCALS:1 = 「올때까지 기다린다…… 그것보다 만나러가는 편이…… 하지만……」
+				ENDIF
+				IF CFLAG:대체적용 && 顔絵付きメッセージ
+					TFLAG:192 = -6
+					CALL K30_SPTALK, "赤面", @"%LOCALS:1%"
+				ELSE
+					PRINTFORML %LOCALS:1%
+				ENDIF
+				PRINTFORMDW 좀처럼 만날 수 없는 연인을 생각한 에이키는 답답해하고 있다…
+			ENDIF
+		ENDIF
+		RESETCOLOR
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;오늘 만났다
+	;기입 체크（=0, 비표시、1, 표시）
+	LOCAL:1 = 0
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 0
+	ENDIF
+ENDIF
+RESETCOLOR
+RETURN 1
+
+[SKIPSTART]
+;-------------------------------------------------
+;オナバレ遭遇時の地の文をデフォルトのものから変更したい場合用
+;그 경우는 상하의SKIPSTART~SKIPEND를 제외하세요
+;CFLAG등의 캐릭터 변수를 사용하는 경우, 캐릭터 번호를 지정해야 합니다
+;-------------------------------------------------
+@M_KOJO_EVENT_K30_ONABARE_1(ARG)
+;-------------------------------------------------
+:대사색깔을 입힐 거면 코멘트 아웃을 빼고 X를 캐릭터 번호로
+;CALL M_KOJO_COLOR_K30
+
+IF ARG
+	PRINTFORML A만지작거리는 경우
+ELSE
+	PRINTFORML V만지작거리는 경우
+ENDIF
+;-------------------------------------------------
+[SKIPEND]
+
+
+[SKIPSTART]
+;-------------------------------------------------
+;자위 발각에서 그대로 계속하는 경우의 바탕 문장을 디폴트로부터 변경하고 싶은 경우용
+;그 경우는 상하의 SKIPSTART~SKIPEND를 제외하세요
+;CFLAG등의 캐릭터 변수를 사용하는 경우, 캐릭터 번호를 지정해야 합니다
+;-------------------------------------------------
+@M_KOJO_EVENT_K30_ONABARE_2(ARG)
+;-------------------------------------------------
+:대사색깔을 입힐 거면 코멘트 아웃을 빼고 X를 캐릭터 번호로
+;CALL M_KOJO_COLOR_K30
+
+IF ARG
+	PRINTFORML A만지작거리는 경우
+ELSE
+	PRINTFORML V만지작거리는 경우
+ENDIF
+;-------------------------------------------------
+[SKIPEND]
+
+
+[SKIPSTART]
+;-------------------------------------------------
+;자위 발각 없이 무너짐 식스 바탕의 문장을 기본값에서 변경하고 싶은 경우용
+;그 경우는 상하의SKIPSTART~SKIPEND를 제외하세요
+;CFLAG등의 캐릭터 변수를 사용하는 경우, 캐릭터 번호를 지정해야 합니다
+;-------------------------------------------------
+@M_KOJO_EVENT_K30_ONABARE_3(전희1,실전은어디,횟수,주입량)
+;-------------------------------------------------
+#DIM 전희1
+;1=C 2=B 3=M
+#DIM 실전은어디
+;0 로 V、1 로 A
+#DIM 주입량
+#DIM 횟수
+
+:대사색깔을 입힐 거면 코멘트 아웃을 빼고 X를 캐릭터 번호로
+;CALL M_KOJO_COLOR_K30
+
+SELECTCASE 전희1
+	CASE 1
+		PRINTFORML C괴롭힘
+	CASE 2
+		PRINTFORML B괴롭힘
+	CASE 3
+		PRINTFORML M괴롭힘
+ENDSELECT
+
+IF 실전은어디
+	PRINTFORML A로 본방
+ELSE
+	PRINTFORML V로 본방
+ENDIF
+;-------------------------------------------------
+[SKIPEND]
+
+
+;-------------------------------------------------
+;처녀・무자각 비처녀에 삽입 직전의 구상
+;RETURN 1하면 명령어를 취소합니다.
+;RETURN 0이면 통과
+;CFLAG:파과샌슬 구상유가 온화하지 않으면 읽히지 않으니 주의
+;-------------------------------------------------
+@M_KOJO_EVENT_K30_LOST_VIRGIN_STOP
+#DIM 빌어서승낙한횟수
+;-------------------------------------------------
+SIF ONCE("처녀주세요")
+	빌어서승낙한횟수 = 0
+IF TALENT:30:연모 || TALENT:30:섹프
+	PRINTFORMDW 에이키는 흠칫 놀랐지만, %마스터를% 맞아들이도록 자세를 가다듬었다
+	RETURN 0
+ELSE
+	SELECTCASE 빌어서승낙한횟수
+		CASE 0
+			IF FIRSTTIME("하게해줘")
+				PRINTFORML 「ㅁ……뭐!? 안 돼, 안 돼요! 거기까지 허락할 생각은 없습니다!!」
+				PRINTFORMDL 역시 염마님은 딱딱한 것 같다
+				PRINTFORMDW 여기까지 와놓고 마지막 선을 넘지 못하게 한다……
+				IF EXP:30:A성교경험 == 0
+					PRINTFORML 
+					PRINTFORMDW 침묵 뒤에 에이키가 우물거리면서 말을 꺼냈다
+					PRINTFORMW 「……그 대신, 이지만…제 뒤로… 하신다면……」
+					PRINTFORMW 「………………」
+					PRINTFORMW 「아프게 하면 안됩니다!! …하지만, 그, 그쪽으로… 괜찮다면……」
+					PRINTFORMDW 에이키는 정조도 지키고 싶어하는 것 같지만, 그것 이상으로 애널에도 흥미가 있는 것 같다…… 
+				ENDIF
+			ELSE
+				PRINTFORML 「몇 번을 들어도 안되는 것은 안 됩니다! 절대로 그것까지는 용서하지 않겠습니다!!」
+				IF EXP:30:A성교경험 == 0
+					WAIT
+					PRINTFORMW 「………………」
+					PRINTFORML 「……그러니까…아프게 하지 않는다면, 그, 엉덩이로, 라면……」
+				ENDIF
+				PRINTFORMDW 염마님의 선을 긋는 방법을 전혀 모르지만, 일단 설득의 여지는 없을 것 같다……
+			ENDIF
+		CASE 1
+			PRINTFORMW 「안 된다고 하면 안 돼요! 절대로 허락 못합니다!!」
+			IF EXP:30:A성교경험 == 0
+				PRINTFORMW 「…뒤로, 참아…주실 수 있나요?」
+			ELSE
+				PRINTFORMW 「ㅇ, 엉덩이에 이미… 넣으셨잖아요…」
+			ENDIF
+			PRINTFORMDW 온 힘을 다해 거부당했다…이 이상 강요하는 것은 위험할지도 모른다
+		CASE 2
+			PRINTFORMW 「………!!」
+			PRINTFORMDW 이제 그만하는 게 좋겠다…
+		CASE IS <= 3
+			PRINTFORMW 「더는 못 참습니다!!」
+			;우후후 중단 시킴
+			;홉 고블린의 솜씨를 복붙
+			BASE:무드 = 0
+			FOR LOCAL,0,CHARANUM
+				CALL ENDUFUFU(LOCAL)
+			NEXT
+			TFLAG:106 = 0
+			;MASTER와의 접촉 위치를 리셋
+			CALL TOUCH_SET(0,0,0,1)
+			;탈의 플래그를 끔
+			TEQUIP:2 = 0
+			TEQUIP:상반신탈의상태 = 0
+			;캐릭터 모두의 옷 재세팅
+			FOR LOCAL,0,CHARANUM
+				CALL CLOTHES_SETTING_TRAIN(LOCAL)
+				;웃옷 입고 벗음 플래그를 끔
+				TEQUIP:LOCAL:5 = 0
+			NEXT
+			CALL GET_ANGRY(30, 2)
+			CFLAG:1501 = 0
+			CFLAG:1600 = 0
+			CFLAG:1601 = 0
+			빌어서승낙한횟수 = 0
+	ENDSELECT
+	빌어서승낙한횟수 ++
+	RETURN 1
+ENDIF
+
+;-------------------------------------------------
+;CFLAG:구상안아들이기 판정_첫회가 켜져 있을 경우에만 유효
+;처음 밀었을 때 여기서 RETURN -1 하면 밀어내기를 강제로 취소합니다. 
+;RETURN 0이라면 통상의 판정을 실시해, RETURN 1하면 무조건 성공시킵니다
+;특정 이벤트(데이트 귀가 키스 등)를 볼 때까지 우후후로 되지 않도록 하고 싶을 때 등에 이용하세요
+;-------------------------------------------------
+@M_KOJO_EVENT_K30_PERMISSION_1
+;-------------------------------------------------
+PRINTFORML 
+;RETURN -1
+RETURN 0
+;RETURN 1
+;-------------------------------------------------
+
+
+;-------------------------------------------------
+;CFLAG:구상안아들이기 판정_통상이 온이 되어 있을 때만 유효
+;합의가 되어 밀어부쳤을 때 여기서 RETURN -1이면 밀어 넘어뜨리기를 강제로 취소합니다.
+;RETURN 0이면 통상 그대로 성공시키겠습니다
+;합의가 되더라도 어떤 이유로 우후후로 되지 않도록 하고 싶을 때 등에 이용하세요
+;-------------------------------------------------
+@M_KOJO_EVENT_K30_PERMISSION_2
+;-------------------------------------------------
+PRINTFORML 
+RETURN 0
+;RETURN -1
+;-------------------------------------------------
+
+;-------------------------------------------------
+;방 묘사용 함수
+;구상 캐릭터의 OMANEKIBEYA 거점 묘사에 사용합니다
+;기입할 때는 코멘트 아웃을 제외하세요
+;-------------------------------------------------
+@K30_ROOM_DESCRIPTION
+LOCALS = 
+;우후후중
+;272스레>>607씨의 구문아이디어 빌렸습니다
+IF SHIRAHU(TARGET) && CFLAG:TARGET:우후후
+	SIF RAND:2 == 1
+		RETURN
+	SIF INRANGEARRAY(NOWEX, 1, 50, 0 ,4)
+		LOCALS +=@"%CALLNAME:TARGET%의 절정에 %TEXTR("헐떡이는/취한")% 목소리/"
+	SIF TEQUIP:TARGET:바이브 || TEQUIP:TARGET:애널바이브 || TEQUIP:TARGET:클리캡 || TEQUIP:TARGET:유두캡
+		LOCALS += "기계의 낮은 진동음/"
+	SIF PALAM:TARGET:욕정 > PALAMLV:7 && TEQUIP:TARGET:입접촉부위 == 0 && TIME != UFUFU_START_TIME
+		LOCALS += @"%CALLNAME:TARGET%의 거친 숨결/"
+	SIF ((TEQUIP:TARGET:50 == PLAYER && ABL:TARGET:V감각 > 2)|| (TEQUIP:TARGET:51 == PLAYER && ABL:TARGET:A감각 > 2)) && PALAM:TARGET:욕정 > PALAMLV:5
+		LOCALS += @"%CALLNAME:TARGET%의 %TEXTR("망측한/억누를 수 없는/요염한")% %TEXTR("헐떡이는 소리/기뻐하는 소리/교성")% /"
+	SIF MASTER_POSE(4, 1)
+		LOCALS += "페니스에 입에 물고 늘어지는 소리/"
+	IF (TEQUIP:TARGET:50 == PLAYER || TEQUIP:TARGET:51 == PLAYER) && PALAM:TARGET:윤활 >= PALAMLV:3
+		LOCAL = (TEQUIP:50 == PLAYER) ? 1 # 0
+		LOCALS += @"%CALLNAME:TARGET%의 %\@ LOCAL ? 질구를 # 항문을 \@% 휘젓는 물소리/"
+		SIF TEQUIP:TARGET:체위 == 2 
+			LOCALS += "팡팡하고 고기가 부딪치는 소리/"
+	ENDIF
+	IF LOCALS != ""
+		PRINTFORMD ◆
+		PRINTDATADL 
+			DATAFORM 오랜 기간이 들어간 건물이라 %TEXTR(LOCALS)%도 방 밖까지 다 흘러간 것 같다…
+			DATAFORM %조사처리(TEXTR(LOCALS),"가")% 얇은 벽을 통해서 옆방까지 들릴 것 같다…
+			DATAFORM 만약에 옆방에 누가 있으면 %TEXTR(LOCALS)%도 전부 들릴 것이 틀림없다…
+		ENDDATA
+	ENDIF
+	RETURN
+ENDIF
+PRINTFORM ◆
+;우후후 후
+IF TCVAR:30:378
+	SELECTCASE YOGORE:(CFLAG:MASTER:현재위치)
+		CASE IS < 500
+			TCVAR:30:378 = 0
+			GOTO OTHER
+		CASE IS < 1000
+			PRINTFORMDL 뒷처리에 사용한 휴지가 방구석에 뒹굴고 있다…
+		CASE IS < 2000
+			PRINTFORMDL 방 여기저기에 얼룩과 먼지가 어지럽게 널려 있는 것을 볼 수 있다…
+		CASEELSE
+			PRINTFORMDL 떨어진 땀과 액, 게다가 냄새도 가득 차서 방은 난리가 난 상태다…
+	ENDSELECT
+	RETURN
+ENDIF
+$OTHER
+;육아중
+IF TALENT:30:육아중 && FLAG:자식묘사
+	SELECTCASE YOGORE:(CFLAG:MASTER:현재위치)
+		CASE IS < 500
+			PRINTFORMDL 육아중에도 불구하고 \@ CFLAG:30:초기위치 == CFLAG:MASTER:초기위치 ? 두 사람 # 에이키 \@의 방은 깨끗하게 정리되어 있다
+		CASE IS < 1000
+			PRINTFORMDL %SHOW_CHILDNAME(30)%의 다 놀고 난 장난감이 방구석에 뒹굴고 있다
+		CASE IS < 2000
+			PRINTFORMDL %SHOW_CHILDNAME(30)%의 옷이 방 여기저기에 널려 있다
+		CASEELSE
+			PRINTFORMDL %SHOW_CHILDNAME(30)%의 \@ CFLAG:출산경과일 > 55 ? 장난으로 # 실수로 \@ 방은 난리가 난 상태이다
+	ENDSELECT
+;동거중
+ELSEIF CFLAG:30:초기위치 == CFLAG:MASTER:초기위치
+	SELECTCASE YOGORE:(CFLAG:MASTER:현재위치)
+		CASE IS < 500
+			PRINTFORMDL %마스터와% 에이키의 소지품이 깨끗이 정돈되어 있다
+		CASE IS < 1000
+			PRINTFORMDL %마스터와% 에이키의 소지품이 방구석에 뒹굴고 있다
+		CASE IS < 2000
+			PRINTFORMDL %CALLNAME:MASTER%의 소지품이 방 그 근처에 널려 있다
+		CASEELSE
+			PRINTFORMDL %마스터와% 에이키의 소지품이 여기저기 뒤죽박죽 놓여 있다
+	ENDSELECT
+ELSE
+	SELECTCASE YOGORE:(CFLAG:30:초기위치)
+		CASE IS < 500
+			PRINTFORMDL 취미와 오락거리도 찾아볼 수 없는 깔끔하고 정갈한 방이다
+		CASE IS < 1000
+			PRINTFORMDL 방에는 서류가 몇 개 놓여 있다. 개인 방에서도 일을 하고 있는 것이겠지
+		CASE IS < 2000
+			PRINTFORMDL 방에는 서류와 자료가 아무렇게나 놓여 있다. 염마님의 일은 힘든 모양이다
+		CASEELSE
+			PRINTFORMDL 서류와 자료로 방은 지저분하다. 일이 어지간히 바쁜 모양이다
+	ENDSELECT
+ENDIF
+RETURN
+;-------------------------------------------------
