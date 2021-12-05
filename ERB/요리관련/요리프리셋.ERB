@@ -1,0 +1,188 @@
+﻿@요리프리셋
+DRAWLINE
+FOR LOCAL,0,10
+    IF Y_프리셋:LOCAL:0 != 0
+        IF !요리프리셋가능여부(LOCAL)
+            SETCOLOR 0x808080
+        ENDIF
+        PRINTBUTTON @"[%Y_PRE_NAME:LOCAL,40,LEFT%]",LOCAL
+        PRINTL
+        RESETCOLOR
+    ELSE
+        ;SETCOLOR
+        SETCOLOR 0x808080
+        PRINTFORML [----------------------------------------]
+        RESETCOLOR
+    ENDIF
+NEXT
+DRAWLINE
+PRINTFORML [997] 등록 모드
+PRINTFORML [998] 삭제 모드
+PRINTFORML [999] 돌아간다
+$LOOP
+INPUT
+IF RESULT == 999
+    RETURN
+ELSEIF RESULT == 997
+    PRINTFORML 어디에?
+    FOR LOCAL,0,10
+        IF Y_프리셋:LOCAL:0 != 0
+            PRINTBUTTON @"[%Y_PRE_NAME:LOCAL,40,LEFT%]",LOCAL
+            PRINTL
+        ELSE
+            PRINTBUTTON "[----------------------------------------]",LOCAL
+            PRINTL
+        ENDIF
+    NEXT
+    PRINTFORML [999] 돌아간다
+    $LOOP2
+    INPUT
+    IF RESULT == 999
+
+    ELSEIF RESULT > 10 || RESULT < 0
+        GOTO LOOP2
+    ELSE
+        LOCAL = RESULT
+        IF Y_프리셋:LOCAL:0 == 1
+            PRINTFORML 이미 있던 것을 삭제하고 대체합니까?
+            CALL ASK_YN()
+            IF RESULT
+                RESTART
+            ELSE
+                CALL 요리프리셋삭제(LOCAL)
+                CALL 요리프리셋생성(LOCAL)
+            ENDIF
+        ELSE
+            CALL 요리프리셋생성(LOCAL)
+        ENDIF
+    ENDIF
+ELSEIF RESULT == 998
+    PRINTFORML 무엇을?
+    FOR LOCAL,0,10
+        IF Y_프리셋:LOCAL:0 != 0
+            PRINTBUTTON @"[%Y_PRE_NAME:LOCAL,40,LEFT%]",LOCAL
+            PRINTL
+        ELSE
+            ;SETCOLOR
+            SETCOLOR 0x808080
+            PRINTFORML [----------------------------------------]
+            RESETCOLOR
+        ENDIF
+    NEXT
+    PRINTFORML [999] 돌아간다
+    $LOOP3
+    INPUT
+    IF RESULT == 999
+
+    ELSEIF RESULT > 10 || RESULT < 0
+        GOTO LOOP3
+    ELSE
+        CALL 요리프리셋삭제(RESULT)
+    ENDIF
+ELSEIF RESULT > 10 || RESULT < 0
+    GOTO LOOP
+ELSE
+    LOCAL = RESULT
+    IF !요리프리셋가능여부(LOCAL)
+        PRINTFORMW 재료가 부족합니다
+        RESTART
+    ENDIF
+    CALL 요리프리셋호출(LOCAL)
+    RETURN
+ENDIF
+RESTART
+
+@요리프리셋생성(ARG)
+IF !요리프리셋빈자리(ARG)
+    RETURN -1
+ENDIF
+Y_프리셋:ARG:0 = 1
+Y_프리셋:ARG:1 = 주재료
+Y_프리셋:ARG:2 = 주재료요리법
+SELECTCASE DISH_TYPE
+    CASE "주식"
+        Y_프리셋:ARG:3 = 1
+    CASE "경식"
+        Y_프리셋:ARG:3 = 2
+    CASE "디저트"
+        Y_프리셋:ARG:3 = 3
+    CASEELSE
+        Y_프리셋:ARG:3 = 1
+ENDSELECT
+
+FOR LOCAL,0,10
+    Y_PRE_SUB:ARG:LOCAL:0 = 부재료:LOCAL
+    Y_PRE_SUB:ARG:LOCAL:1 = 부재료요리법:LOCAL
+    Y_PRE_SPICE:ARG:LOCAL = 양념:LOCAL
+NEXT
+IF DISH_NAME != ""
+    Y_PRE_NAME:ARG = %DISH_NAME%
+ELSE
+    Y_PRE_NAME:ARG '= 자동요리이름()
+ENDIF
+Y_PRE_DRG:ARG:0 = DISH_DRG
+Y_PRE_DRG:ARG:1 = DISH_DRG_2
+
+
+@요리프리셋호출(ARG)
+주재료 = Y_프리셋:ARG:1
+주재료요리법 = Y_프리셋:ARG:2 
+SELECTCASE Y_프리셋:ARG:3
+    CASE 1
+        DISH_TYPE '= "주식"
+    CASE 2
+        DISH_TYPE '= "경식"
+    CASE 3
+        DISH_TYPE '= "디저트"
+    CASEELSE
+        DISH_TYPE '= "주식"
+ENDSELECT
+
+FOR LOCAL,0,10
+    부재료:LOCAL = Y_PRE_SUB:ARG:LOCAL:0
+    부재료요리법:LOCAL = Y_PRE_SUB:ARG:LOCAL:1
+    양념:LOCAL = Y_PRE_SPICE:ARG:LOCAL
+NEXT
+DISH_NAME = %Y_PRE_NAME:ARG% 
+DISH_DRG = Y_PRE_DRG:ARG:0
+DISH_DRG_2 = Y_PRE_DRG:ARG:1
+
+@요리프리셋삭제(ARG)
+;이것만으로도 빈칸 취급되는 그윽함
+Y_프리셋:ARG:0 = 0
+
+@요리프리셋빈자리(ARG)
+#FUNCTION
+IF Y_프리셋:ARG:0 == 0
+    RETURNF 1
+ENDIF
+RETURNF 0
+
+@요리프리셋가능여부(ARG)
+#FUNCTION
+IF 요리프리셋빈자리(ARG)
+    RETURNF 0
+ENDIF
+
+;간단히 20미만은 기본제공재료라 생각하자
+IF Y_프리셋:ARG:1 > 20
+    IF ITEM:(Y_프리셋:ARG:1) <= 0
+        RETURNF 0
+    ENDIF
+ENDIF
+
+FOR LOCAL,0,10
+    IF Y_PRE_SUB:ARG:LOCAL:0 > 20 && ITEM:(Y_PRE_SUB:ARG:LOCAL:0) <= 0
+        RETURNF 0
+    ENDIF
+    IF Y_PRE_SPICE:ARG:LOCAL > 20 && ITEM:(Y_PRE_SPICE:ARG:LOCAL) <= 0
+        RETURNF 0
+    ENDIF
+NEXT
+IF Y_PRE_DRG:ARG:0 && ITEM:(Y_PRE_DRG:ARG:0) <= 0
+    RETURNF 0
+ENDIF
+IF Y_PRE_DRG:ARG:1 && ITEM:(Y_PRE_DRG:ARG:1) <= 0
+    RETURNF 0
+ENDIF
+RETURNF 1
