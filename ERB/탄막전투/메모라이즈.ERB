@@ -2,6 +2,8 @@
 #DIM DYNAMIC 페이지
 #DIM DYNAMIC 카운터
 #DIM DYNAMIC 입력
+#DIM DYNAMIC 출력형태
+#DIMS DYNAMIC 검색문구
 [IF_DEBUG]
     탄막디버그 = 1
 [ENDIF]
@@ -12,56 +14,116 @@ PRINTFORM 어떤 스킬을 메모라이즈 할까? (현재 메모라이즈 수 :
 PRINTBUTTON "[스킬 설명]" , 69745882
 PRINT 　　
 PRINTBUTTON "[프리셋]" , 893893893
+PRINT 　　
+IF 출력형태 != 1
+    PRINTBUTTON "[검색모드]" , 514514
+ELSE
+    PRINTBUTTON "[통상모드]" , 514514
+ENDIF
 PRINTFORML
 DRAWLINE
 카운터 = 1
 LOCAL:1 = 0
 LOCAL:2 = 0
-REPEAT 25
-    $LOOP
-    IF 카운터 >= T_스킬한계값
-        SETCOLOR 0x808080
-        PRINTFORM [{카운터,4}] 
-        PRINTFORML - --------------------------------------------------
-        RESETCOLOR
-        카운터++
-        LOCAL:2 = 1
-    ELSEIF TALENTNAME:(500+카운터) == ""
-        카운터++
-        GOTO LOOP
-    ELSE
-        IF 페이지 > 0
-            IF LOCAL:1 < 페이지*25
-                LOCAL:1++
+SELECTCASE 출력형태
+    CASE 0
+        REPEAT 25
+            $LOOP
+            IF 카운터 >= T_스킬한계값
+                SETCOLOR 0x808080
+                PRINTFORM [{카운터,4}] 
+                PRINTFORML - --------------------------------------------------
+                RESETCOLOR
+                카운터++
+                LOCAL:2 = 1
+            ELSEIF TALENTNAME:(500+카운터) == ""
                 카운터++
                 GOTO LOOP
-            ENDIF
-        ENDIF
-        IF HAVE_T_SKILL(MASTER,카운터)
-            IF IS_MEMORIZED(카운터)
-                SETCOLOR 0xFF7F00
-            ENDIF
-            PRINTFORM [{카운터,4}] 
-            PRINTFORML - %스펠이름(카운터)%
-            RESETCOLOR
-        ELSE
-            SETCOLOR 0x808080
-            PRINTFORM [{카운터}] 
-            IF 카운터 < 1000
-                PRINT  
-                IF 카운터 < 100
-                    PRINT  
-                    IF 카운터 < 10
-                        PRINT  
+            ELSE
+                IF 페이지 > 0
+                    IF LOCAL:1 < 페이지*25
+                        LOCAL:1++
+                        카운터++
+                        GOTO LOOP
                     ENDIF
                 ENDIF
-            ENDIF 
-            PRINTFORML - --------------------------------------------------
-            RESETCOLOR
-        ENDIF
-        카운터++
-    ENDIF
-REND
+                IF HAVE_T_SKILL(MASTER,카운터)
+                    IF IS_MEMORIZED(카운터)
+                        SETCOLOR 0xFF7F00
+                    ENDIF
+                    PRINTFORM [{카운터,4}] 
+                    PRINTFORML - %스펠이름(카운터)%
+                    RESETCOLOR
+                ELSE
+                    SETCOLOR 0x808080
+                    PRINTFORM [{카운터}] 
+                    IF 카운터 < 1000
+                        PRINT  
+                        IF 카운터 < 100
+                            PRINT  
+                            IF 카운터 < 10
+                                PRINT  
+                            ENDIF
+                        ENDIF
+                    ENDIF 
+                    PRINTFORML - --------------------------------------------------
+                    RESETCOLOR
+                ENDIF
+                카운터++
+            ENDIF
+        REND
+    CASE 1
+        REPEAT 25
+            $LOOP2
+            IF 카운터 >= T_스킬한계값
+                SETCOLOR 0x808080
+                PRINTFORM [{카운터,4}] 
+                PRINTFORML - --------------------------------------------------
+                RESETCOLOR
+                카운터++
+                LOCAL:2 = 1
+            ELSEIF TALENTNAME:(500+카운터) == ""
+                카운터++
+                GOTO LOOP2
+            ELSEIF STRFIND(TALENTNAME:(500+카운터), 검색문구) == -1
+                카운터++
+                GOTO LOOP2
+            ELSE
+                IF 페이지 > 0
+                    IF LOCAL:1 < 페이지*25
+                        LOCAL:1++
+                        카운터++
+                        GOTO LOOP2
+                    ENDIF
+                ENDIF
+                IF HAVE_T_SKILL(MASTER,카운터)
+                    IF IS_MEMORIZED(카운터)
+                        SETCOLOR 0xFF7F00
+                    ENDIF
+                    PRINTFORM [{카운터,4}] 
+                    PRINTFORML - %스펠이름(카운터)%
+                    RESETCOLOR
+                ELSE
+                    SETCOLOR 0x808080
+                    PRINTFORM [{카운터}] 
+                    IF 카운터 < 1000
+                        PRINT  
+                        IF 카운터 < 100
+                            PRINT  
+                            IF 카운터 < 10
+                                PRINT  
+                            ENDIF
+                        ENDIF
+                    ENDIF 
+                    PRINTFORML - --------------------------------------------------
+                    RESETCOLOR
+                ENDIF
+                카운터++
+            ENDIF
+        REND
+    CASE 2
+
+ENDSELECT
 IF 페이지 == 0
     SETCOLOR 0x808080
 ELSE
@@ -92,6 +154,23 @@ ELSEIF 입력 == 69745882
     CALL T_HELP
 ELSEIF 입력 == 893893893
     CALL 스킬프리셋생성
+ELSEIF 입력 == 514514
+    IF 출력형태 == 0
+        출력형태 = 1
+        $검색어루프
+        PRINT 검색어를 입력해 주세요
+        INPUTS
+        IF STRLENS(RESULTS) >= 20
+            PRINTFORMW 너무 깁니다
+            CLEARLINE 2
+            GOTO 검색어루프
+        ELSE
+            검색문구 = %RESULTS%
+            CLEARLINE 2
+        ENDIF
+    ELSE
+        출력형태 = 0
+    ENDIF
 ELSE
     IF 입력 > T_스킬한계값
 
