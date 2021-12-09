@@ -8,4 +8,196 @@ ELSE
     ABL:MASTER:레벨 = 0
     CALL 개별능력치세팅0
     CALL 레벨업(LOCAL)
+    CALL 스펠카드버리기
 ENDIF
+
+@스펠카드버리기
+#DIM DYNAMIC 페이지
+#DIM DYNAMIC 카운터
+#DIM DYNAMIC 입력
+#DIM DYNAMIC 출력형태
+#DIMS DYNAMIC 검색문구
+PRINTFORML 쓸모없는 스펠카드는 버려버릴까?
+CALL ASK_YN
+IF RESULT
+    RETURN
+ENDIF
+$메모라이즈초기루프
+DRAWLINE
+PRINTFORML
+PRINTFORM 어떤 스킬을 버릴까?  
+PRINTBUTTON "[스킬 설명]" , 69745882
+PRINT 　　
+IF 출력형태 != 1
+    PRINTBUTTON "[검색모드]" , 514514
+ELSE
+    PRINTBUTTON "[통상모드]" , 514514
+ENDIF
+PRINTFORML
+DRAWLINE
+카운터 = 1
+LOCAL:1 = 0
+LOCAL:2 = 0
+SELECTCASE 출력형태
+    CASE 0
+        REPEAT 25
+            $LOOP
+            IF 카운터 >= T_스킬한계값
+                SETCOLOR 0x808080
+                PRINTFORM [{카운터,4}] 
+                PRINTFORML - --------------------------------------------------
+                RESETCOLOR
+                카운터++
+                LOCAL:2 = 1
+            ELSEIF TALENTNAME:(500+카운터) == ""
+                카운터++
+                GOTO LOOP
+            ELSE
+                IF 페이지 > 0
+                    IF LOCAL:1 < 페이지*25
+                        LOCAL:1++
+                        카운터++
+                        GOTO LOOP
+                    ENDIF
+                ENDIF
+                IF HAVE_T_SKILL(MASTER,카운터)
+                    IF IS_MEMORIZED(카운터)
+                        SETCOLOR 0xFF7F00
+                    ENDIF
+                    PRINTFORM [{카운터,4}] 
+                    PRINTFORML - %스펠이름(카운터)%
+                    RESETCOLOR
+                ELSE
+                    SETCOLOR 0x808080
+                    PRINTFORM [{카운터}] 
+                    IF 카운터 < 1000
+                        PRINT  
+                        IF 카운터 < 100
+                            PRINT  
+                            IF 카운터 < 10
+                                PRINT  
+                            ENDIF
+                        ENDIF
+                    ENDIF 
+                    PRINTFORML - --------------------------------------------------
+                    RESETCOLOR
+                ENDIF
+                카운터++
+            ENDIF
+        REND
+    CASE 1
+        REPEAT 25
+            $LOOP2
+            IF 카운터 >= T_스킬한계값
+                SETCOLOR 0x808080
+                PRINTFORM [{카운터,4}] 
+                PRINTFORML - --------------------------------------------------
+                RESETCOLOR
+                카운터++
+                LOCAL:2 = 1
+            ELSEIF TALENTNAME:(500+카운터) == ""
+                카운터++
+                GOTO LOOP2
+            ELSEIF STRFIND(TALENTNAME:(500+카운터), 검색문구) == -1
+                카운터++
+                GOTO LOOP2
+            ELSE
+                IF 페이지 > 0
+                    IF LOCAL:1 < 페이지*25
+                        LOCAL:1++
+                        카운터++
+                        GOTO LOOP2
+                    ENDIF
+                ENDIF
+                IF HAVE_T_SKILL(MASTER,카운터)
+                    IF IS_MEMORIZED(카운터)
+                        SETCOLOR 0xFF7F00
+                    ENDIF
+                    PRINTFORM [{카운터,4}] 
+                    PRINTFORML - %스펠이름(카운터)%
+                    RESETCOLOR
+                ELSE
+                    SETCOLOR 0x808080
+                    PRINTFORM [{카운터}] 
+                    IF 카운터 < 1000
+                        PRINT  
+                        IF 카운터 < 100
+                            PRINT  
+                            IF 카운터 < 10
+                                PRINT  
+                            ENDIF
+                        ENDIF
+                    ENDIF 
+                    PRINTFORML - --------------------------------------------------
+                    RESETCOLOR
+                ENDIF
+                카운터++
+            ENDIF
+        REND
+    CASE 2
+
+ENDSELECT
+IF 페이지 == 0
+    SETCOLOR 0x808080
+ELSE
+    RESETCOLOR
+ENDIF
+PRINTLC [9997] - 이전 페이지
+RESETCOLOR
+
+PRINTLC [9998] - 종료
+
+IF LOCAL:2 == 1
+    SETCOLOR 0x808080
+ELSE
+    RESETCOLOR
+ENDIF
+PRINTLC [9999] - 다음 페이지
+RESETCOLOR
+INPUT
+입력 = RESULT
+IF 입력 == 9998
+    RETURN 1
+ELSEIF 입력 == 9997&&페이지 > 0
+    페이지 = MAX(0,페이지-1)
+ELSEIF 입력 == 9999&&LOCAL:2 == 0
+    페이지++
+ELSEIF 입력 == 69745882
+    CALL T_HELP
+ELSEIF 입력 == 893893893
+    CALL 스킬프리셋생성
+ELSEIF 입력 == 514514
+    IF 출력형태 == 0
+        출력형태 = 1
+        $검색어루프
+        PRINT 검색어를 입력해 주세요
+        INPUTS
+        IF STRLENS(RESULTS) >= 20
+            PRINTFORMW 너무 깁니다
+            CLEARLINE 2
+            GOTO 검색어루프
+        ELSE
+            검색문구 = %RESULTS%
+            CLEARLINE 2
+        ENDIF
+    ELSE
+        출력형태 = 0
+    ENDIF
+ELSE
+    IF 입력 > T_스킬한계값
+
+    ELSEIF HAVE_T_SKILL(MASTER,입력)
+        PRINTFORML 정말로 %조사처리(스펠이름(카운터),"을")% 버릴까?
+        CALL ASK_YN
+        IF RESULT
+            GOTO LOOOOP
+        ENDIF
+        IF IS_MEMORIZED(입력)
+            CALL UNMEMORIZESPELL(입력)
+        ENDIF
+        TALENT:MASTER:(500+입력) = 0
+    ENDIF
+ENDIF
+$LOOOOP
+CLEARLINE 31
+GOTO 메모라이즈초기루프
