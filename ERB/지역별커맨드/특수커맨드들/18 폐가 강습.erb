@@ -1,0 +1,216 @@
+﻿
+@TSC_18
+PRINTFORM .
+TWAIT 550,1
+CLEARLINE 1
+PRINTFORM ..
+TWAIT 550,1
+CLEARLINE 1
+PRINTFORM ...
+TWAIT 550,1
+CLEARLINE 1
+IF !명중판정(3) || 1
+	PRINTFORML 이상한 안개가 드리우더니, 홀연히 거대한 무언가가 나타났다!
+	PRINTFORML 저택을 찾았다!
+	CALL 폐가강탈전
+	IF RESULT
+		PRINTL
+		PRINTFORML %마스터는% 서재에 놓인 조잡한 집문서에 쓰인 이름을 지우고 자신의 이름을 새겨놓았다
+		PRINTFORMW 그와 동시에 저택에 숨어있던 요괴들이 달아나는 소리가 들렸다, 이제 안심하고 살 수 있을것이다
+		PRINTL
+		PRINTFORMW 대형 저택을 얻었다, 언제라도 이사올 수 있다
+		ITEM:주택 = 4
+	ELSE
+		PRINTFORML 쓰러진 %마스터의% 몸이 저택 밖으로 내동댕이 쳐 졌다...
+		PRINTFORML 정신을 차리고 보니 저택은 없어진지 오래다
+	ENDIF
+	TIME += 180
+	DOWNBASE:MASTER:체력 += 250
+	DOWNBASE:MASTER:기력 += 500
+ELSE
+	PRINTFORML 아무것도 못 찾았다...
+	TIME += 30
+	DOWNBASE:MASTER:기력 += 150
+ENDIF
+
+@TSC_NAME18
+#DIMS DYNAMIC 커맨드이름
+커맨드이름 = 폐가 찾기
+RESULTS = %커맨드이름%
+
+@TSC_ABLE18
+IF ITEM:주택 == 4
+    RETURN 0
+ENDIF
+IF MAIN_MAP == 5
+	IF CFLAG:MASTER:현재위치 != 507
+		RETURN 0
+	ENDIF
+ENDIF
+IF CFLAG:MASTER:현재위치 != 570
+	RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 2
+
+@폐가강탈전
+#DIMS 위치,6
+#DIM DYNAMIC 마스터위치
+#DIM DYNAMIC 진행도
+#DIM DYNAMIC 인카운터
+#DIM DYNAMIC 안전횟수
+위치:0 = 마당
+위치:1 = 현관
+위치:2 = 1층 복도
+위치:3 = 계단참
+위치:4 = 2층복도
+위치:5 = 서재
+$표시루프
+DRAWLINE
+PRINTFORML 현재위치:%위치:마스터위치%({진행도}％)
+IF 마스터위치 == 5
+	PRINTFORMLC [100] - 탐색
+ELSE
+	PRINTFORMLC [100] - 빠르게 길 찾기
+	PRINTFORMLC [101] - 조용히 길 찾기
+	PRINTFORMLC [102] - 휴식
+ENDIF
+PRINTL
+DRAWLINE
+$LOOP
+INPUT
+IF 마스터위치 == 5
+	IF RESULT == 100
+		PRINTFORML %마스터는% 방 안을 수색하기 시작했다..
+		진행도 += (RAND:10) * 2 + 2
+		IF !명중판정(88 - (안전횟수 * 2))
+			안전횟수 = 0
+			PRINTFORML ! 숨어있던 요괴 몇몇에게 걸렸다!
+			CALL 폐가의요괴
+			IF RESULT
+				RETURN
+			ENDIF
+		ELSE
+			안전횟수++
+		ENDIF
+	ELSE
+		GOTO LOOP
+	ENDIF
+ELSE
+	IF RESULT == 100
+		PRINTFORML %마스터는% 재빠르게 안으로 나아갔다
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORML 대량의 소음이 났다
+			CASE 1
+				PRINTFORML 와장창 무너지는 소리가 났다
+			CASE 2
+				PRINTFORML 누군가가 바라보고 있는것 같다...
+		ENDSELECT
+		진행도 += (RAND:10) * 2 + 2
+		IF !명중판정(86 - (안전횟수 * 2))
+			안전횟수 = 0
+			PRINTFORML ! 숨어있던 요괴 몇몇에게 걸렸다!
+			CALL 폐가의요괴
+			IF RESULT
+				RETURN
+			ENDIF
+		ELSE
+			안전횟수++
+		ENDIF
+	ELSEIF RESULT == 101
+		PRINTFORML %마스터는% 조심조심 안으로 나아갔다
+		진행도 += (RAND:5) * 2 + 2
+		IF !명중판정(92 - (안전횟수 * 2))
+			안전횟수 = 0
+			PRINTFORML ! 숨어있던 요괴 몇몇에게 걸렸다!
+			CALL 폐가의요괴
+			IF RESULT
+				RETURN
+			ENDIF
+		ELSE
+			안전횟수++
+		ENDIF
+	ELSEIF RESULT == 102
+		PRINTFORML %마스터는% 바닥에 앉아 휴식했다
+		폐가체력감소치 = MAX(폐가체력감소치 - 5, 0)
+		IF !명중판정(93 - (안전횟수 * 2))
+			안전횟수 = 0
+			PRINTFORML ! 숨어있던 요괴 몇몇에게 걸렸다!
+			CALL 폐가의요괴
+			IF RESULT
+				RETURN
+			ENDIF
+		ELSE
+			안전횟수++
+		ENDIF
+	ELSE
+		GOTO LOOP
+	ENDIF
+ENDIF
+IF 진행도 >= 100
+	IF 마스터위치 < 5
+		PRINTFORML 다음 지역으로 넘어갔다
+		PRINTL
+		진행도 = 0
+		마스터위치++
+	ELSE
+		RETURN 1
+	ENDIF
+ENDIF
+GOTO 표시루프
+
+@폐가의요괴
+ADDCHARA 143
+TARGET = CHARANUM -1
+CALLNAME:TARGET = 들요괴들
+NAME:TARGET = 들요괴들
+BASE:TARGET:체력 = (100 * RAND:10) + 1550
+EQUIP:상반신윗도리2 = 1
+EQUIP:상반신속옷1 = 1
+TEQUIP:상반신착의상황 = 1
+TEQUIP:하반신착의상황 = 1
+ABL:TARGET:전투능력 = RAND:4 + 3
+ABL:TARGET:레벨 = (RAND:50 + 30 + (ABL:MASTER:레벨/6))
+CFLAG:TARGET:힘 = RAND:55 + 35 + (CFLAG:MASTER:힘/4)
+CFLAG:TARGET:지성 = RAND:55 + 10 + (CFLAG:MASTER:지성/4)
+CFLAG:TARGET:속도 = RAND:55 + 40 + (CFLAG:MASTER:속도/4)
+CFLAG:TARGET:인내 = RAND:60 + 45 + (CFLAG:MASTER:인내/4)
+CFLAG:TARGET:운 = RAND:60 + 35 + (CFLAG:MASTER:운/4)
+
+CFLAG:인내 *= 3
+CFLAG:물리내성 = 15 * ABL:TARGET:레벨
+CFLAG:화염내성 = 5 * ABL:TARGET:레벨
+CFLAG:정신내성 = -5 * ABL:TARGET:레벨
+TALENT:TARGET:정화 = 1
+TALENT:TARGET:탄막소사 = 1
+TALENT:TARGET:전투스타일 = 1
+후처리인터셉트 = 1
+경험치인터셉트 = 1
+마스터체력제한퍼밀 = 폐가체력감소치
+;탄막전투화상무시 = 1
+CALL 뉴탄막전투(MASTER,TARGET,1)
+경험치인터셉트 = 0
+DRAWLINE
+DELCHARA TARGET
+TARGET = 0
+SELECTCASE 후처리인터셉트승패여부
+	CASE 0
+		;타겟 패배
+		PRINTFORML 요괴무리의 마지막 요괴가 쓰러졌다, 이제 앞으로 나아갈수 있을것이다
+		고로시수++
+		폐가체력감소치 += 15
+	CASE 1
+		;무승부
+		PRINTFORML 요괴들이 뿔뿔히 흩어져 달아났다!
+		폐가체력감소치 += 45
+	CASE 2
+		RETURN 1
+ENDSELECT
