@@ -1,0 +1,144 @@
+﻿
+@TSC_19
+PRINTL
+PRINTFORML %마스터는% 온실의 문을 열었다...
+DRAWLINE
+PRINTFORML 자라고 있는 작물 : %O_작물표시(O_재배중작물)%({O_성장도/10}.{O_성장도 % 10}％)
+PRINTFORML 온실 규모 : {O_규모}
+DRAWLINE
+PRINTFORMLC [0] 작물 변경
+PRINTFORMLC [1] 강제 수확
+;PRINTFORMLC [2] 정책
+PRINTFORML
+PRINTFORMLC [9] 돌아간다
+$LOOP
+INPUT
+IF RESULT == 9
+	RETURN
+ELSEIF RESULT == 0
+	PRINTFORML 어떤 작물을 선택할까?
+	FOR LOCAL,0,10
+		CALL O_작물데이터(LOCAL)
+		SIF O_작물명 != "빔"
+			PRINTFORML [{LOCAL}] - %O_작물명%
+	NEXT
+	INPUT
+	IF RESULT > O_MAX
+	
+	ELSE
+		O_재배중작물 = RESULT
+	ENDIF
+ELSEIF RESULT == 1
+	CALL O_작물수확
+;ELSEIF RESULT == 2
+
+ELSE
+	GOTO LOOP
+ENDIF
+PRINTL
+RESTART
+
+@TSC_NAME19
+#DIMS DYNAMIC 커맨드이름
+커맨드이름 = 지하 온실
+RESULTS = %커맨드이름%
+
+@TSC_ABLE19
+
+IF CFLAG:MASTER:현재위치 != 1443
+    RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 2
+
+
+@O_작물표시(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+	CASE 0
+		RETURNF "없음"
+	CASE 1
+		RETURNF "약초"
+	CASE 2
+		RETURNF "상약초"
+	CASE 3
+		RETURNF "특약초"
+	CASE 4
+		RETURNF "눈의영초"
+	CASE 5
+		RETURNF "으름덩굴"
+ENDSELECT
+
+
+@O_작물데이터(ARG)
+SELECTCASE ARG
+	CASE 0
+		O_작물명 = 없음
+		O_일일성장량 = 0
+		O_수확량 = 0
+		O_생산품 = 0
+	CASE 1
+		O_작물명 = 약초
+		O_일일성장량 = 200
+		O_수확량 = 5
+		O_생산품 = 607
+	CASE 2
+		O_작물명 = 상약초
+		O_일일성장량 = 125
+		O_수확량 = 4
+		O_생산품 = 608
+	CASE 3
+		O_작물명 = 특약초
+		O_일일성장량 = 100
+		O_수확량 = 3
+		O_생산품 = 613
+	CASE 4
+		O_작물명 = 눈의영초
+		O_일일성장량 = 75
+		O_수확량 = 2
+		O_생산품 = 615
+	CASE 5
+		O_작물명 = 으름덩굴
+		O_일일성장량 = 250
+		O_수확량 = 5
+		O_생산품 = 628
+	CASEELSE
+		O_작물명 = 빔
+		O_일일성장량 = 0
+		O_수확량 = 0
+		O_생산품 = 0
+ENDSELECT
+
+@O_작물성장
+
+CALL O_작물데이터(O_재배중작물)
+O_성장도 += O_일일성장량
+IF O_성장도 >= 1000
+	O_성장도 = 1000
+	CALL O_작물수확
+ENDIF
+
+@O_작물수확
+#DIM DYNAMIC 실제수확량
+CALL O_작물데이터(O_재배중작물)
+IF O_생산품 == 0
+	RETURN
+ENDIF
+LOCAL = 1000 / O_수확량
+WHILE 1
+	IF O_성장도 <= LOCAL
+		BREAK
+	ENDIF
+	O_성장도 -= LOCAL
+	실제수확량 += 1
+WEND
+ITEM:O_생산품 += 실제수확량
+PRINTFORML 온실에서 %조사처리(ITEMNAME:O_생산품,"을")% {실제수확량}개 생산했다
+O_성장도 = 0
