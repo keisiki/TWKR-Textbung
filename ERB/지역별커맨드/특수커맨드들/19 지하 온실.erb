@@ -8,7 +8,7 @@ PRINTFORML 온실 규모 : {O_규모}
 DRAWLINE
 PRINTFORMLC [0] 작물 변경
 PRINTFORMLC [1] 강제 수확
-;PRINTFORMLC [2] 정책
+PRINTFORMLC [2] 정책
 PRINTFORML
 PRINTFORMLC [9] 돌아간다
 $LOOP
@@ -30,8 +30,8 @@ ELSEIF RESULT == 0
 	ENDIF
 ELSEIF RESULT == 1
 	CALL O_작물수확
-;ELSEIF RESULT == 2
-
+ELSEIF RESULT == 2
+	CALL O_정책
 ELSE
 	GOTO LOOP
 ENDIF
@@ -120,9 +120,12 @@ ENDSELECT
 
 CALL O_작물데이터(O_재배중작물)
 O_성장도 += O_일일성장량
+SIF O_관리자 && BASE:O_관리자:체력 >= 500
+	O_성장도 += O_일일성장량 / 2
 IF O_성장도 >= 1000
 	O_성장도 = 1000
-	CALL O_작물수확
+	SIF O_수확자 && BASE:O_수확자:체력 >= 500
+		CALL O_작물수확
 ENDIF
 
 @O_작물수확
@@ -142,3 +145,69 @@ WEND
 ITEM:O_생산품 += 실제수확량
 PRINTFORML 온실에서 %조사처리(ITEMNAME:O_생산품,"을")% {실제수확량}개 생산했다
 O_성장도 = 0
+SIF !O_파종자 && BASE:O_파종자:체력 >= 500
+	O_재배중작물 = 0
+
+
+@O_정책
+PRINTFORML 온실 재배 정책을 설정할 수 있습니다
+DRAWLINE
+FOR LOCAL, 1, CHARANUM
+	IF TALENT:LOCAL:당신의노예 && CFLAG:LOCAL:감금됨
+		PRINTFORMLC [{LOCAL,RIGHT,3}] %CALLNAME:LOCAL, RIGHT, 20%
+		LOCAL:1 ++
+		IF LOCAL:1 == 3
+			PRINTL
+			LOCAL:1 = 0
+		ENDIF
+	ENDIF
+NEXT
+PRINTFORML
+DRAWLINE
+PRINTFORML [999] 돌아간다
+$LOOP
+INPUT
+IF RESULT == 999
+	RETURN
+ELSEIF RESULT < CHARANUM && RESULT > 0
+	LOCAL = RESULT
+	IF TALENT:LOCAL:당신의노예 && CFLAG:LOCAL:감금됨
+		PRINTFORML %CALLNAME:LOCAL%의 역할을...
+		PRINTFORML [0] 놀게 한다
+		PRINTFORML [1] 파종을 담당하게 한다
+		PRINTFORML [2] 작물 관리를 담당하게 한다
+		PRINTFORML [3] 수확을 담당하게 한다
+		$LOOP2
+		INPUT
+		IF RESULT == 0
+			IF O_파종자 == LOCAL
+				O_파종자 = 0
+			ENDIF
+			IF O_수확자 == LOCAL
+				O_수확자 = 0
+			ENDIF
+			IF O_관리자 == LOCAL
+				O_관리자 = 0
+			ENDIF
+			RESTART
+		ELSEIF RESULT > 0 && RESULT <= 3
+			IF RESULT == 1
+				O_파종자 = LOCAL
+				PRINTFORML 이제부턴 %조사처리(CALLNAME:LOCAL,"이")% 작물 파종을 담당합니다
+			ELSEIF RESULT == 2
+				O_관리자 = LOCAL
+				PRINTFORML 이제부턴 %조사처리(CALLNAME:LOCAL,"이")% 작물 관리를 담당합니다
+			ELSEIF RESULT == 3
+				O_수확자 = LOCAL
+				PRINTFORML 이제부턴 %조사처리(CALLNAME:LOCAL,"이")% 작물 수확을 담당합니다
+			ENDIF
+		ELSE
+			GOTO LOOP2
+		ENDIF
+	ELSE
+		GOTO LOOP
+	ENDIF
+ELSE
+	GOTO LOOP
+ENDIF
+RESTART
