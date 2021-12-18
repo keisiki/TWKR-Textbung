@@ -6,6 +6,8 @@ FOR LOCAL,0,10
             SETCOLOR 0x808080
         ENDIF
         PRINTBUTTON @"[%Y_PRE_NAME:LOCAL,40,LEFT%]",LOCAL
+        SIF Y_PRE_PRICE:LOCAL
+            PRINTFORM  {Y_PRE_PRICE:ARG}￦
         PRINTL
         RESETCOLOR
     ELSE
@@ -122,9 +124,10 @@ ELSE
 ENDIF
 Y_PRE_DRG:ARG:0 = DISH_DRG
 Y_PRE_DRG:ARG:1 = DISH_DRG_2
-
+Y_PRE_PRICE:ARG = 기본제공품사용료
 
 @요리프리셋호출(ARG)
+#DIM DYNAMIC 기본제공품
 주재료 = Y_프리셋:ARG:1
 주재료요리법 = Y_프리셋:ARG:2 
 SELECTCASE Y_프리셋:ARG:3
@@ -146,6 +149,34 @@ NEXT
 DISH_NAME = %Y_PRE_NAME:ARG% 
 DISH_DRG = Y_PRE_DRG:ARG:0
 DISH_DRG_2 = Y_PRE_DRG:ARG:1
+IF 기본제공품사용료 <= 0
+    CALL 기본재료표시함수("주재료",1)
+    기본제공품 = RESULT
+    IF INRANGE(주재료,1,기본제공품)
+        기본제공품사용료 += 500
+    ENDIF
+    CALL 기본재료표시함수("부재료",1)
+    기본제공품 = RESULT
+    FOR LOCAL,0,10
+        IF INRANGE(부재료:LOCAL,1,기본제공품)
+            기본제공품사용료 += 500
+        ENDIF
+    NEXT
+    CALL 기본재료표시함수("양념",1)
+    기본제공품 = RESULT
+    FOR LOCAL,0,10
+        IF INRANGE(양념:LOCAL,1,기본제공품)
+            기본제공품사용료 += 100
+        ENDIF
+    NEXT
+    Y_PRE_PRICE:ARG = 기본제공품사용료
+    IF MONEY < 기본제공품사용료
+        PRINTFORMW 재료 구매비용이 부족합니다
+        CALL 요리제작초기화
+        RETURN
+    ENDIF
+ENDIF
+기본제공품사용료 = Y_PRE_PRICE:ARG
 
 @요리프리셋삭제(ARG)
 ;이것만으로도 빈칸 취급되는 그윽함
@@ -186,3 +217,11 @@ IF Y_PRE_DRG:ARG:1 && ITEM:(Y_PRE_DRG:ARG:1) <= 0
     RETURNF 0
 ENDIF
 RETURNF 1
+
+@요리제작초기화
+VARSET 주재료
+VARSET 주재료요리법
+VARSET 부재료
+VARSET 부재료요리법
+VARSET 양념
+VARSET 기본제공품사용료
