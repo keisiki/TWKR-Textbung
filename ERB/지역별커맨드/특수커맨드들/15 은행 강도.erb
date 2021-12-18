@@ -15,6 +15,10 @@ FLAG:은행털기기회 = 0
 IF B_금고
 	PRINTFORML 가진 금을 암시장에 내다팔아 수수료떼고 {물가적용(B_금고 * 950000)}원을 받았다
 	MONEY += 물가적용(B_금고 * 950000)
+	FLAG:세수입 -= 물가적용(B_금고 * 950000) / 10000
+	IF FLAG:세수입 <= 0
+		FLAG:세수입 = 0
+	ENDIF
 	B_금고 = 0
 ENDIF
 ALIGNMENT LEFT
@@ -28,7 +32,7 @@ RESULTS = %커맨드이름%
 
 @TSC_ABLE15
 
-IF !FLAG:은행털기기회
+IF FLAG:은행털기기회 != 1
     RETURN 0
 ENDIF
 IF !GROUPMATCH(CFLAG:MASTER:현재위치,220,202)
@@ -51,6 +55,7 @@ RETURN 2
 #DIM DYNAMIC 기력감소
 #DIM DYNAMIC 침입플래그
 #DIM DYNAMIC 쓰러진경비원
+#DIM DYNAMIC 회피횟수
 커맨드횟수 = 0
 VARSET B_맵,"　"
 FOR LOCAL,0,30
@@ -59,7 +64,8 @@ FOR LOCAL,0,30
 NEXT
 FOR LOCAL,1,3
 	FOR LOCAL:1,1,13
-		B_맵:LOCAL:(2*LOCAL:1) = 金
+		SIF 명중판정(55)
+			B_맵:LOCAL:(2*LOCAL:1) = 金
 	NEXT
 NEXT
 FOR LOCAL,0,27
@@ -88,7 +94,11 @@ B_맵:8:23 = ■
 B_맵:8:25 = ■
 B_맵:8:26 = ■
 B_맵:16:24 = 門
-B_맵:20:26 = 門
+IF RAND:2 == 0
+	B_맵:20:26 = 門
+ELSE
+	B_맵:20:1 = 門
+ENDIF
 B_맵:29:13 = 入
 B_맵:11:6 = 門
 FOR LOCAL,15,27
@@ -116,6 +126,9 @@ B_맵:20:14 = 川
 B_맵:20:17 = 川
 B_맵:20:20 = 川
 B_맵:20:23 = 川
+B_맵:19:17 = ■
+B_맵:18:17 = ■
+B_맵:17:17 = 門
 
 ;전체 렌더링, 실 게임에서는 주위 8칸만 보이게
 ;FOR LOCAL,0,30
@@ -205,7 +218,7 @@ ENDIF
 CLEARLINE 35
 IF 침입플래그 == 1 || B_플레이어:1 <= 18
 	침입플래그 = 1
-	IF !명중판정(85) && 쓰러진경비원 <= 15
+	IF !명중판정(MAX(60,85 - 회피횟수 - (B_금고 / 2))) && 쓰러진경비원 <= 20
 		ALIGNMENT LEFT
 		PRINTFORMW 경비원이 나타났다!!
 		ADDCHARA 143
@@ -242,11 +255,19 @@ IF 침입플래그 == 1 || B_플레이어:1 <= 18
 				고로시수++
 				쓰러진경비원++
 				체력감소 += 100
+				회피횟수 = 0
 			CASE 1
 				;무승부
-				PRINTFORML 경비원은 어둠속으로 도망쳤다...
-				쓰러진경비원++
-				체력감소 += 250
+				IF 도망감 == 1
+					PRINTFORML 저 멀리서 경비병이 고함치는 소리가 들린다...
+					체력감소 += 250
+					회피횟수++
+				ELSE
+					PRINTFORML 경비원은 어둠속으로 도망쳤다...
+					쓰러진경비원++
+					체력감소 += 200
+					회피횟수 = 0
+				ENDIF
 			CASE 2
 				;마스터 패배
 				PRINTFORML 뒤이어 나타난 경비원들이 쓰러진 %마스터를% 끌고 지하 감옥으로 내려갔다...
@@ -254,11 +275,12 @@ IF 침입플래그 == 1 || B_플레이어:1 <= 18
 					PRINTFORML 덧붙여 은행 잔고는 벌금으로 몰수되었다...
 					은행잔고 = 0
 				ENDIF
+				B_금고 = 0
 				CALL 투옥
 				CALL OYASUMI
 				RETURN
 		ENDSELECT
-		IF 쓰러진경비원 == 15
+		IF 쓰러진경비원 == 20
 			PRINTFORML 더 이상의 경비원은 없어보인다
 		ENDIF
 	ENDIF
