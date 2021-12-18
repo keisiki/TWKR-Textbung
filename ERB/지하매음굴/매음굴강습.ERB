@@ -1,2 +1,309 @@
 ﻿@매음굴강습
+#DIM DYNAMIC 마스터위치
+#DIM DYNAMIC 서브위치
+#DIM DYNAMIC 진행도
+#DIM DYNAMIC 탐색도
+#DIM DYNAMIC 인카운터
+#DIM DYNAMIC 안전횟수
+#DIM DYNAMIC 열쇠
+#DIM DYNAMIC 탈출자
+#DIM DYNAMIC 탈출모드
+#DIM DYNAMIC 돈뭉치
+#DIMS 위치,6,2
+;폐가 스타트
 PRINTFORML %마스터는% 숲에 놓인 허름한 폐가의 문을 열었다
+
+
+위치:0:0 = 허름한 폐가
+위치:1:0 = 눅눅한 동굴
+위치:2:0 = 뒷문
+위치:3:0 = 창고
+위치:3:1 = 금고
+위치:4:0 = 대연회장
+위치:5:0 = 복도
+$표시루프
+DRAWLINE
+PRINTFORML 현재위치:%위치:마스터위치:서브위치%({진행도}％)
+IF 마스터위치 == 5 && 탈출자 == 0
+	PRINTFORMLC [100] - 탐색
+ELSE
+    IF 위치:마스터위치:서브위치 == "금고" || 위치:마스터위치:서브위치 == "창고"
+        PRINTFORMLC [100] - 탐색
+    ENDIF
+	PRINTFORMLC [101] - 빠르게 길 찾기
+	PRINTFORMLC [102] - 조용히 길 찾기
+	PRINTFORMLC [103] - 휴식
+    SIF !탈출모드
+        PRINTFORML [104] - 뒤로 가기
+    IF 위치:마스터위치:서브위치 == "허름한 폐가"
+        SIF !탈출모드 || 진행도 >= 100
+            PRINTFORML [999] - 돌아간다
+    ENDIF
+ENDIF
+PRINTL
+DRAWLINE
+$LOOP
+INPUT
+IF (위치:마스터위치:서브위치 == "복도" || 위치:마스터위치:서브위치 == "금고" || 위치:마스터위치:서브위치 == "창고") && RESULT == 100
+	IF RESULT == 100
+		PRINTFORML %마스터는% 주위을 수색하기 시작했다..
+		탐색도 += (RAND:10) * 2 + 2
+		IF !명중판정(88 - (안전횟수 * 2))
+			안전횟수 = 0
+			PRINTFORML ! 요괴 경비원에게 걸렸다!
+			CALL 매음굴요짐보
+			IF RESULT
+				CALL 매음굴패배
+                RETURN
+			ENDIF
+		ELSE
+			안전횟수++
+		ENDIF
+	ELSE
+		GOTO LOOP
+	ENDIF
+ELSE
+	IF RESULT == 101
+		PRINTFORML %마스터는% 재빠르게 안으로 나아갔다
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORML 대량의 소음이 났다
+			CASE 1
+				PRINTFORML 와장창 무너지는 소리가 났다
+			CASE 2
+				PRINTFORML 누군가가 바라보고 있는것 같다...
+		ENDSELECT
+		진행도 += (RAND:10) * 2 + 2
+		IF !명중판정(86 - (안전횟수 * 2))
+			안전횟수 = 0
+			PRINTFORML ! 요괴 경비원에게 걸렸다!
+			CALL 매음굴요짐보
+			IF RESULT
+				CALL 매음굴패배
+                RETURN
+			ENDIF
+		ELSE
+			안전횟수++
+		ENDIF
+	ELSEIF RESULT == 102
+		PRINTFORML %마스터는% 조심조심 안으로 나아갔다
+		진행도 += (RAND:5) * 2 + 2
+		IF !명중판정(92 - (안전횟수 * 2))
+			안전횟수 = 0
+			PRINTFORML ! 요괴 경비원에게 걸렸다!
+			CALL 매음굴요짐보
+			IF RESULT
+				CALL 매음굴패배
+                RETURN
+			ENDIF
+		ELSE
+			안전횟수++
+		ENDIF
+	ELSEIF RESULT == 103
+		PRINTFORML %마스터는% 바닥에 앉아 휴식했다
+		R_체력감소치 = MAX(R_체력감소치 - 5, 0)
+		IF !명중판정(93 - (안전횟수 * 2))
+			안전횟수 = 0
+			PRINTFORML ! 요괴 경비원에게 걸렸다!
+			CALL 매음굴요짐보
+			IF RESULT
+				CALL 매음굴패배
+                RETURN
+			ENDIF
+		ELSE
+			안전횟수++
+		ENDIF
+    ELSEIF RESULT == 104 && !탈출모드
+        PRINTFORML %마스터는% 뒤쪽으로 되돌아 가기 시작했다
+        마스터위치--
+        서브위치 = 0
+    ELSEIF RESULT == 999 && (!탈출모드 || 진행도 >= 100)
+        PRINTFORML %마스터는% 재빨리 빠져나갔다
+        IF 탈출자
+            PRINTFORML %마스터는% 데리고 나온 사람의 얼굴을 확인했다...
+            IF 탈출자 == -1
+                PRINTFORML ...모르는 얼굴이다
+                PRINTFORML 그녀는 감사를 표하며 어디론가 달아나 버렸다
+            ELSE
+                PRINTFORML %CALLNAME:탈출자%...!
+                IF TALENT:탈출자:타락
+                    PRINTFORML 그러나 그 눈은 고마움보다는 원망이 가득한 눈빛이었다...
+                ELSE
+                    PRINTFORML 아직 자신이 처한 상황을 깨닫지 못한 그녀를 데리고 안전한곳으로 도망갔다...
+                ENDIF
+                CALL 창녀해제(탈출자)
+            ENDIF
+        ENDIF
+        IF 돈뭉치
+            PRINTFORML 꺼내온 돈 뭉치는 {1000000 * 돈뭉치}￦ 어치였다
+            MONEY += 1000000 * 돈뭉치
+        ENDIF
+	ELSE
+		GOTO LOOP
+	ENDIF
+ENDIF
+IF 탐색도 >= 100
+    IF 위치:마스터위치:서브위치 == "복도" || 위치:마스터위치:서브위치 == "금고" || 위치:마스터위치:서브위치 == "창고"
+        진행도 = 0
+        IF 위치:마스터위치:서브위치 == "복도"  && 탈출자 == 0&& 열쇠
+            PRINTFORML 열쇠에 맞는 문을 찾았다!
+            PRINTFORML 문을 열자, 조그마한 방 한 가운데에 앉아있는 누군가를 발견했다
+            PRINTFORML %마스터는% 얼굴을 확인할 틈도 없이 그 사람을 데리고 탈출하기 시작했다
+            IF 열쇠 == 1
+                LOCAL:1 = RAND:6 + 1
+                $탈출자선정루프
+                FOR LOCAL,1,CHARANUM
+                    IF TALENT:LOCAL:창녀 || TALENT:LOCAL:렌탈창녀
+                        LOCAL:1--
+                        IF LOCAL:1 <= 0
+                            탈출자 = LOCAL
+                            GOTO 탈출자선정완료
+                        ENDIF
+                    ENDIF
+                NEXT
+                LOCAL:2 ++
+                IF LOCAL:2 >= 10
+                    탈출자 = -1
+                    GOTO 탈출자선정완료
+                ENDIF
+                GOTO 탈출자선정루프
+                $탈출자선정완료
+            ELSE
+                탈출자 = -1
+            ENDIF
+            탈출모드 = 1
+        ELSEIF 위치:마스터위치:서브위치 == "금고"
+            IF !돈뭉치
+                PRINTFORML 돈뭉치를 찾았다!
+                돈뭉치 = RAND:5 + 1
+            ELSE
+                PRINTFORML 더 이상 뭔가 있을것 같진 않다...
+            ENDIF
+        ELSEIF 위치:마스터위치:서브위치 == "창고"
+            PRINTFORML 열쇠 뭉치를 찾았다!
+            PRINTFORML 하지만 이 중 하나만 가져갈 수 있을것 같다
+            LOCAL:1 = RAND:5
+            PRINTFORML [0] 번 열쇠
+            PRINTFORML [1] 번 열쇠
+            PRINTFORML [2] 번 열쇠
+            PRINTFORML [3] 번 열쇠
+            PRINTFORML [4] 번 열쇠
+            $열쇠선정루프
+            INPUT
+            IF RESULT >= 5 || RESULT < 0
+                GOTO 열쇠선정루프
+            ELSE
+                IF RESULT == LOCAL:1
+                    열쇠 = 1
+                ELSE
+                    열쇠 = 2
+                ENDIF
+            ENDIF
+        ENDIF
+    ENDIF
+    탐색도 = 0
+ENDIF
+IF 진행도 >= 100
+    IF !탈출모드
+        IF 위치:마스터위치:1 != ""
+            PRINTFORML 어느쪽으로 갈까?
+            PRINTFORML [0] 왼쪽
+            PRINTFORML [1] 오른쪽
+            INPUT
+            IF RESULT
+                서브위치 = 0
+            ELSE
+                서브위치 = 1
+            ENDIF
+            진행도 = 0
+            마스터위치++
+        ELSE
+            PRINTFORML 다음 지역으로 넘어갔다
+            PRINTL
+            진행도 = 0
+            마스터위치++
+            서브위치 = 0
+        ENDIF
+    ELSE
+        PRINTFORML 다음 지역으로 넘어갔다
+        PRINTL
+        진행도 = 0
+        마스터위치--
+        서브위치 = 0
+    ENDIF
+    탐색도 = 0
+ENDIF
+GOTO 표시루프
+
+@매음굴요짐보
+ADDCHARA 143
+TARGET = CHARANUM -1
+CALLNAME:TARGET = 경비원
+NAME:TARGET = 경비원
+BASE:TARGET:체력 = (100 * RAND:10) + 1750
+EQUIP:상반신윗도리2 = 1
+EQUIP:상반신속옷1 = 1
+TEQUIP:상반신착의상황 = 1
+TEQUIP:하반신착의상황 = 1
+ABL:TARGET:전투능력 = RAND:5 + 7
+ABL:TARGET:레벨 = (RAND:50 + 50 + (ABL:MASTER:레벨/6))
+CFLAG:TARGET:힘 = RAND:35 + 65 + (CFLAG:MASTER:힘/3)
+CFLAG:TARGET:지성 = RAND:35 + 60 + (CFLAG:MASTER:지성/4)
+CFLAG:TARGET:속도 = RAND:35 + 70 + (CFLAG:MASTER:속도/4)
+CFLAG:TARGET:인내 = RAND:35 + 75 + (CFLAG:MASTER:인내/4)
+CFLAG:TARGET:운 = RAND:40 + 75 + (CFLAG:MASTER:운/4)
+
+CFLAG:물리내성 = 15 * ABL:TARGET:레벨
+CFLAG:마력내성 = 8 * ABL:TARGET:레벨
+CFLAG:화염내성 = 8 * ABL:TARGET:레벨
+CFLAG:정신내성 = -5 * ABL:TARGET:레벨
+TALENT:TARGET:정화 = 1
+TALENT:TARGET:탄막소사 = 1
+TALENT:TARGET:전투스타일 = 1
+후처리인터셉트 = 1
+경험치인터셉트 = 1
+마스터체력제한퍼밀 = R_체력감소치
+;탄막전투화상무시 = 1
+CALL 뉴탄막전투(MASTER,TARGET,1)
+경험치인터셉트 = 0
+DRAWLINE
+DELCHARA TARGET
+TARGET = 0
+SELECTCASE 후처리인터셉트승패여부
+	CASE 0
+		;타겟 패배
+		PRINTFORML 요괴 경비병이 바닥에 쓰러졌다
+		R_체력감소치 += 15
+	CASE 1
+		;무승부
+		PRINTFORML 경비병은 안쪽으로 도망갔다
+		R_체력감소치 += 45
+	CASE 2
+		RETURN 1
+ENDSELECT
+
+@매음굴패배
+PRINTFORMW %마스터는%- 경비병들에게 포위되어 쓰러졌다
+PRINTFORMW 이윽고 수상쩍은 약을 들고 나타난 지배인을 마지막으로 %마스터의% 의식은 끊겼다
+IF FLAG:냥냥제안심귀가스크롤
+    PRINTFORMW ...
+    PRINTFORMW %마스터는% 방에서 깨어났다
+    PRINTFORMW 옆에 놓인 냥냥제 안심 귀가 스크롤이 밝게 빛나다 가루가 되어 사라졌다
+    PRINTFORMW 그러나 그 뿐이었다, 아무것도 들고 나온게 없었다
+    PRINTFORMW %마스터는% 다음을 기약하기로 했다
+    FLAG:냥냥제안심귀가스크롤--
+    RETURN
+ELSE
+    PRINTFORMW ...
+    PRINTFORMW 그리고 얼마 뒤, 매음굴의 뉴 페이스가 들어왔다
+    PRINTFORMW 그녀는 데뷔 첫 날부터 수십명의 남성들에게 둘러싸인채 마구잡이 윤간을 당했고, 고작 일주일만에 태내에 새 생명을 품게되었다
+    PRINTFORMW 이곳에 오게된 경위도, 과거도 기억 하지 못하는 그녀는, 오늘도 손님들에게 다리를 벌린다
+    PRINTW 　　　　　　　　―― BAD Ending (창관 엔딩)
+    PRINTW ...다시 할래?
+    CALL ASK_YN
+    IF RESULT
+        QUIT
+    ELSE
+        LOADGAME
+    ENDIF
+ENDIF
