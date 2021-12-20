@@ -23,7 +23,10 @@ PRINTFORML %마스터는% 숲에 놓인 허름한 폐가의 문을 열었다
 위치:5:0 = 복도
 $표시루프
 DRAWLINE
-PRINTFORML 현재위치:%위치:마스터위치:서브위치%({진행도}％)
+PRINTFORML 현재위치:%위치:마스터위치:서브위치%({진행도}％) (탐색도:{탐색도}％)
+IF 위치:마스터위치:서브위치 == "창고"
+    PRINTFORML 여기서 열쇠를 찾아야 한다
+ENDIF
 IF 마스터위치 == 5 && 탈출자 == 0
 	PRINTFORMLC [100] - 탐색
 ELSE
@@ -47,7 +50,7 @@ INPUT
 IF (위치:마스터위치:서브위치 == "복도" || 위치:마스터위치:서브위치 == "금고" || 위치:마스터위치:서브위치 == "창고") && RESULT == 100
 	IF RESULT == 100
 		PRINTFORML %마스터는% 주위을 수색하기 시작했다..
-		탐색도 += (RAND:10) * 2 + 2
+		탐색도 += (RAND:10) * 5 + 2
 		IF !명중판정(88 - (안전횟수 * 2))
 			안전횟수 = 0
 			PRINTFORML ! 요괴 경비원에게 걸렸다!
@@ -145,33 +148,37 @@ ENDIF
 IF 탐색도 >= 100
     IF 위치:마스터위치:서브위치 == "복도" || 위치:마스터위치:서브위치 == "금고" || 위치:마스터위치:서브위치 == "창고"
         진행도 = 0
-        IF 위치:마스터위치:서브위치 == "복도"  && 탈출자 == 0&& 열쇠
-            PRINTFORML 열쇠에 맞는 문을 찾았다!
-            PRINTFORML 문을 열자, 조그마한 방 한 가운데에 앉아있는 누군가를 발견했다
-            PRINTFORML %마스터는% 얼굴을 확인할 틈도 없이 그 사람을 데리고 탈출하기 시작했다
-            IF 열쇠 == 1
-                LOCAL:1 = RAND:6 + 1
-                $탈출자선정루프
-                FOR LOCAL,1,CHARANUM
-                    IF TALENT:LOCAL:창녀 || TALENT:LOCAL:렌탈창녀
-                        LOCAL:1--
-                        IF LOCAL:1 <= 0
-                            탈출자 = LOCAL
-                            GOTO 탈출자선정완료
+        IF 위치:마스터위치:서브위치 == "복도"  && 탈출자 == 0
+            IF 열쇠
+                PRINTFORML 열쇠에 맞는 문을 찾았다!
+                PRINTFORML 문을 열자, 조그마한 방 한 가운데에 앉아있는 누군가를 발견했다
+                PRINTFORML %마스터는% 얼굴을 확인할 틈도 없이 그 사람을 데리고 탈출하기 시작했다
+                IF 열쇠 == 1
+                    LOCAL:1 = RAND:6 + 1
+                    $탈출자선정루프
+                    FOR LOCAL,1,CHARANUM
+                        IF TALENT:LOCAL:창녀 || TALENT:LOCAL:렌탈창녀
+                            LOCAL:1--
+                            IF LOCAL:1 <= 0
+                                탈출자 = LOCAL
+                                GOTO 탈출자선정완료
+                            ENDIF
                         ENDIF
+                    NEXT
+                    LOCAL:2 ++
+                    IF LOCAL:2 >= 10
+                        탈출자 = -1
+                        GOTO 탈출자선정완료
                     ENDIF
-                NEXT
-                LOCAL:2 ++
-                IF LOCAL:2 >= 10
+                    GOTO 탈출자선정루프
+                    $탈출자선정완료
+                ELSE
                     탈출자 = -1
-                    GOTO 탈출자선정완료
                 ENDIF
-                GOTO 탈출자선정루프
-                $탈출자선정완료
+                탈출모드 = 1
             ELSE
-                탈출자 = -1
+                PRINTFORMW 열쇠가 없어서 문을 열 수 없다, 창고에서 열쇠를 탐색해야 할 것이다
             ENDIF
-            탈출모드 = 1
         ELSEIF 위치:마스터위치:서브위치 == "금고"
             IF !돈뭉치
                 PRINTFORML 돈뭉치를 찾았다!
@@ -224,12 +231,33 @@ IF 진행도 >= 100
             마스터위치++
             서브위치 = 0
         ENDIF
-    ELSE
+    ELSEIF 마스터위치 > 0
         PRINTFORML 다음 지역으로 넘어갔다
         PRINTL
         진행도 = 0
         마스터위치--
         서브위치 = 0
+    ELSE
+        PRINTFORML %마스터는% 재빨리 빠져나갔다
+        IF 탈출자
+            PRINTFORML %마스터는% 데리고 나온 사람의 얼굴을 확인했다...
+            IF 탈출자 == -1
+                PRINTFORML ...모르는 얼굴이다
+                PRINTFORML 그녀는 감사를 표하며 어디론가 달아나 버렸다
+            ELSE
+                PRINTFORML %CALLNAME:탈출자%...!
+                IF TALENT:탈출자:타락
+                    PRINTFORML 그러나 그 눈은 고마움보다는 원망이 가득한 눈빛이었다...
+                ELSE
+                    PRINTFORML 아직 자신이 처한 상황을 깨닫지 못한 그녀를 데리고 안전한곳으로 도망갔다...
+                ENDIF
+                CALL 창녀해제(탈출자)
+            ENDIF
+        ENDIF
+        IF 돈뭉치
+            PRINTFORML 꺼내온 돈 뭉치는 {1000000 * 돈뭉치}￦ 어치였다
+            MONEY += 1000000 * 돈뭉치
+        ENDIF
     ENDIF
     탐색도 = 0
 ENDIF
