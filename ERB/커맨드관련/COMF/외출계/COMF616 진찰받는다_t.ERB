@@ -27,6 +27,9 @@ SIF FLAG:충치
 IF CHECK_부상(MASTER,"힘")||CHECK_부상(MASTER,"지성")||CHECK_부상(MASTER,"인내")||CHECK_부상(MASTER,"속도")||CHECK_부상(MASTER,"운")||CHECK_부상(MASTER,"물리내성")||CHECK_부상(MASTER,"화염내성")||CHECK_부상(MASTER,"빙결내성")||CHECK_부상(MASTER,"전격내성")||CHECK_부상(MASTER,"질풍내성")||CHECK_부상(MASTER,"마력내성")||CHECK_부상(MASTER,"수격내성")||CHECK_부상(MASTER,"정신내성")
 	PRINTL [12] 부상을 입어서…
 ENDIF
+IF FLAG:굶어서감소기력
+	PRINTL [13] 기력이 쇠해서…
+ENDIF
 DRAWLINE
 PRINTL [100] 그만둔다
 INPUT
@@ -156,8 +159,8 @@ ELSEIF RESULT == 7
 		GOTO LOOP
 	ENDIF
 	PRINTFORML 「건강보험, 가입하면 치료비를 감면해줘」
-	PRINTFORML 「월 {건보가격(50000)} 원이야. 싸지?」
-	CALL ASK_M("부탁한다", MONEY >= 건보가격(50000),"그만둔다", 1)
+	PRINTFORML 「월 {건보가격(80000)} 원이야. 싸지?」
+	CALL ASK_M("부탁한다", MONEY >= 건보가격(80000),"그만둔다", 1)
 	SIF RESULT
 		GOTO LOOP
 	PRINTFORMW 건강보험을 계약했다
@@ -213,14 +216,14 @@ ELSEIF RESULT == 8
 	IF FLAG:불소도포
 		PRINTFORML 「이미 되어 있는걸」
 	ELSE
-		PRINTFORML 「충치 예방을 위해 불소 도포를 받을래? 5만원정도 하는데」
+		PRINTFORML 「충치 예방을 위해 불소 도포를 받을래? 8만원정도 하는데」
 		SIF FLAG:건강보험
 			PRINTFORML 「참고로 이건 보험 적용 안돼」
 		CALL ASK_YN
 		IF RESULT
 			GOTO LOOP
 		ELSE
-			IF MONEY < 50000
+			IF MONEY < 80000
 				PRINTFORMW 「돈이 없잖니」
 				GOTO LOOP
 			ELSE
@@ -231,12 +234,12 @@ ELSEIF RESULT == 8
 				PRINTFORML 「끝, 1년동안은 충치가 거의 안 날거야」
 				PRINTFORML 「그래도 아예 안 나는건 아니니 조심해?」
 				FLAG:불소도포 = 124
-				MONEY -= 50000
+				MONEY -= 80000
 			ENDIF
 		ENDIF
 	ENDIF
 ELSEIF RESULT == 12&&(CHECK_부상(MASTER,"힘")||CHECK_부상(MASTER,"지성")||CHECK_부상(MASTER,"인내")||CHECK_부상(MASTER,"속도")||CHECK_부상(MASTER,"운")||CHECK_부상(MASTER,"물리내성")||CHECK_부상(MASTER,"화염내성")||CHECK_부상(MASTER,"빙결내성")||CHECK_부상(MASTER,"전격내성")||CHECK_부상(MASTER,"질풍내성")||CHECK_부상(MASTER,"마력내성")||CHECK_부상(MASTER,"수격내성")||CHECK_부상(MASTER,"정신내성"))
-	IF MONEY >= 건보적용(10000)
+	IF MONEY >= 건보적용(50000)
 		PRINTFORML 어떤 부상을 치료할까?
 		IF CHECK_부상(MASTER,"힘")
 			PRINTFORML [0] 힘
@@ -312,10 +315,25 @@ ELSEIF RESULT == 12&&(CHECK_부상(MASTER,"힘")||CHECK_부상(MASTER,"지성")|
 			ELSE
 				GOTO 부상치료루프
 			ENDIF
-			MONEY -= 건보적용(10000)
+			MONEY -= 건보적용(50000)
 			PRINTFORML 「응, 대충 이정도면 되려나」
 			PRINTFORML 「앞으론 다치지 않게 조심해?」
 		ENDIF
+	ELSE
+		PRINTW 돈이 부족하다
+	ENDIF
+ELSEIF RESULT == 13 && FLAG:굶어서감소기력
+	IF MONEY >= 건보적용(150000)
+		PRINTFORML 에이린은 %마스터의% 팔뚝에 링거를 꼽았다
+		PRINTW .
+		PRINTW ..
+		PRINTW ...
+		PRINTFORML 「앞으로는 영양을 골고루 섭취하도록 해」
+		PRINTFORMW 잃어버렸던 기력이 어느정도 회복되었다!
+		LOCAL = FLAG:굶어서감소기력 * 3 / 5
+		FLAG:굶어서감소기력 -= LOCAL
+		MAXBASE:MASTER:기력 += LOCAL
+		TIME += 90
 	ELSE
 		PRINTW 돈이 부족하다
 	ENDIF
@@ -519,5 +537,5 @@ SELECTCASE (MONEY+은행잔고)/10000
         세율계산 = 0
 ENDSELECT
 
-LOCAL = ARG + (세율계산 * 100)
+LOCAL = ARG + (세율계산 * 110)
 RETURNF LOCAL
