@@ -141,14 +141,7 @@ CASE "초기화"
 VARSET 남은지속시간
 CASE "시스템체크"
     ;시스템 메시지에 따른 검사, 패시브 스킬등에 이용, 액티브는 딱히 쓸 일이 있나?
-    IF (T_시스템 == 106 || T_시스템 == 107) && T_시스템:3 == 사용자 && 남은지속시간:사용자 > 0
-        IF 스킬명중판정(55,530)
-            CALL PRINT_SPELLNAME(530)
-            PRINTFORML 가짜쪽이었다!
-            CALL 통합버프(T_시전자,TCV_보호,530,T_시스템:2,1)
-            CALL T_데미지스택(T_시전자반대,MIN(피해량,40 * ARG능력치(T_시전자,"지성")),속성)
-        ENDIF
-    ENDIF
+    
 CASE "지속효과발동"
     ;지속적으로 효과가 발동하는 스킬의 경우, 여기에 효과를 입력
     IF 남은지속시간:사용자 > 0
@@ -189,6 +182,7 @@ IF 스킬명중판정(명중률,530)
     피해량 = T_SKILL530("공격력")
     속성 '= T_SKILL530_STR("속성")
     ;CALL T_데미지(T_턴반대, 피해량, 속성)
+    CALL T_반격기등록(T_시전자,530,4)
     CALL ONGOING_T_SKILL530(사용자, "지속시간설정")
     RETURN 1
 ELSE
@@ -261,3 +255,32 @@ CASE "유도력"
     RESULT = 유도력
 ENDSELECT
 RETURNF RESULT
+
+@RV_CONDITION_T_SKILL530(사용자,피해량,원래피해량)
+#DIM DYNAMIC 원래피해량
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 피해량
+;반격기의 실행 조건, 2을 리턴하면 시전가능, 아니면 시전 불가능
+;반격기가 아니면 0으로
+SIF T_반격타이밍 != 1
+    RETURN 0
+SIF T_턴주인 == 사용자
+    RETURN 0
+RETURN 2
+
+@RV_AFTER_T_SKILL530(사용자,받은피해량,받은원래피해량)
+#DIM DYNAMIC 받은원래피해량
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 피해량
+#DIM DYNAMIC 받은피해량
+#DIMS 속성
+피해량 = T_SKILL530("공격력")
+속성 '= T_SKILL530_STR("속성")
+;반격기의 내용
+IF 스킬명중판정(55,530)
+    CALL PRINT_SPELLNAME(530)
+    PRINTFORML 가짜쪽이었다!
+    CALL 통합버프(T_시전자,TCV_보호,530,받은피해량,1)
+    CALL T_데미지스택(T_시전자반대,피해량,속성)
+ENDIF
+RETURN 0
