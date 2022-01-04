@@ -15,8 +15,8 @@ ENDIF
 
 FLAG:오늘밥 += 1
 
-CALL 영양소증가(요리영양소:0,요리영양소:1,요리영양소:2,요리영양소:3,요리영양소:4)
-VARSET 요리영양소
+
+
 FLAG:충치진행도 += RAND:3
 ;특수요리판정
 IF DISH_NAME == "샤브샤브" && TARGET
@@ -270,8 +270,10 @@ RETURN 1
 #DIM 체력회복율
 #DIM TSP회복율
 #DIM 만복도
+#DIM DYNAMIC 섭취량
 ;회복율은 0.1%단위
 
+섭취량 = 100
 FLAG:오늘밥 = 1
 ;TSP회복량 = 0
 TSP회복율 = 0
@@ -367,7 +369,7 @@ SIF STRCOUNT(DISH_TASTE, "풍양/")
 	TCVAR:ARG:풍양 = 1
 
 ;MASTER 이외의 처리
-IF ARG != MASTER
+IF 1||ARG != MASTER
 	;맛의 평가, 구상측에서 제어되는 경우 컷
 	SIF !TCVAR:ARG:요리평가치
 		CALL REVIEW_DISH(ARG, DISH_TASTE)
@@ -423,7 +425,21 @@ IF 주문내용_술
 	체력회복율 += 15
 	기력회복율 += 75
 ENDIF
-
+IF TCVAR:ARG:요리평가치 <= 300
+	섭취량 = 10
+ELSEIF TCVAR:ARG:요리평가치 <= 400
+	섭취량 = 20
+ELSEIF TCVAR:ARG:요리평가치 <= 500
+	섭취량 = 40
+ELSEIF TCVAR:ARG:요리평가치 <= 600
+	섭취량 = 70
+ELSE
+	섭취량 = 100
+ENDIF
+체력회복율 = 체력회복율 * 섭취량 / 100
+기력회복율 = 기력회복율 * 섭취량 / 100
+정력회복율 = 정력회복율 * 섭취량 / 100
+만복도 = 만복도 * 섭취량 / 100
 ;로터 요리
 SIF STRCOUNT(DISH_TASTE, "로터/")
 	EXP:ARG:C경험 += 30
@@ -442,6 +458,14 @@ IF ARG == MASTER
 	; CALL RECOVER(ARG, 정력회복량, "정력", "식사에 의한 회복")
 	; CALL RECOVER(ARG, TSP회복량, "TSP", "식사에 의한 회복")
 	CALL RECOVER_PERMIL(ARG, TSP회복율, "TSP", 0, "식사에 의한 회복")
+	PRINTFORML %CALLNAME:ARG + "의 평가…………", 40, LEFT%{TCVAR:ARG:요리평가치, 3}점
+	요리영양소:0 = 요리영양소:0 * 섭취량 / 100
+	요리영양소:1 = 요리영양소:1 * 섭취량 / 100
+	요리영양소:2 = 요리영양소:2 * 섭취량 / 100
+	요리영양소:3 = 요리영양소:3 * 섭취량 / 100
+	요리영양소:4 = 요리영양소:4 * 섭취량 / 100
+	CALL 영양소증가(요리영양소:0,요리영양소:1,요리영양소:2,요리영양소:3,요리영양소:4)
+	VARSET 요리영양소
 ELSE
 	PRINTFORML %CALLNAME:ARG + "의 평가…………", 40, LEFT%{TCVAR:ARG:요리평가치, 3}점
 ENDIF
