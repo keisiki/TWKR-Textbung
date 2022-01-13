@@ -697,6 +697,9 @@ IF DISH_TASTE == ""
     IF LOCAL:1 <= 5
         DISH_TASTE += "심플/"
         TIME -= 5
+    ELSEIF LOCAL:1 >= 10
+        DISH_TASTE += "푸짐/"
+        TIME += 10
     ENDIF
 ELSEIF DISH_TYPE == ""
     IF STRFIND(DISH_TASTE,"주식")
@@ -920,3 +923,74 @@ ELSE
     요리이름 = 수수께끼 요리
 ENDIF
 RETURNF 요리이름
+
+
+@맛의종류(ARG = 0)
+#DIMS TASTE_STR               ;표시 대상의 맛데이터
+#DIMS DYNAMIC TASTE_LIST, 100 ;미 리스트
+#DIM  DYNAMIC TASTE_CNT,  100 ;미 리스트 각 요소의 중복 개수
+#DIM  DYNAMIC TASTE_NUM       ;미의 종류의 총수
+#DIMS DYNAMIC 맛리스트,1000
+#DIM DYNAMIC 카운터
+FOR LOCAL,1,CHARANUM
+    TASTE_STR '= GET_STR(, "캐릭터데이터", LOCAL, "요리：좋아하는 맛")
+    CALLF CNT_SPLIT(TASTE_STR, TASTE_LIST, TASTE_CNT, TASTE_NUM)
+    FOR LOCAL:2,0,100
+        LOCAL:3 = 0
+        FOR LOCAL:1,0,카운터+1
+            IF 맛리스트:(LOCAL:1) == TASTE_LIST:(LOCAL:2)
+                LOCAL:3 = 1
+                BREAK
+            ELSE
+                LOCAL:3 = 0
+            ENDIF
+        NEXT
+        IF LOCAL:3 == 0
+            맛리스트:카운터 '= TASTE_LIST:(LOCAL:2)
+            카운터++
+        ENDIF
+    NEXT
+    TASTE_STR '= GET_STR(, "캐릭터데이터", LOCAL, "요리：싫어하는 맛")
+    CALLF CNT_SPLIT(TASTE_STR, TASTE_LIST, TASTE_CNT, TASTE_NUM)
+    FOR LOCAL:2,0,100
+        LOCAL:3 = 0
+        FOR LOCAL:1,0,카운터+1
+            IF 맛리스트:(LOCAL:1) == TASTE_LIST:(LOCAL:2)
+                LOCAL:3 = 1
+                BREAK
+            ELSE
+                LOCAL:3 = 0
+            ENDIF
+        NEXT
+        IF LOCAL:3 == 0
+            맛리스트:카운터 '= TASTE_LIST:(LOCAL:2)
+            카운터++
+        ENDIF
+    NEXT
+    TASTE_STR '= GET_STR(, "캐릭터데이터", LOCAL, "요리：조수 효과")
+    SPLIT TASTE_STR, "＊", RESULTS
+    FOR LOCAL:1,0,카운터+1
+        IF 맛리스트:(LOCAL:1) == RESULTS:1
+            LOCAL:3 = 1
+            BREAK
+        ELSE
+            LOCAL:3 = 0
+        ENDIF
+    NEXT
+    IF LOCAL:3 == 0
+        맛리스트:카운터 '= RESULTS:1
+        카운터++
+    ENDIF
+NEXT
+IF ARG == 1
+    LOCAL:1 = 0
+    FOR LOCAL,0,카운터+1
+        PRINTFORM [%맛리스트:LOCAL,20,RIGHT%]　
+        LOCAL:1++
+        IF LOCAL:1 % 5 == 0
+            PRINTL
+        ENDIF
+    NEXT
+    PRINTL
+    PRINTL
+ENDIF
