@@ -372,33 +372,42 @@ IF 턴넘김 == 1
     CALL 뉴탄막커맨드창
     INPUT
     
-    IF RESULT == 100 && 행동기회여부(대상1,T_통상행동)
+    IF RESULT == TCN_공격한다 && 행동기회여부(대상1,T_통상행동)
         ;공격 ;RETURN 0:회피 1:공격성공
         CALL T_COM공격한다
         BREAK
-    ELSEIF RESULT == 101 && 행동기회여부(대상1,T_통상행동)
+    ELSEIF RESULT == TCN_스킬사용 && 행동기회여부(대상1,T_통상행동)
         ;스킬사용
         ;RETURN 0:시전실패 1:시전성공
         CALL T_COM스킬사용
         IF RESULT == 1
             BREAK
         ENDIF
-    ELSEIF RESULT == 102 && 행동기회여부(대상1,T_통상행동)
+    ELSEIF RESULT == TCN_아이템사용 && 행동기회여부(대상1,T_통상행동)
         ;아이템사용
         CALL 뉴탄막아이템
         IF RESULT == 1
             BREAK
         ENDIF
-    ELSEIF RESULT == 200 && 행동기회여부(대상1,T_이동행동)
-        CALL T_COM이동한다
+    ELSEIF GROUPMATCH(RESULT,TCN_좌측이동,TCN_좌측절반,TCN_우측절반,TCN_우측이동) && 행동기회여부(대상1,T_이동행동)
+        SELECTCASE RESULT
+            CASE TCN_좌측이동
+                CALL T_COM이동한다(-2)
+            CASE TCN_좌측절반
+                CALL T_COM이동한다(-1)
+            CASE TCN_우측절반
+                CALL T_COM이동한다(1)
+            CASE TCN_우측이동
+                CALL T_COM이동한다(2)
+        ENDSELECT
         IF RESULT == 1
             BREAK
         ENDIF
-    ELSEIF RESULT == 201 && 행동기회여부(대상1,T_통상행동)
+    ELSEIF RESULT == TCN_회피에집중 && 행동기회여부(대상1,T_통상행동)
         ;회피
         CALL T_COM회피한다(대상1)
         BREAK
-    ELSEIF RESULT == 202 && 행동기회여부(대상1,T_통상행동)
+    ELSEIF RESULT == TCN_도망친다 && 행동기회여부(대상1,T_통상행동)
         ;도주
         PRINTFORML 진짜로?
         CALL ASK_YN
@@ -407,14 +416,14 @@ IF 턴넘김 == 1
         ENDIF
         CALL T_COM도망간다(대상1)
         BREAK
-    ELSEIF RESULT == 500
+    ELSEIF RESULT == TCN_이동행동사용
         이동행동자동무시 = !이동행동자동무시
-    ELSEIF RESULT == 501
+    ELSEIF RESULT == TCN_턴넘기기
         CALL T_COM턴넘김
         BREAK
-    ELSEIF RESULT == 998
+    ELSEIF RESULT == TCN_적용된반격기
         CALL T_반격기목록
-    ELSEIF RESULT == 999 && 행동기회여부(대상1,T_통상행동)
+    ELSEIF RESULT == TCN_항복 && 행동기회여부(대상1,T_통상행동)
         ;항복
         PRINTFORML 진짜로?
         CALL ASK_YN
@@ -674,48 +683,90 @@ NEXT
 T_TIME++
 
 @뉴탄막커맨드창
-
-CALL 뉴탄막커맨드창_색깔설정("통상")
-PRINTFORMLC [100] 공격 한다
-;PRINT    
-CALL 뉴탄막커맨드창_색깔설정("통상")
-PRINTFORMLC [101] 스킬 사용
-;PRINT    
-CALL 뉴탄막커맨드창_색깔설정("통상")
-PRINTFORMLC [102] 아이템 사용
-
-IF 이동행동자동무시
-    SETCOLOR 0X808080
-ELSE
-    RESETCOLOR
-ENDIF
-PRINTFORMC [500] 이동행동사용 : \@ 이동행동자동무시 == 1 ? 스킵한다 # 사용한다 \@
-RESETCOLOR
+ALIGNMENT CENTER
 ;----------------
-PRINTL
-
-
+;LINE 1
+;----------------
 CALL 뉴탄막커맨드창_색깔설정("이동")
-PRINTFORMLC [200] 이동 한다
-;PRINT    
+PRINTBUTTON "[<<]　　　",TCN_좌측이동
+PRINTBUTTON "[<] 　　　",TCN_좌측절반
+;/////////////////////
 CALL 뉴탄막커맨드창_색깔설정("통상")
-PRINTFORMLC [201] 회피에 집중
-;PRINT     
+PRINTFORM [{TCN_공격한다}] %뉴탄막커맨드창_출력(TCN_공격한다),15,RIGHT%　　　
+;/////////////////////
 CALL 뉴탄막커맨드창_색깔설정("통상")
-PRINTFORMLC [202] 도망친다
+PRINTFORM [{TCN_스킬사용}] %뉴탄막커맨드창_출력(TCN_스킬사용),15,RIGHT%　　　
+;/////////////////////
+CALL 뉴탄막커맨드창_색깔설정("통상")
+PRINTFORM [{TCN_아이템사용}] %뉴탄막커맨드창_출력(TCN_아이템사용),15,RIGHT%　　　
 RESETCOLOR
-PRINTFORMLC [501] 턴 넘기기
+;/////////////////////
+CALL 뉴탄막커맨드창_색깔설정("이동")
+PRINTBUTTON "[>] 　　　",TCN_우측절반
+PRINTBUTTON "[>>]　　　",TCN_우측이동
+;/////////////////////
+PRINTL
+;----------------
+;LINE 2
+;----------------
 
+CALL 뉴탄막커맨드창_색깔설정("통상")
+PRINTFORM [{TCN_회피에집중}] %뉴탄막커맨드창_출력(TCN_회피에집중),15,RIGHT%　　　
+;/////////////////////
+
+PRINTFORM [{TCN_턴넘기기}] %뉴탄막커맨드창_출력(TCN_턴넘기기),15,RIGHT%　　　
+;/////////////////////
+SIF 이동행동자동무시
+    SETCOLOR 0X808080
+PRINTFORM [{TCN_이동행동사용}] %뉴탄막커맨드창_출력(TCN_이동행동사용),15,RIGHT%　　　
+RESETCOLOR
+;/////////////////////
 PRINTL
 
 
-;-----------
+;----------------
+;LINE 3
+;----------------
 
-PRINTFORMLC [998] 적용된 반격기
-PRINTFORM [999] 항복
+PRINTFORM [{TCN_적용된반격기}] %뉴탄막커맨드창_출력(TCN_적용된반격기),15,RIGHT%　　　
+;/////////////////////
+CALL 뉴탄막커맨드창_색깔설정("통상")
+PRINTFORM [{TCN_도망친다}] %뉴탄막커맨드창_출력(TCN_도망친다),15,RIGHT%　　　
+RESETCOLOR
+;/////////////////////
+PRINTFORM [{TCN_항복}] %뉴탄막커맨드창_출력(TCN_항복),15,RIGHT%　　　
+;/////////////////////
 PRINTL
 RESETCOLOR
+ALIGNMENT LEFT
 DRAWLINE
+
+@뉴탄막커맨드창_출력(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+    CASE TCN_공격한다
+        RETURNF "공격 한다"
+    CASE TCN_스킬사용
+        RETURNF "스킬 사용"
+    CASE TCN_아이템사용
+        RETURNF "아이템 사용"
+    CASE TCN_이동행동사용
+        IF 이동행동자동무시
+            RETURNF "이동행동：스킵"
+        ELSE
+            RETURNF "이동행동：사용"
+        ENDIF
+    CASE TCN_회피에집중
+        RETURNF "회피에 집중"
+    CASE TCN_도망친다
+        RETURNF "도망친다"
+    CASE TCN_턴넘기기
+        RETURNF "턴 넘기기"
+    CASE TCN_적용된반격기
+        RETURNF "적용된 반격기"
+    CASE TCN_항복
+        RETURNF "항복 한다"
+ENDSELECT
 
 
 @뉴탄막커맨드창_색깔설정(ARGS)
