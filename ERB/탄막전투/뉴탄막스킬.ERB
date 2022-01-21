@@ -478,7 +478,7 @@ T_시전자반대 = T_턴반대
 $스킬표시
 PRINTL 무엇을 쓸까?
 DRAWLINE
-PRINTL ┌[번호]─[스킬명]───────────────┬[쿨타임]┬[ＨＰ소모량]┬[ＴＳＰ소모량]─┬[최대사거리]┐
+PRINTL ┌[번호]─[스킬명]───────────────┬[쿨타임]┬[ＨＰ소모량]┬[ＴＳＰ소모량]─┬[최대사거리]┬[조준속성]┬[기본적중률]┐
 FOR 스킬번호,1,T_스킬한계값
     ;IF HAVE_T_SKILL(T_턴주인, 스킬번호)
     IF IS_MEMORIZED(스킬번호)
@@ -549,12 +549,49 @@ FOR 스킬번호,1,T_스킬한계값
         CALLFORMF T_SKILL{스킬번호}_RANGE("최대사거리")
         PRINTFORM {RESULT,10,RIGHT}ｍ
         RESETCOLOR
+        PRINT │
+        PRINT 　
+        IF 시전가부 == 1
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
+            SETCOLOR RESULT
+        ELSE
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전불가")
+            SETCOLOR RESULT
+        ENDIF
+        CALLFORMF T_SKILL{스킬번호}_RANGE("조준속성")
+        SELECTCASE RESULT
+            CASE T_근거리
+                PRINT 근거리
+            CASE T_고정탄
+                PRINT 고정탄
+            CASE T_조준탄
+                PRINT 조준탄
+            CASE T_유도탄
+                PRINT 유도탄
+            CASE T_즉발탄
+                PRINT 즉　발
+            CASE T_버프기
+                PRINT 버프기
+        ENDSELECT
+        PRINT 　
+        RESETCOLOR
+        PRINT │
+        IF 시전가부 == 1
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
+            SETCOLOR RESULT
+        ELSE
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전불가")
+            SETCOLOR RESULT
+        ENDIF
+        CALLFORMF T_SKILL{스킬번호}("명중률")
+        PRINTFORM {RESULT,10,RIGHT}％
+        RESETCOLOR
         PRINTL │
     ELSE
         ;스킬 소유하고 있지 않음
     ENDIF
 NEXT
-PRINTL └───────────────────────┴────┴──────┴────────┴──────┘
+PRINTL └───────────────────────┴────┴──────┴────────┴──────┴─────┴──────┘
 PRINTL
 PRINTL [9998]설명
 PRINTL [9999]돌아간다
@@ -584,7 +621,10 @@ WEND
 @T_HELP
 #DIM 스킬번호
 #DIM DYNAMIC IS_BATTLE
-
+#DIM DYNAMIC PAGE
+#DIM DYNAMIC SKIPCOUNT
+#DIM DYNAMIC PRINTCOUNT
+#DIM DYNAMIC LASTPAGE
 IF BATTLE_NOW
     T_시전자 = T_턴주인
     T_시전자반대 = T_턴반대
@@ -593,20 +633,36 @@ ELSE
     T_시전자 = MASTER
     T_시전자반대 = MASTER 
 ENDIF
+$LOOP
 PRINTL 어떤 스킬의 설명을 볼까?
 DRAWLINE
-FOR 스킬번호,1,1000
+PRINTCOUNT = 0
+SKIPCOUNT = 0
+FOR 스킬번호,1,T_스킬한계값
     IF (IS_MEMORIZED(스킬번호)&&IS_BATTLE)||(HAVE_T_SKILL(MASTER, 스킬번호)&&!IS_BATTLE)
+        IF PAGE * 25 > SKIPCOUNT
+            SKIPCOUNT++
+            CONTINUE
+        ENDIF
         ;스킬 소유, 스킬창에 이름 표시
         CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
         PRINTFORMLC [{스킬번호}] %RESULTS%
         RESETCOLOR
         PRINTL
+        PRINTCOUNT++
+        IF PRINTCOUNT >= 25
+            BREAK
+        ENDIF
     ELSE
         ;스킬 소유하고 있지 않음
     ENDIF
 NEXT
 PRINTL
+IF PRINTCOUNT < 25
+    LASTPAGE = 1
+ENDIF
+PRINTFORML [11111] 이전페이지
+PRINTFORML [22222] 다음페이지
 PRINTL [9999]돌아간다
 WHILE 1
     INPUT
@@ -614,6 +670,21 @@ WHILE 1
     CLEARLINE 1
     IF LOCAL == 9999
         RETURN 0
+    ELSEIF RESULT == 11111
+        LASTPAGE = 0
+        PAGE = MAX(PAGE - 1, 0)
+        CLEARLINE 31
+        GOTO LOOP
+    ELSEIF RESULT == 22222
+        IF LASTPAGE != 1
+            PAGE++
+            CLEARLINE 31
+        ELSE
+            CLEARLINE PRINTCOUNT
+            CLEARLINE 6
+        ENDIF
+        GOTO LOOP
+        
     ELSEIF (IS_MEMORIZED(LOCAL)&&IS_BATTLE)||(HAVE_T_SKILL(MASTER, LOCAL)&&!IS_BATTLE)
         DRAWLINE
         CALLFORMF T_SKILL{LOCAL}_STR("스킬명")
