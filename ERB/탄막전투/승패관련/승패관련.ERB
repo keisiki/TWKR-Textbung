@@ -46,7 +46,10 @@ ENDIF
 IF ARG == MASTER && ARG:2 == 0
     ARG:1 += TALENT:ARG:습득속도 * 10
     SIF FLAG:조교전
-        ARG:1 = ARG:1 * 2 + 250
+        TIMES ARG:1, 1.5
+        ARG:1 += 250
+        SIF RAND:5 == 0
+            CALL AddEXP("전투경험" , MASTER, 1)
     IF TFLAG:엑스트라인텔리
         ARG:1 += 225
         EXP:MASTER:전투경험 += 2
@@ -322,11 +325,12 @@ WEND
 ;승패를 처리하는 함수
 탄막전투화상무시 = 0
 IF ABL:TARGET:레벨 > ABL:MASTER:레벨
-    타겟획득경험치 = ((ABL:TARGET:레벨 / (ABL:TARGET:레벨 - ABL:MASTER:레벨 + 1)) *10)+1
-    마스터획득경험치 = MAX(ABL:TARGET:레벨 - ABL:MASTER:레벨, 1)*50
+    타겟획득경험치 = (((ABL:TARGET:레벨 + 100) / (ABL:TARGET:레벨 - ABL:MASTER:레벨 + 1)) *10)+25
+    마스터획득경험치 = MAX(ABL:TARGET:레벨 - ABL:MASTER:레벨, 1)*75
 ELSE
-    타겟획득경험치 = MAX(ABL:TARGET:레벨 - ABL:MASTER:레벨, 1)*50
-    마스터획득경험치 = ((ABL:MASTER:레벨 / (ABL:MASTER:레벨 - ABL:TARGET:레벨 + 1)) *10)+1
+    ;마스터가 타겟보다 레벨이 높거나 같다
+    타겟획득경험치 = MAX(ABL:TARGET:레벨 - ABL:MASTER:레벨, 1)*75
+    마스터획득경험치 = (((ABL:MASTER:레벨 + 100)/ (ABL:MASTER:레벨 - ABL:TARGET:레벨 + 1)) *10)+25
 ENDIF
 SELECTCASE TALENT:TARGET:사망경험
     CASE IS > 100
@@ -361,6 +365,7 @@ ENDIF
 SELECTCASE ARG
     CASE 0
         ;타겟 패배
+        TIMES 타겟획득경험치, 1.3
         IF 타겟획득경험치 > ABL:TARGET:레벨 * 100
             타겟획득경험치 = ABL:TARGET:레벨 * 100
         ENDIF
@@ -386,7 +391,7 @@ SELECTCASE ARG
                     CONTINUE
                 SIF LOCAL == 타겟대피소
                     CONTINUE
-                IF GROUPMATCH(CFLAG:LOCAL:직종, 40, 41, 42, 43, 44, 47, 48, 50)
+                IF GROUPMATCH(CFLAG:LOCAL:직종, 40, 41, 42, 43, 44, 47, 48, 50) && !탄막놀이축제진행중
                     PRINTFORML 「시끄러워！」
                     CALL THROW_STONE(LOCAL)
                 ELSEIF CFLAG:LOCAL:직종 == ENKAI_SANKA && !ACCOMPANY_ABLE(LOCAL)
@@ -435,6 +440,7 @@ SELECTCASE ARG
         ENDIF
         RETURN 1
     CASE 2
+        TIMES 마스터획득경험치, 1.3
         IF 마스터획득경험치 > ABL:MASTER:레벨 * 100
             마스터획득경험치 = ABL:MASTER:레벨 * 100
         ENDIF
