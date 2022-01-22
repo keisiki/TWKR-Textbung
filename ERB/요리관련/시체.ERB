@@ -1,0 +1,449 @@
+﻿@시체생성(ARG)
+#DIM DYNAMIC 전리품타입
+#DIM DYNAMIC 빈칸
+IF GROUPMATCH(ARG,71,83)
+    전리품타입 = 8
+    GOTO MAKE_CORPSE
+ENDIF
+IF ARG == 23
+    전리품타입 = 7
+    GOTO MAKE_CORPSE
+ENDIF
+IF CHECK_CHARA(ARG,"츠쿠무가미")
+    전리품타입 = 6
+    GOTO MAKE_CORPSE
+ENDIF
+IF GROUPMATCH(ARG,16,28,29,37,41,42,50,59,101,110,129,133,140)
+    전리품타입 = 5
+    GOTO MAKE_CORPSE
+ENDIF
+IF GROUPMATCH(ARG,108,107,100,53,52)
+    전리품타입 = 4
+    GOTO MAKE_CORPSE
+ENDIF
+IF CHECK_CHARA(ARG,"인형")
+    전리품타입 = 3
+    GOTO MAKE_CORPSE
+ENDIF
+IF GROUPMATCH(ARG,10,64,67,97,120,128,130)
+    전리품타입 = 2
+    GOTO MAKE_CORPSE
+ENDIF
+IF CHECK_CHARA(ARG,"요정")
+    전리품타입 = 1
+    GOTO MAKE_CORPSE
+ENDIF
+IF CHECK_CHARA(ARG,"인간") || CHECK_CHARA(ARG,"요괴")
+    전리품타입 = 0
+    GOTO MAKE_CORPSE
+ENDIF
+
+;여기까지 안 걸렸으면
+전리품타입 = 9
+
+$MAKE_CORPSE
+
+FOR 빈칸,0,20
+    IF T_들고있는시체:빈칸:0 == 0
+        GOTO PHASE1
+    ENDIF
+NEXT
+PRINTFORML 들고 있는 시체가 너무 많아서 더이상 가질수 없다...
+RETURN
+
+$PHASE1
+T_들고있는시체:빈칸:0 = 1
+T_들고있는시체:빈칸:1 = ARG
+T_들고있는시체:빈칸:2 = DAY
+T_들고있는시체:빈칸:3 = 시체데이터(전리품타입,"크기")
+T_들고있는시체:빈칸:4 = 전리품타입
+PRINTFORML %ARG의% 시체를 챙겼다
+
+@시체수납
+#DIM DYNAMIC 빈칸
+FOR LOCAL,0,20
+    IF T_들고있는시체:LOCAL:0 == 0
+        CONTINUE
+    ENDIF
+    FOR 빈칸,0,1000
+        IF T_시체:빈칸:0 == 0
+            T_시체:빈칸:0 = 1
+            T_시체:빈칸:1 = T_들고있는시체:빈칸:1
+            T_시체:빈칸:2 = T_들고있는시체:빈칸:2
+            T_시체:빈칸:3 = T_들고있는시체:빈칸:3
+            T_시체:빈칸:4 = T_들고있는시체:빈칸:4
+            T_들고있는시체:LOCAL:0 = 0
+            BREAK
+        ENDIF
+    NEXT
+NEXT
+
+@시체부패
+;하루끝에 수납되지만 노파심에
+FOR LOCAL,0,20
+    IF T_들고있는시체:LOCAL:0 == 1
+        IF T_들고있는시체:LOCAL:2 + 시체데이터(T_들고있는시체:LOCAL:4,"유통기한") < DAY
+            PRINTFORML %CALLNAME:(T_들고있는시체:LOCAL:1)%의 시체가 부패해버렸다...
+            T_들고있는시체:LOCAL:0 = 0
+        ENDIF
+    ENDIF
+NEXT
+FOR LOCAL,0,1000
+    IF T_시체:LOCAL:0 == 1
+        IF T_시체:LOCAL:2 + 시체데이터(T_시체:LOCAL:4,"유통기한") < DAY
+            PRINTFORML %CALLNAME:(T_시체:LOCAL:1)%의 시체가 부패해버렸다...
+            T_시체:LOCAL:0 = 0
+        ENDIF
+    ENDIF
+NEXT
+
+@도축(ARG = 0)
+#DIM DYNAMIC 품질
+#DIM DYNAMIC 대상
+CALL 시체수납
+PRINTFORML 무엇을 도축할까?
+DRAWLINE
+FOR LOCAL,0,1000
+    SIF T_시체:LOCAL:0 != 0
+        PRINTFORML [{LOCAL}] %CALLNAME:(T_시체:LOCAL:1)%의 시체
+NEXT
+DRAWLINE
+PRINTFORML [9999] 돌아간다
+$LOOP
+INPUT
+IF RESULT == 9999
+    RETURN
+ELSE
+    IF RESULT < 1000
+        IF T_시체:RESULT:0 == 1
+            ;대상 선택 완료
+            대상 = RESULT
+            IF ARG
+                품질 = ARG
+            ELSE
+                품질 = 1
+                품질 += ABL:MASTER:기교 * 4
+                ;--------------------------
+                ;실제로 어떤 식으로 품질을 올릴지, 그것을 적는 부분
+                ;일단 임시값만 두는것으로
+
+                품질 += 20
+                품질 += RAND:20
+
+                ;--------------------------
+                SELECTCASE ABL:MASTER:요리기능
+                    CASE 0
+                        TIMES 품질, 0.6
+                    CASE 1
+                        TIMES 품질, 0.8
+                    CASE 2
+                        TIMES 품질, 1.0
+                    CASE 3
+                        TIMES 품질, 1.2
+                    CASE 4
+                        TIMES 품질, 1.4
+                    CASE 5 
+                        TIMES 품질, 1.6
+                    CASE 6
+                        TIMES 품질, 1.8
+                    CASE 7
+                        TIMES 품질, 2.0
+                ENDSELECT
+                SELECTCASE 시체데이터(T_시체:대상:4,"난이도")
+                    CASE 1
+                        TIMES 품질, 1.25
+                    CASE 2
+                        TIMES 품질, 1.0
+                    CASE 3
+                        TIMES 품질, 0.75
+                ENDSELECT
+                IF 품질 >= 100
+                    품질 = 100
+                ENDIF
+                EXP:MASTER:요리경험 += 품질 / 10
+            ENDIF
+            CALL 도축결과물생성(대상,품질)
+            T_시체:대상:0 = 0
+            RESTART
+        ENDIF
+    ENDIF
+    GOTO LOOP
+ENDIF
+RESTART
+
+@도축결과물생성(대상,품질)
+#DIM DYNAMIC 대상
+#DIM DYNAMIC 품질
+#DIM DYNAMIC 고기양
+#DIM DYNAMIC 뼈양
+#DIM DYNAMIC 머리카락양
+#DIM DYNAMIC 장기양 ;사실 유무만
+#DIM DYNAMIC 영혼조각양
+#DIM DYNAMIC 특산품양,2
+#DIM DYNAMIC 실제생산량
+;종류,개수
+IF T_시체:대상:0 != 1
+    THROW 도축중 올바르지 않은 값이 전달됨
+ENDIF
+PRINTL
+SELECTCASE T_시체:대상:4
+    CASE 0
+        ;평범
+        고기양 = 75
+        장기양 = 1
+        뼈양 = 15
+        영혼조각양 = 1
+        머리카락양 = 10
+    CASE 1
+        ;요정
+        고기양 = 25
+        장기양 = 1
+        뼈양 = 8
+        머리카락양 = 10
+        특산품양:0 = GETNUM(ITEM,"요정의날개")
+        특산품양:1 = 2
+    CASE 2
+        ;뿔달림
+        고기양 = 75
+        장기양 = 1
+        뼈양 = 15
+        영혼조각양 = 1
+        머리카락양 = 10
+        특산품양:0 = GETNUM(ITEM,"뿔")
+        특산품양:1 = 1
+        SIF T_시체:대상:1 != [[유기]]
+            특산품양:1++ 
+    CASE 3
+        ;인형,영체 비스므리한것들
+        영혼조각양 = 5
+        특산품양:0 = GETNUM(ITEM,"마력의파편")
+        특산품양:1 = 5
+    CASE 4
+        ;토뀡
+        고기양 = 75
+        장기양 = 1
+        뼈양 = 15
+        영혼조각양 = 1
+        머리카락양 = 10
+        특산품양:0 = GETNUM(ITEM,"토끼귀")
+        특산품양:1 = 2
+    CASE 5
+        ;날개
+        고기양 = 75
+        장기양 = 1
+        뼈양 = 15
+        영혼조각양 = 1
+        머리카락양 = 10
+        특산품양:0 = GETNUM(ITEM,"날개")
+        특산품양:1 = 1
+        SIF T_시체:대상:1 != [[사구메]]
+            특산품양:1++ 
+    CASE 6
+        ;츠쿠모가미
+        영혼조각양 = 10
+        특산품양:0 = GETNUM(ITEM,"마력의파편")
+        특산품양:1 = 5
+    CASE 7
+        ;요우무, 반인반령이라
+        고기양 = 50
+        장기양 = 1
+        뼈양 = 12
+        영혼조각양 = 5
+        머리카락양 = 10
+    CASE 8
+        ;고기 적어, 사실상 신묘마루랑 키스메뿐
+        고기양 = 35
+        장기양 = 1
+        뼈양 = 6
+        영혼조각양 = 1
+        머리카락양 = 8
+    CASEELSE
+        ;몰?루
+        
+ENDSELECT
+
+PRINTFORM %CALLNAME:(T_시체:대상:1)%의 시체를 손질해서 
+FOR LOCAL,0,고기양
+    IF 명중판정(품질)
+        실제생산량++
+    ENDIF
+NEXT
+IF 실제생산량 > 0
+    PRINTFORM 고기 {실제생산량}개 
+    ITEM:고기 += 실제생산량
+ENDIF
+실제생산량 = 0 
+
+FOR LOCAL,0,뼈양
+    IF 명중판정(품질)
+        실제생산량++
+    ENDIF
+NEXT
+IF 실제생산량 > 0
+    PRINTFORM 뼈 {실제생산량}개 
+    ITEM:뼈 += 실제생산량
+ENDIF
+실제생산량 = 0
+
+FOR LOCAL,0,영혼조각양
+    IF 명중판정(품질)
+        실제생산량++
+    ENDIF
+NEXT
+IF 실제생산량 > 0
+    PRINTFORM 영혼조각 {실제생산량}개 
+    ITEM:영혼조각 += 실제생산량
+ENDIF
+실제생산량 = 0
+
+FOR LOCAL,0,머리카락양
+    IF 명중판정(품질)
+        실제생산량++
+    ENDIF
+NEXT
+IF 실제생산량 > 0
+    PRINTFORM 머리카락 {실제생산량}개 
+    ITEM:머리카락 += 실제생산량
+ENDIF
+실제생산량 = 0 
+
+FOR LOCAL,0,특산품양:1
+    IF 명중판정(품질)
+        실제생산량++
+    ENDIF
+NEXT
+IF 실제생산량 > 0&&특산품양:0 != 0
+    PRINTFORM %ITEMNAME:(특산품양:0)% {실제생산량}개 
+    ITEM:(특산품양:0) += 실제생산량
+ENDIF
+실제생산량 = 0
+
+IF 장기양
+    IF 명중판정(품질)
+        PRINTFORM 간 1개 
+        ITEM:간 += 1
+    ENDIF
+    IF 명중판정(품질 * 4 / 5)
+        실제생산량 = 1
+        SIF 명중판정(품질 * 3 / 5)
+            실제생산량++
+        PRINTFORM 허파 {실제생산량}개 
+        ITEM:허파 += 실제생산량
+    ENDIF
+    IF 명중판정(품질 * 2 / 5)
+        PRINTFORM 창자 1개 
+        ITEM:창자 += 1
+    ENDIF
+    IF 명중판정(품질 * 1 / 5)
+        PRINTFORM 염통 1개 
+        ITEM:염통 += 1
+    ENDIF
+ENDIF
+PRINTFORMW 를 얻었다(품질 {품질}％)
+PRINTL
+
+
+@시체데이터(ARG,ARGS)
+#FUNCTION
+SELECTCASE ARG
+    CASE 0
+        ;평범
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 2
+            CASE "유통기한"
+                RETURNF 3
+            CASE "난이도"
+                RETURNF 2
+        ENDSELECT
+    CASE 1
+        ;요정
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 1
+            CASE "유통기한"
+                RETURNF 2
+            CASE "난이도"
+                RETURNF 1
+        ENDSELECT
+    CASE 2
+        ;뿔달림
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 2
+            CASE "유통기한"
+                RETURNF 3
+            CASE "난이도"
+                RETURNF 2
+        ENDSELECT
+    CASE 3
+        ;인형,영체 비스므리한것들
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 2
+            CASE "유통기한"
+                RETURNF 7
+            CASE "난이도"
+                RETURNF 3
+        ENDSELECT
+    CASE 4
+        ;토뀡
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 2
+            CASE "유통기한"
+                RETURNF 3
+            CASE "난이도"
+                RETURNF 2
+        ENDSELECT
+    CASE 5
+        ;날개
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 1
+            CASE "유통기한"
+                RETURNF 3
+            CASE "난이도"
+                RETURNF 2
+        ENDSELECT
+    CASE 6
+        ;츠쿠모가미
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 2
+            CASE "유통기한"
+                RETURNF 7
+            CASE "난이도"
+                RETURNF 3
+        ENDSELECT
+    CASE 7
+        ;요우무, 반인반령이라
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 2
+            CASE "유통기한"
+                RETURNF 3
+            CASE "난이도"
+                RETURNF 2
+        ENDSELECT
+    CASE 8
+        ;고기 적어, 사실상 신묘마루랑 키스메뿐
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 1
+            CASE "유통기한"
+                RETURNF 3
+            CASE "난이도"
+                RETURNF 1
+        ENDSELECT
+    CASEELSE
+        ;몰?루
+        SELECTCASE ARGS
+            CASE "크기"
+                RETURNF 1
+            CASE "유통기한"
+                RETURNF 3
+            CASE "난이도"
+                RETURNF 2
+        ENDSELECT
+ENDSELECT
