@@ -68,47 +68,75 @@ CALL FISHER_YATES_SHAFFLE(MAXROOM - MINROOM())
 ;PRINTFORML %CALLNAME:ARG%＠%NAME_FROM_PLACE(CFLAG:ARG:현재위치)%
 이동결정 = 0
 $KYOUSEI
-FOR LOCAL, 0, MAXROOM - MINROOM()
-	이동처 = SHAFFLE_ARRAY:LOCAL + MAIN_MAP * 100 + 1
-;	PRINTFORML 이동처：%NAME_FROM_PLACE(이동처)%({이동처})
-	;현재위치
-	SIF 이동처 == CFLAG:ARG:현재위치
-		CONTINUE
-	;이동할 수 없다
-	SIF !(CAN_MOVE(CFLAG:ARG:현재위치, 이동처) & 1)
-		CONTINUE
-	;이동할 수 없는 2, 원룸 제한등 , 이동에 제한이 있는 장소
-	SIF !MAP_CAN_MOVE(이동처, ARG)
-		CONTINUE
-	;밖으로 나올 수  없다
-	SIF 날씨에의한영향(ARG, 이동처) <= -3 && CFLAG:ARG:현재위치 != MAXROOM && 날씨에의한영향(ARG, CFLAG:ARG:현재위치) >= -2
-		CONTINUE
-	;이동처가 당신 방이며, 그 캐릭터의 방이 아니고, 거기서 당신이 우후후중의 경우는 들어가 이것 없다
-	SIF 이동처 == CFLAG:MASTER:초기위치 && 이동처 != CFLAG:ARG:초기위치 && 이동처 == CFLAG:MASTER:현재위치 && CFLAG:MASTER:우후후
-		CONTINUE
-	;결계발동중
-	SIF TEQUIP:MASTER:결계발동 && 이동처 == CFLAG:MASTER:현재위치
-		CONTINUE
-	SIF 이동처 == TCVAR:ARG:쫒겨난장소
-		CONTINUE
-	CALL 캐릭터이동율(ARG, 이동처, 머물어비율)
-;	PRINTFORM ＞이동율：{RESULT * TIME_PROGRESS(TIME:1)}
-	;이동 판정, 강제이동이라면 즉이동
-	IF RESULT * TIME_PROGRESS(TIME:1) > RAND:1000
-;		PRINTFORMW ＞이동!
-		이동결정 = 이동처
-		BREAK
-	;무차별이동시는 이동율이 있으면 즉이동, 강제이동이 발동하고 있다면 어디라도 이동
-	ELSEIF (RESULT && 무차별이동) || 강제이동
-;		PRINTFORMW ＞이동!
-		이동결정 = 이동처
-		BREAK
-	;이동율0%가 아니면 종료
-	ELSEIF RESULT
-;		PRINTFORMW ＞루프
-		BREAK
+;인력점判定
+TCVAR:ARG:인력점 = 0
+SIF CFLAG:ARG:신사거주
+	CALLFORM CHARAMOVE_DATA_{ARG}(8)
+;인력점이 있는 경우에는 인력점을 향해 이동한다
+IF TCVAR:ARG:인력점 && CFLAG:ARG:현재위치 != TCVAR:ARG:인력점 && 날씨에의한영향(ARG, TCVAR:ARG:인력점) >= 0
+	이동처 = TCVAR:ARG:인력점
+	WHILE !(CAN_MOVE(CFLAG:ARG:현재위치, 이동처) & 1)
+		TRYCALLFORM SKIP_MOVE_{MAIN_MAP}(이동처, CFLAG:ARG:현재위치)
+		이동처 = RESULT
+	WEND
+	;이동처가 당신 사실이고, 그 캐릭터의 사실이 아니고, 거기서 당신이 우후후중일 경우에는 들어올 수 없어
+	IF 이동처 == CFLAG:MASTER:초기위치 && 이동처 != CFLAG:ARG:초기위치 && 이동처 == CFLAG:MASTER:현재위치 && CFLAG:MASTER:우후후
+	;結界発動中
+	ELSEIF TEQUIP:MASTER:결계발동 && 이동처 == CFLAG:MASTER:현재위치
+	ELSE
+		;고정률을 보정하여 움직이기 쉽게 한다(요조정 -100이면 거의 움직인다)
+		CALL 캐릭터이동율(ARG, 이동처, 머물어비율 - 100)
+		;이동판정, 강제 이동 시 즉시 이동
+		IF RESULT * TIME_PROGRESS(TIME:1) > RAND:1000
+			이동결정 = 이동처
+		;무차별 이동 시에는 이동률이 있으면 즉시 이동, 강제 이동이 발동되면 어디든 이동
+		ELSEIF (RESULT && 무차별이동) || 강제이동
+			이동결정 = 이동처
+		ENDIF
 	ENDIF
-NEXT
+ELSE
+    FOR LOCAL, 0, MAXROOM - MINROOM()
+	    이동처 = SHAFFLE_ARRAY:LOCAL + MAIN_MAP * 100 + 1
+	    ;PRINTFORML 이동처：%NAME_FROM_PLACE(이동처)%({이동처})
+	    ;현재위치
+	    SIF 이동처 == CFLAG:ARG:현재위치
+		    CONTINUE
+	    ;이동할 수 없다
+	    SIF !(CAN_MOVE(CFLAG:ARG:현재위치, 이동처) & 1)
+		    CONTINUE
+	    ;이동할 수 없는 2, 원룸 제한등 , 이동에 제한이 있는 장소
+	    SIF !MAP_CAN_MOVE(이동처, ARG)
+		    CONTINUE
+	    ;밖으로 나올 수  없다
+	    SIF 날씨에의한영향(ARG, 이동처) <= -3 && CFLAG:ARG:현재위치 != MAXROOM && 날씨에의한영향(ARG, CFLAG:ARG:현재위치) >= -2
+		    CONTINUE
+	    ;이동처가 당신 방이며, 그 캐릭터의 방이 아니고, 거기서 당신이 우후후중의 경우는 들어가 이것 없다
+	    SIF 이동처 == CFLAG:MASTER:초기위치 && 이동처 != CFLAG:ARG:초기위치 && 이동처 == CFLAG:MASTER:현재위치 && CFLAG:MASTER:우후후
+		    CONTINUE
+	    ;결계발동중
+	    SIF TEQUIP:MASTER:결계발동 && 이동처 == CFLAG:MASTER:현재위치
+		    CONTINUE
+	    SIF 이동처 == TCVAR:ARG:쫒겨난장소
+		    CONTINUE
+	    CALL 캐릭터이동율(ARG, 이동처, 머물어비율)
+    	;PRINTFORM ＞이동율：{RESULT * TIME_PROGRESS(TIME:1)}
+	    ;이동 판정, 강제이동이라면 즉이동
+	    IF RESULT * TIME_PROGRESS(TIME:1) > RAND:1000
+    		;PRINTFORMW ＞이동!
+    		이동결정 = 이동처
+    		BREAK
+    	;무차별이동시는 이동율이 있으면 즉이동, 강제이동이 발동하고 있다면 어디라도 이동
+    	ELSEIF (RESULT && 무차별이동) || 강제이동
+    		;PRINTFORMW ＞이동!
+		    이동결정 = 이동처
+		    BREAK
+	    ;이동율0%가 아니면 종료
+    	ELSEIF RESULT
+    	    ;PRINTFORMW ＞루프
+		    BREAK
+	    ENDIF
+    NEXT
+ENDIF
 ;무차별이동시에 전방위 이동율 0이라면 강제이동
 IF 무차별이동 && !이동결정 && !강제이동
 	강제이동 = 1

@@ -4,7 +4,7 @@
 ;	iID：キャラ番号
 ;=========================================================
 @SET_MOB_IMAGE_STR(iID, ARGS, NUMBER=0)
-#DIM iID
+#DIM iID				;=RANDOM_CHARANUMはモブ子 =0はモブ店員
 #DIM NUMBER				;モブ店員用の番号
 
 #DIMS CN_PARTS_STRUCT      ;可変画像用の文字列(服)
@@ -27,8 +27,9 @@
 
 #DIM pauseNo
 #DIM nudeFlag
+#DIM BUST
 
-;販売員は専用関数で作成
+;別絵モブ子は専用関数で作成
 IF GROUPMATCH(ARGS, "販売員", "茨たぬき")
 	CALL 別絵モブ子STR設定(iID, ARGS, NUMBER)
 	RETURN RESULT
@@ -149,8 +150,8 @@ SELECTCASE ARGS
 		ACCESSORY_TYPE_1 = ウサ耳
 		;ウサ耳とテール系は見てくれの相性が悪い？ので制限
 		HAIR_TYPE = %TEXTR("長髪/セミロング/ショートカット/三つ編み/短髪/おさげ髪/ポンパドール/サイドダウン/お団子髪/まとめ髪/ボブカット/シニヨン/ロングヘア")%
-	CASE "마을 아가씨","유부녀","店番","赤巫女","緑巫女","泡姫"
-		IF RAND:5 > 0
+	CASE "마을 아가씨","유부녀","店番","赤巫女","緑巫女","泡姫","のっぺらぼう"
+		IF RAND:5 > 0 || ARGS == "のっぺらぼう"
 			CLOTH_TYPE = 和服
 		ELSE
 			CLOTH_TYPE = %TEXTR("私服A/私服B/私服CA/私服CB/私服D")%
@@ -215,7 +216,7 @@ SIF iID == RANDOM_CHARANUM && NUMBER == 1
 ;化け狸以外も確率で太眉
 IF GROUPMATCH(FACE_TYPE, "だる目", "ワル目") && !RAND:4
 	FACE_TYPE    = %FACE_TYPE%(太眉)
-;リソースは登録されてるので黒目ありを混ぜてみる
+;リソースは登録されてるので黒目がちを混ぜてみる
 ELSEIF !GROUPMATCH(EYE_COLOR_TYPE, "桃", "紫", "金", "白") && !RAND:3 && STRFIND(FACE_TYPE, "太眉") == -1
 	FACE_TYPE    = %FACE_TYPE%(黒め)
 ENDIF
@@ -234,6 +235,9 @@ ENDIF
 ;髪色に合わせ口上色を指定
 WORD_COLOR_TYPE = GET_CN_WORD_COLOR(HAIR_COLOR_TYPE)
 
+;バストサイズ指定。モブ店員は完全ランダム
+BUST = iID ? TALENT:iID:バストサイズ # (RAND:3) - 1
+
 ;可変画像の設定
 CN_PARTS_STRUCT = ""
 CN_PARTS_STRUCT += GET_CN_STR_HAIR(HAIR_TYPE)
@@ -251,13 +255,13 @@ CN_PARTS_STRUCT_NUDE = %CN_PARTS_STRUCT%
 
 ; 服
 nudeFlag = 0
-CN_PARTS_STRUCT += GET_CN_STR_CLOTH(CLOTH_TYPE, nudeFlag, pauseNo)
+CN_PARTS_STRUCT += GET_CN_STR_CLOTH(CLOTH_TYPE, nudeFlag, pauseNo, BUST)
 CN_PARTS_STRUCT += GET_CN_STR_ACCESSORY(ACCESSORY_TYPE_1, 1, nudeFlag)
 CN_PARTS_STRUCT += GET_CN_STR_ACCESSORY(ACCESSORY_TYPE_2, 2, nudeFlag)
 CN_PARTS_STRUCT += GET_CN_STR_ACCESSORY(ACCESSORY_TYPE_3, 3, nudeFlag)
 ; 裸
 nudeFlag = 1
-CN_PARTS_STRUCT_NUDE += GET_CN_STR_CLOTH(CLOTH_TYPE, nudeFlag, pauseNo)
+CN_PARTS_STRUCT_NUDE += GET_CN_STR_CLOTH(CLOTH_TYPE, nudeFlag, pauseNo, BUST)
 CN_PARTS_STRUCT_NUDE += GET_CN_STR_ACCESSORY(ACCESSORY_TYPE_1, 1, nudeFlag)
 CN_PARTS_STRUCT_NUDE += GET_CN_STR_ACCESSORY(ACCESSORY_TYPE_2, 2, nudeFlag)
 CN_PARTS_STRUCT_NUDE += GET_CN_STR_ACCESSORY(ACCESSORY_TYPE_3, 3, nudeFlag)
@@ -275,10 +279,10 @@ ELSE
 	モブ子店員画像文字列:NUMBER:0 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "通常", HAIR_COLOR_TYPE)%
 	モブ子店員画像文字列:NUMBER:1 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "笑顔", HAIR_COLOR_TYPE)%
 	モブ子店員画像文字列:NUMBER:2 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "怒り", HAIR_COLOR_TYPE)%
-	モブ子店員画像文字列:NUMBER:3 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "通常", HAIR_COLOR_TYPE)%
-	モブ子店員画像文字列:NUMBER:4 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "笑顔", HAIR_COLOR_TYPE)%
-	モブ子店員画像文字列:NUMBER:5 = %CN_PARTS_STRUCT%%GET_CN_STR_FACE(FACE_TYPE, "怒り", HAIR_COLOR_TYPE)%
-	モブ子店員口上色:NUMBER = %TOSTR(WORD_COLOR_TYPE, "X")%
+	モブ子店員画像文字列:NUMBER:3 = %CN_PARTS_STRUCT_NUDE%%GET_CN_STR_FACE(FACE_TYPE, "通常", HAIR_COLOR_TYPE)%
+	モブ子店員画像文字列:NUMBER:4 = %CN_PARTS_STRUCT_NUDE%%GET_CN_STR_FACE(FACE_TYPE, "笑顔２", HAIR_COLOR_TYPE)%
+	モブ子店員画像文字列:NUMBER:5 = %CN_PARTS_STRUCT_NUDE%%GET_CN_STR_FACE(FACE_TYPE, "怒り", HAIR_COLOR_TYPE)%
+	モブ子店員口上色:NUMBER = WORD_COLOR_TYPE
 ENDIF
 RETURN RESULT
 
@@ -478,14 +482,14 @@ RETURNF LOCALS
 ;	nudeFlag：裸の場合、1
 ;	pauseNo：ポーズ番号(1,2,3 のいずれか)
 ;=========================================================
-@GET_CN_STR_CLOTH(CLOTH_TYPE, nudeFlag, pauseNo)
+@GET_CN_STR_CLOTH(CLOTH_TYPE, nudeFlag, pauseNo, BUST)
 #FUNCTIONS
 #DIMS CLOTH_TYPE
 #DIM nudeFlag = 0
 #DIM pauseNo = 1
-
+#DIM BUST = 0
 IF nudeFlag
-	SELECTCASE TALENT:RANDOM_CHARANUM:가슴사이즈
+	SELECTCASE BUST
 		CASE 0
 			RETURNF @"[身体:身体_素体(並乳){pauseNo}]"
 		CASE IS > 0

@@ -1,0 +1,209 @@
+﻿@GO_OUT_CONDITION_EV1
+RESULT = 0
+;데이트중는 발생하지 않아
+SIF RAND:3 || FLAG:데이트상대
+	RETURN 0
+;その日物色済みだと無理
+SIF GETBIT(TFLAG:일일일회, 9)
+	RETURN 0
+CALL GO_OUT_EV1
+RETURN RESULT
+
+@GO_OUT_EV1
+#DIM ENEMY
+#DIMS ENEMY_RACE
+#DIM 勝敗
+#DIM LOOT
+#DIM LOOT_CANDIDATE, 17 = 51, 52, 53, 55, 56, 58, 59, 81, 82, 83, 84, 121, 131, 500, 501, 502, 510
+#DIM CONST CANDIDATE_N = 17
+#DIM REWARD
+;상대가 변한다든지 하고 싶다
+SELECTCASE CFLAG:MASTER:데이트중
+	;湖
+	CASE 3
+		ENEMY_RACE = 요정
+	;竹林
+	CASE 4
+		IF !RAND:3
+			ENEMY_RACE = 이나바
+		ELSE
+			ENEMY_RACE = 요정
+		ENDIF
+	;山麓
+	CASE 7
+		ENEMY_RACE = 캇파
+	;山頂
+	CASE 8
+		ENEMY_RACE = 백랑텐구
+	;地底
+	CASE 9
+		ENEMY_RACE = 오니
+	;月
+	CASE 10
+		ENEMY_RACE = 옥토끼
+	CASEELSE
+		RETURN 0
+ENDSELECT
+
+PRINTFORMW 도중, 느닷없이 %조사처리(ENEMY_RACE,"가")% 덤벼들었다！
+SETBIT TFLAG:일일일회, 9
+CALL MAKE_YUKIZURI(RANDOM_CHARANUM, ENEMY_RACE, 1)
+HANDICAP_FIXED = RAND:(ABL:ENEMY:전투능력 * 5 + 1) + 10
+HANDICAP_RAND = 0
+
+CALL KOJO_MESSAGE_SEND("DANMAKU", 0, RANDOM_CHARANUM, 1, -1, "戦闘前")
+TEQUIP:RANDOM_CHARANUM:상반신착의상황 = 1
+
+CALL CHARA_STATE(RANDOM_CHARANUM)
+	DRAWLINE
+	CALL COLORMESSAGE(@"처녀상실이력：%CSTR:RANDOM_CHARANUM:처녀상실이력%",C_PINK,1)
+	PRINTFORML 
+CALL DANMAKU_OPPONENT_STATUS(RANDOM_CHARANUM)
+IF HANDICAP_FIXED
+	CALL COLORMESSAGE(@"지형효과：%CALLNAME:MASTER%의 주사위값이 {HANDICAP_FIXED}저하",C_YELLOW,1)
+	;【세방울의천수】の効果
+	IF ITEM:세방울의천수
+		HANDICAP_FIXED /= 2
+		CALL COLORMESSAGE(@"토착신의 저주로 인해, 지형효과가 {HANDICAP_FIXED} 으로 반감！",C_YELLOW,1)
+	ENDIF
+ENDIF
+$LOOP
+CALL ASK_M("원수를 갚아준다",1,"도망친다",1,"규칙 설명",1)
+SELECTCASE RESULT
+	CASE 0
+		IF BASE:MASTER:기력 < 500 || BASE:MASTER:체력 < 500
+			PRINTFORML 지금은 너무 피곤하다
+			GOTO LOOP
+		ENDIF
+	CASE 1
+		PRINTFORML %마스터는% 부리나케 도망쳤다
+		RETURN 1
+	CASE 2
+		CALL SHOW_DANMAKU_RULE
+		GOTO LOOP
+ENDSELECT
+ENEMY = RANDOM_CHARANUM
+TARGET = ENEMY
+REWARD = MAX(ABL:ENEMY:전투능력 * 10 + RAND:5, 1)
+;米とか酒とか
+LOOT = LOOT_CANDIDATE:(RAND:CANDIDATE_N)
+TIME += 60
+CFLAG:ENEMY:안면 = 1
+PRINTFORMW 승부 개시!!
+탄막전투화상무시 = 1
+후처리인터셉트 = 1
+CALL DANMAKU_BATTLE(TARGET)
+
+勝敗 = RESULT
+CALL RECOVER(MASTER, -500, "체력")
+CALL RECOVER(MASTER, -500, "기력")
+CALL KOJO_MESSAGE_SEND("DANMAKU", 勝敗, TARGET, 1, -1, "戦闘後")
+SIF 勝敗 < 3
+	EXP:MASTER:전투경험 += ABL:ENEMY:전투능력 * 3
+SIF 勝敗 < 1
+	EXP:MASTER:전투경험 += ABL:ENEMY:전투능력
+IF 勝敗 > 0
+	;CALL KOJO_MESSAGE_SEND("DANMAKU", 勝敗, TARGET, 1, -1, "逆レ開始")
+	SETCOLOR C_RED
+	IF TCVAR:ENEMY:발정 && HAS_PENIS(MASTER)
+		PRINTFORML %조사처리(CALLNAME:ENEMY,"는")% 움직일 수 없게 된 %마스터를% 깔고 앉았다
+		PRINTFORML %CALLNAME:MASTER%의 숨통을 미지근한 한숨이 불어 지나갔다…
+		PRINTFORML 이젠 여기까지라고 생각한 다음 순간, 성기가 뜨거운 감촉에 휩싸였다
+		PRINTFORML 조심조심 아랫배를 내려다보니, 히죽히죽 미소를 짓는 %CALLNAME:ENEMY%의 균열에 %CALLNAME:MASTER%의 페니스가 뿌리까지 들어가 있다
+		PRINTFORML 만월의 밤에 발정기를 맞이한 %조사처리(CALLNAME:ENEMY,"는")% 짐승같은 갈증을 풀기 위해, %마스터를% 엉망으로 범하며, 괴롭히며, 유린해 갔다…
+		PRINTFORMW ………
+		PRINTFORMW ……
+		PRINTFORMW …
+		PRINTFORMW 속이 시원해질 때까지 %마스터를% 있는대로 탐한 %조사처리(CALLNAME:ENEMY,"는")%, 축 늘어진 %마스터를% 내팽개치고 떠났다
+		FLAG:기절중단 = 100 + CFLAG:MASTER:현재위치 / 100
+		CFLAG:MASTER:데이트중 = CFLAG:MASTER:현재위치 / 100
+		CALL LOST_GYAKURE(ENEMY)
+	ELSEIF ITEM:LOOT
+		PRINTFORMW 진 %마스터는% %조사처리(ITEMNAME:LOOT,"를")% 빼앗기고 말았다…
+		ITEM:LOOT --
+	ELSEIF MONEY:2 >= REWARD
+		PRINTFORMW 진 %마스터는% {REWARD}카리스마를 빼앗기고 말았다…
+		MONEY:2 -= REWARD
+	ELSE
+		REWARD *= 300
+		PRINTFORMW 패배한 %마스터는% \@ MONEY > REWARD ? \\{REWARD}# 가진 돈 전부를\@ 빼앗기고 말았다…
+		MONEY = MAX(MONEY - REWARD, 0)
+	ENDIF
+	RESETCOLOR
+	RETURN 1
+ENDIF
+
+;source操作他
+TCVAR:ENEMY:탄막승부불능 = 1
+CFLAG:ENEMY:탄막승부승리 = 1
+CFLAG:ENEMY:패배자 = 1
+CFLAG:ENEMY:자주가는지역 = CFLAG:MASTER:데이트중
+
+PRINTFORML %마스터는% 땅바닥에 무릎을 꿇은 %CALLNAME:ENEMY%에게…
+CALL ASK_M("제물로 한다",1,"갈취",1,"몸으로 치른다",1, "미라다의돌", ITEM:미라다의돌)
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML %마스터가% %CALLNAME:ENEMY%의 손을 감싸쥐고 기도의 말을 외치자、비치는 옷 사이로 %CALLNAME:ENEMY%의 속옷이 희미하게 빛나기 시작했다
+		PRINTFORML 이윽고 초자연적인 불꽃이 피어올라, %CALLNAME:ENEMY%도 옷도 상하게 하지 않고 속옷만 다 태워버렸다
+		PRINTFORML 신의 위력을 목전에서 본 %조사처리(CALLNAME:ENEMY,"는")% 겁에 질려 도망쳤다
+		CALL BUFF_BASE(MASTER,BASE_TSP,500, 1)
+		CALL BUFF_BASE(MASTER,BASE_정력,500, 1)
+		FLAG:독신 += 10
+		;DELCHARA RANDOM_CHARANUM
+		;ADDCHARA RANDOM_CHARANUM
+		TARGET = 0
+		RETURN 1
+	CASE 1
+		PRINTFORMW 오랏! 점프해라 점프!
+		MONEY:2 += REWARD
+		PRINTFORMW %마스터는% %조사처리(CALLNAME:ENEMY,"으로")%부터 {REWARD}카리스마를 빼앗았다
+		IF RAND:5 < ABL:ENEMY:전투능력
+			PRINTFORMW 더욱이 %ITEMNAME:LOOT%도 빼앗았다
+			ITEM:LOOT ++
+		ENDIF
+		TARGET = 0
+		;DELCHARA RANDOM_CHARANUM
+		;ADDCHARA RANDOM_CHARANUM
+		RETURN 1
+	CASE 2
+		MARK:ENEMY:반발각인 = 1
+		PRINTFORML PRINTFORML %CALLNAME:ENEMY%에게, 무녀에게 끌려가고 싶지 않으면 오늘 하루 %마스터와% 함께하도록 명령했다.
+		CALL COLORMESSAGE(@"%CALLNAME:ENEMY%에게 반발각인이 붙었지만, 남 앞이 아니라면 언제든지 밀어 넘어뜨릴 수 있게 되었다",C_YELLOW,1)
+		PRINTFORMW %마스터는%%조사처리(CALLNAME:ENEMY,"를")% 데리고 의기양양하게 귀로에 올랐다
+	CASE 3
+		PRINTFORML 매섭게 째려보는 %조사처리(CALLNAME:ENEMY,"를")% 되돌아보면서, %마스터는% 미라다의돌을 움켜쥐었다
+		PRINTFORML 그러자 %조사처리(CALLNAME:ENEMY,"는")% 시선을 돌려 고개를 숙이고 말았다
+		CFLAG:ENEMY:몸목적 = 1
+		ITEM:미라다의돌 --
+		ABL:ENEMY:친밀 = MAX(3, ABL:ENEMY:친밀)
+		ABL:ENEMY:욕망 = MAX(3, ABL:ENEMY:욕망)
+		CFLAG:ENEMY:욕구불만도 = 1000
+		PRINTFORML %마스터는%%CALLNAME:ENEMY%의 어깨에 손을 얹고, 오늘 하루 함께하도록 명령했다.
+		PRINTFORML %조사처리(CALLNAME:ENEMY,"는")% 자포자기해 받아들였다
+		CALL COLORMESSAGE(@"%조사처리(CALLNAME:ENEMY,"를")% 남 앞이 아니라면 언제든지 밀어 넘어뜨릴 수 있게 되었다",C_YELLOW,1)
+		PRINTFORMW %마스터는%%조사처리(CALLNAME:ENEMY,"를")% 데리고 의기양양하게 귀로에 올랐다
+ENDSELECT
+
+FLAG:데이트상대 = TARGET
+CFLAG:TARGET:동행 = 180
+CFLAG:MASTER:동행 = 180
+CFLAG:ENEMY:졸음쫒기강도 = 600
+CFLAG:거점내방 = 1
+CSTR:ENEMY:모브코프로필 = 꼴사납게도 원수를 갚으려다 도리어 당해 이제는 얌전하다
+
+RETURN 1
+
+@LOST_GYAKURE(ARG)
+BASE:MASTER:체력 = 0
+BASE:MASTER:기력 = 0
+BASE:MASTER:정력 = -500
+CFLAG:ARG:욕구불만도 = 0
+CALL SET_SLEEP(1,MASTER,0)
+CFLAG:MASTER:취침시간 = DAY * 1440 + TIME + 120 + RAND:120
+TFLAG:106 = 0
+BEGIN AFTERTRAIN
+
+;IF TIME:2 >= 5 && TIME:2 <= 7 && TIME:5 < 2
+;	CALL COLORMESSAGE(@"만월의 빛이 %CALLNAME:TARGET%의 본능을 불러 일으킨다…！",C_YELLOW,1)
+;	CALL COLORMESSAGE(@"%CALLNAME:TARGET%의 전투력이 업！",C_YELLOW,1)
+;ENDIF

@@ -1,0 +1,44 @@
+﻿@GO_OUT_CONDITION_EV4
+#DIM NUM 
+;OPTION 설정하기 나름으로 발생하지 않는다
+SIF FLAG:교류내방모드 == 3
+	RETURN 0
+CALL FISHER_YATES_SHAFFLE(RANDOM_CHARANUM)
+;랜덤으로 10명 픽업
+FOR COUNT, 0, 10
+	NUM = SHAFFLE_ARRAY:COUNT
+	;출금/거점 거주지/내방 불능 캐릭터, 당신을 연주한다
+	SIF CFLAG:NUM:출금 || CFLAG:NUM:신사거주 || CFLAG:NUM:내방불능 || !NUM
+		CONTINUE
+	;방문 예정/일/연회 참가 캐릭터를 연주한다
+	SIF CFLAG:NUM:거점내방 || 업무일체크(NUM) || CFLAG:NUM:연회참가
+		CONTINUE
+	;스키마에 없다/활동시간외/쇠약중 캐릭터를 연주한다
+	SIF CFLAG:NUM:현재위치 != SUKIMA() || !VISIT(NUM) || CFLAG:NUM:쇠약
+		CONTINUE
+	;내방 플래그. ERB로부터 유용한 캐릭터별 설정
+	SELECTCASE NUM
+		CASE [[모코우]], [[카구야]]
+			SIF CFLAG:NUM:호감도 <= 500
+				CONTINUE
+		CASE [[요리히메]], [[토요히메]], [[사구메]]
+			SIF !TALENT:NUM:연모 && !TALENT:NUM:사모
+				CONTINUE
+		CASE [[와카사기히메]]
+			SIF !GETBIT(FLAG:풀장, 3)
+				CONTINUE
+	ENDSELECT
+;여기까지 다닌 캐릭터를 거점으로 부른다
+	CALL GO_OUT_EV4(NUM)
+	RETURN 1
+NEXT
+RETURN 0
+
+@GO_OUT_EV4(ARG)
+CFLAG:ARG:거점내방 = 1
+CFLAG:ARG:현재위치 = ENTRANCE
+CFLAG:ARG:마지막내방일 = DAY
+PRINTFORML %CALLNAME:MASTER%는 %NAME_FROM_PLACE(ENTRANCE)%로 향하는 소녀를 보았다
+PRINTFORMW 【%CALLNAME:ARG%가 찾아왔다】
+PRINTFORML 
+RETURN 1

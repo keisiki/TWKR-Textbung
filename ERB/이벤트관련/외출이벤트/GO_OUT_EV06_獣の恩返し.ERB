@@ -1,0 +1,130 @@
+﻿@GO_OUT_CONDITION_EV6
+IF !RAND:10
+	CALL GO_OUT_EV6
+ELSE
+	RETURN 0
+ENDIF
+@GO_OUT_EV6
+#DIM PAIR
+#DIM LUCK
+#DIM SPENT
+#DIMS PREY
+SPENT = 1
+PREY = %\@ RAND:2 ? 너구리 # 여우 \@%
+PAIR = FLAG:데이트상대
+LUCK = CFLAG:MASTER:오늘의운세 / 100 + TFLAG:행운보정
+
+PRINTFORML 길을 가는 중、사냥꾼의 덫에 걸린 %PREY%를 발견했다
+IF (GROUPMATCH(PAIR, [[란]], [[츠카사]]) && PREY == "여우") || (PAIR == [[마미조]] && PREY == "너구리")
+	PRINTFORMW %CALLNAME:PAIR%가 뭔가 말하고 싶은게 있다는 듯 이쪽을 바라보고 있다
+	PRINTFORML %CALLNAME:MASTER%가 덫에서 풀어주자 %PREY%는 %CALLNAME:PAIR%에게 감사의 말을 하고 도망쳤다…
+	PRINTFORMW 
+	RETURN 1
+ELSEIF (GROUPMATCH(PAIR, [[란]], [[츠카사]]) && PREY == "너구리") || (PAIR == [[마미조]] && PREY == "여우")
+	PRINTFORMW %CALLNAME:PAIR%는 함정을 힐끗 보고 그대로 걸어간다
+	PRINTFORML %CALLNAME:MASTER%도 황급히 뒤를 쫓았다…
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+PRINTFORML 이대로는 틀림없이 잡힐텐데…
+CALL ASK_M("사냥을 방해하지 않는다", 1, "도와 준다", 1)
+IF !RESULT
+	PRINTFORML 불쌍하지만 어쩔 수 없다
+	SIF PAIR
+		PRINTFORM %CALLNAME:PAIR%도 뒤에서 머리카락을 잡아끄는 것 같았지만、
+	PRINTFORMDL 그대로 놔두고 \@ PAIR ? 두 사람은 # %CALLNAME:MASTER% \@는 귀로에 올랐다
+	PRINTFORMW
+	RETURN 1
+ENDIF
+PRINTFORML 불쌍해서 도와주기로 했다
+PRINTFORMW 다쳤지만 간단한 치료로 곧 걸을 수 있을 것 같다
+PRINTDW …………
+PRINTDW ……
+PRINTDW …
+IF LUCK > 4
+	PRINTFORMW 치료를 마치자 %PREY%는 수풀의 그늘로 사라졌다
+	PRINTFORML …라고 생각했는데 뭔가를 물고 %CALLNAME:MASTER%에게 돌아왔다
+	PRINTFORML 도와준 답례임에 틀림없다
+	;최고급 소재 랜덤
+	LOCAL:0 = 625, 630, 639, 640, 643, 646
+	CALL GET_ITEM(ITEMNAME:(LOCAL:(RAND:6)), 1, 2)
+	PRINTFORML 
+	IF !(GO_OUT_FLAG_06 || PAIR || GETBIT(TFLAG:일일일회, 9)) && LUCK > 7
+		GO_OUT_FLAG_06 = DAY
+		SETBIT TFLAG:일일일회, 9
+		CALL MAKE_YUKIZURI(RANDOM_CHARANUM, @"둔갑%PREY%")
+		CFLAG:RANDOM_CHARANUM:자주가는지역 = (MAIN_MAP == 5) ? 7 # 5
+		CFLAG:RANDOM_CHARANUM:호감도 = REQUIRED_FAVOR_사모
+		CFLAG:RANDOM_CHARANUM:신뢰도 = REQUIRED_TRUST_사모
+		ABL:RANDOM_CHARANUM:친밀 = REQUIRED_AFFECTION_사모
+		ABL:RANDOM_CHARANUM:순종 = REQUIRED_AFFECTION_사모
+		CSTR:RANDOM_CHARANUM:모브코프로필1 = %CALLNAME:RANDOM_CHARANUM%：%PRINT_DATE_F(DAY)% 때 %GET_MAPNAME(CFLAG:MASTER:데이트중)%에서 돌아오던 길에 도와준 둔갑%PREY%
+		BASE:RANDOM_CHARANUM:体力 -= 50
+		PRINTFORML …어라！？　%PREY%의 모습이…！
+		PRINTFORMW 무려 눈앞에 %PREY%가 케모미미소녀로 변했다！
+		CALL CHARA_STATE(RANDOM_CHARANUM)
+		DRAWLINE
+		CALL COLORMESSAGE(@"처녀상실이력：%CSTR:RANDOM_CHARANUM:처녀상실이력%",C_PINK,1)
+		PRINTFORMW 
+		PRINTFORML %PREY%아가씨는 %CALLNAME:RANDOM_CHARANUM%라고 이름을 대며 %CALLNAME:MASTER%에게 몇 번이나 감사의 말을 하고 있다
+		SIF !INRANGE(TIME, 540, 1140)
+			GOTO SKIP
+		PRINTFORML 답레로 집까지 따라오겠다고 말해 오는데…
+		CALL ASK_M("오늘은 그냥 돌아간다", 1, "따라오라고 한다", 1)
+		IF RESULT
+			FLAG:데이트상대 = RANDOM_CHARANUM
+			CFLAG:RANDOM_CHARANUM:현재위치 = CFLAG:MASTER:현재위치
+			CFLAG:RANDOM_CHARANUM:동행 = 300
+			CFLAG:MASTER:동행 = 300
+			CFLAG:RANDOM_CHARANUM:졸음쫒기강도 = 300
+			CFLAG:RANDOM_CHARANUM:거점내방 = 1
+			PRINTFORML %CALLNAME:MASTER%는 %CALLNAME:RANDOM_CHARANUM%를 데리고 돌아가기로 했다
+			PRINTFORML %CALLNAME:RANDOM_CHARANUM%는 뜨거운 시선을 이쪽으로 보내오고 있다…
+			GOTO END_PHASE
+		ENDIF
+		PRINTFORML 다치기도 했으므로 그냥 돌려보내기로 했다
+		$SKIP
+		PRINTFORMW %CALLNAME:RANDOM_CHARANUM%는 다음에\@ CFLAG:RANDOM_CHARANUM:자주가는지역 == 5 ? 마법의 숲 # 요괴의 산(산록) \@에 놀러 와 주세요 하고 떠나갔다…
+		CALL COLORMESSAGE(@"%CALLNAME:RANDOM_CHARANUM%와 아는 사이가 되었다",C_YELLOW,2,1)
+		CFLAG:RANDOM_CHARANUM:현재위치 = SUKIMA()
+		GOTO END_PHASE
+	ENDIF
+	PRINTFORML 도와준 %PREY%에게 배웅을 받으며 \@ PAIR ? 두 사람 # %CALLNAME:MASTER% \@은 귀로에 올랐다
+ELSE
+	IF PAIR
+		PRINTFORML 치료를 하고 있는 동안에도 %PREY%는 날뛰며 %CALLNAME:MASTER%를 마구 긁었다
+		CALL RECOVER(MASTER, -200, "체력")
+		WAIT
+		PRINTFORML 게다가 치료가 끝나자마자 %PREY%는 전력 질주로 도망쳤다…무슨 배은망덕！
+		PRINTFORM %CALLNAME:PAIR%
+		SELECTCASE CFLAG:PAIR:성격경향
+			CASE 1
+				PRINTFORMW 가 걱정스럽게 %CALLNAME:MASTER%를 바라본다…
+			CASE 2, 3
+				PRINTFORMW 는 %CALLNAME:MASTER%를 보고 \@ CFLAG:PAIR:성격경향 == 2 ? 박장대소하고 # 키득키득 웃고 \@있다…
+			CASE 4
+				PRINTFORMW 가 뭐라 말할 수 없는 미묘한 표정을 짓고 있다…
+			CASE 5
+				PRINTFORMW 는 연민의 눈을 %CALLNAME:MASTER%에게 향하고 있다…
+		ENDSELECT
+		PRINTFORML 별 소득도 없이 두 사람은 귀로에 들어섰다
+	ELSE
+		PRINTFORMW 치료가 끝나자마자 %PREY%는 전력 질주로 도망쳤다… 무슨 배은망덕！
+		PRINTFORML 어쩔 수 없이 돌아가려는데 뒤에 누가 있는 것 같다
+		PRINTFORMW 뒤돌아 보니 거기에는… 사냥감을 놓쳐 화가 난 사냥꾼이 있었다…！
+		PRINTFORML 
+		PRINTFORML %CALLNAME:MASTER%는 머리를 쥐어박혔다！
+		CALL RECOVER(MASTER, -100, "체력")
+		WAIT
+		PRINTFORML 사냥꾼에게 설교를 들었다…
+		CALL RECOVER(MASTER, -300, "기력")
+		WAIT
+		PRINTFORML 호된 꼴을 당한 %CALLNAME:MASTER%는 터벅터벅 귀로에 올랐다
+		SPENT = 4
+	ENDIF
+ENDIF
+$END_PHASE
+PRINTFORML +{15 * SPENT}分
+PRINTFORMW 
+TIME += (15 * SPENT)
+RETURN 1

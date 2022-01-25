@@ -762,11 +762,49 @@ SIF ARG == MASTER
 	RETURNF CFLAG:MASTER:수면
 IF CFLAG:ARG:쇠약
 	RETURNF 1
-ELSEIF !BETWEENTIME(CFLAG:ARG:기상시간, CFLAG:ARG:취침시간 + CFLAG:ARG:385)	;졸음쫒기 강도분 연장한다
-	RETURNF 1
 ELSE
-	RETURNF 0
+	;수면 시간을 체크한다
+	CALLF 수면시간２(ARG)
+	IF !BETWEENTIME(CFLAG:ARG:기상시간, CFLAG:ARG:취침시간 + CFLAG:ARG:졸음쫒기강도)
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
 ENDIF
+;-------------------------------------------------
+;함수명:수면시간２
+;개요:캐릭터 ARG가 잠들고 일어날 때까지의 시간 측정
+;일탈하고 있었을 경우는 자동으로 수정한다
+;-------------------------------------------------
+@수면시간２(ARG)
+#FUNCTION
+#DIM SLEEPTIME
+#DIM WAKEUPTIME
+;졸음쫒기강도만큼 연장한다
+WAKEUPTIME = CFLAG:ARG:기상시간
+SLEEPTIME = CFLAG:ARG:취침시간 + CFLAG:ARG:졸음쫒기강도
+;취침시간이 24시를 넘을 경우
+WHILE SLEEPTIME >= 1440
+	SLEEPTIME -= 1440
+WEND
+;전날 밤에 자고 다음날 아침에 일어나는 경우
+SIF SLEEPTIME > WAKEUPTIME
+	WAKEUPTIME += 1440
+;수면시간이 2~14시간 이상이면 체크
+IF !INRANGE(WAKEUPTIME - SLEEPTIME, 120, 840)
+	;졸음쫒기강도가 원인
+	IF CFLAG:ARG:졸음쫒기강도
+		;30분 단위로 시정해간다
+		CFLAG:ARG:졸음쫒기강도 -= 30
+		RESTART
+	;설정이 이상할 때
+	ELSE
+		;체크를 위해 THROW 해두기,모브코는 허가
+		SIF ARG != [[모브코]]
+			THROW
+	ENDIF
+ENDIF
+RETURNF WAKEUPTIME - SLEEPTIME		
 ;-------------------------------------------------
 ;함수명:아이의수면시간
 ;개요:캐릭터 ARG의 아이가 자고 있어 어떤가를 돌려주는 함수
