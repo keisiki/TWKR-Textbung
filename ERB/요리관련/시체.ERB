@@ -59,6 +59,14 @@ T_들고있는시체:빈칸:3 = 시체데이터(전리품타입,"크기")
 T_들고있는시체:빈칸:4 = 전리품타입
 PRINTFORML %ARG의% 시체를 챙겼다
 
+@시체있음
+#FUNCTION
+FOR LOCAL,0,1000
+    SIF T_시체:LOCAL:0 != 0
+        RETURNF 1
+NEXT
+RETURNF 0
+
 @시체수납
 #DIM DYNAMIC 빈칸
 FOR LOCAL,0,20
@@ -122,13 +130,96 @@ ELSE
                 품질 = ARG
             ELSE
                 품질 = 1
-                품질 += ABL:MASTER:기교 * 4
+                품질 += ABL:MASTER:기교 * 7
                 ;--------------------------
                 ;실제로 어떤 식으로 품질을 올릴지, 그것을 적는 부분
                 ;일단 임시값만 두는것으로
 
-                품질 += 20
-                품질 += RAND:20
+                PRINTFORML 먼저 무엇을 할까...?
+                PRINTFORML [0] 경동맥 절개
+                PRINTFORML [1] 복부 절개
+                INPUT
+                IF RESULT == 0
+                    품질 += 4
+                ENDIF
+                PRINTFORML 대량의 피가 흘러나온다...
+                PRINTFORML 얼마나 피를 빼낼까?
+                PRINTFORML [0] 이대로 끝
+                PRINTFORML [1] 2분
+                PRINTFORML [2] 5분
+                PRINTFORML [3] 10분
+                PRINTFORML [4] 15분
+                INPUT
+                IF RESULT == 0
+                    IF 시체데이터(T_시체:대상:4,"크기") == 1
+                        품질 -= 4
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 2
+                        품질 -= 7
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 3
+                        품질 -= 13
+                    ENDIF
+                ELSEIF RESULT == 1
+                    IF 시체데이터(T_시체:대상:4,"크기") == 1
+                        품질 += 7
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 2
+                        품질 -= 5
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 3
+                        품질 -= 10
+                    ENDIF
+                    TIME += 2
+                ELSEIF RESULT == 2
+                    IF 시체데이터(T_시체:대상:4,"크기") == 1
+                        품질 -= 3
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 2
+                        품질 -= 1
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 3
+                        품질 -= 8
+                    ENDIF
+                    TIME += 5
+                ELSEIF RESULT == 3
+                    IF 시체데이터(T_시체:대상:4,"크기") == 1
+                        품질 -= 5
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 2
+                        품질 += 7
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 3
+                        품질 -= 5
+                    ENDIF
+                    TIME += 10
+                ELSEIF RESULT == 4
+                    IF 시체데이터(T_시체:대상:4,"크기") == 1
+                        품질 -= 10
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 2
+                        품질 += 5
+                    ELSEIF 시체데이터(T_시체:대상:4,"크기") == 3
+                        품질 += 7
+                    ENDIF
+                    TIME += 15
+                ENDIF
+                PRINTFORML 끓는물에 잠시 넣을까?
+                CALL ASK_YN
+                IF T_시체:대상:4 == 5
+                    IF RESULT == 0
+                        품질 += 9
+                    ENDIF
+                ELSE
+                    IF RESULT == 1
+                        품질 += 9
+                    ENDIF
+                ENDIF
+                PRINTFORML 가죽을 벗길까? 아니면 털을 뽑을까?
+                PRINTFORML [0] 가죽을 벗긴다
+                PRINTFORML [1] 털을 뽑는다
+                INPUT
+                IF T_시체:대상:4 == 5
+                    IF RESULT == 1
+                        품질 += 7
+                    ENDIF
+                ELSE
+                    IF RESULT == 0
+                        품질 += 7
+                    ENDIF
+                ENDIF
+                품질 += RAND:15
 
                 ;--------------------------
                 SELECTCASE ABL:MASTER:요리기능
@@ -149,6 +240,9 @@ ELSE
                     CASE 7
                         TIMES 품질, 2.0
                 ENDSELECT
+                IF T_시체:대상:3 == 1
+                    TIMES 품질, 1.2
+                ENDIF
                 SELECTCASE 시체데이터(T_시체:대상:4,"난이도")
                     CASE 1
                         TIMES 품질, 1.25
@@ -160,7 +254,7 @@ ELSE
                 IF 품질 >= 100
                     품질 = 100
                 ENDIF
-                EXP:MASTER:요리경험 += 품질 / 10
+                EXP:MASTER:요리경험 += 품질 / 5 + 1
             ENDIF
             CALL 도축결과물생성(대상,품질)
             T_시체:대상:0 = 0
@@ -171,7 +265,7 @@ ELSE
 ENDIF
 RESTART
 
-@도축결과물생성(대상,품질)
+@도축결과물생성(대상,품질,장기파손 = 0)
 #DIM DYNAMIC 대상
 #DIM DYNAMIC 품질
 #DIM DYNAMIC 고기양
@@ -180,6 +274,7 @@ RESTART
 #DIM DYNAMIC 장기양 ;사실 유무만
 #DIM DYNAMIC 영혼조각양
 #DIM DYNAMIC 특산품양,2
+#DIM DYNAMIC 장기파손 ;일단은 더미 데이터
 #DIM DYNAMIC 실제생산량
 ;종류,개수
 IF T_시체:대상:0 != 1
@@ -261,7 +356,9 @@ SELECTCASE T_시체:대상:4
         ;몰?루
         
 ENDSELECT
-
+IF 장기파손
+    장기양 = 0
+ENDIF
 PRINTFORM %CALLNAME:(T_시체:대상:1)%의 시체를 손질해서 
 FOR LOCAL,0,고기양
     IF 명중판정(품질)
