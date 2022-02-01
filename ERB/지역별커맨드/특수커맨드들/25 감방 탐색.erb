@@ -1,0 +1,129 @@
+﻿
+@TSC_25
+
+SELECTCASE RAND:5
+	CASE 0
+		PRINTFORML 을씨년스러운 감옥 안을 구석구석 뒤져보았다...
+	CASE 1
+		PRINTFORML 어지럽게 놓인 누더기들을 치우며 도움이 될 만한 물건을 찾아보았다...
+	CASE 2
+		PRINTFORML 통통하게 살이 오른 쥐를 쓰다듬으며 무언가 쓸모있는게 있는지를 물어보았다...
+	CASE 3
+		PRINTFORML 바닥에 소복히 쌓인 먼지를 치워내며 무언가 있는지 탐색했다...
+	CASE 4
+		PRINTFORML 벽을 두드려보며 숨겨진 물건이 있는지 탐색해 보았다...
+ENDSELECT
+PRINTL
+LOCAL = RAND:200
+LOCAL = 199
+SELECTCASE LOCAL
+	CASE 0 TO 60
+		PRINTFORML ...아무것도 없다
+	CASE 61 TO 100
+		PRINTFORML ...조그마한 동전을 찾았다!
+		PRINTFORML 500원을 얻었다
+		MONEY += 500
+	CASE 101 TO 130
+		PRINTFORML ...누군가의...무언가를 주웠다
+		PRINTFORML 변 1개를 얻었다
+		ITEM:변 += 1
+	CASE 131 TO 160
+		PRINTFORML ...숨겨져 있던 술 한병을 찾았다
+		PRINTFORML 발포주 1병을 얻었다
+		ITEM:발포주 += 1
+	CASE 161 TO 180
+		PRINTFORML 무언가 불안해 보이는 폭탄을 찾았다...?
+		PRINTFORML 불발된 탄막 1개를 얻었다
+		ITEM:불발된탄막++
+	CASE 181 TO 199
+		IF FLAG:조교전 == 1
+			PRINTFORML ...낡은 지폐를 찾았다!
+			PRINTFORML 1000원을 얻었다
+		MONEY += 500
+		ELSE
+			PRINTFORML 수상쩍은 책을 발견했다...
+			PRINTFORML 주우려고 손을 뻗는 찰나, 정체모를 망령이 솟아나 책을 빼앗았다!
+			PRINTFORMW 정체 모를 망령은 공격적인 자세를 취했다...
+			CALL 조교사의망령
+		ENDIF
+ENDSELECT
+TIME += 30
+DOWNBASE:MASTER:기력 += 100
+
+@TSC_NAME25
+#DIMS DYNAMIC 커맨드이름
+커맨드이름 = 방 안을 탐색한다
+RESULTS = %커맨드이름%
+
+@TSC_ABLE25
+
+IF !지하감옥커맨드가부()
+    RETURN 0
+ENDIF
+IF CFLAG:MASTER:현재위치 != 1202
+	RETURN 0
+ENDIF
+;기력 0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+;정지 중에는 불가
+SIF FLAG:70
+	RETURN 0
+RETURN 2
+
+@조교사의망령
+ADDCHARA 143
+TARGET = CHARANUM -1
+CALLNAME:TARGET = 조교사의 망령
+NAME:TARGET = 조교사
+BASE:TARGET:체력 = (100 * RAND:10) + 2000
+EQUIP:상반신윗도리2 = 1
+EQUIP:상반신속옷1 = 1
+TEQUIP:상반신착의상황 = 1
+TEQUIP:하반신착의상황 = 1
+ABL:TARGET:전투능력 = RAND:5 + 8
+ABL:TARGET:레벨 = (RAND:50 + 70 + (ABL:MASTER:레벨/6))
+CFLAG:TARGET:힘 = RAND:35 + 70 + (CFLAG:MASTER:힘/3)
+CFLAG:TARGET:지성 = RAND:35 + 65 + (CFLAG:MASTER:지성/4)
+CFLAG:TARGET:속도 = RAND:35 + 80 + (CFLAG:MASTER:속도/4)
+CFLAG:TARGET:인내 = RAND:35 + 80 + (CFLAG:MASTER:인내/4)
+CFLAG:TARGET:운 = RAND:40 + 80 + (CFLAG:MASTER:운/4)
+
+CFLAG:물리내성 = 30 * ABL:TARGET:레벨
+CFLAG:마력내성 = 8 * ABL:TARGET:레벨
+CFLAG:화염내성 = 8 * ABL:TARGET:레벨
+CFLAG:정신내성 = -5 * ABL:TARGET:레벨
+TALENT:TARGET:정화 = 1
+TALENT:TARGET:탄막소사 = 1
+TALENT:TARGET:전투스타일 = 1
+후처리인터셉트 = 1
+경험치인터셉트 = 1
+;탄막전투화상무시 = 1
+CALL 뉴탄막전투(MASTER,TARGET,1)
+경험치인터셉트 = 0
+DRAWLINE
+DELCHARA TARGET
+TARGET = 0
+SELECTCASE 후처리인터셉트승패여부
+	CASE 0
+		;타겟 패배
+		PRINTFORMW 조교사의 망령이 힘을 잃고 흩어져 사라져 갔다...
+		PRINTFORMW %마스터는% 그 밑에 떨어진 검은 책을 주워들었다
+		PRINTFORMW 낡은 표지에는 희미하게 원 제목이 적혀 있었다
+		PRINTL
+		PRINTFORML 「동방 조교전」
+		PRINTW
+		PRINTFORMW %마스터는% 품 속에 조교전을 챙겼다
+		FLAG:조교전 = 1
+	CASE 1
+		;무승부
+		PRINTFORML 알 수없는 신비로운 힘이 %마스터를% 방 밖으로 집어던졌다!
+		PRINTFORML 책은 또 어디론가 숨어버렸다... 
+	CASE 2
+		PRINTFORML 알 수없는 신비로운 힘이 %마스터를% 방 밖으로 집어던졌다!
+		PRINTFORML 책은 또 어디론가 숨어버렸다... 
+		DOWNBASE:MASTER:체력 += 1000
+		DOWNBASE:MASTER:기력 += 1000
+ENDSELECT
