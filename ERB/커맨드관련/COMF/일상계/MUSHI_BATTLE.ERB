@@ -1,29 +1,29 @@
 ﻿;-------------------------------------------------
-;벌레배틀：戦闘の統括関数
+;벌레배틀：전투의 통괄 함수
 ;-------------------------------------------------
 @MUSHI_BATTLE
 #DIM LPCOUNT
 VARSET MUSHI_FINISH
-;全員のETB処理
+;전원의 ETB 처리
 FOR LOCAL, 1, MUSHI_CHARANUM + 1
 	CALL MUSHI_BATTLE_ETB(LOCAL, MUSHI_STANDNUM:LOCAL)
 NEXT
 MUSHI_ROUND = 0
 
-;以下ループ
+; 이하 루프
 WHILE !MUSHI_FINISH
-	;最初に戦場状態を表示
+	;최초 전장상태 표시
 	IF !MUSHI_ROUND
 		CALL MUSHI_BATTLE_FIELD
 	ELSE
-		CALL MUSHI_MSGSET(@"%" " * 30%＜ラウンド　%TOFULL(TOSTR(MUSHI_ROUND))%＞")
+		CALL MUSHI_MSGSET(@"%" " * 30%＜라운드　%TOFULL(TOSTR(MUSHI_ROUND))%＞")
 		MUSHI_MSGCL:RESULT = C_YELLOW
 		CALL MUSHI_BATTLE_MSG
 	ENDIF
-	;行動順判定
+	;행동순서 판정
 	VARSET MUSHI_ORDER
 	FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
-		;一番高いものを抽出していく
+		; 첫 번째로 높은 값을 추출해 간다.
 		MUSHI_ORDER:0 = 0
 		FOR LOCAL, 1, MUSHI_CHARANUM + 1
 			;すでに抽出してたら弾く
@@ -52,54 +52,54 @@ WHILE !MUSHI_FINISH
 ;		WAIT
 ;	[ENDIF]
 	IF MUSHI_ROUND
-		;各行動処理
+		;각 행동 처리
 		FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
 			SIF !MUSHI_FINISH
 				CALL MUSHI_BATTLE_COMBAT(MUSHI_ORDER:LPCOUNT / 10, MUSHI_ORDER:LPCOUNT)
 		NEXT
-		;ターン終了時処理
+		;턴 종료시 처리
 		SIF !MUSHI_FINISH
 			CALL MUSHI_BATTLE_ENDSTEP
 	ELSE
-		;開幕メッセージ
+		;개막 메시지
 		CALL MUSHI_BATTLE_MSG
 	ENDIF
 	MUSHI_ROUND ++
 WEND
 
 ;-------------------------------------------------
-;벌레배틀：メインの戦場表示関数(上半分）
-;LOCAL:1-2   プレイヤー番号
-;LOCAL:3-4   キャラクター番号
-;LOCAL:5-6   戦場に出ているムシのID
-;LOCAL:7-8   戦場に出ているムシのフラグ番号(プレイヤー番号 * 10 + 選出番号）
-;LOCAL:99    偶数人目の表示の有無
+;벌레배틀：메인 전장 표시 함수(상반)
+;LOCAL:1-2   플레이어 번호
+;LOCAL : 3-4 캐릭터 번호
+;LOCAL: 5-6 전장에 나와있는 벌레의 ID
+;LOCAL : 7-8 전장에 나와있는 벌레 플래그 번호 (플레이어 번호 * 10 + 선출 번호)
+;LOCAL : 99짝수 표시 여부
 ;-------------------------------------------------
 @MUSHI_BATTLE_FIELD
 #DIM LPCOUNT
 #DIMS SHIFT
 MUSHI_LINE = 3
-PRINTFORM ◆ラウンド%TOFULL(TOSTR(MUSHI_ROUND))%　＜フィールドタイプ：
+PRINTFORM ◆ 라운드 %TOFULL(TOSTR(MUSHI_ROUND))%　＜ 필드 타입：
 CALL PRINT_FIELDTYPE(MUSHI_FIELD:99)
 PRINTL ＞
 PRINTFORML ┏%"━" * 40%┓
-;2人ずつ表示していく
+;2사람씩 표시해 나가다
 FOR LOCAL, 0, (MUSHI_CHARANUM > 2) + 1
-	;フラグがごっちゃごちゃだ～
+	;플래그가 뒤죽박죽이야~
 	VARSET LOCALS
 	LOCAL:1 = 1 + LOCAL * 2
 	LOCAL:2 = 2 + LOCAL * 2
 	LOCAL:3 = MUSHI_BATTLER:(LOCAL:1)
 	LOCAL:4 = MUSHI_BATTLER:(LOCAL:2)
 	LOCAL:99 = !LOCAL || !(MUSHI_CHARANUM % 2)
-	;キャラの名前
+	;캐릭터 이름
 	PRINT ┃
 	SIF !MUSHI_REST:(LOCAL:2)
 		LOCALS:2 += "Ｋ．Ｏ．"
 	LOCALS:1 += CALLNAME:(LOCAL:3)
 	LOCALS:2 += CALLNAME:(LOCAL:4)
 	SIF MUSHI_TEAM && LOCAL:1 != 1
-		LOCALS:1 += "(仲間)"
+		LOCALS:1 += "(동료)"
 	IF !MUSHI_REST:(LOCAL:1)
 		LOCALS:1 += "Ｋ．Ｏ．"
 		SETCOLOR C_RED
@@ -124,7 +124,7 @@ FOR LOCAL, 0, (MUSHI_CHARANUM > 2) + 1
 	LOCAL:6 = MUSHI_STAND:(LOCAL:2)
 	LOCAL:7 = MUSHI_STANDNUM:(LOCAL:1)
 	LOCAL:8 = MUSHI_STANDNUM:(LOCAL:2)
-	;ムシの名前
+	;벌레의 이름
 	PRINT ┃
 	CALL PRINT_MUSHINAME(MUSHI_NAME:(LOCAL:7), LOCAL:5, 40)
 	IF LOCAL:99
@@ -133,7 +133,7 @@ FOR LOCAL, 0, (MUSHI_CHARANUM > 2) + 1
 		PRINTFORM %" "* 40%
 	ENDIF
 	PRINTL ┃
-	;HPバーと残り手持ち数
+	;HP바의 잔여수
 	PRINT ┃HP 
 	CALL PRINT_COLORBAR(MUSHI_HP:(LOCAL:7), MUSHI_MAXHP:(LOCAL:7), 20, UNICODE(0x2588), UNICODE(0x2588), BARCOLORSET("초록빛"), RESULT:1)
 	PRINT  
@@ -148,9 +148,9 @@ FOR LOCAL, 0, (MUSHI_CHARANUM > 2) + 1
 		PRINTFORM 　　　　　%" "* 40%
 	ENDIF
 	PRINTL ┃
-	;属性と状態変化
+	;속성과 상태변화
 	PRINT ┃
-	;専用引数を使ってRESULT:1を出力する
+	;전용 인수를 사용하여 RESULT:1을 출력하다
 	CALL MUSHI_TYPE_PRIINT(MUSHI_TYPE:(LOCAL:7), MUSHI_TYPE:(LOCAL:8))
 	PRINTFORM %MUSHI_STATUS:(LOCAL:1), 40 - RESULT, LEFT%
 	IF LOCAL:99
@@ -171,10 +171,10 @@ FOR LOCAL, 0, (MUSHI_CHARANUM > 2) + 1
 	ENDIF
 NEXT
 PRINTFORML ┣%"━" * 40%┫
-;＜メッセージ表示に続く＞
+;<메시지 표시에 계속>
 
 ;-------------------------------------------------
-;벌레배틀：メッセージを設定する関数
+;벌레배틀：메시지를 설정하는 함수
 ;-------------------------------------------------
 @MUSHI_MSGSET(ARGS)
 FOR LOCAL, 0, 14
@@ -184,11 +184,11 @@ FOR LOCAL, 0, 14
 		BREAK
 	ENDIF
 NEXT
-;色を着ける用に入れた番号を返す
+;채색한 번호를 돌려주다
 RETURN RESULT
 
 ;-------------------------------------------------
-;벌레배틀：メッセージ表示関数(下半分）
+;벌레배틀：메시지 표시 함수(하반)
 ;-------------------------------------------------
 @MUSHI_BATTLE_MSG
 MUSHI_LINE += 1
@@ -203,7 +203,7 @@ FOR LOCAL, 0, 14
 NEXT
 PRINTFORML ┗%"━" * 40%┛
 WAIT
-;履歴を残すか？どうするか？
+;이력을 남길까? 말까?
 ;CLEARLINE MUSHI_LINE
 VARSET MUSHI_MSG
 VARSET MUSHI_MSGCL
@@ -211,447 +211,447 @@ SIF !MUSHI_FINISH
 	CALL MUSHI_BATTLE_FIELD
 
 ;-------------------------------------------------
-;벌레배틀：戦闘計算関数
-;ARG    ターンプレイヤー番号
-;NUM    ターンプレイヤーの戦場に出しているムシのフラグ番号
+;벌레배틀：전투계산함수
+;ARG    턴 플레이어 번호
+;NUM    턴 플레이어의 전쟁터에 나와 있는 벌레 플래그 번호
 ;-------------------------------------------------
 @MUSHI_BATTLE_COMBAT(ARG, NUM)
 #DIM NUM
-#DIM 攻撃対象
-#DIM 対象NUM
-#DIM ダメージ補正
-#DIM 固定ダメージ
-#DIMS 攻撃スキル, 2
-#DIM 回避率
-#DIM 与えるダメージ
-;行動不能判定
+#DIM 공격대상
+#DIM 대상NUM
+#DIM 데미지보정
+#DIM 고정데미지
+#DIMS 공격스킬, 2
+#DIM 회피율
+#DIM 피해량
+;행동 불능 판정
 IF MUSHI_HP:NUM <= 0
 	RETURN
 ;敗北している
 ELSEIF !MUSHI_REST:ARG
 	RETURN
-ELSEIF STRCOUNT(MUSHI_STATUS:ARG, "<眠り>")
-	CALL MUSHI_MSGSET(@"《%MUSHI_NAME:NUM%》は眠っている……zZZ")
+ELSEIF STRCOUNT(MUSHI_STATUS:ARG, "<수면>")
+	CALL MUSHI_MSGSET(@"《%MUSHI_NAME:NUM%》는 잠들어 있다…zZZ")
 	MUSHI_MSGCL:RESULT = C_P_PURPLE
 	CALL MUSHI_BATTLE_MSG
 	RETURN
 ENDIF
 
-;対象判定
-攻撃対象 = 0
-対象NUM = 0
-攻撃スキル = 
-攻撃スキル:1 = 
+;대상 판정
+공격대상 = 0
+대상NUM = 0
+공격스킬 = 
+공격스킬:1 = 
 LOCAL = 0
-WHILE !対象NUM
-	攻撃対象 = RAND:MUSHI_CHARANUM + 1
-	;自分はダメ
-	IF 攻撃対象 == ARG
-		攻撃対象 = 0
-	;味方はダメ
-	ELSEIF MUSHI_TEAM && (攻撃対象 % 2) == (ARG % 2)
-		攻撃対象 = 0
-	;KOしてたらダメ
-	ELSEIF MUSHI_HP:(MUSHI_STANDNUM:攻撃対象) <= 0
-		攻撃対象 = 0
-	;敗退してたらダメ
-	ELSEIF !MUSHI_REST:攻撃対象
-		攻撃対象 = 0
-	;[擬態]の効果
-	ELSEIF STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:攻撃対象), "擬態") && !RAND:2
-		攻撃対象 = 0
+WHILE !대상NUM
+	공격대상 = RAND:MUSHI_CHARANUM + 1
+	;자신은 안 돼
+	IF 공격대상 == ARG
+		공격대상 = 0
+	;우리 편은 안 돼
+	ELSEIF MUSHI_TEAM && (공격대상 % 2) == (ARG % 2)
+		공격대상 = 0
+	;KO하면 안 돼
+	ELSEIF MUSHI_HP:(MUSHI_STANDNUM:공격대상) <= 0
+		공격대상 = 0
+	;패퇴하면 안 돼
+	ELSEIF !MUSHI_REST:공격대상
+		공격대상 = 0
+	;[의태]의 효과
+	ELSEIF STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:공격대상), "의태") && !RAND:2
+		공격대상 = 0
 	ENDIF
-	SIF 攻撃対象
-		対象NUM = MUSHI_STANDNUM:攻撃対象
+	SIF 공격대상
+		대상NUM = MUSHI_STANDNUM:공격대상
 	LOCAL ++
-	;ある程度やって決まらなければ失敗
+	;어느 정도 하고 정해지지 않으면 실패
 	IF LOCAL > 100
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の攻撃は対象がいなかった…")
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 공격은 대상이 없었다…")
 		CALL MUSHI_BATTLE_MSG
 		RETURN
 	ENDIF
 WEND
 
-;攻撃時判定
-ダメージ補正 = 100
-固定ダメージ = 0
-;＠攻撃時口上
-CALL KOJO_MESSAGE_SEND("MUSHI_BATTLE", 残りムシ数(ARG), MUSHI_BATTLER:ARG, ARG, 0, "攻撃時")
-;単独の攻撃スキル
-;猛毒攻撃の毒攻撃を防止
-IF STRCOUNT(MUSHI_SKL:NUM, "毒攻撃") && !STRCOUNT(MUSHI_SKL:NUM, "猛毒攻撃") && スキル判定(40, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:攻撃対象, "<독>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『毒攻撃』！")
+;공격시 판정
+데미지보정= 100
+고정데미지 = 0
+;＠공격시대사
+CALL KOJO_MESSAGE_SEND("MUSHI_BATTLE", 남은벌레수(ARG), MUSHI_BATTLER:ARG, ARG, 0, "攻撃時")
+;단독공격스킬
+;맹독 공격의 독공격을 방지
+IF STRCOUNT(MUSHI_SKL:NUM, "독공격") && !STRCOUNT(MUSHI_SKL:NUM, "맹독공격") && 스킬판정(40, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:공격대상, "<독>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『독공격』！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	TIMES ダメージ補正, 0.80
-	攻撃スキル = 毒攻撃
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "猛毒攻撃") && スキル判定(20, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:攻撃対象, "<猛毒>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『猛毒攻撃』！")
+	TIMES 데미지보정, 0.80
+	공격스킬 = 독공격
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "맹독공격") && 스킬판정(20, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:공격대상, "<맹독>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『맹독공격』！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	TIMES ダメージ補正, 0.80
-	攻撃スキル = 猛毒攻撃
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "マヒ攻撃") && スキル判定(30, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:攻撃対象, "<マヒ>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『マヒ攻撃』！")
+	TIMES 데미지보정, 0.80
+	공격스킬 = 맹독공격
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "마비공격") && 스킬판정(30, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:공격대상, "<마비>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『마비공격』！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	TIMES ダメージ補正, 0.80
-	攻撃スキル = マヒ攻撃
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "眠り粉") && スキル判定(20, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:攻撃対象, "<眠り>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『眠り粉』！")
+	TIMES 데미지보정, 0.80
+	공격스킬 = 마비공격
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "수면가루") && 스킬판정(20, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:공격대상, "<수면>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『수면가루』！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	TIMES ダメージ補正, 0.80
-	攻撃スキル = 眠り粉
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "音波攻撃") && スキル判定(40, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:攻撃対象, "<混乱>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『音波攻撃』！")
+	TIMES 데미지보정, 0.80
+	공격스킬 = 수면가루
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "음파공격") && 스킬판정(40, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:공격대상, "<혼란>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『음파공격』！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	TIMES ダメージ補正, 0.80
-	攻撃スキル = 音波攻撃
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "粘液攻撃") && スキル判定(40, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:攻撃対象, "<スロウ>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『粘液攻撃』！")
+	TIMES 데미지보정, 0.80
+	공격스킬 = 음파공격
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "점액공격") && 스킬판정(40, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:공격대상, "<슬로우>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『점액공격』！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	TIMES ダメージ補正, 0.80
-	攻撃スキル = 粘液攻撃
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "悪臭攻撃") && スキル判定(40, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:攻撃対象, "<悪臭>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『悪臭攻撃』！")
+	TIMES 데미지보정, 0.80
+	공격스킬 = 점액공격
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "악취공격") && 스킬판정(40, ARG, NUM) && !STRCOUNT(MUSHI_STATUS:공격대상, "<악취>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『악취공격』！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	TIMES ダメージ補正, 0.80
-	攻撃スキル = 悪臭攻撃
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "呪い攻撃") && スキル判定(30, ARG, NUM)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『呪い攻撃』！")
+	TIMES 데미지보정, 0.80
+	공격스킬 = 악취공격
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "저주공격") && 스킬판정(30, ARG, NUM)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『저주공격』！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	TIMES ダメージ補正, 0.80
-	攻撃スキル = 呪い攻撃
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "吸収攻撃") && スキル判定(100, ARG, NUM)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『吸収攻撃』！")
+	TIMES 데미지보정, 0.80
+	공격스킬 = 저주공격
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "흡수공격") && 스킬판정(100, ARG, NUM)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『흡수공격』！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	TIMES ダメージ補正, 1.00
-	攻撃スキル = 吸収攻撃
+	TIMES 데미지보정, 1.00
+	공격스킬 = 흡수공격
 ENDIF
-;複合攻撃スキル
-IF STRCOUNT(MUSHI_SKL:NUM, "強攻撃") && スキル判定(40, ARG, NUM)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『強攻撃』！")
+;복합공격스킬
+IF STRCOUNT(MUSHI_SKL:NUM, "강공격") && 스킬판정(40, ARG, NUM)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『강공격』！")
 	MUSHI_MSGCL:RESULT = C_YELLOW
-	IF STRCOUNT(MUSHI_SKL:対象NUM, "光の装甲")
-		CALL MUSHI_MSGSET(@"しかし【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は『光の装甲』で通常のダメージしか受けない！")
+	IF STRCOUNT(MUSHI_SKL:대상NUM, "빛의갑옷")
+		CALL MUSHI_MSGSET(@"하지만 【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 『빛의갑옷』으로 통상적인 데미지만 받았다！")
 		MUSHI_MSGCL:RESULT = C_AQUA
 	ELSE
-		CALL MUSHI_MSGSET(@"与えるダメージ1.3倍！")
-		TIMES ダメージ補正, 1.30
-		攻撃スキル:1 += "強攻撃"
+		CALL MUSHI_MSGSET(@"피해량 1.3배！")
+		TIMES 데미지보정, 1.30
+		공격스킬:1 += "강공격"
 	ENDIF
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "クリティカル攻撃") && スキル判定(20, ARG, NUM)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『クリティカル攻撃』！")
+IF STRCOUNT(MUSHI_SKL:NUM, "크리티컬공격") && 스킬판정(20, ARG, NUM)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『크리티컬공격』！")
 	MUSHI_MSGCL:RESULT = C_YELLOW
-	IF STRCOUNT(MUSHI_SKL:対象NUM, "光の装甲")
-		CALL MUSHI_MSGSET(@"しかし【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は『光の装甲』で通常のダメージしか受けない！")
+	IF STRCOUNT(MUSHI_SKL:대상NUM, "빛의갑옷")
+		CALL MUSHI_MSGSET(@"하지만 【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 『빛의갑옷』으로 통상적인 데미지만 받았다！")
 		MUSHI_MSGCL:RESULT = C_AQUA
 	ELSE
-		CALL MUSHI_MSGSET(@"与えるダメージ2倍！！")
-		TIMES ダメージ補正, 2.00
-		攻撃スキル:1 += "クリティカル攻撃"
+		CALL MUSHI_MSGSET(@"피해량 2배！！")
+		TIMES 데미지보정, 2.00
+		공격스킬:1 += "크리티컬공격"
 	ENDIF
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "フェイタル攻撃") && スキル判定(10, ARG, NUM)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『フェイタル攻撃』！")
+IF STRCOUNT(MUSHI_SKL:NUM, "페이탈공격") && 스킬판정(10, ARG, NUM)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『페이탈공격』！")
 	MUSHI_MSGCL:RESULT = C_RED
-	IF STRCOUNT(MUSHI_SKL:対象NUM, "光の装甲")
-		CALL MUSHI_MSGSET(@"しかし【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は『光の装甲』で通常のダメージしか受けない！")
+	IF STRCOUNT(MUSHI_SKL:대상NUM, "빛의갑옷")
+		CALL MUSHI_MSGSET(@"하지만 【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 『빛의갑옷』으로 통상적인 데미지만 받았다！")
 		MUSHI_MSGCL:RESULT = C_AQUA
 	ELSE
-		CALL MUSHI_MSGSET(@"致命的なダメージを与える！！")
-		IF MUSHI_HP:対象NUM < MUSHI_MAXHP:対象NUM * 50 / 100
-			固定ダメージ = MUSHI_HP:対象NUM
+		CALL MUSHI_MSGSET(@"치명적인 데미지를 준다!")
+		IF MUSHI_HP:대상NUM < MUSHI_MAXHP:대상NUM * 50 / 100
+			고정데미지 = MUSHI_HP:대상NUM
 		ELSE
-			固定ダメージ = MUSHI_HP:対象NUM - 1
+			고정데미지 = MUSHI_HP:대상NUM - 1
 		ENDIF
-		攻撃スキル:1 += "フェイタル攻撃"
+		공격스킬:1 += "페이탈공격"
 	ENDIF
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "レーザー攻撃") && スキル判定(20, ARG, NUM)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『レーザー攻撃』！")
+IF STRCOUNT(MUSHI_SKL:NUM, "레이저공격") && 스킬판정(20, ARG, NUM)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『레이저공격』！")
 	MUSHI_MSGCL:RESULT = C_YELLOW
-	CALL MUSHI_MSGSET(@"この攻撃は避けられない！！")
-	攻撃スキル:1 += "レーザー攻撃"
+	CALL MUSHI_MSGSET(@"이 공격은 피할 수 없어!!")
+	공격스킬:1 += "레이저공격"
 ENDIF
-;通常攻撃
-SIF 攻撃スキル == 攻撃スキル:1
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『通常攻撃』！")
-;追加ダメージアップ
-IF STRCOUNT(MUSHI_SKL:NUM, "先手必勝") && MUSHI_ORDER:1 == ARG
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『先手必勝』発動！")
+;통상공격
+SIF 공격스킬 == 공격스킬:1
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『통상공격』！")
+;추가 데미지 업
+IF STRCOUNT(MUSHI_SKL:NUM, "선수필승") && MUSHI_ORDER:1 == ARG
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『선수필승』발동！")
 	MUSHI_MSGCL:RESULT = C_YELLOW
-	CALL MUSHI_MSGSET(@"最速行動でダメージ上昇！")
-	TIMES ダメージ補正, 1.20
+	CALL MUSHI_MSGSET(@"최속 행동으로 데미지 상승!")
+	TIMES 데미지보정, 1.20
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "駆逐") && 残りムシ数(攻撃対象) == 1
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『駆逐』発動！")
+IF STRCOUNT(MUSHI_SKL:NUM, "구축") && 남은벌레수(공격대상) == 1
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『구축』발동！")
 	MUSHI_MSGCL:RESULT = C_YELLOW
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】のムシを完膚無きまで殲滅する！")
-	TIMES ダメージ補正, 1.50
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】의 벌레를 철저히 섬멸하라！")
+	TIMES 데미지보정, 1.50
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "ドミネイト") && MUSHI_HP:NUM == MUSHI_MAXHP:NUM
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『ドミネイト』発動！")
+IF STRCOUNT(MUSHI_SKL:NUM, "도미네이트") && MUSHI_HP:NUM == MUSHI_MAXHP:NUM
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『도미네이트』발동！")
 	MUSHI_MSGCL:RESULT = C_YELLOW
-	CALL MUSHI_MSGSET(@"HPが満タンだと必ずクリティカル！！")
-	TIMES ダメージ補正, 2.00
+	CALL MUSHI_MSGSET(@"HP가 가득이면 반드시 크리티컬!!")
+	TIMES 데미지보정, 2.00
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "水棲特効") && STRCOUNT(MUSHI_TRIBE:対象NUM, "습기선호")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『水棲特効』発動！")
+IF STRCOUNT(MUSHI_SKL:NUM, "수서특효") && STRCOUNT(MUSHI_TRIBE:대상NUM, "수서")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『수서특효』발동！")
 	MUSHI_MSGCL:RESULT = C_YELLOW
-	CALL MUSHI_MSGSET(@"[습기선호]の敵に大ダメージ！！")
-	TIMES ダメージ補正, 2.00
+	CALL MUSHI_MSGSET(@"[수서]의 적에게 큰 데미지!!")
+	TIMES 데미지보정, 2.00
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "飛行特効") && STRCOUNT(MUSHI_TRIBE:対象NUM, "飛行")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『飛行特効』発動！")
+IF STRCOUNT(MUSHI_SKL:NUM, "비행특효") && STRCOUNT(MUSHI_TRIBE:대상NUM, "비행")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『비행특효』발동！")
 	MUSHI_MSGCL:RESULT = C_YELLOW
-	CALL MUSHI_MSGSET(@"[飛行]の敵に大ダメージ！！")
-	TIMES ダメージ補正, 2.00
+	CALL MUSHI_MSGSET(@"[비행]의 적에게 큰 데미지!!")
+	TIMES 데미지보정, 2.00
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "軟体特効") && STRCOUNT(MUSHI_TRIBE:対象NUM, "軟体")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『軟体特効』発動！")
+IF STRCOUNT(MUSHI_SKL:NUM, "연체특효") && STRCOUNT(MUSHI_TRIBE:대상NUM, "연체")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『연체특효』발동！")
 	MUSHI_MSGCL:RESULT = C_YELLOW
-	CALL MUSHI_MSGSET(@"[軟体]の敵に大ダメージ！！")
-	TIMES ダメージ補正, 2.00
+	CALL MUSHI_MSGSET(@"[연체]의 적에게 큰 데미지!!")
+	TIMES 데미지보정, 2.00
 ENDIF
 
-;回避判定
-IF MUSHI_SPD:NUM * 500 / 100 < MUSHI_SPD:対象NUM
-	回避率 = 70
-ELSEIF MUSHI_SPD:NUM * 400 / 100 < MUSHI_SPD:対象NUM
-	回避率 = 60
-ELSEIF MUSHI_SPD:NUM * 300 / 100 < MUSHI_SPD:対象NUM
-	回避率 = 50
-ELSEIF MUSHI_SPD:NUM * 250 / 100 < MUSHI_SPD:対象NUM
-	回避率 = 40
-ELSEIF MUSHI_SPD:NUM * 200 / 100 < MUSHI_SPD:対象NUM
-	回避率 = 30
-ELSEIF MUSHI_SPD:NUM * 150 / 100 < MUSHI_SPD:対象NUM
-	回避率 = 20
-ELSEIF MUSHI_SPD:NUM * 100 / 100 < MUSHI_SPD:対象NUM
-	回避率 = 10
+;회피 판정
+IF MUSHI_SPD:NUM * 500 / 100 < MUSHI_SPD:대상NUM
+	회피율 = 70
+ELSEIF MUSHI_SPD:NUM * 400 / 100 < MUSHI_SPD:대상NUM
+	회피율 = 60
+ELSEIF MUSHI_SPD:NUM * 300 / 100 < MUSHI_SPD:대상NUM
+	회피율 = 50
+ELSEIF MUSHI_SPD:NUM * 250 / 100 < MUSHI_SPD:대상NUM
+	회피율 = 40
+ELSEIF MUSHI_SPD:NUM * 200 / 100 < MUSHI_SPD:대상NUM
+	회피율 = 30
+ELSEIF MUSHI_SPD:NUM * 150 / 100 < MUSHI_SPD:대상NUM
+	회피율 = 20
+ELSEIF MUSHI_SPD:NUM * 100 / 100 < MUSHI_SPD:대상NUM
+	회피율 = 10
 ELSE
-	回避率 = 0
+	회피율 = 0
 ENDIF
-SIF STRCOUNT(MUSHI_SKL:対象NUM, "極小")
-	回避率 += 30
-SIF STRCOUNT(MUSHI_SKL:対象NUM, "高速回避")
-	回避率 += 30
-SIF STRCOUNT(MUSHI_STATUS:攻撃対象, "眠り|マヒ|スロウ")
-	回避率 = 0
-SIF STRCOUNT(攻撃スキル:1, "レーザー攻撃")
-	回避率 = 0
-;コッソリグロテスク攻撃は必中
-SIF STRCOUNT(MUSHI_SKL:NUM, "グロテスク攻撃")
-	回避率 = 0
-;最大80%
-回避率 = MIN(回避率, 80)
-IF RAND:100 < 回避率
-	IF STRCOUNT(MUSHI_SKL:対象NUM, "高速回避")
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》の『高速回避』発動！")
+SIF STRCOUNT(MUSHI_SKL:대상NUM, "극소")
+	회피율 += 30
+SIF STRCOUNT(MUSHI_SKL:대상NUM, "고속회피")
+	회피율 += 30
+SIF STRCOUNT(MUSHI_STATUS:공격대상, "수면|마비|슬로우")
+	회피율 = 0
+SIF STRCOUNT(공격스킬:1, "레이저공격")
+	회피율 = 0
+;슬쩍그로테스크 공격은 필중
+SIF STRCOUNT(MUSHI_SKL:NUM, "그로테스크공격")
+	회피율 = 0
+;최대 80%
+회피율 = MIN(회피율, 80)
+IF RAND:100 < 회피율
+	IF STRCOUNT(MUSHI_SKL:대상NUM, "고속회피")
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》의 『고속회피』발동！")
 		MUSHI_MSGCL:RESULT = C_AQUA
-		CALL MUSHI_MSGSET(@"俊敏な動きで攻撃を回避した！！")
+		CALL MUSHI_MSGSET(@"민첩한 움직임으로 공격을 회피했다!!")
 		MUSHI_MSGCL:RESULT = C_AQUA
-	ELSEIF STRCOUNT(MUSHI_SKL:対象NUM, "極小")
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》の『極小』発動！")
+	ELSEIF STRCOUNT(MUSHI_SKL:대상NUM, "극소")
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》의 『극소』발동！")
 		MUSHI_MSGCL:RESULT = C_AQUA
-		CALL MUSHI_MSGSET(@"身体が小さくて攻撃が当たらない！！")
+		CALL MUSHI_MSGSET(@"몸이 작아서 공격이 맞지 않아!!")
 		MUSHI_MSGCL:RESULT = C_AQUA
 	ELSE
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は攻撃を回避した！")
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》의 공격을 회피했다！")
 		MUSHI_MSGCL:RESULT = C_AQUA
 	ENDIF
 	CALL MUSHI_BATTLE_MSG
 	RETURN
 ENDIF
 
-;防御時判定
-IF STRCOUNT(MUSHI_STATUS:攻撃対象, "<陽炎>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は幻影だった！")
+;방어시 판정
+IF STRCOUNT(MUSHI_STATUS:공격대상, "<아지랑이>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》는 환영이었다！")
 	MUSHI_MSGCL:RESULT = C_CREAM
-	MUSHI_STATUS:攻撃対象'= REPLACE(MUSHI_STATUS:攻撃対象, "<陽炎>", "")
-	ダメージ補正 = 0
-ELSEIF STRCOUNT(MUSHI_SKL:対象NUM, "カウンター") && スキル判定(10, 攻撃対象, 対象NUM)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》の『カウンター』発動！！")
+	MUSHI_STATUS:공격대상'= REPLACE(MUSHI_STATUS:공격대상, "<아지랑이>", "")
+	데미지보정= 0
+ELSEIF STRCOUNT(MUSHI_SKL:대상NUM, "카운터") && 스킬판정(10, 공격대상, 대상NUM)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》의 『카운터』발동！！")
 	MUSHI_MSGCL:RESULT = C_CREAM
-	CALL MUSHI_MSGSET(@"ダメージをそのまま返す！！")
-	攻撃対象 = ARG
-	対象NUM = NUM
-ELSEIF STRCOUNT(MUSHI_SKL:対象NUM, "ジャストガード") && スキル判定(30, 攻撃対象, 対象NUM)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》の『ジャストガード』発動！")
+	CALL MUSHI_MSGSET(@"데미지를 그대로 돌려준다!!")
+	공격대상 = ARG
+	대상NUM = NUM
+ELSEIF STRCOUNT(MUSHI_SKL:대상NUM, "저스트가드") && 스킬판정(30, 공격대상, 대상NUM)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》의『저스트가드』발동！")
 	MUSHI_MSGCL:RESULT = C_CREAM
-	CALL MUSHI_MSGSET(@"受けるダメージを半分にする！")
-	TIMES ダメージ補正, 0.50
+	CALL MUSHI_MSGSET(@"받는 데미지를 반으로 줄인다!")
+	TIMES 데미지보정, 0.50
 ENDIF
-IF STRCOUNT(MUSHI_STATUS:攻撃対象, "<スロウ>")
-	CALL MUSHI_MSGSET(@"《%MUSHI_NAME:対象NUM%》は<スロウ>状態で受けるダメージが増えた！")
-	TIMES ダメージ補正, 1.50
+IF STRCOUNT(MUSHI_STATUS:공격대상, "<슬로우>")
+	CALL MUSHI_MSGSET(@"《%MUSHI_NAME:대상NUM%》은 <슬로우>상태라 받는 데미지가 증가했다!")
+	TIMES 데미지보정, 1.50
 ENDIF
 
-;ダメージ判定
-;無効化されたら終了
-IF !ダメージ補正
+;데미지 판정
+;비활성화되면 종료
+IF !데미지보정
 	CALL MUSHI_BATTLE_MSG
 	RETURN
 ENDIF
 [SKIPSTART]
-	;レアリティ差補正※保留
-	SELECTCASE MUSHI_RARE:NUM - MUSHI_RARE:対象NUM
+	;리얼리티 차이 보정 ※보류
+	SELECTCASE MUSHI_RARE:NUM - MUSHI_RARE:대상NUM
 	CASE 1
-		TIMES ダメージ補正, 1.05
+		TIMES 데미지보정, 1.05
 	CASE 2
-		TIMES ダメージ補正, 1.10
+		TIMES 데미지보정, 1.10
 	CASE 3
-		TIMES ダメージ補正, 1.15
+		TIMES 데미지보정, 1.15
 	CASE 4
-		TIMES ダメージ補正, 1.20
+		TIMES 데미지보정, 1.20
 	CASE IS >= 5
-		TIMES ダメージ補正, 1.30
+		TIMES 데미지보정, 1.30
 	ENDSELECT
 [SKIPEND]
-;相性補正
+;상성 보정
 VARSET LOCAL
-LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "빨강빛") * STRCOUNT(MUSHI_TYPE:対象NUM, "초록빛")
-LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "초록빛") * STRCOUNT(MUSHI_TYPE:対象NUM, "푸른빛")
-LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "푸른빛") * STRCOUNT(MUSHI_TYPE:対象NUM, "빨강빛")
-LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "흰빛") * STRCOUNT(MUSHI_TYPE:対象NUM, "흑빛")
-LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "흑빛") * STRCOUNT(MUSHI_TYPE:対象NUM, "흰빛")
+LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "赤") * STRCOUNT(MUSHI_TYPE:대상NUM, "緑")
+LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "緑") * STRCOUNT(MUSHI_TYPE:대상NUM, "青")
+LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "青") * STRCOUNT(MUSHI_TYPE:대상NUM, "赤")
+LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "白") * STRCOUNT(MUSHI_TYPE:대상NUM, "黒")
+LOCAL += STRCOUNT(MUSHI_TYPE:NUM, "黒") * STRCOUNT(MUSHI_TYPE:대상NUM, "白")
 WHILE LOCAL:1 < LOCAL
-	TIMES ダメージ補正, 1.50
+	TIMES 데미지보정, 1.50
 	LOCAL:1 ++
 WEND
 SIF LOCAL:1
-	CALL MUSHI_MSGSET(@"属性相性バツグンだ！")
+	CALL MUSHI_MSGSET(@"속성 궁합 최고다!")
 
-;ダメージ決定
-与えるダメージ = MUSHI_ATK:NUM * ダメージ補正 / 100
-;乱数補正
-与えるダメージ = 与えるダメージ * (80 + RAND:40) / 100
+;데미지결정
+피해량 = MUSHI_ATK:NUM * 데미지보정/ 100
+;난수 보정
+피해량 = 피해량 * (80 + RAND:40) / 100
 
-SIF 固定ダメージ
-	与えるダメージ = 固定ダメージ
+SIF 고정데미지
+	피해량 = 고정데미지
 
-CALL MUSHI_DAMAGE(対象NUM, 与えるダメージ)
-CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》に {与えるダメージ} のダメージ！")
+CALL MUSHI_DAMAGE(대상NUM, 피해량)
+CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》가 {피해량} 의 데미지！")
 MUSHI_MSGCL:RESULT = C_ORANGE
 
-;[吸収攻撃]の効果
-IF 攻撃スキル == "吸収攻撃"
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》は {与えるダメージ} 回復した！")
+;[흡수공격]의 효과
+IF 공격스킬 == "흡수공격"
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》는 {피해량} 회복했다！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	MUSHI_HP:NUM = MIN(MUSHI_HP:NUM + 与えるダメージ, MUSHI_MAXHP:NUM)
+	MUSHI_HP:NUM = MIN(MUSHI_HP:NUM + 피해량, MUSHI_MAXHP:NUM)
 ENDIF
-;[逆襲]の効果
-IF INRANGE(MUSHI_HP:対象NUM, 1, MUSHI_MAXHP:対象NUM / 2) && STRCOUNT(MUSHI_SKL:対象NUM, "逆襲") && !STRCOUNT(MUSHI_STATUS:攻撃対象, "<逆襲>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》の『逆襲』発動！")
+;[역습]의 효과
+IF INRANGE(MUSHI_HP:대상NUM, 1, MUSHI_MAXHP:대상NUM / 2) && STRCOUNT(MUSHI_SKL:대상NUM, "역습") && !STRCOUNT(MUSHI_STATUS:공격대상, "<역습>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》의 『역습』발동！")
 	MUSHI_MSGCL:RESULT = C_ORANGE
-	CALL MUSHI_MSGSET(@"攻撃を受けて<逆襲>状態になった！！")
-	MUSHI_STATUS:攻撃対象 += "<逆襲>"
-	CALL MUSHI_PALAM(MUSHI_STAND:攻撃対象, MUSHI_POWER:攻撃対象, MUSHI_HP:対象NUM)
-	CALL MUSHI_FLAGSETTING(MUSHI_STAND:攻撃対象, 対象NUM)
+	CALL MUSHI_MSGSET(@"공격을 받아 <역습> 상태가 되었다!!")
+	MUSHI_STATUS:공격대상 += "<역습>"
+	CALL MUSHI_PALAM(MUSHI_STAND:공격대상, MUSHI_POWER:공격대상, MUSHI_HP:대상NUM)
+	CALL MUSHI_FLAGSETTING(MUSHI_STAND:공격대상, 대상NUM)
 ENDIF
 
-;◆◆ここで一度メッセージ表示◆◆
+;◆◆여기서 한번 메시지 표시◆◆
 CALL MUSHI_BATTLE_MSG
 
 VARSET LOCAL
-;KO判定
-IF MUSHI_HP:対象NUM <= 0
+;KO판정
+IF MUSHI_HP:대상NUM <= 0
 	CALL MUSHI_BATTLE_CHECK_KO(ARG, NUM)
 	SIF MUSHI_FINISH
 		RETURN
-ELSEIF 攻撃スキル != "" && STRCOUNT(MUSHI_SKL:対象NUM, "太古の力")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》の『太古の力』発動！！")
+ELSEIF 공격스킬 != "" && STRCOUNT(MUSHI_SKL:대상NUM, "태고의힘")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》의 『태고의힘』발동！！")
 	MUSHI_MSGCL:RESULT = C_CREAM
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は%攻撃スキル%の効果を受けない！")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 %공격스킬%의 효과를 받지 않아!")
 	CALL MUSHI_BATTLE_MSG
 ELSE
-	;ダメージ後処理
-	SELECTCASE 攻撃スキル
-	CASE "毒攻撃"
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は<독>を受けた！")
+	;데미지 후 처리
+	SELECTCASE 공격스킬
+	CASE "독공격"
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 <독>에 중독됐다!")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
-		MUSHI_STATUS:攻撃対象 += "<독>"
-	CASE "猛毒攻撃"
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は<猛毒>を受けた！")
+		MUSHI_STATUS:공격대상 += "<독>"
+	CASE "맹독공격"
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 <맹독>에 중독됐다!")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
-		MUSHI_STATUS:攻撃対象 += "<猛毒>"
-	CASE "マヒ攻撃"
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は<マヒ>した！")
+		MUSHI_STATUS:공격대상 += "<맹독>"
+	CASE "마비공격"
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 <마비>에 걸렸다!")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
-		MUSHI_STATUS:攻撃対象 += "<マヒ>"
-	CASE "眠り粉"
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は<眠り>に落ちた！")
+		MUSHI_STATUS:공격대상 += "<마비>"
+	CASE "수면가루"
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 <수면>에 빠졌다!")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
-		MUSHI_STATUS:攻撃対象 += "<眠り>"
-	CASE "音波攻撃"
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は<混乱>した！")
+		MUSHI_STATUS:공격대상 += "<수면>"
+	CASE "음파공격"
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 <혼란>스럽다!")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
-		MUSHI_STATUS:攻撃対象 += "<混乱>"
-	CASE "粘液攻撃"
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は<スロウ>状態になった！")
+		MUSHI_STATUS:공격대상 += "<혼란>"
+	CASE "점액공격"
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 <슬로우>상태가 되었다!")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
-		MUSHI_STATUS:攻撃対象 += "<スロウ>"
-	CASE "悪臭攻撃"
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は<悪臭>状態になった！")
+		MUSHI_STATUS:공격대상 += "<슬로우>"
+	CASE "악취공격"
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 <악취>상태가 되었다!")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
-		MUSHI_STATUS:攻撃対象 += "<悪臭>"
-	CASE "呪い攻撃"
-		;現在HPの1/2(切り上げ)ダメージを与える
-		LOCAL = MUSHI_HP:対象NUM / 2 + 1
-		CALL MUSHI_DAMAGE(対象NUM, LOCAL)
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》は呪いでさらに {LOCAL} のダメージ！")
+		MUSHI_STATUS:공격대상 += "<악취>"
+	CASE "저주공격"
+		;현재 HP의 1/2(절상) 피해를 입히는
+		LOCAL = MUSHI_HP:대상NUM / 2 + 1
+		CALL MUSHI_DAMAGE(대상NUM, LOCAL)
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》은 추가적으로 {LOCAL} 의 데미지")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
 	ENDSELECT
-	IF 攻撃スキル != ""
-		;状態変化を考慮してステータス再設定
-		CALL MUSHI_PALAM(MUSHI_STAND:攻撃対象, MUSHI_POWER:攻撃対象, MUSHI_HP:対象NUM)
-		CALL MUSHI_FLAGSETTING(MUSHI_STAND:攻撃対象, 対象NUM)
+	IF 공격스킬 != ""
+		;상태 변화를 고려하여 상태 재설정
+		CALL MUSHI_PALAM(MUSHI_STAND:공격대상, MUSHI_POWER:공격대상, MUSHI_HP:대상NUM)
+		CALL MUSHI_FLAGSETTING(MUSHI_STAND:공격대상, 대상NUM)
 		CALL MUSHI_BATTLE_MSG
 	ENDIF
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "バタフライエフェクト") && スキル判定(5, ARG, NUM)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『バタフライエフェクト』発動！")
+IF STRCOUNT(MUSHI_SKL:NUM, "나비효과") && 스킬판정(5, ARG, NUM)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『나비효과』발동！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	CALL MUSHI_MSGSET(@"蝶の羽ばたきが竜巻を引き起こす！！")
+	CALL MUSHI_MSGSET(@"나비의 날갯짓이 회오리바람을 일으킨다!!")
 	FOR LOCAL, 1, MUSHI_CHARANUM + 1
 		IF MUSHI_HP:(MUSHI_STANDNUM:LOCAL) > 1
 			LOCAL:1 = MUSHI_HP:(MUSHI_STANDNUM:LOCAL) / 2
 			CALL MUSHI_DAMAGE(MUSHI_STANDNUM:LOCAL, LOCAL:1)
-			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》に {LOCAL:1} のダメージ！")
+			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》에 {LOCAL:1}의 데미지!")
 			MUSHI_MSGCL:RESULT = C_ORANGE
 		ENDIF
 	NEXT
-	;致命傷はうけない(MSGだけでいい）けど一応
+	;치명상은 받지 않지만(MSG만으로 좋다) 일단
 	CALL MUSHI_BATTLE_CHECK_KO(ARG, NUM)
 	SIF MUSHI_FINISH
 		RETURN
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "騒音攻撃") && MUSHI_CHARANUM > 2
+IF STRCOUNT(MUSHI_SKL:NUM, "소음공격") && MUSHI_CHARANUM > 2
 	LOCAL:1 = 0
 	FOR LOCAL, 1, MUSHI_CHARANUM + 1
-		;やられてる
+		;당하고 있다
 		SIF MUSHI_HP:(MUSHI_STANDNUM:LOCAL) <= 0
 			CONTINUE
-		;敗北してる
+		;패배했어
 		SIF !MUSHI_REST:LOCAL
 			CONTINUE
-		;自身
+		;자신
 		SIF LOCAL == ARG
 			CONTINUE
-		;攻撃対象は除外
-		SIF LOCAL == 攻撃対象
+		;공격대상은 제외
+		SIF LOCAL == 공격대상
 			CONTINUE
-		;仲間
+		;동료
 		SIF MUSHI_TEAM && (LOCAL % 2) == (ARG % 2)
 			CONTINUE
-		;一度でもダメージを与えるなら表示する
+		;한 번이라도 피해를 입히면 표시하겠다
 		IF !LOCAL:1
-			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『騒音攻撃』発動！")
+			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『소음공격』발동！")
 			MUSHI_MSGCL:RESULT = C_L_GREEN
-			CALL MUSHI_MSGSET(@"他の全ての敵にダメージを与える！")
+			CALL MUSHI_MSGSET(@"다른 모든 적에게 피해를 입힌다!")
 			LOCAL:1 = 1
 		ENDIF
-		CALL MUSHI_DAMAGE(MUSHI_STANDNUM:LOCAL, 与えるダメージ)
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》に {与えるダメージ} のダメージ！")
+		CALL MUSHI_DAMAGE(MUSHI_STANDNUM:LOCAL, 피해량)
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》에 {피해량} 의 데미지!")
 		MUSHI_MSGCL:RESULT = C_ORANGE
 	NEXT
 	IF LOCAL:1
@@ -660,36 +660,36 @@ IF STRCOUNT(MUSHI_SKL:NUM, "騒音攻撃") && MUSHI_CHARANUM > 2
 			RETURN
 	ENDIF
 ENDIF
-IF STRCOUNT(MUSHI_SKL:対象NUM, "発光")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:攻撃対象)%】《%MUSHI_NAME:対象NUM%》の『発光』発動！")
+IF STRCOUNT(MUSHI_SKL:대상NUM, "발광")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:공격대상)%】《%MUSHI_NAME:대상NUM%》의 『발광』발동！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》は<混乱>した！")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》은 <혼란>스럽다!")
 	MUSHI_MSGCL:RESULT = C_P_PURPLE
-	MUSHI_STATUS:ARG += "<混乱>"
+	MUSHI_STATUS:ARG += "<혼란>"
 	CALL MUSHI_BATTLE_MSG
 ENDIF
-IF STRCOUNT(MUSHI_STATUS:ARG, "<混乱>")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》は<混乱>している！")
+IF STRCOUNT(MUSHI_STATUS:ARG, "<혼란>")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》은 <혼란>상태에 있다!")
 	MUSHI_MSGCL:RESULT = C_P_PURPLE
-	CALL MUSHI_DAMAGE(NUM, 与えるダメージ / 2)
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》に {与えるダメージ / 2} のダメージ！")
+	CALL MUSHI_DAMAGE(NUM, 피해량 / 2)
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》에 {피해량 / 2} 의 데미지!")
 	MUSHI_MSGCL:RESULT = C_ORANGE
 	CALL MUSHI_BATTLE_CHECK_KO
 	SIF MUSHI_FINISH
 		RETURN
 ENDIF
 VARSET LOCAL
-IF STRCOUNT(MUSHI_SKL:NUM, "グロテスク攻撃")
-	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『グロテスク攻撃』発動！")
+IF STRCOUNT(MUSHI_SKL:NUM, "그로테스크공격")
+	CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『그로테스크공격』발동！")
 	MUSHI_MSGCL:RESULT = C_RED
-	CALL MUSHI_MSGSET(@"身の毛のよだつ挙動で全員に精神的ダメージ！！")
+	CALL MUSHI_MSGSET(@"소름끼치는 거동으로 모두에게 정신적 데미지!!")
 	MUSHI_MSGCL:RESULT = C_RED
 	CALL MUSHI_BATTLE_MSG
 	FOR LOCAL, 1, MUSHI_CHARANUM + 1
 		SIF MUSHI_MENTAL:LOCAL && MUSHI_REST:LOCAL
-			MUSHI_MENTAL:LOCAL = MAX(MUSHI_MENTAL:LOCAL - 与えるダメージ, 0)
+			MUSHI_MENTAL:LOCAL = MAX(MUSHI_MENTAL:LOCAL - 피해량, 0)
 		IF !MUSHI_MENTAL:LOCAL && MUSHI_REST:LOCAL
-			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】は目の前の惨状に耐えられなくなりギブアップした！")
+			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】은 눈앞의 참상을 견딜 수 없어 기브업 했다!")
 			MUSHI_MSGCL:RESULT = C_RED
 			LOCAL:1 = 1
 		ENDIF
@@ -702,95 +702,95 @@ IF STRCOUNT(MUSHI_SKL:NUM, "グロテスク攻撃")
 ENDIF
 
 ;-------------------------------------------------
-;벌레배틀：スキル発動判定関数
-;ARG  プレイヤー番号
-;NUM  フラグ番号
+;벌레배틀：기술발동판정함수
+;ARG 플레이어 번호
+;NUM 플래그 번호
 ;-------------------------------------------------
-@スキル判定(確率, ARG, NUM)
+@스킬판정(確率, ARG, NUM)
 #FUNCTION
 #DIM 確率
 #DIM NUM
 SIF STRCOUNT(MUSHI_STATUS:ARG, "<得意地形>")
 	TIMES 確率, 1.5
-SIF STRCOUNT(MUSHI_SKL:NUM, "猛攻")
+SIF STRCOUNT(MUSHI_SKL:NUM, "맹공")
 	TIMES 確率, 1.5
 SIF GET_MUSHIDATA(MUSHI_SELECT:NUM, "Ｘ型")
 	TIMES 確率, 1.5
-SIF STRCOUNT(MUSHI_STATUS:ARG, "<マヒ>")
+SIF STRCOUNT(MUSHI_STATUS:ARG, "<마비>")
 	確率 = 0
 
 RETURNF RAND:100 < 確率
 
 ;-------------------------------------------------
-;벌레배틀：ダメージ処理関数
+;벌레배틀：데미지 처리함수
 ;-------------------------------------------------
 @MUSHI_DAMAGE(ARG, ARG:1)
 MUSHI_HP:ARG = MAX(MUSHI_HP:ARG - ARG:1, 0)
 
 ;-------------------------------------------------
-;벌레배틀：Ｋ．Ｏ．の判定関数
-;ARG    攻撃プレイヤー番号
-;NUM    攻撃プレイヤーの戦場に出しているムシのフラグ番号
+;벌레배틀：K.O.의 판정 함수
+;ARG 공격 플레이어 번호
+;NUM 공격 플레이어의 전장에 노출된 벌레 플래그 번호
 ;-------------------------------------------------
 @MUSHI_BATTLE_CHECK_KO(ARG, NUM)
 #DIM NUM
 FOR LOCAL, 1, MUSHI_CHARANUM + 1
-	;すでにやられてる
+	;이미 당하고 있는
 	IF MUSHI_HP:(MUSHI_STANDNUM:LOCAL) < 0
 		CONTINUE
-	;やられた(HP=0）
+	;당했다(HP=0)
 	ELSEIF !MUSHI_HP:(MUSHI_STANDNUM:LOCAL)
-		IF STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:LOCAL), "ふんばり") && スキル判定(15, LOCAL, MUSHI_STANDNUM:LOCAL)
-			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》の『ふんばり』発動！！")
+		IF STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:LOCAL), "근성") && 스킬판정(15, LOCAL, MUSHI_STANDNUM:LOCAL)
+			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》의 『근성』발동!!")
 			MUSHI_MSGCL:RESULT = C_YELLOW
 			MUSHI_HP:(MUSHI_STANDNUM:LOCAL) = 1
 		ELSE
-			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》は倒れた！！")
+			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》는 쓰러졌다!!")
 			MUSHI_MSGCL:RESULT = C_RED
-			;倒れたらHP=-1にしておく
+			;쓰러지면 HP=-1로 해둔다.
 			MUSHI_HP:(MUSHI_STANDNUM:LOCAL) = -1
 			CLEARBIT MUSHI_REST:LOCAL, MUSHI_STANDNUM:LOCAL % 10
-			;＠倒れた時口上
-			CALL KOJO_MESSAGE_SEND("MUSHI_BATTLE", 残りムシ数(LOCAL), MUSHI_BATTLER:LOCAL, LOCAL, 0, "倒れた時")
-			;[高揚]の効果
-			IF STRCOUNT(MUSHI_SKL:NUM, "高揚") && !STRCOUNT(MUSHI_STATUS:ARG, "<高揚>")
-				CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》の『高揚』発動！")
+			;@쓰러졌을 때 말투
+			CALL KOJO_MESSAGE_SEND("MUSHI_BATTLE", 남은벌레수(LOCAL), MUSHI_BATTLER:LOCAL, LOCAL, 0, "倒れた時")
+			;[고양]의 효과
+			IF STRCOUNT(MUSHI_SKL:NUM, "고양") && !STRCOUNT(MUSHI_STATUS:ARG, "<고양>")
+				CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】《%MUSHI_NAME:NUM%》의 『고양』발동！")
 				MUSHI_MSGCL:RESULT = C_L_GREEN
-				CALL MUSHI_MSGSET(@"敵を倒して<高揚>状態になった！！")
-				MUSHI_STATUS:ARG += "<高揚>"
+				CALL MUSHI_MSGSET(@"적을 쓰러뜨리고 <고양> 상태가 되었다!!")
+				MUSHI_STATUS:ARG += "<고양>"
 				CALL MUSHI_PALAM(MUSHI_STAND:ARG, MUSHI_POWER:ARG, MUSHI_HP:NUM)
 				CALL MUSHI_FLAGSETTING(MUSHI_STAND:ARG, NUM)
 			ENDIF
 		ENDIF
-	;[逆襲]の効果
-	ELSEIF MUSHI_HP:(MUSHI_STANDNUM:LOCAL) <= MUSHI_MAXHP:(MUSHI_STANDNUM:LOCAL) / 2 && STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:LOCAL), "逆襲") && !STRCOUNT(MUSHI_STATUS:LOCAL, "<逆襲>")
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》の『逆襲』発動！")
+	;[역습]의 효과
+	ELSEIF MUSHI_HP:(MUSHI_STANDNUM:LOCAL) <= MUSHI_MAXHP:(MUSHI_STANDNUM:LOCAL) / 2 && STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:LOCAL), "역습") && !STRCOUNT(MUSHI_STATUS:LOCAL, "<역습>")
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》의 『역습』발동！")
 		MUSHI_MSGCL:RESULT = C_ORANGE
-		CALL MUSHI_MSGSET(@"攻撃を受けて<逆襲>状態になった！！")
-		MUSHI_STATUS:LOCAL += "<逆襲>"
+		CALL MUSHI_MSGSET(@"공격을 받아 <역습>상태로 나왔다!!")
+		MUSHI_STATUS:LOCAL += "<역습>"
 		CALL MUSHI_PALAM(MUSHI_STAND:LOCAL, MUSHI_POWER:LOCAL, MUSHI_HP:(MUSHI_STANDNUM:LOCAL))
 		CALL MUSHI_FLAGSETTING(MUSHI_STAND:LOCAL, MUSHI_STANDNUM:LOCAL)
 	ENDIF
 NEXT
 CALL MUSHI_BATTLE_CHECK_DO
 ;-------------------------------------------------
-;벌레배틀：ドロップアウト判定とそれに続くゲームセット判定の関数
-;LOCAL:2     ドロップアウトしたプレイヤーの順位
+;벌레배틀：드롭아웃 판정과 그에 이은 게임셋 판정 함수
+; LOCAL: 2 드롭아웃된 플레이어의 순위
 ;-------------------------------------------------
 @MUSHI_BATTLE_CHECK_DO
 #DIM LPCOUNT
 VARSET LOCAL
 FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
-	;MENTAL=-1は除外
+	;MENTAL=-1은 제외
 	IF (!MUSHI_REST:LPCOUNT || !MUSHI_MENTAL:LPCOUNT) && MUSHI_MENTAL:LPCOUNT >= 0
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】敗退！！")
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】패퇴!!")
 		MUSHI_MSGCL:RESULT = C_RED
-		;＠敗退時口上
-		CALL KOJO_MESSAGE_SEND("MUSHI_BATTLE", 残りムシ数(LPCOUNT), MUSHI_BATTLER:LPCOUNT, LPCOUNT, 0, "敗退時")
-		;敗退したらMENTAL=-1にしておく
+		;＠패배시구상
+		CALL KOJO_MESSAGE_SEND("MUSHI_BATTLE", 남은벌레수(LPCOUNT), MUSHI_BATTLER:LPCOUNT, LPCOUNT, 0, "敗退時")
+		;패퇴하면 MENTAL=-1로 해둘게
 		MUSHI_MENTAL:LPCOUNT = -1
 		MUSHI_REST:LPCOUNT = 0
-		;順位の設定,後ろからチェックしていく
+		;순위 설정, 뒤에서 체크해 나가다
 		FOR LOCAL, 1, MUSHI_CHARANUM + 1
 			LOCAL:1 = MUSHI_CHARANUM + 1 - LOCAL
 			IF !MUSHI_FINISH:(LOCAL:1)
@@ -801,22 +801,22 @@ FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
 		NEXT
 	ENDIF
 NEXT
-;◆◆◆ここでKOおよび敗退メッセージ表示◆◆
+;◆◆◆여기서 KO및 패퇴 메세지 표시 ◆◆
 CALL MUSHI_BATTLE_MSG
-;引き分け時の判定
+;무승부 시의 판정
 IF LOCAL:2 == 1
 	SETBIT MUSHI_REST:(MUSHI_FINISH:1), 3
-	CALL MUSHI_MSGSET(@"なんと、【%CALLNAME:(MUSHI_BATTLER:(MUSHI_FINISH:1))%】《%MUSHI_NAME:(MUSHI_STANDNUM:(MUSHI_FINISH:1))%》は最後の力を振り絞って立ち上がった！！")
+	CALL MUSHI_MSGSET(@"놀랍게도、【%CALLNAME:(MUSHI_BATTLER:(MUSHI_FINISH:1))%】《%MUSHI_NAME:(MUSHI_STANDNUM:(MUSHI_FINISH:1))%》는 최후의 힘을 다해 일어섰다!")
 	MUSHI_MSGCL:RESULT = C_YELLOW
 	CALL MUSHI_BATTLE_MSG
 	LOCAL:2 = 2
 ENDIF
-;チーム戦
+;팀전
 IF MUSHI_TEAM
-	;奇数か偶数どっちかが全滅したらゲームセット
+	;홀수냐 짝수냐가 전멸하면 게임세트
 	IF (!MUSHI_REST:1 && !MUSHI_REST:3 && !MUSHI_REST:5 && !MUSHI_REST:7) || (!MUSHI_REST:2 && !MUSHI_REST:4 && !MUSHI_REST:6 && !MUSHI_REST:8)
 		VARSET MUSHI_FINISH
-		;めんどいので手捏ね
+		;귀찮아서 감당하기 힘들어.
 		IF (!MUSHI_REST:1 && !MUSHI_REST:3 && !MUSHI_REST:5 && !MUSHI_REST:7)
 			MUSHI_FINISH:1 = 2
 			MUSHI_FINISH:2 = 4
@@ -830,63 +830,63 @@ IF MUSHI_TEAM
 		ENDIF
 		FOR LOCAL, 1, MUSHI_CHARANUM + 1
 			IF MUSHI_REST:LOCAL
-				CALL MUSHI_MSGSET(@"%" " * (24 - STRLENS(CALLNAME:(MUSHI_BATTLER:LOCAL)))%☆☆☆勝者　チーム【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】☆☆☆")
+				CALL MUSHI_MSGSET(@"%" " * (24 - STRLENS(CALLNAME:(MUSHI_BATTLER:LOCAL)))%☆☆☆승자　팀【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】☆☆☆")
 				MUSHI_MSGCL:RESULT = C_YELLOW
 				MUSHI_FINISH:0 = LOCAL
 				BREAK
 			ENDIF
 		NEXT
-		;◆◆◆ゲームセットメッセージ表示◆◆
+		;◆◆◆게임셋 메시지 표시◆◆
 		CALL MUSHI_BATTLE_MSG
 	ENDIF
 ;個人戦
 ELSE
-	;2位が決まったらゲームセット
+	;2등이 정해지면 게임 세트
 	IF LOCAL:2 == 2
 		FOR LOCAL, 1, MUSHI_CHARANUM + 1
 			IF MUSHI_REST:LOCAL
-				CALL MUSHI_MSGSET(@"%" " * (30 - STRLENS(CALLNAME:(MUSHI_BATTLER:LOCAL)))%☆☆☆勝者　【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】☆☆☆")
+				CALL MUSHI_MSGSET(@"%" " * (30 - STRLENS(CALLNAME:(MUSHI_BATTLER:LOCAL)))%☆☆☆승자　【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】☆☆☆")
 				MUSHI_MSGCL:RESULT = C_YELLOW
 				MUSHI_FINISH:1 = LOCAL
 				MUSHI_FINISH:0 = LOCAL
 				BREAK
 			ENDIF
 		NEXT
-		;◆◆◆ゲームセットメッセージ表示◆◆
+		;◆◆◆게임셋 메시지 표시◆◆
 		CALL MUSHI_BATTLE_MSG
 	ENDIF
 ENDIF
 
 ;-------------------------------------------------
-;벌레배틀：ターン終了時処理
+;벌레배틀：턴 종료시 처리
 ;-------------------------------------------------
 @MUSHI_BATTLE_ENDSTEP
 #DIM LPCOUNT
-#DIM ダメージ
-;[流砂]の効果(全員分）
+#DIM 데미지
+;[유사] 효과(전원분)
 VARSET LOCAL
 FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
-	IF STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:LPCOUNT), "流砂") && NAME_FIELD_TYPE(MUSHI_FIELD:99) == "[砂地]"
+	IF STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:LPCOUNT), "유사") && NAME_FIELD_TYPE(MUSHI_FIELD:99) == "[모래밭]"
 		FOR LOCAL, 1, MUSHI_CHARANUM + 1
-			;やられてる
+			;당하고 있다
 			SIF MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT) <= 0
 				CONTINUE
-			;自身
+			;자신
 			SIF LOCAL == LPCOUNT
 				CONTINUE
-			;仲間
+			;동료
 			SIF MUSHI_TEAM && (LOCAL % 2) == (LPCOUNT % 2)
 				CONTINUE
-			;一度でもダメージを与えるなら表示する
+			;한 번이라도 피해를 입히면 표시하겠다
 			IF !LOCAL:1
-				CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》の『流砂』発動！")
+				CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》의 『유사』발동！")
 				MUSHI_MSGCL:RESULT = C_CREAM
-				CALL MUSHI_MSGSET(@"全ての敵を流砂に引きずり込む！")
+				CALL MUSHI_MSGSET(@"모든 적을 유사로 끌어들인다!")
 				LOCAL:1 = 1
 			ENDIF
-			ダメージ = MUSHI_MAXHP:(MUSHI_STANDNUM:LOCAL) / 4
-			CALL MUSHI_DAMAGE(MUSHI_STANDNUM:LOCAL, ダメージ)
-			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》に {ダメージ} のダメージ！")
+			데미지 = MUSHI_MAXHP:(MUSHI_STANDNUM:LOCAL) / 4
+			CALL MUSHI_DAMAGE(MUSHI_STANDNUM:LOCAL, 데미지)
+			CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LOCAL)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LOCAL)%》에 {데미지}의 피해！")
 			MUSHI_MSGCL:RESULT = C_ORANGE
 		NEXT
 		IF LOCAL:1
@@ -897,75 +897,75 @@ FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
 	ENDIF
 NEXT
 
-;毒ダメージ処理,猛毒優先
+;독데미지처리,맹독우선
 VARSET LOCAL
 FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
-	IF STRCOUNT(MUSHI_STATUS:LPCOUNT, "<猛毒>") && MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT) > 0
-		ダメージ = MUSHI_MAXHP:(MUSHI_STANDNUM:LPCOUNT) / 2
-		CALL MUSHI_DAMAGE(MUSHI_STANDNUM:LPCOUNT, ダメージ)
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》は猛毒で {ダメージ} のダメージ！")
+	IF STRCOUNT(MUSHI_STATUS:LPCOUNT, "<맹독>") && MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT) > 0
+		데미지 = MUSHI_MAXHP:(MUSHI_STANDNUM:LPCOUNT) / 2
+		CALL MUSHI_DAMAGE(MUSHI_STANDNUM:LPCOUNT, 데미지)
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》은 맹독에 {데미지}의 데미지！")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
 		LOCAL:1 = 1
 	ELSEIF STRCOUNT(MUSHI_STATUS:LPCOUNT, "<독>") && MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT) > 0
-		ダメージ = MUSHI_MAXHP:(MUSHI_STANDNUM:LPCOUNT) / 4
-		CALL MUSHI_DAMAGE(MUSHI_STANDNUM:LPCOUNT, ダメージ)
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》は毒で {ダメージ} のダメージ！")
+		데미지 = MUSHI_MAXHP:(MUSHI_STANDNUM:LPCOUNT) / 4
+		CALL MUSHI_DAMAGE(MUSHI_STANDNUM:LPCOUNT, 데미지)
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》은 독에 {데미지}의 데미지！")
 		MUSHI_MSGCL:RESULT = C_P_PURPLE
 		LOCAL:1 = 1
 	ENDIF
 NEXT
-;ダメージが発生したらKO判定
+;데미지가 발생하면 KO판정
 IF LOCAL:1
 	CALL MUSHI_BATTLE_CHECK_KO(LPCOUNT, MUSHI_STANDNUM:LPCOUNT)
 	SIF MUSHI_FINISH
 		RETURN
 ENDIF
 
-;眠りが起きる処理
+;수면이 일어나는 처리
 VARSET LOCAL
 FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
 	;確率1/2
-	IF STRCOUNT(MUSHI_STATUS:LPCOUNT, "<眠り>") && !RAND:2 && MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT) > 0
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》は眠りから覚めた！")
+	IF STRCOUNT(MUSHI_STATUS:LPCOUNT, "<수면>") && !RAND:2 && MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT) > 0
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》은 수면에서 깼다!")
 		MUSHI_MSGCL:RESULT = C_YELLOW
-		MUSHI_STATUS:LPCOUNT'= REPLACE(MUSHI_STATUS:LPCOUNT, "<眠り>", "")
+		MUSHI_STATUS:LPCOUNT'= REPLACE(MUSHI_STATUS:LPCOUNT, "<수면>", "")
 		LOCAL:1 = 1
 	ENDIF
 NEXT
-;起床が発生したらメッセージ表示
+;기상이 발생하면 메시지 표시
 SIF LOCAL:1
 	CALL MUSHI_BATTLE_MSG
 
-;再生処理
+;재생 처리
 VARSET LOCAL
 FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
-	IF STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:LPCOUNT), "再生") && INRANGE(MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT), 1, MUSHI_MAXHP:(MUSHI_STANDNUM:LPCOUNT) - 1)
+	IF STRCOUNT(MUSHI_SKL:(MUSHI_STANDNUM:LPCOUNT), "재생") && INRANGE(MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT), 1, MUSHI_MAXHP:(MUSHI_STANDNUM:LPCOUNT) - 1)
 		LOCAL = MUSHI_MAXHP:(MUSHI_STANDNUM:LPCOUNT) / 4
 		MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT) = MIN(MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT) + LOCAL, MUSHI_MAXHP:(MUSHI_STANDNUM:LPCOUNT))
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》の『再生』発動！")
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》의 『재생』발동！")
 		MUSHI_MSGCL:RESULT = C_L_GREEN
-		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》は {LOCAL} 回復した！")
+		CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:LPCOUNT)%】《%MUSHI_NAME:(MUSHI_STANDNUM:LPCOUNT)%》은 {LOCAL} 회복했다! ")
 		MUSHI_MSGCL:RESULT = C_L_GREEN
 		LOCAL:1 = 1
 	ENDIF
 NEXT
-;再生が発動したらメッセージ表示
+;재생이 발동되면 메세지 표시
 SIF LOCAL:1
 	CALL MUSHI_BATTLE_MSG
 
-;入れ替え
+;교체
 VARSET LOCAL
 FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
-	;敗退済み
+	;패퇴끝
 	SIF !MUSHI_REST:LPCOUNT
 		CONTINUE
 	IF MUSHI_HP:(MUSHI_STANDNUM:LPCOUNT) <= 0
-		;あなたは手動
+		;당신은 수동
 		IF MUSHI_BATTLER:LPCOUNT == MASTER
 			CLEARLINE MUSHI_LINE
 			CALL MUSHI_BATTLE_CHANGE(LPCOUNT)
 		ELSE
-			;キャラは上から順に出していく
+			;캐릭터는 위에서부터 순서대로 내놓는다
 			FOR LOCAL, 1, MUSHI_MAXSELECT + 1
 				IF GETBIT(MUSHI_REST:LPCOUNT, LOCAL)
 					CALL MUSHI_BATTLE_ETB(LPCOUNT, LPCOUNT * 10 + LOCAL)
@@ -976,18 +976,18 @@ FOR LPCOUNT, 1, MUSHI_CHARANUM + 1
 		LOCAL:1 = 1
 	ENDIF
 NEXT
-;入れ替えが発生したらメッセージ表示
+;교체가 발생하면 메시지 표시
 SIF LOCAL:1
 	CALL MUSHI_BATTLE_MSG
 
 ;-------------------------------------------------
-;벌레배틀：MASTERの手動入れ替え関数
-;戦場表示とメッセージ表示の間にINPUTが入るので事前に戦場表示を消しておき、
-;メッセージ表示(ETB）の前に戦場表示をする
+;마스터 수동 교체 함수
+;전장 표시와 메시지 표시 사이에 INPUT가 들어가므로 사전에 전장 표시를 꺼두고,
+;메시지 표시(ETB) 앞에 전장 표시하기
 ;-------------------------------------------------
 @MUSHI_BATTLE_CHANGE(ARG)
-#DIM 選んだムシ
-PRINTFORML ◆次に出すムシを選べ！
+#DIM 선택한벌레
+PRINTFORML ◆다음에 낼 벌레를 골라라!
 FOR LOCAL, 1, MUSHI_MAXSELECT + 1
 	SIF !GETBIT(MUSHI_REST:ARG, LOCAL)
 		SETCOLOR C_GRAY
@@ -998,9 +998,9 @@ FOR LOCAL, 1, MUSHI_MAXSELECT + 1
 NEXT
 INPUT
 IF INRANGE(RESULT, 1, MUSHI_MAXSELECT) && GETBIT(MUSHI_REST:ARG, RESULT)
-	選んだムシ = RESULT
+	선택한벌레 = RESULT
 	CALL MUSHI_BATTLE_FIELD
-	CALL MUSHI_BATTLE_ETB(ARG, ARG * 10 + 選んだムシ)
+	CALL MUSHI_BATTLE_ETB(ARG, ARG * 10 + 선택한벌레)
 	MUSHI_LINE += 2 + MUSHI_MAXSELECT
 	RETURN
 ENDIF
@@ -1008,72 +1008,72 @@ CLEARLINE 2 + MUSHI_MAXSELECT
 RESTART
 
 ;-------------------------------------------------
-;벌레배틀：戦場に出た時のスキル処理・能力値計算関数
-;ARG  プレイヤー番号
-;NUM  フラグ番号
+;벌레배틀：전장에 나갔을 때의 스킬 처리, 능력치 계산 함수
+;ARG 플레이어 번호
+;NUM 플래그 번호
 ;-------------------------------------------------
 @MUSHI_BATTLE_ETB(ARG, NUM)
 #DIM NUM
-;STANDを設定
+;STAND를 설정
 MUSHI_STAND:ARG = MUSHI_SELECT:NUM
 MUSHI_STANDNUM:ARG = NUM
 MUSHI_STATUS:ARG = 
 MUSHI_NAME = %MUSHI_NAME:NUM%
-CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】は《%MUSHI_NAME%》を戦場に出した！")
-;＠ETB口上
-CALL KOJO_MESSAGE_SEND("MUSHI_BATTLE", 残りムシ数(ARG), MUSHI_BATTLER:ARG, ARG, 0, "戦場に出した")
+CALL MUSHI_MSGSET(@"【%CALLNAME:(MUSHI_BATTLER:ARG)%】은(는)《%MUSHI_NAME%》를 전장에 내보냈다！")
+;＠ETB대사
+CALL KOJO_MESSAGE_SEND("MUSHI_BATTLE", 남은벌레수(ARG), MUSHI_BATTLER:ARG, ARG, 0, "戦場に出した")
 
-;フィールド判定
-IF STRCOUNT(MUSHI_SKL:NUM, "浄化")
-	CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》の[浄化]発動！")
+;필드 판정
+IF STRCOUNT(MUSHI_SKL:NUM, "정화")
+	CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》의 [정화]발동！")
 	MUSHI_MSGCL:RESULT = C_AQUA
-	CALL MUSHI_BATTLE_フィールド変化(7)
+	CALL MUSHI_BATTLE_필드변화(7)
 ELSEIF MUSHI_FIELD:NUM & MUSHI_FIELD:99
 	MUSHI_STATUS:ARG += "<得意地形>"
 ENDIF
 ;得意季節
-IF STRCOUNT(MUSHI_SKL:NUM, "春の虫") && GET_MONTH() == "봄의 달"
+IF STRCOUNT(MUSHI_SKL:NUM, "봄벌레") && GET_MONTH() == "봄의 달"
 	MUSHI_STATUS:ARG += "<得意季節>"
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "夏の虫") && GET_MONTH() == "여름의 달"
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "여름벌레") && GET_MONTH() == "여름의 달"
 	MUSHI_STATUS:ARG += "<得意季節>"
-ELSEIF STRCOUNT(MUSHI_SKL:NUM, "秋の虫") && GET_MONTH() == "가을의 달"
+ELSEIF STRCOUNT(MUSHI_SKL:NUM, "가을벌레") && GET_MONTH() == "가을의 달"
 	MUSHI_STATUS:ARG += "<得意季節>"
 ENDIF
 ;ETBスキル
-IF 残りムシ数(ARG) == 1
-	IF STRCOUNT(MUSHI_SKL:NUM, "大将")
-		MUSHI_STATUS:ARG += "<大将>"
-		CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》の[大将]発動！")
+IF 남은벌레수(ARG) == 1
+	IF STRCOUNT(MUSHI_SKL:NUM, "대장")
+		MUSHI_STATUS:ARG += "<대장>"
+		CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》의 [대장]발동！")
 		MUSHI_MSGCL:RESULT = C_L_GREEN
-		CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》は最後の一匹としてやる気に溢れている！")
+		CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》는 최후의 한 마리로서 의욕이 넘친다!")
 		MUSHI_MSGCL:RESULT = C_YELLOW
 	ELSE
-		CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》は最後の一匹だ！")
+		CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》는 마지막 한 마리다!")
 		MUSHI_MSGCL:RESULT = C_ORANGE
 	ENDIF
 ENDIF
-IF STRCOUNT(MUSHI_SKL:NUM, "陽炎")
-	MUSHI_STATUS:ARG += "<陽炎>"
-	CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》の[陽炎]発動！")
+IF STRCOUNT(MUSHI_SKL:NUM, "아지랑이")
+	MUSHI_STATUS:ARG += "<아지랑이>"
+	CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》의 [아지랑이]발동！")
 	MUSHI_MSGCL:RESULT = C_L_GREEN
-	CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》は陽炎に包まれている！")
+	CALL MUSHI_MSGSET(@"《%MUSHI_NAME%》은 아지랑이에 휩싸였다!")
 	MUSHI_MSGCL:RESULT = C_CREAM
 ENDIF
-;能力値再設定,戦闘HPは満タン
+;능력치 재설정, 전투HP 가득
 CALL MUSHI_PALAM(MUSHI_STAND:ARG, MUSHI_POWER:ARG, 0, MUSHI_STATUS:ARG)
 CALL MUSHI_FLAGSETTING(MUSHI_STAND:ARG, NUM)
 
 ;-------------------------------------------------
-;벌레배틀：フィールドタイプが変わった時の処理関数
-;得意地形が変わってステータスも変わるので再設定する
+;벌레배틀：필드유형이바뀌었을때처리함수
+;특기 지형이 바뀌고 상태도 바뀌므로 재설정함
 ;-------------------------------------------------
-@MUSHI_BATTLE_フィールド変化(ARG)
+@MUSHI_BATTLE_필드변화(ARG)
 #DIM NUM
 MUSHI_FIELD:99 = 0
 SETBIT MUSHI_FIELD:99, ARG
-CALL MUSHI_MSGSET(@"フィールドが＜%NAME_FIELD_TYPE(MUSHI_FIELD:99)%＞変化した！")
+CALL MUSHI_MSGSET(@"필드가＜%NAME_FIELD_TYPE(MUSHI_FIELD:99)%＞변화했다!")
 MUSHI_MSGCL:RESULT = C_L_GREEN
-;得意地形の再設定とそれによる能力値の再設定
+;특기지형 재설정 및 그에 따른 능력치 재설정
 FOR LOCAL, 1, MUSHI_CHARANUM + 1
 	NUM = MUSHI_STANDNUM:LOCAL
 	IF MUSHI_FIELD:NUM & MUSHI_FIELD:99
@@ -1085,9 +1085,9 @@ FOR LOCAL, 1, MUSHI_CHARANUM + 1
 	CALL MUSHI_FLAGSETTING(MUSHI_STAND:NUM, NUM)
 NEXT
 ;-------------------------------------------------
-;벌레배틀：プレイヤー番号ARGの残りムシ数を返す関数
+;벌레배틀：플레이어 번호 ARG의남은벌레수를 돌려주는 함수
 ;-------------------------------------------------
-@残りムシ数(ARG)
+@남은벌레수(ARG)
 #FUNCTION
 LOCAL:1 = 0
 FOR LOCAL, 1, MUSHI_MAXSELECT + 1
