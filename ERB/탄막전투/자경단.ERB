@@ -16,42 +16,120 @@ RETURNF 1
 
 @자경단의추격
 PRINTFORML 현상수배된 %마스터를% 발견한 자경단이 호루라기를 불며 달려들었다!
-ADDCHARA 143
-TARGET = CHARANUM -1
-CALLNAME:TARGET = 자경단
-NAME:TARGET = 자경단
-BASE:TARGET:체력 = (100 * RAND:20) + 1850
-ABL:TARGET:전투능력 = RAND:6 + 3
-ABL:TARGET:레벨 = RAND:55 + 35 + (ABL:MASTER:레벨/4)
-CFLAG:TARGET:힘 = RAND:50 + 35 + (CFLAG:MASTER:힘/4)
-CFLAG:TARGET:지성 = RAND:50 + 10 + (CFLAG:MASTER:지성/4)
-CFLAG:TARGET:속도 = RAND:50 + 35 + (CFLAG:MASTER:속도/4)
-CFLAG:TARGET:인내 = RAND:55 + 30 + (CFLAG:MASTER:인내/4)
-CFLAG:TARGET:운 = RAND:55 + 35 + (CFLAG:MASTER:운/4)
+IF 명중판정(85)
+    ADDCHARA 143
+    TARGET = CHARANUM -1
+    CALLNAME:TARGET = 자경단
+    NAME:TARGET = 자경단
+    BASE:TARGET:체력 = (100 * RAND:20) + 1850
+    ABL:TARGET:전투능력 = RAND:6 + 3
+    ABL:TARGET:레벨 = RAND:55 + 35 + (ABL:MASTER:레벨/4)
+    CFLAG:TARGET:힘 = RAND:50 + 35 + (CFLAG:MASTER:힘/4)
+    CFLAG:TARGET:지성 = RAND:50 + 10 + (CFLAG:MASTER:지성/4)
+    CFLAG:TARGET:속도 = RAND:50 + 35 + (CFLAG:MASTER:속도/4)
+    CFLAG:TARGET:인내 = RAND:55 + 30 + (CFLAG:MASTER:인내/4)
+    CFLAG:TARGET:운 = RAND:55 + 35 + (CFLAG:MASTER:운/4)
+    TALENT:TARGET:기분 = -1
+    TALENT:TARGET:정화 = 1
+    TALENT:TARGET:탄막소사 = 1
+    TALENT:TARGET:전투스타일 = 1
+    후처리인터셉트 = 1
+    ;탄막전투화상무시 = 1
+    CALL 뉴탄막전투(MASTER,TARGET,1)
+    DRAWLINE
+    DELCHARA TARGET
+    TARGET = 0
+    SELECTCASE 후처리인터셉트승패여부
+        CASE 0
+            ;타겟 패배
+            PRINTFORML 중상을 입은 자경단원을 뒤늦게 나타난 다른 자경단이 끌고 도망갔다...
+            고로시수++
+            BASE:MASTER:체력 -= 250 
+        CASE 1
+            ;무승부
+            PRINTFORML 지쳐 쓰러지기 직전인 자경단원을 뒤늦게 나타난 다른 자경단이 끌고 도망갔다...
+            BASE:MASTER:체력 -= 750
+        CASE 2
+            ;마스터 패배
+            PRINTFORML 자경단은 쓰러진 %마스터를% 끌고 지하 감옥으로 내려갔다...
+            BASE:MASTER:체력 -= 9000
+            CALL 투옥
+            CALL OYASUMI
+    ENDSELECT
+ELSE
+    CALL 네임드자경단
+    
+ENDIF
+
+
+@네임드자경단
+#DIM DYNAMIC 엔트리
+#DIM DYNAMIC 목록,10
+FOR LOCAL,0,CHARANUM
+    IF 자경단_플레이어사냥여부(LOCAL)
+        목록:A = LOCAL
+        목록:A ++
+    ENDIF
+NEXT
+IF A > 1
+    B = RAND:A - 1
+ELSEIF A == 1
+    B = A
+ELSE
+    RETURN
+ENDIF
+엔트리 = 목록:B
+TARGET = 엔트리
 TALENT:TARGET:기분 = -1
-TALENT:TARGET:정화 = 1
-TALENT:TARGET:탄막소사 = 1
-TALENT:TARGET:전투스타일 = 1
 후처리인터셉트 = 1
-;탄막전투화상무시 = 1
 CALL 뉴탄막전투(MASTER,TARGET,1)
-DRAWLINE
-DELCHARA TARGET
-TARGET = 0
 SELECTCASE 후처리인터셉트승패여부
     CASE 0
         ;타겟 패배
-        PRINTFORML 중상을 입은 자경단원을 뒤늦게 나타난 다른 자경단이 끌고 도망갔다...
+        PRINTFORML 중상을 입은 %타겟을% 뒤늦게 나타난 다른 자경단이 끌고 도망갔다...
         고로시수++
         BASE:MASTER:체력 -= 250 
     CASE 1
         ;무승부
-        PRINTFORML 지쳐 쓰러지기 직전인 자경단원을 뒤늦게 나타난 다른 자경단이 끌고 도망갔다...
+        PRINTFORML 지쳐 쓰러지기 직전인 %타겟을% 뒤늦게 나타난 다른 자경단이 끌고 도망갔다...
         BASE:MASTER:체력 -= 750
     CASE 2
         ;마스터 패배
-        PRINTFORML 자경단은 쓰러진 %마스터를% 끌고 지하 감옥으로 내려갔다...
+        PRINTFORML %타겟은% 쓰러진 %마스터를% 끌고 지하 감옥으로 내려갔다...
         BASE:MASTER:체력 -= 9000
         CALL 투옥
         CALL OYASUMI
 ENDSELECT
+
+@자경단_플레이어사냥여부(ARG)
+#FUNCTION
+IF TALENT:ARG:사망
+    RETURNF 0
+ENDIF
+IF TALENT:ARG:당신의노예
+    RETURNF 0
+ENDIF
+IF TALENT:ARG:주인
+    RETURNF 0
+ENDIF
+IF CFLAG:ARG:감금됨
+    RETURNF 0
+ENDIF
+IF CFLAG:ARG:출금
+    RETURNF 0
+ENDIF
+IF TALENT:ARG:창녀 || TALENT:ARG:렌탈창녀
+    RETURNF 0
+ENDIF
+IF TALENT:ARG:연인
+    RETURNF 0
+ENDIF
+IF TALENT:ARG:연모
+    RETURNF 0
+ENDIF
+
+
+
+IF GROUPMATCH(ARG,[[레이무]],[[마리사]],[[사나에]],[[요우무]],[[레이센]],[[에이키]])
+    RETURNF 1
+ENDIF
