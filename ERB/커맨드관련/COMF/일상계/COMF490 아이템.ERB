@@ -44,6 +44,8 @@ SIF ITEM:1038&&사용가능아이템(1038)
 	CALL PRINT_ITEM_EXPLANATION(1038)
 SIF ITEM:1042&&사용가능아이템(1042)
 	CALL PRINT_ITEM_EXPLANATION(1042)
+SIF ITEM:1048&&사용가능아이템(1048)
+	CALL PRINT_ITEM_EXPLANATION(1048)
 PRINTL
 DRAWLINE
 SIF ITEM:곤충채집세트
@@ -673,6 +675,59 @@ SELECTCASE 사용아이템
 				TALENT:대상:농후정액 = 1
 			LOCAL:1++
 		ENDIF
+	CASE 1048
+		IF 대상 != MASTER && !곰방대_같이피기(대상)
+			PRINTFORML %타겟은% 피고 싶은 마음이 없는 모양이다
+			GOTO LOOP
+		ENDIF
+
+		PRINTFORML 무엇을 필까?
+		DRAWLINE
+		PRINTFORML [01] 연초 * {ITEM:연초분말}
+		PRINTFORML [02] 로터스 * {ITEM:로터스분말}
+		DRAWLINE
+		PRINTFORML [99] 돌아간다
+		$곰방대루프
+		INPUT
+		IF RESULT == 99
+			GOTO LOOP
+		ELSE
+			SELECTCASE RESULT
+				CASE 1
+					IF ITEM:연초분말
+						ITEM:연초분말--
+						LOCAL = GETNUM(ITEM,"연초분말")
+					ELSE
+						GOTO 곰방대루프
+					ENDIF
+				CASE 2
+					IF ITEM:로터스분말
+						ITEM:로터스분말--
+						LOCAL = GETNUM(ITEM,"로터스분말")
+					ELSE
+						GOTO 곰방대루프
+					ENDIF
+				CASEELSE
+					GOTO 곰방대루프
+			ENDSELECT
+		ENDIF
+		D_섭취타입 = 1
+		CALL 약물효과발동(대상,LOCAL)
+		CALL RECOVER(대상, 100, "기력", "휴식 타임")
+		IF 대상 == MASTER
+			PRINTFORML %마스터는% %조사처리(D_이름,"을")% 피웠다
+			TIME += 5
+			D_섭취타입 = 3
+			FOR A,1,CHARANUM
+				IF CFLAG:A:현재위치 == CFLAG:MASTER:현재위치
+					PRINTFORML 주위에 있던 %CALLNAME:A%에게 %조사처리(D_이름,"의")% 연기가 흘러갔다
+					CALL 약물효과발동(A,LOCAL)
+				ENDIF
+			NEXT
+		ELSE
+			PRINTFORML %타겟은% %마스터가% 빌려준 곰방대로 %조사처리(D_이름,"을")% 피웠다
+			TIME += 5
+		ENDIF
 	CASEELSE
 		GOTO LOOP
 ENDSELECT
@@ -737,7 +792,7 @@ RETURN 1
 SELECTCASE ARG
 	CASE 120 TO 123, 215, 364, 500, 510, 514, 515, 516, 517, 520, 521, 530, 1023,1024,1038,961
 		RETURNF 1
-	CASE 212, 213, 352, 501 TO 503, 505 TO 509, 511, 512, 550, 626, 628, 630,1035,1037,1020,1042,950
+	CASE 212, 213, 352, 501 TO 503, 505 TO 509, 511, 512, 550, 626, 628, 630,1035,1037,1020,1042,950,1048
 		RETURNF 2
 	CASEELSE
 		RETURNF 0
