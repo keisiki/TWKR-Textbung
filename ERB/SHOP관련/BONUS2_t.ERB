@@ -16,6 +16,7 @@ PRINTFORMC [999] 다음페이지
 PRINTL 
 PRINTC  
 PRINTFORMC [0] 돌아간다
+PRINTFORMC [1000] 실적취득현황보존
 INPUT
 SELECTCASE RESULT
 	CASE 0
@@ -24,6 +25,15 @@ SELECTCASE RESULT
 		PAGE --
 	CASE 999
 		PAGE ++
+	CASE 1000
+		PRINTFORMW 현재의 실적취득 현황을 글로벌 세이브에 저장합니다.
+		FOR LOCAL, 3, 10
+			GLOBAL_BONUS:LOCAL = FLAG:(LOCAL + 700)
+			SAVEGLOBAL
+			;개인 임의수정, 한판 전용 기술보너스 인계를 위한 추가 저장절차
+			GLOBAL_BONUS_KR:0 = FLAG:(0 + 810)
+			SAVEGLOBAL
+		NEXT
 	CASEELSE
 		TRYCALLFORM REWARD_BONUS_{PAGE}(RESULT)
 ENDSELECT
@@ -194,26 +204,28 @@ RETURN RESULT
 ;안면 보너스
 ;----------------------------------------
 @PRINT_BONUS_0
+#DIMS BONUSTEXT
 PRINTFORML ★현재의 안면 인원수：{안면카운트(), 4}명
 FOR LOCAL, 1,6
+	BONUSTEXT '= @"안면 {CONDITION_안면보너스(LOCAL)}명 보너스 - %BONUS_NAME_0(LOCAL)%"
 	IF !GETBIT (FLAG:안면보너스취득상황, LOCAL) && !CONDITION_안면보너스(LOCAL, 1)
 		PRINTPLAINFORM [{LOCAL}] - 해방 조건：안면 {CONDITION_안면보너스(LOCAL)}명 이상 - %BONUS_NAME_0(LOCAL)%
 	ELSE
 		IF GETBIT (FLAG:안면보너스취득상황, LOCAL)
 			IF !REMOVABLE_BONUS_0(LOCAL)
 				SETCOLOR 100, 100, 100
-				PRINTPLAINFORM [{LOCAL}] - 안면 {CONDITION_안면보너스(LOCAL)}명 보너스【완료】%BONUS_NAME_0(LOCAL)%
+				PRINTPLAINFORM [{LOCAL}] - %BONUSTEXT%【완료】
 			ELSE
 				IF !CONDITION_안면보너스(LOCAL, 1)
 					SETCOLOR C_ORANGE
 				ELSE
 					SETCOLOR C_P_BLUE
 				ENDIF
-				PRINTFORM [{LOCAL}] - 안면 {CONDITION_안면보너스(LOCAL)}명 보너스【완료】%BONUS_NAME_0(LOCAL)%
+				PRINTPLAINFORM [{LOCAL}] - %BONUSTEXT%【완료】
 			ENDIF
 		ELSE
 			SETCOLOR C_AQUA
-			PRINTFORM [{LOCAL}] - 안면 {CONDITION_안면보너스(LOCAL)}명 보너스 - %BONUS_NAME_0(LOCAL)%
+			PRINTFORM [{LOCAL}] - %BONUSTEXT%
 		ENDIF
 		RESETCOLOR
 	ENDIF
@@ -239,7 +251,7 @@ SELECTCASE ARG
 ENDSELECT
 
 IF ARG:1
-	IF 안면카운트() >= 필요수
+	IF 안면카운트() >= 필요수 || GETBIT(GLOBAL_BONUS:4, ARG) ;개인 임의수정, 안면보너스 할당이 3으로 되있어 4로 변경
 		RETURNF 1
 	ELSE
 		RETURNF 0
@@ -320,27 +332,29 @@ RETURNF 안면카운트
 ;----------------------------------------
 
 @PRINT_BONUS_1
+#DIMS BONUSTEXT
 VARSET RESULT
 PRINTFORML ★현재의 최대호감도：{최대호감도(), 7}\@ RESULT:1 ?  (%CALLNAME:(RESULT:1)%) # \@
 FOR LOCAL, 1,9
+	BONUSTEXT '= @"호감도 {CONDITION_호감도보너스(LOCAL)} 돌파 보너스 - %BONUS_NAME_1(LOCAL)%"
 	IF !GETBIT (FLAG:호감도보너스취득상황, LOCAL) && !CONDITION_호감도보너스(LOCAL, 1)
 		PRINTPLAINFORM [{LOCAL}] - 해방 조건：호감도 {CONDITION_호감도보너스(LOCAL)} 돌파 - %BONUS_NAME_1(LOCAL)%
 	ELSE
 		IF GETBIT (FLAG:호감도보너스취득상황, LOCAL)
 			IF !REMOVABLE_BONUS_1(LOCAL)
 				SETCOLOR 100, 100, 100
-				PRINTPLAINFORM [{LOCAL}] - 호감도{CONDITION_호감도보너스(LOCAL)} 돌파 보너스【완료】%BONUS_NAME_1(LOCAL)%
+				PRINTPLAINFORM [{LOCAL}] - %BONUSTEXT% 【완료】
 			ELSE
 				IF !CONDITION_호감도보너스(LOCAL, 1)
 					SETCOLOR C_ORANGE
 				ELSE
 					SETCOLOR C_P_BLUE
 				ENDIF
-				PRINTFORM [{LOCAL}] - 호감도 {CONDITION_호감도보너스(LOCAL)} 돌파 보너스【완료】%BONUS_NAME_1(LOCAL)%
+				PRINTFORM [{LOCAL}] - %BONUSTEXT% 【완료】
 			ENDIF
 		ELSE
 			SETCOLOR C_AQUA
-			PRINTFORM [{LOCAL}] - 호감도 {CONDITION_호감도보너스(LOCAL)} 돌파 보너스 - %BONUS_NAME_1(LOCAL)%
+			PRINTFORM [{LOCAL}] - %BONUSTEXT%
 		ENDIF
 		RESETCOLOR
 	ENDIF
@@ -371,7 +385,7 @@ SELECTCASE ARG
 ENDSELECT
 
 IF ARG:1
-	IF 최대호감도() >= 필요호감도
+	IF 최대호감도() >= 필요호감도 || GETBIT (GLOBAL_BONUS:3, ARG) ;개인 임의수정, 호감도보너스 할당이 4로 되있어 3으로 변경
 		RETURNF 1
 	ELSE
 		RETURNF 0
@@ -493,7 +507,7 @@ SELECTCASE ARG
 ENDSELECT
 
 IF ARG:1
-	IF FLAG:획득팬티총수 >= 필요종수
+	IF FLAG:획득팬티총수 >= 필요종수 || GETBIT (GLOBAL_BONUS:5, ARG)
 		RETURNF 1
 	ELSE
 		RETURNF 0
@@ -503,26 +517,28 @@ ELSE
 ENDIF
 
 @PRINT_BONUS_2
+#DIMS BONUSTEXT
 PRINTFORML ★현재의 획득 팬티 종류수：{FLAG:획득팬티총수, 3}종
 FOR LOCAL, 1,9
+	BONUSTEXT '= @"팬티 {CONDITION_팬티보너스(LOCAL)}종 수집 보너스 - %BONUS_NAME_2(LOCAL)%"
 	IF !GETBIT (FLAG:팬티보너스취득상황, LOCAL) && !CONDITION_팬티보너스(LOCAL, 1)
-		PRINTPLAINFORM [{LOCAL}] - 해방 조건：팬티를 {CONDITION_팬티보너스(LOCAL)}종류 모은다 - %BONUS_NAME_2(LOCAL)%
+		PRINTPLAINFORM [{LOCAL}] - 해방 조건：팬티를 {CONDITION_팬티보너스(LOCAL)}종 모은다 - %BONUS_NAME_2(LOCAL)%
 	ELSE
 		IF GETBIT (FLAG:팬티보너스취득상황, LOCAL)
 			IF !REMOVABLE_BONUS_2(LOCAL)
 				SETCOLOR 100, 100, 100
-				PRINTPLAINFORM [{LOCAL}] - 팬티 {CONDITION_팬티보너스(LOCAL)}종 수집 보너스【완료】%BONUS_NAME_2(LOCAL)%
+				PRINTFORM [{LOCAL}] - %BONUSTEXT% 【완료】
 			ELSE
 				IF !CONDITION_팬티보너스(LOCAL, 1)
 					SETCOLOR C_ORANGE
 				ELSE
 					SETCOLOR C_P_BLUE
 				ENDIF
-				PRINTFORM [{LOCAL}] - 팬티 {CONDITION_팬티보너스(LOCAL)}종 수집 보너스【완료】%BONUS_NAME_2(LOCAL)%
+				PRINTPLAINFORM [{LOCAL}] - %BONUSTEXT% 【완료】
 			ENDIF
 		ELSE
 			SETCOLOR C_AQUA
-			PRINTFORM [{LOCAL}] - 팬티 {CONDITION_팬티보너스(LOCAL)}종 수집 보너스 - %BONUS_NAME_2(LOCAL)%
+			PRINTFORM [{LOCAL}] - %BONUSTEXT%
 		ENDIF
 		RESETCOLOR
 	ENDIF
@@ -682,10 +698,15 @@ BONUS_3_DESCRIPTION:11 = 합의를 얻지 않고 의식이 있는 상대와 행�
 SIF 합의없음
 	BONUS_3_ABLE:11 = 1
 
+FOR LOCAL,1, 12
+	SIF GETBIT (GLOBAL_BONUS:6, LOCAL)
+		BONUS_3_ABLE:LOCAL = 1
+NEXT
+
 PRINTFORML ★현재의 연모：{연모카운트, 3}명/섹프：{섹프카운트, 3}명
 FOR LOCAL, 1,12
 	IF !BONUS_3_ABLE:LOCAL && !GETBIT (FLAG:함락보너스취득상황, LOCAL)
-		PRINTPLAINFORM [{LOCAL}] - 해방 조건：%BONUS_3_DESCRIPTION:LOCAL%  - %BONUS_NAME_3(LOCAL)%
+		PRINTPLAINFORM [{LOCAL}] - 해방 조건：%BONUS_3_DESCRIPTION:LOCAL% - %BONUS_NAME_3(LOCAL)%
 	ELSE
 		IF GETBIT (FLAG:함락보너스취득상황, LOCAL)
 			IF !REMOVABLE_BONUS_3(LOCAL)
@@ -860,6 +881,11 @@ BONUS_4_DESCRIPTION:14 = 메이드
 
 SIF FLAG:스침잉태수
 	BONUS_4_ABLE:13 = 1
+
+FOR LOCAL,1, 14
+	SIF GETBIT (GLOBAL_BONUS:7, LOCAL)
+		BONUS_4_ABLE:LOCAL = 1
+NEXT
 
 PRINTFORML ★현재의 잉태종족수：{잉태종족수, 2}종
 FOR LOCAL,1,15
@@ -1044,6 +1070,11 @@ BONUS_5_DESCRIPTION:5 = 키스마 3명
 SIF 키스마인원수 >= 3
 	BONUS_5_ABLE:5 = 1
 
+FOR LOCAL,1, 6
+	SIF GETBIT (GLOBAL_BONUS:8, LOCAL)
+		BONUS_5_ABLE:LOCAL = 1
+NEXT
+
 PRINTFORML ★현재의 자위중독：{자위중독인원수, 3}명/음유：{음유인원수, 3}명/음호：{음호인원수, 3}명/항문광：{항문광인원수, 3}명/키스마：{키스마인원수, 3}명
 SIF FLAG:주회수
 	PRINTFORML 　(자위중독 이외는 과거에 취득한 것이 있는 캐릭터도 포함됩니다)
@@ -1146,7 +1177,7 @@ FOR LOCAL, 1,7
 		IF GETBIT (FLAG:탄막승부보너스취득상황, LOCAL)
 			IF !REMOVABLE_BONUS_6(LOCAL)
 				SETCOLOR 100, 100, 100
-				PRINTPLAINFORM [{LOCAL}] - 탄막승부승리 {CONDITION_탄막승부보너스(LOCAL)}명 보너스【완료】%BONUS_NAME_6(LOCAL)%
+				PRINTPLAINFORM [{LOCAL}] - 탄막승부승리 {CONDITION_탄막승부보너스(LOCAL)}명 보너스【완료】- %BONUS_NAME_6(LOCAL)%
 			ELSE
 				IF !CONDITION_탄막승부보너스(LOCAL, 1)
 					SETCOLOR C_ORANGE
@@ -1154,7 +1185,7 @@ FOR LOCAL, 1,7
 					SETCOLOR C_P_BLUE
 				ENDIF
 				IF LOCAL != 6
-					PRINTFORM [{LOCAL}] - 탄막승부승리 {CONDITION_탄막승부보너스(LOCAL)}명 보너스【완료】%BONUS_NAME_6(LOCAL)%
+					PRINTFORM [{LOCAL}] - 탄막승부승리 {CONDITION_탄막승부보너스(LOCAL)}명 보너스【완료】- %BONUS_NAME_6(LOCAL)%
 				ELSE
 					PRINTFORM [{LOCAL}] - 신키와 헤카티아에게 탄막승부로 승리한 보너스【완료】%BONUS_NAME_6(LOCAL)%
 				ENDIF
@@ -1191,7 +1222,9 @@ SELECTCASE ARG
 ENDSELECT
 
 IF ARG:1
-	IF 탄막승부승리카운트() >= 필요수 && ARG < 6
+	IF GETBIT (GLOBAL_BONUS:9, ARG)
+		RETURNF 1
+	ELSEIF 탄막승부승리카운트() >= 필요수 && ARG < 6
 		RETURNF 1
 	ELSEIF CFLAG:102:탄막승부승리 && CFLAG:113:탄막승부승리 && ARG == 6
 		RETURNF 1
@@ -1294,6 +1327,9 @@ FOR LOCAL, 1, CHARANUM
 NEXT
 RETURNF 탄막승부승리카운트
 
+;----------------------------------------
+;KR판 오리지날, 기술보너스
+;----------------------------------------
 
 @PRINT_BONUS_7
 VARSET BONUS_7_ABLE
@@ -1326,6 +1362,10 @@ SIF ABL:MASTER:음악기능 >=5
 BONUS_7_DESCRIPTION:7 = 허리기술 5이상
 SIF ABL:MASTER:허리 >= 5
 	BONUS_7_ABLE:7 = 1
+FOR LOCAL,1, 8
+	SIF GETBIT (GLOBAL_BONUS_KR:0, LOCAL)
+		BONUS_7_ABLE:LOCAL = 1
+NEXT
 
 PRINTFORML ★교양: {ABL:MASTER:교양} / 화술기능: {ABL:MASTER:화술기능} / 전투능력: {ABL:MASTER:전투능력} / 청소기능: {ABL:MASTER:청소기능} / 음악기능: {ABL:MASTER:음악기능} / 허리기술: {ABL:MASTER:허리}
 FOR LOCAL, 1,8
@@ -1382,11 +1422,11 @@ SELECTCASE ARG
 	CASE 4
 		PRINTL 청소기를 얻었습니다.
 		PRINTW 청소 시간이 빨라집니다
-		ITEM:910=1
+		ITEM:910 = 1
 	CASE 5
 		PRINTL 간편 요리 도구를 얻었습니다.
 		PRINTW 어디서든 요리할 수 있습니다. 단, 경식만 가능합니다.
-		ITEM:911=1
+		ITEM:911 = 1
 	CASE 6
 		PRINTW 【습득 빠름】를 얻었습니다.
 	CASE 7
