@@ -1,6 +1,7 @@
 ﻿@시체생성(ARG)
 #DIM DYNAMIC 전리품타입
 #DIM DYNAMIC 빈칸
+#DIM DYNAMIC 전투력,2
 IF GROUPMATCH(ARG,71,83)
     전리품타입 = 8
     GOTO MAKE_CORPSE
@@ -52,11 +53,19 @@ PRINTFORML 들고 있는 시체가 너무 많아서 더이상 가질수 없다..
 RETURN
 
 $PHASE1
+전투력:0 = MAX(1,(ABL:MASTER:전투능력 * 20) + (ABL:MASTER:레벨 * 3) + (CFLAG:MASTER:힘 + CFLAG:MASTER:지성 + CFLAG:MASTER:속도 + CFLAG:MASTER:인내+ CFLAG:MASTER:운) + 1)
+전투력:1 = MAX(1,(ABL:ARG:전투능력 * 20) + (ABL:ARG:레벨 * 3) + (CFLAG:ARG:힘 + CFLAG:ARG:지성 + CFLAG:ARG:속도 + CFLAG:ARG:인내+ CFLAG:ARG:운) + 1)
+
 T_들고있는시체:빈칸:0 = 1
 T_들고있는시체:빈칸:1 = ARG
 T_들고있는시체:빈칸:2 = DAY
 T_들고있는시체:빈칸:3 = 시체데이터(전리품타입,"크기")
 T_들고있는시체:빈칸:4 = 전리품타입
+T_들고있는시체:빈칸:5 = MIN(T_TIME * 5 , 100)
+T_들고있는시체:빈칸:6 = MIN(100,CFLAG:ARG:호감도/250) - ( MIN(100,CFLAG:ARG:호감도/250) * MIN(T_TIME * 5 , 100)) / 100
+T_들고있는시체:빈칸:7 = MIN(T_TIME * 2 , 50)
+T_들고있는시체:빈칸:8 = 50 - MIN(T_TIME * 2 , 50)
+T_들고있는시체:빈칸:9 = MIN(T_TIME, 10) * MIN(50,MAX(전투력:0 - 전투력:1,0)/10)
 PRINTFORML %ARG의% 시체를 챙겼다
 
 @시체있음
@@ -80,6 +89,11 @@ FOR LOCAL,0,20
             T_시체:빈칸:2 = T_들고있는시체:빈칸:2
             T_시체:빈칸:3 = T_들고있는시체:빈칸:3
             T_시체:빈칸:4 = T_들고있는시체:빈칸:4
+            T_시체:빈칸:5 = T_들고있는시체:빈칸:5
+            T_시체:빈칸:6 = T_들고있는시체:빈칸:6
+            T_시체:빈칸:7 = T_들고있는시체:빈칸:7
+            T_시체:빈칸:8 = T_들고있는시체:빈칸:8
+            T_시체:빈칸:9 = T_들고있는시체:빈칸:9
             T_들고있는시체:LOCAL:0 = 0
             BREAK
         ENDIF
@@ -125,7 +139,7 @@ ELSE
     IF RESULT < 1000
         IF T_시체:RESULT:0 == 1
             ;대상 선택 완료
-            대상 = RESULT
+            대상 = T_시체:RESULT:1
             IF ARG
                 품질 = ARG
             ELSE
@@ -257,6 +271,12 @@ ELSE
                 EXP:MASTER:요리경험 += 품질 / 5 + 1
             ENDIF
             CALL 도축결과물생성(대상,품질)
+            IF ITEM:호르몬추출기
+                PRINTFORML 호르몬 추출기를 사용할까?
+                CALL ASK_YN()
+                SIF RESULT == 0
+                    CALL 호르몬추출(대상,품질)
+            ENDIF
             T_시체:대상:0 = 0
             RESTART
         ENDIF
@@ -544,3 +564,54 @@ SELECTCASE ARG
                 RETURNF 2
         ENDSELECT
 ENDSELECT
+
+@호르몬추출(대상,품질)
+#DIM DYNAMIC 대상
+#DIM DYNAMIC 품질
+PRINTFORM %CALLNAME:대상%의 몸에서 
+FOR LOCAL,0,T_시체:대상:5
+    IF 명중판정(품질)
+        LOCAL:1++
+    ENDIF
+NEXT
+PRINTFORM 아드레날린을 {LOCAL:1}만큼, 
+T_아드레날린 += LOCAL:1
+LOCAL:1 = 0
+
+FOR LOCAL,0,T_시체:대상:6
+    IF 명중판정(품질)
+        LOCAL:1++
+    ENDIF
+NEXT
+PRINTFORM 도파민을 {LOCAL:1}만큼, 
+T_도파민 += LOCAL:1
+LOCAL:1 = 0
+
+FOR LOCAL,0,T_시체:대상:7
+    IF 명중판정(품질)
+        LOCAL:1++
+    ENDIF
+NEXT
+PRINTFORM 엔도르핀을 {LOCAL:1}만큼, 
+T_엔도르핀 += LOCAL:1
+LOCAL:1 = 0
+
+FOR LOCAL,0,T_시체:대상:8
+    IF 명중판정(품질)
+        LOCAL:1++
+    ENDIF
+NEXT
+PRINTFORM 테스토스테론을 {LOCAL:1}만큼, 
+T_테스토스테론 += LOCAL:1
+LOCAL:1 = 0
+
+FOR LOCAL,0,T_시체:대상:9
+    IF 명중판정(품질)
+        LOCAL:1++
+    ENDIF
+NEXT
+PRINTFORM 공포감을 {LOCAL:1}만큼 
+T_공포감 += LOCAL:1
+LOCAL:1 = 0
+
+PRINTFORMW 추출하였습니다
