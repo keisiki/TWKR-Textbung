@@ -165,7 +165,8 @@ IF RESULT
 ELSE
 	;자고 있으면(자) 일으킨다
 	IF CFLAG:ARG:수면
-		CALL CHARA_AWAKE, ARG
+		SIF TCVAR:수면제강도 < 3
+			CALL CHARA_AWAKE, ARG
 		;더부살이캐릭터가 자신의 집에서 일어났을 경우, 참배길저편에 이동시킨다
 		SIF CFLAG:ARG:신사거주 && CFLAG:ARG:현재위치 == 97 + MAIN_MAP * 100
 			CFLAG:ARG:현재위치 = MAXROOM
@@ -406,3 +407,23 @@ ENDIF
 ; 	CFLAG:ARG:동행 = 0
 ; ENDIF
 
+
+@혼수기절처리(ARG)
+SIF FLAG:시간정지 || CFLAG:ARG:쇠약 || TCVAR:ARG:만취
+	RETURN
+SIF CFLAG:ARG:우후후 && CFLAG:ARG:욕구불만도 > 0
+	RETURN
+IF TCVAR:ARG:수면제강도 >= 2 && TCVAR:ARG:수면심도 >= 12000
+	IF !CFLAG:ARG:수면
+		;데이트중이라면 낮잠은 무시한다
+		IF !(CHK_DATENOW(CFLAG:ARG:데이트중) && !수면시간(ARG))
+			IF !CFLAG:ARG:초대 && !(CFLAG:ARG:신사거주 && CFLAG:ARG:현재위치 == CFLAG:ARG:초기위치)
+				IF CFLAG:MASTER:현재위치 == CFLAG:ARG:현재위치 && !CFLAG:MASTER:수면
+					PRINTFORMW %ARG는% 졸음을 이기지 못하고 쓰러졌다
+					TCVAR:ARG:수면심도 += 1000
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+	CALL SET_SLEEP(1,ARG,0)
+ENDIF
