@@ -1,0 +1,84 @@
+﻿@지역별버프생성(지역,ID,값,시간)
+#DIM DYNAMIC 지역
+#DIM DYNAMIC ID
+#DIM DYNAMIC 값
+#DIM DYNAMIC 시간
+
+FOR LOCAL,0,LCB_MAXBUFF
+    IF LCB_버프:LOCAL:LCB_시간 <= 0
+
+        LCB_버프:LOCAL:LCB_지역 = 지역
+        LCB_버프:LOCAL:LCB_ID = ID
+        LCB_버프:LOCAL:LCB_값 = 값
+        LCB_버프:LOCAL:LCB_시간 = 시간
+        BREAK
+    ENDIF
+NEXT
+
+
+@지역별버프시간감소(ARG)
+FOR LOCAL,0,LCB_MAXBUFF
+    IF LCB_버프:LOCAL:LCB_시간 > 0
+        LCB_버프:LOCAL:LCB_시간 -= ARG
+        SIF LCB_버프:LOCAL:LCB_시간 < 0
+            LCB_버프:LOCAL:LCB_시간 = 0
+    ENDIF
+NEXT
+
+@지역별버프적용(ARG)
+;ARG = 시간
+
+FOR LOCAL,0,LCB_MAXBUFF
+    IF LCB_버프:LOCAL:LCB_시간 > 0
+        TRYCALLFORM LCB_{LCB_버프:LOCAL:LCB_ID}(MIN(ARG,LCB_버프:LOCAL:LCB_시간),LOCAL)
+    ENDIF
+NEXT
+CALL 지역별버프시간감소(ARG)
+
+@지역별버프초기화
+VARSET LCB_버프
+
+@지역별버프여부(ARG,ARG:1)
+;지역,값
+#FUNCTION
+FOR LOCAL,0,LCB_MAXBUFF
+    IF LCB_버프:LOCAL:LCB_ID == ARG:1 && LCB_버프:LOCAL:LCB_지역 == ARG && LCB_버프:LOCAL:LCB_시간 > 0
+        RETURNF 1
+    ENDIF
+NEXT
+RETURNF 0
+
+@지역별버프표시(ARG)
+;지역
+FOR LOCAL,1,LCB_MAXTYPE+1
+    IF 지역별버프여부(ARG,LOCAL)
+        TRYCALLFORM LCB_{LOCAL}_STR()
+    ENDIF
+NEXT
+
+@LCB_적용대상(ARG,ARG:1)
+#FUNCTION
+;지역,캐릭터번호
+IF CFLAG:(ARG:1):현재위치 == ARG
+    RETURNF 1
+ENDIF
+RETURNF 0
+
+; LCB 1_ 수면향
+@LCB_1(시간,BUFF_ID)
+#DIM DYNAMIC 시간
+#DIM DYNAMIC BUFF_ID
+IF LCB_버프:BUFF_ID:LCB_시간 > 0
+    FOR LOCAL,0,CHARANUM
+        IF LCB_적용대상(LCB_버프:BUFF_ID:LCB_지역,LOCAL)
+            TCVAR:LOCAL:수면심도 += LCB_버프:BUFF_ID:LCB_값 * 시간
+            SIF TCVAR:LOCAL:수면제강도 < 2
+                TCVAR:LOCAL:수면제강도 += 2
+        ENDIF
+    NEXT
+ENDIF
+
+@LCB_1_STR()
+SETCOLOR 0X3300FF
+PRINTFORM 　[수면향 적용중]
+RESETCOLOR
