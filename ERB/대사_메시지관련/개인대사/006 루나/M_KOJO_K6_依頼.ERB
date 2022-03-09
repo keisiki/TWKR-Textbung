@@ -1,0 +1,130 @@
+﻿@M_KOJO_IRAI_K6(ROLE, SCENE, IRAI_ID)
+#DIMS ROLE     ;캐릭터의 입장, 의뢰자인지 아닌지
+#DIMS SCENE    ;대사가 표시되는 타이밍
+#DIM  IRAI_ID  ;의뢰 자체의 ID
+#DIM  CLIENT_ID;의뢰자 ID만 추출한 것
+#DIM  CHK_ID   ;의뢰 ID만 추출한 것
+CHK_ID    = IRAI_ID % 1000
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE ROLE
+CASE "CLIENT"
+	;一般依頼
+	IF IS_COMMON_IRAI(IRAI_ID)
+		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+		CASE "一般依頼名"
+			SELECTCASE SCENE
+			CASE "의뢰 제시시"
+			;依頼を持ちかけられる時	
+				PRINTFORML 「조금 괜찮아？」
+				PRINTFORML 「저기… 부탁할 게 있는데」
+			CASE "의뢰비수탁시"
+			;内容だけ見て受託しなかった時
+				PRINTFORML 「그래… 뭐 어쩔 수 없는가」
+			CASE "의뢰 수탁시"
+			;依頼を受託した時
+				PRINTFORML 「무리하지 말아요」
+			CASE "의뢰 확인시"
+			;[366]で依頼内容を依頼人に確認した時
+				PRINTFORML 「다시 한번 내용을 듣고 싶은 거야？」
+			CASE "의뢰 파기시"
+			;受託した依頼を破棄する時
+				PRINTFORML 「할 수 없는 것은 할 수 없다고 말하는 것도 중요하지」
+			CASE "의뢰실행 직전"
+			;[367]で依頼を実行する時、実行処理の前に呼び出される
+			CASE "의뢰실행 직후"
+			;[367]で依頼を実行する時、実行処理の後に呼び出される
+			CASE "성공 보고시"
+			;報告時（成功）
+				PRINTFORML 「고마워요 %CALLNAME:MASTER%。조금 다시 봤어」
+			CASE "실패 보고시"
+			;報告時（失敗）
+			;この他、報告忘れや期限切れで失敗扱いになり後日依頼人に遭遇した際にも表示
+				PRINTFORML 「잠깐 %CALLNAME:MASTER%。일전에 부탁한 거 잊어버렸어？」
+				PRINTFORML 「진짜 기억 안 나？… 하아、정말이지」
+			ENDSELECT
+		ENDSELECT
+		RETURN
+	ENDIF
+	
+	;固有依頼
+	SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+	;個々の依頼名で分岐
+	;SCENEのWAITに関する仕様
+	;WAIT無しでよい　　　　："의뢰 제시시", "의뢰비수탁시", "의뢰 확인시", "의뢰 파기시", "성공 보고시", "실패 보고시"
+	;
+	;以下の2つは実際にはCARRYOUTでの地の文処理との比較検討が必要
+	;WAITを入れたほうが適切："의뢰실행 직전", "의뢰실행 직후"
+	CASE "固有依頼名"
+		SELECTCASE SCENE
+		CASE "의뢰 제시시"
+		;依頼を持ちかけられる時
+		CASE "의뢰비수탁시"
+		;内容だけ見て受託しなかった時
+		CASE "의뢰 수탁시"
+		;依頼を受託した時
+		CASE "의뢰 확인시"
+		;[366]で依頼内容を依頼人に確認した時
+		CASE "의뢰 파기시"
+		;受託した依頼を破棄する時
+		CASE "의뢰실행 직전"
+		;[367]で依頼を実行する時、実行処理の前に呼び出される
+		CASE "의뢰실행 직후"
+		;[367]で依頼を実行する時、実行処理の後に呼び出される
+		CASE "성공 보고시"
+		;報告時（成功）
+		CASE "실패 보고시"
+		;報告時（失敗）
+		;この他、報告忘れや期限切れで失敗扱いになり後日依頼人に遭遇した際にも表示
+		ENDSELECT
+	ENDSELECT
+CASE "TARGET"
+	;ここで表示されるSCENEは"의뢰실행 직전", "의뢰실행 직후"だけです
+	;一般依頼
+	IF IS_COMMON_IRAI(IRAI_ID)
+		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+		;個々の依頼名で分岐してください
+		CASE "一般依頼名"
+		;人物が鍵になっていた・もしくは場所にたまたま居合わせた
+			SELECTCASE SCENE
+			;TARGETが呼ばれるのはこのタイミングだけ
+			CASE "의뢰실행 직전"
+			CASE "의뢰실행 직후"
+			ENDSELECT
+		ENDSELECT
+		RETURN
+	ENDIF
+	SELECTCASE CSVCALLNAME(CLIENT_ID)
+	;依頼者のCALLNAMEによる分岐（CSV準拠）
+	CASE "依頼者"
+		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+		CASE "固有依頼名"
+			SELECTCASE SCENE
+			CASE "의뢰실행 직전"
+			CASE "의뢰실행 직후"
+			ENDSELECT
+		ENDSELECT
+	ENDSELECT
+CASE "NO_REPORT"
+	;日数経過時、報告不要依頼を達成していた場合に呼ばれる口上
+	;ここで表示されるSCENEは"의뢰 보고 불필요"だけです
+	;SCENEが一つしか無いので分岐は不要
+	;また、必ず依頼主の口上が呼ばれます
+	;一般依頼
+	IF IS_COMMON_IRAI(IRAI_ID)
+		SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+		;個々の依頼名で分岐してください
+		CASE "一般依頼名"
+		CASE "お花に水をあげて"
+			PRINTFORML 「무사히 물을 준 것 같네。살아났어요ー」
+			PRINTFORMW 「그건 겉보기엔 딱히 특별한게 없어 보이는 꽃이지만、방심하면 덮쳐 오는걸」
+		CASE "誰かの落とし物"
+			PRINTFORML 「아무래도 배달해 준 것 같구나。고마워요」
+			PRINTFORMW 「이것으로 %CALLNAME:MASTER%와 나는 공범이네♪」
+			PRINTFORMW …그것은 정말 분실물이었던가 %CALLNAME:MASTER%는 불안에 사로잡혔다。
+		ENDSELECT
+		RETURN
+	ENDIF
+	SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+	CASE "固有依頼名"
+	ENDSELECT
+ENDSELECT

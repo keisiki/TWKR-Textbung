@@ -1,0 +1,4551 @@
+﻿;-------------------------------------------------
+; eraTheWorld 4.763用 ルナチャイルド口上ショタあなた対応 ver0.962（キャラクターの名前を入れる、下にコンセプトなど一言あれば入れる）
+;-------------------------------------------------
+;타인에 의한 수정, 가필, 개변에 대해서는, 동봉한 라이센스 조항에 따라 주세요.
+
+;------ 오려내기 시작 -----------
+;eraTheWorld proto4.07 패치 도입용 Ver1.13
+;템플릿 사용법
+;初めに置換コマンド等により K6 を K(キャラNo) に変更して下さい  
+;キャラNoはCSVフォルダのCharaファイルを参照　例(霧雨 魔理沙の場合)：K6 =置換=> K11
+;
+;------ 오려내기 종료 -----------
+
+;**** FlagManagement **********************************************************
+;본 구상에서 사용하고 있는 CFLAG · TCVAR 등
+;CFLAG:6:1001　아이가 아닌 경우에서도 일부 말을 표시시키는 플래그입니다。
+;CFLAG:6:1002　일기용 플래그입니다. 일기 기입시의 당신의 있을 곳을 보관하거나 합니다。
+;
+;******************************************************************************
+
+;### 구상존재판정 ###################################
+@M_KOJO_K6(ARG)
+;여기서 RESULTS를 설정하면 다른 같은 캐릭터의 구상을 넣어도 정상 작동한다.
+
+;RESULTS = _TEST_
+
+;로 설정하면, "EVENT"계 이벤트라면
+;M_KOJO_TEST_EVENT_K6_1() とかで呼ばれる…はず。（未テスト機能）
+
+;여기서 CFLAG 등의 캐릭터 변수를 사용하는 경우, 캐릭터 번호를 지정해야 합니다
+
+;주석처리를 지우고 면간구상있음, 시간정지구상있음에 1을 넣으면, 각각 시간정지 시, 면간 시, 역극 시에 커맨드 구상이 읽혀질 수 있습니다
+;넣지 않으면 시간정지 시, 면간 시, 역극 시에는 일절 말하지 않습니다
+
+;破瓜キャンセル口上有に1を入れると、@M_KOJO_EVENT_K6_LOST_VIRGIN_STOPでキャンセルの成否を操作できます
+;口上内抱き寄せ判定_初回と口上内抱き寄せ判定_通常に1を入れるとM_KOJO_EVENT_K6_PERMISSIONで押し倒しの成否を操作できます
+
+;X에는 캐릭터 번호를 넣어주세요
+
+;CFLAG:X:면간구상있음 = 0
+;CFLAG:X:시간정지구상있음 = 0
+;CFLAG:X:역극구상있음 = 0
+;CFLAG:X:파과캔슬구상있음 = 0
+;CFLAG:X:구상내껴안기판정_첫회 = 0
+;CFLAG:X:구상내껴안기판정_통상 = 0
+
+;CFLAG:덮침금지에 1을 넣으면 캐릭터쪽에서 덮치지 않게 됩니다
+;다음은 연모나 섹프를 얻을 때까지 덮치지 않게 되는 사용 예
+;IF !TALENT:X:연모 && !TALENT:X:섹프
+;	CFLAG:X:덮침금지 = 1
+;ELSE
+;	CFLAG:X:덮침금지 = 0
+;ENDIF
+
+;구상존재 판정입니다, 절대 주석처리하지 마세요
+RETURN 1
+;### 구상색판정 ###################################
+@M_KOJO_COLOR_K6
+SETCOLOR C_CREAM
+;여기에 SETCOLOR 함으로써 구상에 색을 입힐 수 있습니다
+;例：SETCOLOR 0xf7c9ff
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"UPDATE판정"
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+@M_KOJO_UPDATE_K6
+;구상 독자적인 UPDATE용
+;ENCOUNTER 전용으로 자체 분기 플래그를 넣었을 경우 등에 사용하시기 바랍니다
+;UPDATE판정으로 CFLAG등의 캐릭터 변수를 사용하는 경우, 캐릭터 번호를 지정해야 합니다
+IF TALENT:MASTER:연령 > -1 || !TALENT:MASTER:애같음
+;당신이 아이가 아닌 경우에 표시
+	SETCOLOR C_CREAM
+	PRINTFORML 이 루나 차일드 구상은 당신이 아이、또는 유아인 경우에만 표시되는 말이 있습니다。
+	PRINTFORML 당신은 아이가 아니므로、아래와 같은 대응을 선택해 주세요。
+	$LOOP
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML [0] 동의하고 이용한다。（대사 일부 비표시）
+	PRINTFORML [1] 최면으로 당신을 쇼타로 보이게 한다。（대사 전부 표시）
+	INPUT
+	SELECTCASE RESULT
+		CASE 0
+			;PRINTFORMW 내 도법이 너 같은 요물에 통할까 흥미있다。
+			PRINTFORMW 모순이 발생하지 않는 대사만 표시되게 하였습니다。
+		CASE 1
+			CFLAG:6:1001 = 1
+			;PRINTFORMW 당신은 히고 출신입니다。
+			PRINTFORMW 당신은 아이가 아니지만、모든 대사가 표시되게 하였습니다。
+		CASEELSE	
+			GOTO LOOP
+	ENDSELECT
+	RESETCOLOR
+ENDIF
+RETURN 1
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"ENCOUNTER"계 이벤트 (엑스트라 구문)
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+@M_KOJO_ENCOUNTER_K6
+;첫대면, 인사 타이밍
+;TALENT 변경은 이쪽에서 부디.
+;경험의 변경은 어긋남이 있을 수 있으므로, CSV를 수정하여 동봉하는 것을 권장합니다
+#DIM LCOUNT
+
+IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+	IF CFLAG:MASTER:초기위치  == 35
+		SETCOLOR C_CREAM
+		RESETCOLOR
+		PRINTFORM %CALLNAME:MASTER%가 조심스레 발을 디딘 곳 앞에는、자신과 비슷한 키의 소녀
+		IF CFLAG:6:현재위치 == CFLAG:5:현재위치 || CFLAG:6:현재위치 == CFLAG:7:현재위치
+			PRINTFORML 들？이 이야기를 나누고 있었다。
+		ELSE
+			PRINTFORML 가 골똘히 생각에 잠겨 있었다。
+		ENDIF
+		PRINTFORML 하지만 %CALLNAME:MASTER%는 말을 건넬지 말지 망설였다。
+		PRINTFORMW %CALLNAME:MASTER%에게 등을 돌리고 있는 소녀의 등에는、인간이 아니라는 것을 한눈에 알 수 있는 얇은 날개가 나 있었기 때문이다。
+		PRINTFORML 
+		PRINTFORML 
+		SETCOLOR C_CREAM
+		PRINTFORMW 「그 인간의 아이는 누구일까…。우ー 응、이것만큼은 본인에게 직접 물어 봐야 하는데」
+		PRINTFORML 
+		IF CFLAG:6:현재위치 == CFLAG:7:현재위치
+			SETCOLOR C_AQUA
+			PRINTFORMW 「그러면 말을 꺼낸 사람의 법칙。그 본인이 온 것 같은데 루나가 물어보는게 어때」
+			PRINTFORML 	
+			SETCOLOR C_CREAM
+			PRINTFORMW 「…에？」
+		ENDIF
+		IF CFLAG:6:현재위치 == CFLAG:5:현재위치 
+			PRINTFORML 
+			SETCOLOR 255,230,250
+			PRINTFORMW 「만약 마을의 아이라면 레이무 씨에게 퇴치는 커녕 소멸 당해 버려요！」
+			PRINTFORML 
+		ENDIF
+		PRINTFORML 
+		SIF CFLAG:6:현재위치 == CFLAG:5:현재위치 || CFLAG:6:현재위치 == CFLAG:7:현재위치
+			PRINTFORML 거기서 %CALLNAME:MASTER%를 알아차렸는지、어떻게 해야할지 고민하던 %CALLNAME:MASTER%에게로 소녀가 깜짝 놀란 얼굴로 돌아본다.。
+		SETCOLOR C_CREAM
+		PRINTFORMW 「……아、일어났구나」
+		RESETCOLOR
+		PRINTFORML 
+		PRINTFORMW 「「………」」
+		PRINTFORML 
+		RESETCOLOR
+		PRINTFORMW 거북한 침묵…。그것을 먼저 깬 것은 황갈색의 금발을 롤 형태로 늘어뜨린、밤 모양 입의 소녀였다。	
+		PRINTFORML 
+		SETCOLOR C_CREAM
+		PRINTFORML 「우ー 응。설명하지 않으면 어떻게 될 지 모르겠네요…。어쩔 수 없달까」
+		PRINTFORMW 「나는 루나 차일드。당신을 여기에 데려 온 장본인의 동거……… 잠깐、도망치지 말아요！」
+		PRINTFORML 
+		RESETCOLOR
+		PRINTFORMW …… 자신을 납치했다고 자백하는 범인으로부터 %CALLNAME:MASTER%가 도망치려고 하자、소녀는 당황해 %CALLNAME:MASTER%의 팔에 매달린다。
+		PRINTFORML 
+		SETCOLOR C_CREAM
+		PRINTFORML 「기다려！ 딱히 유괴나 그런게 아니고」
+		PRINTFORMW 「라고… 와아！」
+		PRINTFORML 
+		IF CFLAG:6:현재위치 == CFLAG:7:현재위치 || CFLAG:6:현재위치 == CFLAG:5:현재위치
+			SETCOLOR C_AQUA
+			PRINTFORMW 「어머어머、루나도 참 적극적」
+			PRINTFORML 	
+			SETCOLOR C_CREAM
+		ENDIF
+		RESETCOLOR
+		PRINTFORMW %CALLNAME:MASTER%는 기세가 지나쳐 구르는 소녀에게 밀려 넘어졌다。서양인형처럼 사랑스러운 얼굴이 가까이 다가와 있어、%CALLNAME:MASTER%는 쿵하고 가슴이 크게 울렸다。
+		PRINTFORML 
+		SETCOLOR C_CREAM
+		PRINTFORMW 「아야야… 정말 유괴가 아니라고！서니ー가 집 앞에 쓰러져 있는 당신을 발견하고、우리가 간호하고 있었어！」
+		PRINTFORML 
+		RESETCOLOR
+		PRINTFORML %CALLNAME:MASTER%의 위에서 소녀는 매달리면서 변명한다。%CALLNAME:MASTER%는 그녀에게서 흘러오는 달콤한 여자아이의 향기에 갈팡질팡 하면서도 고개를 끄덕였다。
+		PRINTFORMW 
+		PRINTFORML 
+		SETCOLOR C_CREAM
+		PRINTFORML 「다、다행이다…。그래서 우선 확인하고 싶은 것이 있는데…」
+		PRINTFORMW 「당신은… 마을의 인간？」
+		PRINTFORML 
+		RESETCOLOR
+		PRINTFORMW %CALLNAME:MASTER%가 고개를 내젓자、소녀는 마음속 깊이 안심한 표정으로 일어서서 가슴을 쓸어내린다。
+		PRINTFORML 
+		SETCOLOR C_CREAM
+		PRINTFORMW 「아아 정말 다행이다ー。……라면、그럼 어디서 왔니？」
+		PRINTFORML 
+		RESETCOLOR
+		PRINTFORML 귀엽게 고개를 갸웃하는 그녀의 붉은 눈동자에 넋을 잃고 바라보면서도、%CALLNAME:MASTER%는 지금 있는 장소에 대한 기억이 없다고 전했다。
+		PRINTFORMW 그 대답에 소녀의 붉은 눈동자 사이에 주름이 잡혀버린다。형언할 수 없는 불안을 느꼈지만、%CALLNAME:MASTER%는 그녀의 말을 기다리기로 했다。
+		PRINTFORML 
+		SETCOLOR C_CREAM
+		PRINTFORMW 「그거……」
+		IF CFLAG:6:현재위치 == CFLAG:5:현재위치 
+			PRINTFORML 
+			SETCOLOR 255,230,250
+			PRINTFORMW 「이 인간의 아이는 외래인이라는 건가？」
+			PRINTFORML
+		ENDIF
+		IF CFLAG:6:현재위치 == CFLAG:7:현재위치 
+			SETCOLOR C_AQUA
+			PRINTFORML 「……………」
+			PRINTFORMW 「귀 좀 빌려 줘 루나、서니ー」
+			PRINTFORML 
+			SETCOLOR C_CREAM
+			PRINTFORMW 「잠깐 스타ー 뭐야 갑자기」
+			PRINTFORML 
+			PRINTFORMW …소곤소곤소곤。
+			PRINTFORML 
+		ENDIF
+		SETCOLOR C_CREAM
+		PRINTFORML 「………」
+		PRINTFORML 「…우ー 응」
+		PRINTFORML 「저기、갈 데가 없다면 잠시 여기서 산다는 건 어때？」
+		PRINTFORMW 「환상향에는 그게 무서운 식인 요괴가 많이 있어。아이인 당신이라면 눈 깜짝할 사이에 잡아먹을 강한 요괴가 산만큼 있거든」
+		PRINTFORML 
+		RESETCOLOR
+		PRINTFORMW 요괴라는 말에 %CALLNAME:MASTER%는 순식간에 공포로 부들부들 떨었다。소녀가 슬쩍 흘린 소리 없는 웃음도 눈치채지 못할 정도로。
+		PRINTFORML 
+		SETCOLOR C_CREAM
+		PRINTFORMW 「물론 선의같은 건 아냐。우리 대신 인간의 마을로 심부름을 가거나、집안일도 도와달라고 할거야」
+		PRINTFORML 
+		RESETCOLOR
+		PRINTFORMW %CALLNAME:MASTER%가 즉답으로 끄덕끄덕 고개를 끄덕이자、소녀는 휴우 하고 가슴을 쓸어내리다。
+		PRINTFORML 
+		SETCOLOR C_CREAM
+		PRINTFORML 「후우 잘됐다。지금부터 잘 부탁드립니다。… 근데 당신의 이름은？………%CALLNAME:MASTER%군요。」
+		PRINTFORMW 「나는 루나 차일드。요정이야」
+		PRINTFORML 
+		IF CFLAG:6:현재위치 == CFLAG:5:현재위치 
+			SETCOLOR 255,230,250
+			SIF CFLAG:5:안면 != 0
+				PRINTFORML 「내 자기소개를 다시 한 번 들어두세요！」
+			PRINTFORMW 「나는 서니ー 밀크！ 같은 요정이에요！」
+			PRINTFORML 
+		ENDIF
+		IF CFLAG:6:현재위치 == CFLAG:7:현재위치 
+			SETCOLOR C_AQUA
+			SIF CFLAG:7:안면 != 0
+				PRINTFORML 「이미 만났다고 혼자만 안 하는 것도 한심하겠네요」
+			PRINTFORMW 「나는 스타ー 사파이어。태생도 성장도 요정이야」
+		ENDIF
+		SETCOLOR C_CREAM
+		PRINTFORML 
+		PRINTFORML 「방은 %CALLNAME:MASTER%가 일어났던 지하실이 있으니까 거기서 숙박해」
+		PRINTFORMW 「그러면 조속히…」
+		IF CFLAG:6:현재위치 == CFLAG:5:현재위치 
+			PRINTFORML 
+			SETCOLOR 255,230,250
+			PRINTFORMW 「숲에서 마법 수박 따와줘！」
+		ENDIF
+		IF CFLAG:6:현재위치 == CFLAG:7:현재위치 
+			SETCOLOR C_AQUA
+		PRINTFORMW 「이 갓 딴 광대버섯을 맛 봐 줄래？」
+		PRINTFORML 
+		ENDIF
+		SETCOLOR C_CREAM
+		SIF CFLAG:6:현재위치 == CFLAG:5:현재위치 || CFLAG:6:현재위치 == CFLAG:7:현재위치
+			PRINTFORML 「인간의 아이는 무르니까 그런 짓 시키면 바로 죽는다구…」
+		PRINTFORML 「두 사람에게 맡겨두면 목숨이 몇 개 있어도 모자랄지도…。내가 조금 도와줄게요」
+		PRINTFORMW 「자、갑시다」
+		PRINTFORML 
+		RESETCOLOR
+		PRINTFORMW 루나 차일드가 %CALLNAME:MASTER%의 손을 잡고 방으로 안내해준다。
+		PRINTFORMW %CALLNAME:MASTER%는 앞으로의 생활에 대한 막연한 불안과 기대가 뒤섞이면서 그녀를 따라갔다。
+	ELSE
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML ―
+		PRINTFORML ―――
+		PRINTFORML ―――――
+		PRINTFORML %CALLNAME:MASTER%가 문득 발을 멈췄다。주위에서 섬뜩할 정도로 소리가 나지 않기 때문이다。
+		PRINTFORML 달밤마저 죽은 듯한 정적에 싸인 %CALLNAME:MASTER%。미지에 대한 공포로 참을 수 없어져 근처의 그늘에 숨으려고 달리기 시작했다。
+		PRINTFORML ―――！？――――「꺄앗！」쿵
+		PRINTFORML 
+		PRINTFORMW 「아야야야야… 갑자기 이쪽으로 오다니…」
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML 그늘에 숨어있던、누군가에게 부딛친 %CALLNAME:MASTER%가 본 것은、엉덩방아를 찧은 채 머리를 누르고 있는 소녀였다。
+		PRINTFORML 하얀 원피스에 황갈색 금발을 지닌 그녀는、인형 같은 눈동자 구석에 눈물을 글썽이며 아픔을 참고 있는 것 같다。
+		PRINTFORML 문득 깨닫고 보니 내 목소리가 들리고 주위의 소리가 들린다。
+		PRINTFORML %CALLNAME:MASTER%는 그녀가 원인이 아닌가 하고 생각하면서도、우선은 손을 내밀어 일어나는 것을 도와주기로 했다。
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML 「저기… 고、고마워요」
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORMW 당혹스러운 표정을 지으면서、소녀는 %CALLNAME:MASTER%에게 입을 다문 채 도움을 받아 일어났다。
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML 「……… 당신 상당히 특이하네요」
+		PRINTFORML 「못된 장난을 치려던 상대에、게다가 요정을 돕다니」
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML %CALLNAME:MASTER%는 의아하다는 표정을 지으면서도、여자아이에게 고맙다는 인사를 들어서 쑥스러워하고 있다。
+		PRINTFORML 그 모습에 그녀도 의아스럽다는 표정을 지으면서 옷에 묻은 더러움을 털어 냈다。
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML 「칭찬하는게 아닌데… 뭐 좋아요。나는 루나 차일드。당신은？……%CALLNAME:MASTER%군요」
+		PRINTFORML 「만약 다음에 만나게 된다면 장난은 치지 않을게。기억하고 있다면 이지만」
+		PRINTFORML 「그럼 이만」
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML 루나 차일드는 발길을 돌려 어디론가 떠나 간다。
+		PRINTFORMW 또 만날 수 있으면 좋겠구나… 하고、%CALLNAME:MASTER%는 조금만 그렇게 생각하고 전송했다。
+	ENDIF
+	PRINTFORML
+	PRINTFORML 루나 차일드를 구상에 맞춰 쇼타대응형 능력으로 변경하시겠습니까？
+	PRINTFORML （일부 능력 변동)
+
+	$LOOP
+
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML [0] 네
+	PRINTFORML [1] 아니요
+	PRINTFORML [2] 변동하는 능력치를 본다
+
+	INPUT
+	SELECTCASE RESULT
+		CASE 0
+			ABL:6:요리기능 = 3
+			ABL:6:봉사정신 = 3
+			ABL:6:교양 = 1
+			EXP:6:요리경험 = 200
+			EXP:6:학습경험 = 5
+			PRINTFORML 요리기능이 B가 되었습니다。
+			PRINTFORML 봉사정신이 D가 되었습니다。
+			PRINTFORMW 교양이 D가 되었습니다。
+		CASE 1
+			PRINTFORMW 변경하지 않았습니다。
+		CASE 2
+			PRINTFORML
+			PRINTFORML  요리기능： E → 요리기능： B
+			PRINTFORML  봉사정신： G → 봉사정신： D
+			PRINTFORMW      교양： E →     교양： D
+			GOTO LOOP
+		CASEELSE
+			IF LCOUNT >5
+				PRINTFORMW 설정되어 있지 않잖아！
+			GOTO LOOP
+			ELSE
+				PRINTFORMW 설정되어 있지 않습니다。
+				LCOUNT ++	
+			GOTO LOOP
+			ENDIF
+	ENDSELECT
+ENDIF
+
+RETURN 1
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"SP_EVENT"계 이벤트
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;==================================================
+;데이트에서 돌아오는 길에 퍼스트 KISS (합의도 붙는다)
+;==================================================
+@M_KOJO_SPEVENT_K6_1(ARG,ARG:1)
+;구상주는 TARGET
+;지문표시
+CALL SPEVENT_MESSAGE_1(ARG,ARG:1)
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+;地の文
+CALL SPEVENT_MESSAGE_1(ARG,ARG:1)
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		;키스를 캔슬하고 싶은 경우는 이하를 개방
+		;TCVAR:키스캔슬 = 1
+		PRINTFORML 「오늘은 즐거웠어。서니ー와 스타ー 에게의 선물도 살 수 있었고」
+		PRINTFORML 「%CALLNAME:MASTER%하고 있으면 좋은 일 뿐이네。넘어질 뻔하면 도와주고…」
+		PRINTFORML 「가난 제비를 뽑지 않으니까、평소보다 더 즐겁게 나갈 수 있어서 좋아」
+		PRINTFORML 「… 뭔가 답례라도 해주지 않으면。…！」
+		PRINTFORMW 「%CALLNAME:MASTER%는、저기… 키、키스라든가 한 적 있어？」
+		IF TALENT:MASTER:키스미경험
+			PRINTFORML 「그、그럼 딱 좋을지도 모르겠네」
+		ELSE
+			PRINTFORML 「이、있구나。보기와는 달리 어른…」	
+		ENDIF
+		PRINTFORML 「키스를 받으면 남자아이는 좋아하죠？ 그러니까… 응」
+		PRINTFORML 루나는 %CALLNAME:MASTER%의 뺨에 손을 얹고、입을 맞췄다。
+		PRINTFORML 「어、어때？ 이상한 맛이 나거나 하진 않지？」
+		PRINTFORML 「…… 경단 맛이 나？… 그 거 돌아오기 전에 먹은 경단 탓？」
+		PRINTFORML 「… 확실하게 양치질 해뒀어야 했는데…。엉망이잖아…」
+		PRINTFORMW 낙담하는 루나를 위로하면서、%CALLNAME:MASTER%들은 귀로에 올랐다。
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;데이트에서 돌아오는 길에 고백 (애인이 붙는다)
+;==================================================
+@M_KOJO_SPEVENT_K6_2(ARG,ARG:1)
+;구상주는 TARGET
+;지문표시
+CALL SPEVENT_MESSAGE_2(ARG,ARG:1)
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		;-------------------------------------------------
+		;소분기
+		;-------------------------------------------------
+		;고백내용
+		;이 고백 내용 표시 후에 받을지 말지의 선택 분기가 표시됩니다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 0
+			PRINTFORML 「……저기 %CALLNAME:MASTER%」
+			PRINTFORML 「%CALLNAME:MASTER%는、교제하고 있는 아가씨라든가 있어？」
+			PRINTFORML 「그래、없구나。… 그、그럼」
+			PRINTFORML 「나라든가、어때？… 잠깐、농담이 아니야！」
+			PRINTFORML 「… 정말이라니까」
+			PRINTFORML 「내가 맨날 넘어지기나 할 정도로 둔하다는 거、알고 있겠죠？」
+			PRINTFORML 「그런데도 항상 도와주고、내 손을 잡아당겨주고 있어」
+			PRINTFORML 「오늘도 단 둘이서 놀러가고、이건 이제 데이트잖아」
+			PRINTFORML 「이래서야 좋아하지 않는 게 이상한 거야」
+			PRINTFORML 「… 의 본심은 어떨지 잘 모르겠지만、적어도 나는 %CALLNAME:MASTER%를 좋아해」
+			PRINTFORMW 「……%CALLNAME:MASTER%는、어떻게 생각하고 있어？」
+		ENDIF
+		;-------------------------------------------------
+		;고백OK (애인이 붙는다)
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 1
+			PRINTFORML 「（해냈다）그럼 결정이네요。우리들 이제부터 연인사이라는 것으로」
+			PRINTFORML 「그럼 조속히、네」
+			PRINTFORML 「뭘 멍ー 하니 하고 있는 거야？ 연인끼리면、손을 잡고 돌아가는 것이 보통이죠。자 가자고요」
+			PRINTFORML 「손을 잡는 것은 평소와 다름없지 않냐고？ 그렇지 않아요」
+			PRINTFORMW 「나、더할 나위 없이 행복한 기분인걸」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;고백실패
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 2
+			PRINTFORML 「… 그렇구나」
+			PRINTFORML 「…… 미안、먼저 돌아갈께」
+			PRINTFORML 「………따라오지맛！ 부탁이니까！」
+			PRINTFORMW 「지금 %CALLNAME:MASTER%의 얼굴을 보면、절대로…흑…울어버릴걸……흑」
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;데이트에서 돌아오는 길
+;==================================================
+@M_KOJO_SPEVENT_K6_3(ARG,ARG:1)
+;구상주는 TARGET
+;지문표시
+CALL SPEVENT_MESSAGE_3(ARG,ARG:1)
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;통상 귀가
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 0
+		IF CFLAG:318 == 1
+			PRINTFORML 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「… 조금만 더 놀다 가지 않을래？」
+					PRINTFORML 루나는 서운한 듯이 %CALLNAME:MASTER%의 옷소매를 슬그머니 잡아끈다。
+					PRINTFORML 「이렇게 빨리 데이트가 끝나 버리다니… 아깝잖아」
+					PRINTFORML %CALLNAME:MASTER%가 다음의 데이트를 약속하자、루나는 보석같은 눈동자에 생기가 돌며 팍 고개를 들었다。
+					PRINTFORML 「그、그렇구나。부족한 분은 다음 데이트에서 실컷 놀면 되겠네」
+					PRINTFORMW 「약속、부탁이니까 잊지 말아줘 %CALLNAME:MASTER%」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「후우、오늘도 즐거웠어요。둘이서만 노는 것도 재미있네요」
+					PRINTFORMW 「오늘 일은 서니ー와 스타ー에게는 비밀이에요？… 그렇지 않으면 데려가 달라고 시끄러우니」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「오늘은 환상향 여기저기를 돌아다녀 봤어。공부가 됐죠？」
+					PRINTFORML 「또 가고 싶으면 따라가 줄게。시간이 된다면 이지만」
+					PRINTFORMW 「자、돌아갈까요」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;반발각인 소거 이벤트
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「일전의 일은 %CALLNAME:MASTER%의 기분이 갈피를 못 잡아서 생긴 것으로 치고 없었던 일로 할게요」
+		PRINTFORML 「그렇지만 말야、%CALLNAME:MASTER%가 한 일은 용서받을 수 있는 일이 아니니까、똑바로 반성하세요」
+		PRINTFORMW %CALLNAME:MASTER%의 코앞까지 다가온 루나의 눈동자는、더 이상 화나있지 않았다。
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;반발각인2>1 레벨 다운 이벤트
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 돌아오는 길、%CALLNAME:MASTER%에게서 거리를 두고 걷고 있던 루나가 %CALLNAME:MASTER%를 노려본다。
+		PRINTFORML 「… 나한테 심한 짓을 하고서、어떻게 태연하게 데이트 신청을 할 수 있지？」
+		PRINTFORML 「사과하려고 했겠지만 용서할 생각 따위 없으니까」
+		PRINTFORMW （그렇지만、이렇게 선뜻 유혹에 빠지는 나도、아무리 봐도 미련이 남아 있구나…）
+		;PRINTFORML ――― 짜악！
+		;PRINTFORML 마른 소리가 아무도 없는 외길에서 메아리치다。
+		;PRINTFORML 「아파？ 그래요、진심으로 때린거니까」
+		;PRINTFORML 「그렇지만 %CALLNAME:MASTER%가 나에게 한 일은 그 이상이야」
+		;PRINTFORML 「타인에게 자신의 신체를 마음을 좋을 대로 당하면 누구라도 싫어한다고」
+		;PRINTFORML 「이런 건 절대 용서 못해！… 라고 생각했지만」
+		;PRINTFORML 「… 오늘처럼 %CALLNAME:MASTER%가 상냥하게 대해준다면、용서하지 않을 것도 아니에요」
+		;PRINTFORML 「노력하세요。… 그럼 또 내일」
+		;PRINTFORMW %CALLNAME:MASTER%는 뺨에 남은 아픔을 마음에 새기며、돌아가는 루나를 눈에서 사라질 때까지 배웅했다。
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;반발각인3>2 레벨 다운 이벤트
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 차라리 감시라고 말하는게 나을 정도의 살벌한 데이트가 끝났다。
+		PRINTFORML 결국 %CALLNAME:MASTER%는 이번 데이트 중 루나의 얼굴에서 미소 한 조각도 보지 못하고 끝난 것이다。
+		PRINTFORML 「…그럼」
+		PRINTFORMW 다만 마지막 이별의 한마디를 남기며 이쪽을 바라보는 표정에는、노기가 서려 있지 않은 부드러운 것이었다。
+		RETURN 1
+	ENDIF
+	PRINTFORML
+ENDIF
+RETURN 1
+
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;"EVENT"계 이벤트
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;==================================================
+;방에서 조우
+;==================================================
+@M_KOJO_EVENT_K6_1(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		;-------------------------------------------------
+		;소분기
+		;-------------------------------------------------
+		;MASTER가 들어왔다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 1
+			IF FLAG:시간정지
+			ELSEIF CFLAG:318 == 1
+				PRINTFORMW 
+			ELSEIF TALENT:연모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 
+						PRINTFORMW 
+					CASE 0
+						PRINTFORML 루나는 %CALLNAME:MASTER%의 곁에 앉아 보석같은 눈동자를 불안하게 굴리며 힐끔힐끔 보고 있다。
+						PRINTFORMW （아아아… 괜히 의식되잖아！）
+					CASEELSE
+						PRINTFORML 루나는 %CALLNAME:MASTER%가 온 것을 깨닫자 부랴부랴 손거울을 꺼내 머리를 예쁘게 정돈하기 시작했다。
+						PRINTFORMW 
+				ENDSELECT
+			ELSEIF TALENT:사모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「저기 %CALLNAME:MASTER%。오늘 아침의 신문 읽었봤어？」
+						PRINTFORMW 
+					CASE 0
+						PRINTFORML 따스한 곳에서 독서를 즐기고 있던 루나는 %CALLNAME:MASTER%가 온 것을 깨닫자 책을 덮고 종종걸음으로 다가왔다。
+						PRINTFORMW 「함께 독서라도 어때？」
+					CASEELSE
+						PRINTFORML 「아、%CALLNAME:MASTER% 잖아」
+						PRINTFORMW 「놀러 가자고 권하러 온 거야？」
+				ENDSELECT
+			ELSE
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 루나는 책을 읽고 있는 것 같다。
+						PRINTFORMW 「………」
+					CASE 0
+						PRINTFORML 「응？ 무슨 일이야？」
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORML 루나는 소리를 지우고 있는지 %CALLNAME:MASTER%를 전혀 알아채지 못한다。
+						PRINTFORMW 「와……… 와앗！ 언제 와 있던 거야？」
+				ENDSELECT
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;TARGET이 들어왔다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 2
+		;ルナの部屋で遭遇
+			IF CFLAG:6:현재위치 == 루나방
+				IF CFLAG:318 == 1
+					PRINTFORML 
+				ELSEIF TALENT:연인
+					SELECTCASE RAND:3
+						CASE 1
+							PRINTFORMW 「내 방에서 이상한 짓 하거나 하진 않겠지？」
+							PRINTFORML 
+							PRINTFORML 
+							PRINTFORML 
+							PRINTFORML 
+							PRINTFORMW 「…… 하지 않는거야？」
+						CASE 0
+							PRINTFORML 「내 방에 뭔가 신경쓰이는 것이라도 있니？」
+							PRINTFORMW 「… 조금이라면 빌려줘도 되지만、망가뜨리지 말아요？」
+						CASEELSE
+							PRINTFORML 은근히 가슴을 펴보이며 보여주는 루나를 따라 주위를 둘러보니、지난번에 왔을 때보다 루나의 사물들이 더 늘어난 것 같다。
+							PRINTFORML 「어때、굉장하지요？」
+							PRINTFORMW 「더욱더 달의 물건을 모아서 여기를 지상의 달로 만들거야」
+					ENDSELECT
+				ELSEIF TALENT:연모
+					SELECTCASE RAND:3
+						CASE 1
+							PRINTFORML 「이럴 줄 알았으면、차라도 준비해 둘 걸 그랬어요…」
+						CASE 0
+							PRINTFORML 「서、설마……」
+							PRINTFORMW 「나、나… 아직 마음의 준비가…！」
+						CASEELSE
+							PRINTFORML 「%CALLNAME:MASTER%！？」
+							PRINTFORMW 「보、보지 마！ 정리도 안 해놨는데 보여 지다니…」
+					ENDSELECT
+				ELSEIF TALENT:사모
+					SELECTCASE RAND:3
+						CASE 1
+							PRINTFORML 「혹시 놀러 가자고 권해주러 온 거야？」
+							PRINTFORMW 
+						CASE 0
+							PRINTFORML 「없는 줄 알았더니 여기 있었구나」
+							PRINTFORMW 「그렇게나 내 방이 아늑해？」
+						CASEELSE
+							PRINTFORML 「… 방에 장식물을 어디서 가져왔냐고？」
+							PRINTFORML 「이자요이 때는 차올랐던 만월에서 살짝 몇 조각 빠지니까」
+							PRINTFORML 「그 조각난 파편들이 땅 위로 쏟아지는 거야」
+							PRINTFORMW 「그러니 이자요이 때에는 달에서 떨어져 내린 것들을 쉽게 찾을 수 있어」
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:4
+						CASE 2
+							PRINTFORML 「누군가를 찾는 거야？」
+							PRINTFORML 「그러면 스타ー에게 물어보는게 좋아요。… 다만」
+							PRINTFORMW 「스타ー가 공짜로 해줄거라 생각하지 않는게 좋아」
+						CASE 1
+							PRINTFORML 「어랏、언제 와 있었어？」
+							PRINTFORML 「방에 있는 도구를 만져보고 싶어？ 안 돼요 안 돼」
+							PRINTFORMW 「모처럼 모은 것들을 장난감마냥 되는 건 견딜 수 없어요 」
+						CASE 0
+							PRINTFORML 「방 주인이 없는데 함부로 들어가면 미움받아 버려요」
+							PRINTFORMW 「쫓겨날 수도 있으니까 조심하도록 해」
+						CASEELSE
+							PRINTFORML 「뭔가 물어보러 왔어？」
+							PRINTFORMW 
+					ENDSELECT
+				ENDIF
+			ENDIF
+			IF FLAG:시간정지
+			ELSEIF CFLAG:318 == 1
+				PRINTFORML
+			ELSEIF TALENT:연모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 루나는 %CALLNAME:MASTER%를 알아차리자 귀를 새빨갛게 물들이며 고개를 푹 숙이고 말았다。
+						PRINTFORMW 
+					CASE 0
+						PRINTFORML 「오、오늘은 날씨가 좋네요…！」
+						SIF TIME:5 >= 3
+							PRINTFORML %CALLNAME:MASTER%는 밖의 궂은 날씨를 보며 애매한 대답을 돌려주었다。
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「아…！ 저기、그게… 꺄앗」
+						PRINTFORMW 루나는 얼굴을 붉히며 당황하다가 화려하게 굴러 넘어졌다。
+				ENDSELECT
+			ELSEIF TALENT:사모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「서니ー와 스타ー 못 봤어？」
+						SIF CFLAG:MASTER:현재위치 == CFLAG:7:현재위치 || CFLAG:MASTER:현재위치 == CFLAG:5:현재위치
+						PRINTFORMW 	「아、함께 있었구나」
+					CASE 0
+						PRINTFORML 「%CALLNAME:MASTER%도 여기에 익숙해진 것 같구나」
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORMW 「있다 있다。한가하면 수다라도 떨지 않을래？」
+				ENDSELECT
+			ELSE
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「아、%CALLNAME:MASTER% 잖아」
+						PRINTFORMW 
+					CASE 0
+						PRINTFORMW 「뭔가 재미있는 거라도 떨어져 있지 않을까」
+						PRINTFORML 
+					CASEELSE
+						PRINTFORML 「우ー응 여기도 아닌가…」
+						PRINTFORMW 
+				ENDSELECT
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;TARGET이 목욕탕에 들어와서 같이 들어간다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		;自分用メモ…MASTERと性別が同じ、時止め中、恥じらいが０かつ親密が５以上のどれかなら一緒に入る？
+		IF LOCAL:1 && ARG == 3
+			IF FLAG:시간정지
+				RETURN 1
+			ELSEIF CFLAG:318 == 1
+				PRINTFORML 
+			ELSEIF TALENT:연모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「%CALLNAME:MASTER%！？」
+						PRINTFORMW 「저기、앞을 가려 앞을！」
+					CASE 0
+						PRINTFORML 「… 이쪽을 빤히 쳐다보면 안 돼니까！」
+						PRINTFORMW 「별로 신경쓰지 않는다고？ 내가 신경쓰여！」
+					CASEELSE
+						PRINTFORML 「꺄아…！%CALLNAME:MASTER%도 참 있으면 있다고 알려줘야지！」
+						PRINTFORML 「우ー… 지금부터 옷 입고 다시 나가는 것도 짜증나고…」
+						PRINTFORMW 「이、이렇게 된 이상 나도 같이 들어갈게！」
+				ENDSELECT
+			ELSEIF TALENT:사모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「하아ー… 오늘도 더러워졌어…。빨리 씻고 싶다…」
+						PRINTFORMW 「아、%CALLNAME:MASTER%라도 좋아요。몸 좀 씻어 주지 않을래？」
+					CASE 0
+						PRINTFORML 「뭘 보고 있는 거야、아까부터」
+						PRINTFORMW 「정말이지…… 이런 유아 체형으론 흥분이고 뭐고 없을 텐데…」
+					CASEELSE
+						PRINTFORML 「～♪」
+						PRINTFORMW 루나는 %CALLNAME:MASTER%를 슬쩍 한 번 보고는 특별히 개의치 않고 몸을 씻기 시작했다。
+				ENDSELECT
+				
+			ELSE
+				SELECTCASE RAND:4
+					CASE 2
+						PRINTFORML 「들어가 있는 건 좋은데 목욕탕에서 미끄러져 넘어지면… 꺄앗！？」
+						PRINTFORMW 루나는 떨어져 있던 비누에 잔뜩 다리가 미끄러졌다。
+					CASE 1
+						PRINTFORML 「어머 %CALLNAME:MASTER%、먼저 들어와 있었네」
+						PRINTFORMW 「뭐 좋아요。마음대로 들어갈 테니까 신경쓰지 마」
+					CASE 0
+						PRINTFORML 「%CALLNAME:MASTER%－어깨까지 푹 담그지 않으면 감기 걸려요」
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「나중에 왔지만 실례할께요」
+						PRINTFORMW 「…… 일단 말해 두지만 이상한 기분은 일으키지 않도록 해요」
+				ENDSELECT
+			ENDIF
+				PRINTFORML 「\@ TALENT:연모 ? ……(슬쩍） # 그렇다 치더라도… \@」
+				PRINTFORML 루나가 이쪽을\@ TALENT:연모 ? 힐끔힐끔 # 빤히 \@ 보고 있다……。
+				SELECTCASE TALENT:MASTER:형상
+					CASE 1 TO 2
+					;未成熟か粗チン
+						PRINTFORMW (얘들이네…）
+					CASE 3
+					;普通
+						PRINTFORMW (크다…）
+					CASE Is >= 4
+					;巨根、異形チンコ等
+						PRINTFORMW 「히익…！」
+					CASEELSE
+					;ない
+						PRINTFORMW （애당초 있을 리가 없잖아…）
+				ENDSELECT
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;TARGE이 목욕을 하고 나갔다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		;自分用メモ…態度が３より下、キスかうふふ止まり、恋慕かセフレではない、なら発生？
+		IF LOCAL:1 && ARG == 4
+			IF FLAG:시간정지
+			ELSEIF CFLAG:318 == 1
+				PRINTFORML
+			ELSEIF TALENT:사모
+				SELECTCASE RAND:3
+					;CASE 1
+						;PRINTFORML 
+						;PRINTFORMW 
+					CASE 0
+						PRINTFORML 「나는 딱히 함께라도 좋은데…」
+						PRINTFORMW 「네네、%CALLNAME:MASTER%는 섬세한 연령이라는 거군요。밖에서 기다리기로 할게요」
+					CASEELSE
+						PRINTFORML 「빨리 나오지 않으면… 속옷을 숨겨버릴지도 몰라요？」
+						PRINTFORMW 루나는 킥킥 웃으면서 목욕탕을 뒤로 했다。
+				ENDSELECT
+			ELSE
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「나오면 알려줘ー」
+						PRINTFORMW 
+					CASE 0
+						PRINTFORML 「혼자 천천히 들어가고 싶으니까 나중에 들어갈게」
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「뭐야。%CALLNAME:MASTER%가 벌써 들어가 있었구나」
+						PRINTFORMW 「나도 들어갈테니까 깨끗하게 사용하세요」
+				ENDSELECT
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;TARGET이 목욕을 해서 쫓겨났다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		;自分用メモ…態度が３以上、キスかうふふ止まり、恋慕かセフレではない、から弱みを握られてたら発生？
+		IF LOCAL:1 && ARG == 5
+			IF FLAG:시간정지
+			ELSEIF CFLAG:318 == 1
+				PRINTFORML 
+			ELSE
+				SELECTCASE RAND:3
+					;CASE 1
+						;PRINTFORML 
+						;PRINTFORMW 
+					;CASE 0
+						;PRINTFORML 
+						;PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「이제부터 내가 들어갈테니 나가주지 않을래？」
+						PRINTFORML 「싫어？… 그런 말을 해도 좋은 걸까나？」
+						PRINTFORMW %CALLNAME:MASTER%는 얌전하게 목욕탕에서 물러났다。
+				ENDSELECT
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;외출처에서 조우했다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 6
+			IF FLAG:시간정지
+			ELSEIF CFLAG:318 == 1
+				PRINTFORML 
+			ELSEIF TALENT:연모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「아、%CALLNAME:MASTER%…」
+						PRINTFORMW 「%CALLNAME:MASTER%도 놀러왔어？」
+					CASE 0
+						PRINTFORML 「아…… 우、우연이네。이런 곳에서」
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「호、혹시 찾으러 와주었다든가？」
+						PRINTFORMW 
+				ENDSELECT
+			ELSEIF TALENT:사모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「와아아아、죄송합니다 포기하고 돌아갈테니까！… 어라？」
+						PRINTFORMW 「다행이다 %CALLNAME:MASTER%였구나。하아… 안심했다」
+					CASE 0
+						PRINTFORML 「만약 무슨 일을 저지르면 불러 줘」
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORML 소리가 들리지 않는다…。루나가 다가오고 있는지도 모른다。
+						PRINTFORMW （소리조차 내지 않고 살며시 다가오는 고요한 달빛… 루나 차일드！… 후후후후）
+				ENDSELECT
+			ELSE
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 소리가 들리지 않는다…。주위를 둘러보니 루나 차일드가 그늘 속에 숨어 있었다。
+						PRINTFORML 「헉…！ 뭐야 %CALLNAME:MASTER%인가。놀래키지 말아요」
+						PRINTFORMW 「아、말 걸지 마。지금 숨어 있으니까」
+					CASE 0
+						PRINTFORML 「아、%CALLNAME:MASTER%」
+						PRINTFORMW 「서니ー와 스타ー？ 딱히 항상 그 두 사람과 언제 어디서나 함께 있는 건 아니야」
+					CASEELSE
+						PRINTFORML 「어머、%CALLNAME:MASTER% 잖아」
+						PRINTFORMW 
+				ENDSELECT
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;다른 캐릭터와 데이트중에 조우했다
+		;ARG:1은 데이트 상대
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 7
+			IF FLAG:시간정지
+			ELSEIF CFLAG:318 == 1
+				PRINTFORMW 
+			ELSEIF TALENT:연모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML ――――욱신。
+						PRINTFORML 「…윽」
+						PRINTFORMW 루나는 눈물 고인 눈으로 가슴에 느껴지는 작은 아픔을 필사적으로 억눌렀다。
+					CASE 0
+						PRINTFORML 「뭐야、헤벌쭉하기나 하고…」
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「…… 무슨 이야기를 하고 있을까」
+						PRINTFORMW 루나는 눈매를 치켜세우며 분노를 참고 있다…。
+				ENDSELECT
+			ELSEIF TALENT:사모
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「어머 어머…」
+						PRINTFORMW 
+					CASE 0
+						PRINTFORML 「어디까지 해 줄까…。아니、여기의 이야기야」
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORMW 「…꽤나 즐거워 보이네？」
+				ENDSELECT
+			ELSE
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「흥 %CALLNAME:MASTER%도 그럴 나이구나」
+						PRINTFORMW 「데이트 하는 것은 좋지만 여자아이를 울려서는 안 돼요？」
+					CASE 0
+						PRINTFORML 「여자아이와 노는 건 좋지만、잡아먹혀도 몰라」
+						PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「이쯤에서 한 번、요정 앞에 나타난 커플이 어떻게 되는지 시범을 보여야 할까…」
+						PRINTFORMW 「근데 좀 불쌍하네…… 뭐 좋은가」
+				ENDSELECT
+			ENDIF
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;아침에 일어났을 때 (おはよう구상)
+;==================================================
+@M_KOJO_EVENT_K6_2(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음
+		;-------------------------------------------------
+		;소분기
+		;-------------------------------------------------
+		;비동거이자 상대가 먼저 일어났다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 1
+			;-------------------------------------------------
+			;TARGET의 사실에 MASTER가 들어가 있다 (연모시 동침중 취침시에만?)
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && !ARG:1
+				IF FLAG:시간정지
+				ELSEIF CFLAG:318 == 1
+					PRINTFORML 
+				ELSEIF TALENT:연모
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORML 「새근…새근…」
+							PRINTFORML %CALLNAME:MASTER%는 따뜻한 감촉과 나직한 숨소리에 이끌려 눈을 떠、
+							PRINTFORML 달콤한 향기가 전해지는 옆을 보자 루나가 귀엽게 잠자는 얼굴로 고른 숨소리를 내고 있었다。
+							PRINTFORML %CALLNAME:MASTER%가 한동안 루나의 잠자는 얼굴을 바라보고 있자니
+							PRINTFORML 시선이 느껴졌는지 루나가 희미하게 눈을 뜬다。
+							PRINTFORML 「새슨……새근…응……어라…？」
+							PRINTFORML 「%CALLNAME:MASTER%… 어째서 여기에…？ 아… 그런가 어제……」
+							PRINTFORML 잠이 덜 깨 멍한 눈으로 루나는 거기까지 중얼거리다、순식간에 뺨이 발갛게 달아올라 붉은 빛이 점차 늘어간다。
+							PRINTFORML 「다、달랏…！ 이건 그냥 졸려서니까…」
+							PRINTFORML 「%CALLNAME:MASTER%의 자는 얼굴을 보고 있었다든지 같은게 아니고… 꺄아！」
+							PRINTFORML 작은 침대에서 슬금슬금 뒤로 물러나던 루나는 시원하게 침대 밖으로 굴러 떨어진다。
+							PRINTFORMW %CALLNAME:MASTER%는 쓴웃음을 지으며、루나를 부축해 일으키고는 오늘 하루를 시작하기로 했다。
+					ENDSELECT
+				ENDIF
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;MASTER의 사실에 TARGET이 들어가 있다 (연모 없이도 들어올 가능성 있음)
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 1
+				IF FLAG:시간정지
+				ELSEIF CFLAG:318 == 1
+					PRINTFORML 
+				ELSEIF TALENT:연모
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORML 「%CALLNAME:MASTER%－아침이야」
+							PRINTFORML 「언제까지 자고 있을 거야。잠만 자고 있으면 소가 되버려요」
+							PRINTFORML 「저기 일어나ー 라니깐…」
+							PRINTFORML 「…그렇게까지 자고 있으면 장난쳐 버릴 테니까」
+							PRINTFORML 「………정말로 해버려도 괜찮은가…」
+							PRINTFORML 「조금이라면…… 응」
+							PRINTFORML 「왜냐하면 자고 있는 %CALLNAME:MASTER%가 나쁜 걸요…」
+							PRINTFORML 「응…」
+							IF EXP:6:키스경험 > 0
+								EXP:키스경험 += 1
+								EXP:6:키스경험 += 1
+								PRINTFORML 몇 분 후、%CALLNAME:MASTER%는 입술의 온기에 고개를 갸웃거리며 침대에서 일어났다。
+								PRINTFORMW 「좋은 아침 %CALLNAME:MASTER%。자 빨리 준비하고 놀러가죠」
+							ELSE
+								PRINTFORML 몇 분 후、%CALLNAME:MASTER%는 방 구석에서 빨갛게 달아오른 볼을 누르고 있는 루나에 고개를 갸웃거리며 침대에서 일어났다。
+								PRINTFORMW （～～～역시 키스 같은 거 무리무리！！）
+							ENDIF
+					ENDSELECT
+				ELSEIF TALENT:사모
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORMW 「%CALLNAME:MASTER%－이제 아침이야」
+							PRINTFORMW 「……안되겠네」
+							PRINTFORMW 「일ー어ー나…」
+							PRINTFORMW 「일어나주세요！」
+							PRINTFORML %CALLNAME:MASTER%는 천지가 뒤집힌 느낌과 함께 침대에서 굴러떨어져서야 겨우 눈을 떴다。
+							PRINTFORML 「겨우 일어났군요、잠꾸러기씨。벌써 날이 밝은지 오래라고요」
+							PRINTFORMW 기가 막힌다는 표정을 지은 루나에게 내려다보여지면서 %CALLNAME:MASTER%의 하루는 시작되었다。
+							
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+						CASEELSE
+							PRINTFORML 「정말이지 %CALLNAME:MASTER%는 언제까지 자고 있을거야」
+							SIF CFLAG:MASTER:초기위치  == 35
+								PRINTFORML 「일찍 일어나지 않으면 %CALLNAME:MASTER%의 아침밥 몫까지 먹어 버릴 거에요」
+							PRINTFORMW %CALLNAME:MASTER%는 루나에게 재촉을 받으며 느릿느릿 준비하기 시작했다。	
+					ENDSELECT
+				ENDIF
+				RETURN 1
+			ENDIF
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;동거이자 상대가 먼저 일어났다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 2
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML %CALLNAME:MASTER%는 일찍 일어난 덕분에 기분 좋게 하루의 시작을 맞이할 수 있었다。
+					PRINTFORML 「어디가 일찍 일어났다는 거야。벌써 이런 시간이야」
+					PRINTFORML 루나는 신문을 읽던 손을 멈추더니、이제 일어난 %CALLNAME:MASTER%에게 커피를 내민다。
+					PRINTFORML 「좋은 아침 %CALLNAME:MASTER%。설탕은 평소 먹던대로 넣어 뒀어」
+					PRINTFORMW 「멍하니 있으면 하루는 눈 깜짝할 사이에 지나가 버린다니까」
+			ENDSELECT
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;동거이자 상대가 자고 있다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 3
+			PRINTFORML 「쿠우…쿠울…」
+			PRINTFORML %CALLNAME:MASTER%가 꿈에서 깨어나자
+			PRINTFORML 곁에서 자고 있는 루나는 아직 꿈의 세계를 산책하고 있는 것 같다。
+			PRINTFORML …귀엽게 잠든 얼굴에 사랑스러움을 머금은 루나의 뺨은 매우 부드러워 보인다。
+			PRINTFORML 
+			PRINTFORML 「새근……새근…」 콕콕 「음냐…」
+			PRINTFORML 「새근…새근…」 콕콕 「하우…」
+			PRINTFORML 이 이상은 불쌍하다고 생각한 %CALLNAME:MASTER%는 조용히 침대에서 나와 아침 준비를 하기 시작했다。
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;MASTER가 일어나고, 상대가 일어났다
+		;동침 시 TARGET 기상은 이쪽 (TARGET이 쇠약or동침 중 TARGET이 수마에 패배 후 그대로 MASTER가 계속 일어난 후에 상대가 기상한 경우 한정)
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 4
+			;-------------------------------------------------
+			;비동거
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && !ARG:1
+				PRINTFORML 「후와아…」
+				PRINTFORML 「으ー응… 안녕 %CALLNAME:MASTER%、… 어머？」
+				PRINTFORML 「혹시 계속 일어나 있었어？」
+				PRINTFORML 「…그럴 리 없겠지。자、나도 준비해 볼까」
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;동거중
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 1
+				PRINTFORML 「아후음…」
+				PRINTFORML 「벌써 아침…？ 안녕…」
+				PRINTFORML 「조금 너무 늦게 잤나。아직 졸리네…」
+				PRINTFORML 「…%CALLNAME:MASTER%、잠깐 와 주지 않을래？」
+				PRINTFORML 「응、거기에 앉아줘… 후우…」
+				PRINTFORML 루나는 침대에 앉은 %CALLNAME:MASTER%에게 신체를 기대온다。
+				PRINTFORML 「%CALLNAME:MASTER%가 곁에 있으니까… 아늑해」
+				PRINTFORMW 「좀 더 이대로…」
+				
+				RETURN 1
+			ENDIF
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+		;그외
+		PRINTFORML  
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;밤에 잘 때 (おやすみ구상)
+;==================================================
+@M_KOJO_EVENT_K6_3(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;自室に帰る（定時になって寝る）
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF CFLAG:318 == 1
+			PRINTFORML 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「저기… 내일도 만날 수 있겠지」
+					PRINTFORMW 「…조금 불안해진 것 뿐이야。잘 자요 %CALLNAME:MASTER%」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「날도 저물었으니 오늘은 이만 자볼까」
+					PRINTFORMW 「꿈속에서 내일의 예정을 생각하지 않으면。잘 자요 %CALLNAME:MASTER%」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「자、슬슬 물러날까요」
+					PRINTFORMW 「%CALLNAME:MASTER%도 어서 자지 않으면 요괴가 덮쳐 올거야」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;眠そうにしている
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 「나는 신경쓰지 마…」
+					PRINTFORMW 「%CALLNAME:MASTER%도 자고 싶으면 먼저 자도 괜찮아…」
+				CASEELSE
+					PRINTFORML 루나는 잠들지 않으려고 필사적으로 눈꺼풀을 밀어올리며 이를 악물고 있다。
+					PRINTFORMW 「함께 있고 싶어서…、아직 자고 싶지 않은거야…」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「즐거운 일이 있으면 자는 것이 아깝다는 생각이 들어」
+					PRINTFORMW 「하지만… 눈꺼풀이 감기는 건… 멈출 수 없네요…」
+				CASE 0
+					PRINTFORML 루나는 읽고 있던 책을 덮고、크게 기지개를 켰다。
+					PRINTFORMW 「오늘 밤은 여기까지、나머지는 내일 즐기기로 해요」
+				CASEELSE
+					PRINTFORML 「하후우… 하품이 나와 버렸다」
+					PRINTFORMW 「%CALLNAME:MASTER%는 아직 안 졸려？」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 루나는 눈을 감고 멍하니 있다。
+					PRINTFORMW 「…… 이제 좀 자는 것이… 좋으려나」
+				CASEELSE
+					PRINTFORML 「… 이제 오늘은 다 놀았는지도。후와아…」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;수면중（起きていないので会話というよりは寝言？）
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		IF CFLAG:318 == 1
+			PRINTFORML 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「쿨ー…쿨ー………」
+					PRINTFORMW 
+				CASE 0
+					PRINTFORML 루나는 꿈을 꾸고 있는지 입꼬리가 살짝 올라가 미소를 지으며 자고 있다
+					PRINTFORMW 「…후후」
+				CASEELSE
+					PRINTFORML 「새근 새근…」
+					PRINTFORMW 「………%CALLNAME:MASTER%」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「우ー응……으ー응……」
+					PRINTFORMW 「기가바디 서니ー에게 부서져버려ー…」
+				CASE 0
+					PRINTFORML 「새근새근…」
+					PRINTFORMW 
+				CASEELSE
+					PRINTFORML 능력을 무의식적으로 발동하고 있는지、방에서 소리가 들리지 않는다…。
+					PRINTFORMW 「―――――――――」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「새근……」
+					PRINTFORMW 
+				CASE 0
+					PRINTFORML 「으ー응…」
+				CASEELSE
+					PRINTFORML 「쿨쿨… 음냐」
+					PRINTFORMW 
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;장난중
+	;기입체크 (=0, 비표시、1, 표시)
+	;LOCAL:1 = 1
+	;-------------------------------------------------
+	;IF LOCAL:1 && ARG == 4
+		;PRINTFORMW 
+		;RETURN 1
+	;ENDIF
+	;-------------------------------------------------
+	;衰弱中（恋慕付き拠点内キャラがMAIN_MAPで衰弱状態になった場合か、お招き部屋で相手が衰弱した場合に発生
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML %CALLNAME:MASTER%는 비틀거리는 루나를 순간 부축해줬다。
+					PRINTFORMW 「고… 고마워 %CALLNAME:MASTER%。미안、조금 쉴 테니까…」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「우ー응 미안해요 %CALLNAME:MASTER%。조금 한계인 것 같아…」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 루나는 주춤거리다 그 자리에 주저 앉아버렸다。
+					PRINTFORMW 
+				CASE 0
+					PRINTFORML 「이제 한계…」
+					PRINTFORML 「산딸기 같은 먹을 걸 가져왔으면 좋았을 텐데…」
+					PRINTFORMW 
+				CASEELSE
+					PRINTFORMW 「놀다가 지쳤는지도 몰라…」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;MASTERがダウン（部屋まで運ばれる）
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 6
+		IF FLAG:시간정지	
+		ELSEIF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 「멋대로 열심히 하고 멋대로 쓰러지고…」
+					PRINTFORMW 「걱정하는 쪽이 되어 보라고… 흐흑」
+				CASEELSE
+					PRINTFORML 「어라、혹시 지금이… 찬스？」
+					PRINTFORML 「……꿀꺽」
+					PRINTFORMW 「여、역시 그만두자…」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「아ー 이젠 귀찮아진다니까」
+					PRINTFORMW 루나는 투덜투덜 거리면서도 %CALLNAME:MASTER%를 개인 방으로 옮겨 주었다。
+				CASE 0
+					PRINTFORML 「말하지 않았나요。앞뒤 생각 안 하고 무모하다니까」
+					PRINTFORMW 「저기 어깨 좀 내밀어 봐요。옮겨 줄 테니까」
+				CASEELSE
+					PRINTFORML 「이럴 때는 대요정의 워프가 부러워지네요」
+					PRINTFORMW 
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORMW 「내가 왜 이런 걸…」
+					SIF CFLAG:MASTER:초기위치  == 35
+						PRINTFORML 「그치만 같이 살고 있으니 어쩔 수 없잖아…」
+				CASE 0
+					PRINTFORML 「헥헥… %CALLNAME:MASTER%는 상당히 무겁네…」
+					PRINTFORMW 「이거 커피 한 봉지를 요구하는 정도로는 수지가 안 맞을 것 같아」
+				CASEELSE
+					PRINTFORML 「이거 보통은 내가 옮겨지는 입장이지 않나…？」
+					PRINTFORMW 
+
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;TARGETが自室まで戻ってきた
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 7
+		;-------------------------------------------------
+		;そのまま着替えて寝た
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 0
+			IF CFLAG:318 == 1
+				PRINTFORMW 
+			ELSEIF TALENT:연모
+				SELECTCASE RAND:3
+					;CASE 1
+						;PRINTFORML 
+						;PRINTFORMW 
+					CASE 0
+						PRINTFORML 「없는 줄 알았더니 이런 곳에 있었구나」
+						PRINTFORMW 「모처럼 찾고 있었는데…。그만큼 내일은 같이 있을 테니까」
+					CASEELSE
+						PRINTFORML 「후와아… 아、기다려준거야？」
+						PRINTFORMW 「그렇지만 이제 한계… 내일 하자… 쿠울…」
+				ENDSELECT
+			ENDIF
+		RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;部屋から追い出された
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			IF CFLAG:318 == 1
+				PRINTFORMW 
+			ELSEIF TALENT:사모
+				SELECTCASE RAND:3
+					;CASE 1
+						;PRINTFORML 
+						;PRINTFORMW 
+					CASE 0
+						PRINTFORML 「%CALLNAME:MASTER%는 아직까지 일어나 있는 거야？」
+						PRINTFORMW 「… 한밤중에 일어난 나쁜 아이、요괴가 잡아갈 거야ー… 라고 해」
+					CASEELSE
+						PRINTFORML 「오늘의 야회는 끝이야… 라고 해도」
+						PRINTFORMW 「이젠 지쳤으니 노는건 내일로 하자。그러면 잘 자요」
+				ENDSELECT
+			ELSE
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML 「우와 깜짝 놀랐어。언제부터 있었니？」
+						PRINTFORMW 「자야 하니까 나가 주지 않을래？」
+					;CASE 0
+						;PRINTFORML 
+						;PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「이제 오늘은 그만 자자…。잘 자요」
+						PRINTFORMW 루나는 %CALLNAME:MASTER%를 밖에 내보내자마자 침대에 들어가 버렸다。
+				ENDSELECT
+			ENDIF
+		RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;他キャラとのＨを止めさせて寝た
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 2
+			IF CFLAG:318 == 1
+				PRINTFORML 
+			ELSE
+				SELECTCASE RAND:3
+					;CASE 1
+						;PRINTFORML 
+						;PRINTFORMW 
+					CASE 0
+						PRINTFORML 「이、이상해 %CALLNAME:MASTER%들！」
+						PRINTFORMW 「사람의 방에서 、그런 일을…。이제 두 번 다시 하지 말아줘！」
+					CASEELSE
+						PRINTFORML 「뭐、뭐뭐뭐뭐하는 거야、바보！」
+						PRINTFORML 루나는 마구 고함을 치며 %CALLNAME:MASTER%들을 방에서 내쫒았다。
+						PRINTFORMW 「우우… 내 방이」
+				ENDSELECT
+			ENDIF
+		RETURN 1
+		ENDIF
+	ENDIF
+	;-------------------------------------------------
+	;非在住TARGETがMAIN_MAPで休憩
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 8
+		IF FLAG:시간정지
+		ELSEIF CFLAG:318 == 1
+			PRINTFORML 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 루나는 이쪽을 힐끔힐끔 쳐다보고 있다。
+					PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「포ー…」
+					PRINTFORMW 루나는 턱을 괴고 어딘가 건성이다。
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 「여기인가 신문에 실려있던 곳은…」
+					PRINTFORMW 「그렇지 않으면 저쪽일까나？」
+				CASEELSE
+					PRINTFORML 루나는 갓 끓인 커피를 마시며 한숨을 쉬었다。
+					PRINTFORMW 「우ー응 좋은 향기…」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「여기까지 도망치면 괜찮겠죠」
+					PRINTFORMW 「잠깐 휴식…」
+				CASE 0
+					PRINTFORML 루나는 책을 읽으며 쉬고 있는 것 같았다。
+					PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「또 혼자만 따돌림 당했다…」
+					PRINTFORMW 「이제 여기서 쉬고 나서 돌아가자…」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;前のターンから一緒の部屋にいる状態で相手が寝る（お招き部屋含む（
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 9
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;==================================================
+;이동시 엇갈림
+;==================================================
+@M_KOJO_EVENT_K6_4(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;멈춰 섰다
+	;이후 조우 구상에 접속
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「？」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;가볍게 인사하고 지나갔다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+			IF FLAG:시간정지
+			ELSEIF TALENT:연모
+				PRINTFORML 「아… 에ー 저기… 오늘은 날씨가 좋네…」
+				PRINTFORML （말을 걸기도 전에 가버렸어…）
+			ELSE
+				PRINTFORML 「넘어지지 않도록 조심해요ー」
+			ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;무시하고 지나갔다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+			IF FLAG:시간정지
+			ELSEIF TALENT:연모 || TALENT:사모
+				PRINTFORML 「그렇게 서두다니 무슨 일이라도 있는 거 아냐…？」
+			ELSE
+				PRINTFORML 「꽤나 바쁜 것 같네」
+			ENDIF
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;==================================================
+;타자 개입으로 무드 변화
+;==================================================
+@M_KOJO_EVENT_K6_5(ARG,ARG:1)
+;구상주는 TARGET
+;ARG에 들어온 캐릭터 (인원이 방대한 만큼, 자기파악 자기책임으로)
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;레이무가 들어왔다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;루~코토가 들어왔다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML
+		RETURN 1
+	ENDIF
+	;그외 (캐릭터 지정 없음)
+	IF CFLAG:318 == 1
+		PRINTFORML 
+	ELSEIF TALENT:연모
+		SELECTCASE RAND:3
+			;CASE 1
+				;PRINTFORML 
+				;PRINTFORMW 
+			CASE 0
+				PRINTFORML 「누… 누군가 왔다！？」
+				PRINTFORML 「앗、미안」
+				PRINTFORMW %CALLNAME:MASTER%는 루나에게 냅다 밀쳐져 거리를 취했다。
+			CASEELSE
+				PRINTFORML 「역시 무리였어요 이런 장소에서 하다니…」 소곤소곤
+				PRINTFORMW 
+		ENDSELECT
+	ELSEIF TALENT:사모
+		SELECTCASE RAND:3
+			;CASE 1
+				;PRINTFORML 
+				;PRINTFORMW 
+			;CASE 0
+				;PRINTFORML 
+				;PRINTFORMW 
+			CASEELSE
+				PRINTFORML 「…어흠。콜록콜록、쿨럭쿨럭！！」
+				PRINTFORMW 루나는 일부러 헛기침을 너무 하면서 시치미를 떼고 있다…。
+		ENDSELECT
+	ELSE
+		SELECTCASE RAND:3
+			;CASE 1
+				;PRINTFORML 
+				;PRINTFORMW 
+			;CASE 0
+				;PRINTFORML 
+				;PRINTFORMW 
+			CASEELSE
+				PRINTFORML 루나는 옷매무새를 가다듬더니 허둥지둥 %CALLNAME:MASTER%에게서 멀어졌다。
+				PRINTFORMW 「…들키지 않았죠？」
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;정사를 목격했다
+;==================================================
+@M_KOJO_EVENT_K6_6(ARG,ARG:1)
+;구상주는 TARGET
+;ARG에 정사 상대
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;정사를 목격했다 (친해져(친해져) 정도:저)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 1
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML
+				CASEELSE
+					PRINTFORML 「…… 떨어져요」
+					PRINTFORMW 「어서 %CALLNAME:MASTER%에게서 떨어져요！！」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「뭐、뭐하고 있어 %CALLNAME:MASTER%！？」
+					PRINTFORMW 
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 「뭐하고 있는거야 %CALLNAME:MASTER%들？」
+					PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「…에？……에엣？」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;질세라 참가 (친해져(친해져) 정도:고)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 2
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+				CASEELSE
+					PRINTFORMW 「어느 쪽이 %CALLNAME:MASTER%를 정말 좋아하는지…。이것으로 승부야！」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「나、나도 이런 것쯤…！」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「%CALLNAME:MASTER%가 있다면… 내가 들어가도 문제 없네요？」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;어색한 듯이 떠난다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 3
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 
+				CASEELSE
+					PRINTFORML 「싫어 싫어… %CALLNAME:MASTER% 따위 싫어어！」
+					PRINTFORML 루나는 눈물로 얼룩진 얼굴을 훔치며 그 자리에서 도망쳤다…。
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 
+				CASEELSE
+					PRINTFORML 「저기…、남의 눈에 띄지 않는 장소에서 하세요」
+					PRINTFORMW %CALLNAME:MASTER%는 부끄러운 듯이 눈을 피해가며 허둥지둥 사이를 벌렸다。
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 
+				CASE 0
+					PRINTFORML 
+				CASEELSE
+					PRINTFORML 「아、알았어요。누구에게도 말하지 않을게요…」
+					PRINTFORMW %CALLNAME:MASTER%의 기백에 밀려 루나는 몸을 돌려 원래 왔던 길로 되돌아갔다。
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;==================================================
+;정사를 들켰다
+;==================================================
+@M_KOJO_EVENT_K6_7(ARG,ARG:1)
+;구상주는 TARGET
+;ARG에 목격자
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;정사를 들켰다 (목격자의 친해져(친해져) 정도:저)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 1
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+				CASEELSE
+					PRINTFORML 루나는 %CALLNAME:MASTER%의 가슴에 빨갛게 달아오른 얼굴을 묻고 있다。
+					PRINTFORMW （빠、빨리 어디론가 가줘…）
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「어、어떻게 할 거야 이거…」 소곤소곤
+					PRINTFORMW 「스모라고 속일까？ 무리려나…」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 「보… 보고 있어！、%CALLNAME:MASTER% 빨리 떨어지세요！」
+					PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「아… 아니 이것은 저기…」
+					PRINTFORMW 「후에、페어리 댄스 중이야！」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;목격자가 질세라 참가 (목격자의 친해져(친해져) 정도:고)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 2
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「저、저기 있잖아… %CALLNAME:MASTER%는 내 것이니까」
+					PRINTFORMW 「지금 알게 해줄께…！」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「꽤나 그 아가씨와도 사이가 좋은 것 같던데」
+					PRINTFORMW 「설마 일부러 부르거나 한 건 아니지…？」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORMW 「저기、잠깐 %CALLNAME:MASTER% 진심…？」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;목격자가 물러간다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 3
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「아아아아………」
+					PRINTFORMW 「보여져 버렸다아…」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORMW 「그러니까 나 여기서 하기 싫다고 말했잖아…」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORMW 「괘、괜찮을까？ 소문이라도 나면…」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;==================================================
+;목격한 정사를 캐묻는다 (현재 없음)
+;==================================================
+@M_KOJO_EVENT_K6_8(ARG,ARG:1)
+RETURN 1
+
+;==================================================
+;팬티를 몰수당했다
+;==================================================
+@M_KOJO_EVENT_K6_9(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		;-------------------------------------------------
+		;소분기
+		;-------------------------------------------------
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		;MASTERと同フロアでパンツを没収した
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORML 「아우웃」 기우뚱！
+			PRINTFORML %CALLNAME:MASTER%는 걸려 넘어진 루나에게 옷을 붙잡혀 사이좋게 땅바닥을 굴렀다。
+			PRINTFORML 「아야야야… 미안 %CALLNAME:MASTER%。… 근데、뭐야 그건？」
+			PRINTFORML 불행히도 품에 감추고 있던 속옷이 튀어나와、일어나려던 루나 앞에 드러났다。
+			PRINTFORML 「저기 %CALLNAME:MASTER% 이거 말야…」
+			PRINTFORML 「…헤에 손수건이구나。와ー 상당히 기발한 손수건…… 그럴 리가 없잖아」
+			PRINTFORML 「이건 내가 맡아둘 테니까。잠깐、어딜 잡는 거야！ 찢어져 찢어진다고！」
+			PRINTFORMW %CALLNAME:MASTER%의 전리품은 저항도 허무하게 루나에게 몰수당해 버렸다…。
+		
+			RETURN 1
+		;MASTERが移動してる際にパンツを没収した
+		ELSEIF LOCAL:1 && ARG:1 == 2
+			PRINTFORML 「……%CALLNAME:MASTER%。조금 기다려」
+			PRINTFORML 모른 체 하는 얼굴로 지나치려는 %CALLNAME:MASTER%의 앞을 루나가 가로막았다。
+			PRINTFORML 「뭔가 숨지고 있죠？…… 아무것도 숨기지 않았다고？」
+			PRINTFORML 「거짓말。거짓말쟁이를 가까이서 보고 있으니까 딱 보면 알아요。저기 도대체 뭘 숨기고 있는 거야？」
+			PRINTFORML 루나는 도망치려는 %CALLNAME:MASTER%의 품에 손을 휙 집어 넣어、숨기고 있던 팬티를 꺼내들었다。
+			PRINTFORML 「……잠깐、이것은」
+			PRINTFORML 증거품을 압류당한 %CALLNAME:MASTER%는 기가 막혀 경멸하는 눈초리로 루나에게 내려다 보일 수밖에 없었다。
+			PRINTFORML 「우와아… 최저ー」
+			PRINTFORML 「아이들이란、어째서 이런 유치한 장난을 좋아할까요…」
+			PRINTFORMW %CALLNAME:MASTER%는 루나에게 질릴 때까지 잔소리를 듣게 되었다。
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;밀어 넘어뜨렸다
+;==================================================
+@M_KOJO_EVENT_K6_10(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;우후후==2 (개시시)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		;-------------------------------------------------
+		;MASTER를 밀어 넘어뜨렸다 (개시시)
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			IF CFLAG:318 == 1
+				PRINTFORML 
+			ELSEIF TALENT:연모
+				IF FIRSTTIME("덮치기",0)
+					PRINTFORML 루나는 밀려 넘어진 %CALLNAME:MASTER%의 위에 올라타、보석같은 눈에 눈물이 고여 %CALLNAME:MASTER%를 꽈악 껴안는다。
+					PRINTFORML 「아아아…… 이런 일 하고 싶지 않았는데…」
+					PRINTFORML 「어떻게 하면 좋을지 모르겠어…」
+					PRINTFORML 루나 자신마저 성적욕구를 이해하지 못한 채、다만 본능에 따라 %CALLNAME:MASTER%의 전신에 애처롭게 스스로를 문질러 성욕을 해소하려고 하고 있다。
+					PRINTFORML 「%CALLNAME:MASTER%를 꾸욱 껴안고 싶어。하지만 그것만으로는 부족해요…」
+					PRINTFORML 그것은 오히려 정욕을 부추겨 버려、루나의 하복부를 큐웅 하고 애절하게 떨리게 만들었다。
+					PRINTFORML 「좀 더 좀 더… 나의 안쪽까지… %CALLNAME:MASTER%에게 닿기를 원하는 거야…！」
+					PRINTFORMW 
+				ELSE
+					PRINTFORML 「미안 %CALLNAME:MASTER%。또 자제할 수가 없을지도…」
+					PRINTFORML %CALLNAME:MASTER%의 손을 이끄는 루나의 얼굴은 홍조를 띠고 붉게 달아올라、열기로 가득찬 숨을 괴로운 듯 토해내고 있었다。
+					PRINTFORML 「아프면 그만 둘테니까、그러니 오늘만…… 부탁해」
+					PRINTFORML 루나의 손끝이 %CALLNAME:MASTER%의 가슴팍에 닿는다。
+					PRINTFORML 「%CALLNAME:MASTER%를… 사랑해…」
+					PRINTFORMW 그대로 정욕에 휩싸인 어린 몸을 기대어 왔다。
+				ENDIF
+			ELSE
+				PRINTFORML 「… 스스로도 이상하다는 걸 알고 있어요」
+				PRINTFORML 「이런 일 해서는 안 된다고。하지만…」
+				PRINTFORML 「미안합니다。이제 멈출 수 없어」
+				PRINTFORMW 그렇게 말하며 루나는 %CALLNAME:MASTER%에게 올라타 안겨들었다。
+			ENDIF
+			IF FIRSTTIME("덮치기",0)
+				PRINTFORML 루나는 %CALLNAME:MASTER%의 하복부를 만지작거렸다。
+				PRINTFORML 의외로 고전하면서도、루나는 임전태세를 취하기 시작한 %CALLNAME:MASTER%의 고간을 어떻게든 바깥으로 노출시켰다。
+				PRINTFORML 「이… 이것이 %CALLNAME:MASTER%의 자、자지…」
+				PRINTFORML 
+				SELECTCASE TALENT:MASTER:형상
+					CASE 1 TO 2
+					;未成熟か粗チン
+						PRINTFORML 「작으니까 뭉게지지 않도록 하지 않으면…」
+					CASE 3
+					;普通
+						PRINTFORML 「이、이걸 어떻게 하면 좋을까…」
+					CASE 4
+					;発光
+						PRINTFORML 「……빛이 나네、이거？」
+					CASE 5
+					;イボつき
+						PRINTFORML 「히익…！뭐、뭔가 울퉁불퉁 해…」
+					CASE 6
+					;ゴンぶと
+						PRINTFORML 「히…… 내 팔보다 굵어…」
+					;馬並み
+					CASE 10
+						PRINTFORML 「에、에엣…？%CALLNAME:MASTER%、이런 걸 어떻게 숨기고 있었어？」
+					CASEELSE
+						PRINTFORML 
+				ENDSELECT
+				PRINTFORML 
+			ENDIF
+		RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;MASTER에게 껴안겼다 (개시시)
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORML 
+			RETURN 1
+		ENDIF
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;달랠 수 있었다 (종료시)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		;-------------------------------------------------
+		;빠져나간다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && !ARG:1
+			IF FLAG:시간정지
+			ELSEIF CFLAG:318 == 1
+				PRINTFORML 
+			ELSEIF TALENT:연모
+				SELECTCASE RAND:3
+					;CASE 1
+						;PRINTFORML 
+						;PRINTFORMW 
+					;CASE 0
+						;PRINTFORML 
+						;PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「좀 더 사랑하게 해줘요…」
+						PRINTFORML 「내 마음 이해해줘…」
+				ENDSELECT
+			ELSEIF TALENT:사모
+				SELECTCASE RAND:3
+					;CASE 1
+						;PRINTFORML 
+						;PRINTFORMW 
+					;CASE 0
+						;PRINTFORML 
+						;PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「역시 좋지 않네요、이런 일…」
+						PRINTFORML 「이 정도는 스스로 누를 수 있으면 좋을텐데… 이래서야 단순한 짐승이잖아…」
+				ENDSELECT
+			ELSE
+				SELECTCASE RAND:3
+					;CASE 1
+						;PRINTFORML 
+						;PRINTFORMW 
+					;CASE 0
+						;PRINTFORML 
+						;PRINTFORMW 
+					CASEELSE
+						PRINTFORML 「…미안、나도 어떻게 됐었나봐」
+						PRINTFORML 루나는 어색하게 %CALLNAME:MASTER%에게서 눈을 피했다。
+				ENDSELECT
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;껴안기모드 만족 종료
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORML
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;껴안기모드 강제종료
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 2
+			PRINTFORML
+			RETURN 1
+		ENDIF
+	ENDIF
+	;-------------------------------------------------
+	;빠져나가기 실패
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		;-------------------------------------------------
+		;좋을 대로 해 상태에서 빠져나가지 못했다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 1
+			PRINTFORML 루나는 가냘픈 모습으로는 상상할 수 없던 힘으로 %CALLNAME:MASTER%를 덮어누른다。
+			PRINTFORML 「기다려… 조금만 더…」
+			PRINTFORMW 「이대로는 만족할 수 없으니까、부탁해…」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;욕구 불만이 높아 빠져나가지 못했다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG:1 == 2
+			PRINTFORML 「하아ー…%UNICODE(0x2665) *1%하아ー…%UNICODE(0x2665) *1%」
+			PRINTFORML %CALLNAME:MASTER%의 힘으로는 지금의 몹시 흥분한 루나를 풀 수 있을 것 같지가 않다…。
+			PRINTFORMW 
+			RETURN 1
+		ENDIF
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;==================================================
+;목욕탕에서 조우
+;==================================================
+@M_KOJO_EVENT_K6_11(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;쫓겨났다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		IF FLAG:시간정지
+		ELSEIF CFLAG:318 == 1
+			PRINTFORML 
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+				CASEELSE
+					PRINTFORML 「나、목욕은 혼자서 천천히 하고 싶어」
+					PRINTFORMW 
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+				CASEELSE
+					PRINTFORML 「미안하지만 먼저 들어갈게」
+					PRINTFORMW 
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;눈이 마주쳤다 (쫓겨나지 않는다)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF FLAG:시간정지
+		ELSEIF CFLAG:318 == 1
+			PRINTFORML 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「뭐、뭘 당연하다는 얼굴로 들어오는 거야！」
+					PRINTFORML 「자주 말하잖아。남녀칠세로 해 자리를… 자리를… 에ー 그게……」
+					PRINTFORMW 「함께 하는 것이였든가…？ 어머、그럼 같이 들어가도 괜찮나？？」
+				CASE 0
+					PRINTFORML 「………」 지그시
+					PRINTFORML 루나는 %CALLNAME:MASTER%의 고간을 넋을 잃고 바라보고 있다…。
+					PRINTFORML 「하앗…！ 자、잠깐、이것은 후학을 위해서… 가 아니고…！」
+					PRINTFORMW 루나가 변명하는 걸 의아하게 생각하는 사이 %CALLNAME:MASTER%는 몸을 씻기 시작했다。
+				CASEELSE	
+					PRINTFORMW 「………오늘뿐이니까、같이 들어가는 건」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;==================================================
+;잠자리에 숨어들다
+;==================================================
+@M_KOJO_EVENT_K6_12(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;쫓겨난다 (분노)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF FLAG:시간정지
+		ELSE
+			PRINTFORML 「시끄러… 자고 싶으니까 방해하지 말아줘」
+			PRINTFORMW 루나는 반쯤 감은 눈으로 %CALLNAME:MASTER%를 매섭게 노려보며 난폭하게 문을 닫았다。
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;잠자리에 침입
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 1
+		IF FLAG:시간정지
+		ELSE
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「새근… 새근…」
+					PRINTFORMW 
+				CASE 0
+					PRINTFORML 「새근새근…」	
+					PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「우ー응 우ー응…」
+					PRINTFORMW 「내 형광등이ー……」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;잠자리에 침입 (상대가 연모)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 2
+		IF FLAG:시간정지
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+				CASEELSE
+					PRINTFORML 「에… %CALLNAME:MASTER%？」
+					PRINTFORML 「혹시 이건 꿈？」 쭈우우욱 「달라、아프다…」
+					PRINTFORMW 「무、무슨 일이야 이런 밤중에…」
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;잠자리에 침입 (상대가 연모・쇠약)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 3
+		IF FLAG:시간정지
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「―――쿠울…」
+					PRINTFORML 소리를 지웠나 싶을 정도로、루나는 깊이 숙면하고 있는 것 같다。
+					PRINTFORMW 
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;쫓겨난다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 4
+		IF FLAG:시간정지
+		ELSE
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「아무리 나라도 자는 걸 깨우면 화를 낸다고！」
+					PRINTFORMW 
+				CASE 0
+					PRINTFORML 「나는 잘 때는 자는 시간으로 하고 있어」
+					PRINTFORMW 「노는 게 부족하면 밤낮 역전 생활하는 천사귀 하고나 놀아 보세요」
+				CASEELSE
+					PRINTFORML 「모처럼 잠든 참이었는데…！」
+					PRINTFORMW
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;쫓겨난다 (쇠약)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG:1 == 5
+		IF FLAG:시간정지
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「미안、좀 오늘은 정말로 무리…」
+					PRINTFORMW 루나는 헤쓱한 표정으로 %CALLNAME:MASTER%를 돌려보냈다。
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;==================================================
+;일하는중
+;==================================================
+@M_KOJO_EVENT_K6_13(ARG,ARG:1)
+;구상주는 TARGET
+;ARG:1에게 남아 있는 일량
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;일 개시 (직장으로 이동한다)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「슬슬 놀러 갈까…」
+		PRINTFORMW 「%CALLNAME:MASTER%도 올래？ 서니ー의 방이나 요정의 큰 나무 앞에서 집합이야」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;업무중
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+				CASE 0
+					PRINTFORML 「아우욱」 콰당
+					PRINTFORML 여느때 이상으로 넘어지는 루나를 %CALLNAME:MASTER%는 걱정스레 지켜보고 있다。
+					PRINTFORML (펴、평상심 평상심…）
+				CASEELSE
+					PRINTFORML %CALLNAME:MASTER%와 루나와의 거리가 점점 가까워지고 있는 것 같다。
+					PRINTFORML 「가까워지지 않았냐고？ 수、숲이 점점 작아지고 있어서 그렇게 보이는 거야」
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 「이 봉제인형 사랑스럽다고 생각하지 않아？」
+				CASE 0
+					PRINTFORML 「이 형광등을 밝힐 수만 있다면……」
+				CASEELSE
+					PRINTFORML 「오늘은 도망치지 않고 끝나면 좋겠는데…」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				CASE 1
+					PRINTFORML 루나는 바깥 세계의 책을 읽고 있다。
+					PRINTFORML 「후ー응 나는 무자비한 밤의 여왕인거네…」
+				CASE 0
+					PRINTFORML 루나는 벌게임으로 겨자 경단을 먹게 되었다。
+					PRINTFORML 「하아… 왜 나만」
+					PRINTFORML 「……매－워！！」
+				CASEELSE
+					PRINTFORML 루나는 모두와 함께 하는 놀이에는 흥미가 없는 것 같다。
+					PRINTFORML 「저、저기 그건 그만두는 것이 좋지 않아？」
+			ENDSELECT
+		ENDIF
+
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;일 종료
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 「私は先に終わるわね」
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;==================================================
+;식사계
+;==================================================
+@M_KOJO_EVENT_K6_14(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;가지고 있던 음식을 먹혔다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == -1
+		IF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「%CALLNAME:MASTER%의 요리…%CALLNAME:MASTER%의 요리…%CALLNAME:MASTER%의 요리…」
+					PRINTFORML 「먹자니 아깝지만、다른 사람이 먹을 바에는 차라리… 하지만…」
+					PRINTFORMW 루나는 %CALLNAME:MASTER%의 요리 앞에서 갈등하다가、결국은 다 먹어 버렸다。
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「%CALLNAME:MASTER%의 손에서 음식을 슬쩍하는 것 쯤은、요정이라면 아침식사 전이에요(누워서 떡먹기의 일본판)」
+					PRINTFORML 「…아니、아침식사 이후려나」
+					PRINTFORMW 루나는 우쭐거리며 낼름 손가락에 묻은 음식 부스러기를 핥아먹었다。
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORML 
+				CASEELSE
+					PRINTFORMW 「그런 거 가지고 있으면 먹혀버려요」
+					PRINTFORML 
+					PRINTFORML 
+					PRINTFORMW 「지금 같이…」
+					PRINTFORML %CALLNAME:MASTER%가 알아차렸을 때에는 %CALLNAME:MASTER%의 손에 들려 있던 요리는 사라지고、
+					PRINTFORMW 대신에 요리의 잔해 앞에 손을 모은 루나가 서 있었다。
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+
+;==================================================
+;MASTER가 밀어 넘어뜨렸다
+;==================================================
+@M_KOJO_EVENT_K6_15(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		;-------------------------------------------------
+		;소분기
+		;-------------------------------------------------
+		;미실장 (덮치기 커맨드로 통합?)
+		;MASTER가 밀어 넘어뜨렸다 (우후후 개시시)
+		;기입체크 (=0, 비표시、1, 표시)
+		;LOCAL:1 = 1
+		;-------------------------------------------------
+		;IF LOCAL:1 && ARG == 1
+			;PRINTFORML
+			;RETURN 1
+		;ENDIF
+		;-------------------------------------------------
+		;밀회종료 (우후후 종료시)
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 2
+			IF CFLAG:수면
+			ELSEIF TALENT:연모
+					PRINTFORML 「그런、벌써 끝…？」
+					PRINTFORML 루나는 의복이 흐트러진 채 외로운 듯이 %CALLNAME:MASTER%를 올려다 보고 있다。
+				ELSEIF TALENT:사모
+					PRINTFORML 「이런 일、이대로 계속해도 좋은걸까…」
+					PRINTFORML 「어쩐지 하면 안 될 것 같은 기분이 들어」
+					PRINTFORML 루나는 속옷을 정돈하면서 곤란한 표정을 지으며 고개를 갸웃한다。
+					PRINTFORML 「나도 딱히 싫진 않지만、이런 것은 역시 어른이 되고 나서 하는 편이…」
+					PRINTFORMW 「…응、그만둘 수 있다면 이 고생은 안 하겠지」
+				ELSE
+					PRINTFORML 「… 만족했어？」
+					PRINTFORML 루나는 %CALLNAME:MASTER%에게서 멀어져 흐트러진 옷을 허둥지둥 고쳐 입었다
+					PRINTFORML 「소리를 지우고 있었으니、지금의 소리는 누구에게도 들리지 않아」
+					PRINTFORMW 「…괜찮아、나도 아무한테도 말하지 않을 테니까」
+
+			ENDIF
+			RETURN 1
+		ENDIF
+		;그외
+		PRINTFORML  
+		;-------------------------------------------------
+		;사후 묘사
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 3
+			;-------------------------------------------------
+			;정액이 흘러내렸다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 1
+				IF FLAG:시간정지
+				ELSEIF CFLAG:수면
+				ELSEIF CFLAG:318 == 1
+					PRINTFORML 
+				ELSEIF TALENT:연모
+						SELECTCASE RAND:3
+							;CASE 1
+								;PRINTFORML 
+								;PRINTFORMW 
+							;CASE 0
+								;PRINTFORML 
+								;PRINTFORMW 
+							CASEELSE
+								PRINTFORML 「%CALLNAME:MASTER%의 따뜻한 것이 흘러 넘쳐 버려…」
+								PRINTFORML 루나는 하복부를 꼭 부여잡고、%CALLNAME:MASTER%가 넣어준 정액을 흘리지 않도록 안짱다리로 누르고 있다。
+								PRINTFORMW 「싫어…… 흘러넘치지 마。좀 더 뱃속에…」
+								
+						ENDSELECT
+				ELSEIF TALENT:사모
+						SELECTCASE RAND:3
+							;CASE 1
+								;PRINTFORML 
+								;PRINTFORMW 
+							;CASE 0
+								;PRINTFORML 
+								;PRINTFORMW 
+							CASEELSE
+								PRINTFORML 「우우… 배가 무겁다…」
+								PRINTFORML 「%CALLNAME:MASTER%는 잘도 이만큼이나 내고도 말라붙질 않네요。이상해요…」
+								PRINTFORML 「허벅지까지 흘러 넘치고 있다고… 조금은 조절해 줘…」
+						ENDSELECT
+				ELSE
+						SELECTCASE RAND:3
+							;CASE 1
+								;PRINTFORML 
+								;PRINTFORMW 
+							;CASE 0
+								;PRINTFORML 
+								;PRINTFORMW 
+							CASEELSE
+								PRINTFORML 「햐웃！… 혹시」
+								PRINTFORML 「아ー… 흘러버렸다。핸드타올이 있었던가…」
+						ENDSELECT
+				ENDIF
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;애액이 흘러내렸다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 2
+				IF FLAG:시간정지
+				ELSEIF CFLAG:수면
+				ELSEIF CFLAG:318 == 1
+					PRINTFORML 
+				ELSEIF TALENT:연모
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORML 「나… 아직 %CALLNAME:MASTER%에게 안기고 싶다고 생각하는 것 같아…」
+							PRINTFORML 「이제 끝났는데、아직 이렇게나 되어 버려서…%UNICODE(0x2665) *1%」
+							PRINTFORMW 루나는 흠뻑 젖은 하복부를 어루만지며、갖고 싶어하는 애달픈 눈동자로 %CALLNAME:MASTER%를 바라보고 있다。
+					ENDSELECT
+				ELSEIF TALENT:사모
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORML 「%CALLNAME:MASTER%는 조금 손대중 좀 해야 한다고 생각해요」
+							PRINTFORML 「그렇게 괴롭히니까、봐요…。전부 %CALLNAME:MASTER%의 책임이야」
+							PRINTFORMW 루나는 %CALLNAME:MASTER%의 앞에서 다리를 벌려 보여주며、촉촉히 젖은 부드러운 질에서 투명한 액체가 늘어지는 모습을 과시해 왔다。
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORML 「어째서 이렇게나 주룩주룩…」
+							PRINTFORML 「나 스스로도 뭐랄까…」
+							PRINTFORMW 루나는 얼굴을 붉히며 스스로 짜낸 애액이 늘어져 내리는 모습을 부끄러운 듯이 바라보고 있다。
+					ENDSELECT
+				ENDIF
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;사후의 무드
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 3
+				IF FLAG:시간정지
+				ELSEIF CFLAG:수면
+				ELSEIF CFLAG:318 == 1
+					PRINTFORML 
+				ELSEIF TALENT:연모
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORML %CALLNAME:MASTER%를 끌어안고 있던 루나의 숨결이 겨우 잦아들기 시작한다。
+							PRINTFORML 「사람에게 들리는 제일 작은 소리와、처음에 듣는 소리가 뭔지 알아？」
+							PRINTFORML 「그것은 심장의 고동이래。왠지 마음이 놓인다…」
+							PRINTFORML 루나는 %CALLNAME:MASTER%의 가슴에 귀를 갖다 댄다。
+							PRINTFORMW %CALLNAME:MASTER%의 고동을 듣고 있는 루나를、%CALLNAME:MASTER%는 당분간 그렇게 껴안고 있었다。
+					ENDSELECT
+				ELSEIF TALENT:사모
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORML 「%CALLNAME:MASTER%는 아프지 않았어？ 괜찮아？」
+							PRINTFORML 루나는 걱정스러운 듯이 %CALLNAME:MASTER%의 신체를 어루만져 온다。
+							PRINTFORMW 「괜찮다니 다행이에요。혼자만 즐기고 있다니 재미없는걸」
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORML 「이 일은 절대로 서니ー와 스타ー에게는 비밀이야！」
+							PRINTFORML 「그렇지 않으면 무슨 말을 듣게 될지… 생각만 해도 무서워요…」
+					ENDSELECT
+				ENDIF
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;옷을 입다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 4
+				IF FLAG:시간정지
+				ELSEIF CFLAG:수면
+				ELSEIF CFLAG:318 == 1
+					PRINTFORML 
+				ELSEIF TALENT:연모
+					SELECTCASE RAND:3
+						CASE 1
+							PRINTFORML (… 좀 더 사랑스러운 속옷을 입고 올 걸 그랬나）
+							PRINTFORMW 
+						CASE 0
+							PRINTFORML 「나도 둘처럼 스커트의 기장을 줄여 볼까…」
+							PRINTFORMW 「그 쪽이 %CALLNAME:MASTER%도 기뻐해 주려나…？」
+						CASEELSE
+							PRINTFORML 「%CALLNAME:MASTER%는 내 옷을 입어도 어울릴 것 같아」
+							PRINTFORML 「키도 대충 비슷하고… 잠깐 입어 보지 않을래？」
+							PRINTFORMW 루나의 눈빛이 변해가는 것에 왠지 모를 공포를 느끼며 %CALLNAME:MASTER%는 정중하게 거절했다。
+					ENDSELECT
+				ELSEIF TALENT:사모
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						;CASE 0
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASEELSE
+							PRINTFORML 「저런 일까지 하고선 옷 입는 것을 보여지면 부끄럽다니…」
+							PRINTFORMW 루나는 %CALLNAME:MASTER%에게 새하얀 피부의 등을 보이면서 옷을 입기 시작했다。
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:3
+						;CASE 1
+							;PRINTFORML 
+							;PRINTFORMW 
+						CASE 0
+							PRINTFORML 「옷이 약간 주름졌네…」
+							PRINTFORMW 
+						CASEELSE
+							PRINTFORML 「… 설마 팬티 이외의 것도 뺏을 생각은 아니겠지？」
+							PRINTFORMW 루나는 %CALLNAME:MASTER% 쪽을 경계하며 옷을 입기 시작했다。
+					ENDSELECT
+				ENDIF
+				RETURN 1
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;동침한다
+;==================================================
+@M_KOJO_EVENT_K6_16(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;동침을 시작 (시작시) (존재하지 않음)
+	;기입체크
+	;LOCAL:1 = 1
+	;-------------------------------------------------
+	;IF LOCAL:1 && ARG == 1
+		;PRINTFORML
+		;RETURN 1
+	;ENDIF
+	;-------------------------------------------------
+	;동침을 종료했다 (종료시)
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		IF FLAG:시간정지
+		ELSEIF CFLAG:318 == 1
+			PRINTFORMW 
+		ELSEIF TALENT:연모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「저기… 조금만 더 같이 있어 주지 않을래？」
+					PRINTFORMW 「왜냐하면 %CALLNAME:MASTER%과 함께 있으면 자는게 아까워서…」
+					
+			ENDSELECT
+		ELSEIF TALENT:사모
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				;CASE 0
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASEELSE
+					PRINTFORML 「응？ 이제 그만」
+					PRINTFORMW 「또 잘 수 없으면 언제든지 와도 돼」
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:3
+				;CASE 1
+					;PRINTFORML 
+					;PRINTFORMW 
+				CASE 0
+					PRINTFORMW 「나도 밤에 다니는 편이니까 이따금이라면 어울려 줄게」
+				CASEELSE
+					PRINTFORML 「벌써… %CALLNAME:MASTER%도 참 잠버릇이 너무 나뻐…」
+					PRINTFORMW 루나는 꾸깃꾸깃 구겨진 시트를 보며 못마땅한 듯 입술을 삐죽거렸다。
+			ENDSELECT
+		ENDIF
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+;==================================================
+;시간정지 종료 시
+;==================================================
+@M_KOJO_EVENT_K6_17(ARG,ARG:1)
+;구상주는 TARGET
+;배타(排他)라고 명기되어 있지 않은 것은 상황에 따라 연속으로 표시되므로 주의
+;ARG에 사정 상황
+;ARG:1에 사정 상태
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;ARG=1~3은 배타
+	;수수께끼의 쾌감
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「힉…！」
+		PRINTFORML 주위의 소리가 돌연 사라져 없어진다。루나가 능력을 발동시킨 것 같다。
+		PRINTFORML 발동한 장본인은 뺨을 새빨갛게 물들인 채 수수께끼의 쾌락을 참아 보려는 듯이 몸을 떨고 있다。
+		PRINTFORML 「――――」 흔들흔들
+		PRINTFORMW 입가를 누르고、아무렇지도 않다는 듯이 루나는 고개를 옆으로 저었다。
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;절정
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 「――――읏%UNICODE(0x2665) *1%%UNICODE(0x2665) *1%%UNICODE(0x2665) *1%」
+		PRINTFORML 아랫배를 중심으로 쏟아지는 쾌감에 다리가 풀려、루나가 그 자리에서 뒤로 넘어진다。
+		PRINTFORML 「앗… 아앗…%UNICODE(0x2665) *1% 아우…%UNICODE(0x2665) *1%」
+		PRINTFORML 전신으로 퍼지는 달콤한 자극에 몸을 떨며、일어서지도 못하고 그저 지면 위에서 경련하고 있다。
+		PRINTFORML 허벅지를 적시는 애액、거칠어지는 숨결、높아지는 열기。
+		PRINTFORMW 그것들이 멎을 때까지 루나는 일어서는 것 조차 할 수 없는 상태로 추태를 드러냈다。
+	RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;팬티 분실
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 「…어라？」
+		PRINTFORML 「어쩐지 추운 것 같은데…」 퐁퐁
+		PRINTFORML 「……！？」 퐁퐁퐁
+		PRINTFORML 「소、속옷이 없다…！」
+		PRINTFORML 「어、어째서？ 설마 조금 전 굴렀을 때 벗겨졌다든가…？」
+		PRINTFORML 「그런 일이 있을 수 있는 걸까？ 그렇지만 그 외에는 짐작이 가는 것도 없고…」
+		PRINTFORMW 「어쩌지… 아무튼 오늘은 이제 절대 넘어지지 않도록 하자…！」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각 구내 사정】
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		;정액중독 저 정음
+		IF ARG:1 == 1
+			PRINTFORML 「응으읏！？ 콜록콜록！」
+			PRINTFORMW 「무슨 일이… 일어… 쿨럭！」
+		;정액중독 저 토해냄
+		ELSEIF ARG:1 == 2
+			PRINTFORML 「우욱！？」
+			PRINTFORML 루나는 근처의 그늘에 숨고서 입안에 엉겨붙은 백탁액을 토해낸다。
+			PRINTFORMW 「욱… 콜록… 오웩… 뭐、뭐가 입 안에…？？」
+		;정액중독 저 손으로 가림
+		ELSEIF ARG:1 == 3
+			PRINTFORML 「우웁！？］
+			PRINTFORML 루나는 입안에 먹여진 정액을 반사적으로 입가를 손으로 가리고 토해냈다。
+			PRINTFORML 「히에에… 더럽닷！」
+			PRINTFORML 역겨운 감촉과 그것이 입안에 있었다는 사실에 눈물을 글썽이며 손을 털어낸다。
+			PRINTFORMW 「물로 어서 깨끗하게 하지 않으면… 우웨에엑…」
+		;정액중독 고 정음
+		ELSEIF ARG:1 == 4
+			PRINTFORML 「… 꿀꺽」
+			PRINTFORML 「………！？」
+			PRINTFORMW 「자、지금 뭔가 익숙한 그걸 마셔버린 것 같은…？」
+		;농후정액&정액중독 저 토해냄
+		ELSEIF ARG:1 == 5
+			PRINTFORML 「으읍！？」
+			PRINTFORML 「…읏！ 꾸……오에엑」
+			PRINTFORML 고점도로 엉겨붙은 정액은 루나의 호홉마저 저해시켜 산소 결핍에 빠지게 만들었다。
+			PRINTFORML 목 언저리를 누르고 창백한 얼굴로 루나는 몇 번이나 구토를 반복한다。위의 내용물을 토해낼 기세로
+			PRINTFORML 「콜록콜록！！ 쿨럭！！」
+			PRINTFORML 「하아………하아………。다행이다…。나 아직 죽지 않았어……」
+			PRINTFORMW 신선한 공기를 겨우 마시게 된 루나는 산소결핍이 되어 자리에 주저앉았다。
+		;농후정액&정액중독 고 정음
+		ELSEIF ARG:1 == 6
+			PRINTFORML 「응응！？ 응읏…？ 으읏…」
+			PRINTFORML 루나는 입안의 이변에 순간 놀랐지만、그것이 뭔지 알아차리자 희론하듯이 입안에서 정액을 음미한다。
+			PRINTFORML 얼핏 보면 껌을 씹는 것 같지만 속에서는 정액을 혀로 휘감으며、수컷의 맛을 즐기고 있었다。
+			PRINTFORML 「꿀꺽……♪」
+			PRINTFORMW 「… 잠깐 기다려。어째서 입 안에 갑자기 정액이？」 
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각 안면 사정】
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+		;무지보유&정액경험 100미만
+		IF ARG:1 == 1
+			PRINTFORML 「뭐야！？」
+			PRINTFORML 「내、냄새가…！ 새똥？」
+			PRINTFORMW 「하아… 이런 게 쏟아지다니 운이 안 좋네…」
+		;통상 닦아낸다
+		ELSEIF ARG:1 == 2
+			PRINTFORML
+		;안면사정액 혀로 맛본다
+		ELSEIF ARG:1 == 3
+			PRINTFORML 「히잇…！… 어라？」
+			PRINTFORML 「이것은 혹시… 츄…」
+			PRINTFORML 「쪽、쪼옥、할짝…… 날름…」
+			PRINTFORMW
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각 수음 사정】
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 6
+		;닦아낸다
+		IF ARG:1 == 1
+			PRINTFORML 「히에에… 대체 언제쯤 운이 좋아질까…」
+			PRINTFORML 루나는 손에 묻은 백탁액에 등줄기를 떤다。
+			PRINTFORML 현명하게 꺼낸 손수건으로 닦아내고、아까워 하면서도 더러워진 그것을 던져 버렸다。
+			PRINTFORMW 「그 손수건 무늬、마음에 들었었는데…」
+		;혀로 맛본다
+		ELSEIF ARG:1 == 2
+			PRINTFORML 「응… 츄… 푸하」
+			PRINTFORMW 「… 아무도 못 봤겠죠 지금 것」
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각 애널 사정】
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 7
+		;A감각 2이하
+		IF ARG:1 == 1
+		;그것 이외
+		ELSEIF ARG:1 == 2
+		ENDIF
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각 처녀 상실】
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 8
+		PRINTFORML 욱신 ――ー
+		PRINTFORML 「히익…」
+		PRINTFORML 하복부에서 달궈진 철봉으로 쑤셔진 것 같은 아픔이 밀려와 루나는 그 자리에 주저앉았다。
+		PRINTFORML 「우…… 아…… 뭔가… 잘못됐어… 아파…」
+		PRINTFORML 도저히 가라앉지 않는 통증은 루나가 움직일 때마다 격렬한 아픔을 일으켜、그 때마다 루나의 얼굴이 고통으로 일그러진다。
+		PRINTFORML 「하아… 하아…」
+		PRINTFORML 루나는 눈물을 흘리면서 아픔이 멈추기만을 기다릴 수 밖에 없었다。
+		PRINTFORMW 다스려지지 않는 격통을 비웃기라도 하듯、허벅지를 타고 흘러 떨어져 내리는 파과의 피가 루나의 신체를 더럽혔다。
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;【무자각 질내 사정】
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 9
+		;비처녀 질내 사정 피임약 없음
+		IF ARG:1 == 1
+				PRINTFORML 「응…！？」
+				PRINTFORML 「어라、오…줌？」
+				PRINTFORML 「달라… 희고 끈적끈적 해… 우에에、너무 기분 나쁘다」
+				PRINTFORML 「무슨 병인가 이거？ 아니면 이상한 걸 먹어서？」
+				PRINTFORMW 「아직도 흘러내리네… 어딘가 화장실을 찾지 않으면」
+		;비처녀 질내 사정 피임약 없음
+		ELSEIF ARG:1 == 2
+				PRINTFORML 「응…！？」
+				PRINTFORML 「어라、오… 줌？」
+				PRINTFORML 「달라… 희고 끈적끈적 해… 우에에、이거」
+				PRINTFORML 「무슨 병인가 이거？아니면 이상한 걸 먹어서？」
+				PRINTFORML 「아직도 흘러내리네… 어딘가 화장실을 찾지 않으면」
+				PRINTFORMW 「하아、최악의 기분…。기분전환으로 나중에 그 흰 라무네나 먹어 볼까」
+		;처녀 질내 사정
+		ELSEIF ARG:1 == 3
+				PRINTFORML 주륵……
+				PRINTFORML 「…에？」
+				PRINTFORML 하복부에서 흘러나오는 액체의 감촉에 루나는 할 말을 잃었다。
+				PRINTFORML 고뽀고뽀 소리를 내며 가랑이에서 거품이 이는 하얀 액체가 흘러내린다。
+				PRINTFORML 「히잇！ 뭐야… 이거… 윽」
+				PRINTFORML 처녀를 갓 상실한 루나는 역겨운 사건을 더 이상 견디지 못하고 숨이 막혔다。
+				PRINTFORML 흘러나오는 핑크색의 백탁액과 멈추지 않는 아픔에、이제 루나는 견딜 수 없었다。
+				PRINTFORML 「싫어…」
+				PRINTFORML 「이제 싫어어어어！！ 싫다아아아아！！」
+				PRINTFORMW 나이에 걸맞는 소녀처럼、루나는 목이 쉴 때까지 울부짖었다。
+		RETURN 1
+		ENDIF
+	ENDIF
+	;-------------------------------------------------
+	;시간정지 해제 공통
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 0
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;생으로 하게 해달라고 할 때
+;==================================================
+@M_KOJO_EVENT_K6_18(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;피임요구대사
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;거절했다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;거절했는데도 버텨서 질렸다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;위험일 이외 허가
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;위험일 허가
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+	LOCAL:1 = 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;신사 생활을 승인받다
+;==================================================
+@M_KOJO_EVENT_K6_19(ARG,ARG:1)
+;구상주는 ARG
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;인정을 받다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		;PRINTFORML 「…… 생각난 게 있어」
+		;PRINTFORML 「誰かに言われたわ。私は3人の中で一番妖怪に近いって」
+		;PRINTFORML 「無意識に気づいてたかもしれない。私は根っこからあの2人とは違っていたのかも」
+		;PRINTFORML 「きっといつか一緒に遊べなくなる時が来るって…」
+		;PRINTFORML 「この引っ越しは良い機会だったのよ。きっと」
+		;PRINTFORML 「……………」
+		;PRINTFORML 「……ねぇ%CALLNAME:MASTER%」
+		;PRINTFORMW 「今夜は寂しくて泣いちゃうかもしれないから、一緒に寝てもいい…？」
+		PRINTFORML 「잊은 물건은 없을까。제대로 채소 절임도 챙기고 인형도 챙겼고…」
+		PRINTFORML 「서니ー와 스타ー는 괜찮으려나…。방이 텐구풍으로 난장판이 되어 있을지도…」
+		PRINTFORML 「이웃에 대한 인사는 중요하다고 스타ー가 말했었지만、간단한 선물로 요정 푸딩 정도로 괜찮을까…」
+		PRINTFORML 「아아 생각할수록 걱정만 쌓이네…。꺅！」
+		PRINTFORML %CALLNAME:MASTER%는 당황해 넘어질 뻔한 루나를 끌어안고、안심시키려고 다정하게 껴안았다。
+		PRINTFORML 「… 그래요。지금은 %CALLNAME:MASTER%가 곁에 있는 걸요」
+		PRINTFORML 「걱정할 건 하나도 없을 거에요。고마워요 %CALLNAME:MASTER%」
+		PRINTFORMW 「앞으로도 잘부탁해요」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;인정받지 못하다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 「요정은 자신의 기질에 맞는 곳에서만 살 수 있으니까、이게 잘 된건지도」
+		PRINTFORMW 「하지만、%CALLNAME:MASTER%과 함께 살아보고 싶었어…」
+		
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;귀가시
+;==================================================
+@M_KOJO_EVENT_K6_20(ARG,ARG:1)
+;구상주는 LOCALS or RESULT
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		;-------------------------------------------------
+		;소분기
+		;-------------------------------------------------
+		;통상 귀가
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 1
+			IF CFLAG:318 == 1
+				PRINTFORML 
+			ELSEIF TALENT:연모
+				PRINTFORML 「저、저기 도중까지 함께인가、개굴… 개굴…」
+				PRINTFORMW 「개구리가 우니까 돌아가자！ 아、안녕 %CALLNAME:MASTER%！」
+			ELSEIF TALENT:사모
+				PRINTFORML 「서니ー들은 벌써 집에 갔을까 몰라」
+				PRINTFORMW 「나도 빨리 돌아가야겠다。그럼 %CALLNAME:MASTER%」
+			ELSE
+				PRINTFORML 「벌써 이런 시간…」
+				PRINTFORMW 「내일은 뭔가 재미있는 걸 찾을 수 있을까」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;데이트중 귀가
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 2
+			IF CFLAG:318 == 1
+				PRINTFORML 
+			ELSEIF TALENT:연모
+				PRINTFORML 「다음은 어디로 가？… 에、벌서 그런 시간？」
+				PRINTFORML 「우、우웅。돌아가지 않으면 안 되지만……」
+				PRINTFORML 「…저기 %CALLNAME:MASTER%。오늘 정말 즐거웠워。서니ー와 스타ー와 같이 있을 때 정도」
+				PRINTFORML 「그러니까 또、권해 줄래…？」
+				PRINTFORMW 「… 고마워。잊는 건 싫으니까」
+			ELSEIF TALENT:사모
+				PRINTFORML 「나에게 있어 밤은 이제부터지만、슬슬 가봐야 겠어요」
+				PRINTFORML 「밤은 요괴의 세계。%CALLNAME:MASTER%를 위험에 처하게 하고 싶지는 않으니까」
+				PRINTFORML 「자、%CALLNAME:MASTER%도 돌아가죠」
+				PRINTFORMW %CALLNAME:MASTER%는 루나와 손을 잡고 귀로에 접어들었다。
+			ELSE
+				PRINTFORML 「아、슬슬 돌아갈 시간인가 보네」
+				PRINTFORMW 「우ー응 기분 전환 정도는 되었을까。그럼 또 보자」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;玄関先でお見送り
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		;自分用メモ。MASTERがデート相手の家に遊びに来ていて、デート相手がお見送りしてくれる。
+		IF LOCAL:1 && ARG == 3
+			IF CFLAG:318 == 1
+				PRINTFORML 
+			ELSEIF TALENT:연모
+				PRINTFORML 「여、역시 아직 돌아가기에는 이르다고 생각하지 않아？」
+				PRINTFORML 「아직 밤이 이르니 토끼 사냥 가는 건 어때？ 분명 즐거울 거야！」
+				PRINTFORML 「아니면 집에서 밥먹고 가지 않을래？ %CALLNAME:MASTER%가 좋아하는 거 많이 만들어 줄께！」
+				PRINTFORML 「…………」
+				PRINTFORML 「미안… 이상한 말만 해서…」
+				PRINTFORMW 「――― 내일 봐요…」
+			ELSEIF TALENT:사모
+				PRINTFORML 「우리 집 시끄러웠지？ 언제나 이런 느낌이야」
+				PRINTFORML 「하지만 %CALLNAME:MASTER%이 와줘서 정말 즐거웠어요」
+				PRINTFORML 「밖에서 노는 것도 좋지만 이렇게 집안에서 노는 것도 나쁘지 않네」
+				PRINTFORML 「돌아갈 때는 어두우니까 다치지 않게 조심해 %CALLNAME:MASTER%」
+				PRINTFORMW 「그럼、편히 쉬세요…」
+			ELSE
+				PRINTFORML 「돌아가는 길에 요괴에게 잡혀가지 않도록 조심해요」
+				PRINTFORML 「특히 말을 걸면 절대 돌아보지 말 것」
+				PRINTFORML 「만약 돌아보면…… 히엑」
+				PRINTFORMW 「내가 오히려 무서워졌잖아…」
+			ENDIF
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;함락소질 취득 시
+;==================================================
+@M_KOJO_EVENT_K6_21(ARG,ARG:1)
+;구상주는 ARG
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;연모 취득
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「오늘은 %CALLNAME:MASTER%과의 예정도 없으니、천천히 신문이라도 읽어볼까」
+		PRINTFORML 「………」 펄럭
+		PRINTFORML 「이거、맛있을 것 같네。%CALLNAME:MASTER%에게 만들어 주면 좋아할 것 같아」
+		PRINTFORML 「………」 펄럭
+		PRINTFORML 「환상향에 이런 장소도 있던가。다음에 %CALLNAME:MASTER%과 함께 가 볼까」
+		PRINTFORML 「…근데、어쩐지 %CALLNAME:MASTER%의 일만 생각하고 있잖아、나도 참！」
+		PRINTFORML 「하아、세수나 하자…」
+		PRINTFORML 「………」어푸어푸
+		PRINTFORML 「머리카락、자라버렸다…。그런데 %CALLNAME:MASTER%는 긴 편을 좋아하려나…？」
+		PRINTFORML 「～～～～～！！」
+		PRINTFORML 「어째서 하나 하나 %CALLNAME:MASTER%를 떠올리고 있는거야…」
+		PRINTFORML 「요즘 계속 그래… 자면서도 깨어서도 %CALLNAME:MASTER%의 일만」
+		PRINTFORMW 「… 이래서야 마치」
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORMW 「내가 사랑하고 있는 것 같잖아…」
+		SETCOLOR C_AQUA
+		PRINTFORML 
+		IF TALENT:7:연모 
+			PRINTFORMW 「그럼 나는 %CALLNAME:MASTER%의 하반신、루나는 %CALLNAME:MASTER%의 상반신 담당이군요」 끄덕
+		ELSE
+			PRINTFORMW 「조심해 루나。달과 사랑은 가득 차면 이지러지는 거야」 끄덕
+		ENDIF
+		PRINTFORML 
+		SETCOLOR 255,230,250
+		IF TALENT:5:연모 
+			PRINTFORMW 「나는 낮의 %CALLNAME:MASTER%를 받을게！ 루나는 밤의 %CALLNAME:MASTER%를 받아들여줘！」 폴짝
+		ELSE
+			PRINTFORMW 「사랑은 눈이 멀다 라고 하니까 루나는 더 이상 넘어지지 않도록 조심해야 해！」 폴짝
+		ENDIF
+		SETCOLOR C_CREAM
+		PRINTFORML 
+		PRINTFORML 「잠깐 거기의 외야、시끄러워！」
+		PRINTFORMW 「아아、이제… 내일부터 어떤 얼굴을 하고 만나면 좋을까…」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;사모 취득
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 「처음에 %CALLNAME:MASTER%를 봤을 때 사실 그다지 믿을 수 없을 것 같은 느낌이 들었어」
+		PRINTFORML 「그렇지만、의외로 확실히 하고 있고、내가 넘어져도 도와주고 일으켜준다」
+		PRINTFORML 「아니 서니ー와 스타ー도 가끔씩 도와 주지만…」
+		PRINTFORML 「그 두 사람처럼 운명 공동체 이런 거 말고… 그래、비유하자면 쌍둥이의 남동생일까」
+		PRINTFORML 「왠지 함께 있으면 안심이 되는거야」
+		PRINTFORMW 「서니ー나 스타ー와도 마음이 맞을 것 같아。… 다음에 우리들의 탐험에 권해 볼까」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;애욕 취득
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;정부 취득
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;섹프 취득
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 5
+		PRINTFORML 「저기、이제 이런 관계 그만두지 않을래…？」
+		PRINTFORML 「이제 저 두사람도 속일 수 없다고。그리고 나도 이대로… 응읏%UNICODE(0x2665) *1%」
+		PRINTFORML 「… 그러니까、이런 관계 좋지 않、…아、아앗%UNICODE(0x2665) *1% 엣치만 하는… 아앙%UNICODE(0x2665) *1%」
+		PRINTFORML （어떻게 하자、또 흐르게 되어 버린다…。하지만、기분 좋아…%UNICODE(0x2665) *1%）
+		PRINTFORML （… 빠져들지 않으면 좋겠는데）
+		PRINTFORMW 「후아앙…%UNICODE(0x2665) *1%」
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;조교 종료시 자위
+;==================================================
+@M_KOJO_EVENT_K6_22(ARG,ARG:1)
+;구상주는 ARG
+;ARG:0에 자위 상황
+;ARG:1에 자위 종류
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		;-------------------------------------------------
+		;통상 자위
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 1
+			PRINTFORML 「소리를 지울 수 있다는 것은 편리해요」
+			PRINTFORML 「…서니ー와 스타ー에게 들리지 않고 끝나니。… 응%UNICODE(0x2665) *1%」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;동실시 자위
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 2
+			PRINTFORML 
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;질내사정 정액 자위
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 3
+			PRINTFORML 
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;무지보유 (자위경험(조교자위경험은 차감)에 의한 분기 있음)
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 4
+			LOCAL:2 = EXP:자위경험 - EXP:조교자위경험
+			;무지 소거 이벤트 있음 (표시는 한 번뿐)
+			IF LOCAL:1 >= 25
+				PRINTFORML 「…… 레이무씨」
+				PRINTFORML 「조금 상담하고 싶은 것이 있습니다만…」
+				PRINTFORML 「나… 최근、이상한 꿈만 꾸고 있어요」
+				PRINTFORML 「그걸 생각하고 있으면 오줌 누는 부분이 안타까워져서…」
+			;지문 분기. 書きたい場合は[SKIPSTART][SKIPEND]を削除してください
+			ELSEIF LOCAL:1 >= 20
+				PRINTFORML 루나 위에 \@ TALENT:연모 ? %CALLNAME:MASTER% # 모르는 남자아이 \@가 알몸으로 뒤덮고 있다。
+				PRINTFORML 그가 허리를 움직일 때마다 루나의 비밀스런 장소를 헤치며 뭔가가 가라앉아 온다…。
+				PRINTFORML 소녀는 하복부에 더 이상 없는 행복감을 느끼면서 소년의 뭔가를 삼키고 있었다。
+				PRINTFORML 「……응%UNICODE(0x2665) *1%……앙%UNICODE(0x2665) *1%」
+				PRINTFORML 꿈에서 깨어난 루나는、꿈속에서 일어난 일을 생각해내며 손가락으로 쑤시는 비소를 자극하며 쾌락을 추구했다。
+			ELSEIF LOCAL:1 >= 15
+				PRINTFORML 그날 밤、루나는 꿈 속에서 \@ TALENT:연모 ? %CALLNAME:MASTER% # 모르는 남자아이 \@와 실오라기 하나 걸치지 않은 모습으로 서로 껴안고 있었다。
+				PRINTFORML 정신없이 서로 온몸을 만지작거리며 입맞춤을 몇 번이나 주고받는 행위에、꿈 속의 루나는 음탕한 표정으로 그것을 받아들이고 있다。
+				PRINTFORML 「……읏！？」 화악
+				PRINTFORML 「뭐、뭐야 지금의 꿈…。어째서 이렇게나 보지가 젖어 있는거지…」
+			ELSEIF LOCAL:1 >= 10
+				PRINTFORML 그날 밤、루나는 꿈 속에서 \@ TALENT:연모 ? %CALLNAME:MASTER% # 모르는 남자아이 \@와 키스를 나누고 있었다。
+				PRINTFORML 서투른 키스 도중、서로의 타액을 교환하며 붉은 혀가 빨려지는 감각에 루나는 눈을 감은 채 넋을 잃고 있었다。
+				PRINTFORML 「… 가슴이 아직도 두근두근 거리고 있어」
+				PRINTFORML 「나 어떻게 된 거야…」
+			ELSEIF LOCAL:1 >= 5
+				PRINTFORML 그날 밤、루나는 꿈 속에서 \@ TALENT:연모 ? %CALLNAME:MASTER% # 모르는 남자아이 \@와 손을 잡고 노는 꿈을 꾸었다。
+				PRINTFORML 「… 평소와 다른 꿈을 꾼 것 같아」
+				PRINTFORML 「근데 정말 즐거웠던 것 같은…」
+				
+			ELSE
+			ENDIF
+			PRINTFORML  
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;함락소질 있음 자위중독 높음
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 5
+			;-------------------------------------------------
+			;C민감orC감각 10이상
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 1
+				PRINTFORML  
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;V민감orV감각 10이상
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 2
+				PRINTFORML  
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;A민감orA감각 10이상
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 3
+				PRINTFORML  
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;B민감orB감각 10이상
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 4
+				PRINTFORML  
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;부위 지정 없음
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 5
+				PRINTFORML  
+				RETURN 1
+			ENDIF
+			;그외
+			;위의 분기를 일절 쓰지 않고, 여기에 쓰는걸로 함락소질 있음 자위중독 높음 자위 공통 구상을 표시할 수 있습니다
+			PRINTFORML 
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;자위중독 높음
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 6
+			;-------------------------------------------------
+			;항문질강동시
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 1
+				PRINTFORML  
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			;질강만
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1 && ARG:1 == 2
+				PRINTFORML  
+				RETURN 1
+			ENDIF
+			;그외
+			;위의 분기를 일절 쓰지 않고, 여기에 쓰는걸로 자위중독 높음 자위 공통 구상을 표시할 수 있습니다
+			PRINTFORML 
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;참는다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 7
+			PRINTFORML 
+			RETURN 1
+		ENDIF
+		;그외
+		;위의 분기를 일절 쓰지 않고, 여기에 쓰는걸로 자위 공통 구상을 표시할 수 있습니다
+		PRINTFORML  
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;목욕탕에 데리고간다
+;自分用メモ。ルナを連れてく状態にして風呂に入ろうとすると発生
+;==================================================
+@M_KOJO_EVENT_K6_23(ARG,ARG:1)
+;구상주는 LOCAL
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		;-------------------------------------------------
+		;소분기
+		;-------------------------------------------------
+		;거절당했다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 1
+			IF CFLAG:318 == 1
+				PRINTFORMW 
+			ELSEIF TALENT:연모
+				PRINTFORML 「아、안 돼… 아직 %CALLNAME:MASTER%과 함께라면 욕실에 들어가기도 전에 현기증이 날 것 같아…」
+				PRINTFORMW 루나는 %CALLNAME:MASTER%의 알몸을 상상이라도 하고 있는지 얼굴이 새빨갛게 물들기 시작했다。
+			ELSEIF TALENT:사모
+				PRINTFORML 「저는 이제 들어왔으니까 먼저 들어가」
+				PRINTFORMW 「함께 들어가고 싶어？ 안 돼、나는 혼자 천천히 들어가는걸 좋아해」
+			ELSE
+				PRINTFORMW 「목욕 정도는 혼자 하세요」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;같이 들어가준다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 2
+			IF CFLAG:318 == 1
+				PRINTFORMW 
+			ELSEIF TALENT:연모
+				PRINTFORML 「%CALLNAME:MASTER%과 함께 욕실… \/\/\/」
+				PRINTFORML 「으、응 각오는 다졌으니까 괜찮아…… 라고 생각해」
+				PRINTFORMW 
+			ELSEIF TALENT:사모
+				PRINTFORML 「어디 가기 전에 몸을 씻고 싶은 거야？ 어떻게 할까나…」
+				PRINTFORMW 「혼자 기다리기도 그렇고 나도 함께 산뜻하게 해 줄까」
+				
+			ELSE
+				PRINTFORML 「%CALLNAME:MASTER%… 조금 냄새나지 않아？ 매일 목욕탕 들어가？」
+				PRINTFORMW 「… 조금 체크할게요。나도 함께 들어갈 테니」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;그외
+		PRINTFORML  
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;회임
+;==================================================
+@M_KOJO_EVENT_K6_24(ARG,ARG:1)
+;구상주는 LOCAL
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		;-------------------------------------------------
+		;소분기
+		;-------------------------------------------------
+		;연모
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 1 
+			PRINTFORML 「%CALLNAME:MASTER%과의 아、아기…！」
+			PRINTFORML 「내 안에 %CALLNAME:MASTER%과의 아기가 있다니… 꿈이 아니지요？」
+			PRINTFORML 「우우ー… 머릿속이 기쁨과 부끄러움으로 잡탕 스튜마냥 되어 버려요」
+			PRINTFORML 「그것보다！…%CALLNAME:MASTER%는 나와의 아기가 생겨서、기뻐？」
+			PRINTFORML 「『지금 당장 껴안고 기뻐하고 싶지만、루나를 배려해 참고 있다』？ 그、그렇구나 고마워」
+			PRINTFORML 「…다행이다。거기까지 %CALLNAME:MASTER%가 신경써 준다면」
+			PRINTFORMW 「우리들、꼭 행복해질 거야」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;사모
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 2
+			PRINTFORML 「어린이의 어린이… 농담도 되지 않아요」
+			PRINTFORML 「설마 저걸로 아기가 생기다니、제대로 공부해 둘걸 그랬어」
+			PRINTFORML 「…응、이렇게 된 이상 나도 각오를 다졌어요。이 아이를 낳는다」
+			PRINTFORML 「괜찮아요、전에 마리사씨에게 들은 적 있어요」
+			PRINTFORML 「『한 개의 화살은 쉽게 부러지지만 3개로 묶어도、힘을 주면 부러질 때는 부러진다』」
+			PRINTFORML 「그렇지만、화살 하나를 더 추가하면？ 이것으로 부러질 리가 없네요」
+			PRINTFORML 「그 한 개의 화살은 %CALLNAME:MASTER%。당신이에요」
+			PRINTFORMW 「절대 협조해 달라고 할 테니 도망치는 건 용서치 않을 거에요。… 파、파파」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;함락소질 없음
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 3
+			PRINTFORML 
+			PRINTFORML 「어쩌지… 어쩌죠…」
+			PRINTFORMW 「이런 일 서니ー에게도 스타にー에게도 상담할 수 있을 리가 없어…」
+			PRINTFORML 「%CALLNAME:MASTER%에게 이야기 한들、도대체 뭐가 달라지는 거야」
+			PRINTFORML 「이 몸으로 아기를 낳다니…」
+			PRINTFORML 
+			PRINTFORML 「도와주세요… 흐흑」
+			PRINTFORMW 「후에에… 누군가… 도와줘요오…」
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		;무자각
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1 && ARG == 4
+			PRINTFORML 음식이 목을 넘어가지 않는다。
+			PRINTFORML 생각보다 잘 날지 못한다。
+			PRINTFORMW 모두와 함께 나가도 곧바로 숨이 차오른다。
+			PRINTFORML 
+			PRINTFORML 서니ー에게 독버섯이라도 먹었어ー？ 란 말을 들었다。아닌 것 같아。
+			PRINTFORML 
+			PRINTFORML 치르노를 자연스럽게 피해 버렸다。그녀에게는 미안하지만 몸을 차게 하고 싶지 않다。
+			PRINTFORML 
+			PRINTFORML 대요정은 나를 걱정해 주었다。그 아이는 항상 호들갑스럽다。
+			PRINTFORML 		
+			PRINTFORMW 피ー스가 나의 눈에 광기가 머물기 시작하고 있다고 말했다。… 나는 이상하지 않아。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORMW 들요정들에세 임신했어？ 라고 조롱당했다。… 만드는 법도 모르는데 될 리가 없다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORMW … 스타ー가 왠지 나를 피하고 있다。
+			PRINTFORML
+			PRINTFORMW 왜 내게서 도망치는지 모르겠다。
+			PRINTFORMW 나는 다만、배에 있는 불안의 씨앗을 없애고 싶을 뿐인데。
+			RETURN 1
+		ENDIF
+		;그외
+		PRINTFORML  
+	ENDIF
+ENDIF
+RETURN 1
+;==================================================
+;출산
+;==================================================
+@M_KOJO_EVENT_K6_25(ARG,ARG:1)
+;구상주는 LOCAL
+;ARG:1	몇 번째 아이인가
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;연모
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		PRINTFORML 「아、웃었다…」
+		PRINTFORML 「후후、언제까지 보고 있어도 질리지가 않네」
+		PRINTFORML 「응、나는 괜찮아요。출산 중에도 %CALLNAME:MASTER%가 있어 줘서 괜찮아」
+		PRINTFORML 「…응。좀 더 일어나고 싶어요」
+		PRINTFORMW 「%CALLNAME:MASTER%와 %CALLNAME:MASTER%와의 아기가 있는 지금이 너무 행복해、자는 것이 아까울 정도로」
+
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;사모
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		PRINTFORML 「죽는구나 하고 생각했다…。 오늘에만 평생분을 외쳤고 힘을 주었다고 생각해…」
+		PRINTFORML 「근데 말이야… 이봐요 봐봐 %CALLNAME:MASTER%。이 아이의 얼굴」
+		PRINTFORML 「이 아이 아주 사랑스러워。 역시 %CALLNAME:MASTER%와 나의 아이에요」
+		PRINTFORML 「정말、무사히 낳을 수 있어서 다행이야…」
+		PRINTFORMW 「그렇지만 나 이제 절대 낳지 않을테니까。 이런 일은 이것뿐으로 해둘게…」
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;함락소질 없음
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+		;PRINTFORML 窓から差し伸べられる月光に照らされる少女達がいる。
+		;PRINTFORML 抱いて眠る我が子を起こさぬよう、ベッドに座るルナは声を消しながら唸るように泣いている。
+		;PRINTFORML 「――…ッ――…ッ」
+		;PRINTFORML 命の輝きとも言える赤ん坊を前に、叫びたくなりそうなのをこらえながら涙を流す。
+		;PRINTFORML 無事に生み落とすことができたという我が子への愛に。
+		;PRINTFORML どうして自分が苦痛を受けなければいけないという理不尽への怒りに。
+		;PRINTFORMW 望まぬ形で生み落としてしまったという悲しみに。
+		;PRINTFORML 
+		;PRINTFORML 
+		;PRINTFORML ひとしきり泣き終わると、ルナは愛おしそうに我が子を撫でる。
+		PRINTFORML 「불행하게 만들지 않을테니까…」
+		PRINTFORML 「나에게는、밝은 태양과 깨끗한 별님이 함께 하는 걸…」
+		PRINTFORML 출산을 도와 준 후、침대에 기댄 채로 잠이 든 친구가 두 명。
+		PRINTFORMW 그녀들의 잠자는 얼굴을 바라보며、루나는 사랑스러운 우리 아이를 기를 결심을 굳혔다。
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;무자각
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+		PRINTFORML 요정의 아기가 어떻게 태어나는지、몸으로 직접 체험하게 될 줄은 몰랐어요。
+		PRINTFORML 
+		PRINTFORML 아프고 괴로워서 몇 번이나 기절했지만、무사히 낳을 수 있었던 것은 다행일지도。
+		PRINTFORML 
+		PRINTFORML 책에서 조사했을 때는 수컷과 암컷이 교미를 하면 된다는데、요정은 다른 것 같아。
+		PRINTFORML 
+		PRINTFORML 그게、난 누구와도 교미를 하지 않았는걸。
+		PRINTFORML 
+		PRINTFORML 분명 요정은 아이를 혼자 낳을 수 있는 거야。
+		PRINTFORML 
+		PRINTFORML ………………
+		PRINTFORML 
+		PRINTFORML 정말로 그런 것일까。
+		PRINTFORML 
+		PRINTFORML 어쩌면、누군가가 눈치채지 못한 동안 나에게……。
+		PRINTFORML 
+		PRINTFORML ………………
+		PRINTFORML 
+		PRINTFORML 생각하는 것을 그만두자。지금은 이 아이를 기르는 것이 무엇보다도 큰 일이니까。
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORMW 「이상한 얘기를 해버려서、미안해요 %CALLNAME:MASTER%」
+		RETURN 1
+	ENDIF
+	;그외
+	PRINTFORML  
+ENDIF
+RETURN 1
+;==================================================
+;자위들킴(딸딸이들킴)
+;==================================================
+@M_KOJO_EVENT_K6_26(ARG,ARG:1)
+
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		SELECTCASE ARG
+			;-------------------------------------------------
+			CASE 0
+			;보여진 순간
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				IF TALENT:연모
+					PRINTFORML 「%UNICODE(0x2665) *1% 응응%UNICODE(0x2665) *1% 앙%UNICODE(0x2665) *1%」
+					PRINTFORML 루나는 소리도 지우는 것을 잊을 만큼、자신의 쾌락을 추구해 어린 균열에 격렬하게 손가락을 기게 해 꿀을 늘어뜨린다。
+					PRINTFORML 고조됨이 최고조에 달했는지、루나의 신체가 바르르 떨리며 뒤로 젖혀진 그 때
+					PRINTFORML 「%UNICODE(0x2665) *1%%UNICODE(0x2665) *1%%UNICODE(0x2665) *1%――！？！？」
+					PRINTFORMW %CALLNAME:MASTER%와 시선이 마주쳤다。
+				ELSEIF TALENT:사모
+					PRINTFORML 「에… 뭐…？ 바、방의 열쇠… 잠그는 걸 잊어… 버렸다…？」
+					PRINTFORMW 「저、저기 이건 달라！ 뭐가 다른지 모르겠지만、아닌거야！」
+				ELSE
+					PRINTFORML 「어、언제부터 거기에 있었어……？」
+					PRINTFORMW 루나는 목소리를 떨며 금방이라도 폭발할 것 같이 얼굴이 새빨개지고 있다。
+				ENDIF
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 1
+			;아무것도 안한다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				IF TALENT:연모
+					PRINTFORML （아、안 돼… %CALLNAME:MASTER%가 보고 있는데 계속 하려고 하다니）
+					PRINTFORMW （그렇지만 진짜 %CALLNAME:MASTER%가 눈 앞에 있는데…。 이래서야 반죽임이잖아…）
+				ELSEIF TALENT:사모
+					PRINTFORML 「이、이건 말야。조금 번민해 버려서…」
+					PRINTFORMW 「그래서 거기를 문지르다 보니 기분이 좋아져서… 라니 무슨 말 하고 있는거야 나는！」
+				ELSE
+					PRINTFORML 「………！！！！！」
+					PRINTFORMW 루나는 능력을 행사하지도 않고 주위의 소리를 지워 없애고 있다。
+				ENDIF
+				RETURN 1
+
+			ENDIF
+			;-------------------------------------------------
+			CASE 2
+			;그대로 속행
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				IF TALENT:연모
+					PRINTFORML （%CALLNAME:MASTER%…%UNICODE(0x2665) *1%%CALLNAME:MASTER%…%UNICODE(0x2665) *1%）
+					PRINTFORMW 루나는 %CALLNAME:MASTER%를 황홀한 표정으로 바라보며 균열을 일심불란하게 가지고 놀기 시작했다。
+				ELSEIF TALENT:사모
+					PRINTFORML 「남자아이가 눈앞에 있다…。 아、이런 기분이라니…」
+					PRINTFORMW 「응%UNICODE(0x2665) *1% 후우…%UNICODE(0x2665) *1%」
+				ELSE
+					PRINTFORML 「시、싫어… 내 손가락이 마음대로 움직여… 앙%UNICODE(0x2665) *1%」
+					PRINTFORMW 「봐서는 안 돼… 응응읏%UNICODE(0x2665) *1% 이런 거… 아앙%UNICODE(0x2665) *1% 보지 말라고…%UNICODE(0x2665) *1%」
+				ENDIF
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 3
+			;내쫓음
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				IF TALENT:연모
+					PRINTFORML 「…부、부끄러니까… 제발…」
+					PRINTFORMW 루나가 눈물을 글썽이며 간원하자 %CALLNAME:MASTER%는 얌전하게 물러나기로 했다。
+				ELSEIF TALENT:사모
+					PRINTFORML 「됐으니까 빨리 나가세요！ %CALLNAME:MASTER%라도 화를 낼거에요！」
+					PRINTFORMW 루나는 시트로 달아오른 신체를 숨기며、%CALLNAME:MASTER%를 방에서 내쫓았다。
+				ELSE
+					PRINTFORML 「오늘의 일은 잊으세요！ 잊어버려！」
+					PRINTFORMW 루나는 방안에 있는 것을 엉망진창 내던지면서 %CALLNAME:MASTER%를 방에서 내쫓았다。
+				ENDIF
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 4
+			;해버리다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				IF TALENT:연모
+					PRINTFORML 「나는 자세한 것은 모르지만…」
+					PRINTFORMW 「%CALLNAME:MASTER%라면 상냥하게 해 줄거라 알고 있으니까…… 아무렇지도 않아요」
+				ELSEIF TALENT:사모
+					PRINTFORML 「뭐、뭘 할 생각이야？」
+					PRINTFORML 「아프지 않아？ 그러면 다행이지만…」
+					PRINTFORMW 루나는 당혹스러워 하면서도 %CALLNAME:MASTER%에게 달아오른 신체를 맡기기로 했다。
+				ELSE
+					PRINTFORML 「에… 어째서 문을 닫는 거야？… 읏！？」
+					PRINTFORMW 멍한 표정을 짓고 있는 루나의 몸을 밀어서 쓰러트리며、%CALLNAME:MASTER%는 억지로 그 입술을 막았다。
+				ENDIF
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 5
+			;사후
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				IF TALENT:연모
+					PRINTFORML 「나、잘했어？ %CALLNAME:MASTER%는 기분 좋았어？」
+					PRINTFORMW 「그、그래…？ 왠지 쑥스러워지네」
+				ELSEIF TALENT:사모
+					PRINTFORML 「이런 일이 있다니、지금까지 몰랐어…%UNICODE(0x2665) *1%」
+					PRINTFORMW 「%CALLNAME:MASTER%는 박식하구나 …%UNICODE(0x2665) *1%」
+				ELSE
+					PRINTFORML 「%CALLNAME:MASTER%는 거짓말쟁이！ 역시 아프잖아！」
+					PRINTFORMW 「…… 마지막 쯤에는 조금 기분 좋았지만」
+				ENDIF
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 6
+			;사후 숙박
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+		ENDSELECT
+	ENDIF
+ENDIF
+
+;==================================================
+;상대방으로부터 데이트 권유
+;==================================================
+@M_KOJO_EVENT_K6_27(ARG,ARG:1)
+;구상주는 LOCAL
+;ARG:1은 목적지
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+		SELECTCASE ARG
+			;-------------------------------------------------
+			CASE 0
+			;권유 문구
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				PRINTFORML 「%CALLNAME:MASTER%는 오늘 시간 돼?」
+				PRINTFORML 「모처럼이니까 환상향을 안내해 주려고 생각하는데、어때？」
+				PRINTFORML 「위는 달부터 아래로는 구지옥까지… 환상향은 터무니 없이 넓은거야」
+				PRINTFORMW 「어느 정도라면 길도 알고 말이야」
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 1
+			;수락했다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				PRINTFORML 「그러면 조속히 출발할까요。간식은 300엔까지에요」
+				PRINTFORMW 
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 2
+			;거절했다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				PRINTFORML 「그래… 그럼 또 다른 기회에 보자」
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 3
+			;방에 초대받았다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				PRINTFORML 「%CALLNAME:MASTER%는 바깥의 도구에 자세하지요？」
+				PRINTFORML 「내 방에도 밖에서 흘러들어온 물건이 꽤 있어」
+				PRINTFORMW 「혹시 괜찮다면 좀 봐줄래？」
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 4
+			;방에 초대받았다를 수락했다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				PRINTFORMW 「잘 부탁해。차와 야채 절임 정도는 내올게요」
+				RETURN 1
+			ENDIF
+			;-------------------------------------------------
+			CASE 5
+			;방에 초대받았다를 거절했다
+			;기입체크 (=0, 비표시、1, 표시)
+			LOCAL:1 = 1
+			;-------------------------------------------------
+			IF LOCAL:1
+				PRINTFORML 「하아… 어쩔 수 없으니 향림당 주인에게 보여주러 갈 수 밖에 없으려나」
+				PRINTFORMW 
+				RETURN 1
+			ENDIF
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;탈의 구상
+;==================================================
+@M_KOJO_EVENT_K6_28(ARG,ARG:1)
+;구상주는 TARGET
+;ARG에 벗기는 방법 선택
+;ARG:1 (ARG=3의 경우만 있음) 지문의 반응
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	SELECTCASE ARG
+		;-------------------------------------------------
+		CASE 0
+		;전라로 한다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			;시간정지시
+			IF FLAG:70
+			;통상
+			ELSE
+			PRINTFORML 「… 빤히 보지 말아요。 부끄러우니까」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 1
+		;속옷차림으로 한다
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			;시간정지시
+			IF FLAG:70
+			;통상
+			ELSE
+				PRINTFORML 「… 아이 같다고 웃지 말아요」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 2
+		;반라
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			;시간정지시
+			IF FLAG:70
+			;통상
+			ELSE
+				PRINTFORML 「뭔가 어중간하네…」
+			ENDIF
+			RETURN 1
+		ENDIF
+		;-------------------------------------------------
+		CASE 3
+		;팬티 주세요
+		;기입체크 (=0, 비표시、1, 표시)
+		LOCAL:1 = 1
+		;-------------------------------------------------
+		IF LOCAL:1
+			SELECTCASE ARG:1
+				;-------------------------------------------------
+				CASE 0
+				;교환입니다
+				;기입체크 (=0, 비표시、1, 표시)
+				LOCAL:1 = 1
+				;-------------------------------------------------
+				IF LOCAL:1
+					RETURN 1
+				ENDIF
+				;-------------------------------------------------
+				CASE 1
+				;OK (기쁘게)
+				;기입체크 (=0, 비표시、1, 표시)
+				LOCAL:1 = 1
+				;-------------------------------------------------
+				IF LOCAL:1
+					PRINTFORML 「내 속옷으로 뭘 할 생각인데」
+					PRINTFORMW 「… 자위라도 할 생각？」
+					RETURN 1
+				ENDIF
+				;-------------------------------------------------
+				CASE 2
+				;OK (마지못해)
+				;기입체크 (=0, 비표시、1, 표시)
+				LOCAL:1 = 1
+				;-------------------------------------------------
+				IF LOCAL:1
+					PRINTFORML 「이、이번 뿐이니까」
+					RETURN 1
+				ENDIF
+				;-------------------------------------------------
+				CASE 3
+				;싫습니다
+				;기입체크 (=0, 비표시、1, 표시)
+				LOCAL:1 = 1
+				;-------------------------------------------------
+				IF LOCAL:1
+					PRINTFORML 「누가 속옷 같은 걸 건네줘요…」
+					RETURN 1
+				ENDIF
+				RETURN 1
+			ENDSELECT
+		ENDIF
+	ENDSELECT
+ENDIF
+RETURN 1
+
+;==================================================
+;분노 구상
+;==================================================
+@M_KOJO_EVENT_K6_29(ARG,ARG:1)
+;구상주는 TARGET
+;ARG는 TARGET의 담력으로 분기
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;화나게 해 버렸다
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;울려버리고 말았다　[겁쟁이]소지
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+;==================================================
+;상대방이 밀어 넘어뜨린 것을 해제
+;==================================================
+@M_KOJO_EVENT_K6_30(ARG,ARG:1)
+;구상주는 TARGET
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+
+IF LOCAL
+	;-------------------------------------------------
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 1
+	;피곤하다
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 2
+	;만족하여 해방
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 3
+	;만족한 참에 밀어 넘어뜨렸다
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 4
+	;부서질 때까지 해줄게
+		PRINTFORML 
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+
+;==================================================
+;하루의 종료 시(AFTERTRA2의 앞), 안면이 없으면 호출당하지 않는다
+;==================================================
+@M_KOJO_EVENT_K6_31(ARG,ARG:1)
+;구상주는 TARGET
+;ARG는 만나지 않은 일수
+;며칠 이상 안 만났으면 투덜거리거나 할 수 있어요
+;CFLAG:딸딸이들킴 으로 분기 넣어도 될 것 같아
+;--------------------------------------------------
+;기입체크 (=0, 비표시、1, 표시)
+LOCAL = 1
+;-------------
+IF LOCAL
+	;-------------------------------------------------
+	;소분기
+	;-------------------------------------------------
+	;오늘 만나지 않음
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG
+		RETURN 1
+	ENDIF
+	;-------------------------------------------------
+	;오늘 만나고 있음
+	;기입체크 (=0, 비표시、1, 표시)
+	LOCAL:1 = 1
+	;-------------------------------------------------
+	IF LOCAL:1 && ARG == 0
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 1
+
+[SKIPSTART]
+;-------------------------------------------------
+;자위들킴(딸딸이들킴)시의 지문을 디폴트의 것으로부터 변경하고 싶은 경우 용.
+;그 경우는 상하의 SKIPSTART~SKIPEND를 지워주세요.
+;CFLAG등 캐릭터 변수를 사용할 경우, 캐릭터 번호를 지정해야 합니다.
+;-------------------------------------------------
+@M_KOJO_EVENT_K6_ONABARE_1(ARG)
+;-------------------------------------------------
+:구상색을 입힐 거면 주석처리를 지우고 X를 캐릭터 번호로
+;CALL M_KOJO_COLOR_K6
+
+IF ARG
+	PRINTFORML A弄ってる場合
+ELSE
+	PRINTFORML V弄ってる場合
+ENDIF
+;-------------------------------------------------
+[SKIPEND]
+
+
+[SKIPSTART]
+;-------------------------------------------------
+;자위들킴(딸딸이들킴)에서 그대로 계속 해달라고 하는 경우의 지문을 디폴트의 것으로부터 변경하고 싶은 경우 용.
+;그 경우는 상하의 SKIPSTART~SKIPEND를 지워주세요.
+;CFLAG등 캐릭터 변수를 사용할 경우, 캐릭터 번호를 지정해야 합니다.
+;-------------------------------------------------
+@M_KOJO_EVENT_K6_ONABARE_2(ARG)
+;-------------------------------------------------
+:구상색을 입힐 거면 주석처리를 지우고 X를 캐릭터 번호로
+;CALL M_KOJO_COLOR_K6
+
+IF ARG
+	PRINTFORML A弄ってる場合
+ELSE
+	PRINTFORML V弄ってる場合
+ENDIF
+;-------------------------------------------------
+[SKIPEND]
+
+
+[SKIPSTART]
+;-------------------------------------------------
+;자위들킴(딸딸이들킴)없이 무너뜨림 섹스(崩しックス)의 지문을을 디폴트의 것으로부터 변경하고 싶은 경우용.
+;그 경우는 상하의 SKIPSTART~SKIPEND를 지워주세요.
+;CFLAG등 캐릭터 변수를 사용할 경우, 캐릭터 번호를 지정해야 합니다.
+;-------------------------------------------------
+@M_KOJO_EVENT_K6_ONABARE_3(前戯１,本番はどっちか,回数,注入量)
+;-------------------------------------------------
+#DIM 前戯１
+;1=C 2=B 3=M
+#DIM 本番はどっちか
+;0으로 V, 1로 A
+#DIM 注入量
+#DIM 回数
+
+:구상색을 입힐 거면 주석처리를 지우고 X를 캐릭터 번호로
+;CALL M_KOJO_COLOR_K6
+
+SELECTCASE 前戯１
+	CASE 1
+		PRINTFORML Ｃ責め
+	CASE 2
+		PRINTFORML Ｂ責め
+	CASE 3
+		PRINTFORML Ｍ責め
+ENDSELECT
+
+IF 本番はどっちか
+	PRINTFORML Aで本番
+ELSE
+	PRINTFORML Vで本番
+ENDIF
+;-------------------------------------------------
+[SKIPEND]
+
+
+;-------------------------------------------------
+;처녀・무자각비처녀에게 삽입하기 직전의 구상
+;RETURN 1을 하면 커맨드를 취소합니다
+;RETURN 0이면 통합니다
+;CFLAG:파과캔슬구상있음 가 on 되어 있지 않으면 읽히지 않으니 주의
+;-------------------------------------------------
+@M_KOJO_EVENT_K6_LOST_VIRGIN_STOP
+;-------------------------------------------------
+PRINTFORML 
+RETURN 1
+
+;-------------------------------------------------
+;CFLAG:구상내껴안기판정_초회 가 on 되어 있는 경우만 유효.
+;처음 밀어 넘어뜨렸을 때, 여기서 RETURN -1 하면 밀어 넘어뜨리는 걸 강제로 취소합니다.
+;RETURN 0이면 통상적인 판정을 실시, RETURN 1이면 무조건 성공시킵니다.
+;특정 이벤트(데이트 귀가 키스 등)를 볼 때까지 우후후하지 못하게 하고 싶을 때 등에 사용해 보세요.
+;-------------------------------------------------
+@M_KOJO_EVENT_K6_PERMISSION_1
+;-------------------------------------------------
+PRINTFORML 
+;RETURN -1
+RETURN 0
+;RETURN 1
+;-------------------------------------------------
+
+
+;-------------------------------------------------
+;CFLAG:구상내껴안기판정_통상 이 on 되어 있는 경우만 유효.
+;합의가 되어 덮쳐졌을 때, 여기서 RETURN -1 하면 덮치기를 강제로 취소합니다.
+;RETURN 0이면 정상적으로 성공시킵니다.
+;합의가 있어도 어떤 이유로도 우후후 할 수 없도록 하고 싶을 때 등등에 부디.
+;-------------------------------------------------
+@M_KOJO_EVENT_K6_PERMISSION_2
+;-------------------------------------------------
+PRINTFORML 
+RETURN 0
+;RETURN -1
+;-------------------------------------------------
+
+;방 묘사용 함수
+;구상 캐릭터의 OMANEKIBEYA나 거점 묘사에 사용합니다
+;기입할 때는 주석처리를 지워주세요
+;-------------------------------------------------
+@K6_ROOM_DESCRIPTION
+	SELECTCASE RAND:6
+		CASE 5
+			PRINTFORML 소녀 만화가 권수가 뿔뿔이 흩어진 채 책장에 꽂혀 있다
+		CASE 4
+			PRINTFORML 검은 고양이 장식물이다。 이마에 달의 마크가 붙어 있지만…
+		CASE 3
+			PRINTFORML 레이스로 장식된 소녀 취미의 방이다
+		CASE 2
+			PRINTFORML 방에 놓여진 토우가 이쪽을 보고 있는 것 같은…
+		CASE 1
+			PRINTFORML 형광등이나 우유병이 놓여 있다
+		CASE 0
+			PRINTFORML 아메리카의 국기가 장식되어 있다…
+		CASEELSE
+			PRINTFORML 토끼 봉제인형이나 레이스로 장식된 인형이 놓여 있다
+	ENDSELECT
+;-------------------------------------------------

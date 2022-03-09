@@ -1,0 +1,784 @@
+﻿;일기구상
+
+;하루의 종료 시의 흐름
+;@DIARY_TEXT_K6（日記本文）→@DIARY_AFTER_CHECK_K6（フラグの処理）
+
+
+;◆일기의 사양◆
+;※１@DIARY_BEFORE_CHECK_K6で日記のフラグが立つ。
+;→ 미독플래그(2)가 서 있으면 하루의 끝에 데일리 이벤트로 일기가 읽힌다 (읽은것으로 된다).
+;→ ※2미독플래그(3)가 서 있으면 [일기를 읽는다]로 읽을 수 있다。읽으면 읽음(1)이 된다.
+;※1 각처 이벤트 구상이나 커맨드 구상에서 플래그를 세워도 좋습니다.
+;※2 기본적으로 읽지 않음(2) 권장입니다. 읽음(1), 읽음(3)은 한 단계 필요.
+
+;[일기를 읽는다]는, 소유자가 [연모]라면 자유롭게 읽을 수 있고,
+;그렇지 않은 경우에는 연모가 아닌 인물이 그 자리에 없을 때, 혹은 시간정지함으로써 훔쳐 읽을 수 있다.
+;거점 주민이 아닌 캐릭터는 연모라면 자택(초대방)에서 읽을 수 있다.
+
+;MAX_DIARY_PAGE:XX:0　캐릭터 번호 XX의 일기 최대 페이지 수　한도는 101 (1~100)
+;DIARY:XX:YY　　　　　캐릭터 번호 XX의 일기 번호 YY의 정보
+;　　 3=미독　　　　　데일리 이벤트로 읽히지 않는다. [일기를 읽는다]로 읽으면 기독이 된다.
+;　　 2=미독　　　　　데일리 이벤트로 읽힌다. 읽히기 전까지는 [일기를 읽는다]로는 읽을 수 없다. 읽히면 기독이 된다.
+;　　 1=기독　　　　　데일리 이벤트로 읽히지 않는다. [일기를 읽는다]로 읽을 수 있다.
+;　　 0=읽지못함　　　미해금.
+;PAGESET:XX:YY　　　　캐릭터 번호 XX의 실제로 쓰여진 YY페이지째의 일기 번호.
+;=============================
+@DIARY_K6_EXIST
+;존재판정
+;0이면 일기는 쓸 수 없다.
+;=============================
+RETURN 1
+
+;=============================
+@DIARY_AFTER_CHECK_K6
+;데일리 이벤트에서 일기가 읽혔을 때의 뒷처리.
+;플래그 관리 등 자유롭게 취급해도 좋다.
+
+;조건 플래그 리셋이나 판정 추가도 여기에 
+;예를들어: 今日構ったフラグ
+;今日構った일기가 표시된 후, 構ったフラグ를 리셋.
+; CFLAG:XX:今日構ったフラグ = 0
+;혹은 어떠한 상태가 계속되는 것의 플래그인 경우
+;예: 호감도가 거의 변하지 않는 날이 이어지면
+;「아나타」의 태도가 차갑구나~ 같은 일기를 쓴다
+; SIF CFLAG:XX:호감도 <= LAST_LP+3
+;   NOTOUCH_DAY ++
+;=============================
+
+
+;=============================
+@DIARY_BEFORE_CHECK_K6
+
+;상시 체크되는 일기의 상태 정보.
+;여기서 DIARY:XX:YY의 갱신을 실시한다.
+;※DIARY:XX:0번은 사용할 수 없다.
+
+;여기서 범용 발생 조건을 기입한다
+;커맨드별 발생 조건은 M_KOJO의 각 파일 안에서 추가해 주세요.
+
+;기본적으로 발생조건에는 "DIARY:XX:YY == 0"를 기입할 것.
+;그렇지 않으면 같은 일기가 쓰여지거나 해 버린다.
+
+;DIARY:XX:YY　　　　캐릭터 번호 XX의 일기 번호 YY의 정보
+;　　 3=미독　　　　데일리 이벤트로 읽히지 않는다. [일기를 읽는다]로 읽으면 기독이 된다.
+;　　 2=미독　　　　데일리 이벤트로 읽힌다. 읽히기 전까지는 [일기를 읽는다]로는 읽을 수 없다. 읽히면 기독이 된다.
+;　　 1=기독　　　　데일리 이벤트로 읽히지 않는다. [일기를 읽는다]로 읽을 수 있다.
+;　　 0=읽지못함　　미해금.
+
+;○미독(2)로 하는 경우 (기본)
+;미독(2)로 하면 데일리 이벤트로 발생, 하루의 끝에 하나만 읽힌다.
+;여러 페이지가 미독(2)인 경우에는 번호가 작은 것이 읽히고, 그 이외는 리셋(0)된다.
+;그래서, 여러 개가 동시에 발생하면, 발생했는데도 읽히지 않고 리셋 되는 경우도 있다.
+;미독(2)로 하려면 단순히 플래그에 2를 넣기만 하면 된다.
+
+;예1) 첫대면
+;SIF DIARY:XX:YY == 0 && CFLAG:XX:안면
+;	DIARY:XX:YY = 2
+
+;○미독(3)으로 하는 경우 (응용)
+;미독(3)으로 하면 데일리 이벤트로써 읽히지 않고, 쓰여진 시점에서[일기를 읽는다]에 의해서 읽을 수 있게 된다.
+;플레이어가 자주적으로 읽지 않는 한 읽히지 않고, 하루에 여러 페이지 가필되는 경우도 있다.
+;미독(3)으로 하려면 플래그에 3을 넣은 다음、CALL CHARA_DIARY_PAGESETTING(XX, YY)를 할 필요가 있다.
+
+;예2) 호감도 100 이상
+;IF DIARY:XX:YY == 0 && CFLAG:XX:호감도 >= 100
+;	DIARY:XX:YY = 3
+;	CALL CHARA_DIARY_PAGESETTING(XX, YY)
+;ENDIF
+
+;예3) 예2의 일기가 읽힌 후에 호감도 1000이상
+;이것을 하면 YY를 읽은 직후 ZZ가 올라오는 일도 벌어진다.
+;IF DIARY:XX:ZZ == 0 && DIARY:XX:YY == 1 && CFLAG:XX:호감도 >= 1000
+;	DIARY:XX:ZZ = 3
+;	CALL CHARA_DIARY_PAGESETTING(XX, ZZ)
+;ENDIF
+
+;▽쓸데없는 참견의 주석
+;첫키스는 기본적으로 다 [키스미경험]을 소지하고 있으므로, "!TALENT:XX:키스미경험"으로 판정할 수 있습니다。
+;데이트에서 돌아올때 키스로 분기하고 싶다면 데이트에서 돌아올때 키스 구상에서 플래그를 세웁시다.
+;이 경우, 일반적인 첫키스 상실과 중복되지 않도록 주의합시다.
+;처녀상실은 초기설정에서 처녀상실인 경우도 있으므로, 처녀상실 구상쪽에서 플래그를 세우는 것이 좋습니다.
+;그 외 고백, 함락 등의 이벤트는 각종 이벤트 구상에서 플래그를 세웁시다. 첫대면은 그쪽도 괜찮아요.
+;날짜를 정확히 세려면 별도의 플래그가 필요. 예를 들면 처음 만난 날이라든지.
+
+;=============================
+;初対面その１
+IF DIARY:6:1 == 0 && CFLAG:6:안면
+	DIARY:6:1 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,1)
+ENDIF
+
+;好感度500以上
+IF DIARY:6:2 == 0 && CFLAG:6:호감도 > 500
+	DIARY:6:2 = 3
+		SELECTCASE CFLAG:MASTER:초기위치
+		;CFLAG:6:1002に初期位置の場所を格納しています。
+			CASE 35
+			;三妖精の家
+				CFLAG:6:1002 = 35
+			CASE 51
+			;하쿠레이 신사
+				CFLAG:6:1002 = 51
+			CASE 53
+			;몽환유적
+				CFLAG:6:1002 = 53
+			CASE 119
+			;命蓮時
+				CFLAG:6:1002 = 119
+			CASE 134
+			;神霊廟
+				CFLAG:6:1002 = 134
+			CASE 230
+			;인간마을
+				CFLAG:6:1002 = 230
+			CASE 304
+			;紅魔館
+				CFLAG:6:1002 = 304
+			CASE 412 TO 428
+			;영원정
+				CFLAG:6:1002 = 412
+			CASE 442		
+			;미혹의 죽림
+				CFLAG:6:1002 = 442
+			CASE 460
+			;몽환관(幽香の家)
+				CFLAG:6:1002 = 460
+			CASE 515 TO 536
+			;마법의 숲
+				CFLAG:6:1002 = 515
+			CASE 634
+			;八雲亭
+				CFLAG:6:1002 = 634
+			CASE 618
+			;曲直庁(지옥)
+				CFLAG:6:1002 = 618
+			CASE 625
+			;백옥루
+				CFLAG:6:1002 = 625
+			CASE 719 TO 823
+			;妖怪の山
+				CFLAG:6:1002 = 719
+			CASE 842
+			;천계
+				CFLAG:6:1002 = 842
+			CASE 916 TO 943
+			;チテイ
+				CFLAG:6:1002 = 916
+			CASE 1007
+			;月
+				CFLAG:6:1002 = 1007
+			CASEELSE
+			;그외
+		ENDSELECT
+	CALL CHARA_DIARY_PAGESETTING(6,2)
+ENDIF
+
+;사모獲得
+IF DIARY:6:3 == 0 && TALENT:사모
+	DIARY:6:3 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,3)
+ENDIF
+
+;연모獲得
+IF DIARY:6:4 == 0 && TALENT:연모
+	DIARY:6:4 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,4)
+ENDIF
+
+;恋人獲得
+IF DIARY:6:5 == 0 && TALENT:연인
+	DIARY:6:5 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,5)
+ENDIF
+
+;ファーストキス獲得(親密が高い)
+IF DIARY:6:6 == 0 && ABL:6:친밀 > 5 && !TALENT:6:키스미경험
+	DIARY:6:6 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,6)
+ENDIF
+
+;ファーストキス獲得(親密が低い)
+IF DIARY:6:7 == 0 && ABL:6:친밀 < 5 && !TALENT:6:키스미경험
+	DIARY:6:7 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,7)
+ENDIF
+
+;처녀상실した。
+IF !TALENT:6:처녀 && DIARY:6:9 == 0 && DIARY:6:11 == 0 && DIARY:6:12 == 0
+	;연모
+	IF TALENT:연모
+		DIARY:6:9 = 3
+		CALL CHARA_DIARY_PAGESETTING(6,9)
+	;반발각인3で処女喪失した。
+	ELSEIF MARK:6:반발각인 == 3
+		DIARY:6:11 = 3
+		CALL CHARA_DIARY_PAGESETTING(6,11)
+	;그외
+	ELSE
+		DIARY:6:12 = 3
+		CALL CHARA_DIARY_PAGESETTING(6,12)
+	ENDIF
+ENDIF
+
+;サニーが恋慕獲得
+IF DIARY:6:13 == 0 && TALENT:6:연모 && TALENT:5:연모
+	DIARY:6:13 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,13)
+ENDIF
+
+;スターが恋慕獲得
+IF DIARY:6:14 == 0 && TALENT:6:연모 && TALENT:7:연모
+	DIARY:6:14 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,14)
+ENDIF
+
+;サニーが恋人獲得
+IF DIARY:6:15 == 0 && TALENT:6:연모 && TALENT:5:연인
+	DIARY:6:15 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,15)
+ENDIF
+
+;スターが恋人獲得
+IF DIARY:6:16 == 0 && TALENT:6:연모 && TALENT:7:연인
+	DIARY:6:16 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,16)
+ENDIF
+
+;人間の里へデートに行った。
+IF DIARY:6:17 == 0 && FLAG:데이트상대 == 6 && CFLAG:6:데이트중 == 2
+	DIARY:6:17 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,17)
+ENDIF
+
+;魔法の森へデートに行った。
+IF DIARY:6:18 == 0 && FLAG:데이트상대 == 6 && CFLAG:6:데이트중 == 5
+	DIARY:6:18 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,18)
+ENDIF
+
+;竹林へデートに行った。
+IF DIARY:6:19 == 0 && FLAG:데이트상대 == 6 && CFLAG:6:데이트중 == 4
+	DIARY:6:19 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,19)
+ENDIF
+
+;チテイへデートに行った。
+IF DIARY:6:20 == 0 && FLAG:데이트상대 == 6 && CFLAG:6:데이트중 == 9
+	DIARY:6:20 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,20)
+ENDIF
+
+
+;良い贈り物
+IF DIARY:6:21 == 0 && GET_GIFTDATA(TCVAR:6:오늘의선물, "득점") >= 700
+	DIARY:6:21 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,21)
+ENDIF
+
+;普通の贈り物
+IF DIARY:6:22 == 0 && GET_GIFTDATA(TCVAR:6:오늘의선물, "득점") >= 400
+	DIARY:6:22 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,22)
+ENDIF
+
+;悪い贈り物
+IF DIARY:6:23 == 0 && GET_GIFTDATA(TCVAR:6:오늘의선물, "득점") < 400
+	DIARY:6:23 = 3
+	CALL CHARA_DIARY_PAGESETTING(6,23)
+ENDIF
+
+;普通の日記
+SELECTCASE DAY:0
+	CASE 5
+		SIF DIARY:6:24 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,24)
+			DIARY:6:24 = 3
+	CASE 10
+		SIF DIARY:6:25 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,25)
+			DIARY:6:25 = 3
+	CASE 20
+		SIF DIARY:6:26 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,26)
+			DIARY:6:26 = 3
+	CASE 25
+		SIF DIARY:6:27 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,27)
+			DIARY:6:27 = 38
+	CASE 30
+		SIF DIARY:6:28 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,28)
+			DIARY:6:28 = 3
+	CASE 35
+		SIF DIARY:6:29 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,29)
+			DIARY:6:29 = 3
+	CASE 40
+		SIF DIARY:6:30 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,30)
+			DIARY:6:30 = 3
+	CASE 45
+		SIF DIARY:6:31 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,31)
+			DIARY:6:31 = 3
+	CASE 50
+		SIF DIARY:6:32 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,32)
+			DIARY:6:32 = 3
+	CASE 55
+		SIF DIARY:6:33 == 0
+			CALL CHARA_DIARY_PAGESETTING(6,33)
+			DIARY:6:33 = 3
+	CASEELSE
+	
+ENDSELECT
+;=============================
+;MAXPAGE는 여기에 기입한다
+MAX_DIARY_PAGE:6:0 = 34
+
+;=============================
+@DIARY_TEXT_K6, PAGENUM, MODE, PAGECOUNT
+;일기의 내용
+;PAGENUM   = 일기 번호 (일기의 패턴)
+;MODE      = "デイリー":하루 종료시 데일리 이벤트에서 읽힘
+;          = "コマンド":[일기를 읽는다] 커맨드로 읽힘
+;PAGECOUNT = 몇 페이지째에 쓰여 있는가
+;=============================
+#DIM PAGENUM
+#DIMS MODE
+#DIM PAGECOUNT
+
+;구상색 지정이 있으면 주석처리를 지운다
+CALL M_KOJO_COLOR_K6
+SETCOLOR C_CREAM
+;GROUPMATCH에 일기 ID를 넣어, 표시하고 싶은 얼굴 화상을 표시한다
+;표정・복장・특수 화상을 옵션 지정으로 표시 (생략 가능)
+;서식은 resources\顔.CSV와 아래 예시를 참조
+
+;이하는 샘플
+IF MODE == "デイリー"
+	IF GROUPMATCH(PAGENUM, 1) 
+		CALL PRINT_FACE, 6, "발정", "裸", "_1"
+	ELSEIF GROUPMATCH(PAGENUM, 2)
+		CALL PRINT_FACE, 6, "笑顔", "服1"
+	ELSEIF GROUPMATCH(PAGENUM, 3)
+		CALL PRINT_FACE, 6, "분노"
+	ELSE
+		CALL PRINT_FACE, 6
+	ENDIF
+ENDIF
+
+PRINTFORMDL - %CALLNAME:6%の日記　PAGE.{PAGECOUNT} --------------------------------------------------------------------------------------
+PRINTL
+
+;※PAGENUM:0은 사용할 수 없다
+IF TALENT:MASTER:연령 == -1 || TALENT:MASTER:애같음 || CFLAG:6:1001 == 1
+;あなたがショタの場合のみ表示
+	SELECTCASE PAGENUM
+		CASE 1
+		;初対面その１
+			IF CFLAG:MASTER:초기위치  == 35
+				PRINTFORML 서니ー가 인간의 아이를 주워 왔다。
+				PRINTFORML 어쩐지 이상하게 서니ー가 밤에 산책을 나간다 싶더니 인간의 아이를 발견하리라고는 생각하지 못했다…。
+				PRINTFORML 「이 아이를 길러 하인으로 해요！」라고 말한 서니ー의 머리를 두드린 나는 나쁘지 않아。
+				PRINTFORML 마침 기절해 있는 것 같아서、지하의 방에 재워 두었다。
+				PRINTFORML 하지만、저대로 내버려 둘 수는 없다。만약 마을의 아이라면、우리는 유괴범이라고 생각될지도。
+				PRINTFORML 레이무씨에게 퇴치 당하든가、마리사씨에게 사라지게 되지 않을까……。
+				PRINTFORML 어느 쪽도 싫다。 빨리 어떻게든 하지 않으면…。
+			ELSE
+				PRINTFORML 오늘은 이상한 인간의 아이를 만났다。
+				PRINTFORML 혼자 있어서 장난치려고 했더니、부딪쳐서 그 아이 앞에서 넘어지고 말았다。조금 부끄럽다。
+				PRINTFORML 그대로 다가오길래、괴롭힘 당할까봐 조금 무서웠지만、그 아이는 나를 도와 일으켜 주었다。
+				PRINTFORML 인간의 아이는 나를 발견하면 괴롭히거나、도망치거나 어느 하나인데。 이상한 아이도 세상에 있는 것 같다。
+				PRINTFORML 그 일을 이야기 하자 서니ー에게 「루나가 얼빠졌기 때문에 정에 이끌려 도운거 아냐？」란 말을 들었다。
+				PRINTFORML … 서니ー만 저녁식사의 반찬을 반으로 줄였다。
+				PRINTFORML 
+				PRINTFORML 그러고 보니 그런 식으로 남자아이와 이야기하는 것은 처음인 것 같다。
+				PRINTFORML 또 만나면 말을 걸어 보려고 한다。
+			ENDIF
+		CASE 2
+		;好感度500以上
+			PRINTFORML 요즘、전에 만난 %CALLNAME:MASTER%와 자주 만난다。
+			PRINTFORM %CALLNAME:MASTER%의 이야기에 따르면
+				SELECTCASE CFLAG:6:1002
+					CASE 35
+					;三妖精の家
+						PRINTFORML %CALLNAME:MASTER%는 외래인 일지도 모른다。당분간 여기서 보살펴도 괜찮을 것 같아。
+					CASE 51
+					;하쿠레이 신사
+						PRINTFORML 레이무씨와 함께 살고 있는 것 같다。… 밥은 잘 먹고 있는 것 같아。
+					CASE 53
+					;몽환유적
+						PRINTFORML 신사 근처에 갑자기 나타난 유적에 살고 있는 것 같다。… 혹시 우주ー인？
+					CASE 119
+					;命蓮時
+						PRINTFORML 요괴가 있는 절에 살고 있다고 한다。스님이라도 되려나？
+					CASE 134
+					;神霊廟
+						PRINTFORML 접시 깨지는 소리가 나는 도장에 살고 있다고 했었다。선인이 될 생각인지도。
+					CASE 230
+					;인간마을
+						PRINTFORML 인간 마을에서 살고 있다。친해지면 인간 마을에 들어갈 수 있을지도 모른다。
+					CASE 304
+					;紅魔館
+						PRINTFORML 홍마관에 살고 있다고 하던데…。그 흡혈귀의 밥일지도 몰라。언제까지 만날 수 있을까。
+					CASE 412
+					;영원정
+						PRINTFORML 미혹의 대나무 숲 속 깊은 곳에 있는 큰 집에 산다고 하던데
+						PRINTFORML 저런 곳에 저택이 있었던가？
+					CASE 442		
+					;미혹의 죽림
+						PRINTFORML 무려 미혹의 대나무숲에서 살고 있는 것 같다。겉보기보다 %CALLNAME:MASTER%는 훨씬 강할지도。
+					CASE 460
+					;몽환관(幽香の家)
+						PRINTFORML 말하기도 무서운 꽃의 요괴의 집에 살고 있다고 했다。무서운 요괴의 집에서 잘도 아무렇지 않게 있을 수 있다고 생각한다。
+					CASE 515
+					;마법의 숲
+						PRINTFORML 마법의 숲에서 살고 있는 것 같다。마리사씨의 집도 저기고、인간이라도 노력하면 살아갈 수 있을지도 모르겠다。
+					CASE 634
+					;八雲亭
+						PRINTFORML 마요히가에 살고 있다고 했다。… 내가 %CALLNAME:MASTER%를 데리고 돌아오면 행복해질지도。
+					CASE 618
+					;曲直庁(지옥)
+						PRINTFORML 지옥에 산다고 했었다。%CALLNAME:MASTER%는 어떤 나쁜 일을 했을까。
+					CASE 625
+					;백옥루
+						PRINTFORML 백옥루에 살고 있다고 한다。요괴라고 생각해 조금 꼬마인 것을 들키지 않아 정말로 다행이다。
+					CASE 719
+					;妖怪の山
+						PRINTFORML 요괴의 산에서 살고 있는 것 같다。텐구와 캇파에 둘러쌓여도 아무렇지 않은 %CALLNAME:MASTER%는 늠름하다。				
+					CASE 842
+					;천계
+						PRINTFORML 천계에서 살고 있는 것 같다。다음에 천계의 복숭아를 가져와 달라고 부탁해 두었다。
+					CASE 916
+					;チテイ
+						PRINTFORML 지저에서 살고 있다고 했다。%CALLNAME:MASTER%는 혹시 두더지？
+					CASE 1007
+					;月
+						PRINTFORML 달에서 왔다고 했다。거짓말인지 정말인지 모르겠다。
+					CASEELSE
+					;그외
+						PRINTFORML 이상한 곳에 살고 있는 것 같다。이상한 아이다。
+			ENDSELECT
+			PRINTFORML 다만、환상에 익숙하지 않은 것 같아서 좀 위태로워 보인다。(내가 할 말은 아니지만…）
+			PRINTFORML 일전에도 요괴에게 아무렇지도 않게 말을 걸고 있던 것을 보고 매우 조마조마 했었다。
+			PRINTFORML 남자아이는 무대포인 곳이 있는 것 같지만 저것은 생명이 몇 개 있어도 부족하다。
+			PRINTFORML 그러니까、조금 %CALLNAME:MASTER%에게 환상향의 사정을 가르쳐 주려고 생각한다。
+			PRINTFORML  인간의 아이와 사이가 좋아지면 인간 마을에도 잠입하기 쉬운 걸。
+		CASE 3
+		;사모
+			PRINTFORML 오늘도 %CALLNAME:MASTER%와 놀았다。매일 함께 있어도 전혀 질리질 않는다。
+			PRINTFORML 제일 즐거운 것은 %CALLNAME:MASTER%과 환상향을 탐험하는 것。
+			PRINTFORML 내가 가본 곳이라면、%CALLNAME:MASTER%과 가면 눈치채지 못했던 것을 알게 되곤 한다。
+			PRINTFORML 내가 안 가본 곳이라도、%CALLNAME:MASTER%과 손을 잡고 탐험하면 두렵지 않기 때문에 안심할 수 있었다。
+			PRINTFORML 만약 %CALLNAME:MASTER%도 요정이라면、빛의 3요정이 아니라 빛의 4요정이 되어 있었을지도。
+			PRINTFORML 그 정도로 나와 %CALLNAME:MASTER%는 사이가 좋아졌다。
+			PRINTFORML 내일은 무엇을 하고 놀까、꿈속에서 생각해 두자。
+		CASE 4
+		;연모
+			PRINTFORML %CALLNAME:MASTER%과 눈을 마주칠 수가 없다。
+			PRINTFORML 이야기를 나누려고 해도 부끄러워서 말이 잘 안 나온다。
+			PRINTFORML 잡으려던 손이 떨려서 %CALLNAME:MASTER%의 손을 잡을 수 없다。
+			PRINTFORML 가슴속이 쿵쿵 울리고 괴로워서、얼굴에서 불이 뿜어져 나올 것 같이 화끈 달아오른다。
+			PRINTFORML 하지만、싫지 않아。좋아。
+			PRINTFORML
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML ………%CALLNAME:MASTER%도 나와 같은 기분일까。
+		CASE 5
+		;연인
+			PRINTFORML %CALLNAME:MASTER%와 연인이 되었다。
+			PRINTFORML 무뚝뚝하게 받아들일 속셈이었지만、오늘 하루 웃는 얼굴이 들러붙어 떨어지질 않는다。
+			PRINTFORML 서니ー나 스타ー에게 염려받았지만 웃는 얼굴로 밀고 나갔다。
+			PRINTFORML 가슴속의 커피 잔이 기쁨으로 가득 차 넘칠 것만 같다。
+			PRINTFORML 이제는 뭐라고 써야 할지 모르겠다。그만큼 지금의 나는 행복으로 가득하다。
+			PRINTFORML 분명 내일부터 즐거운 일들만 있을거라 생각해。
+			PRINTFORML 
+		CASE 6
+		;ファーストキス獲得(親密が高い)
+			PRINTFORML 일기에 쓸까 말까 고민했지만、과감히 써 버리자。
+			PRINTFORML 마침내 %CALLNAME:MASTER%와 키스를 했다。
+			PRINTFORML 첫 키스는、%CALLNAME:MASTER%의 맛이 났다。 … 달콤하다든가 시큼하다든가가 아니라、%CALLNAME:MASTER%의 맛。
+			PRINTFORML 입에서 들리는 작은 물소리가 못된 짓을 하는 것 같았다。
+			PRINTFORML 둥실 기분이 좋아져、생각하면 지금도 가슴이 두근두근 한다。
+			PRINTFORML 어른들이 보면 장난 같은 키스라고 생각하겠지만、나는 그 키스를 잊을 수 없다。
+			PRINTFORML …또 %CALLNAME:MASTER%와 키스 해 볼까。
+		CASE 7
+		;ファーストキス獲得(親密が低い)
+			PRINTFORML 나는 이 원한을 잊지 않기 위해 일기에 써 둔다。
+			PRINTFORML %CALLNAME:MASTER%에게 무리하게 키스 당했다。
+			PRINTFORML 지금 생각해도 구토가 난다。저런 녀석일 줄은 생각조차 못했다。
+			PRINTFORML 절대로 두 번 다시 당하지 않아。
+		CASE 8
+		;연모で処女喪失し、Ｖ絶頂した。
+		;これは表示されません。式が組めませんでした。
+			PRINTFORML 오늘、나는 %CALLNAME:MASTER%과 하나가 되었다。
+			PRINTFORML %CALLNAME:MASTER%는 좋아하는 사람끼리 하는 일이라고 말했다。
+			PRINTFORML 커다란 자지가 뱃속으로 들어오는 건 아팠지만、나는 매우 행복했다。
+			PRINTFORML 몸이 날개 끝까지 기쁨으로 가득 차、쭉 이대로 계속되었으면 좋겠다고 생각할 정도였다。
+			PRINTFORML 나와 %CALLNAME:MASTER%는 열심히 서로 밀착해 기분 좋음을 느꼈어。
+			PRINTFORML 생각하면 찡하고 몸이 간지러워진다。
+			PRINTFORML 또 내일도 %CALLNAME:MASTER%과……。
+		CASE 9
+		;연모で処女喪失した。
+			PRINTFORML 오늘、나는 %CALLNAME:MASTER%과 하나가 되었다。
+			PRINTFORML %CALLNAME:MASTER%는 좋아하는 사람끼리 하는 일이라고 말했다。
+			PRINTFORML 커다란 자지가 뱃속으로 들어오는 건 아팠지만、나는 매우 행복했다。
+			PRINTFORML %CALLNAME:MASTER%가 안타까워 하는 얼굴로 지켜봐줘서、나는 사랑 받고 있다… 란 걸 알았으니까。
+			PRINTFORML 아직 조금 몸이 아프지만、이 아픔은 나에게 소중한 추억이 될거야。
+		CASE 10
+		;처녀상실し、Ｖ絶頂した。
+		;これは表示されません。式が組めませんでした。
+			PRINTFORML 오늘、나는 %CALLNAME:MASTER%과 엣치한 놀이를 했다。
+			PRINTFORML 나도 어른이 숨어서 하는 걸 본 적이 있어서、흥미가 없던 것은 아니었다。
+			PRINTFORML 첫경험은 아팠다。그렇지만 나와 %CALLNAME:MASTER%는 못된 짓을 하고 있다고 생각하며 오슬오슬 오싹거렸다。
+			PRINTFORML 그리고 자지가 내 안을 비비고 있으면、넋을 잃을 정도로 기분이 좋아져 울컥 달아올랐다。
+			PRINTFORML 도중부터는 나도 열중해버려 허리를 움직여대며 기분 좋아지려 하고 있었다。조금 부끄럽다…。
+			PRINTFORML 이것은 서니ー나 스타ー에게도 알려줄 수 없다。나와 %CALLNAME:MASTER%만의 비밀。
+			PRINTFORML 돌아갈 때、%CALLNAME:MASTER%와 이 놀이를 하기로 약속했다。이번에는 어디서 할까나。
+		CASE 11
+		;반발각인3で処女喪失した。
+			PRINTFORML 용서하지 않아
+			PRINTFORML 
+			PRINTFORML 절대로 용서하지 않아。
+			PRINTFORML 
+			PRINTFORML 저 녀석은 나에게 상처를 입혔다。
+			PRINTFORML 
+			PRINTFORML 그만해 라고 외쳐도 저 녀석은 나를 괴롭혔다。
+			PRINTFORML 
+			PRINTFORML 잊을 수 있을까 보냐。
+			PRINTFORML 
+			PRINTFORML 언젠가 저 녀석을……。
+		CASE 12
+		;처녀상실した。
+			PRINTFORML 오늘、나는 %CALLNAME:MASTER%과 엣치한 놀이를 했다。
+			PRINTFORML 나도 어른이 숨어서 하는 걸 본 적이 있어서、무섭지만 흥미가 없던 것도 아니다。
+			PRINTFORML 하지만 전혀 즐겁지 않아。아프기만 해。지금도 뭔가 배에 들어있는 것 같아서 욱신거린다。
+			PRINTFORML %CALLNAME:MASTER%가 기분 좋은 듯이 자지를 내 안에 출납할 때마다
+			PRINTFORML 나는 거기가 찢어질 것 같은 통증을 꾹 참고만 있었다。…… 불공평하다。
+			PRINTFORML 몇 번 반복하면 기분 좋다던데、… 혹시 나 속은 거 아니야？
+			PRINTFORML 
+		CASE 13
+		;サニーが恋慕
+			PRINTFORML 요즘%CALLNAME:MASTER%과 서니ー가 둘이 있는 걸 자주 본다。
+			PRINTFORML %CALLNAME:MASTER%는 서니ー의 장난에 휘말리고 있다。
+			PRINTFORML 하지만、%CALLNAME:MASTER%도 즐거운 듯이 웃고 있다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 내가 아니라 서니ー에게 %CALLNAME:MASTER%는 그 웃는 얼굴을 향하고 있다。
+			PRINTFORML 그런 생각을 하면서 둘을 보고 있자니、외톨이가 된 것 같아 가슴속이 애달파진다。
+		CASE 14
+		;スターが恋慕
+			PRINTFORML 요즘 스타ー는 %CALLNAME:MASTER%를 항상 따라다니고 있다。
+			PRINTFORML 놀리면서도 %CALLNAME:MASTER%과 함께 있는 스타ー。
+			PRINTFORML 스타ー가 그렇게 즐거운 듯이 웃는 모습、그다지 본 적 없다。
+			PRINTFORML %CALLNAME:MASTER%도 싫지만은 않은 얼굴로 스타와 이야기를 나누고 있다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 언제나와 다르게 저 속에 섞일 마음이 들지 않아。
+			PRINTFORML 그런 일 하면 나는 그 두 명에게 화내거나 울거나 해 버릴 것 같으니까。
+		CASE 15
+		;サニーが恋人
+			PRINTFORML 서니ー가 %CALLNAME:MASTER%의 연인이 되었다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML %CALLNAME:MASTER%가 좋아했던 것은、내가 아니었다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 잘 생각해 보면、당연했다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 나는 서니ー에게 친해지기 위한 발판이었던 것이다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 내가 제멋대로%CALLNAME:MASTER%를 좋아하게 되어、제멋대로 차인 것 뿐이다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 오늘만큼은 소리를 지우는 능력이 있어서 다행이라고 생각한다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 누구에게도 눈치채이지 않고、나는 잔뜩 울 수가 있으니까。
+			PRINTFORML 
+		CASE 16
+		;スターが恋人
+			PRINTFORML 스타ー가 %CALLNAME:MASTER%의 연인이 되었다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 스타ー만、치사하다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 나도 %CALLNAME:MASTER%를 좋아하는데。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 그래도、스타ー는 싫어질 수 없다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 스타ー도、%CALLNAME:MASTER%를 정말 좋아한다는 걸 나도 알고 있었으니까。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML …기분이 우울해져 엉망이 된 털실 같다。
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 차라리 이대로 눈물을 쏟아낸다면 마음이 편해질지도 모른다。
+
+		CASE 17
+		;デート先が人間の里
+			PRINTFORML 오늘은 %CALLNAME:MASTER%과 인간 마을에 놀러 갔다。
+			PRINTFORML 내가 여기 오는 것은 피ー스의 일을 들으러 살금살금 몰래 오는 정도였는데 이렇게 당당하게 들어가는 것은、처음이다。
+			PRINTFORML 처음에는 조금 무서워서 %CALLNAME:MASTER%에게 꽉 매달려 걷고 있었다。
+			PRINTFORML 하지만 %CALLNAME:MASTER%과 함께 꽃집에 들어가거나、대본가게에서 책을 돌려보거나 하고 있다보니 그런 기분은 어디론가 사라졌다。
+			PRINTFORML 살금살금 둘러보는 것보다、%CALLNAME:MASTER%과 신나게 떠들며 마을을 걷는 편이 훨씬 즐겁다。
+			PRINTFORML 그 날은 %CALLNAME:MASTER%과 함께 질릴 때까지 마을을 돌아다닌、매우 즐거운 하루였다。
+			PRINTFORML 또、함께 갈 수 있으면 좋겠다。
+		CASE 18
+		;デート先が魔法の森
+			PRINTFORML 오늘은 %CALLNAME:MASTER%와 함께 마법의 숲에 놀러 갔다。
+			PRINTFORML 숲의 공기는 인간의 몸에 나쁘기 때문에 %CALLNAME:MASTER%가 걱정이 되었지만 본인은 아무렇지도 않은 얼굴이었다。튼튼한 아이다。
+			PRINTFORML 여기는 나도 서니ー랑 스타ー 하고 탐험을 하러 오기 때문에 잘 알고 있다。그러니 %CALLNAME:MASTER%에게 숲을 안내해 주었다。
+			PRINTFORML 그러자 %CALLNAME:MASTER%도 즐거운 듯이 내 이야기를 들어주었다。무심코 의기양양한 얼굴이 될 것만 같았다。
+			PRINTFORML 도중、아는 요정이 %CALLNAME:MASTER%과 함게 있는 것을 보고 「남자 친구？」라고 놀림당했다。
+			PRINTFORML 근데 내가 다르다 라고 말하기도 전에、얼굴이 붉어진 %CALLNAME:MASTER%가 당황해 달라 라고 말했다。
+			PRINTFORML …… 오해는 풀렸지만、뭔가 개운하지가 않다。그렇게 필사적인 얼굴 안 해도 되잖아…。
+			PRINTFORML 조금 뭔가 뭉게뭉게 한 기분을 느끼면서、오늘의 데이트는 끝났다。
+			PRINTFORML 
+		CASE 19
+		;デート先が迷いの竹林
+			PRINTFORML 오늘은 %CALLNAME:MASTER%과 미혹의 대나무숲에 놀러 갔다。
+			PRINTFORML 토끼가 많기 때문에 토끼를 사냥하기로 했다。%CALLNAME:MASTER%는 처음인 것 같아서 이것이라면 내가 반드시 이길 수 있어！… 라고 생각하고 있었다。
+			PRINTFORML 승부는 참패。내가 소리를 지워가며 겨우 1마리를 잡기도 전에、%CALLNAME:MASTER%는 ５、６마리나 되는 토끼를 잡고 있었다。
+			PRINTFORML 조금 분하다。… 역시 매우 분해。
+			PRINTFORML 분해하는 나를 보기 힘들어서인지 %CALLNAME:MASTER%가 １마리를 나에게 주었지만、그런 문제가 아니잖아！
+			PRINTFORML 언젠가 %CALLNAME:MASTER%의 능력을 폭로해 보이겠어！ 그렇게 마음 속으로 맹세했다。
+		CASE 20
+		;デート先がチテイ
+			PRINTFORML 오늘은 %CALLNAME:MASTER%과 지저로 탐험 하러 갔다。
+			PRINTFORML 지저는 지상보다 무서운 요괴나 귀신이 사능 곳이라는 이야기를 들었었기 때문에、사실은 그다지 가고 싶지 않았다…。
+			PRINTFORML 연두색 눈의 요괴가 한냐 같은 얼굴로 우리를 노려보았고、
+			PRINTFORML 아이가 드문지 오니나 원령이 이따금 다가왔다。나는 이제 너무 무섭고 무서워서 어쩔 줄을 몰랐다。
+			PRINTFORML 하지만 그럴 때마다 %CALLNAME:MASTER%가 쫓아내 주었다。
+			PRINTFORML %CALLNAME:MASTER%도 무서웠을거라 생각하지만、그래도 내가 있었기 때문에 힘내서 감싸 준 것 같다。
+			PRINTFORML 그런 %CALLNAME:MASTER%가 도와준 기쁨과、지저의 오니들이 무서운 것들이 섞여 조금 울어 버렸다。
+			PRINTFORML 지저는 매우 무서운 곳이지만、%CALLNAME:MASTER%과 함께라면 좀 더 깊이 갈 수 있을지도 모른다。
+			PRINTFORML 
+
+		CASE 21
+		;良い贈り物をもらった
+			PRINTFORML %CALLNAME:MASTER%에게서  선물을 받았다。
+			PRINTFORML 놀라운 것은 내가 전부터 갖고 싶어하던 것을 보내 준 것이다。
+			PRINTFORML 돈이 없기 때문에 살 수 없어서、비슷한 것을 주워서는 이건 아니야 라고 한숨을 쉬었던 것은 기억하고 있다。
+			PRINTFORML 나는 아무렇지도 않은 얼굴을 받을 생각이었지만
+			PRINTFORML %CALLNAME:MASTER%는 내 얼굴을 보고서 기뻐하고 있었기 때문에 죄다 들켜버린 걸지도…。
+			PRINTFORML 지금도 일기를 쓰면서 선물도 바라보고 있다。기뻐서 펄쩍 뛰어오를 것만 같다。
+			PRINTFORML 오늘 밤은 매우 좋은 꿈을 꿀 수 있을 것 같다…。
+		CASE 22
+		;贈り物をもらった
+			PRINTFORML %CALLNAME:MASTER%에게서 선물을 받았다。
+			PRINTFORML 그 아이를 봐서는 나를 생각해서 골라 준 것 같다。
+			PRINTFORML 모처럼 %CALLNAME:MASTER%가 준 것이다。잃어버리지 않게 소중히 간직해 두기로 했다。
+		CASE 23
+		;悪い贈り物をもらった
+		;もしかしたら表示されないかもしれません。
+			PRINTFORML %CALLNAME:MASTER%에게서 선물을 받았지만…。
+			PRINTFORML 아마 %CALLNAME:MASTER%로서는、본인이 좋아하는 것을 줄 생각이었을 것이다。그렇지만 이것은 아니야…。
+			PRINTFORML 서니ー에게서는 「우왓、센스 깬다！」란 말을 들었고…
+			PRINTFORML 스타ー로부터는 「뭐、멋진 취미로군！」이란 말을 들었다…
+			PRINTFORML 울 것 같아。
+			PRINTFORML %CALLNAME:MASTER%에겐 나쁘지만、이건 좀 버려야겠다…。
+		;普通の日記その1
+		CASE 24
+			PRINTFORML 맛있는 머위 미소된장 만드는 방법
+			PRINTFORML 
+			PRINTFORML 
+			PRINTFORML 머위의 새순… ８장쯤
+			PRINTFORML 미소된장………… 큰숟가락 ４
+			PRINTFORML 설탕……… 작은 숟가락 １
+			PRINTFORML 미림……… 큰숟가락 ２
+			PRINTFORML …… 이 페이지는 요리의 메모를 적어두었다。
+		;普通の日記その2
+		CASE 25
+			PRINTFORML 오늘의 장난도 미처 피하지 못했다。그래서 나는 괜찮아？ 라고 미리 말했는데…。
+			PRINTFORML 넘어졌을 때 레이무씨의 부적을 맞아 그대로 붙잡혔다。호밍 부적은 치사하다고 생각한다。
+			PRINTFORML 「몇 번을 해야 직성이 풀리는 거야…」라고 레이무씨에게 기가 막힌다는 듯이 설교를 들었다。이게 벌써 몇 번째더라？
+		;普通の日記その3
+		CASE 26
+			PRINTFORML 또 오늘도 레이무씨에게 붙잡혔다。앞으로 한 매만 엎으면 다다미를 전부 뒤집을 수 있었는데…。
+			PRINTFORML 레이무씨의 이야기는 짧은 것 같으면서도 길기 때문에 다리가 저려와 괴롭다…。아 가끔 머리를 바늘로 찌르는 듯이 아프다。
+			PRINTFORML 내일만큼은 도망칠테야 라고 생각하면서、듣는둥 마는둥 설교를 듣는 척했다。
+		;普通の日記その4
+		CASE 27
+			PRINTFORML 다음 날도 레이무씨에게 퇴치 당했다。목욕용 배스타올을 전부 흠뻑 적셔놓은 것은 맛이 없었던 걸지도。
+			PRINTFORML 백번 두들겨 맞은 엉덩이가 아프다…。설교보다도 괴로웠다。
+			PRINTFORML 하지만 내 엉덩이를 때리고 있던 레아무씨가 즐거운 듯이 웃었던 것은 조금 무서웠다…。
+		;普通の日記その5
+		CASE 28
+			PRINTFORML 레이무씨에게 벌을 받았다。소리를 지우고 벽장에 넣어둔 쥐를 찾아낸 레이무씨는 굉장하다고 생각한다。
+			PRINTFORML 「거짓말을 하면 혀을 이렇게 염라 대왕에게 뽑혀버려！」라며 혀를 잡아끌었다。당분간 뜨거운 커피를 마실 수 없다…。
+			PRINTFORML 이번에는 뽑혀도 좋도록、마리사씨한테 혀를 두 장으로 만드는 방법을 좀 배우려고 한다。
+		;普通の日記その6
+		CASE 29
+			PRINTFORML 여느 때처럼 레이무씨에게 혼났다。「⑨」라고 쓴 종이를 등에 붙일 상대는 치르노 이외에는 무리인 것 같다。
+			PRINTFORML 벌로서 경내를 청소하게 되었다。오늘따라 낙엽이나 쓰레기가 많다…。
+			PRINTFORML 어떻게든 끝내자 레이무씨에게 차와 만쥬를 받았다。이런 것을 「선반에서 떨어진 떡(호박이 넝쿨째의 일본판)」이라고 말하는 걸까。
+			PRINTFORML 나온 것은 만쥬이지만。
+		;普通の日記その7
+		CASE 30
+			PRINTFORML 하쿠레이신사에서 또 뭔가 구경거리를 열고 있는 것 같다。레이무씨도 잘도 질리지 않는다고 생각한다。
+			PRINTFORML 곧장 셋이서 그 구경거리를 훔치려고 하다가 눈 깜짝할 사이에 얻어맞았다。
+			PRINTFORML 이럴 때의 레이무씨는 평소보다 강하기 때문에、언제나와 같이 뻐꾸기가 울 때(장사가 안 된다의 비유)까지 기다리기로 했다。
+		;普通の日記その8
+		CASE 31
+			PRINTFORML 오늘 밤、산보를 하고 있는데 유난히 얇은 책이 떨어져 있었다。바깥 세계의 책일지도 모른다。
+			PRINTFORML 안을 읽어 보니、남자와 여자가 알몸으로 서로 교제하고 있었기 때문에 서둘러 닫아 버렸다。
+			PRINTFORML 그 책은 몰래 가지고 돌아와 침대 아래에 숨겨 두었다。읽어 보고는 싶지만、지금도 부끄러워서 읽지 못할 것이다。
+		;普通の日記その9
+		CASE 32
+			PRINTFORML 아침에 일어나보니 스타ー가 커졌다。그렇게 밖에 말할 수 없었다。
+			PRINTFORML 우리들보다 키가 컸지만、여느 때와 같이 검은 앞머리를 가지런히 해 평소의 싱글벙글 웃는 얼굴은 확실히 스타ー다。
+			PRINTFORML 다르다고 하면 큰일이다。그러니까 저건 스타ー。여기에 없는 스타에게 마음 속으로 사과하며、커진 스타ー와 하루를 보냈다。
+		;普通の日記その10
+		CASE 33
+			PRINTFORML 서니ー가 기린을 보았다고 떠들었다。잘은 모르지만 마을 근처에서 본 것 같다。
+			PRINTFORML 「목이 이ー렇게 긴 동물은 기린 밖에 없겠죠！」라고 말했지만 색은 붉었던 것 같으니 다르다고 생각한다。
+			PRINTFORML 「목이 길고 붉으면 플라밍고 아냐？」라고、스타ー가 빌려 온 바깥 세계의 동물도감을 보여주었다。아마 이것이다。
+			PRINTFORML 그 후 마을 근처에서 잡자고 이야기를 하다가 빨간머리 언니가 노려보는 바람에 황급히 도망쳤다。어쩌면 플라밍고의 주인이었을지도…。
+			
+	ENDSELECT
+ENDIF
+
+
+
+
+;=============================
+@M_KOJO_MESSAGE_COM_K6_406
+;=============================
+CALL TRAIN_MESSAGE
+CALL M_KOJO_MESSAGE_COM_K6_406_1
+RETURN RESULT
+
+;=============================
+@M_KOJO_MESSAGE_COM_K6_406_1
+;커맨드 구상
+;TFLAG:194 (누구의 일기를 읽고있는지)
+;TFLAG:194가 XX가 아닌 경우는 타인의 일기이므로 주의.
+;PAGE는 적혀있는 페이지 수.
+;SHIRAHU(XX)는 캐릭터 XX의 상태가 정상인지 아닌지.
+;=============================
+#DIM PAGE
+
+;이하는 샘플
+PAGE = 0
+FOR LOCAL, 0, MAX_DIARY_PAGE:(TFLAG:194):0
+	IF GROUPMATCH(DIARY:(TFLAG:194):LOCAL, 1, 3)
+		PAGE ++
+	ENDIF
+NEXT
+
+IF SHIRAHU(6) && TFLAG:194 == 6
+;일기를 다 읽고 난 후의 반응
+	IF PAGE > 2
+		CALL SPTALK, 6,"通常",0,@"「무、무무무무얼 멋대로 읽고 있는 거야！！」//%CALLNAME:6%는 황급히 %CALLNAME:MASTER%의 손에서 일기를 채갔다。"
+		;화상포함 토크는 최대 6행까지.
+	ELSE
+		PRINTFORML 
+	ENDIF
+ENDIF
