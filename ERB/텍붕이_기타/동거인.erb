@@ -1,0 +1,79 @@
+﻿@동거권유조건(ARG)
+#DIM DYNAMIC 포인트
+
+포인트 += MIN(CFLAG:ARG:호감도/550 , 10)
+포인트 += MIN(CFLAG:ARG:신뢰도/250 , 10)
+포인트 += MIN(ABL:ARG:친밀 * 2 / 3 , 10)
+포인트 += MIN(ABL:ARG:욕망 / 3 , 10)
+IF TALENT:ARG:연모 || TALENT:ARG:애욕
+    포인트 += 5
+ENDIF
+IF TALENT:ARG:헌신적
+    포인트 += 5
+ENDIF
+IF TALENT:ARG:저항
+    포인트 -= 5
+ENDIF
+
+포인트 += TALENT:ARG:수치심 * -3
+포인트 += TALENT:ARG:태도 * -3
+포인트 += CFLAG:ARG:생해금 * 2
+IF FLAG:동거인
+    포인트 -= 3
+    IF 소득수준:(FLAG:동거인) > 소득수준:ARG
+        포인트 -= 7
+    ENDIF
+ENDIF
+IF 소득수준:ARG >= M_부유층
+    포인트 += 2
+ENDIF
+
+IF DAY - FLAG:이삿날 <= 14
+    포인트 -= 15
+ENDIF
+
+IF 포인트 >= 22
+    CALL 동거권유(ARG)
+ENDIF
+
+@동거조건(ARG)
+#FUNCTION
+IF CFLAG:ARG:초기위치 != CSVCFLAG(ARG,GETNUM(CFLAG,"초기위치"))
+    RETURNF 0
+ENDIF
+IF FLAG:동거인 == ARG
+    RETURNF 0
+ENDIF
+IF !IN_HOME(CFLAG:ARG:초기위치)
+    RETURNF 0
+ENDIF
+IF GROUPMATCH(MAIN_MAP,13,14)
+    RETURNF 0
+ENDIF
+
+RETURNF 1
+
+@동거권유(ARG)
+
+IF !동거조건(ARG)
+    RETURN 1
+ENDIF
+
+PRINTFORML %ARG가% 자기 방에서 지낼 것을 권해왔다...
+PRINTFORML 어쩔까?
+PRINTFORML [0] 수락한다
+PRINTFORML [1] 거절한다
+INPUT
+IF RESULT
+    PRINTFORMW 마음은 고맙지만, 거절했다
+    RETURN 1
+ELSE   
+    CALL MAKE_동거(ARG)
+    PRINTFORMW %마스터의% 방을 %STR:(CFLAG:MASTER:초기위치 + 8000)%으로 설정했습니다
+ENDIF
+
+@MAKE_동거(ARG)
+
+FLAG:동거인 = ARG
+CFLAG:MASTER:초기위치 = CFLAG:ARG:초기위치
+;CFLAG:MASTER:현재위치 = CFLAG:ARG:초기위치
