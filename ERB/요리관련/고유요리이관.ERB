@@ -1,10 +1,23 @@
 ﻿;감미재 -> 설탕/꿀
+@Y_고유요리학습조건(ARG)
+#FUNCTION
+SIF ARG == MASTER
+    RETURNF 0
+SIF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치
+    RETURNF 0
+SIF !SHIRAHU(ARG)
+    RETURNF 0
+RETURNF 1
+SIF !TALENT:ARG:연인 && !TALENT:ARG:연모 && !TALENT:ARG:사모 && !TALENT:ARG:애욕 && !TALENT:ARG:당신의노예 && !TALENT:ARG:주인
+    RETURNF 0
+RETURNF 1
 
 @Y_고유요리선택()
 #DIM 도구력
 #DIM 보너스점수
 #DIM 감점
 VARSET LOCAL
+DRAWLINE
 FOR LOCAL,0,CHARANUM
     IF LEARNED_MENU:LOCAL >= 100
         CALLFORM SPECIAL_MENU_{LOCAL}
@@ -24,11 +37,144 @@ FOR LOCAL,0,CHARANUM
     ENDIF
 NEXT
 PRINTL
+SIF Y_고유요리학습조건(TARGET)
+    PRINTFORML [998] %타겟의% 고유 요리를 배운다
 PRINTFORML [999] 돌아간다
 $LOOP
 INPUT
 IF RESULT == 999
     RETURN
+ELSEIF RESULT == 998 && Y_고유요리학습조건(TARGET)
+    LOCAL = TARGET
+    TRYCCALLFORM Y_고유요리{LOCAL}
+    CATCH
+        GOTO LOOP
+    ENDCATCH
+    CALL Y_고유재료소비표(LOCAL)
+    IF RESULT == -1
+        PRINTFORMW 재료가 부족합니다
+        RESTART
+    ENDIF
+    PRINTFORML 제작합니까?
+    CALL ASK_YN()
+    IF RESULT
+        RETURN
+    ELSE
+        CALL Y_고유요리재료소비()
+        CALLFORM SPECIAL_MENU_{LOCAL}
+        PRINTL
+        PRINTL
+        PRINTL
+        DRAWLINE
+        PRINTL 조리중
+        DRAWLINE
+        ;===============
+        ; PHASE 3 - 맛 책정 안되있으면 자동으로
+        ;===============
+        ;갓만든 요리 표시용
+        DISH_ASSI = LOCAL
+        DISH_TASTE += "갓만든/"
+        ;레시피에서 조리 시간이 설정되지 않았을 때
+        IF !DISH_TIME
+            SELECTCASE DISH_TYPE
+                CASE "경식"
+                    DISH_TIME = 20
+                CASE "주식"
+                    DISH_TIME = 40
+                CASE "디저트"
+                    DISH_TIME = 40
+            ENDSELECT
+        ENDIF
+        SIF FLAG:역극
+            CALL DISH_TASTE_FROM_CHARA(FLAG:역극)
+        SIF DISH_ASSI
+            CALL DISH_TASTE_FROM_CHARA(DISH_ASSI)
+            
+        ;레시피별 최대유통기간이 설정되지 않았을 때
+        SIF !DISH_MAXLIMIT
+            DISH_MAXLIMIT = 120
+        IF ITEM:월제다회용도시락통
+            DISH_MAXLIMIT *= 24
+        ELSEIF ITEM:보온전기밥통
+            TIMES DISH_MAXLIMIT, 1.5
+        ENDIF
+        ;신선도 설정, 조리 시간을 추가해 둔다.
+        DISH_LIMIT = DISH_MAXLIMIT + DISH_TIME
+
+        DISHNAME = %DISH_NAME%
+        DISH_RANK = 3
+
+        ;기본 점수 계산
+        도구력 = ITEM:은행나무도마
+        보너스점수 = 0
+        감점 = 0
+        SIF STRCOUNT(DISH_TASTE, "도구의공명/")
+            TIMES 도구력, 2.0
+
+        SIF STRCOUNT(DISH_TASTE, "제철/")
+            보너스점수 += 2
+        SIF STRCOUNT(DISH_TASTE, "옥토끼풍/") && STRCOUNT(DISH_TASTE, "당근/")
+            보너스점수 += 2
+        SIF STRCOUNT(DISH_TASTE, "프로의 맛/")
+            보너스점수 += 2
+        SIF STRCOUNT(DISH_TASTE, "반짝임/")
+            보너스점수 += 1
+        ;자신있는 요리나 날카로움은 해당되지 않을 경우 소거되어 있으므로 이것으로 OK, 자신있는 요리는 "/"를 제외합니다.
+        SIF STRCOUNT(DISH_TASTE, "특기요리")
+            보너스점수 += 2
+        SIF STRCOUNT(DISH_TASTE, "섬세한맛/")
+            보너스점수 += 1
+        SIF STRCOUNT(DISH_TASTE, "맛있는물/")
+            보너스점수 += 1
+        ;질투,숨겨진 맛의 효과는 먹을 때
+        IF 재료첨가여부("양념",GETNUM(ITEM,"미원"),0)
+            보너스점수 += 1
+        ENDIF
+        SIF DISH_DRG
+            감점 += 1
+        SIF DISH_DRG_2
+            감점 += 1
+
+        ;DISH_ASSI가 0이면 MASTER니까 분기 필요없지만 일단
+        IF DISH_ASSI
+            DISH_BASEPOINT = ABL:MASTER:요리기능 + ABL:DISH_ASSI:요리기능 + DISH_RANK + 도구력 + 보너스점수 - 감점
+            DISH_BASEPOINT = MIN(300 + (DISH_BASEPOINT * 20), 700)
+            PRINTFORM 솜씨：
+            CALL 만듦새(DISH_BASEPOINT)
+            PRINTFORML 　／%CALLNAME:MASTER%의 능력({ABL:MASTER:요리기능}) + %CALLNAME:DISH_ASSI%의 능력({ABL:DISH_ASSI:요리기능}) + 식재료의 품질({DISH_RANK}) \@ 도구력 ? + 도구의 품질({도구력}) # \@ \@ 보너스점수 ? + 보너스점수({보너스점수}) # \@ \@ 감점 ? - 첨가물({감점}) # \@
+        ELSE
+            DISH_BASEPOINT = ABL:MASTER:요리기능 + ABL:MASTER:요리기능 + DISH_RANK + 도구력 + 보너스점수 - 감점
+            DISH_BASEPOINT = MIN(300 + (DISH_BASEPOINT * 20), 700)
+            PRINTFORM 솜씨：
+            CALL 만듦새(DISH_BASEPOINT)
+            PRINTFORML 　／%CALLNAME:MASTER%의 능력 x 2({ABL:MASTER:요리기능 * 2}) + 식재료의 품질({DISH_RANK}) \@ 도구력 ? + 도구의 품질({도구력}) # \@ \@ 보너스점수 ? + 보너스점수({보너스점수}) # \@ \@ 감점 ? - 첨가물({감점}) # \@
+        ENDIF
+        PRINTL 
+        ;
+        ; PHASE 4 경험증가
+        ;
+        PRINTFORML 요리의 맛 : %DISH_TASTE%
+        EXP:MASTER:요리경험 += 5
+        SIF DISH_ASSI
+            EXP:DISH_ASSI:요리경험 += 5
+        TIME += 15
+        IF STRCOUNT(DISH_TASTE, "로터/")
+            TFLAG:194 = 100
+        ELSEIF DISH_TYPE == "디저트"
+            TFLAG:194 = 3
+        ELSEIF DISH_TYPE == "주식"
+            TFLAG:194 = 2
+        ELSE
+            TFLAG:194 = 1
+        ENDIF
+        CALL 영양소올리기(Y_고유요리영양:0,Y_고유요리영양:1,Y_고유요리영양:2,Y_고유요리영양:3,Y_고유요리영양:4)
+        ;표시용 음식명
+        EX_DISH_NAME = %DISH_NAME%
+        LEARNED_MENU:DISH_ASSI += MIN(ABL:MASTER:요리기능/2 + 1, 5) * 10
+        SIF LEARNED_MENU:DISH_ASSI >= 100
+		    CALL LEARNING_SP_DISH(DISH_ASSI, DISH_NAME)
+        RETURN 5
+    ENDIF
 ELSE
     LOCAL = RESULT
     TRYCCALLFORM Y_고유요리{LOCAL}
