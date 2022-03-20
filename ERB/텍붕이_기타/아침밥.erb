@@ -1,0 +1,120 @@
+﻿@밥차려줌(ARG)
+#FUNCTION
+;우선은 차려줄지 여부
+IF ARG != 거점_주인 && ABS(CFLAG:ARG:초기위치 - CFLAG:MASTER:초기위치) > 5 && MAIN_MAP != 14 && MAIN_MAP != 13
+    RETURNF 0
+ENDIF
+IF 소득수준:ARG < M_저소득층
+    RETURNF 0
+ENDIF
+IF !CHK_INHOME(CFLAG:ARG:초기위치)
+    RETURNF 0
+ENDIF
+IF RELATION:ARG:MASTER < 100
+    RETURNF 0
+ENDIF
+IF EXP:ARG:요리경험 || ABL:ARG:요리기능
+    RETURNF 0
+ENDIF
+IF TIME:3 < CFLAG:ARG:기상시간
+    ;마스터가 일찍 일어나면 당연히 불가능
+    RETURNF 0
+ENDIF
+IF TIME:3 > CFLAG:ARG:기상시간 + 120 && CFLAG:ARG:호감도 < 1000
+    ;2시간 늦게 일어났는데 호감도도 낮으면 불가능
+    RETURNF 0
+ENDIF
+IF FLAG:요리
+    RETURNF 0
+ENDIF
+RETURNF 1
+
+@아침밥생성(ARG)
+PRINTL
+PRINTFORMW %마스터의% 방에 %ARG가% 차려둔 아침밥이 있었다
+CALL RESET_DISH
+IF ABL:ARG:요리기능 < 2
+    DISH_TASTE += "경식/"
+    DISH_TYPE '= "경식"
+    DISH_TASTE += 조사처리(CALLNAME:ARG,"가") + " 차려준 아침/"
+    DISH_TASTE += "심플/"
+    DISH_RANK = 1
+    ;탄단지나비 -> 탄단지비나
+    CALL 영양소올리기(80,16,12,9,19)
+    CALL 아침밥상세(1)
+ELSEIF ABL:ARG:요리기능 < 4
+    DISH_TASTE += "주식/"
+    DISH_TYPE '= "주식"
+    DISH_TASTE += 조사처리(CALLNAME:ARG,"가") + " 차려준 아침/"
+    DISH_BASEPOINT += 1
+    DISH_RANK = 3
+    CALL 영양소올리기(86,24,15,15,25)
+    CALL 아침밥상세(2)
+ELSE
+    DISH_TASTE += "주식/"
+    DISH_TYPE '= "주식"
+    DISH_TASTE += 조사처리(CALLNAME:ARG,"가") + " 차려준 아침/"
+    DISH_BASEPOINT += 2
+    DISH_RANK = 4
+    CALL 영양소올리기(95,35,20,30,26)
+    CALL 아침밥상세(3)
+ENDIF
+DISH_BASEPOINT += 3
+DISH_BASEPOINT *= 150
+DISH_NAME += 조사처리(CALLNAME:ARG,"가") + " 차려준 아침"
+EX_DISH_NAME = %DISH_NAME%
+
+DISH_TIME = 60
+DISH_MAXLIMIT = 120
+DISH_LIMIT = DISH_MAXLIMIT + DISH_TIME
+
+FLAG:요리 = 1
+
+@아침밥상세(ARG)
+SELECTCASE ARG
+    CASE 1
+        SELECTCASE RAND:4
+            CASE 0
+                ;쌀밥에 채소반찬
+                DISH_TASTE += "쌀/검소/이파리/가정적/야채/"
+            CASE 1
+                ;쌀밥에 계란 후라이
+                DISH_TASTE += "쌀/알/검소/가정적/"
+            CASE 2
+                ;된장국
+                DISH_TASTE += "쌀/국물/야채/농후/"
+            CASE 3
+                ;계란밥
+                DISH_TASTE += "쌀/알/검소/야취/농후/짠/담백/"
+        ENDSELECT
+    CASE 2
+        SELECTCASE RAND:4
+            CASE 0
+                ;쌀밥에 채소볶음, 연근조림
+                DISH_TASTE += "쌀/이파리/가정적/야채/조림/사각사각/"
+            CASE 1
+                ;쌀밥에 계란 후라이, 베이컨
+                DISH_TASTE += "쌀/알/가정적/짠/고기 요리/"
+            CASE 2
+                ;된장국,니쿠쟈가
+                DISH_TASTE += "쌀/국물/야채/농후/야채/조림/고기 요리/농후/짠/"
+            CASE 3
+                ;카레
+                DISH_TASTE += "쌀/카레/카레/농후/"
+        ENDSELECT
+    CASE 3
+        SELECTCASE RAND:4
+            CASE 0
+                ;쌀밥에 채소볶음, 연근조림,민물 생선 구이
+                DISH_TASTE += "쌀/이파리/가정적/야채/조림/사각사각/"
+            CASE 1
+                ;쌀밥에 계란 후라이, 베이컨
+                DISH_TASTE += "쌀/알/검소/가정적/짠/고기 요리/"
+            CASE 2
+                ;된장국,니쿠쟈가
+                DISH_TASTE += "쌀/국물/야채/농후/야채/조림/고기 요리/농후/짠/"
+            CASE 3
+                ;함박스테이크+ 반숙 계란
+                DISH_TASTE += "고기 요리/고기 요리/알/양식/농후/농후/"
+        ENDSELECT
+ENDSELECT
