@@ -1,0 +1,578 @@
+﻿;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+;캐릭터 라인 표시·애니메─숀 함수 파일 「에 째─실마리응」0527판
+;문자색설정이나 캐릭터 라인의 비주얼·애니메표시에 특화했다함수 파일입니다.
+;이 파일 단독으로 이용할 수 있습니다만, 구응구분 처리응그 외와의 함수명 덮어 쓰는 것에는 주의해 주세요
+;아마, 대부분의 바리안트에 그대로 들어갈 수 있어 동작할 것입니다
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+;＠색조작계 함수
+;색의 꺼내기나 변환을 실시하는 기본 함수.
+;동고의 함수로부터 불리거나 부를 때에 사용하면 편리하기도 하고.
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+
+;-------------------------------------------------
+;RGB색지정 함수@RGBCOLOR
+;	인수 0:Ｒ휘도（0～255）
+;	인수 1:Ｇ휘도（0～255）
+;	인수 2:Ｂ휘도（0～255）
+;
+;식중에서 사용하는 함수입니다. 인수 0～3으로 RGB를 지정하면, 16진（0 xRRGGBB）로 해 돌려줍니다
+;
+;만약을 위해필요인 비트 밖에 보지 않도록. COLOR_FROMRGB 식 안의 함수가 부활했다의 것으로 치환@revkoishi(14/04/28)
+;-------------------------------------------------
+@RGBCOLOR(ARG:0, ARG:1, ARG:2)
+#FUNCTION
+;RETURNF (65536*ARG)+(256*ARG:1) +ARG:2
+;RETURNF (ARG:0 & 0 xFF) << 16 | (ARG:1 & 0 xFF) << 8 | (ARG:2 & 0 xFF)
+RETURNF COLOR_FROMRGB(ARG:0 & 0xFF, ARG:1 & 0xFF, ARG:2 & 0xFF)
+
+;-------------------------------------------------
+;칼라 분해 함수@GETRED/GETGREEN/GETBLUE
+;	인수:16진칼라 표기, 생략 하면 현재의 문자색
+;
+;0 xRRGGBB 형식의 칼라 표기로부터, RGB 각각의 값을 0～255로 추출합니다
+;
+;만약을 위해필요인 비트 밖에 보지 않도록 해 둔다@revkoishi(14/04/20)
+;-------------------------------------------------
+@GETRED(ARG:0 = -1)
+#FUNCTION
+;RETURNF (ARG >= 0? ARG # GETCOLOR())/65536
+RETURNF ((ARG >= 0 ? ARG:0 # GETCOLOR()) & 0xFF0000) >> 16
+
+@GETGREEN(ARG:0 = -1)
+#FUNCTION
+;RETURNF ((ARG >= 0? ARG # GETCOLOR())/256)%256
+RETURNF ((ARG >= 0 ? ARG:0 # GETCOLOR()) & 0x00FF00) >> 8
+
+@GETBLUE(ARG:0 = -1)
+#FUNCTION
+;RETURNF (ARG >= 0? ARG # GETCOLOR())%256
+RETURNF ((ARG >= 0 ? ARG:0 # GETCOLOR()) & 0x0000FF)
+
+;-------------------------------------------------------------------------------
+;	색을 명도의 퍼센트로 변경
+;-------------------------------------------------------------------------------
+;	예  CALL BRIGHTCOLOR(70)	※70%의 어두움에 SETCOLOR
+;		CALL BRIGHTCOLOR(150)	※150%의 밝음에 SETCOLOR
+;===============================================================================
+@BRIGHTCOLOR(ARG)
+SETCOLOR BRIGHTCOLORF(ARG)
+RETURN RESULT
+
+;-------------------------------------------------------------------------------
+;	상의 녀석의 식중판
+;-------------------------------------------------------------------------------
+;	예	SETCOLOR BRIGHTCOLORF(50) ※50%의 어두움에 SETCOLOR
+;		바로 이것 두드리는 편이 빠른 생각도 든다
+;===============================================================================
+@BRIGHTCOLORF(ARG, ARG:1 = -1)
+#FUNCTION
+#LOCALSIZE 1
+#DIM NOW,1
+ARG = LIMIT(ARG, 0, 1000)
+LOCAL = ARG:1 == -1 ? GETCOLOR() # ARG:1
+RETURNF RGBCOLOR( TIMESF(GETRED(LOCAL),ARG), TIMESF(GETGREEN(LOCAL),ARG), TIMESF(GETBLUE(LOCAL),ARG) )
+
+
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+;＠애니메─숀계 함수
+;캐릭터 라인을 동이나했다페이드 인·아웃시켰다합니다. 어느 의미 이 파일의 눈인가
+;대체로 표시시간가 있기 (위해)때문에, 다용하면 음울함을 줍니다, 주의.
+;제어 함수를 통해, 각 함수마다애니메─숀의 온 오프 설정을 할 수 있습니다.
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+
+;-------------------------------------------------
+;애니메─숀 제어 함수@ANIME_CONFIG
+;	캐릭터 라인 인수·인수:캐릭터 라인 인수에 의해 기능 분기
+;		"SAVE":인수는 무효. 콘피그빗트의 값을 돌려줍니다. 세이브 되는 변수에 대입할 때에.
+;		"SET":콘피그빗트에 인수의 값을 직접 대입@EVENTLORD등으로 설정 반영할 때에. 인수 생략 하면 SAVE 호환
+;		"FORCE":강제 표시·강제비표시·통상의모드변환을 합니다. 콘피그빗트는 원래인 채입니다
+;				（인수=0, 콘피그빗트를 참조해 표시（통상）, 1, 강제 표시, 2, 강제비표시, 생략, 현재의 설정을반환만）
+;		"TIMES":이 뒤로 불리는애니메를, 인수의횟수분, 강제 표시로 합니다. 함수는 지정할 수 없습니다. FORCE에우선 합니다
+;				 인수를 0으로 하면, 횟수를 초기화합니다. 인수를 생략 하면, 나머지횟수을반환만
+;		"ONCE":이 뒤로 불리는애니메를, 1회만 강제 표시로 합니다. 함수는 지정할 수 없습니다. FORCE·TIMES에우선 합니다. 인수는 무효.
+;		"%함수명%":지정했다함수마다의 콘피그빗트를 설정합니다. 인수 1으로 표시에, 0으로 비표시로 합니다. 2라고, 설정을 반대로 합니다
+;					인수를 생략 하면, 반환값이 진이라면 표시하는 판정이 됩니다（강제 표시상태에영향 됩니다）
+;		"USER{번호}":유저 정의의 콘피그 항목을 설정할 수 있습니다. 스스로애니메효과를 작성했다경우에 편리합니다. 1～13번까지 가질 수 있습니다
+;					  인수를 생략 하면, 반환값이 진이라면 표시하는 판정이 됩니다（강제 표시상태에영향 됩니다）
+;
+;에 째─실마리응내장의애니메효과의 종합적인 제어. 함수 마다의 콘피그빗트가 서 있으면, 그 함수의애니메효과를 표시하지 않습니다
+;표시하지 않는 경우는 오른쪽 클릭 스킵용과 같은 간략테키스트를 표시하도록(듯이)합니다
+;함수명은 앨리어스가 아니고 본체로 지정. 그리고 일본어명도 받아들이게 되어 있습니다.
+;구상측 따위로 FORCE·TIMES 기능을 다용하면, 반드시 미움받습니다.
+;-------------------------------------------------
+@ANIME_CONFIG(ARGS, ARG = -1)
+#FUNCTION
+#LOCALSIZE 6
+;LOCAL는 콘피그빗트를 격납
+;LOCAL:1은 강제 표시·비표시상태
+;LOCAL:2는횟수지정 강제 표시의횟수를 격납
+;LOCAL:3은 편집·참조하는 콘피그빗트의번호
+;LOCAL:4는 유저 정의의번호
+;LOCAL:5는 ONCE상태
+
+SELECTCASE ARGS
+	CASE "SAVE"
+		RETURNF LOCAL
+	CASE "SET"
+		SIF ARG >= 0
+			LOCAL = ARG
+		RETURNF LOCAL
+	CASE "FORCE"
+		SIF ARG >= 0
+			LOCAL:1 = ARG
+		RETURNF LOCAL:1
+	CASE "TIMES"
+		SIF ARG >= 0
+			LOCAL:2 = ARG
+		RETURNF LOCAL:2
+	CASE "ONCE"
+		LOCAL:5 = 1
+		RETURNF LOCAL:5
+	CASE "SCROLLTEXT", "스크롤"
+		;콘피그빗트 0번
+		LOCAL:3 = 0
+	CASE "FADE", "페이드"
+		;콘피그빗트 1번
+		LOCAL:3 = 1
+	CASE "QUAKE", "진동"
+		;콘피그빗트 2번
+		LOCAL:3 = 2
+	CASE "FLASH", "발광"
+		;콘피그빗트 3번
+		LOCAL:3 = 3
+	CASE "FULLCUTIN", "전화면 컷 인"
+		;콘피그빗트 4번
+		LOCAL:3 = 4
+	CASE "BGM_CUTIN", "ＢＧＭ컷 인"
+		;콘피그빗트 41번
+		LOCAL:3 = 41
+	CASE "CHARA_CUTIN", "캐릭터 컷 인"
+		;콘피그빗트 42번
+		LOCAL:3 = 42
+	CASEELSE
+		LOCAL:4 = TOINT(REPLACE(ARGS, "USER", ""))
+		;유저 정의의 처리
+		IF STRCOUNT(ARGS, "USER") && LOCAL:4 > 0 && LOCAL:4 < 14
+			;콘피그빗트 51번 이후
+			LOCAL:3 = 50+LOCAL:4
+		;그 이외는-1을반환만. 디버그용
+		ELSE
+			RETURNF -1
+		ENDIF
+ENDSELECT
+;콘피그빗트의 처리
+SELECTCASE ARG
+	CASE 0
+		SETBIT LOCAL, LOCAL:3
+	CASE 1
+		CLEARBIT LOCAL, LOCAL:3
+	CASE 2
+		INVERTBIT LOCAL, LOCAL:3
+ENDSELECT
+;ONCE가 유효한 경우
+IF LOCAL:5
+	LOCAL:5 = 0
+	RETURNF MESSKIP() ? 0 # 1
+;강제 표시계가 유효한 경우
+ELSEIF LOCAL:2 > 0
+	LOCAL:2--
+	RETURNF MESSKIP() ? 0 # 1
+ELSEIF LOCAL:1
+	RETURNF MESSKIP() ? 0 # !(LOCAL:1-1)
+ENDIF
+;콘피그빗트를 참조해돌아가기
+RETURNF MESSKIP() ? 0 # !GETBIT(LOCAL, LOCAL:3)
+
+;-------------------------------------------------
+;캐릭터 라인 스크롤 함수@SCROLLTEXT
+;	캐릭터 라인 인수:스크롤시킨다캐릭터 라인
+;	인수 0:1으로 하면 스크롤중, 캐릭터 라인아래에 DRAWLINE 합니다. 2라면-=라인에
+;	인수 1:스크롤 속도（디폴트라면 30）
+;	인수 2:윈드우의 옆에 들어가는 문자수（디폴트라면 117）
+;			메모  117
+;	인수 3:실로 하면 캐릭터 라인이 구석에서 바운드 합니다. 숫자를 올리면 바운드가 느슨해집니다. 누가 이득을 봐 이 기능
+;	인수 4:실로 하면 스크롤 방향이 거꾸로 됩니다. 디폴트라면 왼쪽에서 오른쪽. SCROLLTEXTL라고 하는 앨리어스가 존재
+;
+;인수의 캐릭터 라인을 스크롤 시킵니다
+;-------------------------------------------------
+@SCROLLTEXT(ARGS, ARG, ARG:1 = 30, ARG:2 = 117, ARG:3, ARG:4)
+#LOCALSIZE 3
+#LOCALSSIZE 1
+LOCALS = %ARGS%
+;스페이스를 부가
+IF ARG:4
+	ARGS = %(" "*ARG:2)+ARGS%
+ELSE
+	ARGS = %" "*(ARG:2 - 2 - STRLENS(ARGS))+ARGS%
+ENDIF
+;표시 온
+IF ANIME_CONFIG("SCROLLTEXT")
+	;스크롤 속도가 윈드우폭에 대해 너무 빠른 경우, 교정한다
+	ARG:1 = ARG:1 >= ARG:2 ? ARG:2-1 # ARG:1
+	REDRAW 0
+	LOCAL = 0
+	FOR LOCAL, 0, ARG:2-2, ARG:1
+		IF ARG:4
+			PRINTSINGLEFORM %SUBSTRING(ARGS , LOCAL)%
+		ELSE
+			PRINTSINGLEFORM %SUBSTRING(ARGS , (ARG:2 - 2) - LOCAL)%
+		ENDIF
+		IF ARG == 1
+			DRAWLINE
+		ELSEIF ARG == 2
+			CUSTOMDRAWLINE -=
+		ENDIF
+		TWAIT 2 , 0
+		CLEARLINE 1+!(!ARG)
+	NEXT
+	;. 실로 적당하게 뜁니다
+	IF ARG:3
+		FOR LOCAL, ARG:3, ARG:3*5, ARG:3*2
+			IF ARG:4
+				PRINTFORML %LOCALS%
+			ELSE
+				PRINTFORML %ARGS%
+			ENDIF
+			IF ARG == 1
+				DRAWLINE
+			ELSEIF ARG == 2
+				CUSTOMDRAWLINE -=
+			ENDIF
+			TWAIT 2 , 0
+			CLEARLINE 1+!(!ARG)
+			FOR LOCAL:1, 0, ARG:2/(LOCAL+4), ARG:1/(LOCAL+1)
+				IF ARG:4
+					PRINTSINGLEFORM %SUBSTRING(ARGS , ARG:2 - LOCAL:1)%
+				ELSE
+					PRINTSINGLEFORM %SUBSTRING(ARGS , LOCAL:1)%
+				ENDIF
+				IF ARG == 1
+					DRAWLINE
+				ELSEIF ARG == 2
+					CUSTOMDRAWLINE -=
+				ENDIF
+				TWAIT 2 , 0
+				CLEARLINE 1+!(!ARG)
+			NEXT
+			FOR LOCAL:2, 0, ARG:2/(LOCAL+4), ARG:1/(LOCAL+1)
+				IF ARG:4
+					PRINTSINGLEFORM %SUBSTRING(ARGS , ARG:2 - LOCAL:1 + LOCAL:2)%
+				ELSE
+					PRINTSINGLEFORM %SUBSTRING(ARGS , LOCAL:1 - LOCAL:2)%
+				ENDIF
+				IF ARG == 1
+					DRAWLINE
+				ELSEIF ARG == 2
+					CUSTOMDRAWLINE -=
+				ENDIF
+				TWAIT 2 , 0
+				CLEARLINE 1+!(!ARG)
+			NEXT
+		NEXT
+	ENDIF
+ENDIF
+
+IF ARG:4
+	PRINTFORML %LOCALS%
+ELSE
+	PRINTFORML %ARGS%
+ENDIF
+IF ARG == 1
+	DRAWLINE
+ELSEIF ARG == 2
+	CUSTOMDRAWLINE -=
+ENDIF
+REDRAW 1
+RETURN RESULT
+
+
+;-------------------------------------------------
+;캐릭터 라인 오른쪽 스크롤 함수@SCROLLTEXTL
+;	캐릭터 라인 인수:스크롤시킨다캐릭터 라인
+;	인수 0:실로 하면 스크롤중, 캐릭터 라인아래에 DRAWLINE 합니다
+;	인수 1:스크롤 속도（디폴트라면 30）
+;	인수 2:윈드우의 옆에 들어가는 문자수（디폴트라면 117）
+;	인수 3:실로 하면 캐릭터 라인이 구석에서 바운드 합니다. 숫자를 올리면 바운드가 느슨해집니다
+;
+;인수의 캐릭터 라인을 윈드우의 금방 다른 곳으로 스크롤 시킵니다
+;-------------------------------------------------
+@SCROLLTEXTL(ARGS, ARG, ARG:1 = 30, ARG:2 = 117, ARG:3)
+CALL SCROLLTEXT(ARGS, ARG, ARG:1, ARG:2, ARG:3, 1)
+RETURN RESULT
+
+
+;-------------------------------------------------
+;페이드 아웃 함수@FADEOUT
+;	인수 0:팽이수. 많이 할 만큼 완만하게 됩니다. 디폴트는 8
+;	캐릭터 라인 인수 0～29:표시하는 캐릭터 라인（공행은 스페이스에서. 생략 하면 무시합니다）
+;	인수 3:FULLCUTIN용. 정말로 하면 개막행 삭제로부터 들어갑니다
+;
+;인수로 준 캐릭터 라인을 표시해, 키 경치에 페이드 아웃 합니다.
+;안보이게 되는 것만으로 사라지지 않기 때문에, 필요라면 CLEARLINE로 지워 주세요.
+;캐릭터 라인은 30행까지 맡을 수가 있습니다
+;-------------------------------------------------
+@FADEOUT(ARG = 8, ARGS = "VOID", ARGS:1 = "VOID", ARGS:2 = "VOID", ARGS:3 = "VOID", ARGS:4 = "VOID", ARGS:5 = "VOID", ARGS:6 = "VOID", ARGS:7 = "VOID", ARGS:8 = "VOID", ARGS:9 = "VOID", ARGS:10 = "VOID", ARGS:11 = "VOID", ARGS:12 = "VOID", ARGS:13 = "VOID", ARGS:14 = "VOID", ARGS:15 = "VOID", ARGS:16 = "VOID", ARGS:17 = "VOID", ARGS:18 = "VOID", ARGS:19 = "VOID", ARGS:20 = "VOID", ARGS:21 = "VOID", ARGS:22 = "VOID", ARGS:23 = "VOID", ARGS:24 = "VOID", ARGS:25 = "VOID", ARGS:26 = "VOID", ARGS:27 = "VOID", ARGS:28 = "VOID", ARGS:29 = "VOID", ARG:3)
+CALL FADE(ARG, GETCOLOR(), GETBGCOLOR(), ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9, ARGS:10, ARGS:11, ARGS:12, ARGS:13, ARGS:14, ARGS:15, ARGS:16, ARGS:17, ARGS:18, ARGS:19, ARGS:20, ARGS:21, ARGS:22, ARGS:23, ARGS:24, ARGS:25, ARGS:26, ARGS:27, ARGS:28, ARGS:29, ARG:3)
+RETURN RESULT
+
+
+;-------------------------------------------------
+;페이드 인 함수@FADEIN
+;	인수 0:팽이수. 많이 할 만큼 완만하게 됩니다. 디폴트는 8
+;	캐릭터 라인 인수 0～29:표시하는 캐릭터 라인（공행은 스페이스에서. 생략 하면 무시합니다）
+;
+;인수로 준 캐릭터 라인을, 키 경치로부터 페이드 인 표시합니다.
+;색을 바꾸고 싶은 경우는 사전에 SETCOLOR 하는지, @FADE를 직접 불러 주세요
+;캐릭터 라인은 30행까지 맡을 수가 있습니다
+;-------------------------------------------------
+@FADEIN(ARG = 8, ARGS = "VOID", ARGS:1 = "VOID", ARGS:2 = "VOID", ARGS:3 = "VOID", ARGS:4 = "VOID", ARGS:5 = "VOID", ARGS:6 = "VOID", ARGS:7 = "VOID", ARGS:8 = "VOID", ARGS:9 = "VOID", ARGS:10 = "VOID", ARGS:11 = "VOID", ARGS:12 = "VOID", ARGS:13 = "VOID", ARGS:14 = "VOID", ARGS:15 = "VOID", ARGS:16 = "VOID", ARGS:17 = "VOID", ARGS:18 = "VOID", ARGS:19 = "VOID", ARGS:20 = "VOID", ARGS:21 = "VOID", ARGS:22 = "VOID", ARGS:23 = "VOID", ARGS:24 = "VOID", ARGS:25 = "VOID", ARGS:26 = "VOID", ARGS:27 = "VOID", ARGS:28 = "VOID", ARGS:29 = "VOID")
+CALL FADE(ARG, GETBGCOLOR(), GETCOLOR(), ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9, ARGS:10, ARGS:11, ARGS:12, ARGS:13, ARGS:14, ARGS:15, ARGS:16, ARGS:17, ARGS:18, ARGS:19, ARGS:20, ARGS:21, ARGS:22, ARGS:23, ARGS:24, ARGS:25, ARGS:26, ARGS:27, ARGS:28, ARGS:29)
+RETURN RESULT
+
+
+;-------------------------------------------------
+;페이드 처리 함수@FADE
+;	인수 0:팽이수. 많이 할 만큼 완만하게 됩니다. 디폴트는 8. 크게 너무 크게 하면 이상해집니다
+;	인수 1:초기 문자색
+;	인수 2:변화 하는 문자색
+;	캐릭터 라인 인수 0～29:표시하는 캐릭터 라인（공행은 스페이스에서. 생략 하면 무시합니다）
+;	인수 3:FULLCUTIN용. 정말로 하면 개막행 삭제로부터 들어갑니다
+;
+;페이드 아웃·페이드 인의 처리를 합니다. 내부 함수입니다만, 호출도 가능합니다
+;-------------------------------------------------
+@FADE(ARG = 8, ARG:1 , ARG:2, ARGS = "VOID", ARGS:1 = "VOID", ARGS:2 = "VOID", ARGS:3 = "VOID", ARGS:4 = "VOID", ARGS:5 = "VOID", ARGS:6 = "VOID", ARGS:7 = "VOID", ARGS:8 = "VOID", ARGS:9 = "VOID", ARGS:10 = "VOID", ARGS:11 = "VOID", ARGS:12 = "VOID", ARGS:13 = "VOID", ARGS:14 = "VOID", ARGS:15 = "VOID", ARGS:16 = "VOID", ARGS:17 = "VOID", ARGS:18 = "VOID", ARGS:19 = "VOID", ARGS:20 = "VOID", ARGS:21 = "VOID", ARGS:22 = "VOID", ARGS:23 = "VOID", ARGS:24 = "VOID", ARGS:25 = "VOID", ARGS:26 = "VOID", ARGS:27 = "VOID", ARGS:28 = "VOID", ARGS:29 = "VOID", ARG:3)
+#LOCALSIZE 3
+#DIM PRICOLOR,1
+#DIM RED,2
+#DIM GREEN,2
+#DIM BLUE,2
+VARSET RED
+VARSET GREEN
+VARSET BLUE
+
+;원의 문자색의취득
+PRICOLOR = GETCOLOR()
+
+;표시 온
+IF ANIME_CONFIG("FADE")
+	;일부 환경에서 페이드 처리가 잘 되지 않는 것 같은 것으로 대책@revkoishi(14/05/28)
+	LOCAL:2 = CURRENTREDRAW()
+	REDRAW 0
+	
+	;초기색
+	SETCOLOR ARG:1
+
+	;RGB 각각의 베이스치, 감소치를 각 색:0으로 1에 대입
+	RED = GETRED()
+	IF RED > GETRED(ARG:2)
+		RED:1 = MAX(1, (RED-GETRED(ARG:2))/ARG)
+	ELSEIF RED < GETRED(ARG:2)
+		RED:1 = MIN(-1, (RED-GETRED(ARG:2))/ARG)
+	ENDIF
+	GREEN = GETGREEN()
+	IF GREEN > GETGREEN(ARG:2)
+		GREEN:1 = MAX(1, (GREEN-GETGREEN(ARG:2))/ARG)
+	ELSEIF GREEN < GETGREEN(ARG:2)
+		GREEN:1 = MIN(-1, (GREEN-GETGREEN(ARG:2))/ARG)
+	ENDIF
+	BLUE = GETBLUE()
+	IF BLUE > GETBLUE(ARG:2)
+		BLUE:1 = MAX(1, (BLUE-GETBLUE(ARG:2))/ARG)
+	ELSEIF BLUE < GETBLUE(ARG:2)
+		BLUE:1 = MIN(-1, (BLUE-GETBLUE(ARG:2))/ARG)
+	ENDIF
+
+	IF !ARG:3
+		FOR LOCAL, 0, 30
+			SIF ARGS:LOCAL != "VOID"
+				PRINTSL ARGS:LOCAL
+		NEXT
+		TWAIT 100 , 0
+	ENDIF
+	CLEARLINE 30-MATCH(ARGS, "VOID")
+
+	FOR LOCAL:1, 0, ARG
+		RED = MAX(0, RED-RED:1)
+		GREEN = MAX(0, GREEN-GREEN:1)
+		BLUE = MAX(0, BLUE-BLUE:1)
+		SETCOLOR RED, GREEN, BLUE
+		FOR LOCAL, 0, 30
+			SIF ARGS:LOCAL != "VOID"
+				PRINTSL ARGS:LOCAL
+		NEXT
+		TWAIT 100 , 0
+		CLEARLINE 30-MATCH(ARGS, "VOID")
+	NEXT
+	SETCOLOR ARG:2
+	FOR LOCAL, 0, 30
+		SIF ARGS:LOCAL != "VOID"
+			PRINTSL ARGS:LOCAL
+	NEXT
+	
+	REDRAW LOCAL:2
+;표시끄기
+ELSE
+	;종료색이 키 경치와 같은 경우, 초기색으로 표시. 그렇지 않으면 종료색으로 표시
+	SETCOLOR GETBGCOLOR() == ARG:2 ? ARG:1 # ARG:2
+	FOR LOCAL, 0, 30
+		IF ARGS:LOCAL != "VOID"
+			PRINTSL ARGS:LOCAL
+		ENDIF
+	NEXT
+ENDIF
+SETCOLOR PRICOLOR
+RETURN RESULT
+
+
+;-------------------------------------------------
+;에 째─실마리응의 콘피그를 참조해 ARG 분의행 삭제를 실시한다
+;생략 하면 일행 삭제. FADE계의 다음에의 사용을 상정
+;-------------------------------------------------
+@FADE_CLINE(ARG = 1)
+IF ANIME_CONFIG("FADE")
+	LOCAL:0 = CURRENTREDRAW()
+	REDRAW 0
+	CLEARLINE ARG
+	REDRAW LOCAL:0
+ENDIF
+
+
+;-------------------------------------------------
+;FADE_TO_CLEARLINE
+;FADEOUT와 행 삭제를 통합했다의
+;캐릭터 지정 문자색으로부터 키 경치에 페이드 아웃 한다
+;애니메콘피그를 참조해필요라면 행 삭제를 실시한다
+;-------------------------------------------------
+@FADE_TO_CLEARLINE(ARG:0, ARGS:0)
+CALL FADE(ARG:0, GETCOLOR(), GETBGCOLOR(), @"%ARGS:0%")
+CALL FADE_CLINE(1)
+
+
+;-------------------------------------------------
+;FADE_TO_CLEARLINE2
+;FADE_TO_CLEARLINE의 문자색, 키 경치를 지정 가능하게했다의
+;『ARG:0』의 속도로 『ARG:1』의 문자색으로부터 『ARG:2』의 키 경치에 『ARGS:0』의 캐릭터 라인을 페이드 아웃시킨다
+;-------------------------------------------------
+@FADE_TO_CLEARLINE2(ARG:0, ARG:1, ARG:2, ARGS:0)
+CALL FADE(ARG:0, ARG:1, ARG:2, @"%ARGS:0%")
+CALL FADE_CLINE(1)
+
+
+
+;-------------------------------------------------
+;진동 효과 함수@QUAKE
+;	인수 0:진동수. 생략 하면 2
+;
+;화면을 상하에 흔듭니다. 흔들림폭은 어느 정도 랜덤입니다
+;-------------------------------------------------
+@QUAKE(ARG = 2)
+#LOCALSIZE 3
+;표시끄기라면돌아가기
+SIF !ANIME_CONFIG("QUAKE")
+	RETURN RESULT
+REDRAW 0
+FOR LOCAL, 0, ARG
+	LOCAL:1 = RAND:4+1
+	FOR LOCAL:2, 0, LOCAL:1
+		PRINTL 
+	NEXT
+	TWAIT 100, 0
+	CLEARLINE LOCAL:1
+	TWAIT 100, 0
+NEXT
+REDRAW 3
+RETURN RESULT
+
+
+;-------------------------------------------------
+;발광 효과 함수@FLASH
+;	인수 0:발광수. 생략 하면 2
+;	인수 1:빛나는 색. 생략 하면 흰색
+;
+;화면을 발광시킵니다. 키 경치의 점멸
+;-------------------------------------------------
+@FLASH(ARG = 2, ARG:1 = 0xFFFFFF)
+#LOCALSIZE 2
+;표시끄기라면돌아가기
+SIF !ANIME_CONFIG("FLASH")
+	RETURN RESULT
+REDRAW 0
+FOR LOCAL, 0, 150
+	PRINTL
+NEXT
+LOCAL:1 = GETBGCOLOR()
+FOR LOCAL, 0, ARG
+	SETBGCOLOR ARG:1
+	REDRAW 2
+	SETBGCOLOR LOCAL:1
+	REDRAW 2
+NEXT
+CLEARLINE 150
+REDRAW 3
+RETURN RESULT
+
+
+;-------------------------------------------------
+;전화면 컷 인 함수@FULLCUTIN
+;	인수 0:좌단으로부터의 인덴트
+;	인수 1:마루로부터 띄우는 행수（표시 캐릭터 라인과 합해 30을 넘지 말아 주세요）
+;	캐릭터 라인 인수 0～29:표시하는 캐릭터 라인
+;
+;공행으로 화면을 청소해, 전화면 분의 컷 인을 표시합니다
+;행 가지런히 하고나 폰트 따위의 옵션은 아직 거의 설정하고 있지 않습니다. 아이디어만 우선.
+;-------------------------------------------------
+@FULLCUTIN(ARG, ARG:1, ARGS = "VOID", ARGS:1 = "VOID", ARGS:2 = "VOID", ARGS:3 = "VOID", ARGS:4 = "VOID", ARGS:5 = "VOID", ARGS:6 = "VOID", ARGS:7 = "VOID", ARGS:8 = "VOID", ARGS:9 = "VOID", ARGS:10 = "VOID", ARGS:11 = "VOID", ARGS:12 = "VOID", ARGS:13 = "VOID", ARGS:14 = "VOID", ARGS:15 = "VOID", ARGS:16 = "VOID", ARGS:17 = "VOID", ARGS:18 = "VOID", ARGS:19 = "VOID", ARGS:20 = "VOID", ARGS:21 = "VOID", ARGS:22 = "VOID", ARGS:23 = "VOID", ARGS:24 = "VOID", ARGS:25 = "VOID", ARGS:26 = "VOID", ARGS:27 = "VOID", ARGS:28 = "VOID", ARGS:29 = "VOID", ARG:2 = 8)
+#LOCALSIZE 1
+;표시 온
+IF ANIME_CONFIG("FULLCUTIN")
+	FOR LOCAL, 0, 30
+		IF ARGS:LOCAL == "VOID"
+			IF ARG:1 > 0
+				ARGS:LOCAL =  
+				ARG:1--
+			ENDIF
+		ELSE
+			ARGS:LOCAL = %" "*ARG+ARGS:LOCAL%
+		ENDIF
+	NEXT
+	CALL SAVELINE
+	FOR LOCAL, 0, 150
+		PRINTL 
+	NEXT
+	;FULLCUTIN가 온이라면 페이드는 강제
+	CALLF ANIME_CONFIG("ONCE")
+	CALL FADEIN(ARG:2, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9, ARGS:10, ARGS:11, ARGS:12, ARGS:13, ARGS:14, ARGS:15, ARGS:16, ARGS:17, ARGS:18, ARGS:19, ARGS:20, ARGS:21, ARGS:22, ARGS:23, ARGS:24, ARGS:25, ARGS:26, ARGS:27, ARGS:28, ARGS:29)
+	TWAIT 2000, 0
+	CALLF ANIME_CONFIG("ONCE")
+	CALL FADEOUT(ARG:2, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9, ARGS:10, ARGS:11, ARGS:12, ARGS:13, ARGS:14, ARGS:15, ARGS:16, ARGS:17, ARGS:18, ARGS:19, ARGS:20, ARGS:21, ARGS:22, ARGS:23, ARGS:24, ARGS:25, ARGS:26, ARGS:27, ARGS:28, ARGS:29, 1)
+	TWAIT 500, 0
+	CALL RETURNLINE
+;표시끄기（간략화 표시）
+ELSE
+	PRINTL 
+	PRINTL 
+	FOR LOCAL, 0, 30
+		IF ARGS:LOCAL != "VOID"
+			IF STRLENSU(ARGS:LOCAL) < 2
+				PRINTSL ARGS:LOCAL
+			ELSE
+				PRINTFORMW %" "*ARG+ARGS:LOCAL%
+			ENDIF
+		ENDIF
+	NEXT
+	PRINTL 
+	PRINTL 
+ENDIF
+RETURN RESULT
+
+
+;-------------------------------------------------
+;전화면 컷 인 함수@FULLCUTIN2
+;	페이드 인·아웃등이 종래보다 빠른 것뿐입니다
+;-------------------------------------------------
+@FULLCUTIN2(ARG, ARG:1, ARGS = "VOID", ARGS:1 = "VOID", ARGS:2 = "VOID", ARGS:3 = "VOID", ARGS:4 = "VOID", ARGS:5 = "VOID", ARGS:6 = "VOID", ARGS:7 = "VOID", ARGS:8 = "VOID", ARGS:9 = "VOID", ARGS:10 = "VOID", ARGS:11 = "VOID", ARGS:12 = "VOID", ARGS:13 = "VOID", ARGS:14 = "VOID", ARGS:15 = "VOID", ARGS:16 = "VOID", ARGS:17 = "VOID", ARGS:18 = "VOID", ARGS:19 = "VOID", ARGS:20 = "VOID", ARGS:21 = "VOID", ARGS:22 = "VOID", ARGS:23 = "VOID", ARGS:24 = "VOID", ARGS:25 = "VOID", ARGS:26 = "VOID", ARGS:27 = "VOID", ARGS:28 = "VOID", ARGS:29 = "VOID", ARG:2 = 4)
+#LOCALSIZE 1
+CALL FULLCUTIN(ARG, ARG:1, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9, ARGS:10, ARGS:11, ARGS:12, ARGS:13, ARGS:14, ARGS:15, ARGS:16, ARGS:17, ARGS:18, ARGS:19, ARGS:20, ARGS:21, ARGS:22, ARGS:23, ARGS:24, ARGS:25, ARGS:26, ARGS:27, ARGS:28, ARGS:29, ARG:2)
+RETURN RESULT

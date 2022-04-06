@@ -1,0 +1,217 @@
+﻿;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+;캐릭터 라인 표시·애니메─숀 함수 파일 「에 째─실마리응」0527판 동고, 동방 Project 로컬 함수 파일
+;동방계 바리안트로 사용할 수 있을 것 같은 비주얼·분위기 향상계의 함수군입니다. 동방계 이외에서는… 어떨까. 어느 방해는 하지 않습니다만.
+;이쪽은, 에 째─실마리응본체가 없으면 동작하지 않습니다
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+
+; ;-------------------------------------------------
+; ;동방 Project풍BGM 컷 인 함수@BGM_CUTIN
+; ;	캐릭터 라인 인수 0:곡명
+; ;	캐릭터 라인 인수 1:폰트（등폭이 아니면 기능하지 않습니다. 생략했다등 나눔명조）
+; ;	인수 0:생략 하면 머리에 「♪（다홍색·문장·DS·요전 타입）」, 정말로 하면 「ＢＧＭ（영·풍 이후 타입）」, 부로 하면 아무것도 붙이지 않는다
+; ;	인수 1:스크롤 속도（디폴트라면 5）
+; ;	인수 2:화면단까지 들어가는 문자수（디폴트라면 117）
+; ;	인수 3:1으로 하면 사라지려 할 때가 사이드 아웃에（디폴트라면 페이드 아웃）
+; ;
+; ;Windows 표준 폰트가 아닌 HG창영존재 EB는 바람직하지 않기 때문에, 독단과 편견으로 데포의 폰트를 나눔명조로 변경@/L(14/09/28)
+; ;-------------------------------------------------
+; @BGM_CUTIN(ARGS, ARG, ARGS:1 = "나눔명조", ARG:1 = 5, ARG:2 = 117, ARG:3)
+; #LOCALSIZE 2
+; #LOCALSSIZE 2
+; IF ARG >= 0
+; 	LOCALS = %\@ ARG ? %"ＢＧＭ."% # ♪ \@+ARGS%
+; ELSE
+; 	LOCALS = %ARGS%
+; ENDIF
+; ;색보존
+; LOCAL:1 = GETCOLOR()
+; RESETCOLOR
+; ARGS = %" "*ARG:2+LOCALS%
+; LOCALS:1 = %GETFONT()%
+; SIF CHKFONT(ARGS:1)
+; 	SETFONT ARGS:1
+; ;표시 온
+; IF ANIME_CONFIG("BGM_CUTIN")
+; 	;스크롤 속도가 윈드우폭에 대해 너무 빠른 경우, 교정한다
+; 	ARG:1 = ARG:1 >= ARG:2 ? ARG:2-1 # ARG:1
+; 	REDRAW 0
+; 	LOCAL = 0
+; 	;사이드 인
+; 	FOR LOCAL, 0, STRLENS(LOCALS)+4, ARG:1
+; 		PRINTSINGLEFORM %SUBSTRING(ARGS , LOCAL)%
+; 		TWAIT 2, 0
+; 		CLEARLINE 1
+; 	NEXT
+; 	PRINTFORML %" "*(ARG:2-STRLENS(LOCALS)-4)+LOCALS%
+; 	TWAIT 800, 0
+; 	CLEARLINE 1
+
+; 	IF ARG:3 == 1
+; 		;사이드 아웃
+; 		FOR LOCAL, 0, STRLENS(LOCALS)+4, ARG:1*2
+; 			PRINTSINGLEFORM %SUBSTRING(ARGS , STRLENS(LOCALS)+4-LOCAL)%
+; 			TWAIT 2 , 0
+; 			CLEARLINE 1
+; 		NEXT
+; 	ELSE
+; 		;BGM애니메온이라면 페이드를 강요표시한다
+; 		CALLF ANIME_CONFIG("ONCE")
+; 		;페이드 아웃
+; 		CALL FADEOUT(8, " "*(ARG:2-STRLENS(LOCALS)-4)+LOCALS)
+; 		CLEARLINE 1
+; 	ENDIF
+; 	REDRAW 1
+; ;표시끄기
+; ELSE
+; 	PRINTFORMW %" "*(ARG:2-STRLENS(LOCALS)-4)+LOCALS%
+; ENDIF
+
+; ; SETFONT LOCALS:1
+; ; SETCOLOR LOCAL:1
+
+; RETURN RESULT
+
+;-------------------------------------------------
+;동방 Project풍캐릭터 등장 컷 인 함수@CHARA_CUTIN
+;	캐릭터 라인 인수 0:직함
+;	캐릭터 라인 인수 1:이름
+;	캐릭터 라인 인수 2:로마자읽기
+;	인수 0:생략 하면 왼쪽, 정이라면 오른쪽 가까이에 표시. 표시 위치의 역으로부터 크롤 인 한다
+;	인수 1:스크롤 속도（디폴트라면 30）
+;	인수 2:화면단까지 들어가는 문자수（디폴트라면 117）
+;			… 바운드 필요 없어군요?
+;신령묘풍의 centering입니다. 수요가 있으면 1행째 왼쪽 맞춤·3행목우 대고의 버젼도 만들어?
+;-------------------------------------------------
+;CSTR:이명의 폰트를 HG교과서체로부터 나눔명조에
+;로마자읽기의 폰트를나눔명조로부터 궁서체에, 각각 변경
+;HG교과서체의 숙청은 Windows 표준의 폰트는 아니기 때문에. 나눔명조로부터 궁서체에의 변경은 하는 김에 뭔가 바꾸고 싶었다, 라는 것으로
+;Win7이면 환경에 의존하지 않을 것이지만, Win8/8. 1에서의 검증이 되어 있지 않기 때문에, 그 근처는 뭐라고곳@/L(2014/09/28)
+;-------------------------------------------------
+@CHARA_CUTIN(ARGS, ARGS:1, ARGS:2, ARG, ARG:1 = 30, ARG:2 = 117)
+#LOCALSIZE 11
+#LOCALSSIZE 11
+;폰트 보존
+LOCALS:10 = %GETFONT()%
+;색보존
+LOCAL:10 = GETCOLOR()
+RESETCOLOR
+
+;우선, 3개의 캐릭터 라인을 짝수로 한다
+ARGS   = %\@ STRLENS(ARGS)/2 ? %ARGS+" "% # %ARGS% \@%
+ARGS:1 = %\@ STRLENS(ARGS:1)/2 ? %ARGS:1+" "% # %ARGS:2% \@%
+ARGS:2 = %\@ STRLENS(ARGS:2)/2 ? %ARGS:2+" "% # %ARGS:2% \@%
+
+;제일 긴 캐릭터 라인의 자수를 보존해, 4를발
+LOCAL:3 = MAX(STRLENS(ARGS), STRLENS(ARGS:1), STRLENS(ARGS:2))+4
+
+;캐릭터 라인 정리
+FOR LOCAL, 0, 3
+	LOCAL:1 = (LOCAL:3-STRLENS(ARGS:LOCAL))/2
+	;인덴트겸에 머리와 꼬리를 붙입니다
+	ARGS:LOCAL = %(" "*LOCAL:1)+ARGS:LOCAL+(" "*LOCAL:1)%
+	;원본을 보존
+	LOCALS:LOCAL = %ARGS:LOCAL%
+	;스페이스를 부가
+	IF !ARG
+		LOCALS:LOCAL = %"  "+LOCALS:LOCAL%
+		ARGS:LOCAL = %(" "*ARG:2)+LOCALS:LOCAL%
+	ELSE
+		ARGS:LOCAL = %" "*(ARG:2 - 2 - STRLENS(ARGS:LOCAL))+ARGS:LOCAL%
+	ENDIF
+NEXT
+
+;괘선도 준비하지 않으면
+LOCALS:4 = %"-="*(LOCAL:3/2)%
+LOCALS:5 = %"=-"*(LOCAL:3/2)%
+;스페이스를 부가
+IF !ARG
+	LOCALS:4 = %"  "+LOCALS:4%
+	LOCALS:5 = %"  "+LOCALS:5%
+	LOCALS:6 = %(" "*ARG:2)+LOCALS:4%
+	LOCALS:7 = %(" "*ARG:2)+LOCALS:5%
+ELSE
+	LOCALS:6 = %" "*(ARG:2 - 3 - STRLENS(LOCALS:4))+LOCALS:4%
+	LOCALS:7 = %" "*(ARG:2 - 3 - STRLENS(LOCALS:5))+LOCALS:5%
+ENDIF
+
+;표시 온
+IF ANIME_CONFIG("CHARA_CUTIN")
+	;스크롤 속도가 윈드우폭에 대해 너무 빠른 경우, 교정한다
+	ARG:1 = ARG:1 >= ARG:2 ? ARG:2-1 # ARG:1
+	REDRAW 0
+	LOCAL = 0
+	FOR LOCAL, 0, ARG:2-2, ARG:1
+		IF !ARG
+			;괘선은 원폰트
+			SETFONT LOCALS:10
+			PRINTSINGLEFORM %SUBSTRING(LOCALS:6 , LOCAL)%
+			;CSTR:이명는 나눔명조
+			;SIF CHKFONT("HG교과서체")
+			;	SETFONT "HG교과서체"
+			SIF CHKFONT("바탕체")
+				SETFONT "바탕체"
+			PRINTSINGLEFORM %SUBSTRING(ARGS , LOCAL)%
+			;이름은 원폰트
+			SETFONT LOCALS:10
+			PRINTSINGLEFORM %SUBSTRING(ARGS:1 , LOCAL)%
+			;로마자읽기는 궁서체
+			SIF CHKFONT("궁서체")
+				SETFONT "궁서체"
+			;SIF CHKFONT("바탕체 Bold")
+			;	SETFONT "바탕체 Bold"
+			PRINTSINGLEFORM %SUBSTRING(ARGS:2 , LOCAL)%
+			;괘선은 원폰트
+			SETFONT LOCALS:10
+			PRINTSINGLEFORM %SUBSTRING(LOCALS:7 , LOCAL)%
+		ELSE
+			SETFONT LOCALS:10
+			PRINTSINGLEFORM %SUBSTRING(LOCALS:6 , (ARG:2 - 2) - LOCAL)%
+			SIF CHKFONT("바탕체")
+				SETFONT "바탕체"
+			PRINTSINGLEFORM %SUBSTRING(ARGS , (ARG:2 - 2) - LOCAL)%
+			SETFONT LOCALS:10
+			PRINTSINGLEFORM %SUBSTRING(ARGS:1 , (ARG:2 - 2) - LOCAL)%
+			SIF CHKFONT("궁서체")
+				SETFONT "궁서체"
+			PRINTSINGLEFORM %SUBSTRING(ARGS:2 , (ARG:2 - 2) - LOCAL)%
+			SETFONT LOCALS:10
+			PRINTSINGLEFORM %SUBSTRING(LOCALS:7 , (ARG:2 - 2) - LOCAL)%
+		ENDIF
+		TWAIT 2 , 0
+		SIF !ARG || LOCAL
+			CLEARLINE 5
+	NEXT
+ENDIF
+
+IF !ARG
+	SETFONT LOCALS:10
+	PRINTFORML %LOCALS:4%
+	SIF CHKFONT("바탕체")
+		SETFONT "바탕체"
+	PRINTFORML %LOCALS%
+	SETFONT LOCALS:10
+	PRINTFORML %LOCALS:1%
+	SIF CHKFONT("궁서체")
+		SETFONT "궁서체"
+	PRINTFORML %LOCALS:2%
+	SETFONT LOCALS:10
+	PRINTFORML %LOCALS:5%
+ELSE
+	SETFONT LOCALS:10
+	PRINTFORML %LOCALS:6%
+	SIF CHKFONT("바탕체")
+		SETFONT "바탕체"
+	PRINTFORML %ARGS%
+	SETFONT LOCALS:10
+	PRINTFORML %ARGS:1%
+	SIF CHKFONT("궁서체")
+		SETFONT "궁서체"
+	PRINTFORML %ARGS:2%
+	SETFONT LOCALS:10
+	PRINTFORML %LOCALS:7%
+ENDIF
+REDRAW 1
+SETCOLOR LOCAL:10
+RETURN RESULT
+
+
