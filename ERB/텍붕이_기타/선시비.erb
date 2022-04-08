@@ -1,0 +1,65 @@
+﻿@선시비(ARG)
+#DIM DYNAMIC 목적
+
+IF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치
+    RETURN 0
+ENDIF
+IF RELATION:ARG:MASTER > 90 && CFLAG:ARG:욕구불만도 < 800 && !TALENT:ARG:섹프 && !TALENT:ARG:애욕 && !TCVAR:ARG:발정
+    RETURN 0
+ENDIF
+IF RAND:10
+    RETURN 0
+ENDIF
+
+LOCAL:0 = MAX(1,(ABL:ARG:전투능력 * 20) + (ABL:ARG:레벨 * 3) + (CFLAG:ARG:힘 + CFLAG:ARG:지성 + CFLAG:ARG:속도 + CFLAG:ARG:인내+ CFLAG:ARG:운) + 1)
+LOCAL:1 = MAX(1,(ABL:MASTER:전투능력 * 20) + (ABL:MASTER:레벨 * 3) + (CFLAG:MASTER:힘 + CFLAG:MASTER:지성 + CFLAG:MASTER:속도 + CFLAG:MASTER:인내+ CFLAG:MASTER:운) + 1)
+
+IF LOCAL:0 * 3 / 2 < LOCAL:1
+    RETURN 0
+ENDIF
+
+IF RELATION:ARG:MASTER < 60
+    목적 = 0 ;분풀이
+    TALENT:ARG:기분 = -1
+ENDIF
+
+IF CFLAG:ARG:욕구불만도 >= 750 || TALENT:ARG:섹프 || TALENT:ARG:애욕
+    목적 = 1 ;야스
+    TCVAR:ARG:발정 = 1
+    CALL T_부상(ARG,"힘",-35)
+    ;강간하려할때는 9배의 힘을 낼 수 있다!
+ENDIF
+
+
+PRINTFORMW 돌연히 %ARG가% 달려들었다!
+TARGET = ARG
+후처리인터셉트 = 1
+CALL 뉴탄막전투(MASTER,TARGET,0)
+SELECTCASE 후처리인터셉트승패여부
+	CASE 0
+		;타겟 패배
+        IF 목적 == 0
+		    PRINTFORMW %타겟은% 분한듯 물러났다
+            DOWNBASE:ARG:체력 += 300
+        ELSE
+            PRINTFORMW %타겟은% 투덜거리며 항복했다
+        ENDIF
+	CASE 1
+		;무승부
+		IF 목적 == 0
+		    PRINTFORMW %타겟은% 분한듯 물러났다
+            DOWNBASE:ARG:체력 += 300
+        ELSE
+            PRINTFORMW %타겟은% 투덜거리며 물러났다
+        ENDIF
+	CASE 2
+		;마스터 패배
+		IF 목적 == 0
+		    PRINTFORMW %타겟은% 속 시원하다는 듯한 표정이다
+            CALL 주도도상승(ARG,5)
+        ELSE
+            PRINTFORMW %타겟은% 음흉한 미소를 띄며 달라붙었다
+            CFLAG:ARG:우후후 = 2
+            TFLAG:102 = 3
+        ENDIF
+ENDSELECT
