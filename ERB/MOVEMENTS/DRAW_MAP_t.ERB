@@ -5,26 +5,40 @@
 @DRAW_MAP(ARGS)
 #DIMS AA, 50
 #DIMS COLOR, 50
-#DIM SPOT
 #DIM MODE
 #DIM LOCATION
 
 #DIM LINENUM
 #DIM X_POINT
-#DIM FOUND_INT
 
 ;AA를 취득, 없으면 그대로 돌아간다
 VARSET AA
 VARSET COLOR
+;SETFONT "ＭＳ ゴシック" 한판 임의수정, 한판은 굴림체이므로 누락
 ;외출 맵인가 어떤가의 분기
 IF ARGS == "ODEKAKE"
 	TRYCCALLFORM ODEKAKEMAP_{CFLAG:MASTER:데이트중}(AA)
 	CATCH
+		SETFONT 한판 임의수정, 한판은 굴림체이므로 누락
 		RETURN 0
 	ENDCATCH
 ELSE
-	TRYCCALLFORM MAP_VIEWING_{MAIN_MAP}(AA,COLOR)
+	TRYCCALLFORM MAP_VIEWING(MAIN_MAP)
+		CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
+		PRINTFORML 
+		IF RECOLOREDMAPS
+			TRYCCALLFORM COLOREDMAP_%RESULTS%_{TFLAG:맵변환}(AA, COLOR)
+			CATCH
+				RECOLOREDMAPS = 0
+				CALL DRAW_MAP
+				RECOLOREDMAPS = 1
+				RETURN
+			ENDCATCH
+		ELSE
+			TRYCALLFORM MAP_%RESULTS%_{TFLAG:맵변환}(AA)
+		ENDIF
 	CATCH
+		;SETFONT 한판 임의수정, 한판은 굴림체이므로 누락
 		RETURN 0
 	ENDCATCH
 ENDIF	
@@ -46,15 +60,7 @@ FOR LINENUM, 0, VARSIZE("AA")
 		IF ISNUMERIC(RESULTS)
 			;분기 귀찮기 때문에 반드시 2자릿수 취한다
 			SUBSTRINGU AA:LINENUM, X_POINT, 2
-			FOUND_INT = TOINT(RESULTS)
-			;외출 맵인가 어떤가의 분기
-			IF ARGS == "ODEKAKE"
-				SPOT = FOUND_INT
-				CALL GETMAP2(SPOT)
-			ELSE
-				SPOT = MAIN_MAP * 100 + FOUND_INT
-				CALL GETMAP(SPOT)
-			ENDIF
+			CALL GETMAP(TOINT(RESULTS), ARGS)
 			X_POINT += 2
 		;기호에 의미를 갖게하는 예, 이것이라면#은 보통으로는 사용할 수 없게 되지만 뭐 좋은가
 		ELSEIF RESULTS == "#"
@@ -63,7 +69,7 @@ FOR LINENUM, 0, VARSIZE("AA")
 				IF ARGS == "HIKKOSHI"
 					TRYCALLFORM DRAW_MAP_BG_{MAIN_MAP}(RESULTS)
 				ELSE
-					TRYCALLFORM DRAW_MAP_BG_{CFLAG:MASTER:현재위치 / 100}(RESULTS)
+					TRYCALLFORM DRAW_MAP_BG_{CFLAG:MASTER:데이트중}(RESULTS)
 				ENDIF
 			X_POINT += 2
 		;보통의 문자
@@ -72,7 +78,7 @@ FOR LINENUM, 0, VARSIZE("AA")
 			IF ARGS == "HIKKOSHI"
 				TRYCALLFORM DRAW_MAP_BG_{MAIN_MAP}(RESULTS)
 			ELSE
-				TRYCALLFORM DRAW_MAP_BG_{CFLAG:MASTER:현재위치 / 100}(RESULTS)
+				TRYCALLFORM DRAW_MAP_BG_{CFLAG:MASTER:데이트중}(RESULTS)
 			ENDIF
 			X_POINT ++
 		ENDIF
@@ -80,7 +86,232 @@ FOR LINENUM, 0, VARSIZE("AA")
 	PRINTL
 NEXT
 
+;SETFONT 한판 임의수정, 한판은 굴림체이므로 누락
 RESETCOLOR
+;------------------------------------------
+;맵 표시 설정
+;ARG    표시 맵의 MAPID
+;ARG:1  판정할 장소ID（임의）
+;------------------------------------------
+@MAP_VIEWING(ARG, ARG:1)
+SIF !TFLAG:맵변환
+	TFLAG:맵변환 = MAP_AREASELECT(ARG, ARG:1)
+RESULTS = %MAP_VIEWING_NAME(ARG)%
+
+;------------------------------------------
+;맵에 표시할 숫자 버튼 묘화 설정
+;ARG   두자리 버튼 수치（장소ID의 뒷자리 두자리）
+;ARGS  "ODEKAKE"=외출맵
+;------------------------------------------
+@GETMAP(ARG, ARGS)
+#DIM P_ID
+#DIM Q_ID
+
+;외출맵
+IF ARGS == "ODEKAKE"
+	P_ID = (ARG * 10) + (CFLAG:MASTER:데이트중 * 100)
+;거점 맵
+ELSE
+	P_ID = ARG + MAIN_MAP * 100
+ENDIF
+;위치짐작
+IF TALENT:MASTER:위치짐작 && (FLAG:짐작모드 == 1 || ARGS == "ODEKAKE")
+	IF ARGS != "ODEKAKE"
+		;모브는 우선도 최저
+		SIF ROOMDATA:ARG & 장소_모브
+			SETCOLOR C_D_PINK
+	ENDIF
+
+	KEHAI = 0
+	FOR LOCAL, 1, CHARANUM
+		;内部構造判定,第三引数は第二と同じにする
+		IF ARGS != "ODEKAKE" && GETMAP_BUILDING(MAIN_MAP, P_ID, P_ID)
+			;内部にあたる場所をすべてチェック
+			FOR Q_ID, MINROOM(), MAXROOM
+				IF GETMAP_BUILDING(MAIN_MAP, P_ID, Q_ID) && CFLAG:LOCAL:현재위치 == Q_ID
+					KEHAI = CHECK_HEHAI(LOCAL)
+					SIF KEHAI > 1
+						BREAK
+				ENDIF
+			NEXT
+		;通常の地点
+		ELSEIF CFLAG:LOCAL:현재위치 == P_ID
+			KEHAI = CHECK_HEHAI(LOCAL)
+		ENDIF
+		;特定の行動優先
+		SIF KEHAI > 1
+			BREAK
+	NEXT
+	CALL SET_KEHAI_COLOR(KEHAI)
+;汚部屋察知,お出かけマップ時は使わない
+ELSEIF TALENT:MASTER:오방짐작 && FLAG:짐작모드 == 2 && ARGS != "ODEKAKE"
+	SELECTCASE YOGORE:P_ID
+		CASE IS < 1000
+			SETCOLOR C_CREAM
+		CASE IS < 2000
+			SETCOLOR C_YELLOW
+		CASE IS < 5000
+			SETCOLOR C_V_PINK
+		CASEELSE
+			SETCOLOR C_RED
+	ENDSELECT
+ENDIF
+
+;MASTERは優先度最高
+SIF CFLAG:MASTER:현재위치 == P_ID
+	SETCOLOR C_GREEN
+;マッププレビュー時（SHOP画面か初期状態）
+IF CFLAG:MASTER:수면 || (DAY == 1 && TIME == 0)
+	SIF P_ID == Default초기위치 || CMATCH(CFLAG:집주인후보, P_ID, 1, CHARANUM)
+		SETCOLOR C_ORANGE
+ENDIF
+
+IF ARGS == "ODEKAKE" && ARG >= 10
+	;特殊ワープ用
+	SETCOLOR C_P_PURPLE
+	PRINTBUTTON "◇", ARG
+ELSE
+	PRINTBUTTON (ARG > 9 ? TOSTR(ARG) # TOFULL(TOSTR(ARG))), ARG
+ENDIF
+RESETCOLOR
+
+;------------------------------------------
+;위치감지한 인물의 행동
+;------------------------------------------
+@CHECK_HEHAI(ARG)
+#FUNCTION
+;仕事中
+IF CFLAG:ARG:행동 == 5
+	RETURNF 2
+;睡眠中
+ELSEIF CFLAG:ARG:수면
+	RETURNF 3
+;自由行動中
+ELSEIF Activity_Duration:ARG
+	RETURNF 4
+;何もしてない
+ELSE
+	RETURNF 1
+ENDIF
+
+;------------------------------------------
+;위치감지의 착색
+;------------------------------------------
+@SET_KEHAI_COLOR(ARG)
+;何もしてない＠ピンク
+IF ARG == 1
+	SETCOLOR C_H_PINK
+;仕事中＠濃オレンジ
+ELSEIF ARG == 2
+	SETCOLOR C_D_ORANGE
+;睡眠中＠紺色
+ELSEIF ARG == 3
+	SETCOLOR C_N_BLUE
+;自由行動中＠黄色
+ELSEIF ARG == 4
+	SETCOLOR C_YELLOW
+ENDIF
+
+;--------------------------------------------------
+;맵 공통의 묘화 처리
+;ARG      SLICED
+;#a～#d       텃밭의 묘화
+;#e, #o, #p   거점 밖의 묘화（気配用）
+;--------------------------------------------------
+@MAP_PRINT(ARGS)
+SELECTCASE ARGS
+CASE "#a"
+	IF HATAKE_NAME:0 != ""
+		SETCOLOR C_P_GREEN
+		PRINT VV
+		RESETCOLOR
+	ELSE
+		PRINT 　
+	ENDIF
+CASE "#b"
+	IF HATAKE_NAME:1 != ""
+		SETCOLOR C_P_GREEN
+		PRINT VV
+		RESETCOLOR
+	ELSE
+		PRINT 　
+	ENDIF
+CASE "#c"
+	IF HATAKE_NAME:2 != ""
+		SETCOLOR C_P_GREEN
+		PRINT VV
+		RESETCOLOR
+	ELSE
+		PRINT 　
+	ENDIF
+CASE "#d"
+	IF HATAKE_NAME:3 != ""
+		SETCOLOR C_P_GREEN
+		PRINT VV
+		RESETCOLOR
+	ELSE
+		PRINT 　
+	ENDIF
+CASE "#e"
+	SIF TALENT:MASTER:위치짐작 && COUNTCHARA:(MAXROOM) > 0 && FLAG:짐작모드 == 1
+		SETCOLOR 255, 100, 200
+	PRINT ↓
+	RESETCOLOR
+CASE "#o"
+	SIF TALENT:MASTER:위치짐작 && COUNTCHARA:(MAXROOM) > 0 && FLAG:짐작모드 == 1
+		SETCOLOR 255, 100, 200
+	PRINT ←
+	RESETCOLOR
+CASE "#p"
+	SIF TALENT:MASTER:위치짐작 && COUNTCHARA:(MAXROOM) > 0 && FLAG:짐작모드 == 1
+		SETCOLOR 255, 100, 200
+	PRINT →
+	RESETCOLOR
+;布団
+;┌─┐　#f#j#g
+;└─┘　#h#j#i
+CASE "#f"
+	SETCOLOR C_FUTON
+	PRINT ┌
+	RESETCOLOR
+CASE "#g"
+	SETCOLOR C_FUTON
+	PRINT ┐
+	RESETCOLOR
+CASE "#h"
+	SETCOLOR C_FUTON
+	PRINT └
+	RESETCOLOR
+CASE "#i"
+	SETCOLOR C_FUTON
+	PRINT ┘
+	RESETCOLOR
+CASE "#j"
+	SETCOLOR C_FUTON
+	PRINT ─
+	RESETCOLOR
+;토리이
+;┳━┳　#l#k#l
+;╋━╋　#n#k#n
+;┃　┃　#m　#m
+CASE "#k"
+	SETCOLOR C_TORII
+	PRINT ━
+	RESETCOLOR
+CASE "#l"
+	SETCOLOR C_TORII
+	PRINT ┳
+	RESETCOLOR
+CASE "#m"
+	SETCOLOR C_TORII
+	PRINT ┃
+	RESETCOLOR
+CASE "#n"
+	SETCOLOR C_TORII
+	PRINT ╋
+	RESETCOLOR
+ENDSELECT
+
 
 
 ;===========================================================

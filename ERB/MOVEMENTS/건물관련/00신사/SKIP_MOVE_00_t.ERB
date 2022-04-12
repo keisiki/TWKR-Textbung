@@ -1,388 +1,196 @@
-﻿@SKIP_MOVE_0(ARG, ARG:1)
-;LOCAL 일람
-;0	현재위치
-
+﻿;-----------------------------------------------------------
+;원거리 이동 설정
+;ARG     목적지
+;ARG:1   현재지
+;RETURN  다음 목적지
+;-----------------------------------------------------------
+@SKIP_MOVE_0(ARG, ARG:1)
+#DIM 현재의위치
 ;현재위치 취득
-LOCAL = CFLAG:MASTER:현재위치
-SIF ARG:1
-	LOCAL = ARG:1
-;잠정 목적지에 직접 이동할 수 있는 경우
-IF CAN_MOVE(LOCAL, ARG) & 1
-	;거기에 이동
-	RETURN ARG
+IF ARG:1
+	현재의위치 = ARG:1
+ELSE
+	현재의위치 = CFLAG:MASTER:현재위치
 ENDIF
 
-;막다른 골목으로부터 갈 수 있는 장소는 고정이므로, 거기를 목표로 한다
-SELECTCASE LOCAL
-;4본전으로부터는 3 새전함만
-CASE 4
-	RETURN 3
-;5개수대, 21 모리야신사분사로부터는 2 경내만
-CASE 5, 21
-	RETURN 2
-;13목욕탕으로부터는 12 탈의실만
-CASE 13
-	RETURN 12
-;17작은창고(루코토침실), 53 창고, 55 일본식방으로부터는 9 거실만
-CASE 17, 53, 55
-	RETURN 9
-;18벽장(카나 침실)으로부터는  15레이무 방만
-CASE 18
-	RETURN 15
-;14화장실과  19큰창고(스이카침실)로부터는 10 툇마루만
-CASE 14, 19
-	RETURN 10
-;24온천으로부터는 23 온천·탈의실만
-CASE 24
-	RETURN 23
-;29삼요정의집·부엌과 30삼요정의집·목욕탕으로부터는 27삼요정의집·객실만
-CASE 29, 30
-	RETURN 27
-;32~34삼요정 각자 방으로부터는 31 2층복도만
-CASE 32, 33, 34
-	RETURN 31
-;35삼요정의집·지하실로부터는 28 계단만
-CASE 35
-	RETURN 28
-;40몽환유적·화장실,  43유메미방·44치유리방로부터는 37 몽환유적·1층통로만
-CASE 40, 43, 44
-	RETURN 37
-;39몽환유적·욕실로부터는 38 몽환유적·세면소만
-CASE 39
-	RETURN 38
-;42몽환유적·조리실로부터는 41 몽환유적·식당겸휴게실만
-CASE 42
-	RETURN 41
-;2층 각부가게(47~51)로부터는 46 2층통로만
-CASE 47 TO 51
-	RETURN 46
-;52떨어진 건가들은 11뜰만
-CASE 52
-	RETURN 11
-;56참배길의 저쪽에서는 22 참배길만
-CASE MAXROOM
-	RETURN 22
+;목적지로 직접 이동할 수 있는 경우 그곳으로 이동
+SIF CAN_MOVE(현재의위치, ARG) & 1
+	RETURN ARG
+
+;막다른 골목에서 갈 수 있는 곳은 고정이므로, 그 곳을 목표로
+SELECTCASE 현재의위치
+	CASE P4본당
+		RETURN P3새전함
+	CASE P5개수대, P21모리야신사분사, P56아운의거처
+		RETURN P2경내
+	CASE P13목욕탕
+		RETURN P12탈의실
+	CASE P14화장실, P19큰창고
+		RETURN P10툇마루
+	CASE P17작은창고, P53창고, P55일본식방
+		RETURN P9거실
+	CASE P18벽장
+		RETURN P15레이무방
+	CASE P24온천
+		RETURN P23온천・탈의실
+	CASE P29삼요정의집・부엌, P30삼요정의집・목욕탕, P35삼요정의집・지하실
+		RETURN P27삼요정의집・객실
+	CASE P32서니방, P33루나방, P34스타방
+		RETURN P31삼요정의집・2층복도
+	CASE P39몽환유적・욕실, P40몽환유적・화장실
+		RETURN P38몽환유적・세면소
+	CASE P42몽환유적・조리실
+		RETURN P41몽환유적・식당겸휴게실
+	CASE P43유메미방, P44치유리방
+		RETURN P37몽환유적・1층통로
+	CASE P47몽환유적・함교, P48몽환유적・제1자료실, P49몽환유적・연구실, P50몽환유적・제2자료실, P51몽환유적・창고
+		RETURN P46몽환유적・2층통로
+	CASE P52별채
+		RETURN P11마당
 ENDSELECT
 
-;직접 이동할 수 없는 경우,  1개가까운 위치를 잠정 목적지로 다시 설정해 루프
-;지점 추가시 요점 보충(전케이스 수정하는 것)
+;직접 이동할 수 없는 경우, 1개 가까운 위치를 잠정 목적지로 설정하여 루프
+;기본적으로 최단으로 갈 수 있는 코스를 설정하기
+;현재지에 따라 코스가 바뀌는 것을 고려하여 대응함
+
 SELECTCASE ARG
-	CASE 1
-		SELECTCASE LOCAL
-		;토리이에 직접 갈 수 없는 경우, (23~) 밖으로부터라면 22 참배길을 목표로 한다
-		CASE 23 TO 51
-			RETURN 22
-		;그 이외의(직접 갈 수 없다) 장소로부터는, 2 경내를 목표로 한다
+	CASE P1토리이
+		SELECTCASE 현재의위치
+		CASE P23온천・탈의실 TO P51몽환유적・창고
+			RETURN P22참배길
 		CASEELSE
-			RETURN 2
+			RETURN P2경내
 		ENDSELECT
-	CASE 2
-		SELECTCASE LOCAL
-		;경내를 목표로 하는 경우, (22~) 밖으로부터라면  1토리이를 목표로 한다
-		CASE 22 TO 51
-			RETURN 1
-		;4본전으로부터는 3 새전함를 목표로 한다
-		CASE 4
-			RETURN 3
-		;그 이외의(직접 갈 수 없다) 장소로부터는, 20 본전뒤를 목표로 한다
+	CASE P2경내
+		SELECTCASE 현재의위치
+		CASE P22참배길 TO P51몽환유적・창고
+			RETURN P1토리이
 		CASEELSE
-			RETURN 20
+			RETURN P20본전뒷편
 		ENDSELECT
-	CASE 3
-		;새전함에 직접 갈 수 없는 경우, 2 경내를 목표로 한다
-		RETURN 2
-	CASE 4
-		;본당에 직접 갈 수 없는 경우, 3 새전함를 목표로 한다
-		RETURN 3
-	CASE 5
-		;개수대에 직접 갈 수 없는 경우, 2 경내를 목표로 한다
-		RETURN 2
-	CASE 6
-		SELECTCASE LOCAL
-		;창고에 직접 갈 수 없는 경우, 레이무 택측(7~19, 52~55) 매운들 20 본전뒤를 목표로 한다
-		CASE 7 TO 19, 52 TO 55
-			RETURN 20
-		;그 이외는 2 경내를 목표로 한다
+	CASE P3새전함, P5개수대, P21모리야신사분사, P56아운의거처
+		RETURN P2경내
+	CASE P4본당
+		RETURN P3새전함
+	CASE P6헛간, P16낡은오두막
+		SELECTCASE 현재의위치
+		CASE P7봉당 TO P19큰창고, P54난쟁이벌레통
+			RETURN P20본전뒷편
 		CASEELSE
-			RETURN 2
+			RETURN P2경내
 		ENDSELECT
-	CASE 7
-		SELECTCASE LOCAL
-		;봉당에 직접 갈 수 없는 경우, 레이무 가정(10, 12~15, 17~19, 53~55)이라면 9 거실을 목표로 하는;11뜰은 본전뒤로부터의가 빠르다
-		CASE 10, 12 TO 15, 17 TO 19, 53 TO 55
-			RETURN 9
-		;그 이외는 20 본전뒤를 목표로 한다
+	CASE P7봉당
+		SELECTCASE 현재의위치
+		CASE P10툇마루, P12탈의실 TO P15레이무방, P17작은창고 TO P19큰창고, P54난쟁이벌레통
+			RETURN P9거실
 		CASEELSE
-			RETURN 20
+			RETURN P20본전뒷편
 		ENDSELECT
-	CASE 8
-		SELECTCASE LOCAL
-		;부엌에 직접 갈 수 없는 경우, 레이무 택우측(15, 17, 18, 53~55)이라면 9 거실을 목표로 한다
-		CASE 15, 17, 18, 53 TO 55
-			RETURN 9
-		;레이무 택좌측(11~14, 19, 52)이라면 10 툇마루를 목표로 한다
-		CASE 11 TO 14, 19, 52
-			RETURN 10
-		;그 이외는 7 봉당을 목표로 한다
+	CASE P8부엌
+		SELECTCASE 현재의위치
+		CASE P15레이무방, P54난쟁이벌레통
+			RETURN P9거실
+		CASE P11마당, P12탈의실
+			RETURN P10툇마루
 		CASEELSE
-			RETURN 7
+			RETURN P7봉당
 		ENDSELECT
-	CASE 9
-		SELECTCASE LOCAL
-		;거실(당신 잠정 침상)에 직접 갈 수 없는 경우, 레이무 택우측(11~14, 19, 52)이라면 10 툇마루를 목표로 한다
-		CASE 11 TO 14, 19, 52
-			RETURN 10
-		;18벽장 매운들  15레이무 방을 목표로 한다
-		CASE 18
-			RETURN 15
-		;그 이외는 7 봉당을 목표로 한다
+	CASE P9거실
+		SELECTCASE 현재의위치
+		CASE P11마당, P12탈의실
+			RETURN P10툇마루
 		CASEELSE
-			RETURN 7
+			RETURN P7봉당
 		ENDSELECT
-	CASE 10
-		SELECTCASE LOCAL
-		;툇마루에 직접 갈 수 없는 경우, 13 목욕탕으로부터라면 12 탈의실를 목표로 한다
-		CASE 13
-			RETURN 12
-		;레이무 가정으로부터는 9 거실을 목표로 한다
-		CASE 7, 15, 17, 18, 53, 55
-			RETURN 9
-		;그 이외로부터라면 11뜰을 목표로 한다
+	CASE P10툇마루
+		SELECTCASE 현재의위치
+		CASE P7봉당, P15레이무방
+			RETURN P9거실
 		CASEELSE
-			RETURN 11
+			RETURN P11마당
 		ENDSELECT
-	CASE 11
-		SELECTCASE LOCAL
-		;뜰에 직접 갈 수 없는 경우, 봉당을 제외한 레이무 가정(8, 9, 12~15, 17~19, 53~55)이라면 10 툇마루를 목표로 한다
-		CASE 8, 9, 12 TO 15, 17 TO 19, 53 TO 55
-			RETURN 10
-		;그 이외로부터는 20 본전뒤를 목표로 한다
+	CASE P11마당
+		SELECTCASE 현재의위치
+		CASE P8부엌, P9거실, P12탈의실, P15레이무방, P54난쟁이벌레통
+			RETURN P10툇마루
 		CASEELSE
-			RETURN 20
+			RETURN P9거실
 		ENDSELECT
-	CASE 12
-		;탈의실에 직접 갈 수 없는 경우, 10 툇마루를 목표로 한다
-		RETURN 10
-	CASE 13
-		;목욕탕에 직접 갈 수 없는 경우, 12 탈의실를 목표로 한다
-		RETURN 12
-	CASE 14
-		;화장실에 직접 갈 수 없는 경우, 10 툇마루를 목표로 한다
-		RETURN 10
-	CASE 15
-		;레이무 방에 직접 갈 수 없는 경우, 9 거실을 목표로 한다
-		RETURN 9
-	CASE 16
-		SELECTCASE LOCAL
-		;낡은오두막에 직접 갈 수 없는 경우, 레이무 가정(7~15, 17~19, 52~55)이라면 20 본전의뒤를 목표로 한다
-		CASE 7 TO 15, 17 TO 19, 52 TO 55
-			RETURN 20
-		;그 이외로부터는 2 경내를 목표로 한다
+	CASE P12탈의실, P14화장실, P19큰창고
+		RETURN P10툇마루
+	CASE P13목욕탕
+		RETURN P12탈의실
+	CASE P15레이무방, P17작은창고, P53창고, P55일본식방
+		RETURN P9거실
+	CASE P18벽장
+		RETURN P15레이무방
+	CASE P20본전뒷편
+		SELECTCASE 현재의위치
+		CASE P10툇마루, P12탈의실
+			RETURN P11마당
+		CASE P7봉당 TO P19큰창고, P54난쟁이벌레통
+			RETURN P7봉당
 		CASEELSE
-			RETURN 2
+			RETURN P2경내
 		ENDSELECT
-	CASE 17
-		;작은창고에 직접 갈 수 없는 경우, 9 거실을 목표로 한다
-		RETURN 9
-	CASE 18
-		;벽장에 직접 갈 수 없는 경우,  15레이무 방을 목표로 한다
-		RETURN 15
-	CASE 19
-		;큰창고에 직접 갈 수 없는 경우, 10 툇마루를 목표로 한다
-		RETURN 10
-	CASE 20
-		SELECTCASE LOCAL
-		;본전뒤에 직접 갈 수 없는 경우, 레이무 택우측(8, 9, 15, 17, 18, 53~55)이라면 7 봉당을 목표로 한다
-		CASE 8, 9, 15, 17, 18, 53 TO 55
-			RETURN 7
-		;레이무 택좌측(10, 12~14, 19, 52)이라면 11뜰을 목표로 한다
-		CASE 10, 12 TO 14, 19, 52
-			RETURN 11
-		;그 이외라면 2 경내를 목표로 한다
+	CASE P22참배길
+		SELECTCASE 현재의위치
+		CASE P27삼요정의집・객실 TO P35삼요정의집・지하실
+			RETURN P25수호신의숲
+		CASE P37몽환유적・1층통로 TO P51몽환유적・창고
+			RETURN P36몽환유적앞
 		CASEELSE
-			RETURN 2
+			RETURN P1토리이
 		ENDSELECT
-	CASE 21
-		;모리야신사분사에 직접 갈 수 없는 경우, 2 경내를 목표로 한다
-		RETURN 2
-	CASE 22
-		SELECTCASE LOCAL
-		;참배길에 직접 갈 수 없는 경우, 삼요정댁(26~35)이라면 25 수호신의숲을 목표로 한다
-		CASE 26 TO 35
-			RETURN 25
-		;온천으로부터라면 23 온천·탈의실를 목표로 한다
-		CASE 24
-			RETURN 23
-		;유적(37~51)이라면 36 유적앞을 목표로 한다
-		CASE 37 TO 51
-			RETURN 36
-		;신사 안에서라면  1토리이를 목표로 한다
+	CASE P23온천・탈의실
+		SELECTCASE 현재의위치
+		CASE P27삼요정의집・객실 TO P35삼요정의집・지하실
+			RETURN P25수호신의숲
 		CASEELSE
-			RETURN 1
+			RETURN P22참배길
 		ENDSELECT
-	CASE 23
-		SELECTCASE LOCAL
-		;온천·탈의실를 목표로 하는 경우, 삼요정댁(26~35)이라면 25 수호신의숲을 목표로 한다
-		CASE 26 TO 35
-			RETURN 25
-		;그 이외라면 22 참배길을 목표로 한다
+	CASE P24온천
+		RETURN P23온천・탈의실
+	CASE P25수호신의숲
+		SELECTCASE 현재의위치
+		CASE P29삼요정의집・부엌 TO P35삼요정의집・지하실
+			RETURN P27삼요정의집・객실
 		CASEELSE
-			RETURN 22
+			RETURN P22참배길
 		ENDSELECT
-	CASE 24
-		;온천을 목표로 하는 경우, 23 온천·탈의실를 목표로 한다
-		RETURN 23
-	CASE 25
-		SELECTCASE LOCAL
-		;수호신의숲을 목표로 하는 경우, 삼요정댁(27~35)이라면 26삼요정댁·입구를 목표로 한다
-		CASE 27 TO 35
-			RETURN 26
-		;온천으로부터라면 23 온천 탈의실를 목표로 한다
-		CASE 24
-			RETURN 23
-		;그 이외라면 22 참배길을 목표로 한다
+
+	CASE P27삼요정의집・객실
+		RETURN P25수호신의숲
+	CASE P29삼요정의집・부엌, P30삼요정의집・목욕탕, P31삼요정의집・2층복도, P35삼요정의집・지하실
+		RETURN P27삼요정의집・객실
+	CASE P32서니방, P33루나방, P34스타방
+		RETURN P31삼요정의집・2층복도
+
+	CASE P36몽환유적앞
+		SELECTCASE 현재의위치
+		CASE P38몽환유적・세면소 TO P51몽환유적・창고
+			RETURN P37몽환유적・1층통로
 		CASEELSE
-			RETURN 22
+			RETURN P22참배길
 		ENDSELECT
-	CASE 26
-		SELECTCASE LOCAL
-		;삼요정댁·입구를 목표로 하는 경우, 삼요정댁(28~)이라면 27 객실을 목표로 한다
-		CASE 28 TO 35
-			RETURN 27
-		;그 이외로부터는 25 수호신의숲을 목표로 하는, 교양이 능숙해질 때까지는 입구를 찾아낼 수 없다
+	CASE P37몽환유적・1층통로
+		RETURN P36몽환유적앞
+	CASE P38몽환유적・세면소, P41몽환유적・식당겸휴게실, P43유메미방, P44치유리방, P46몽환유적・2층통로
+		RETURN P37몽환유적・1층통로
+	CASE P39몽환유적・욕실, P40몽환유적・화장실
+		RETURN P38몽환유적・세면소
+	CASE P42몽환유적・조리실
+		RETURN P41몽환유적・식당겸휴게실
+	CASE P47몽환유적・함교, P48몽환유적・제1자료실, P49몽환유적・연구실, P50몽환유적・제2자료실, P51몽환유적・창고
+		RETURN P46몽환유적・2층통로
+
+	CASE P52별채
+		RETURN P11마당
+	CASE P54난쟁이벌레통
+		SELECTCASE 현재의위치
+		CASE P11마당, P12탈의실
+			RETURN P10툇마루
 		CASEELSE
-			RETURN 25
+			RETURN P9거실
 		ENDSELECT
-	CASE 27
-		SELECTCASE LOCAL
-		;삼요정댁·객실을 목표로 하는 경우, 1층 이외(31~)라면 28 계단을 목표로 한다
-		CASE 31 TO 35
-			RETURN 28
-		;그 이외로부터라면 26 입구를 목표로 한다
-		CASEELSE
-			RETURN 26
-		ENDSELECT
-	CASE 28
-		SELECTCASE LOCAL
-		;계단을 목표로 하는 경우, 2층 각부가게(32~34)라면 31 2층복도를 목표로 한다
-		CASE 32, 33, 34
-			RETURN 31
-		;그 이외라면 27 객실을 목표로 한다
-		CASEELSE
-			RETURN 27
-		ENDSELECT
-	CASE 29
-		;삼요정댁·부엌을 목표로 하는 경우, 27 객실을 목표로 한다
-		RETURN 27
-	CASE 30
-		;삼요정댁·목욕탕도 부엌과 같다
-		RETURN 27
-	CASE 31
-		;삼요정댁·2층복도를 목표로 하는 경우, 28 계단을 목표로 한다
-		RETURN 28
-	CASE 32
-		;서니방을 목표로 하는 경우, 31 2층복도를 목표로 하는, CASE34까지 같다
-		RETURN 31
-	CASE 33
-		;루나챠방을 목표로 하는 경우, 31 2층복도를 목표로 하는, CASE34까지 같다
-		RETURN 31
-	CASE 34
-		;스타방을 목표로 하는 경우, 31 2층복도를 목표로 하는, CASE34까지 같다
-		RETURN 31
-	CASE 35
-		;삼요정댁·지하실을 목표로 하는 경우, 28 계단을 목표로 한다
-		RETURN 28
-	CASE 36
-		SELECTCASE LOCAL
-		;유적앞을 목표로 하는 경우, 유적내(38~51) 매운들 371층통로를 목표로 한다
-		CASE 38 TO 51
-			RETURN 37
-		;그것 의외라면 22 참배길을
-		CASEELSE
-			RETURN 22
-		ENDSELECT
-	CASE 37
-		SELECTCASE LOCAL
-		;1층통로를 목표로 하는 경우, 39 목욕탕으로부터라면 38 세면소
-		CASE 39
-			RETURN 38
-		;조리실로부터라면 41 식당
-		CASE 42
-			RETURN 41
-		;2층(46~51) 매운들 45 계단
-		CASE 46 TO 51
-			RETURN 45
-		;밖으로부터라면 36 유적앞
-		CASEELSE
-			RETURN 36
-		ENDSELECT
-	CASE 38
-		;세면소를 목표로 하는 경우, 371층통로를 목표로 한다
-		RETURN 37
-	CASE 39
-		;유적 목욕탕을 목표로 하는 경우, 38 세면소를 목표로 한다
-		RETURN 38
-	CASE 40
-		;유적 화장실을 목표로 하는 경우, 371층통로를 목표로 한다
-		RETURN 37
-	CASE 41
-		;유적 식당을 목표로 하는 경우, 371층통로
-		RETURN 37
-	CASE 42
-		;조리실을 목표로 하는 경우, 41 식당
-		RETURN 41
-	CASE 43
-		;교수방을 목표로 하는 경우, 371층
-		RETURN 37
-	CASE 44
-		;치유리방을 목표로 하는 경우, 371층
-		RETURN 37
-	CASE 45
-		SELECTCASE LOCAL
-		;몽환유적 계단을 목표로 하는 경우, 2층(47~51) 매운들 46 2층통로를 목표로 한다
-		CASE 47 TO 51
-			RETURN 46
-		;그 이외라면 371층통로
-		CASEELSE
-			RETURN 37
-		ENDSELECT
-	CASE 46
-		;2층통로를 목표로 하는 경우, 45 계단을 목표로 한다
-		RETURN 45
-	CASE 47
-		;조종 실을 목표로 하는 경우, 46 2층통로를 목표로 하는, 이하 CASE51까지 같다
-		RETURN 46
-	CASE 48
-		;제1자료실을 목표로 하는 경우, 46 2층통로를 목표로 하는, 이하 CASE51까지 같다
-		RETURN 46
-	CASE 49
-		;연구실을 목표로 하는 경우, 46 2층통로를 목표로 하는, 이하 CASE51까지 같다
-		RETURN 46
-	CASE 50
-		;제2자료실을 목표로 하는 경우, 46 2층통로를 목표로 하는, 이하 CASE51까지 같다
-		RETURN 46
-	CASE 51
-		;창고를 목표로 하는 경우, 46 2층통로를 목표로 하는, 이하 CASE51까지 같다
-		RETURN 46
-	CASE 52
-		;별채를 목표로 하는 경우, 11뜰을 목표로 한다
-		RETURN 11
-	CASE 53
-		;창고에 직접 갈 수 없는 경우, 9 거실을 목표로 한다
-		RETURN 9
-	CASE 54
-		;난쟁이벌레통 에 직접 갈 수 없는 경우, 레이무 택좌측으로부터라면 10 툇마루를 목표로 한다
-		SELECTCASE LOCAL
-		CASE 11 TO 14, 19, 52
-			RETURN 10
-		;그 이외라면 9 거실을 목표로 한다
-		CASEELSE
-			RETURN 9
-		ENDSELECT
-	CASE 55
-		;일본식방에 직접 갈 수 없는 경우, 9 거실을 목표로 한다
-		RETURN 9
-	CASE MAXROOM
-		;참배길저편을 목표로 하는 경우, 22 참배길을 목표로 한다
-		RETURN 22
 ENDSELECT

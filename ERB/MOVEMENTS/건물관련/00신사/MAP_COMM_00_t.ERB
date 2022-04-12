@@ -1,148 +1,193 @@
 ﻿;--------------------------------------------------
-;	맵내 이동 처리 확장 패치 부속
-;	하쿠레이 신사 MAP용 함수
+;地点名変更関数
 ;--------------------------------------------------
-
 @MAP_PLACENAME_0(ARG)
 #FUNCTIONS
-#DIM PLACEID
-#DIMS HAKUNAME, 25 = "토리이","경내","새전함","본당","개수대","창고","봉당","부엌","거실","툇마루","뜰","탈의실","목욕탕","화장실","레이무 방","낡은오두막","작은창고","벽장","큰창고","본전의뒤","모리야신사분사","참배길","온천·탈의실","온천","수호신의숲"
-#DIMS FAIRYNAME, 11 = "삼요정의집·입구","삼요정의집·객실","삼요정의집·계단","삼요정의집·부엌","삼요정의집·목욕탕","삼요정의집·2층복도","서니방","루나방","스타방","삼요정의집·지하실"
-#DIMS MUGENNAME, 16 = "몽환유적앞","몽환유적·1층통로","몽환유적·세면소","몽환유적·욕실","몽환유적·화장실","몽환유적·식당겸휴게실","몽환유적·조리실","유메미방","치유리방","몽환유적·계단","몽환유적·2층통로","몽환유적·함교","몽환유적·제1자료실","몽환유적·연구실","몽환유적·제2자료실","몽환유적·창고"
-#DIMS NEWHAKU, 4 = "별채","창고","난쟁이벌레통","일본식방"
-SIF FLAG:더부살이캐릭터
-	HAKUNAME:15 = %CALLNAME:(FLAG:더부살이캐릭터)%의 오두막
-SIF FLAG:16
-	NEWHAKU:3 = %CALLNAME:(FLAG:16)% 방
 IF GET_MAPID(ARG) == MAIN_MAP
-	PLACEID = ARG % 100
-	SELECTCASE PLACEID
-		CASE 1 TO 25
-			RETURNF HAKUNAME:(PLACEID - 1)
-		CASE 26 TO 35
-			RETURNF FAIRYNAME:(PLACEID - 26)
-		CASE 36 TO 51
-			RETURNF MUGENNAME:(PLACEID - 36)
-		CASE 52
-			RETURNF "별채"
-		CASE 53 TO 55
-			RETURNF NEWHAKU:(PLACEID - 52)
-		CASE 98
-			RETURNF OMANEKI_PLACE()
-		CASE 99
-			RETURNF "스키마 공간"
-		CASEELSE
-			RETURNF "참배길저편"
-	ENDSELECT
-ELSE
-	RETURNF "불명"
-ENDIF
-
-@MAP_VIEWING_0(AA,COLOR)
-#DIMS REF AA, 0
-#DIMS REF COLOR, 0
-IF !TFLAG:맵변환
-	SELECTCASE CFLAG:MASTER:현재위치
-		CASE 26 TO 35
-			TFLAG:맵변환 = 3
-		CASE 36 TO 51
-			TFLAG:맵변환 = 2
-		CASE 22 TO 25
-			TFLAG:맵변환 = 4
-		CASEELSE
-			TFLAG:맵변환 = 1
-	ENDSELECT
-ENDIF
-CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
-PRINTFORML 
-IF RECOLOREDMAPS
-TRYCCALLFORM COLOREDMAP_AA_HAKUREI_{TFLAG:맵변환}(AA,COLOR)
-CATCH
-RECOLOREDMAPS = 0
-CALL DRAW_MAP
-RECOLOREDMAPS = 1
-RETURN
-ENDCATCH
-ELSE
-TRYCALLFORM MAP_AA_HAKUREI_{TFLAG:맵변환}(AA)
-ENDIF
-
-@MAP_CAN_MOVE_0(ARG, ARG:1)
-#FUNCTION
-TFLAG:이동불능메시지 = 0
-SELECTCASE ARG
-	CASE IS >= 53
-		;벌레통
-		IF ARG == 54
-			;코비토가 아니다고 들어갈 수  없다
-			IF TALENT:(ARG:1):체형 > -5
-				TFLAG:이동불능메시지 = 4
-				RETURNF 0
+	SELECTCASE ARG
+		CASE P53창고
+			IF CFLAG:MASTER:초기위치 == ARG
+				RETURNF CALLNAME:MASTER + "의 창고"
+			ELSE
+				RETURNF "창고"
 			ENDIF
-		ENDIF
-	;3월정령 하우스
-	CASE 26 TO 35
-		;요정이라면 넣는다
-		SIF TALENT:(ARG:1):요정
-			RETURNF 1
-		;안으로부터는 움직일 수 있다
-		SIF INRANGE(CFLAG:(ARG:1):현재위치, 26,35)
-			RETURNF 1
-		;당신은 연모나 교양 LV1 이상으로 넣는다
-		IF ARG:1 == MASTER
-			IF TALENT:[[서니]]:연모 || TALENT:[[루나]]:연모 || TALENT:[[스타]]:연모 || ABL:(ARG:1):교양 >= 1
+		CASE SUMIKOMI_ROOM
+			IF FLAG:더부살이캐릭터
+				RETURNF CALLNAME:(FLAG:더부살이캐릭터) + "의 오두막"
+			ELSE
+				RETURNF "낡은 오두막"
+			ENDIF
+		CASE MINROOM() TO (MAXROOM - 1)
+			RETURNF STR:(ARG + 8000)
+		CASE OMANEKIBEYA()
+			RETURNF OMANEKI_PLACE()
+		CASE SUKIMA()
+			RETURNF "스키마 공간"
+		CASE MAXROOM
+			RETURNF "참배길 저편"
+		CASEELSE
+			RETURNF "불명"
+	ENDSELECT
+ELSE
+	RETURNF "신사 밖"
+ENDIF
+
+;--------------------------------------------------
+;場所ARGがどのエリアにあるか
+;表示するマップの番号と連動（TFLAG:マップ切り替え）
+;ARG     場所ID
+;--------------------------------------------------
+@MAP_AREASELECT_0(ARG)
+#FUNCTION
+SELECTCASE ARG
+	;三妖精の家
+	CASE P27삼요정의집・객실 TO P35삼요정의집・지하실
+		RETURNF 3
+	;몽환유적
+	CASE P36몽환유적앞 TO P51몽환유적・창고
+		RETURNF 2
+	;神社周辺
+	CASE P22참배길 TO P25수호신의숲
+		RETURNF 4
+	;博麗神社
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+
+;--------------------------------------------------
+;内部構造がある場所の内部の判定
+;TFLAG:マップ切り替え  内部察知が必要なマップ番号
+;                P_ID  表示ボタンの場所ID
+;                Q_ID  判定する内部の場所ID,必ずP_IDと一致した数値も含める
+;--------------------------------------------------
+@GETMAP_BUILDING_0(P_ID, Q_ID)
+#FUNCTION
+#DIM P_ID
+#DIM Q_ID
+IF TFLAG:맵변환 == 4
+	SELECTCASE P_ID
+		;三妖精の家
+		CASE P27삼요정의집・객실
+			SELECTCASE Q_ID
+			CASE P27삼요정의집・객실 TO P35삼요정의집・지하실
 				RETURNF 1
-			ELSEIF INRANGE(CFLAG:MASTER:초기위치, 26,35)
+			ENDSELECT
+		;몽환유적
+		CASE P36몽환유적앞
+			SELECTCASE Q_ID
+			CASE P36몽환유적앞 TO P51몽환유적・창고
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ENDIF
+RETURNF 0
+
+;--------------------------------------------------
+;移動制限設定
+;ARG    場所ID
+;CHARA  移動するキャラID
+;RETURNF 1=移動できる,0=移動できない
+;TFLAG:이동불능메시지   ↓の@MAP_CANNOT_WORD用の設定
+;--------------------------------------------------
+@MAP_CAN_MOVE_0(ARG, CHARA)
+#FUNCTION
+#DIM CHARA
+SELECTCASE ARG
+	;虫かご
+	CASE P54난쟁이벌레통
+		;小人じゃないと入れない
+		IF TALENT:CHARA:체형 > -5
+			TFLAG:이동불능메시지 = 2
+			RETURNF 0
+		ENDIF
+	;三妖精ハウス
+	CASE P27삼요정의집・객실 TO P35삼요정의집・지하실
+		;妖精なら入れる
+		SIF TALENT:CHARA:요정
+			RETURNF 1
+		;中からは動ける
+		SIF INRANGE(CFLAG:CHARA:현재위치, P27삼요정의집・객실, P35삼요정의집・지하실)
+			RETURNF 1
+		;あなたは恋慕か教養LV1以上で入れる
+		IF CHARA == MASTER
+			IF TALENT:[[서니]]:연모 || TALENT:[[루나]]:연모 || TALENT:[[스타]]:연모 || ABL:CHARA:교양 >= 1
+				RETURNF 1
+			ELSEIF INRANGE(CFLAG:MASTER:초기위치, P27삼요정의집・객실, P35삼요정의집・지하실)
 				RETURNF 1
 			ELSE
-				TFLAG:이동불능메시지 = 2
+				TFLAG:이동불능메시지 = 1
 				RETURNF 0
 			ENDIF
-		;그 이외는 넣지 않는다
+		;それ以外は入れない
 		ELSE
 			RETURNF 0
 		ENDIF
-	;몽환유적·1층통로, 여기만 교양 LV3가 필요(당신 이외)
-	CASE 37
-		;안으로부터는 나올 수 있다
-		SIF INRANGE(CFLAG:(ARG:1):현재위치, 37,51)
+	;몽환유적,あなた以外は教養LV3が必要
+	CASE P37몽환유적・1층통로 TO P51몽환유적・창고
+		;中からは動ける
+		IF INRANGE(CFLAG:CHARA:현재위치, P37몽환유적・1층통로, P51몽환유적・창고)
 			RETURNF 1
-		IF ABL:(ARG:1):교양 <= 2 && ARG:1 != MASTER
-			RETURNF 0
-		ELSE
-			RETURNF 1
-		ENDIF
-	CASEELSE
-		;자물쇠를 채워 문을 잠금 안은 움직일 수 없다 ;KR판 오리지날 수정(오리지날 버그 해결용)
-		IF FLAG:창고잠금 && CFLAG:(ARG:1):초기위치 != ARG
-			TFLAG:이동불능메시지 = 1
+		ELSEIF ABL:CHARA:교양 <= 2 && CHARA != MASTER
 			RETURNF 0
 		ENDIF
-		RETURNF 1
 ENDSELECT
 RETURNF 1
 
+;--------------------------------------------------
+;移動不能時に表示されるメッセージ
+;--------------------------------------------------
 @MAP_CANNOT_WORD_0(ARG)
 SELECTCASE TFLAG:이동불능메시지
-	CASE 4
-		PRINTFORMW 도저히 %마스터는% 들어갈 수 없다
-	CASE 3
-		PRINTW 아직 갈 수 없다
-	CASE 2
-		PRINTFORMW 미숙한 %마스터는% 찾아낼 수가 없다…
 	CASE 1
-		PRINTFORMW 열쇠로 따지 않으면
-	CASEELSE
-		RETURN
+		PRINTFORMW 미숙한 %마스터로%는 찾아낼 수가 없다…
+	CASE 2
+		PRINTFORMW 도저히 %마스터로%는 들어갈 수 없다
 ENDSELECT
 CLEARLINE 2
-REUSELASTLINE 
-RETURN
+REUSELASTLINE
 
+;-----------------------------------------
+;拠点専用の情景描写
+;WAITはかけないように
+;-----------------------------------------
+@MAP_UNIQUEMESSAGE_0
+SELECTCASE CFLAG:MASTER:현재위치
+	CASEELSE
+ENDSELECT
+
+;-----------------------------------------
+;非自宅時に差し替える場所IDを返す関数
+;ARG,対象ID
+;RETURNF,差し替え済み対象ID
+;-----------------------------------------
+@MAP_SEARCH_REPLACEMENT_0(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE P1토리이, P22참배길
+		RETURNF 벚꽃길토리이
+	CASE P2경내, P5개수대, P6헛간, P20본전뒷편, P21모리야신사분사
+		RETURNF 신사경내
+	;賽銭箱,本堂
+	CASE P3새전함, P4본당
+		RETURNF 신사본당
+	;三妖精の家
+	CASE P27삼요정의집・객실 TO P35삼요정의집・지하실
+		RETURNF 요정의큰나무
+	;몽환유적
+	CASE P36몽환유적앞 TO P51몽환유적・창고
+		RETURNF 몽환유적
+	CASEELSE
+		RETURNF 신사툇마루
+ENDSELECT
+RETURNF 0
+
+;--------------------------------------------------
+;マップの紹介文
+;--------------------------------------------------
 @MAP소개_0
 ;일단 5줄
 PRINTFORML eratohoTW에 있어서 원조 맵. 여러 가지 설정을 담고 있기 때문에, 신사는 큰 세대를 이루고 있다.
-PRINTFORML 신사 외에도 삼월정이 살고 있는 큰 나무와 유메미&치유리가 사는 몽환 유적이 있다.
+PRINTFORML 신사 외에도 삼요정이 살고 있는 큰 나무와 유메미&치유리가 사는 몽환 유적이 있다.
 PRINTFORML 기본적인 시설은 대충 갖추어져 있고, 업무차 방문하는 캐릭터도 많다.
-PRINTFORML 또한, 삼월정의 집・몽환유적은 모두 교양이 일정 이상 있어야 들어갈 수 있다.
+PRINTFORML 또한, 삼요정의 집은 교양이 일정 이상 있어야 들어갈 수 있다.
 PRINTFORML 또 모리야 세 명의 신 중 하나와 동행중이라면 분사에서 모리야신사로 워프할 수 있다.
