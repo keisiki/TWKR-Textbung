@@ -1,29 +1,34 @@
 ﻿;--------------------------------------------------
-;	맵내 이동 처리 확장 패치 부속
-;	달 MAP용 함수
+;지점명 변경 함수
 ;--------------------------------------------------
 @MAP_PLACENAME_10(ARG)
 #FUNCTIONS
-
 IF GET_MAPID(ARG) == MAIN_MAP
 	SELECTCASE ARG
-		CASE 1033, 1063
+		CASE P1033와타츠키정・빈방, P1063순호저택・빈방
 			IF CFLAG:MASTER:초기위치 == ARG
-				RETURNF "당신 방"
+				RETURNF CALLNAME:(FLAG:더부살이캐릭터) + "의 방" ;私室
 			ELSE
 				RETURNF "빈 방"
 			ENDIF
-		CASE 1007
+		CASE P1007빈집
 			IF CFLAG:MASTER:초기위치 == ARG
-				RETURNF "당신 집"
+				RETURNF "당신의 집"
 			ELSE
 				RETURNF "빈 집"
 			ENDIF
-		CASE 1 TO (MAXROOM - 1)
+		CASE SUMIKOMI_ROOM
+			;※このマップでは未実装
+			IF FLAG:더부살이캐릭터
+				RETURNF CALLNAME:(FLAG:더부살이캐릭터) + "의 방"
+			ELSE
+				RETURNF "빈 방"
+			ENDIF
+		CASE MINROOM() TO (MAXROOM - 1)
 			RETURNF STR:(ARG + 8000)
-		CASE 1098
+		CASE OMANEKIBEYA()
 			RETURNF OMANEKI_PLACE()
-		CASE 1099
+		CASE SUKIMA()
 			RETURNF "스키마 공간"
 		CASE MAXROOM
 			RETURNF "꿈의 저편"
@@ -31,124 +36,205 @@ IF GET_MAPID(ARG) == MAIN_MAP
 			RETURNF "불명"
 	ENDSELECT
 ELSE
-	RETURNF "불명"
+	RETURNF "달의 밖"
 ENDIF
 
-@MAP_VIEWING_10(AA,COLOR)
-#DIMS REF AA, 0
-#DIMS REF COLOR, 0
-IF !TFLAG:맵변환
-	SELECTCASE CFLAG:MASTER:현재위치
-		CASE 1020 TO 1049
-			TFLAG:맵변환 = 2
-		CASE 1050 TO 1059
-			TFLAG:맵변환 = 3
-		CASE 1060 TO 1072
-			TFLAG:맵변환 = 4
-		CASEELSE
-			TFLAG:맵변환 = 1
-	ENDSELECT
-ENDIF
-CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
-PRINTFORML 
-IF RECOLOREDMAPS
-TRYCCALLFORM COLOREDMAP_TUKI_{TFLAG:맵변환}(AA,COLOR)
-CATCH
-RECOLOREDMAPS = 0
-CALL DRAW_MAP
-RECOLOREDMAPS = 1
-RETURN
-ENDCATCH
-ELSE
-TRYCALLFORM MAP_TUKI_{TFLAG:맵변환}(AA)
-ENDIF
-
-@MAP_CAN_MOVE_10(ARG, ARG:1)
+;--------------------------------------------------
+;장소 ARG가 어느 지역에 있는지
+;표시하는 맵의 번호와 연동 (TFLAG:맵변환)
+;ARG     장소ID
+;--------------------------------------------------
+@MAP_AREASELECT_10(ARG)
 #FUNCTION
 SELECTCASE ARG
-	;사구메의 집,원룸의 설정 그 자체
-	CASE 1005, 1006
-		;제외
-		SIF GROUPMATCH(ARG:1, [[요리히메]], [[토요히메]], [[사구메]], [[에이린]])
+	;와타츠키정
+	CASE P1020와타츠키정・대문 TO 1049
+		RETURNF 2
+	;ドレミー宅
+	CASE P1050도레미댁・거실 TO 1059
+		RETURNF 3
+	;純狐邸
+	CASE P1060순호저택・현관 TO P1072헤카티아방
+		RETURNF 4
+	;月の世界
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+
+;--------------------------------------------------
+;내부구조가 있는 장소의 내부 판정
+;		TFLAG:맵변환	내부감지(察知)가 필요한 맵 번호
+;				P_ID  	표시버튼의 장소ID
+;				Q_ID  	판정하는 내부 장소ID, 반드시 P_ID와 일치하는 수치도 포함
+;--------------------------------------------------
+@GETMAP_BUILDING_10(P_ID, Q_ID)
+#FUNCTION
+#DIM P_ID
+#DIM Q_ID
+IF TFLAG:맵변환 == 1
+	SELECTCASE P_ID
+		;와타츠키정
+		CASE P1020와타츠키정・대문
+			SELECTCASE Q_ID
+			CASE P1020와타츠키정・대문 TO 1049
+				RETURNF 1
+			ENDSELECT
+		;ドレミー宅
+		CASE P1050도레미댁・거실
+			SELECTCASE Q_ID
+			CASE P1050도레미댁・거실 TO 1059
+				RETURNF 1
+			ENDSELECT
+		;純狐邸
+		CASE P1060순호저택・현관
+			SELECTCASE Q_ID
+			CASE P1060순호저택・현관 TO P1072헤카티아방
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ENDIF
+RETURNF 0
+
+;--------------------------------------------------
+;이동제한설정
+;ARG    장소ID
+;CHARA  이동하는 캐릭터ID
+;RETURNF 1=이동 가능, 0=이동 불가능
+;TFLAG:이동불능메시지   ↓の@MAP_CANNOT_WORD용 설정
+;--------------------------------------------------
+@MAP_CAN_MOVE_10(ARG, CHARA)
+#FUNCTION
+#DIM CHARA
+SELECTCASE ARG
+	CASE P1005사구메댁・거실, P1006사구메댁・침실
+		;除外
+		SIF GROUPMATCH(CHARA, [[요리히메]], [[토요히메]], [[사구메]], [[에이린]])
 			RETURNF 1
-		;안으로부터는 움직일 수 있다
-		SIF INRANGE(CFLAG:(ARG:1):현재위치, 1005, 1006)
+		;中からは動ける
+		SIF INRANGE(CFLAG:CHARA:현재위치, P1005사구메댁・거실, P1006사구메댁・침실)
 			RETURNF 1
-		;당신
-		IF ARG:1 == MASTER
-			;동행이 연모 상태라면 들어갈 수 있다 (집주인이 수펴 중에도 가능)
+		;あなた
+		IF CHARA == MASTER
+			;同行か恋慕なら入れる（家主睡眠中も可
 			IF CFLAG:[[사구메]]:동행 || TALENT:[[사구메]]:연모
 				RETURNF 1
-			;집주인이 있어 깨어 있다
-			ELSEIF INRANGE(CFLAG:[[사구메]]:현재위치, 1005, 1006)
-				SIF !CFLAG:[[사구메]]:수면 && !CFLAG:[[사구메]]:동침중 && !TCVAR:[[사구메]]:만취 && !CFLAG:[[사구메]]:쇠약
-					RETURNF 1
-			;집주인 이외의 누군가가 있다. 이 인물은 자고 있어도 된다.
-			ELSEIF IN_ROOM_NUMBER(1005) || IN_ROOM_NUMBER(1006)
+			;家主がいて起きてる
+			ELSEIF INRANGE(CFLAG:[[사구메]]:현재위치, P1005사구메댁・거실, P1006사구메댁・침실) && SHIRAHU([[사구메]])
+				RETURNF 1
+			;家主以外の誰かがいる,この人物は寝てたりしても良い
+			ELSEIF IN_ROOM_NUMBER( P1005사구메댁・거실) || IN_ROOM_NUMBER(P1006사구메댁・침실)
 				RETURNF 1
 			ELSE
 				TFLAG:이동불능메시지 = 999
 				RETURNF 0
 			ENDIF
-		;부하
-		ELSEIF GROUPMATCH(ARG:1, [[레이센]], [[세이란]], [[링고]], [[우동게]])
-			;집주인 이외의 누군가가 있다. 이 인물은 자고 있어도 된다.
-			IF IN_ROOM_NUMBER(1005) || IN_ROOM_NUMBER(1006)
+		;部下
+		ELSEIF GROUPMATCH(CHARA, [[레이센]], [[세이란]], [[링고]], [[우동게]])
+			;誰かがいる,この人物は寝てたりしても良い
+			IF IN_ROOM_NUMBER( P1005사구메댁・거실) || IN_ROOM_NUMBER(P1006사구메댁・침실)
 				RETURNF 1
 			ELSE
 				RETURNF 0
 			ENDIF
-		;그 외
+		;それ以外は入れない
 		ELSE
 			RETURNF 0
 		ENDIF
-	;도레미 집은 입구에서 가까운 탓에 사람들이 많이 온다. 그래서 출입을 제한한다.
-	CASE 1050
-		;제외
-		SIF GROUPMATCH(ARG:1, [[도레미]], [[스미레코]], [[사구메]])
+	;入り口から近いせいであまりにも人が来るので入室制限をする
+	CASE P1050도레미댁・거실 TO 1059
+		;除外
+		SIF GROUPMATCH(CHARA, [[도레미]], [[스미레코]], [[사구메]])
 			RETURNF 1
-		;안으로부터는 나올 수 있다
-		SIF INRANGE(CFLAG:(ARG:1):현재위치, 1050, 1059)
+		;中からは動ける
+		SIF INRANGE(CFLAG:CHARA:현재위치, P1050도레미댁・거실, 1059)
 			RETURNF 1
-		;당신은 관계 없음
-		SIF ARG:1 == MASTER
+		;あなたは関係なし
+		SIF CHARA == MASTER
 			RETURNF 1
-		;집주인이 있어 깨어 있다
-		IF INRANGE(CFLAG:[[도레미]]:현재위치, 1050, 1059)
-			SIF !CFLAG:[[도레미]]:수면 && !CFLAG:[[도레미]]:동침중 && !TCVAR:[[도레미]]:만취 && !CFLAG:[[도레미]]:쇠약
-				RETURNF 1
+		;家主がいて起きてる
+		IF INRANGE(CFLAG:[[도레미]]:현재위치, P1050도레미댁・거실, 1059) && SHIRAHU([[도레미]])
+			RETURNF 1
 		ENDIF
+		;それ以外は入れない
 		RETURNF 0
-	;보물창고
-	CASE 1031
-		;제외
-		SIF GROUPMATCH(ARG:1, [[요리히메]], [[토요히메]], [[사구메]], [[에이린]], [[청아]])
+	CASE P1031보물창고
+		;除外
+		SIF GROUPMATCH(CHARA, [[요리히메]], [[토요히메]], [[사구메]], [[에이린]], [[청아]])
 			RETURNF 1
-		;당신
-		IF ARG:1 == MASTER
-			;신뢰도1000이상
+		;あなた
+		IF CHARA == MASTER
+			;信頼度1000以上
 			IF CFLAG:[[요리히메]]:신뢰도 >= 1000 || CFLAG:[[토요히메]]:신뢰도 >= 1000
 				RETURNF 1
 			ELSE
 				TFLAG:이동불능메시지 = 999
 				RETURNF 0
 			ENDIF
-		;그 외
+		;それ以外は入れない
 		ELSE
+			RETURNF 0
+		ENDIF
+	;誰かが住んでないと入れない
+	CASE P1033와타츠키정・빈방, P1063순호저택・빈방, P1007빈집
+		IF !PRIVATEROOM:(ARG % 100) && CFLAG:MASTER:초기위치 != ARG
+			TFLAG:이동불능메시지 = 999
 			RETURNF 0
 		ENDIF
 ENDSELECT
 RETURNF 1
 
-
+;--------------------------------------------------
+;이동불능시 표시되는 메시지
+;--------------------------------------------------
 @MAP_CANNOT_WORD_10(ARG)
+RETURN
 SELECTCASE TFLAG:이동불능메시지
+	CASE 1
+		PRINTFORMW ※ここにメッセージを入れる。行数+1のCLEARLINEをする
+		CLEARLINE 2
 ENDSELECT
+REUSELASTLINE
 
+;-----------------------------------------
+;거점 전용의 정경묘사
+;WAIT는 걸리지 않도록
+;-----------------------------------------
+@MAP_UNIQUEMESSAGE_10
+IF WITH_MOB()
+	CALL MOB_MESSAGE_10
+ENDIF
+RETURN 1
+
+;-----------------------------------------
+;거점의 장소ID를 외출맵상의 장소ID로 치환하는 함수
+;ARG      대상의 장소ID (거점맵)
+;RETURNF  교체 장소ID (외출맵)
+;-----------------------------------------
+@MAP_SEARCH_REPLACEMENT_10(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE P1001괴안통로, P1050도레미댁・거실 TO 1059
+		RETURNF 괴안통로
+	CASE P1002달의도시, P1005사구메댁・거실 TO P1007빈집
+		RETURNF 달의도시
+	CASE P1020와타츠키정・대문 TO 1049
+		RETURNF 와타츠키정
+	CASE P1014복숭아숲, P1015모래사장
+		RETURNF 복숭아숲～모래사장
+	CASE P1016후미, P1060순호저택・현관 TO P1072헤카티아방
+		RETURNF 고요의바다
+	CASEELSE
+		RETURNF 옥토거리
+ENDSELECT
+RETURNF 0
+
+;--------------------------------------------------
+;맵의 소개문
+;--------------------------------------------------
 @MAP소개_10
 ;일단 5줄
-PRINTFORML 괴안통로 ~ 달의 도시, 와타츠키정, 도레미 집, 순호 저택 총 4개의 MAP으로 구성되어 있다.
-PRINTFORML 달의 도시에는 주택가와 상가들이 있다. 수도 교외 ~ 월면은 텃밭 재배나 전투 훈련 등 옥외 작업이 가능.
-PRINTFORML 3개의 주택 MAP은 도레미 집, 순호 저택, 와타츠키정 순으로 대규모가 되고, 청소도 그에 비례해 힘들어진다.
-PRINTFORML 생활에 필요한 설비는 어느 곳이나 갖추어져 있으므로 좋아하는 거점에 살자. 다만 어느 개인실 후보라도 요구 신뢰도는 높여라.
-PRINTFORML 여담이지만 도레미 집의 형태는 바쿠의 머리를 참고하고 있다.
+PRINTFORML 괴안통로 ~ 달의 도시, 와타츠키정, 도레미 댁, 순호 저택 총 4개의 MAP으로 구성되어 있다.
+PRINTFORML 달의 도시에는 주택가와 상가들이 있고, 수도 교외 ~ 월면은 텃밭 재배나 전투 훈련 등 옥외 작업이 가능.
+PRINTFORML 3개의 주택 MAP은 도레미 댁, 순호 저택, 와타츠키정 순으로 대규모가 되고, 청소도 그에 비례해 힘들어진다.
+PRINTFORML 생활에 필요한 설비는 어느 곳이나 갖추어져 있으므로 좋아하는 거점에 살자. 다만 어느 개인실 후보라도 요구 신뢰도는 높이도록.
+PRINTFORML 여담이지만 도레미 집의 형태는 바쿠(バク)의 머리를 참고하고 있다.

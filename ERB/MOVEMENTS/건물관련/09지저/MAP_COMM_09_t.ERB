@@ -1,17 +1,21 @@
 ﻿;--------------------------------------------------
-;	맵내 이동 처리 확장 패치 부속
-;		지저 MAP용 함수
+;지점명 변경 함수
 ;--------------------------------------------------
 @MAP_PLACENAME_9(ARG)
 #FUNCTIONS
-#DIM PLACEID
 IF GET_MAPID(ARG) == MAIN_MAP
 	SELECTCASE ARG
-		CASE 901 TO (MAXROOM - 1)
+		CASE SUMIKOMI_ROOM
+			IF FLAG:더부살이캐릭터
+				RETURNF CALLNAME:(FLAG:더부살이캐릭터) + "의 오두막"
+			ELSE
+				RETURNF "빈 오두막"
+			ENDIF
+		CASE MINROOM() TO (MAXROOM - 1)
 			RETURNF STR:(ARG + 8000)
-		CASE 998
+		CASE OMANEKIBEYA()
 			RETURNF OMANEKI_PLACE()
-		CASE 999
+		CASE SUKIMA()
 			RETURNF "스키마 공간"
 		CASE MAXROOM
 			RETURNF "지상"
@@ -19,70 +23,145 @@ IF GET_MAPID(ARG) == MAIN_MAP
 			RETURNF "불명"
 	ENDSELECT
 ELSE
-	RETURNF "불명"
+	RETURNF "지저 밖"
 ENDIF
 
-;@MAP_VIEWING_9
-;
-;SIF CHK_FOCUS(927, CFLAG:MASTER:현재위치, 930)
-;	CALL MAP_OLD_HELL
-;SIF CHK_FOCUS(902, CFLAG:MASTER:현재위치, 926)
-;	CALL MAP_TIREIDEN
-;SIF (CFLAG:MASTER:현재위치 == 901) || CHK_FOCUS(931, CFLAG:MASTER:현재위치, 948)
-;	CALL MAP_OLD_CITY
-;RETURN 1
-
-@MAP_VIEWING_9(AA,COLOR)
-#DIMS REF AA, 0
-#DIMS REF COLOR, 0
-IF !TFLAG:맵변환
-	IF CHK_FOCUS(927, CFLAG:MASTER:현재위치, 930)
-		TFLAG:맵변환 = 3
-	ELSEIF (CFLAG:MASTER:현재위치 == 901) || CHK_FOCUS(931, CFLAG:MASTER:현재위치, 948)
-		TFLAG:맵변환 = 2
-	ELSE
-		TFLAG:맵변환 = 1
-	ENDIF
-ENDIF
-CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
-PRINTFORML 
-IF RECOLOREDMAPS
-TRYCCALLFORM COLOREDMAP_CHIREIDEN_{TFLAG:맵변환}(AA,COLOR)
-CATCH
-RECOLOREDMAPS = 0
-CALL DRAW_MAP
-RECOLOREDMAPS = 1
-RETURN
-ENDCATCH
-ELSE
-TRYCALLFORM MAP_CHIREIDEN_{TFLAG:맵변환}(AA)
-ENDIF
-
-
-@MAP_CAN_MOVE_9(ARG, ARG:1)
+;--------------------------------------------------
+;장소 ARG가 어느 지역에 있는지
+;표시하는 맵의 번호와 연동 (TFLAG:맵변환)
+;ARG     장소ID
+;--------------------------------------------------
+@MAP_AREASELECT_9(ARG)
 #FUNCTION
-#DIM 재택
 SELECTCASE ARG
-	;구서계단, 동쪽 계단, 분수, 지장
-	CASE 907, 908, 924, 947
-		RETURNF 0
-	;러브호텔, 당신 이외는 들어가지 않는다
-	CASE 935
-		SIF ARG:1 != MASTER
-			RETURNF 0
+	;旧지옥
+	CASE P928작열지옥터 TO P930옛혈지지옥
+		RETURNF 3
+	;旧都
+	CASE P901지령전앞, P931큰길 TO P948수혈의바닥
+		RETURNF 2
+	;지령전
 	CASEELSE
 		RETURNF 1
 ENDSELECT
+
+;--------------------------------------------------
+;내부구조가 있는 장소의 내부 판정
+;		TFLAG:맵변환	내부감지(察知)가 필요한 맵 번호
+;				P_ID  	표시버튼의 장소ID
+;				Q_ID  	판정하는 내부 장소ID, 반드시 P_ID와 일치하는 수치도 포함
+;--------------------------------------------------
+@GETMAP_BUILDING_9(P_ID, Q_ID)
+#FUNCTION
+#DIM P_ID
+#DIM Q_ID
+IF TFLAG:맵변환 == 1
+	SELECTCASE P_ID
+		;旧지옥
+		CASE P928작열지옥터
+			SELECTCASE Q_ID
+			CASE P928작열지옥터 TO P930옛혈지지옥
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ELSEIF TFLAG:맵변환 == 2
+	SELECTCASE P_ID
+		;지령전
+		CASE P9051층복도
+			SELECTCASE Q_ID
+			CASE P904홀 TO P930옛혈지지옥
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ENDIF
+RETURNF 0
+
+;--------------------------------------------------
+;이동제한설정
+;ARG    장소ID
+;CHARA  이동하는 캐릭터ID
+;RETURNF 1=이동 가능, 0=이동 불가능
+;TFLAG:이동불능메시지   ↓の@MAP_CANNOT_WORD용 설정
+;--------------------------------------------------
+@MAP_CAN_MOVE_9(ARG, CHARA)
+#FUNCTION
+#DIM CHARA
+SELECTCASE ARG
+	CASE P935러브호텔
+		;あなた以外は入らない
+		SIF CHARA != MASTER
+			RETURNF 0
+	;誰かが住んでないと入れない
+	CASE P937빈가게
+		IF !PRIVATEROOM:(ARG % 100) && CFLAG:MASTER:초기위치 != ARG
+			TFLAG:이동불능메시지 = 999
+			RETURNF 0
+		ENDIF
+ENDSELECT
 RETURNF 1
 
+;--------------------------------------------------
+;이동불능시 표시되는 메시지
+;--------------------------------------------------
 @MAP_CANNOT_WORD_9(ARG)
+RETURN
 SELECTCASE TFLAG:이동불능메시지
+	CASE 1
+		PRINTFORMW ※ここにメッセージを入れる。行数+1のCLEARLINEをする
+		CLEARLINE 2
 ENDSELECT
-;PRINTW 공사중
-;CLEARLINE 2
-;REUSELASTLINE 
-;RETURN
+REUSELASTLINE
 
+;-----------------------------------------
+;거점 전용의 정경묘사
+;WAIT는 걸리지 않도록
+;-----------------------------------------
+@MAP_UNIQUEMESSAGE_9
+IF WITH_MOB()
+	CALL MOB_MESSAGE_9
+	RETURN 1
+ELSE
+	SELECTCASE CFLAG:MASTER:현재위치
+		CASE P944길거리, P946다리
+			PRINTFORML 번화가의 소란이 들려 온다　그 너머에는 지령전이 보인다
+		CASE P948수혈의바닥
+			PRINTFORML 길가에는 작은 지장이 보인다
+	ENDSELECT
+ENDIF
+IF INRANGE(CFLAG:MASTER:현재위치, P944길거리, P948수혈의바닥)
+	SIF CFLAG:[[파르시]]:동행 == 5
+		PRINTFORML 다리 위에는 파르시가 통행자가 오는지 망을 보고 있다
+ENDIF
+RETURN 1
+
+;-----------------------------------------
+;거점의 장소ID를 외출맵상의 장소ID로 치환하는 함수
+;ARG      대상의 장소ID (거점맵)
+;RETURNF  교체 장소ID (외출맵)
+;-----------------------------------------
+@MAP_SEARCH_REPLACEMENT_9(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE P941야마메의집, P942키스메의집, P948수혈의바닥
+		RETURNF 환상풍혈
+	CASE P934온천
+		RETURNF 옛지옥온천
+	CASE P935러브호텔
+		RETURNF 러브호텔
+	CASE P931큰길 TO P939뒷골목
+		RETURNF 옛지옥가도
+	CASE P901지령전앞 TO P926안뜰
+		RETURNF 지령전
+	CASE P928작열지옥터 TO P930옛혈지지옥
+		RETURNF 작열지옥터
+	CASEELSE
+		RETURNF 지옥의깊은길
+ENDSELECT
+RETURNF 0
+
+;--------------------------------------------------
+;맵의 소개문
+;--------------------------------------------------
 @MAP소개_9
 ;とりあえず5行
 PRINTFORML 봉해진 요괴가 사는 지저맵.
@@ -90,5 +169,3 @@ PRINTFORML 지저인 만큼 맵 전역이 실내판정이고 맑거나 비가 �
 PRINTFORML 코메이지 일가가 살고 있는 지령전은 광활한 데다 곳곳에 애완동물이 있어 항상 지저분하고 청소거리가 많다.
 PRINTFORML 한편 구도는 단순한 구조로 시설도 많아 손님이나 모브 요괴로 붐빈다.
 PRINTFORML 외출하지 않는 아웃트로 플레이도 재미있다.
-PRINTFORML 지저에서 거주한다면 통행료를 면제받을수도 있지만 지저에서 살기 위해선 주민들의 소개가 없으면 안된다.
-

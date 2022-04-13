@@ -1,65 +1,104 @@
 ﻿;--------------------------------------------------
-;	맵내 이동 처리 확장 패치 부속
-;	명련사MAP용 함수
+;지점명 변경 함수
 ;--------------------------------------------------
-
 @MAP_PLACENAME_2(ARG)
 #FUNCTIONS
-#DIM PLACEID
-
 IF GET_MAPID(ARG) == MAIN_MAP
 	SELECTCASE ARG
-		CASE 201 TO (MAXROOM - 1)
+		CASE P230빈방
+			IF CFLAG:MASTER:초기위치 == ARG
+				RETURNF CALLNAME:MASTER + "의 방"
+			ELSE
+				RETURNF "빈 방"
+			ENDIF
+		CASE SUMIKOMI_ROOM
+			IF FLAG:더부살이캐릭터
+				RETURNF CALLNAME:(FLAG:더부살이캐릭터) + "의 방"
+			ELSE
+				RETURNF "빈 방"
+			ENDIF
+		CASE MINROOM() TO (MAXROOM - 1)
 			RETURNF STR:(ARG + 8000)
-		CASE 298
+		CASE OMANEKIBEYA()
 			RETURNF OMANEKI_PLACE()
-		CASE 299
+		CASE SUKIMA()
 			RETURNF "스키마 공간"
 		CASE MAXROOM
-			RETURNF "길의 저 편"
+			RETURNF "마을 밖"
 		CASEELSE
 			RETURNF "불명"
 	ENDSELECT
 ELSE
-	RETURNF "불명"
+	RETURNF "인간마을 밖"
 ENDIF
 
-@MAP_VIEWING_2(AA,COLOR)
-#DIMS REF AA, 0
-#DIMS REF COLOR, 0
-IF !TFLAG:맵변환
-	SELECTCASE CFLAG:MASTER:현재위치
-		CASE 214, 230 TO 237, 208 TO 210, 241
-			TFLAG:맵변환 = 2
-		CASE 213, 226
-			TFLAG:맵변환 = 3
-		CASE 238, 239
-			TFLAG:맵변환 = 4
-		CASEELSE
-			TFLAG:맵변환 = 1
+;--------------------------------------------------
+;장소 ARG가 어느 지역에 있는지
+;표시하는 맵의 번호와 연동 (TFLAG:맵변환)
+;ARG     장소ID
+;--------------------------------------------------
+@MAP_AREASELECT_2(ARG)
+#FUNCTION
+SELECTCASE ARG
+	;長屋
+	CASE P214주택가앞, P230빈방 TO P237공동우물, P208라이코방 TO P210벤벤방, P241빈방
+		RETURNF 2
+	;鈴奈庵
+	CASE P213스즈나안, P226코스즈방
+		RETURNF 3
+	;鯢呑亭
+	CASE P238예탄정, P239미요이방
+		RETURNF 4
+	;人里
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+
+;--------------------------------------------------
+;내부구조가 있는 장소의 내부 판정
+;		TFLAG:맵변환	내부감지(察知)가 필요한 맵 번호
+;				P_ID  	표시버튼의 장소ID
+;				Q_ID  	판정하는 내부 장소ID, 반드시 P_ID와 일치하는 수치도 포함
+;--------------------------------------------------
+@GETMAP_BUILDING_2(P_ID, Q_ID)
+#FUNCTION
+#DIM P_ID
+#DIM Q_ID
+IF TFLAG:맵변환 == 1
+	SELECTCASE P_ID
+		CASE P213스즈나안
+			SELECTCASE Q_ID
+			CASE P213스즈나안, P226코스즈방
+				RETURNF 1
+			ENDSELECT
+		CASE P214주택가앞
+			SELECTCASE Q_ID
+			CASE P214주택가앞, P230빈방 TO P237공동우물, P208라이코방 TO P210벤벤방, P241빈방
+				RETURNF 1
+			ENDSELECT
+		CASE P238예탄정
+			SELECTCASE Q_ID
+			CASE P238예탄정, P239미요이방
+				RETURNF 1
+			ENDSELECT
 	ENDSELECT
 ENDIF
-CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
-PRINTFORML 
-IF RECOLOREDMAPS
-TRYCCALLFORM COLOREDMAP_SATO_{TFLAG:맵변환}(AA,COLOR)
-CATCH
-RECOLOREDMAPS = 0
-CALL DRAW_MAP
-RECOLOREDMAPS = 1
-RETURN
-ENDCATCH
-ELSE
-TRYCALLFORM MAP_SATO_{TFLAG:맵변환}(AA)
-ENDIF
+RETURNF 0
 
-@MAP_CAN_MOVE_2(ARG, ARG:1)
+
+;--------------------------------------------------
+;이동제한설정
+;ARG    장소ID
+;CHARA  이동하는 캐릭터ID
+;RETURNF 1=이동 가능, 0=이동 불가능
+;TFLAG:이동불능메시지   ↓の@MAP_CANNOT_WORD용 설정
+;--------------------------------------------------
+@MAP_CAN_MOVE_2(ARG, CHARA)
 #FUNCTION
-#DIM 재택
+#DIM CHARA
 SELECTCASE ARG
-	;코스즈의 방
-	CASE 226
-		IF ARG:1 == MASTER
+	CASE P226코스즈방
+		IF CHARA == MASTER
 			IF FLAG:70
 				RETURNF 1
 			ELSEIF CFLAG:[[코스즈]]:동행 || CFLAG:[[아큐]]:동행
@@ -69,18 +108,18 @@ SELECTCASE ARG
 			ELSEIF TALENT:[[코스즈]]:사모 && CFLAG:[[코스즈]]:현재위치 == ARG
 				RETURNF 1
 			ELSE
-				TFLAG:이동불능메시지 = ARG
+				TFLAG:이동불능메시지 = 1
 				RETURNF 0
 			ENDIF
-		;본인은 들어갈 수 있는, 아큐도 넣는다
-		ELSEIF ARG:1 == [[코스즈]] || ARG:1 == [[아큐]]
+		;本人は入れる,阿求も入れる
+		ELSEIF CHARA == [[코스즈]] || CHARA == [[아큐]]
 			RETURNF 1
+		;他は入れない
 		ELSE
 			RETURNF 0
 		ENDIF
-	;아큐 방
-	CASE 229
-		IF ARG:1 == MASTER
+	CASE P229아큐방
+		IF CHARA == MASTER
 			IF FLAG:70
 				RETURNF 1
 			ELSEIF CFLAG:[[아큐]]:동행
@@ -90,19 +129,19 @@ SELECTCASE ARG
 			ELSEIF TALENT:[[아큐]]:사모 && CFLAG:[[아큐]]:현재위치 == ARG
 				RETURNF 1
 			ELSE
-				TFLAG:이동불능메시지 = ARG
+				TFLAG:이동불능메시지 = 1
 				RETURNF 0
 			ENDIF
-		;본인은 들어갈 수 있는, 궁합이 좋은 캐릭터도 넣는다
-		ELSEIF ARG:1 == [[아큐]] || RELATION:[[아큐]]:(ARG:1) >= 100
+		;本人は入れる,相性の良いキャラも入れる
+		ELSEIF CHARA == [[아큐]] || RELATION:[[아큐]]:CHARA >= 100
 			RETURNF 1
+		;他は入れない
 		ELSE
 			RETURNF 0
 		ENDIF
-	;미요이 방
-	CASE 239
-		IF ARG:1 == MASTER
-			IF FLAG:70
+	CASE P239미요이방
+		IF CHARA == MASTER
+			IF FLAG:시간정지
 				RETURNF 1
 			ELSEIF CFLAG:[[미요이]]:동행
 				RETURNF 1
@@ -111,50 +150,47 @@ SELECTCASE ARG
 			ELSEIF TALENT:[[미요이]]:사모 && CFLAG:[[미요이]]:현재위치 == ARG
 				RETURNF 1
 			ELSE
-				TFLAG:이동불능메시지 = ARG
+				TFLAG:이동불능메시지 = 1
 				RETURNF 0
 			ENDIF
-		;본인은 들어갈 수 있는
-		ELSEIF ARG:1 == [[미요이]]
+		;本人は入れる
+		ELSEIF CHARA == [[미요이]]
 			RETURNF 1
+		;他は入れない
 		ELSE
 			RETURNF 0
 		ENDIF
-	;노와 혼숙여관, 당신 이외는 들어가지 않는다
-	CASE 220, 225
-		SIF ARG:1 != MASTER
+	;あなた以外は入らない
+	CASE P220망루, P225혼숙여관
+		SIF CHARA != MASTER
 			RETURNF 0
-	;대절욕탕, 당신 이외에는 들어가지 않는다, 대절하지 않으면 들어갈 수 없다
-	CASE 228
-		SIF ARG:1 != MASTER
+	;あなた以外は入らない,貸し切っていないと入れない
+	CASE P228대절욕탕
+		IF CHARA != MASTER
 			RETURNF 0
-		IF !욕탕대절(DAY)
-			TFLAG:이동불능메시지 = ARG
+		ELSEIF !욕탕대절(DAY)
+			TFLAG:이동불능메시지 = 2
 			RETURNF 0
 		ENDIF
-	CASEELSE
-		RETURNF 1
+	;誰かが住んでないと入れない
+	CASE P230빈방, P241빈방
+		IF !PRIVATEROOM:(ARG % 100) && CFLAG:MASTER:초기위치 != ARG
+			TFLAG:이동불능메시지 = 999
+			RETURNF 0
+		ENDIF
 ENDSELECT
 RETURNF 1
 
-
-@MAP_CANNOT_WORD_2(ARG)
-SELECTCASE TFLAG:이동불능메시지
-	CASE 224,231 TO 235, 208 TO 210, 241
-		PRINTFORMW 자물쇠가 걸려 있다
-	CASE 226, 229, 239
-		PRINTFORMW 마음대로 들어가는 것은 곤란해
-	CASE 228
-		PRINTFORMW 직접 들어가려면 대절하지 않으면 안 된다
-ENDSELECT
-
-;유사 TFLAG로 취급한다, 날짜가 바뀌면 종료
+;--------------------------------------------------
+;대절욕장에 들어갈때의 판정
+;유사 TFLAG로 취급, 날짜가 바뀌면 종료
 ;ARG = DAY
-@욕탕대절(ARG, 전세내다)
+;--------------------------------------------------
+@욕탕대절(ARG, 대절한다)
 #FUNCTION
 #DIM 대절일
-#DIM 전세내다
-IF 전세내다
+#DIM 대절한다
+IF 대절한다
 	대절일 = ARG
 	RETURNF 1
 ELSEIF 대절일 == ARG
@@ -162,10 +198,97 @@ ELSEIF 대절일 == ARG
 ENDIF
 RETURNF 0
 
+;--------------------------------------------------
+;이동불능시 표시되는 메시지
+;--------------------------------------------------
+@MAP_CANNOT_WORD_2(ARG)
+SELECTCASE TFLAG:이동불능메시지
+	CASE 1
+		PRINTFORMW 함부로 들어가는 것은 좋지 않다
+	CASE 2
+		PRINTFORMW 직접 들어가려면 대절하지 않으면 안된다
+ENDSELECT
+CLEARLINE 2
+REUSELASTLINE
+
+;-----------------------------------------
+;거점 전용의 정경묘사
+;WAIT는 걸리지 않도록
+;-----------------------------------------
+@MAP_UNIQUEMESSAGE_2
+IF WITH_MOB()
+	RETURN 1
+ELSE
+	SELECTCASE CFLAG:MASTER:현재위치
+		CASE P205북쪽거리
+			IF INRANGE(TIME, 540, 1020)
+				PRINTFORML 보기에도 의욕이 없어 보이는 캇파가 삭도의 접수를 받고 있다
+			ELSE
+				PRINTFORML 삭도역은 닫혀 있다
+			ENDIF
+		CASE P213스즈나안
+			PRINTFORML 가게 안에는 많은 책장이 늘어서 있다
+		CASE P222서당
+			IF TIME >= 480 && TIME <= 720 || TIME >= 780 && TIME <= 840 && FLAG:시간정지 != 1
+				PRINTDATA
+					DATAFORM 서당의 아이들은 %타겟의% 수업을 받고 있다…
+				ENDDATA
+				PRINTL
+			ELSEIF TIME >= 720 && TIME <= 780 && FLAG:시간정지 != 1
+				PRINTDATA
+					DATAFORM 서당의 아이들은 %타겟과% 식사하고 있다…
+				ENDDATA
+				PRINTL
+			ELSEIF TIME >= 480 && TIME <= 840 && FLAG:시간정지 == 1 && !CFLAG:MASTER:우후후
+				PRINTDATA
+					DATAFORM 서당의 아이들은 정지해 있다…
+				ENDDATA
+				PRINTL
+			ELSEIF TIME >= 480 && TIME <= 840 && FLAG:시간정지 == 1 && CFLAG:MASTER:우후후
+				PRINTDATA
+					DATAFORM %타겟은% 서당의 아이들의 앞에서 습격당하고 있다…
+				ENDDATA
+				PRINTL
+			ENDIF
+		CASE P203남쪽거리 TO P206서쪽거리
+			SIF !RAND:50 && INRANGE(TIME, 540, 1020)
+				PRINTFORML 약봉지를 든 수염난 남자가, 행인에게 무엇인가 열심히 말하고 있다
+	ENDSELECT
+ENDIF
+RETURN 1
+
+;-----------------------------------------
+;거점의 장소ID를 외출맵상의 장소ID로 치환하는 함수
+;ARG      대상의 장소ID (거점맵)
+;RETURNF  교체 장소ID (외출맵)
+;-----------------------------------------
+@MAP_SEARCH_REPLACEMENT_2(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE P201인간마을문 TO P207용신상, P217과자가게, P219집회소, P220망루
+		RETURNF 광장
+	CASE P213스즈나안, P215꽃집, P216식료품가게, P226코스즈방, P227야채가게
+		RETURNF 상가거리
+	CASE P223대중목욕탕, P228대절욕탕
+		RETURNF 대중목욕탕
+	CASE P225혼숙여관
+		RETURNF 혼숙여관
+	CASE P211술집, P212카페, P218일품요릿집, P238예탄정, P239미요이방
+		RETURNF 술집소로
+	CASE P222서당, P224케이네댁
+		RETURNF 서당
+	CASEELSE
+		RETURNF 주택가
+ENDSELECT
+RETURNF 0
+
+;--------------------------------------------------
+;맵의 소개문
+;--------------------------------------------------
 @MAP소개_2
 ;とりあえず5行
 PRINTFORML 만화등으로 친숙한 인간 마을.
 PRINTFORML 다른 지역에 접근성이 좋고, 스즈나암 등 각종 시설이 잘 갖춰져 있어 업무차 정기적으로 내방하는 캐릭터도 많지만,
-PRINTFORML 탄막 승부나 텃밭이 안 되고, 채집 장소가 존재하지 않는다는 단점이 있다.
+PRINTFORML 텃밭을 가꿀 수 없고, 채집 장소가 존재하지 않는다는 단점이 있다.
 PRINTFORML 요괴의 산 꼭대기로 가는 삭도가 있다.
 PRINTFORML 

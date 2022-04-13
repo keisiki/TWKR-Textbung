@@ -24,51 +24,91 @@ ELSE
 	RETURNF "불명"
 ENDIF
 
-@MAP_VIEWING_14(AA,COLOR)
-#DIMS REF AA, 0
-#DIMS REF COLOR, 0
-IF !TFLAG:맵변환
-	SELECTCASE CFLAG:MASTER:현재위치
-		CASE 1424 TO 1433
-			TFLAG:맵변환 = 2
-		CASE 1434 TO 1445
-			TFLAG:맵변환 = 3
-		CASEELSE
-			TFLAG:맵변환 = 1
-	ENDSELECT
-ENDIF
-CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
-PRINTFORML 
-;TRYCALLFORM MAP_OWN2_{TFLAG:맵변환}(AA)
+@MAP_UNIQUEMESSAGE_14
+SELECTCASE CFLAG:MASTER:현재위치
+	CASE 1405
+		PRINTFORML 식당은 단정하게 정리되어 있는 듯 하다
+	CASE 1409
+		PRINTFORML 뜰에는 잔디만 무성하다
+	CASE 1401
+		PRINTFORML 「신축 축하해」라고 쓰여진 큰 하나와가 줄지어 있다
+	CASE 1403 TO 1405
+		PRINTFORML 창문밖으로 연못이 보인다
+	CASE 1421
+		PRINTFORML 장난감으로 가득하다
+ENDSELECT
 
-IF RECOLOREDMAPS
-	TRYCCALLFORM COLOREDMAP_OWN2_{TFLAG:맵변환}(AA,COLOR)
-	CATCH
-		CLEARLINE 2
-		RECOLOREDMAPS = 0
-		CALL DRAW_MAP
-		RECOLOREDMAPS = 1
-	RETURN
-	ENDCATCH
-ELSE
-	TRYCALLFORM MAP_OWN2_{TFLAG:맵변환}(AA)
-ENDIF
+;-----------------------------------------
+;비자택시에 갈아넣는 장소 ID를 돌려주는 함수
+;ARG, 대상ID
+;RETURNF, 갈아넣고가 끝난 대상ID
+;-----------------------------------------
+
+@MAP_SEARCH_REPLACEMENT_14(ARG)
+#FUNCTION
+SELECTCASE ARG
+;;1 층 옥내
+	CASE 1401 TO 1408, 1411
+		RETURNF 1410
+;;1층 옥외
+	CASE 1409 TO 12
+		RETURNF 1420
+;;2층옥내
+	CASE 1414 TO 1413
+		RETURNF 1430
+	;3층 옥내
+	CASE 1424 TO 1433
+		RETURNF 1440
+	;지하 옥내
+	CASE 1434 TO 1444
+		RETURNF 1450
+	;지하 옥내
+	CASE 1445
+		RETURNF 1450
+ENDSELECT
+RETURNF 0
+
+; @MAP_VIEWING_14(AA,COLOR)
+; #DIMS REF AA, 0
+; #DIMS REF COLOR, 0
+; IF !TFLAG:맵변환
+; 	SELECTCASE CFLAG:MASTER:현재위치
+; 		CASE 1424 TO 1433
+; 			TFLAG:맵변환 = 2
+; 		CASE 1434 TO 1444
+; 			TFLAG:맵변환 = 3
+; 		CASEELSE
+; 			TFLAG:맵변환 = 1
+; 	ENDSELECT
+; ENDIF
+; CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
+; PRINTFORML 
+; ;TRYCALLFORM MAP_OWN2_{TFLAG:맵변환}(AA)
+
+; IF RECOLOREDMAPS
+; 	TRYCCALLFORM COLOREDMAP_OWN2_{TFLAG:맵변환}(AA,COLOR)
+; 	CATCH
+; 		CLEARLINE 2
+; 		RECOLOREDMAPS = 0
+; 		CALL DRAW_MAP
+; 		RECOLOREDMAPS = 1
+; 	RETURN
+; 	ENDCATCH
+; ELSE
+; 	TRYCALLFORM MAP_OWN2_{TFLAG:맵변환}(AA)
+; ENDIF
 
 @MAP_CAN_MOVE_14(ARG, ARG:1)
 #FUNCTION
 #DIM 방주인
 
 방주인 = 저택방주인(ARG)
-DEBUGPRINTFORML ARG = {ARG}, 방주인 = {방주인}
-IF ARG == 1445
-	DEBUGPRINTFORML 감금실로 이동, 1 반환
-	RETURNF 1
-ENDIF
-IF (ROOMDATA:(ARG % 100) & 장소_Private)&&ARG != 1445
+
+IF ROOMDATA:(ARG % 100) & 장소_Private
 	IF ARG:1 == MASTER
-		IF FLAG:70&&CFLAG:방주인:감금됨
+		IF FLAG:70
 			RETURNF 1
-		ELSEIF CFLAG:방주인:빡침 && 방주인 != MASTER && !CFLAG:방주인:감금됨
+		ELSEIF CFLAG:방주인:빡침 && 방주인 != MASTER
 			TFLAG:이동불능메시지 = 방주인
 			RETURNF 0
 		ENDIF
@@ -76,10 +116,33 @@ IF (ROOMDATA:(ARG % 100) & 장소_Private)&&ARG != 1445
 ENDIF
 RETURNF 1
 
+;--------------------------------------------------
+;場所ARGがどのエリアにあるか
+;表示するマップの番号と連動（TFLAG:マップ切り替え）
+;ARG     場所ID
+;--------------------------------------------------
+@MAP_AREASELECT_14(ARG)
+#FUNCTION
+SELECTCASE ARG
+	;1층-2층
+	CASE P1401현관 TO P1423·2층통로 ,P1433·3층통로
+		RETURNF 1
+	;2층-3층
+	CASE P1413·1층통로,P1414·201 TO P1433·3층통로
+		RETURNF 2
+	;지하-1층
+	CASE P1401현관 TO P1423·2층통로, P1434·B01 TO P1444·지하온천
+		RETURNF 3
+	CASE P1445·지하감옥
+		RETURNF 3
+	;博麗神社
+	CASEELSE
+		RETURNF 1
+ENDSELECT
 
 @MAP_CANNOT_WORD_14(ARG)
 SELECTCASE TFLAG:이동불능메시지
-	;창고잠금 지원
+	;자실잠금 지원
 	CASE -1 * 캐릭터수상한 TO -1
 		PRINTFORML %조사처리(CALLNAME:(-1 * TFLAG:이동불능메시지), "가")% 들어오려 했으나 잠겨 있어서 발길을 돌렸다. 
 	CASE 0
@@ -91,11 +154,25 @@ SELECTCASE TFLAG:이동불능메시지
 		ENDIF
 ENDSELECT
 
+;--------------------------------------------------
+;内部構造がある場所の内部の判定
+;TFLAG:マップ切り替え  内部察知が必要なマップ番号
+;                P_ID  表示ボタンの場所ID
+;                Q_ID  判定する内部の場所ID,必ずP_IDと一致した数値も含める
+;--------------------------------------------------
+@GETMAP_BUILDING_14(P_ID, Q_ID)
+#FUNCTION
+#DIM P_ID
+#DIM Q_ID
+IF TFLAG:맵변환 == 1
+	
+ENDIF
+RETURNF 0
 
 @MAP소개_14
 PRINTFORML eraTWKR판에만 존재하는 특수 지역 중 하나인 저택이다. 아마 돈을 주고 사야 한다.
 PRINTFORML 이 소개 자체가 없던 시절부터 만들어진 데다가 어벤던웨어에 가까운 건축물이다.
 PRINTFORML 따라서 이 패치를 만든 제작자가 오지 않는 이상 버그가 발생해도 고치기 어렵다.
 PRINTFORML 혹시라도 이 맵이 뉴게임에서 나온다면 이사하지 않기를 권한다.
-PRINTFORML 지상 3층, 지하 1층에 방이 17개고, 각종 시설도 많다. 스파게티가 땡기네, 피자도 땡기고
+PRINTFORML 지상 3층, 지하 1층에 방이 17개고, 각종 시설도 많다. 스파게티가 땡기네. 피자도 많이 땡겨
 

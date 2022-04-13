@@ -1,19 +1,28 @@
 ﻿;--------------------------------------------------
-;	맵내 이동 처리 확장 패치 부속
-;	명련사MAP용 함수
+;지점명 변경 함수
 ;--------------------------------------------------
-
 @MAP_PLACENAME_5(ARG)
 #FUNCTIONS
-#DIM PLACEID
-
 IF GET_MAPID(ARG) == MAIN_MAP
 	SELECTCASE ARG
-		CASE 501 TO (MAXROOM - 1)
+		CASE P531인형저택・빈방
+			IF CFLAG:MASTER:초기위치 == ARG
+				RETURNF "인형 저택・" + CALLNAME:MASTER + "의 방"
+			ELSE
+				RETURNF "인형 저택・빈 방"
+			ENDIF
+		CASE SUMIKOMI_ROOM
+			;※このマップでは未実装
+			IF FLAG:더부살이캐릭터
+				RETURNF CALLNAME:(FLAG:더부살이캐릭터) + "의 방"
+			ELSE
+				RETURNF "빈 방"
+			ENDIF
+		CASE MINROOM() TO (MAXROOM - 1)
 			RETURNF STR:(ARG + 8000)
-		CASE 598
+		CASE OMANEKIBEYA()
 			RETURNF OMANEKI_PLACE()
-		CASE 599
+		CASE SUKIMA()
 			RETURNF "스키마 공간"
 		CASE MAXROOM
 			RETURNF "숲의 밖"
@@ -21,60 +30,144 @@ IF GET_MAPID(ARG) == MAIN_MAP
 			RETURNF "불명"
 	ENDSELECT
 ELSE
-	RETURNF "불명"
+	RETURNF "숲의 밖"
 ENDIF
 
-@MAP_VIEWING_5(AA,COLOR)
-#DIMS REF AA, 0
-#DIMS REF COLOR, 0
-IF !TFLAG:맵변환
-	SELECTCASE CFLAG:MASTER:현재위치
-		CASE 510 TO 515
-			TFLAG:맵변환 = 3
-		CASE 521 TO 533
-			TFLAG:맵변환 = 2
-		CASE 534 TO 537
-			TFLAG:맵변환 = 4
-		CASEELSE
-			TFLAG:맵변환 = 1
+;--------------------------------------------------
+;장소 ARG가 어느 지역에 있는지
+;표시하는 맵의 번호와 연동 (TFLAG:맵변환)
+;ARG     장소ID
+;--------------------------------------------------
+@MAP_AREASELECT_5(ARG)
+#FUNCTION
+SELECTCASE ARG
+	;魔理沙宅
+	CASE P510키리사메마법점 TO P515마리사댁・창고
+		RETURNF 3
+	;인형양관
+	CASE P521인형저택・앨리스방 TO P531인형저택・빈방
+		RETURNF 2
+	;ふわふわエレンの店
+	CASE P534엘렌마법의가게 TO P537엘렌댁・욕실
+		RETURNF 4
+	;魔法の森
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+
+;--------------------------------------------------
+;내부구조가 있는 장소의 내부 판정
+;		TFLAG:맵변환	내부감지(察知)가 필요한 맵 번호
+;				P_ID  	표시버튼의 장소ID
+;				Q_ID  	판정하는 내부 장소ID, 반드시 P_ID와 일치하는 수치도 포함
+;--------------------------------------------------
+@GETMAP_BUILDING_5(P_ID, Q_ID)
+#FUNCTION
+#DIM P_ID
+#DIM Q_ID
+IF TFLAG:맵변환 == 1
+	SELECTCASE P_ID
+		;魔理沙宅
+		CASE P510키리사메마법점
+			SELECTCASE Q_ID
+			CASE P510키리사메마법점 TO P514마리사댁・욕실
+				RETURNF 1
+			ENDSELECT
+		;人形の館
+		CASE P525인형저택・거실
+			SELECTCASE Q_ID
+			CASE P521인형저택・앨리스방 TO P531인형저택・빈방
+				RETURNF 1
+			ENDSELECT
+		;エレン宅
+		CASE P534엘렌마법의가게
+			SELECTCASE Q_ID
+			CASE P534엘렌마법의가게 TO P537엘렌댁・욕실
+				RETURNF 1
+			ENDSELECT
 	ENDSELECT
 ENDIF
-CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
-PRINTFORML 
-IF RECOLOREDMAPS
-TRYCCALLFORM COLOREDMAP_FOREST_{TFLAG:맵변환}(AA,COLOR)
-CATCH
-RECOLOREDMAPS = 0
-CALL DRAW_MAP
-RECOLOREDMAPS = 1
-RETURN
-ENDCATCH
-ELSE
-TRYCALLFORM MAP_FOREST_{TFLAG:맵변환}(AA)
-ENDIF
+RETURNF 0
 
-@MAP_CAN_MOVE_5(ARG, ARG:1)
+;--------------------------------------------------
+;이동제한설정
+;ARG    장소ID
+;CHARA  이동하는 캐릭터ID
+;RETURNF 1=이동 가능, 0=이동 불가능
+;TFLAG:이동불능메시지   ↓の@MAP_CANNOT_WORD용 설정
+;--------------------------------------------------
+@MAP_CAN_MOVE_5(ARG, CHARA)
 #FUNCTION
-#DIM 재택
+#DIM CHARA
 SELECTCASE ARG
-	;코우린도
-	CASE 502
-		IF !INRANGE(TIME,600,1080)
-			TFLAG:이동불능메시지 = ARG
+	;향림당,10時～18時
+	CASE P502향림당
+		IF !INRANGE(TIME, 600, 1080)
+			TFLAG:이동불능메시지 = 1
 			RETURNF 0
 		ENDIF
 ENDSELECT
 RETURNF 1
 
-
-
+;--------------------------------------------------
+;이동불능시 표시되는 메시지
+;--------------------------------------------------
 @MAP_CANNOT_WORD_5(ARG)
 SELECTCASE TFLAG:이동불능메시지
-	CASE 502
-		PRINTFORMW 영업시간 외다
-	CASEELSE
+	CASE 1
+		PRINTFORMW 영업시간이 아니다
+		CLEARLINE 2
+ENDSELECT
+REUSELASTLINE
+
+;-----------------------------------------
+;거점 전용의 정경묘사
+;WAIT는 걸리지 않도록
+;-----------------------------------------
+@MAP_UNIQUEMESSAGE_5
+SELECTCASE CFLAG:MASTER:현재위치
+	CASE P502향림당
+		PRINTFORML 잡다한 물건이 빽빽히 들어차 있다
+		PRINTFORML 「비매품」의 표시가 지나치게 많다……
+	CASE P503갈림길
+		PRINTFORML 마리사의 집 뒷문과 우물이 보인다
+;	CASE 520
+;		PRINTFORML 「新築祝い」と書かれた大きな花輪が並んでいる
+	CASE P524인형저택・연구실
+		PRINTFORML 선반에 약병과 인형이 나란히 놓여 있다
+	CASE P543루미아의거처
+		PRINTFORML 구석에는 정체 모를 뼈가 흩어져 있다
 ENDSELECT
 
+RETURN 1
+;-----------------------------------------
+;비자택시 대체 장소ID를 반환하는 함수
+;ARG,대상ID
+;RETURNF,대체완료 대상ID
+;-----------------------------------------
+@MAP_SEARCH_REPLACEMENT_5(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE P502향림당
+		RETURNF 향림당
+	CASE P540고목의큰나무 TO P544나루미의오두막
+		RETURNF 고목의큰나무
+	CASE P510키리사메마법점 TO P515마리사댁・창고
+		RETURNF 키리사메마법점
+	CASE P520인형저택앞 TO P531인형저택・빈방
+		RETURNF 인형양관
+	CASE P506무연총
+		RETURNF 무연총
+	CASE P509재고의길
+		RETURNF 재고의길
+	CASEELSE
+		RETURNF 숲의입구
+ENDSELECT
+RETURNF 0
+
+;--------------------------------------------------
+;맵의 소개문
+;--------------------------------------------------
 @MAP소개_5
 ;とりあえず5行
 PRINTFORML 마리사 집과 인형관, 푹신푹신한 엘렌 가게를 중심으로 한 지역.

@@ -1,187 +1,137 @@
-﻿@SKIP_MOVE_2(ARG:0,ARG:1)
-#DIM CONST 마을문 = 201
-#DIM CONST 중앙광장 = 202
-#DIM CONST 남쪽길 = 203
-#DIM CONST 동쪽길 = 204
-#DIM CONST 북쪽길 = 205
-#DIM CONST 서쪽길 = 206
-#DIM CONST 용신상 = 207
-
-#DIM CONST 라이코방 = 208
-#DIM CONST 야츠하시방 = 209
-#DIM CONST 벤벤방 = 210
-
-
-#DIM CONST 술집 = 211
-#DIM CONST 카페 = 212
-#DIM CONST 스즈나안 = 213
-#DIM CONST 연립앞 = 214
-#DIM CONST 꽃집 = 215
-#DIM CONST 식료품점 = 216
-#DIM CONST 과자가게 = 217
-#DIM CONST 일품요리점 = 218
-#DIM CONST 집회소 = 219
-#DIM CONST 망루 = 220
-#DIM CONST 히에다저택 = 221
-#DIM CONST SPT서당 = 222
-#DIM CONST 대중욕탕 = 223
-#DIM CONST 케이네집 = 224
-#DIM CONST SPT혼숙여관 = 225
-#DIM CONST 코스즈집 = 226
-#DIM CONST 야채가게 = 227
-#DIM CONST 대절욕탕 = 228
-#DIM CONST 아큐방 = 229
-
-#DIM CONST 아나타방 = 230
-#DIM CONST 반키방 = 231
-#DIM CONST 렌코방 = 232
-#DIM CONST 메리방 = 233
-#DIM CONST 유키방 = 234
-#DIM CONST 마이방 = 235
-#DIM CONST 공용화장실 = 236
-#DIM CONST 공용우물 = 237
-
-#DIM CONST 예탄정 = 238
-#DIM CONST 미요이방 = 239
-#DIM CONST 연립주택빈방 = 241
-
-;LOCAL 일람
-;0	현재위치
-
-;현재위치 취득
-LOCAL = CFLAG:MASTER:현재위치
-SIF ARG:1
-	LOCAL = ARG:1
-
-;잠정 목적지에 직접 이동할 수 있는 경우
-IF CAN_MOVE(LOCAL, ARG) & 1
-	;거기에 이동
-	RETURN ARG
+﻿;-----------------------------------------------------------
+;원거리 이동 설정
+;ARG     목적지
+;ARG:1   현위치
+;RETURN  다음 목적지
+;-----------------------------------------------------------
+@SKIP_MOVE_2(ARG, ARG:1)
+#DIM 현재의위치
+;現在位置取得
+IF ARG:1
+	현재의위치 = ARG:1
+ELSE
+	현재의위치 = CFLAG:MASTER:현재위치
 ENDIF
 
-;막다른 골목으로부터 갈 수 있는 장소는 고정이므로, 거기를 목표로 한다
-SELECTCASE LOCAL
-CASE 마을문
-	RETURN 남쪽길
-CASE 술집, 카페, 일품요리점
-	RETURN 남쪽길
-CASE 과자가게
-	RETURN 동쪽길
-CASE SPT혼숙여관
-	RETURN 서쪽길
-CASE 코스즈집
-	RETURN 스즈나안
-CASE 아큐방
-	RETURN 히에다저택
-CASE 대절욕탕
-	RETURN 대중욕탕
-CASE 아나타방 TO 공용우물, 라이코방 TO 벤벤방, 연립주택빈방
-	RETURN 연립앞
-CASE 미요이방
-	RETURN 예탄정
+;目的地に直接移動できる場合そこに移動
+SIF CAN_MOVE(현재의위치, ARG) & 1
+	RETURN ARG
+
+;袋小路から行ける場所は固定なので、そこを目指す
+SELECTCASE 현재의위치
+CASE P201인간마을문
+	RETURN P203남쪽거리
+CASE P211술집, P212카페, P218일품요릿집
+	RETURN P203남쪽거리
+CASE P217과자가게
+	RETURN P204동쪽거리
+CASE P225혼숙여관
+	RETURN P206서쪽거리
+CASE P226코스즈방
+	RETURN P213스즈나안
+CASE P229아큐방
+	RETURN P221히에다저택
+CASE P228대절욕탕
+	RETURN P223대중목욕탕
+CASE P230빈방 TO P237공동우물, P208라이코방 TO P210벤벤방, P241빈방
+	RETURN P214주택가앞
+CASE P239미요이방
+	RETURN P238예탄정
 ENDSELECT
 
-;PRINTFORML LOCAL는{LOCAL}
-
-;직접 이동할 수 없는 경우,  1개가까운 위치를 잠정 목적지로 다시 설정해 루프
-;지점 추가시 요점 보충(전케이스 수정하는 것)
+;直接移動できない場合、1つ近い位置を暫定目的地に設定し直してループ
+;基本的に最短で行けるコースを設定する
+;現在地によってコースが変わることも考慮して対応する
 SELECTCASE ARG
-	CASE 마을문, 술집, 카페, 일품요리점
-		RETURN 남쪽길
-	CASE 중앙광장
-		SELECTCASE LOCAL
-		CASE 스즈나안, 과자가게, 대중욕탕
-			RETURN 동쪽길
-		CASE 집회소, SPT서당, 케이네집
-			RETURN 북쪽길
-		CASE 연립앞, 히에다저택, 아큐방, SPT혼숙여관, 예탄정
-			RETURN 서쪽길
+	CASE P201인간마을문, P211술집, P212카페, P218일품요릿집
+		RETURN P203남쪽거리
+	CASE P202중앙광장
+		SELECTCASE 현재의위치
+		CASE P213스즈나안, P217과자가게, P223대중목욕탕
+			RETURN P204동쪽거리
+		CASE P219집회소, P222서당, P224케이네댁
+			RETURN P205북쪽거리
+		CASE P214주택가앞, P221히에다저택, P229아큐방, P225혼숙여관, P238예탄정
+			RETURN P206서쪽거리
 		CASEELSE
-			RETURN 남쪽길
+			RETURN P203남쪽거리
 		ENDSELECT
-	CASE 남쪽길
-		SELECTCASE LOCAL
-		CASE 집회소, SPT서당, 케이네집
-			RETURN 동쪽길
+	CASE P203남쪽거리
+		SELECTCASE 현재의위치
+		CASE P219집회소, P222서당, P224케이네댁
+			RETURN P204동쪽거리
 		CASEELSE
-			RETURN 중앙광장
+			RETURN P202중앙광장
 		ENDSELECT
-	CASE 동쪽길
-		SELECTCASE LOCAL
-		CASE 연립앞
-			RETURN 남쪽길
-		CASE 히에다저택, 아큐방
-			RETURN 북쪽길
+	CASE P204동쪽거리
+		SELECTCASE 현재의위치
+		CASE P214주택가앞
+			RETURN P203남쪽거리
+		CASE P221히에다저택, P229아큐방
+			RETURN P205북쪽거리
 		CASEELSE
-			RETURN 중앙광장
+			RETURN P202중앙광장
 		ENDSELECT
-	CASE 북쪽길
-		RETURN 중앙광장
-	CASE 서쪽길
-		SELECTCASE LOCAL
-		CASE 집회소, SPT서당, 케이네집
-			RETURN 북쪽길
+	CASE P205북쪽거리
+		RETURN P202중앙광장
+	CASE P206서쪽거리
+		SELECTCASE 현재의위치
+		CASE P219집회소, P222서당, P224케이네댁
+			RETURN P205북쪽거리
 		CASEELSE
-			RETURN 중앙광장
+			RETURN P202중앙광장
 		ENDSELECT
-	CASE 용신상
-		SELECTCASE LOCAL
-		CASE 집회소, 히에다저택, 아큐방, SPT서당, 케이네집
-			RETURN 북쪽길
+	CASE P207용신상
+		SELECTCASE 현재의위치
+		CASE P219집회소, P221히에다저택, P229아큐방, P222서당, P224케이네댁
+			RETURN P205북쪽거리
 		CASEELSE
-			RETURN 중앙광장
+			RETURN P202중앙광장
 		ENDSELECT
-	CASE 스즈나안, 과자가게, 대중욕탕
-		RETURN 동쪽길
-	CASE 연립앞
-		SELECTCASE LOCAL
-		CASE 동쪽길
-			RETURN 남쪽길
+	CASE P213스즈나안, P217과자가게, P223대중목욕탕
+		RETURN P204동쪽거리
+	CASE P214주택가앞
+		SELECTCASE 현재의위치
+		CASE P204동쪽거리
+			RETURN P203남쪽거리
 		CASEELSE
-			RETURN 서쪽길
+			RETURN P206서쪽거리
 		ENDSELECT
-	CASE 꽃집, 식료품점, 망루
-		RETURN 중앙광장
-	CASE 집회소, SPT서당, 케이네집
-		SELECTCASE LOCAL
-		CASE 서쪽길, 용신상, 히에다저택, 아큐방
-			RETURN 북쪽길
+	CASE P215꽃집, P216식료품가게, P220망루
+		RETURN P202중앙광장
+	CASE P219집회소, P222서당, P224케이네댁
+		SELECTCASE 현재의위치
+		CASE P206서쪽거리, P207용신상, P221히에다저택, P229아큐방
+			RETURN P205북쪽거리
 		CASEELSE
-			RETURN 동쪽길
+			RETURN P204동쪽거리
 		ENDSELECT
-	CASE 히에다저택
-		SELECTCASE LOCAL
-		CASE 용신상, 집회소, SPT서당, 케이네집
-			RETURN 북쪽길
+	CASE P221히에다저택
+		SELECTCASE 현재의위치
+		CASE P207용신상, P219집회소, P222서당, P224케이네댁
+			RETURN P205북쪽거리
 		CASEELSE
-			RETURN 서쪽길
+			RETURN P206서쪽거리
 		ENDSELECT
-	CASE SPT서당, 케이네집
-		SELECTCASE LOCAL
-		CASE 히에다저택, 용신상
-			RETURN 북쪽길
+	CASE P225혼숙여관, P238예탄정
+		RETURN P206서쪽거리
+	CASE P226코스즈방
+		RETURN P213스즈나안
+	CASE P229아큐방
+		RETURN P221히에다저택
+	CASE P227야채가게
+		SELECTCASE 현재의위치
+		CASE P219집회소, P222서당, P224케이네댁
+			RETURN P204동쪽거리
 		CASEELSE
-			RETURN 동쪽길
+			RETURN P202중앙광장
 		ENDSELECT
-	CASE SPT혼숙여관, 예탄정
-		RETURN 서쪽길
-	CASE 코스즈집
-		RETURN 스즈나안
-	CASE 아큐방
-		RETURN 히에다저택
-	CASE 야채가게
-		SELECTCASE LOCAL
-		CASE 집회소, SPT서당, 케이네집
-			RETURN 동쪽길
-		CASEELSE
-			RETURN 중앙광장
-		ENDSELECT
-	CASE 대절욕탕
-		RETURN 대중욕탕
-	CASE 아나타방 TO 공용우물, 라이코방 TO 벤벤방, 연립주택빈방
-		RETURN 연립앞
-	CASE 미요이방
-		RETURN 예탄정
+	CASE P228대절욕탕
+		RETURN P223대중목욕탕
+	CASE P230빈방 TO P237공동우물, P208라이코방 TO P210벤벤방, P241빈방
+		RETURN P214주택가앞
+	CASE P239미요이방
+		RETURN P238예탄정
 	CASEELSE
-		RETURN 마을문
+		RETURN P201인간마을문
 ENDSELECT
