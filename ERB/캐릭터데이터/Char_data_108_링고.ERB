@@ -1,55 +1,48 @@
-﻿@CHARAMOVE_DATA_108(ARG,ARG:2)
+﻿@CHARAMOVE_DATA_108(ARG, ARG:2)
 LOCAL = 108
 SELECTCASE ARG
-	;이동 대상 멤버 체크
+	;연동설정 (RETURN=의존하는 캐릭터, RESULT:1~3=대등하게 연동되는 캐릭터)
 	CASE 1
-	;이동 확률
-	CASE 2
-	;기상시간대
+		;たまに連動
+		IF FLAG:일일이벤트 % 10 == 0
+			RESULT:1 = [[세이란]]
+			RESULT:2 = [[링고]]
+		ENDIF
+	;특수생활시간 설정 (CFLAG:LOCAL:생활시간보정 을 설정)
 	CASE 3
-		RETURN 수면시간(LOCAL)
-	;이동 경향
+	;이동경향 (±~10=가기 쉽다/가기 어렵다, -100=가지 않는다)
 	CASE 4
 		SELECTCASE ARG:2
-			;静かの海の方へは行かない
-			CASE 1016, 1060 TO 1072
+			;고요의바다の方へは行かない
+			CASE P1016후미, P1060순호저택・현관 TO P1072헤카티아방
 				RETURN -100
 			;ドレミー宅には行かない
-			CASE 1050 TO 1059
-				RETURN -100
-			;空き家には行かない
-			CASE 1007
+			CASE P1050도레미댁・거실 TO P1055도레미댁・화장실
 				RETURN -100
 			;門番詰め所は行かない
-			CASE 1023
+			CASE P1023문지기초소
 				RETURN -100
 			;二階はあまり行かない
-			CASE 1040
+			CASE P10402층회랑 TO P1044응접실
 				RETURN -5
-			;玉兎街方面,玉兎食堂,玉兎詰め所によく居る
-			CASE 1003, 1004, 1010 TO 1013, 1024, 1025
+			;玉兎街方面,玉兎식당,玉兎詰め所によく居る
+			CASE P1003옥토거리, P1004광장, P1010식사처 TO P1013야채가게, P1024옥토식당, P1025옥토초소
 				RETURN 5
 		ENDSELECT
-	;일시간대
-	CASE 5
-	;가는 지역(0=박1=사2=리3=호4=죽5=삼6=명7=산8=수9=지10=월)
-	CASE 6
-		SELECTCASE ARG:2
-			CASE 4, 8, 10
-				RETURN 1
-			CASEELSE
-				RETURN 0
-		ENDSELECT
-	;출현 장소
+	;출현장소
 	CASE 7
 		SELECTCASE ARG:2
-			CASE 41 TO 45, 83, 105 TO 108
+			CASE 죽림입구, 미혹의샛길, 사각의죽림, 토끼동굴, 영원정
 				RETURN 1
-			CASEELSE
-				RETURN 0
+			CASE 광장, 상가거리, 술집소로
+				RETURN 1
+			CASE 달의도시, 와타츠키정, 옥토거리, 복숭아숲～모래사장
+				RETURN 1
 		ENDSELECT
+	;인력설정 (CFLAG:LOCAL:인력점을 설정한다)
+	CASE 8
 ENDSELECT
-;도레미
+
 @EXIST_캐릭터데이터108
 #LOCALSIZE 1
 #LOCALSSIZE 1
@@ -123,4 +116,55 @@ CALL 재료설정("선도")
 DISH_TASTE = 일식/경단/단/검소/가정적/호쾌/쫄깃한/옥토끼풍/인챈트/
 DISH_COMMENT = 링고가 팔려고 내놓은 선도를 사용한 경단。힘이 넘친다。
 RETURN 1
+
+;IMAGE_I108_特殊服装(CHARA)-------------------------------------------------------------------
+;キャラクター特有の服装表示条件
+;エフェクトを共有する服装差分はこちらで指定する
+;使用時注意点:
+;	RESULTSに特殊服装を格納すること
+;	書式は %服装%%特殊服装% 適宜"_"等入れること
+;-------------------------------------------------------------------------------------------
+@IMAGE_I108_特殊服装(CHARA)
+#DIM CHARA
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF CHECK_NUDE(CHARA)
+		;裸
+		IF FLAG:스탠딩종류
+			;顔絵
+		ELSE
+			;立ち絵
+		ENDIF
+	ELSE
+		;服
+		IF FLAG:스탠딩종류
+			;顔絵
+		ELSE
+			;立ち絵
+		ENDIF
+	ENDIF
+ELSE
+	;通常画像
+	IF CHECK_NUDE(CHARA)
+		;裸
+		IF FLAG:스탠딩종류
+			;顔絵
+		ELSE
+			;立ち絵
+		ENDIF
+	ELSE
+		;服
+		IF CFLAG:CHARA:의상일시변경 == 55 || CFLAG:CHARA:기본복장세트 == 55
+			IF FLAG:스탠딩종류
+				;顔絵
+				RESULTS = _バニー
+			ELSE
+				;立ち絵
+				RESULTS = _バニー
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
 

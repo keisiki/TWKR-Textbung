@@ -1,72 +1,46 @@
-﻿@CHARAMOVE_DATA_49(ARG,ARG:2)
+﻿@CHARAMOVE_DATA_49(ARG, ARG:2)
 LOCAL = 49
 SELECTCASE ARG
-	;이동 대상 멤버 체크
+	;연동설정 (RETURN=의존하는 캐릭터, RESULT:1~3=대등하게 연동되는 캐릭터)
 	CASE 1
-	;이동 확률
-	CASE 2
-	;기상시간대
+	;특수생활시간 설정 (CFLAG:LOCAL:생활시간보정 을 설정)
 	CASE 3
-		RETURN 수면시간(LOCAL)
-	;이동 경향
+	;이동경향 (±~10=가기 쉽다/가기 어렵다, -100=가지 않는다)
 	CASE 4
 		SELECTCASE ARG:2
-			;사람이 있는 집의 목욕탕이라든지 화장실에는 가지 않는다
-			CASE 12, 13, 14, 18, 30, 35, 39, 40, 53, 44, 51, 52
-				RETURN -100
-			;개인 방에는 못 들어간다
-			CASE 15, 17, 19, 53, 55
-				SIF FLAG:15 != LOCAL
-					RETURN -100
-			;개인 방
-			CASE 911, 912, 916, 918
-				RETURN -100
-			;지령전으로부터 나오지 않지만 나왔을 경우 미주하지 않게 요소만 억제
-			CASE 901, 931
-				IF GROUPMATCH(CFLAG:LOCAL:현재위치, 931, 932)
-					RETURN 10
-				ELSE
-					RETURN -100
-				ENDIF
-			CASE 927
-				IF CFLAG:LOCAL:현재위치 == 928
-					RETURN 10
-				ELSE
-					RETURN -100
-				ENDIF
-			CASE 923, 928 TO 930, 935, 936, 937, 938, 940, 941, 942, 943
-				RETURN -100
-			;식당, 개인 방, 서재에 자주 간다
-			CASE 913, 919, 920
+			;私室はあんまり入らない
+			CASE P911오쿠방, P912오린방, P918코이시방
+				RETURN -5
+			;식당,私室,書斎によく行く
+			CASE P913식당, P919사토리방, P920서재
 				RETURN 5
+			;入らない
+			CASE P928작열지옥터, P929지옥의인공태양, P930옛혈지지옥
+				RETURN -100
+			CASE P936유기의집, P937빈가게, P938오니소굴, P940파르시의집, P941야마메의집, P942키스메의집, P943폐가
+				RETURN -100
+			CASE P901지령전앞
+				;内側からは出ない
+				SIF !TCVAR:LOCAL:인력점 && CFLAG:LOCAL:현재위치 == P9051층복도
+					RETURN -100
 		ENDSELECT
-	;일시간대
-	CASE 5
-	;가는 지역(0=박1=사2=리3=호4=죽5=삼6=명7=산8=수9=지10=월)
-	CASE 6
-		SELECTCASE ARG:2
-			CASE 9
-				RETURN 1
-			CASEELSE
-				RETURN 0
-		ENDSELECT
-	;출현 장소
+	;출현장소
 	CASE 7
 		SELECTCASE ARG:2
-			CASE 91,92,93,96
+			CASE 환상풍혈, 지옥의깊은길, 옛지옥가도, 지령전
 				RETURN 1
 			CASEELSE
 				RETURN 0
 		ENDSELECT
 	;引力設定
 	CASE 8
-		;휴일에는 5분의 1로 나돈다
+		;休日は5分の1で出歩く
 		IF YOUBI_MATCH(DAY, "토일") && INRANGE(TIME, 720, 1080)
 			SELECTCASE CFLAG:LOCAL:오늘의운세 % 10
 			CASE 1
-				TCVAR:LOCAL:인력점 = 933
+				TCVAR:LOCAL:인력점 = P933술집
 			CASE 2
-				TCVAR:LOCAL:인력점 = 944
+				TCVAR:LOCAL:인력점 = P944길거리
 			CASEELSE
 				TCVAR:LOCAL:인력점 = 0
 			ENDSELECT

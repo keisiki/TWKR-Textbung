@@ -3,119 +3,156 @@
 #DIM 만남율
 
 만남율 = 0
-FOR LOCAL, 1, CHARANUM
-	;자택 거주 캐릭터라면 조우하지 않는다
-	SIF CFLAG:LOCAL:신사거주 > 0
-		CONTINUE
-;방문자 각각의 만남 플래그 초기화
-	CFLAG:LOCAL:만난위치 = 0
-NEXT
-LOCAL:2 = CHARANUM
+CVARSET CFLAG, GETNUM(CFLAG, "만난위치")
 
-;자주(잘) 생각하면(자) 이 계산 몇 번도 하지 않아 좋은 일을 눈치챘다
-;캐릭터수 증가할 때마다 조정 하는 것도 뭐하고,%로 설정하는 것이 좋으면 좋은 생각이 들었으므로 변경
-;%과 만남 확률의 밸런스 조정은 내던지는 것(작자님에게 맡깁니다)
+;출금 인원이 많을수록 조우율은 높아진다 (너무 빽빽하지 않도록 한다)
+;※기존에는 낮을수록 조우하기 쉬웠지만 알아채기 힘들어서 직감적으로 %로, 전체적으로 약간 상향 조정
 SELECTCASE (FLAG:출금인원수 * 100 / CHARANUM)
 	CASE IS >= 60
-		기본만남율 = 26
+		기본만남율 = 51
 	CASE IS >= 45
-		기본만남율 = 28
+		기본만남율 = 48
 	CASE IS >= 30
-		기본만남율 = 30
+		기본만남율 = 45
 	CASE IS >= 15
-		기본만남율 = 32
+		기본만남율 = 42
 	CASE IS >= 10
-		기본만남율 = 34
+		기본만남율 = 39
 	CASEELSE
 		기본만남율 = 36
 ENDSELECT
 
+;連動設定もあるのでこの処理は出禁キャラも行う
 FOR LOCAL, 1, CHARANUM
-	;자택 거주 캐릭터라면 조우하지 않는다
-	SIF CFLAG:LOCAL:신사거주 > 0
+	;自宅在住キャラは遭遇しない
+	SIF CFLAG:LOCAL:신사거주
+		CONTINUE
+	SIF TALENT:LOCAL:스침
 		CONTINUE
 	IF !(CFLAG:LOCAL:거점내방 && CFLAG:LOCAL:연회참가)
-		;10이하가 되면 Default 설정이라고 확정으로 만남 플래그가 설 뿐(만큼)이므로(0 이하가 아니면) 문제 없음
-		만남율 = 기본만남율 - (TALENT:LOCAL:사모 + TALENT:LOCAL:연모 * 2)
-		SIF CFLAG:LOCAL:의뢰상황
-			만남율 -= 3
-		SELECTCASE LOCAL
-			;캐릭터별로 만남율을 바꾸는 경우는 CASE를 더하는·Default는10/(기본만남율)
-			CASEELSE
-				SIF RAND:만남율 + 1 <= 10
-					CALL 만남플래그결정(LOCAL)
-		ENDSELECT
+		만남율 = 기본만남율 + TALENT:LOCAL:사모 * 3 + TALENT:LOCAL:연모 * 6 + CFLAG:LOCAL:의뢰상황 * 6
+		SIF 만남율 > RAND:100
+			CALL 만남플래그결정(LOCAL)
 	ENDIF
-	SIF CFLAG:LOCAL:현재위치 == SUKIMA() && CFLAG:LOCAL:신사거주
-		CFLAG:LOCAL:현재위치 = CFLAG:LOCAL:신사거주
 NEXT
 
-@만남플래그결정(ARG)
-;CFLAG:ARG:만난위치 = ARG의 만남 지점
-;LOCAL = 산출된 가지점(만남 지점/10)
-;LOCAL:1 = 랜덤에 결정할 수 있던 지역
+;全キャラ決定後、連動キャラを設定する
+FOR LOCAL, 1, CHARANUM
+	VARSET RESULT
+	CALLFORM CHARAMOVE_DATA_{LOCAL}(1)
+	;依存連動
+	IF RESULT
+		CFLAG:LOCAL:만난위치 = CFLAG:RESULT:만난위치
+	;対等連動
+	ELSEIF RESULT:1
+		;連動設定する
+		CFLAG:LOCAL:만난위치 = CFLAG:연동캐릭터설정(RESULT:1, RESULT:2, RESULT:3):만난위치
+	ENDIF
+NEXT
+[IF_DEBUG]
+	PRINTL 【오늘의만남위치】※디버그용
+	FOR LOCAL, 1, CHARANUM
+		IF CFLAG:LOCAL:만난위치
+			PRINTFORM %CALLNAME:LOCAL, 18, LEFT%%NAME_FROM_PLACE(CFLAG:LOCAL:만난위치)%
+			VARSET RESULT
+			CALLFORM CHARAMOVE_DATA_{LOCAL}(1)
+			IF RESULT
+				PRINTFORM （의존연동）
+			ELSEIF RESULT:1
+				PRINTFORM （대등연동）
+			ENDIF
+			PRINTL 
+		ENDIF
+	NEXT
+	WAIT
+[ENDIF]
+;-----------------------------------------------------------
+;キャラの遭遇位置を設定する関数
+;-----------------------------------------------------------
+@만남플래그결정(CHARA)
+#DIM CHARA
+#DIM P_ID
+#DIM LPCOUNT
+VARSET LOCAL
+;最初に出現タイプを決定,他のタイプになったらその位置には出現しないように
+;自宅位置：よく行く地域：その他＝１：２：１
+WHILE !LOCAL
+	SELECTCASE RAND:1000
+	CASE IS < 250
+		;自宅位置はそのまま決定
+		IF CFLAG:CHARA:자택위치
+			LOCAL = 1
+			CFLAG:CHARA:만난위치 = CFLAG:CHARA:자택위치
+			RETURN
+		ENDIF
+	CASE IS < 750
+		SIF CFLAG:CHARA:자주가는지역 >= 0 && CFLAG:CHARA:자주가는지역 != MAIN_MAP
+			LOCAL = 2
+	CASEELSE
+		LOCAL = 3
+	ENDSELECT
+WEND
 
-;25%로 자택에 출현. 자택이 미해금의 경우는 스킵
-;이 후 자택이 될 가능성도 있으므로 실제로는 좀 더 높다
-IF !RAND:4 && INRANGE(CFLAG:ARG:자택위치 , 100 , 1100)
-	CFLAG:ARG:만난위치 = CFLAG:ARG:자택위치
-;33%(자택이 있는 경우 약25%)로 자주가는지역. 자주가는지역이 미설정의 경우는 스킵
-;이 후 자주가는지역이 될 가능성도 있으므로 실제로는 좀 더 높다
-ELSEIF !RAND:2 && CFLAG:ARG:자주가는지역 >= 0 && CFLAG:ARG:자주가는지역 != MAIN_MAP
-	CALL FISHER_YATES_SHAFFLE(9)
-	;1~10의 숫자를 셔플 해 차례로 당겨 체크, 최대 10회의 판정으로 끝날 것.
-	FOR LOCAL:10 , 0 , 9
-		LOCAL = CFLAG:ARG:자주가는지역 * 10 + SHAFFLE_ARRAY:(LOCAL:10) + 1
-		;출현 장소나 체크
-		CALLFORM CHARAMOVE_DATA_{ARG}(7, LOCAL)
-		;출현 장소가 아니면 재추첨(출현 장소가 설정되어 있지 않으면 만난위치가 변경되지 않기 때문에 주의)
-		SIF !RESULT
+LPCOUNT = 0
+;遭遇位置の決定
+WHILE 1
+	LPCOUNT ++
+	P_ID = RANDOM_ODEKAKE()
+	;よく行く地域に自宅しかない、よく行く地域しか行かない場合は無限ループになるので100で妥協する
+	IF LPCOUNT < 100
+		;自宅位置はなるべく行かない
+		IF P_ID == CFLAG:CHARA:자택위치
 			CONTINUE
-		;출현 장소로 설정
-		BREAK
-	NEXT
-	;장소를 설정
-	;만일 자주가는지역내에 출현 장소가 설정되어 있지 않았던 경우, 마지막에 당긴 장소가 들어가도록(듯이)
-	CFLAG:ARG:만난위치 = LOCAL * 10
-;자주가는지역이 있는 경우66%·자택도 있는 경우 약50%·자택만 있는 경우75%·아무것도 없는 경우100%
-;자택·자주가는지역도 포함해 선출
-ELSE
-	CALL FISHER_YATES_SHAFFLE(11)
-	FOR LOCAL:10 , 0 , 11
-		;랜덤에 지역 선택
-		LOCAL:1 = SHAFFLE_ARRAY:(LOCAL:10)
-		;거점 맵이라면 재추첨
-		SIF LOCAL:1 == MAIN_MAP
-			CONTINUE
-		;CHARAMOVE를 참조해 가지 않는 지역이라면 재추첨
-		RESULT = 0
-		CALLFORM CHARAMOVE_DATA_{ARG}(6, LOCAL:1)
-		SIF !RESULT
-			CONTINUE
-		BREAK
-	NEXT
-	;가는 지역이 설정되어 있지 않았던 경우, 마지막에 당긴 지역에 간다
-	
-	CALL FISHER_YATES_SHAFFLE(9)
-	FOR LOCAL:10 , 0 , 9
-		;랜덤에 장소를 선택
-		LOCAL = LOCAL:1 * 10 + SHAFFLE_ARRAY:(LOCAL:10) + 1
-		;CHARAMOVE를 참조해 가지 않는 지역이라면 재추첨
-		RESULT = 0
-		CALLFORM CHARAMOVE_DATA_{ARG}(7, LOCAL)
-		SIF !RESULT
-			CONTINUE
-		SIF STR:(6000 + LOCAL) == ""
-			CONTINUE
-		BREAK
-	NEXT
-	;출현 장소로 설정
-	;만일 출현 장소가 설정되어 있지 않았던 경우, 마지막에 당긴 장소가 들어가도록(듯이)
-	CFLAG:ARG:만난위치 = LOCAL * 10
-ENDIF
+			;よく行く地域の場合,よく行く地域以外には行かない
+		ELSEIF LOCAL == 2
+			SIF GET_MAPID(P_ID) != CFLAG:CHARA:자주가는지역
+				CONTINUE
+		;その他の地域の場合,よく行く地域にはなるべく行かない
+		ELSE
+			SIF GET_MAPID(P_ID) == CFLAG:CHARA:자주가는지역
+				CONTINUE
+		ENDIF
+	ENDIF
+	;出現場所かチェック
+	RESULT = 0
+	CALLFORM CHARAMOVE_DATA_{CHARA}(7, P_ID)
+	SIF !RESULT
+		CONTINUE
+	CFLAG:CHARA:만난위치 = P_ID
+	BREAK
+WEND
+RETURN
 
+;-----------------------------------------------------------
+;キャラが他のキャラに依存した挙動をするのを設定する
+;暫定3人まで。遭遇位置でのみ使用されている
+;暫定恋慕と思慕のみ（만남율に影響があるので）
+;同列なら小さい方が優先
+;CHARA:1～3  この三人（二人）のうちもっとも評価が高いキャラに依存する
+;-----------------------------------------------------------
+@연동캐릭터설정(CHARA:1, CHARA:2, CHARA:3)
+#FUNCTION
+#DIM CHARA, 4
+FOR LOCAL, 1, 4
+	SIF !CHARA:LOCAL
+		BREAK
+	SIF TALENT:(CHARA:LOCAL):연모
+		RETURNF CHARA:LOCAL
+NEXT
+FOR LOCAL, 1, 4
+	SIF !CHARA:LOCAL
+		BREAK
+	SIF TALENT:(CHARA:LOCAL):사모
+		RETURNF CHARA:LOCAL
+NEXT
+;すべて無いならCHARA:1で決定
+RETURNF CHARA:1
+
+;-----------------------------------------------------------
+;キャラの出現フラグを判定する関数
+;=1拠点には来ない =2来る =3 住んでる
+;-----------------------------------------------------------
 @출현상태(ARG)
-;=1거점에는 오지 않는 =2오는 =3 살고 있다
 #FUNCTION
 IF CFLAG:ARG:출금 || TALENT:ARG:스침
 	RETURNF 0
@@ -134,3 +171,73 @@ ELSEIF CFLAG:ARG:만난위치
 ELSE
 	RETURNF 0
 ENDIF
+
+;-----------------------------------------------------------
+;OPTIONから呼ばれるキャラの出現場所リスト
+;-----------------------------------------------------------
+@SHOW_APPEAR_LIST
+#DIM LPCOUNT
+#DIM LPCOUNT2
+#DIM LPCOUNT3
+#DIM P_ID
+#DIM MAPID
+#DIM 메인보관
+메인보관 = MAIN_MAP
+MAIN_MAP = MAXHOME
+LPCOUNT3 = 0
+SIF FLAG:정렬
+	CALL CHARASORT_EX
+FOR LPCOUNT, 1, EX_CHARANUM
+	IF FLAG:정렬
+		LOCAL = RESULT:LPCOUNT
+		SIF LOCAL < 0
+			CONTINUE
+	ELSE
+		LOCAL = LPCOUNT
+		SIF LOCAL >= CHARANUM
+			BREAK
+	ENDIF
+	SIF TALENT:LOCAL:스침
+		BREAK
+	LPCOUNT3 ++
+	SIF LPCOUNT3 % 10 == 1
+		PRINTFORML 　　 %" ", 18, LEFT% 移率 절도　博　寺　里　湖　竹　森　冥　山　守　地　月　자택위치
+	PRINTFORM [{LOCAL,3 }] %CALLNAME:LOCAL, 18, LEFT% {CFLAG:LOCAL:이동율보정, 2} 　
+	IF CFLAG:LOCAL:이동절도 > 0
+		PRINTFORM +{ABS(CFLAG:LOCAL:이동절도), 2, LEFT}　
+	ELSEIF CFLAG:LOCAL:이동절도 < 0
+		PRINTFORM -{ABS(CFLAG:LOCAL:이동절도), 2, LEFT}　
+	ELSE
+		PRINTFORM  0 　
+	ENDIF
+	FOR MAPID, 0, MAXHOME
+		IF MAPID == GET_MAPID(CFLAG:LOCAL:자택위치) && CFLAG:LOCAL:자택위치 && CFLAG:LOCAL:자택위치 != 99
+			PRINT ☆
+		ELSEIF MAPID == CFLAG:LOCAL:자주가는지역
+			PRINT ◎
+		ELSE
+			FOR LPCOUNT2, 1, 10
+				P_ID = MAPID * 100 + LPCOUNT2 * 10
+				CALLFORM CHARAMOVE_DATA_{LOCAL}(7, P_ID)
+				IF RESULT
+					PRINT ○
+					BREAK
+				ELSEIF LPCOUNT2 == 9
+					PRINT －
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		PRINT 　
+	NEXT
+	PRINTFORM %NAME_FROM_PLACE(CFLAG:LOCAL:자택위치)%
+	PRINTL 
+NEXT
+MAIN_MAP = 메인보관
+DRAWLINE
+PRINTL 전 캐릭터의 출현 지역입니다。選択は光らせる為で何も起きません。조건에 따라 변화하는 캐릭터도 있습니다。
+PRINTL 移率：거점에 있을 때 이동하기 쉬운 정도
+PRINTL 절도：거점에 있을 때 사적장소의 배려 정도
+PRINTL ☆：자택 지역　◎：자주가는 지역　○：출현하는 지역　－：출현하지 않는 지역
+PRINTL [  0] 돌아간다
+INPUT

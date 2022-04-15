@@ -1,49 +1,47 @@
-﻿@CHARAMOVE_DATA_26(ARG,ARG:2)
+﻿@CHARAMOVE_DATA_26(ARG, ARG:2)
 LOCAL = 26
 SELECTCASE ARG
-	;이동 대상 멤버 체크
+	;연동설정 (RETURN=의존하는 캐릭터, RESULT:1~3=대등하게 연동되는 캐릭터)
 	CASE 1
-	;이동 확률
-	CASE 2
-	;기상시간대
+	;특수생활시간 설정 (CFLAG:LOCAL:생활시간보정 을 설정)
 	CASE 3
-		RETURN 수면시간(LOCAL)
-	;이동 경향
+	;이동경향 (±~10=가기 쉽다/가기 어렵다, -100=가지 않는다)
 	CASE 4
 		SELECTCASE ARG:2
-			;란, 첸의 방
-			CASE 635, 638
+			;神社の居間
+			CASE P9거실
+				RETURN 5
+			;藍,橙の私室はあまり入らない
+			CASE P635첸의방, P638란의방
 				RETURN -5
-			;시비곡직청, 축생계는 가지 않는다(입구 부분은 나올 때 용)
-			CASE 610, 613, 640, 641
-				RETURN -10
-			CASE 610 TO 618, 640 TO 652
+			;是非曲直庁、축생계は行かない
+			CASE P610시비곡직청홀 TO P618시비곡직청빈방, P640이계의문 TO P655유마댁목욕탕
 				RETURN -100
-			;타인의 집에는 들어가지 않는다
-			CASE 608, 609
+			;他人の家には入らない
+			CASE P608우루미집, P609에이카집
 				RETURN -100
-			;특히 이루어
-			CASEELSE
-				RETURN 0
 		ENDSELECT
-	;일시간대
-	CASE 5
-	;가는 지역(0=박1=사2=리3=호4=죽5=삼6=명7=산8=수9=지10=월)
-	CASE 6
-		SELECTCASE ARG:2
-			CASE 0, 2, 3, 5, 6, 7
-				RETURN 1
-			CASEELSE
-				RETURN 0
-		ENDSELECT
-	;출현 장소
+	;출현장소
 	CASE 7
 		SELECTCASE ARG:2
-			CASE 1,2,3,4, 21,22,23, 35,36,37, 51 TO 57, 61,62,63,65,66, 71,72,73,74
+			CASE 벚꽃길토리이, 신사경내, 신사본당, 신사툇마루
 				RETURN 1
-			CASEELSE
-				RETURN 0
+			CASE 광장, 상가거리, 술집소로
+				RETURN 1
+			CASE 객실 , 식당, 대도서관
+				RETURN 1
+			CASE 숲의입구, 향림당, 고목의큰나무, 키리사메마법점, 인형양관, 재고의길, 무연총
+				RETURN 1
+			CASE 중유의길, 삼도천, 마요이가, 백옥루정원, 백옥루
+				RETURN 1
+			CASE 모리야신사경내, 모리야신사본전
+				RETURN 1
 		ENDSELECT
+	;인력설정 (CFLAG:LOCAL:인력점을 설정한다)
+	CASE 8
+		;土曜の夜は백옥루へ遊びに行く
+		SIF YOUBI_MATCH(DAY, "토") && INRANGE(TIME, 960, 1200)
+			TCVAR:LOCAL:인력점 = P628백옥루거실
 ENDSELECT
 
 @EXIST_캐릭터데이터26
@@ -166,13 +164,20 @@ ELSE
 		;裸
 		IF FLAG:스탠딩종류
 			;顔絵
+		SIF (TALENT:26:연령 == -1 || TALENT:26:애같음 || TALENT:26:체형 < 0)
+			RESULTS = _幼
 		ELSE
 			;立ち絵
 		ENDIF
 	ELSE
 		;服
-		SIF EQUIP:CHARA:원피스 == 7
+		IF (TALENT:26:연령 == -1 || TALENT:26:애같음 || TALENT:26:체형 < 0)
+			RESULTS = _幼
+		ELSEIF EQUIP:CHARA:원피스 == 7
 			RESULTS = _イブニングドレス
+		ENDIF
+		;SIF EQUIP:CHARA:ワンピース == 7
+			;RESULTS = _イブニングドレス
 	ENDIF
 ENDIF
 
