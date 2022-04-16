@@ -190,63 +190,70 @@ SIF CHARA == MASTER || CFLAG:CHARA:수면
 TCVAR:CHARA:피로도 += VALUE
 
 
-;----------------------------------
-;데이트 플래그 세트 CFLAG:12SET
-;호출시의 정합성을 판정해 건네받은 장소에의 데이트 플래그를 세트 한다
-;ARG=데이트처 ARG:1=세트 대상
-;데이트에서의 행선지 정의는 조금 특수
-;XXYZ	XX=데이트처 NO Y=데이트처 파생 장소 Z=이동 소요시간(X*10min)
-;----------------------------------
-@SET_DATE(ARG, C_ID)
+;-----------------------------------------------------------
+;데이트 플래그 세트라는 이름의 나간다 세트 함수
+;（현재는 CFLAG:데이트중 은 현재위치의 MAPID로 사용됨）
+;호출시의 무결성을 판정하고、P_ID로의 각종 외출 플래그를 설정한다
+;P_ID              외출한 곳의 MAPID, MAXHOME이상이면 귀가
+;C_ID              동행하는 캐릭터 ID
+;소요시간          도중에 걸리는 시간
+;시간정지점프  시간정지로 나간다（FLAG:시간정지 를 사용하지 않음）
+;-----------------------------------------------------------
+@SET_DATE(P_ID, C_ID, 소요시간, 시간정지점프)
+#DIM P_ID
 #DIM C_ID
-;FLAG_OFF
-IF ARG == 99 || ARG == 9999
-;데이트 종료
-;신사는 파생 장소가 6까지이므로 괜찮을 것. 이것으로 안 돼라면 ARG == 10000으로 한다
+#DIM 소요시간
+#DIM 시간정지점프
+#DIM 현위치MAPID
+;お出掛け終了
+IF P_ID >= MAXHOME
 	;정합성 체크
 	IF CHK_DATENOW(CFLAG:C_ID:데이트중)
-		CFLAG:C_ID:데이트중 = MAIN_MAP
 		CFLAG:MASTER:데이트중 = MAIN_MAP
 		FLAG:데이트상대 = 0
 		TFLAG:데이트전호감도 = 0
-		SIF !AT_HOME(C_ID)
+		CFLAG:MASTER:현재위치 = GET_ENTRANCE(MAIN_MAP)
+		TFLAG:데이트도중 = 0
+		IF C_ID
+			CFLAG:C_ID:데이트중 = MAIN_MAP
 			CFLAG:(C_ID):현재위치 = GET_ENTRANCE(MAIN_MAP)
-		SIF !AT_HOME(MASTER)
-			CFLAG:MASTER:현재위치 = GET_ENTRANCE(MAIN_MAP)
-		IF ARG == 9999
-			CFLAG:MASTER:현재위치 = 부엌
-			CFLAG:C_ID:현재위치 = 부엌
 		ENDIF
 	ENDIF
-;FLAG_ON
+;お出掛け開始
 ELSE
 	;정합성 체크
-	;쇠약중, 이미 데이트중이라면 처리를 실시하지 않는다
-	;SIF CHK_DATENOW(CFLAG:C_ID:데이트중) || CFLAG:C_ID:쇠약
-	SIF CFLAG:C_ID:쇠약
+	SIF BASE:MASTER:기력 <= 0
 		RETURN
-	;기력이 없으면 데이트는 갈 수 없다
-	SIF BASE:MASTER:기력 <= 0 || BASE:C_ID:기력 <= 0
-		RETURN
-
-	CFLAG:C_ID:데이트중 = ARG
-	CFLAG:MASTER:데이트중 = ARG
-	FLAG:데이트상대 = C_ID
-	TFLAG:데이트전호감도 = CFLAG:C_ID:호감도
-	IF C_ID == 0
-		CFLAG:MASTER:현재위치 = GET_ENTRANCE(ARG)
-	ELSE
-		IF ARG == 2
+	IF C_ID
+		SIF CFLAG:C_ID:쇠약
+			RETURN
+		SIF BASE:C_ID:기력 <= 0
+			RETURN
+	ENDIF
+	CFLAG:MASTER:데이트중 = P_ID
+	현위치MAPID = GET_MAPID(CFLAG:MASTER:현재위치)
+	;C_IDとデート
+	IF C_ID
+		FLAG:데이트상대 = C_ID
+		CFLAG:C_ID:데이트중 = P_ID
+		TFLAG:데이트전호감도 = CFLAG:C_ID:호감도
+		;人里デート専用処理
+		IF P_ID == 2
 			CALL EX_COSTUME(C_ID, "마을 데이트")
 			SIF RESULT
 				PRINTFORMW %CALLNAME:C_ID%는 마을에 맞는 옷으로 갈아입었습니다
 		ENDIF
-		CFLAG:C_ID:현재위치 = (ARG * 100) + (TIME_REQUIRED(CFLAG:MASTER:현재위치 / 100, ARG) / 10)
-		CFLAG:MASTER:현재위치 = (ARG * 100) + (TIME_REQUIRED(CFLAG:MASTER:현재위치 / 100, ARG) / 10)
-		;신사지도가 0번이므로 고육책의 예외처리
-		IF !ARG
-			CFLAG:C_ID:현재위치 += 1100
-			CFLAG:MASTER:현재위치 += 1100
+		CFLAG:MASTER:현재위치 = ROAD_TO(P_ID)
+		CFLAG:C_ID:현재위치 = ROAD_TO(P_ID)
+		;開始時は+1000する
+		TFLAG:데이트도중 = 소요시간 + 1000
+	;一人でお出掛け
+	ELSE
+		CFLAG:MASTER:현재위치 = GET_ENTRANCE(P_ID)
+		IF 시간정지점프
+			BASE:MASTER:TSP -= 소요시간 * 3
+		ELSE
+			TIME += 소요시간
 		ENDIF
 	ENDIF
 	CALL HappenToChild

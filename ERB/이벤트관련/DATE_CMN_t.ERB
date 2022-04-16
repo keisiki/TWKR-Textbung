@@ -24,10 +24,9 @@ RETURNF STR:(CFLAG:MASTER:데이트중 + 5000)
 #FUNCTIONS
 SIF CHK_DATENOW(CFLAG:MASTER:데이트중) == 0
 	RETURNF ""
-SIF CFLAG:MASTER:현재위치 % 100 / 10 == 0
+SIF TFLAG:데이트도중
 	RETURNF "도중"
-RETURNF NAME_FROM_PLACE(CFLAG:MASTER:현재위치 / 10 + 6000)
-
+RETURNF NAME_FROM_PLACE(CFLAG:MASTER:현재위치)
 ;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
 ;데이트 지점 번호 취득 함수
 ;CALL		USER
@@ -39,16 +38,6 @@ RETURNF NAME_FROM_PLACE(CFLAG:MASTER:현재위치 / 10 + 6000)
 #FUNCTION
 RETURNF CFLAG:MASTER:현재위치 % 100 / 10
 
-;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
-;데이트처 도착 남은 시간 취득 함수
-;CALL		USER
-;ARG		VOID
-;RETURN		데이트 지점 NO
-;COMMENT	
-;-----------------------------------------------------------
-@DATE_REMAINTIME()
-#FUNCTION
-RETURNF ((CFLAG:MASTER:현재위치 % 100) % 10) * 10
 
 ;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
 ;데이트처 아르바이트 가부
@@ -73,107 +62,6 @@ SELECTCASE ARG
 	CASE 350,410,430,440,510,530,630,710,810
 		RETURNF 1
 ENDSELECT
-RETURNF 0
-
-;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
-;데이트처 모브 존재 판정
-;CALL		USER
-;ARG		현재위치
-;RETURN		통로가 많으면 1
-;COMMENT	MASTER의 눈에 보이는 범위에 모브캐라(소녀 한정)가 걷고 있는(일 것이다) 장소인가 아닌가
-;-----------------------------------------------------------
-@DATE_HITOGOMI(ARG)
-#FUNCTION
-SIF !ARG
-	ARG = CFLAG:PLAYER:현재위치
-IF !AT_HOME(MASTER)
-	SELECTCASE ARG
-		;모브가 있다(와 마음대로 상상하고 있는 장소
-		;지저(큰길, 온천, 지령전) 요괴의 산 산정(모리야신사본전, 경내, 구천의폭포) 요괴의 산 산록(없음) 삼도천~명계(중유의길) 마법의숲(없음) 미혹의 죽림(영원정) 홍마관(객실, 식당, 대도서관) 인간 마을(혼숙여관 이외) 명련사(지장길, 수양버들아래, 명련사경내, 명련사방장)
-		CASE 960,940,930,850,840,810,610,450,370,360,350,270,250,240,230,220,210,140,130,120,110
-			RETURNF 1
-	ENDSELECT
-ENDIF
-RETURNF 0
-
-;FileName_DATE_CMN.ERB ----------------------------- Rev1. 00
-;데이트처 모브 종류 존재 판정
-;CALL		USER
-;ARG		현재위치
-;RETURN		
-;COMMENT	MASTER의 눈에 보이는 범위에 모브캐라(소녀 한정)가 걷고 있는(일 것이다) 장소인가 아닌가, 남자는 Gun 무시, 홉고블린은 신사이므로 소녀가 모여 꺅 캬 하고 있는 곳에는 접근하지 않습니다
-;-----------------------------------------------------------
-@DATE_HITOGOMI_SYUBETU(ARG)
-#FUNCTIONS
-VARSET LOCALS
-SIF !ARG
-	ARG = CFLAG:PLAYER:현재위치
-SELECTCASE GET_MAPID(ARG)
-	;모브의 종류
-	;지저(큰길, 온천, 지령전)(큰길과 온천에서는 오니도 나온다
-	CASE 9
-		IF ARG != 960 && !RAND:3
-			LOCALS += "오니"
-		ELSE
-			LOCALS += "요괴"
-		ENDIF
-	;요괴의 산 산정(모리야신사본전, 경내, 구천의폭포)(모리야신사경내만 드물게 인간
-	CASE 8
-		IF !RAND:5 && ARG == 840
-			LOCALS += "인간"
-		ELSE
-			LOCALS += "요괴"
-		ENDIF
-	;요괴의 산 산록(없음)
-	;삼도천~명계(중유의길)(사신, 요괴, 드물게 인간
-	CASE 6
-		IF !RAND:5
-			LOCALS += "인간"
-		ELSEIF !RAND:3
-			LOCALS += "요괴"
-		ELSE
-			LOCALS += "사신"
-		ENDIF
-	;마법의숲(없음)
-	;미혹의 죽림(영원정)(요괴 토끼, 드물게 인간(환자)
-	CASE 4
-		IF RAND:5
-			LOCALS += "요괴토끼"
-		ELSE
-			LOCALS += "인간"
-		ENDIF
-	;홍마관(객실, 식당, 대도서관)(객실 식당은 요정 메이드, 대도서관은 소악마로 하고 싶지만, 개별 캐릭터화하고 있기 때문에 요정 메이드
-	CASE 3
-		LOCALS +=  "요정 메이드"
-	;인간 마을(혼숙여관 이외)(기본 인간, 드물게 요괴
-	CASE 2
-		IF RAND:5
-			LOCALS += "인간"
-		ELSE
-			LOCALS += "요괴"
-		ENDIF
-	;명련사(지장길, 수양버들아래, 명련사경내, 명련사방장)(인간과 요괴
-	CASE 1
-		IF !RAND:2
-			LOCALS += "인간"
-		ELSE
-			LOCALS += "요괴"
-		ENDIF
-ENDSELECT
-LOCALS += "의 소녀"
-
-RETURNF LOCALS
-
-
-;FileName_DATE_CMN.ERB ------------------------------- Rev1. 00
-;데이트의 도중인가 어떤가
-;CALL		USER
-;ARG		현재위치
-;-----------------------------------------------------------
-@HALFWAY()
-#FUNCTION
-SIF CHK_DATENOW(CFLAG:MASTER:데이트중) && GET_DATE_PLACE(CFLAG:MASTER:현재위치) && CFLAG:MASTER:데이트중 != MAIN_MAP + 1 && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
-	RETURNF 1
 RETURNF 0
 
 ;FileName_DATE_CMN.ERB ----------------------------- Rev1. 01

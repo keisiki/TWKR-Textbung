@@ -528,26 +528,7 @@ NEXT
 
 
 
-;FileName_COMMON.ERB ------------------------------- Rev1. 00
-;데이트 도중 진행
-;デート道中進行
-;CALL		USER
-;ARG		진행할 시간(10분 단위)
-;RETURN		VOID
-;COMMENT	
-;-----------------------------------------------------------
-@DATE_GOES_ON(ARG)
-IF (CFLAG:MASTER:현재위치 % 100) % 10 && !AT_HOME(MASTER) && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
-	IF (CFLAG:MASTER:현재위치 % 100 % 10) - ARG < 0
-		LOCAL:1 = CFLAG:MASTER:현재위치 - (CFLAG:MASTER:현재위치 % 100 % 10)
-	ELSE
-		LOCAL:1 = CFLAG:현재위치 - ARG
-	ENDIF
-	FOR LOCAL, 0, CHARANUM
-		SIF CHK_DATENOW(CFLAG:LOCAL:데이트중)
-			CFLAG:LOCAL:현재위치 = LOCAL:1
-	NEXT
-ENDIF
+
 ;====================================================
 @성기술보정(ARG)
 #FUNCTION
@@ -799,12 +780,48 @@ IF !INRANGE(WAKEUPTIME - SLEEPTIME, 0, 840)
 		RESTART
 	;설정이 이상할 때
 	ELSE
-		;체크를 위해 THROW 해두기,모브코는 허가
-		SIF ARG != [[모브코]]
-			THROW
+		[IF_DEBUG]
+			;체크를 위해 THROW 해두기, 모브코는 허가, 一時的に守矢くじ対策,あとで修正,THROWはアレなのでデバッグ用に
+			SIF ARG != [[모브코]] && CFLAG:ARG:기상시간 != CFLAG:ARG:취침시간
+				THROW
+		[ENDIF]
+		ENDIF
+ENDIF
+RETURNF WAKEUPTIME - SLEEPTIME	
+
+;-------------------------------------------------
+;캐릭터의 생활시간을 설정하는 함수
+;하루의 시작에 설정하기
+;-------------------------------------------------
+@생활시간설정(CHARA)
+#DIM CHARA
+CALLFORM CHARAMOVE_DATA_{CHARA}(3)
+CFLAG:CHARA:기상시간 = 시각계산(CSVCFLAG(CHARA, GETNUM(CFLAG, "기상시간")) + CFLAG:CHARA:생활시간보정)
+CFLAG:CHARA:내방시간 = 시각계산(CSVCFLAG(CHARA, GETNUM(CFLAG, "내방시간")) + CFLAG:CHARA:생활시간보정)
+CFLAG:CHARA:귀가시간 = 시각계산(CSVCFLAG(CHARA, GETNUM(CFLAG, "귀가시간")) + CFLAG:CHARA:생활시간보정)
+CFLAG:CHARA:취침시간 = 시각계산(CSVCFLAG(CHARA, GETNUM(CFLAG, "취침시간")) + CFLAG:CHARA:생활시간보정)
+;大晦日はみんな夜ふかし
+IF FESTIVAL() == "그믐날"
+	IF INRANGE(CFLAG:CHARA:귀가시간, 900 , 1440) || INRANGE(CFLAG:CHARA:귀가시간, 0 , 59) || INRANGE(CFLAG:CHARA:취침시간, 900 , 1440) || INRANGE(CFLAG:CHARA:취침시간, 0 , 119)
+		CFLAG:CHARA:귀가시간 = 60
+		CFLAG:CHARA:취침시간 = 120
 	ENDIF
 ENDIF
-RETURNF WAKEUPTIME - SLEEPTIME		
+;-------------------------------------------------
+;시각의 계산
+;시각X+Y를 시각으로 반환한다
+;-------------------------------------------------
+@시각계산(ARG)
+#FUNCTION
+LOCAL = ARG
+WHILE LOCAL > 1440
+	LOCAL -= 1440
+WEND
+WHILE LOCAL < 0
+	LOCAL += 1440
+WEND
+RETURNF LOCAL
+
 ;-------------------------------------------------
 ;함수명:아이의수면시간
 ;개요:캐릭터 ARG의 아이가 자고 있어 어떤가를 돌려주는 함수
@@ -891,11 +908,14 @@ UFUFU_START_DAY = 0
 ;시간정지중은 복장 세트 하지 않는다
 ;수면 절반으로 자르는 것기 등은 모두 리셋 처리 곁에 있습니다
 IF !CFLAG:강제탈의
-	SIF !FLAG:70
+	SIF !FLAG:시간정지
 		CALL CHANGE_CLOTHES(ARG, "의상 리셋")
 	;복장을 TEQUIP에
 	CALL CLOTHES_SETTING_TRAIN(ARG)
+	
 ENDIF
+;MASTERとの接触位置をリセット
+CALL TOUCH_SET(0, 0, 0, 1)
 
 ;우후후시 계 장비 리셋
 ;TEQUIP:ARG:10-TEQUIP:ARG:149를 초기화한다
@@ -949,7 +969,7 @@ IF CFLAG:수면
 		CFLAG:ARG:손에정액 = 0
 	ENDIF
 ENDIF
-IF !FLAG:70
+IF !FLAG:시간정지
 	TFLAG:운반 = 0
 	IF CFLAG:ARG:구내정액
 		PRINTFORML %CALLNAME:ARG%는 입 안에 남아있던 정액을 \@ ABL:ARG:정액중독 > 2 ?  전부 삼켰다 # 뱉었다 \@
@@ -2025,8 +2045,8 @@ TCVAR:ARG:쫒겨난시각 = TIME
 TCVAR:ARG:쫒겨난장소 = CFLAG:ARG:현재위치
 FOR LOCAL, MINROOM(), MAXROOM
 	;세련되지 않지만、번호 관계상幽香私室에서는 발코니로 쫓겨나기에 개별처리
-	IF CFLAG:ARG:현재위치 == 463
-		CFLAG:ARG:현재위치 = 465
+	IF CFLAG:ARG:현재위치 == P463몽환관유카방
+		CFLAG:ARG:현재위치 = P465몽환관홀
 		BREAK
 	ENDIF
 	IF CAN_MOVE(CFLAG:ARG:현재위치, LOCAL) & 1
@@ -2093,31 +2113,6 @@ IF GET_MAPID(PLACE_ID) == MAIN_MAP
 ELSE
 	RETURNF STR:(6000 + GET_MAP_REPLACEMENT(PLACE_ID) / 10)
 ENDIF
-
-;----------------------------------------------------------------------------------------------------
-;초기위치의 지역 나토리 이득 함수
-;미설정이라면 우선"불명"으로
-;----------------------------------------------------------------------------------------------------
-@AREANAME_CHARA_HOME(C_ID)
-#FUNCTIONS
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIM C_ID
-#DIM HOME_ID
-HOME_ID = GET_CHARAHOME(C_ID)
-SIF HOME_ID <= 0
-	RETURNF "불명"
-RETURNF MAP_AREANAME(HOME_ID)
-
-;----------------------------------------------------------------------------------------------------
-;현재위치의 지역 나토리 이득 함수
-;----------------------------------------------------------------------------------------------------
-@AREANAME_CHARA_NOW(C_ID)
-#FUNCTIONS
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIM C_ID
-RETURNF MAP_AREANAME(CFLAG:C_ID:현재위치)
 
 ;----------------------------------------------------------------------------------------------------
 ;배열 추첨 F함수
@@ -2752,6 +2747,7 @@ RESULT:121 = [[츠카사]]
 RESULT:122 = [[메구무]]
 RESULT:123 = [[치마타]]
 RESULT:124 = [[모모요]]
+RESULT:125 = [[유마]]
 
 RESULT:201 = [[미마]]
 RESULT:202 = [[리카]]
