@@ -264,7 +264,7 @@ RETURNF 0
 ;함수명 :GET_DAY
 ;개요:요일을 나타내는 캐릭터라인을 취득하는 함수
 ;인수:인수가 없는 경우 DAY
-;반환값:요일을 나타내는 캐릭터라인(일/월/화/수/목/금/흙)
+;반환값:요일을 나타내는 캐릭터라인(일/월/화/수/목/금/토)
 ;비고:문중 함수
 ;-------------------------------------------------
 @GET_DAY(ARG)
@@ -948,15 +948,18 @@ FOR LOCAL, 1, CHARANUM
 		ENDIF
 	ENDIF
 	CALL 만남플래그결정(LOCAL)
-;	CFLAG:LOCAL:현재위치 = CFLAG:LOCAL:만난위치
-;	이동전 = %STR:(6000 + CFLAG:LOCAL:전턴위치 / 10)%
-;	SIF CFLAG:LOCAL:전턴위치 == SUKIMA()
-;		이동전 = 방
-;	이동후 = %STR:(6000 + CFLAG:LOCAL:현재위치 / 10)%
-;	SIF CFLAG:LOCAL:현재위치 == SUKIMA()
-;		이동후 = 방
-;	SIF CFLAG:LOCAL:전턴위치 != CFLAG:LOCAL:현재위치 && (CFLAG:MASTER:현재위치 / 100 == CFLAG:LOCAL:전턴위치 / 100) && !AT_HOME() && CFLAG:MASTER:현재위치 != OMANEKIBEYA()
-;		PRINTFORML %조사처리(CALLNAME:LOCAL,"는")% 【%이동전%】에서 【%이동후%】로 이동했다
 NEXT
-;캐릭터를 움직였으므로 TARGET재설정
-;CALL TARGETSET_CHACK
+;全キャラ決定後、連動キャラを設定する
+FOR LOCAL, 1, CHARANUM
+	VARSET RESULT
+	CALLFORM CHARAMOVE_DATA_{LOCAL}(1)
+	;依存連動
+	IF RESULT
+		CFLAG:LOCAL:만난위치 = CFLAG:RESULT:만난위치
+	;対等連動
+	ELSEIF RESULT:1
+		;連動設定する
+		CFLAG:LOCAL:만난위치 = CFLAG:연동캐릭터설정(RESULT:1, RESULT:2, RESULT:3):만난위치
+	ENDIF
+NEXT
+
