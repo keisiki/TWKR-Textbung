@@ -1,0 +1,92 @@
+﻿@EXIST_FreeAct18
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+@FreeAct18(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+#DIM 경과시간
+경과시간 = Activity_Duration:TARGET
+SELECTCASE O_DATA
+;自由行動に付き合うコマンドの名称
+CASE "명칭"
+	CALLF MAKE_STR(V_NAME, "코타츠에서 느긋하게 쉬기") ;炬燵でくつろぐ
+CASE "CHAIN"
+;他キャラに連鎖しない場合コメントアウトすること
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "경과시간"
+;自由行動に付き合うコマンドでの경과시간
+;0だと30分か残り時間すべての小さい方
+	CALLF MAKE_INT(V_NAME, 0)
+ENDSELECT
+
+@자유행동내용_18(CHARA, ARGS, 시간계수, CHAIN)
+#DIM CHARA
+#DIM CHAIN
+#DIM 현위치
+#DIM 메시지표시
+#DIM 시간계수
+#DIM 경과시간
+현위치 = CFLAG:CHARA:현재위치
+메시지표시 = 현위치 == CFLAG:MASTER:현재위치 ? 1 # 0
+SELECTCASE ARGS
+	CASE "발생"
+		;冬の炬燵がある場所で発生
+		SIF !코타츠발생가능(CHARA, 현위치)
+			RETURN 0
+		SIF 메시지표시
+			;PRINTFORMW %CALLNAME:CHARA%は\@ CHAIN ? %CALLNAME:CHAIN%に釣られて炬燵に入った。# 炬燵でまったりし始めた。\@
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는") %\@ CHAIN ? %CALLNAME:CHAIN%에게 이끌려 코타츠에 들어갔다。# 코타츠에서 느긋하게 있기 시작했다。\@
+		;猫耳
+		IF TALENT:CHARA:동물귀 == 4
+			RETURN 120 + RAND:60
+		;それ以外の動物耳
+		ELSEIF TALENT:CHARA:동물귀
+			RETURN 90 + RAND:45
+		ELSE
+			RETURN 60 + RAND:30
+		ENDIF
+	CASE "행동중"
+		IF 메시지표시
+			;PRINTFORMW %CALLNAME:CHARA%は炬燵に入って%TEXTR("温まっている/丸くなっている/ぬくぬくしている/あくびをしている/くつろいでいる")%。
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% 코타츠에 들어가 %TEXTR("데워지고 있다/누그러져 있다/따끈따끈해져 있다/하품을 하고 있다/느긋하게 쉬고 있다")%。
+		ENDIF
+	CASE "완료"
+		SIF 메시지표시
+			;PRINTFORMW %CALLNAME:CHARA%は%TEXTR("意を決して炬燵から這い出た/十分温まって炬燵から出た/暑くなってきたので炬燵から出た/ハッとして炬燵から出た")%。
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"는")% %TEXTR("큰맘을 먹고 코타츠에서 기어나왔다/충분히 데워져 코타츠에서 나왔다/더워지기 시작해서 코타츠에서 나왔다/뜨거워서 코타츠에서 나왔다")%。
+	CASE "중단"
+	CASE "같이한다"
+		;自由行動に付き合ったとき用メッセージ
+		;PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%と一緒に炬燵で%TEXTR("温まって/丸くなって/暖を取って")%%TEXTR("ぼーっとした/ダラダラした/のんびりした/くつろいだ")%…
+		PRINTFORML %조사처리(CALLNAME:PLAYER,"는")% %타겟과% 함께 코타츠에서 %TEXTR("데워져/누그러져/몸을 녹이며")% %TEXTR("멍하니 있다/늘어져 있다/여유롭게 있다/느긋하게 있다")%…
+	CASE "소스"
+		;付き合うコマンド選択時の入手ソース、시간계수は付き合った時間の1/10
+		;のんびりすると同じ
+		CALL RECOVER_PERMIL(MASTER, 30, "체력", 1)
+		CALL RECOVER_PERMIL(MASTER, 80, "기력", 1)
+		CALL RECOVER_PERMIL(TARGET, 50, "체력", 1)
+		CALL RECOVER_PERMIL(TARGET, 100, "기력", 1)
+		SOURCE:환락 = (100 + ((ABL:친밀 + 호감도계수(TARGET)) * 10)) * 시간계수
+		SOURCE:수동 = (50 + ((ABL:순종 + 호감도계수(TARGET)) * 5)) * 시간계수
+ENDSELECT
+
+;炬燵発生条件
+;ARG  현재위치
+@코타츠발생가능(CHARA, ARG)
+#FUNCTION
+#DIM CHARA
+;冬のみ
+SIF GET_MONTH() != "겨울의 달"
+	RETURNF 0
+;炬燵のある場所のみ
+SIF !코타츠가있는장소(ARG)
+	RETURNF 0
+;水棲と氷精はダメ
+SIF TALENT:CHARA:수서 || TALENT:CHARA:빙정
+	RETURNF 0
+RETURNF 1

@@ -1,162 +1,171 @@
-﻿@SKIP_MOVE_7(ARG, ARG:1)
-;LOCAL 일람
-;0	현재위치
-
-;현재위치 취득
-LOCAL = CFLAG:MASTER:현재위치
-SIF ARG:1
-	LOCAL = ARG:1
-;잠정 목적지에 직접 이동할 수 있는 경우
-IF CAN_MOVE(LOCAL, ARG) & 1
-	;거기에 이동
-	RETURN ARG
+﻿;-----------------------------------------------------------
+;원거리 이동 설정
+;ARG     목적지
+;ARG:1   현위치
+;RETURN  다음 목적지
+;-----------------------------------------------------------
+@SKIP_MOVE_7(ARG, ARG:1)
+#DIM 현재의위치
+;現在位置取得
+IF ARG:1
+	현재의위치 = ARG:1
+ELSE
+	현재의위치 = CFLAG:MASTER:현재위치
 ENDIF
 
-;막다른 골목으로부터 갈 수 있는 장소는 고정이므로, 거기를 목표로 한다
-SELECTCASE ARG
-	;캇파의 아지트, 릴리 하우스, 수영장은 현무의늪만
-	CASE 704,709,735
-		RETURN 703
-	;히나 하우스, 고양이의 마을, 큰두꺼비의연못은 수해 중부만
-	CASE 706,708,710
-		RETURN 707
-	CASE 732 ; 712
-		RETURN 711
-	CASE 713
-		RETURN 712
-	CASE 733
-		RETURN 705
-	;하늘 오두막
-	CASE 734
-		RETURN 701
-	CASE 736
-		RETURN 711
-	CASE 720 TO 729
-		SIF !GROUPMATCH(LOCAL:0,720,721,722,723,724,725,726,727,728,729,730)
-			RETURN 730
+;目的地に直接移動できる場合そこに移動
+SIF CAN_MOVE(현재의위치, ARG) & 1
+	RETURN ARG
+
+;袋小路から行ける場所は固定なので、そこを目指す
+SELECTCASE 현재의위치
+	CASE P704캇파의아지트, P709릴리네집, P735물놀이터
+		RETURN P703현무의늪
+	CASE P734오두막
+		RETURN P701수해도입구
+	CASE P733세이자은신처
+		RETURN P705산길・산비탈
+	CASE P708큰두꺼비의연못
+		RETURN P707산길・분기점
+	CASE P737마네키네코의집
+		RETURN P710고양이마을
+	CASE P721선인저택・욕실, P722선인저택・도장, P720선인저택・부엌
+		RETURN P729선인저택・현관
+	CASE P724선인저택・서재
+		RETURN P723선인저택・2층응접실
+	CASE P727선인저택・카센방, P728선인저택・빈방
+		RETURN P726선인저택・거실
+	CASE P739비천애, P740야마와로의아지트
+		RETURN P738깊은숲속
 ENDSELECT
 
-;직접 이동할 수 없는 경우,  1개가까운 위치를 잠정 목적지로 다시 설정해 루프
-;지점 추가시 요점 보충(전케이스 수정하는 것)
+;直接移動できない場合、1つ近い位置を暫定目的地に設定し直してループ
+;基本的に最短で行けるコースを設定する
+;現在地によってコースが変わることも考慮して対応する
 SELECTCASE ARG
-	CASE 701
-		RETURN 702
-	CASE 702
-		IF GROUPMATCH(LOCAL:0,717,718,719)
-			RETURN 716
-		ELSEIF LOCAL:0 == 734
-			RETURN 701
-		ELSE
-			RETURN 703
-		ENDIF
-	;현무의늪
-	CASE 703
-		IF GROUPMATCH(LOCAL:0,701,715,716,717,718,719,734,735)
-			RETURN 702
-		ELSE
-			RETURN 705
-		ENDIF
-	CASE 704
-		RETURN 703
-	;산 중턱
-	CASE 705
-		IF GROUPMATCH(LOCAL:0,701,702,704,709,715,716,717,718,719,734,735)
-			RETURN 703
-		ELSE
-			RETURN 707
-		ENDIF
-	;분기
-	CASE 707
-		SELECTCASE LOCAL:0
-			CASE 720 TO 730
-				RETURN 731
-			CASE 712,713,732,736
-				RETURN 711
-			CASEELSE
-				RETURN 705
+	CASE P701수해도입구
+		RETURN P702산길・늪으로가는길
+	CASE P702산길・늪으로가는길
+		SELECTCASE 현재의위치
+		CASE P717아키자매의집・침실 TO P719아키자매의집・손님방
+			RETURN P716아키자매의집・봉당
+		CASEELSE
+			RETURN P703현무의늪
 		ENDSELECT
-	CASE 709
-		RETURN 703
-	CASE 711
-		IF LOCAL:0 == 713
-			RETURN 712
-		ELSE
-			RETURN 707
-		ENDIF
-	CASE 706,708,710
-		RETURN 707
-	CASE 712
-		RETURN 711
-	CASE 713
-		RETURN 712
-	;가을 하우스
-	CASE 715
-		IF GROUPMATCH(LOCAL:0,717,718,)
-			RETURN 719
-		ELSE
-			RETURN 702
-		ENDIF
-	CASE 716
-		RETURN 702
-	CASE 717 TO 719
-		RETURN 716
-	;카센하우스1층
-	CASE 720 TO 722
-		;저택 위의 층이라면 응접실
-		IF GROUPMATCH(LOCAL:0,724,725,726,727,728)
-			RETURN 723
-		;(이)가 아니면 현관
-		ELSE
-			RETURN 729
-		ENDIF
-	CASE 723
-		;저택 위의 층이라면 거실
-		IF GROUPMATCH(LOCAL:0,727,728)
-			RETURN 726
-		;(이)가 아니면 현관
-		ELSE
-			RETURN 729
-		ENDIF
-	CASE 724,725,726
-		;응접실
-		RETURN 723
-	CASE 727,728
-		RETURN 726
-	CASE 729
-		;저택 위의 층이라면 거실
-		IF GROUPMATCH(LOCAL:0,724,725,726,727,728)
-			RETURN 723
-		;(이)가 아니면 선인의 뜰
-		ELSE
-			RETURN 730
-		ENDIF
-	;선인의 뜰
-	CASE 730
-	;zurasita
-		;저택이라면 현관
-		IF GROUPMATCH(LOCAL:0,720,721,722,723,724,725,726,727,728)
-			RETURN 729
-		;(이)가 아니면 대싸리
-		ELSE
-			RETURN 731
-		ENDIF
-	;대싸리
-	CASE 731
-		;저택이라면 뜰
-		IF GROUPMATCH(LOCAL:0,720,721,722,723,724,725,726,727,728,729)
-			RETURN 730
-			;zurasita
-		ELSE
-			RETURN 707
-		ENDIF
-	CASE 732
-		RETURN 711
-	CASE 733
-		RETURN 705
-	CASE 734
-		RETURN 702
-	CASE 735
-		RETURN 703
-	CASE 736
-		RETURN 711
+	CASE P703현무의늪
+		SELECTCASE 현재의위치
+		CASE P701수해도입구, P734오두막, P715아키자매의집・밭 TO P719아키자매의집・손님방
+			RETURN P702산길・늪으로가는길
+		CASE P739비천애, P740야마와로의아지트
+			RETURN P738깊은숲속
+		CASEELSE
+			RETURN P705산길・산비탈
+		ENDSELECT
+	CASE P705산길・산비탈
+		SELECTCASE 현재의위치
+		CASE P701수해도입구 TO P704캇파의아지트, P734오두막, P715아키자매의집・밭 TO P719아키자매의집・손님방, P709릴리네집, P735물놀이터, P738깊은숲속 TO P740야마와로의아지트
+			RETURN P703현무의늪
+		CASEELSE
+			RETURN P707산길・분기점
+		ENDSELECT
+	CASE P707산길・분기점
+		SELECTCASE 현재의위치
+		CASE P712간헐천지하센터, P732산정으로가는길, P736야만바의집
+			RETURN P711휴게소
+		CASE P720선인저택・부엌 TO P730선인저택・마당
+			RETURN P731댑싸리
+		CASEELSE
+			RETURN P705산길・산비탈
+		ENDSELECT
+	CASE P710고양이마을, P711휴게소
+		RETURN P707산길・분기점
+	CASE P712간헐천지하센터, P732산정으로가는길, P736야만바의집
+		RETURN P711휴게소
+	CASE P734오두막
+		RETURN P701수해도입구
+	CASE P704캇파의아지트, P709릴리네집, P735물놀이터, P738깊은숲속
+		RETURN P703현무의늪
+	CASE P733세이자은신처
+		RETURN P705산길・산비탈 
+	CASE P706액신의집
+		SELECTCASE 현재의위치
+		CASE P737마네키네코의집
+			RETURN P710고양이마을
+		CASEELSE
+			RETURN P707산길・분기점
+		ENDSELECT
+	CASE P708큰두꺼비의연못
+		RETURN P707산길・분기점
+	CASE P737마네키네코의집
+		RETURN P710고양이마을
+	CASE P739비천애, P740야마와로의아지트
+		RETURN P738깊은숲속
+
+	CASE P715아키자매의집・밭
+		SELECTCASE 현재의위치
+		CASE P717아키자매의집・침실
+			RETURN P719아키자매의집・손님방
+		CASE P718아키자매의집・거실
+			RETURN P716아키자매의집・봉당
+		CASEELSE
+			RETURN P702산길・늪으로가는길
+		ENDSELECT
+	CASE P716아키자매의집・봉당
+		SELECTCASE 현재의위치
+		CASE P717아키자매의집・침실, P719아키자매의집・손님방
+			RETURN P718아키자매의집・거실
+		CASEELSE
+			RETURN P702산길・늪으로가는길
+		ENDSELECT
+	CASE P717아키자매의집・침실
+		SELECTCASE 현재의위치
+		CASE P715아키자매의집・밭
+			RETURN P719아키자매의집・손님방
+		CASEELSE
+			RETURN P718아키자매의집・거실
+		ENDSELECT
+	CASE P718아키자매의집・거실
+		RETURN P716아키자매의집・봉당
+	CASE P719아키자매의집・손님방
+		SELECTCASE 현재의위치
+		CASE P716아키자매의집・봉당
+			RETURN P718아키자매의집・거실
+		CASEELSE
+			RETURN P715아키자매의집・밭
+		ENDSELECT
+
+	CASE P731댑싸리
+		SELECTCASE 현재의위치
+		CASE P720선인저택・부엌 TO P729선인저택・현관
+			RETURN P730선인저택・마당
+		CASEELSE
+			RETURN P707산길・분기점
+		ENDSELECT
+	CASE P730선인저택・마당
+		SELECTCASE 현재의위치
+		CASE P720선인저택・부엌 TO P729선인저택・현관
+			RETURN P729선인저택・현관
+		CASEELSE
+			RETURN P731댑싸리
+		ENDSELECT
+	CASE P729선인저택・현관
+		SELECTCASE 현재의위치
+		CASE P724선인저택・서재 TO P728선인저택・빈방
+			RETURN P723선인저택・2층응접실
+		CASEELSE
+			RETURN P730선인저택・마당
+		ENDSELECT
+	CASE P720선인저택・부엌 TO P722선인저택・도장
+		RETURN P729선인저택・현관
+	CASE P723선인저택・2층응접실
+		SELECTCASE 현재의위치
+		CASE P727선인저택・카센방 TO P728선인저택・빈방
+			RETURN P726선인저택・거실
+		CASEELSE
+			RETURN P729선인저택・현관
+		ENDSELECT
+	CASE P724선인저택・서재, P725선인저택・큰수리방, P726선인저택・거실
+		RETURN P723선인저택・2층응접실
+	CASE P727선인저택・카센방, P728선인저택・빈방
+		RETURN P726선인저택・거실
 ENDSELECT

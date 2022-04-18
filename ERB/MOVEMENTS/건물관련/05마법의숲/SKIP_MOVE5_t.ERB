@@ -1,164 +1,133 @@
-﻿@SKIP_MOVE_5(ARG:0, ARG:1)
-
-;현재위치 취득
-LOCAL:0 = CFLAG:MASTER:현재위치
-SIF ARG:1
-	LOCAL = ARG:1
-
-;잠정 목적지에 직접 이동할 수 있는 경우
-IF CAN_MOVE(LOCAL, ARG) & 1
-	;거기에 이동
-	RETURN ARG
+﻿;-----------------------------------------------------------
+;원거리 이동 설정
+;ARG     목적지
+;ARG:1   현위치
+;RETURN  다음 목적지
+;-----------------------------------------------------------
+@SKIP_MOVE_5(ARG:0, ARG:1)
+#DIM 현재의위치
+;現在位置取得
+IF ARG:1
+	현재의위치 = ARG:1
+ELSE
+	현재의위치 = CFLAG:MASTER:현재위치
 ENDIF
 
-;막다른 골목으로부터 갈 수 있는 장소는 고정이므로, 거기를 목표로 한다
-SELECTCASE LOCAL
-;향림당으로부터는 마법의숲 입구만
-CASE 502
-	RETURN 501
-;무연총으로부터는 재고의길만
-CASE 506
-	RETURN 509
-CASE 512 TO 514
-	RETURN 511
-CASE 526
-	RETURN 525
-CASE 528,531
-	RETURN 530
-CASE 534
-	RETURN 501
-CASE 535 TO 537
-	RETURN 534
-CASE 541 TO 543
-	RETURN 540
-CASE 544
-	RETURN 508
+;目的地に直接移動できる場合そこに移動
+SIF CAN_MOVE(현재의위치, ARG) & 1
+	RETURN ARG
+
+;袋小路から行ける場所は固定なので、そこを目指す
+SELECTCASE 현재의위치
+	CASE P502향림당
+		RETURN P501마법의숲입구
+	CASE P506무연총
+		RETURN P509재고의길
+	CASE P521인형저택・앨리스방, P522인형저택・신키방, P523인형저택・유메코방, P524인형저택・연구실, P526인형저택・욕실
+		RETURN P525인형저택・거실
+	CASE P528인형저택・창고, P531인형저택・빈방
+		RETURN P530인형저택・2층
+	CASE P535엘렌댁・침실, P536엘렌댁・창고, P537엘렌댁・욕실
+		RETURN P534엘렌마법의가게
+	CASE P541토키코의거처, P542리글의거처, P543루미아의거처
+		RETURN P540고목의큰나무
 ENDSELECT
 
-SIF INRANGE(LOCAL, 521, 533) && !INRANGE(ARG, 520, 533)
-	RETURN 520
-
-;직접 이동할 수 없는 경우,  1개가까운 위치를 잠정 목적지로 다시 설정해 루프
-;지점 추가시 요점 보충(전케이스 수정하는 것)
+;直接移動できない場合、1つ近い位置を暫定目的地に設定し直してループ
+;基本的に最短で行けるコースを設定する
+;現在地によってコースが変わることも考慮して対応する
 SELECTCASE ARG
-	CASE 501
-		;마법의숲 입구에 직접 안 되면 갈림길을 목표로 한다
-		RETURN 503
-	CASE 502
-		;향림당에 직접 안 되면 마법의숲 입구를 목표로 한다
-		RETURN 501
-	CASE 503
-		IF INRANGE(LOCAL, 521,533)
-			RETURN 520
-		ELSEIF INRANGE(LOCAL, 534,537)
-			RETURN 501
-		ELSE
-		;마법의숲 광장을 목표로 한다
-			RETURN 508
-		ENDIF
-	CASE 506
-		RETURN 509
-	CASE 507
-		SELECTCASE LOCAL:0
-			CASE 501 TO 503, 520 TO 530, 540 TO 545
-				RETURN 540
-			CASE 534
-				RETURN 501
-			CASEELSE
-				RETURN 508
+	CASE P501마법의숲입구
+		RETURN P503갈림길
+	CASE P502향림당
+		RETURN P501마법의숲입구
+	CASE P503갈림길
+		SELECTCASE 현재의위치
+		CASE P521인형저택・앨리스방 TO P531인형저택・빈방
+			RETURN P520인형저택앞
+		CASE P535엘렌댁・침실 TO P537엘렌댁・욕실
+			RETURN P534엘렌마법의가게
+		CASEELSE
+			RETURN P508마법의광장
 		ENDSELECT
-	CASE 508
-		SELECTCASE LOCAL:0
-			CASE 511 TO 514
-				RETURN 510
-			CASE 506
-				RETURN 509
-			CASE 515,501, 502
-				RETURN 503
-			CASEELSE
-				RETURN 507
+	CASE P506무연총
+		RETURN P509재고의길
+	CASE P507버섯군생지
+		SELECTCASE 현재의위치
+		CASE P520인형저택앞 TO P531인형저택・빈방
+			RETURN P540고목의큰나무
+		CASEELSE
+			RETURN P508마법의광장
 		ENDSELECT
-	CASE 509
-		RETURN 508
-	CASE 510
-		SELECTCASE LOCAL:0
-			CASE 512 TO 515
-				RETURN 511
-			CASEELSE
-				RETURN 508
+	CASE P508마법의광장
+		SELECTCASE 현재의위치
+		CASE P511마리사댁・거실 TO P514마리사댁・욕실
+			RETURN P510키리사메마법점
+		CASEELSE
+			RETURN P503갈림길
 		ENDSELECT
-	CASE 511
-		RETURN 510
-	CASE 512 TO 514
-		RETURN 511
-	CASE 515
-		SELECTCASE LOCAL:0
-			CASE 510 TO 514
-				RETURN 511
-			CASEELSE
-				RETURN 503
+	CASE P509재고의길
+		RETURN P508마법의광장
+	CASE P510키리사메마법점
+		SELECTCASE 현재의위치
+		CASE P512마리사댁・침실 TO P515마리사댁・창고
+			RETURN P511마리사댁・거실
+		CASEELSE
+			RETURN P508마법의광장
 		ENDSELECT
-	CASE 520
-		SELECTCASE LOCAL:0
-			CASE 506 TO 509, 540 TO 545 
-				RETURN 540
-			CASE 523 TO 531
-				RETURN 525
-			CASEELSE
-				RETURN 503
+	CASE P511마리사댁・거실
+		SELECTCASE 현재의위치
+		CASE P506무연총 TO P509재고의길
+			RETURN P510키리사메마법점
+		CASEELSE
+			RETURN P503갈림길
 		ENDSELECT
-	CASE 521,522
-		SELECTCASE LOCAL:0
-			CASE 521 TO 533
-				RETURN 525
-			CASEELSE
-				RETURN 520
+	CASE P512마리사댁・침실 TO P514마리사댁・욕실
+		RETURN P511마리사댁・거실
+	CASE P515마리사댁・창고
+		SELECTCASE 현재의위치
+		CASE P510키리사메마법점 TO P514마리사댁・욕실
+			RETURN P511마리사댁・거실
+		CASEELSE
+			RETURN P503갈림길
 		ENDSELECT
-	CASE 523,524
-		SELECTCASE LOCAL:0
-			CASE 528,531
-				RETURN 530
-			CASE 520 TO 527,529,530
-				RETURN 525
-			CASEELSE
-				RETURN 520
+	CASE P520인형저택앞
+		SELECTCASE 현재의위치
+		CASE P521인형저택・앨리스방 TO P531인형저택・빈방
+			RETURN P525인형저택・거실
+		CASE P507버섯군생지
+			RETURN P540고목의큰나무
+		CASEELSE
+			RETURN P503갈림길
 		ENDSELECT
-	CASE 525
-		SELECTCASE LOCAL:0
-			CASE 528,531
-				RETURN 530
-			CASEELSE
-				RETURN 520
+	CASE P521인형저택・앨리스방, P522인형저택・신키방, P523인형저택・유메코방, P524인형저택・연구실, P526인형저택・욕실
+		RETURN P525인형저택・거실
+	CASE P525인형저택・거실
+		RETURN P520인형저택앞
+	CASE P528인형저택・창고, P531인형저택・빈방
+		RETURN P530인형저택・2층
+	CASE P529인형저택・발코니, P530인형저택・2층
+		RETURN P525인형저택・거실
+	CASE P534엘렌마법의가게
+		RETURN P503갈림길
+	CASE P535엘렌댁・침실, P536엘렌댁・창고, P537엘렌댁・욕실
+		RETURN P534엘렌마법의가게
+	CASE P540고목의큰나무
+		SELECTCASE 현재의위치
+		CASE P506무연총 TO P509재고의길
+			RETURN P507버섯군생지
+		CASE P521인형저택・앨리스방 TO P531인형저택・빈방
+			RETURN P520인형저택앞
+		CASEELSE
+			RETURN P503갈림길
 		ENDSELECT
-	CASE 526
-		RETURN 525
-	CASE 528,531
-		RETURN 530
-	CASE 529
-		SELECTCASE LOCAL:0
-			CASE 528,531
-				RETURN 530
-			CASEELSE
-				RETURN 525
+	CASE P541토키코의거처, P542리글의거처, P543루미아의거처
+		RETURN P540고목의큰나무
+	CASE P544나루미의오두막
+		SELECTCASE 현재의위치
+		CASE P506무연총 TO P509재고의길, P510키리사메마법점
+			RETURN P508마법의광장
+		CASEELSE
+			RETURN P503갈림길
 		ENDSELECT
-	CASE 530
-		RETURN 525
-	CASE 534
-		RETURN 501
-	CASE 535 TO 537
-		RETURN 534
-	CASE 540
-		SELECTCASE LOCAL:0
-			CASE 506 TO 509
-				RETURN 507
-			CASE 521 TO 533
-				RETURN 520
-			CASEELSE
-				RETURN 503
-		ENDSELECT
-	CASE 541 TO 543
-		RETURN 540
-	;나루미의 집
-	CASE 544
-		RETURN 508
 ENDSELECT

@@ -28,10 +28,9 @@ PRINTL 구버전에는 존재하지 않던 캐릭터·초기 소질·플래그 �
 
 VARSET 대사실장체크
 리셋화면 = 0
-FOR C_ID,0,CHARANUM ;일단 모브 삭제
-	SIF TALENT:C_ID:스침
-		DELCHARA C_ID
-NEXT
+;일단 모브 삭제
+DELCHARA CHARANUM - 1
+
 
 FOR C_ID,1,CHARANUM ;CSV의 이름을 참고해 NO를 고친다
 	VARSET LOCAL
@@ -135,7 +134,7 @@ FOR C_ID, 1, CHARANUM
 	FOR LOCAL:1, 190, 198
 		TALENT:C_ID:(LOCAL:1) = CSVTALENT(C_ID, LOCAL:1)
 	NEXT
-	;습기선호, 한기선호, 종족(미사용? ), 반백택, 동물귀도 변동하지 않는다고 생각되므로 갱신
+	;수서, 빙정, 종족(미사용? ), 반백택, 동물귀도 변동하지 않는다고 생각되므로 갱신
 	FOR LOCAL:1, 163, 167
 		TALENT:C_ID:(LOCAL:1) = CSVTALENT(C_ID, LOCAL:1)
 	NEXT
@@ -184,7 +183,7 @@ FOR C_ID, 1, CHARANUM
 	NEXT
 	;교체 이미지 유무 확인
 	IF CFLAG:C_ID:별도얼굴있음 < CSVCFLAG(C_ID, 562) || CFLAG:C_ID:별도스탠딩있음 < CSVCFLAG(C_ID, 563)
-		PRINTFORML %CALLNAME:C_ID%の新しい差し替え画像を検出しました。
+		PRINTFORML %CALLNAME:C_ID%의 새로운 대체화상을 검출했습니다。
 		IF CFLAG:C_ID:별도얼굴있음 < CSVCFLAG(C_ID, 562)
 			CALL 画像セット(@"顔絵_服_通常_{C_ID}", 0, 0, 100, 0, 0, "", "デフォルト顔絵")
 			FOR LOCAL:1, 1, CSVCFLAG(C_ID, 562)+1
@@ -199,9 +198,9 @@ FOR C_ID, 1, CHARANUM
 			NEXT
 			CALL 画像一斉表示("左", 0, 1)
 		ENDIF
-		PRINT [0] 差し替えなし
+		PRINT [0] 대체없음 
 		FOR LOCAL:1, 1, MAX(CSVCFLAG(C_ID, 562), CSVCFLAG(C_ID, 563)) + 1
-			PRINTFORM [{LOCAL:1}] 差し替え{LOCAL:1}
+			PRINTFORM [{LOCAL:1}] 대체{LOCAL:1} 
 		NEXT
 		INPUT
 		CFLAG:LOCAL:대체적용 = RESULT
@@ -812,6 +811,22 @@ FOR LOCAL,1,CHARANUM
 		CFLAG:LOCAL:능력치세팅여부 = 1
 	ENDIF
 NEXT
+PRINTL 
+
+;거점 맵의 재설정
+IF CFLAG:MASTER:현재위치 != OMANEKIBEYA() && !FLAG:기절중단
+	CALL MAP_DEFAULTRESIDENT(MAIN_MAP, 1)
+	PRINTFORML 거점 맵의 설정을 재설정했습니다
+ELSE
+	CALL COLORMESSAGE(@"※거점맵의 설정을 재설정할 수 없었습니다", C_YELLOW, 1)
+	IF CFLAG:MASTER:현재위치 == OMANEKIBEYA()
+		PRINTL 이유：초대받은 중
+	ELSEIF FLAG:기절중단
+		PRINTL 이유：기절 중
+	ENDIF
+	FORCEWAIT
+ENDIF
+
 PRINTW 갱신 완료했습니다
 
 ;업데이트로 CSV read에 의한 갱신되지 않는 소질

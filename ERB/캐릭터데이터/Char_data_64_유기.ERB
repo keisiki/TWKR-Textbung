@@ -1,46 +1,38 @@
-﻿@CHARAMOVE_DATA_64(ARG,ARG:2)
+﻿@CHARAMOVE_DATA_64(ARG, ARG:2)
 LOCAL = 64
 SELECTCASE ARG
-	;이동 대상 멤버 체크
+	;연동설정 (RETURN=의존하는 캐릭터, RESULT:1~3=대등하게 연동되는 캐릭터)
 	CASE 1
-	;이동 확률
-	CASE 2
-	;기상시간대
+	;특수생활시간 설정 (CFLAG:LOCAL:생활시간보정 을 설정)
 	CASE 3
-		RETURN 수면시간(LOCAL)
-	;이동 경향
+	;이동경향 (±~10=가기 쉽다/가기 어렵다, -100=가지 않는다)
 	CASE 4
 		SELECTCASE ARG:2
-			;가지 않는다
-			CASE 901 TO 930, 935, 937, 939, 940, 941, 942, 943
+			;지령전には行かない
+			CASE P901지령전앞 TO P930옛혈지지옥
 				RETURN -100
-			;술집과 오니의 집합소에 가기 쉽다
-			CASE 933, 938
-				RETURN 100
-			
+			;酒場と鬼の溜まり場に行きやすい
+			CASE P933술집, P938오니소굴
+				RETURN 5
 		ENDSELECT
-	;일시간대
-	CASE 5
-	;가는 지역(0=박1=사2=리3=호4=죽5=삼6=명7=산8=수9=지10=월)
-	CASE 6
-		SELECTCASE ARG:2
-			CASE 9
-				RETURN 1
-			CASE 2, 7
-				SIF DAY:2 == 1 || DAY:2 == 3
-					RETURN 1
-				RETURN 0
-			CASEELSE
-				RETURN 0
-		ENDSELECT
-	;출현 장소
+	;출현장소
 	CASE 7
 		SELECTCASE ARG:2
-			CASE 23, 71,72,73, 91,92,93,96
+			;春と秋だけ
+			CASE 술집소로
+				SIF GROUPMATCH(DAY:2, 1, 3)
+					RETURN 1
+			CASE 산록의수해, 현무의늪, 큰두꺼비의연못
+				SIF GROUPMATCH(DAY:2, 1, 3)
+					RETURN 1
+			CASE 환상풍혈, 지옥의깊은길, 옛지옥가도
 				RETURN 1
-			CASEELSE
-				RETURN 0
 		ENDSELECT
+	;인력설정 (CFLAG:LOCAL:인력점을 설정한다)
+	CASE 8
+		;夜はよく酒場
+		SIF CFLAG:LOCAL:오늘의운세 % 4 == 0 && INRANGE(TIME, 1200, 1440)
+			TCVAR:LOCAL:인력점 = P933술집
 ENDSELECT
 
 @EXIST_캐릭터데이터64
@@ -100,4 +92,27 @@ CASE "감성：좋아함"
 CASE "감성：싫어함"
 	CALLF MAKE_STR(V_NAME, "정신/팝/섬세/지적/로리타/" + "날붙이/탄환/도서/기계/" * 3 + "캇파의/텐구의/" * 10)
 ENDSELECT
+
+;IMAGE_I64_差分(CHARA)-----------------------------------------------------------------------
+;キャラクター特有の差分表示条件
+;裸やエフェクトを共有しない画像はこちら
+;使用時注意点:
+;	RESULTSに差分を格納すること
+;	書式は {CHARA}%差分% 適宜"_"等入れること
+;-------------------------------------------------------------------------------------------
+@IMAGE_I64_差分(CHARA)
+#DIM CHARA
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	SIF CFLAG:CHARA:1001
+		RESULTS = _黄昏
+ENDIF
 

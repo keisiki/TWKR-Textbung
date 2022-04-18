@@ -1,65 +1,51 @@
-﻿@CHARAMOVE_DATA_11(ARG,ARG:2)
+﻿@CHARAMOVE_DATA_11(ARG, ARG:2)
 LOCAL = 11
 SELECTCASE ARG
-	;이동 대상 멤버 체크
+	;연동설정 (RETURN=의존하는 캐릭터, RESULT:1~3=대등하게 연동되는 캐릭터)
 	CASE 1
-	;이동 확률
-	CASE 2
-	;기상시간대
+	;특수생활시간 설정 (CFLAG:LOCAL:생활시간보정 을 설정)
 	CASE 3
-		RETURN 수면시간(LOCAL)
-	;이동 경향
+	;이동경향 (±~10=가기 쉽다/가기 어렵다, -100=가지 않는다)
 	CASE 4
 		SELECTCASE ARG:2
-			;하쿠레이 신사·툇마루
-			CASE 10
+			;神社のよくいるところ
+			CASE P2경내, P10툇마루
 				RETURN 5
-			;향림당, 버섯 군생지
-			CASE 502, 507
+			;よく居る
+			CASE P502향림당, P507버섯군생지
 				RETURN 5
-			;키리사메마법점, 15~19시는 가기 쉽다
-			CASE 510
-				IF BETWEENTIME(900,1140)
-					RETURN 5
-				ELSE
-					RETURN -5
-				ENDIF
-			;마리사 침실, 자고 일어나기와 자기 전 이외는 피한다
-			CASE 512
-				IF CFLAG:LOCAL:취침시간 - TIME > 60 && CFLAG:LOCAL:기상시간 - TIME > 60
-					RETURN -10
-				ELSE
-					RETURN 0
-				ENDIF
-			;마리사 연구실, 19~22시는 가기 쉽다
-			CASE 513
-				IF BETWEENTIME(1140,1320)
-					RETURN 10
-				ELSE
-					RETURN -5
-				ENDIF
-			;신키의 방, 유메코의 방, 앨리스가의 목욕탕, 앨리스의 창고, 빈 방, 엘렌가, 요괴의 사는 곳
-			CASE 522, 523, 526, 528, 531, 535, 536, 537, 541, 542, 543, 544
+			;引きこもらない
+			CASE P512마리사댁・침실
+				RETURN -10
+			;アリス以外の私室には入らない
+			CASE P522인형저택・신키방, P523인형저택・유메코방, P526인형저택・욕실, P531인형저택・빈방
+				RETURN -100
+			CASE P535엘렌댁・침실, P537엘렌댁・욕실, P541토키코의거처, P542리글의거처, P543루미아의거처, P544나루미의오두막
 				RETURN -100
 		ENDSELECT
-	;일시간대
-	CASE 5
-	;가는 지역(0=박1=사2=리3=호4=죽5=삼6=명7=산8=수9=지10=월)
-	CASE 6
-		SELECTCASE ARG:2
-			CASE 0, 2, 3, 4, 5
-				RETURN 1
-			CASEELSE
-				RETURN 0
-		ENDSELECT
-	;출현 장소
+	;출현장소
 	CASE 7
 		SELECTCASE ARG:2
-			CASE 1,2,4, 21,22,23,27, 31 TO 38, 41,42,43,45,46,47, 51 TO 57
+			CASE 벚꽃길토리이, 신사경내, 신사툇마루, 몽환유적
 				RETURN 1
-			CASEELSE
-				RETURN 0
+			CASE 광장, 상가거리, 술집소로, 주택가
+				RETURN 1
+			CASE 안개의호수, 정문, 객실, 식당, 대도서관, 지하실
+				RETURN 1
+			CASE 죽림입구, 미혹의샛길, 사각의죽림, 영원정, 몽환관
+				RETURN 1
+			CASE 숲의입구, 향림당, 고목의큰나무, 키리사메마법점, 인형양관, 재고의길, 무연총
+				RETURN 1
 		ENDSELECT
+	;인력설정 (CFLAG:LOCAL:인력점을 설정한다)
+	CASE 8
+		;水木金15～19時は店番,たまにサボる
+		IF YOUBI_MATCH(DAY, "수목금") && INRANGE(TIME, 900, 1140) && CFLAG:LOCAL:오늘의운세 > 200
+			TCVAR:LOCAL:인력점 = P510키리사메마법점
+		;19～22時はまぁまぁな頻度で研究部屋にこもる
+		ELSEIF INRANGE(TIME, 1140, 1320) && CFLAG:LOCAL:오늘의운세 % 3
+			TCVAR:LOCAL:인력점 = P513마리사댁・연구실
+		ENDIF
 ENDSELECT
 
 @EXIST_캐릭터데이터11

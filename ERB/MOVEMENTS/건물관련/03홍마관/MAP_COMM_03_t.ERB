@@ -1,97 +1,192 @@
 ﻿;--------------------------------------------------
-;	맵내 이동 처리 확장 패치 부속
-;	홍마관MAP용 함수
+;지점명 변경 함수
 ;--------------------------------------------------
-
 @MAP_PLACENAME_3(ARG)
 #FUNCTIONS
-#DIM PLACEID
-#DIMS KOUMANAME, 33 = "정문","뜰","수위 오두막","빈오두막","헛간","뒷마당","동쪽테라스","서쪽테라스","객실","도서관","파츄리방","소악마방","주방","식당","응접실","1층 화장실","대계단","지하 계단","2층복도","사쿠야방","빈 방","2층 화장실","메이드 요정 대기소","큰발코니","3층 계단","레밀리아방","작은발코니","지하 복도","창고","고용인 방","지하실","탈의실","대목욕탕",
-#DIMS HAIYOUNAME, 9 = "폐양관·입구","폐양관·객실","폐양관·계단","폐양관·부엌","폐양관·목욕탕","폐양관·2층복도","루나사방","메를랑방","리리카방",
-#DIMS KOHANNAME, 6 = "호숫가","레티의 얼음집","치르노의 얼음집","대요정댁","안개의호수","안개의호수·호저"
 IF GET_MAPID(ARG) == MAIN_MAP
-	PLACEID = ARG % 100
-	SELECTCASE PLACEID
-		CASE 1 TO 33
-			RETURNF KOUMANAME:(PLACEID - 1)
-		CASE 34 TO 42
-			RETURNF HAIYOUNAME:(PLACEID - 34)
-		CASE 43 TO 48
-			RETURNF KOHANNAME:(PLACEID - 43)
-		CASE 49
-			RETURNF "안개의 저 편"
-		CASE 98
+	SELECTCASE ARG
+		CASE P304빈오두막
+			IF CFLAG:MASTER:초기위치 == ARG
+				RETURNF CALLNAME:MASTER + "의 오두막"
+			ELSE
+				RETURNF "빈 오두막"
+			ENDIF
+		CASE SUMIKOMI_ROOM
+			IF FLAG:더부살이캐릭터
+				RETURNF CALLNAME:(FLAG:더부살이캐릭터) + "의 방"
+			ELSE
+				RETURNF "빈 방"
+			ENDIF
+		CASE MINROOM() TO (MAXROOM - 1)
+			RETURNF STR:(ARG + 8000)
+		CASE OMANEKIBEYA()
 			RETURNF OMANEKI_PLACE()
-		CASE 99
+		CASE SUKIMA()
 			RETURNF "스키마 공간"
+		CASE MAXROOM
+			RETURNF "안개 저편"
 		CASEELSE
-			RETURNF "안개의 저 편"
+			RETURNF "불명"
 	ENDSELECT
 ELSE
-	RETURNF "불명"
+	RETURNF "호수 밖"
 ENDIF
 
-;@MAP_VIEWING_3
-;IF CHK_ENTRANCE(CFLAG:MASTER:현재위치)
-;ENDIF
-;SIF CHK_FOCUS(301, CFLAG:MASTER:현재위치, 333)
-;	CALL MAP_KOUMAKAN
-;
-;SIF CHK_FOCUS(334, CFLAG:MASTER:현재위치, 347)
-;	CALL MAP_HAIYOUKAN
-;CALL MAP_KOHAN
-;RETURN 1
-
-
-@MAP_VIEWING_3(AA,COLOR)
-#DIMS REF AA, 0
-#DIMS REF COLOR, 0
-IF !TFLAG:맵변환
-	IF CHK_FOCUS(301, CFLAG:MASTER:현재위치, 333)
-		TFLAG:맵변환 = 1
-	ELSEIF CHK_FOCUS(334, CFLAG:MASTER:현재위치, 342)
-		TFLAG:맵변환 = 2
-	ELSE
-		TFLAG:맵변환 = 3
-	ENDIF
-ENDIF
-CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
-PRINTFORML 
-IF RECOLOREDMAPS
-TRYCCALLFORM COLOREDMAP_NEW_KOUMAKAN_{TFLAG:맵변환}(AA,COLOR)
-CATCH
-RECOLOREDMAPS = 0
-CALL DRAW_MAP
-RECOLOREDMAPS = 1
-RETURN
-ENDCATCH
-ELSE
-TRYCALLFORM MAP_NEW_KOUMAKAN_{TFLAG:맵변환}(AA)
-ENDIF
-
-@MAP_CAN_MOVE_3(ARG, ARG:1)
+;--------------------------------------------------
+;장소 ARG가 어느 지역에 있는지
+;표시하는 맵의 번호와 연동 (TFLAG:맵변환)
+;ARG     장소ID
+;--------------------------------------------------
+@MAP_AREASELECT_3(ARG)
 #FUNCTION
-;호저, 습기선호 이외
-IF ARG == 348 && TALENT:(ARG:1):습기선호
-	TFLAG:이동불능메시지 = 348
-	RETURNF 0
+SELECTCASE ARG
+	;紅魔館・一階＆地下
+	CASE P301정문 TO P3161층화장실, P328지하복도 TO P333대욕탕
+		RETURNF 2
+	;紅魔館・二階＆三階
+	CASE P3192층복도 TO P327작은발코니
+		RETURNF 3
+	;폐양관
+	CASE P334폐양관・입구 TO P342리리카방
+		RETURNF 4
+	;안개의호수
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+
+;--------------------------------------------------
+;내부구조가 있는 장소의 내부 판정
+;		TFLAG:맵변환	내부감지(察知)가 필요한 맵 번호
+;				P_ID  	표시버튼의 장소ID
+;				Q_ID  	판정하는 내부 장소ID, 반드시 P_ID와 일치하는 수치도 포함
+;--------------------------------------------------
+@GETMAP_BUILDING_3(P_ID, Q_ID)
+#FUNCTION
+#DIM P_ID
+#DIM Q_ID
+IF TFLAG:맵변환 == 1
+	SELECTCASE P_ID
+		;紅魔館
+		CASE P301정문
+			SELECTCASE Q_ID
+			CASE P301정문 TO P333대욕탕
+				RETURNF 1
+			ENDSELECT
+		;폐양관
+		CASE P334폐양관・입구
+			SELECTCASE Q_ID
+			CASE P334폐양관・입구 TO P342리리카방
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ELSEIF TFLAG:맵변환 == 2
+	SELECTCASE P_ID
+		;紅魔館・二階＆三階
+		CASE P3192층복도
+			SELECTCASE Q_ID
+			CASE P3192층복도 TO P327작은발코니
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ELSEIF TFLAG:맵변환 == 3
+	SELECTCASE P_ID
+		;紅魔館・一階＆地下
+		CASE P309객실
+			SELECTCASE Q_ID
+			CASE P309객실 TO P3161층화장실, P328지하복도 TO P333대욕탕
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
 ENDIF
+RETURNF 0
+
+;--------------------------------------------------
+;이동제한설정
+;ARG    장소ID
+;CHARA  이동하는 캐릭터ID
+;RETURNF 1=이동 가능, 0=이동 불가능
+;TFLAG:이동불능메시지   ↓の@MAP_CANNOT_WORD용 설정
+;--------------------------------------------------
+@MAP_CAN_MOVE_3(ARG, CHARA)
+#FUNCTION
+#DIM CHARA
+SELECTCASE ARG
+	;湖底
+	CASE P348안개의호수・바닥
+		;水棲でないと入れない
+		IF !TALENT:CHARA:수서
+			TFLAG:이동불능메시지 = 1
+			RETURNF 0
+		ENDIF
+	;誰かが住んでないと入れない
+	CASE P304빈오두막, P321빈방
+		IF !PRIVATEROOM:(ARG % 100) && CFLAG:MASTER:초기위치 != ARG
+			TFLAG:이동불능메시지 = 999
+			RETURNF 0
+		ENDIF
+ENDSELECT
 RETURNF 1
 
+;--------------------------------------------------
+;이동불능시 표시되는 메시지
+;--------------------------------------------------
 @MAP_CANNOT_WORD_3(ARG)
-IF TFLAG:이동불능메시지 == 348
-	PRINTW 무리입니다
-	CLEARLINE 2
-	REUSELASTLINE 
-	RETURN
+SELECTCASE TFLAG:이동불능메시지
+	CASE 1
+		PRINTFORMW 물에 빠져버린다…
+		CLEARLINE 2
+ENDSELECT
+REUSELASTLINE
+
+;-----------------------------------------
+;거점 전용의 정경묘사
+;WAIT는 걸리지 않도록
+;-----------------------------------------
+@MAP_UNIQUEMESSAGE_3
+IF WITH_MOB()
+	CALL MOB_MESSAGE_3
+	RETURN 1
+ELSEIF !FLAG:시간정지
+	IF CFLAG:MASTER:현재위치 == P329창고
+		PRINTFORML 고양이가 있다
+		RETURN 1
+	ENDIF
 ENDIF
 
+;-----------------------------------------
+;거점의 장소ID를 외출맵상의 장소ID로 치환하는 함수
+;ARG      대상의 장소ID (거점맵)
+;RETURNF  교체 장소ID (외출맵)
+;-----------------------------------------
+@MAP_SEARCH_REPLACEMENT_3(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE P343호숫가, P346대요정의거처 TO P348안개의호수・바닥
+		RETURNF 안개의호수
+	CASE P344레티의움집, P345치르노의움집
+		RETURNF 얼음집
+	CASE P334폐양관・입구 TO P342리리카방
+		RETURNF 폐양관
+	CASE P301정문 TO P308서쪽테라스
+		RETURNF 정문
+	CASE P313주방, P314식당
+		RETURNF 식당
+	CASE P310도서관 TO P312소악마방
+		RETURNF 대도서관
+	CASE P328지하복도 TO P333대욕탕
+		RETURNF 지하실
+	CASEELSE
+		RETURNF 객실
+ENDSELECT
+RETURNF 0
+
+;--------------------------------------------------
+;맵의 소개문
+;--------------------------------------------------
 @MAP소개_3
 ;とりあえず5行
-PRINTFORML 홍마관·안개의 호수를 중심으로, 프리즘리버 세자매가 사는 폐양관까지를 포함한 지역.
+PRINTFORML 홍마관・안개의 호수를 중심으로, 프리즘리버 세자매가 사는 폐양관까지를 포함한 지역.
 PRINTFORML 가장 큰 특징은 여기에 밖에 존재하지 않는 카지노.
 PRINTFORML 호수의 물은 술을 만드는 것에 도움이 되는 것 외에도 낚시도 할 수 있어, 꽤 편리성이 높은 거점.
 PRINTFORML 흡혈귀의 저택답게 일부 주민은 밤이 돼야 활동을 시작하기 때문에, 필요에 따라 기상시간을 늦추는 것도 필요할 것이다.
 PRINTFORML 거점내에서의 일 심부름처도 부족하지 않지만, 세세하게 청소가 행해져서인지 홍마관 안은 의외로 더러워지지 않는다.
-PRINTFORML 홍마관 안에서 거주한다면 정문 통행료를 면제받을수도 있지만 홍마관 안에서 살기 위해선 주민들의 신임이 있어야한다.
-

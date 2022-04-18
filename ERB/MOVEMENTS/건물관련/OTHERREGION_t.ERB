@@ -1,9 +1,17 @@
-﻿@OTHERREGIONS
+﻿;-----------------------------------------------------------
+;외출 함수
+;ARGS    호출 원함수, "나간다(出掛ける)"or"산책한다(散策する)"
+;-----------------------------------------------------------
+@OTHERREGIONS(ARGS)
 #DIM 현재지점
 #DIM 소요시간
-#DIM 현재지MAPID
-#DIM GOAL
+#DIM 현위치MAPID
+#DIM 목적지MAPID
 #DIM ANIMATION_SEED
+#DIM 임시데이트상대
+#DIM 시간정지점프
+;拠点のマップ表示をリセットしておく
+TFLAG:맵변환 = 0
 
 ANIMATION_SEED = 0
 
@@ -18,51 +26,51 @@ IF RECOLOREDMAPS
 ELSE
 	CALL FIELDMAP
 ENDIF
+;先にデート相手だけ決定しておく,三人以上には対応してません
+임시데이트상대 = 0
+FOR LOCAL, 1, CHARANUM
+	IF CFLAG:LOCAL:동행
+		임시데이트상대 = LOCAL
+		BREAK
+	ENDIF
+NEXT
 
 PRINTL 어디로 가겠습니까?
-현재지MAPID = GET_MAPID(CFLAG:MASTER:현재위치)
-;	// 신사가 표시되지 않는 것은 조금 외롭기 때문에
-PRINTFORM [ 0] - %"하쿠레이 신사", 18, LEFT%
-IF 현재지MAPID == 0
-	SETCOLOR 0 , 255, 0
-	PRINTFORM 현위치\@ FLAG:70 ?  %"   "% # %" "% \@
-	RESETCOLOR
-ELSEIF FLAG:70
-	PRINTFORM 편도 {TIME_REQUIRED(현재지MAPID, 0) * 3, 3, RIGHT}TSP  
-ELSE
-	PRINTFORM 편도 {TIME_REQUIRED(현재지MAPID, 0), 3, RIGHT}분  
-ENDIF
-PRINTL
-;	// 여기까지 신사 표시
-FOR LOCAL, 5001, 5011
-	IF LOCAL == 현재지MAPID + 5000
-		PRINTFORM [{현재지MAPID, 2, RIGHT}] - 
-		PRINTFORM %NAME_FROM_PLACE(LOCAL), 21, LEFT%
-		SETCOLOR 0 , 255, 0
-		PRINTFORM 현위치\@ FLAG:70 ?  %"    "% # %"  "% \@
-		RESETCOLOR
-		SIF !(LOCAL % 2)
-			PRINTL
-		CONTINUE
+현위치MAPID = GET_MAPID(CFLAG:MASTER:현재위치)
+FOR 목적지MAPID, 0, MAXHOME
+	IF 목적지MAPID == 현위치MAPID
+		PRINTPLAINFORM [{목적지MAPID, 3}] - %GET_MAPNAME(목적지MAPID), 18, LEFT%
+		CALL COLORMESSAGE(@"　현위치　　", C_GREEN, 3)
+	ELSE
+		IF FLAG:시간정지 || (GETBIT(FLAG:순간이동, 0) && !FLAG:데이트상대 && !임시데이트상대)
+			소요시간 = TIME_REQUIRED(현위치MAPID, 목적지MAPID) * 3
+			LOCALS = TSP%" "%
+		ELSE
+			소요시간 = TIME_REQUIRED(현위치MAPID, 목적지MAPID)
+			LOCALS = 분　
+		ENDIF
+		PRINTFORM [{목적지MAPID, 3}] - %GET_MAPNAME(목적지MAPID), 18, LEFT% 편도{소요시간, 3}%LOCALS%
 	ENDIF
-	PRINTFORM [{LOCAL - 5000, 2, RIGHT}] - 
-	PRINTFORM %NAME_FROM_PLACE(LOCAL), 18, LEFT%
-	PRINTFORM 편도 \@ FLAG:70 ?  {TIME_REQUIRED(현재지MAPID, LOCAL - 5000) * 3, 3, RIGHT}TSP # {TIME_REQUIRED(현재지MAPID, LOCAL - 5000), 3, RIGHT}분 \@ 
-	SIF !(LOCAL % 2)
-		PRINTL
+	SIF 목적지MAPID % 2 == 0
+		PRINTL 
 NEXT
+SIF 목적지MAPID % 2 == 1
+	PRINTL 
 PRINTFORM [15] - %"매음굴", 18, LEFT%
-IF 현재지MAPID == 15
+IF 현위치MAPID == 15
 	SETCOLOR 0 , 255, 0
 	PRINTFORM 현위치\@ FLAG:70 ?  %"   "% # %" "% \@
 	RESETCOLOR
 ELSEIF FLAG:70
-	PRINTFORML 편도 {TIME_REQUIRED15(5000 + 현재지MAPID) * 3, 3, RIGHT}TSP  
+	PRINTFORML 편도 {TIME_REQUIRED15(5000 + 현위치MAPID) * 3, 3, RIGHT}TSP  
 ELSE
-	PRINTFORML 편도 {TIME_REQUIRED15(5000 + 현재지MAPID), 3, RIGHT}분  
+	PRINTFORML 편도 {TIME_REQUIRED15(5000 + 현위치MAPID), 3, RIGHT}분  
 ENDIF
+SIF 목적지MAPID % 2 == 1
+	PRINTL 
 PRINT [100] - 돌아간다
-$LOOP
+SIF 동행인원수() == 0
+	PRINT 　　　　　　　　　　　　　[ 99] - 시간정지
 ;Map Animation Code
 IF ANIMATERECOLOREDMAPS && !FLAG:70
 	CURRENTREDRAW
@@ -75,133 +83,82 @@ ENDIF
 ;돌아간다
 IF RESULT == 100
 	RETURN RESULT
-;시간정지발동
-ELSEIF RESULT == 101
-
-ELSEIF RESULT == 현재지MAPID
-	;전체 맵으로부터도 이동할 수 있지만 더욱 시간 걸리는, 덤기능이므로
-	LOCAL:1 = 1
-	현재지점 = (CFLAG:MASTER:현재위치 - (CFLAG:MASTER:데이트중 * 100)) / 10
-	소요시간 = ABS(현재지점 - 0) * 3
-	FOR LOCAL,0,CHARANUM
-		SIF CHK_DATENOW(CFLAG:LOCAL:데이트중) 
-			CFLAG:LOCAL:현재위치 = (CFLAG:LOCAL:데이트중 * 100) + (LOCAL:1 * 10)
-	NEXT
-	IF FLAG:70 == 1
-		BASE:MASTER:TSP -= 소요시간 * 2
-		IF TFLAG:운반
-			BASE:MASTER:TSP -= 소요시간 / 3
-			CFLAG:(TFLAG:운반):현재위치 = CFLAG:MASTER:현재위치
-		ENDIF
-	ELSEIF GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP > 10  && !FLAG:데이트상대
-		BASE:MASTER:TSP -= 소요시간 * 2
+;時間停止
+ELSEIF RESULT == 99 && 동행인원수() == 0
+	IF FLAG:시간정지
+		FLAG:시간정지 = 0
+		RESETBGCOLOR
 	ELSE
-		TIME += 소요시간
-		IF CHK_DATENOW(CFLAG:93:데이트중) && !GETBIT (FLAG:풀장, 0)
-			TIME += 소요시간 / 2
-			BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 50,500)
-		ENDIF
+		FLAG:시간정지 = 1
+		SETBGCOLOR C_THE_WORLD
 	ENDIF
-	RETURN RESULT
 ELSEIF RESULT == MAIN_MAP
-	IF FLAG:70 && FLAG:데이트상대
-		PRINTFORMW 돌아가겠다면 시간정지를 해제한 다음에 하자
-		RETURN 100
+	IF FLAG:시간정지 && FLAG:데이트상대
+		PRINTFORMW 돌아가겠다면 시간정지를 해제하고 나서 하자
+	ELSE
+		CALL 외출처로부터귀가
+		RETURN MAIN_MAP
 	ENDIF
-	CALL 외출처로부터귀가
-	RETURN MAIN_MAP
-
 ELSEIF RESULT == 1234
 	REDRAW 0
 	CLEARLINE LINECOUNT - LINESTART
 	GOTO MAPANIMATION
 
-ELSEIF RESULT != 12
-	GOAL = RESULT
-	소요시간 = TIME_REQUIRED(현재지MAPID, GOAL)
-	;100분의 도중은 없습니다…
-	IF RESULT == 15 && FLAG:데이트상대
+ELSEIF (INRANGE(RESULT, 0, MAXHOME - 1) || GROUPMATCH(RESULT,15)) && RESULT != 현위치MAPID && RESULT != 12
+	목적지MAPID = RESULT
+	소요시간 = TIME_REQUIRED(현위치MAPID, 목적지MAPID)
+	시간정지점프 = 0
+	IF 목적지MAPID == 15 && FLAG:데이트상대
 		PRINTFORMW 데이트중에 갈 만한 곳은 아니다
 		RETURN 100
 	ENDIF
-	IF FLAG:데이트상대 > 0 && 소요시간 >= 100
-		PRINTW 너무 멀어서 한 번에는 못 간다
-		CLEARLINE 2
-		GOTO LOOP
-	;자택으로부터 출발하는 처리
-	ELSEIF GET_MAPID(CFLAG:MASTER:현재위치) == MAIN_MAP
-		LOCAL:1 = 0
-		FOR LOCAL,1,CHARANUM
-			SIF CFLAG:(LOCAL):동행
-				LOCAL:1 ++
-		NEXT
-		IF LOCAL:1 == 1
-			;100분의 도중은 없습니다…
-			IF 소요시간 >= 100
-				PRINTW 너무 멀어서 한 번에는 못 간다
-				CLEARLINE 2
-				RETURN 100
-			ENDIF
-			PRINTL 데이트를 하러 나갑니다
-			FOR LOCAL,1,CHARANUM
-				IF CFLAG:(LOCAL):동행
-					CALL SET_DATE(GOAL,LOCAL)
-				ENDIF
-			NEXT
-		;같은 사람 데이트 처리(미설정)
-		ELSEIF LOCAL:1 > 1
-		;한사람
-		ELSE
-			IF FLAG:70 && GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP >= 소요시간 * 3
-				RESULT = 1
+	IF ARGS == "나간다"
+		;一人でお出掛け
+		IF 동행인원수() == 0
+			IF (FLAG:시간정지 || GETBIT(FLAG:순간이동, 0)) && BASE:MASTER:TSP >= 소요시간 * 3
+				시간정지점프 = 1
+
 			ELSE
 				PRINTL TSP를 소비하여 시간 경과 없이 이동할 수 있습니다.
 				PRINTL TSP를 사용하겠습니까?
-				CALL ASK_M("아니오", 1, @"예（TSP{소요시간 * 3}소비）", BASE:MASTER:TSP >= 소요시간 * 3)
+				CALL ASK_M("아니오", 1, @"예（소비TSP {소요시간 * 3}）", BASE:MASTER:TSP >= 소요시간 * 3)
+				SIF RESULT == 1
+					시간정지점프 = 1
 			ENDIF
-			IF RESULT == 0
-				FLAG:70 = 0
-				TIME += 소요시간
+			SIF !시간정지점프
 				CALL 유탄얻어맞아(소요시간)
-			ELSEIF RESULT == 1
-				BASE:MASTER:TSP -= 소요시간 * 3
-			ENDIF
-			CALL SET_DATE(GOAL,0)
-			GOTO GOGOAL
-		ENDIF
-		GOTO GOGOAL
-	ELSEIF FLAG:데이트상대 > 0
-		PRINTFORML %GET_MAPNAME(GOAL)%로 갑니다
-		CALL SET_DATE(GOAL,(FLAG:데이트상대))
-		GOTO GOGOAL
-	ELSEIF GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP > 소요시간 * 3 && !FLAG:데이트상대
-		BASE:MASTER:TSP -= 소요시간 * 3
-	ELSEIF FLAG:70
-		IF BASE:MASTER:TSP < 소요시간 * 3
-			PRINTW TSP가 부족합니다
-			CLEARLINE 2
-			GOTO LOOP
+			CALL SET_DATE(목적지MAPID, 0, 소요시간, 시간정지점프)
+			RETURN 목적지MAPID
+		;二人でデート
+		ELSEIF 동행인원수() == 1
+			PRINTFORML %GET_MAPNAME(목적지MAPID)%에 데이트하러 나갑니다
+			CALL SET_DATE(목적지MAPID, 임시데이트상대, 소요시간)
+			RETURN 목적지MAPID
+		;三人以上※未実装
 		ELSE
-			BASE:MASTER:TSP -= 소요시간 * 3
+			
 		ENDIF
-	ELSE
-		TIME += 소요시간
-		CALL 유탄얻어맞아(소요시간)
-		IF CHK_DATENOW(CFLAG:93:데이트중) && !GETBIT (FLAG:풀장, 0)
-			TIME += 소요시간 / 2
-			BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - 5 * (소요시간), 500)
+	ELSEIF ARGS == "산책한다"
+		IF FLAG:데이트상대
+			PRINTFORML %GET_MAPNAME(목적지MAPID)%에 향합니다
+		ELSEIF FLAG:시간정지
+			IF BASE:MASTER:TSP < 소요시간 * 3
+				PRINTW TSP가 부족합니다
+				RESTART
+			ELSE
+				시간정지점프 = 1
+			ENDIF
+		ELSEIF GETBIT(FLAG:순간이동, 0) && BASE:MASTER:TSP >= 소요시간 * 3
+			시간정지점프 = 1
 		ENDIF
+		SIF !시간정지점프
+			CALL 유탄얻어맞아(소요시간)
+		CALL SET_DATE(목적지MAPID, FLAG:데이트상대, 소요시간, 시간정지점프)
+		RETURN 목적지MAPID
 	ENDIF
-	FOR LOCAL,0,CHARANUM
-		IF CHK_DATENOW(CFLAG:LOCAL:데이트중)
-			CFLAG:LOCAL:현재위치 = GET_ENTRANCE(GOAL)
-			CFLAG:LOCAL:데이트중 = GOAL
-		ENDIF
-	NEXT
-	$GOGOAL
 	TFLAG:외출중 = 1
-	RETURN GOAL
 ENDIF
+RESTART
 
 @HappenToChild
 #DIM YOME

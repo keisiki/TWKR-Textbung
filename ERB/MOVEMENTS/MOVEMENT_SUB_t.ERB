@@ -42,9 +42,9 @@ ELSE
 	CFLAG:ARG:목욕탕 = MIN(CFLAG:ARG:목욕탕 + TIME_PROGRESS(TIME:1), 2500)
 ENDIF
 
-;안아다하고금지시간의 감소
-IF TCVAR:ARG:안아다하고금지시간 > 0
-	TCVAR:ARG:안아다하고금지시간 = MAX(TCVAR:ARG:안아다하고금지시간 - TIME_PROGRESS(TIME:1), 0)
+;껴안기금지시간의 감소
+IF TCVAR:ARG:껴안기금지시간 > 0
+	TCVAR:ARG:껴안기금지시간 = MAX(TCVAR:ARG:껴안기금지시간 - TIME_PROGRESS(TIME:1), 0)
 ENDIF
 
 
@@ -72,19 +72,6 @@ IF !FLAG:70
 		CFLAG:ARG:현재위치 = 1445
 	ENDIF
 ENDIF
-
-;----------------------------
-;캐릭터가 수면시간대인가 어떤가를 취득 ※낮잠 등도 포함한다
-;@수면시간(ARG)과는 거동이 다르므로 주의
-;----------------------------
-@캐릭터별취침판정(ARG)
-TRYCCALLFORM CHARAMOVE_DATA_{ARG}(3, ARG)
-;대상의 캐릭터데이터참조 할 수 있고 없으면 Default 처리
-CATCH
-	;AM1~AM7까지 수면
-	RETURN TIME > 60 && TIME < 420
-ENDCATCH
-RETURN RESULT
 
 
 ;----------------------------
@@ -135,9 +122,8 @@ SIF FLAG:시간정지 || CFLAG:ARG:쇠약 || TCVAR:ARG:만취
 	RETURN
 SIF CFLAG:ARG:우후후 && CFLAG:ARG:욕구불만도 > 0
 	RETURN
-CALL 캐릭터별취침판정(ARG)
 ;수면시간대의 경우
-IF RESULT
+IF 수면시간(ARG)
 	;일어나고 있으면(자) 재운다
 	IF !CFLAG:ARG:수면 && !CFLAG:ARG:우후후
 		;데이트중이라면 낮잠은 무시한다
@@ -210,8 +196,8 @@ SIF CFLAG:ARG:거점내방 || 업무일체크(ARG) || CFLAG:ARG:신사거주
 	RETURN
 
 ;방문시간에 아직 이동하고 있지 않는 경우
-IF VISIT(ARG) && !CFLAG:ARG:휴일이동완료
-	CFLAG:ARG:휴일이동완료 = 1
+IF VISIT(ARG) && CFLAG:ARG:현재위치 != CFLAG:ARG:만난위치
+	;CFLAG:ARG:휴일이동완료 = 1
 	LOCAL = 0
 	IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치
 		;묵으면(자) 일어나는 현상(연동 캐릭터를 고려하면(자) 귀찮은 일로)
@@ -220,10 +206,13 @@ IF VISIT(ARG) && !CFLAG:ARG:휴일이동완료
 	;전원 공통의 처리
 	CFLAG:ARG:현재위치 = CFLAG:ARG:만난위치 ?  CFLAG:ARG:만난위치 # SUKIMA()
 	CFLAG:ARG:동행 = 0
-	;연동이나 예외가 있는 캐릭터용의 처리
-	TRYCALLFORM CHARAMOVE_DATA_{ARG}(1, ARG)
 	IF CFLAG:ARG:현재위치 != CFLAG:MASTER:현재위치 && LOCAL
-		PRINTFORMW %ARG는% 어딘가에 나간 것 같다
+		IF TALENT:ARG:연모
+			PRINTFORMW %ARG는% %조사처리(NAME_FROM_PLACE(CFLAG:ARG:만난위치),"으로")% 간다고 말하고 나갔다
+		ELSE
+			PRINTFORMW %ARG는% 어딘가에 나간 것 같다
+		ENDIF
+
 	ENDIF
 ENDIF
 
@@ -297,6 +286,9 @@ IF CFLAG:ARG:현재위치 == CFLAG:MASTER:현재위치 && !CHK_DATENOW(CFLAG:ARG
 		PRINTFORMW %ARG는% %GET_MAPNAME(MAIN_MAP)%에 나간 것 같다
 		IF CFLAG:ARG:(450 + MAIN_MAP)
 			CFLAG:ARG:현재위치 = CFLAG:ARG:(450 + MAIN_MAP)
+		;뒷문조(後戸組) 특수처리
+		ELSEIF GROUPMATCH(ARG, [[마이]], [[사토노]], [[오키나]]) && AT_HOME(MASTER) && MAP_CAN_MOVE(CFLAG:MASTER:현재위치, ARG) && !CFLAG:MASTER:우후후
+			CFLAG:ARG:현재위치 = CFLAG:MASTER:현재위치
 		ELSE
 			CFLAG:ARG:현재위치 = MAXROOM
 		ENDIF

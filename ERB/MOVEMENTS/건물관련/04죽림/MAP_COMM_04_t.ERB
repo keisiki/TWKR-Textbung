@@ -1,29 +1,33 @@
 ﻿;--------------------------------------------------
-;	맵내 이동 처리 확장 패치 부속
-;	죽림 MAP용 함수
+;지점명 변경 함수
 ;--------------------------------------------------
-
 @MAP_PLACENAME_4(ARG)
 #FUNCTIONS
 IF GET_MAPID(ARG) == MAIN_MAP
 	SELECTCASE ARG
-		CASE 412, 428, 460
+		CASE P412빈방, P4282층빈방, P460몽환관빈방
 			IF CFLAG:MASTER:초기위치 == ARG
-				RETURNF "당신 방"
+				RETURNF CALLNAME:MASTER + "의 방" ;私室
 			ELSE
 				RETURNF "빈 방"
 			ENDIF
-		CASE 442
+		CASE P442빈오두막
 			IF CFLAG:MASTER:초기위치 == ARG
-				RETURNF "당신 오두막"
+				RETURNF CALLNAME:MASTER + "의 오두막"
 			ELSE
 				RETURNF "빈 오두막"
 			ENDIF
-		CASE 401 TO (MAXROOM - 1)
+		CASE SUMIKOMI_ROOM
+			IF FLAG:더부살이캐릭터
+				RETURNF CALLNAME:(FLAG:더부살이캐릭터) + "의 오두막"
+			ELSE
+				RETURNF "폐가"
+			ENDIF
+		CASE MINROOM() TO (MAXROOM - 1)
 			RETURNF STR:(ARG + 8000)
-		CASE 498
+		CASE OMANEKIBEYA()
 			RETURNF OMANEKI_PLACE()
-		CASE 499
+		CASE SUKIMA()
 			RETURNF "스키마 공간"
 		CASE MAXROOM
 			RETURNF "죽림의 밖"
@@ -31,102 +35,165 @@ IF GET_MAPID(ARG) == MAIN_MAP
 			RETURNF "불명"
 	ENDSELECT
 ELSE
-	RETURNF "불명"
+	RETURNF "죽림의 밖"
 ENDIF
 
-;@MAP_VIEWING_4
-;
-;IF CHK_FOCUS(402, CFLAG:MASTER:현재위치, 430)
-;	CALL MAP_EIENTEI
-;ELSEIF INRANGE(CFLAG:MASTER:현재위치, 450,466)
-;	CALL MAP_MUGENKAN
-;ELSE
-;	CALL MAP_EIEN_FRONT
-;	CALL MAP_BAMBOO
-;ENDIF
-;RETURN 1
-
-@MAP_VIEWING_4(AA,COLOR)
-#DIMS REF AA, 0
-#DIMS REF COLOR, 0
-IF !TFLAG:맵변환
-	IF CHK_FOCUS(403, CFLAG:MASTER:현재위치, 430)
-		TFLAG:맵변환 = 1
-	ELSEIF CHK_FOCUS(450, CFLAG:MASTER:현재위치, 466)
-		TFLAG:맵변환 = 2
-	ELSE
-		TFLAG:맵변환 = 3
-	ENDIF
-ENDIF
-CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
-PRINTFORML 
-IF RECOLOREDMAPS
-TRYCCALLFORM COLOREDMAP_NEW_TIKURIN_{TFLAG:맵변환}(AA,COLOR)
-CATCH
-RECOLOREDMAPS = 0
-CALL DRAW_MAP
-RECOLOREDMAPS = 1
-RETURN
-ENDCATCH
-ELSE
-TRYCALLFORM MAP_NEW_TIKURIN_{TFLAG:맵변환}(AA)
-ENDIF
-
-
-@MAP_CAN_MOVE_4(ARG, ARG:1)
+;--------------------------------------------------
+;장소 ARG가 어느 지역에 있는지
+;표시하는 맵의 번호와 연동 (TFLAG:맵변환)
+;ARG     장소ID
+;--------------------------------------------------
+@MAP_AREASELECT_4(ARG)
 #FUNCTION
 SELECTCASE ARG
-	;안쪽노원판정
-	CASE 407 TO 430
-		;제외
-		SIF GROUPMATCH(ARG:1, [[우동게]], [[테위]], [[카구야]], [[에이린]])
+	;영원정
+	CASE P403대합실 TO P430지하실
+		RETURNF 1
+	;몽환관
+	CASE P450몽환관현관 TO P466몽환관정원
+		RETURNF 2
+	;迷いの竹林
+	CASEELSE
+		RETURNF 3
+ENDSELECT
+
+;--------------------------------------------------
+;내부구조가 있는 장소의 내부 판정
+;		TFLAG:맵변환	내부감지(察知)가 필요한 맵 번호
+;				P_ID  	표시버튼의 장소ID
+;				Q_ID  	판정하는 내부 장소ID, 반드시 P_ID와 일치하는 수치도 포함
+;--------------------------------------------------
+@GETMAP_BUILDING_4(P_ID, Q_ID)
+#FUNCTION
+#DIM P_ID
+#DIM Q_ID
+IF TFLAG:맵변환 == 3
+	SELECTCASE P_ID
+		;몽환관
+		CASE P450몽환관현관
+			SELECTCASE Q_ID
+			CASE P450몽환관현관 TO P466몽환관정원
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ENDIF
+RETURNF 0
+
+;--------------------------------------------------
+;이동제한설정
+;ARG    장소ID
+;CHARA  이동하는 캐릭터ID
+;RETURNF 1=이동 가능, 0=이동 불가능
+;TFLAG:이동불능메시지   ↓の@MAP_CANNOT_WORD용 설정
+;--------------------------------------------------
+@MAP_CAN_MOVE_4(ARG, CHARA)
+#FUNCTION
+#DIM CHARA
+SELECTCASE ARG
+	;奥ノ院判定
+	CASE P407복도 TO P430지하실
+		;除外
+		SIF GROUPMATCH(CHARA, [[우동게]], [[테위]], [[카구야]], [[에이린]])
 			RETURNF 1
-		;달의 백성도 좋지요
-		SIF GROUPMATCH(ARG:1, [[요리히메]], [[토요히메]], [[레이센]], [[사구메]])
+		;月の民も良いよね
+		SIF GROUPMATCH(CHARA, [[요리히메]], [[토요히메]], [[레이센]], [[사구메]])
 			RETURNF 1
-		;안으로부터는 움직일 수 있다
-		SIF INRANGE(CFLAG:(ARG:1):현재위치, 407,430)
+		;中からは動ける
+		SIF INRANGE(CFLAG:CHARA:현재위치,P407복도, P430지하실)
 			RETURNF 1
-		;당신
-		IF ARG:1 == MASTER
-			IF 영원정침입허가() || INRANGE(CFLAG:MASTER:초기위치, 401,430) || FLAG:시간정지
+		;あなた
+		IF CHARA == MASTER
+			IF 영원정침입허가() || INRANGE(CFLAG:MASTER:초기위치, P401영원정입구, P430지하실) || FLAG:시간정지
 				RETURNF 1
 			ELSE
-				TFLAG:이동불능메시지 = 401
+				TFLAG:이동불능메시지 = 1
 				RETURNF 0
 			ENDIF
-		;그 이외
+		;それ以外は入れない
 		ELSE
 			RETURNF 0
 		ENDIF
-	CASEELSE
-		RETURNF 1
+	;誰かが住んでないと入れない
+	CASE P412빈방, P4282층빈방, P460몽환관빈방, P442빈오두막
+		IF !PRIVATEROOM:(ARG % 100) && CFLAG:MASTER:초기위치 != ARG
+			TFLAG:이동불능메시지 = 999
+			RETURNF 0
+		ENDIF
 ENDSELECT
+RETURNF 1
 
-@MAP_CANNOT_WORD_4(ARG)
-IF TFLAG:이동불능메시지 == 401
-	PRINTW 친한 사람이 없는 동안은 영원정의 안쪽에는 들어갈 수 있게 해 주지 않는다
-	CLEARLINE 2
-	REUSELASTLINE 
-	RETURN
-ENDIF
-
+;--------------------------------------------------
+;아나타가 영원전에 들어갈 수 있는 판정
+;--------------------------------------------------
 @영원정침입허가()
 #FUNCTION
 SIF CFLAG:[[카구야]]:안면
 	RETURNF 1
-SIF TALENT:52:연모 || TALENT:53:연모 || TALENT:62:연모 || TALENT:72:연모
+SIF TALENT:[[우동게]]:연모 || TALENT:[[테위]]:연모 || TALENT:[[카구야]]:연모 || TALENT:[[에이린]]:연모
 	RETURNF 1
-SIF GROUPMATCH(FLAG:데이트상대, 52,53,62,72)
+SIF GROUPMATCH(FLAG:데이트상대, [[우동게]], [[테위]], [[카구야]], [[에이린]])
 	RETURNF 1
-SIF GROUPMATCH(FLAG:역극, 52,53,62,72)
+SIF GROUPMATCH(FLAG:역극, [[우동게]], [[테위]], [[카구야]], [[에이린]])
 	RETURNF 1
-SIF CFLAG:52:동행 || CFLAG:53:동행 || CFLAG:62:동행 || CFLAG:72:동행
+SIF CFLAG:[[우동게]]:동행 || CFLAG:[[테위]]:동행 || CFLAG:[[카구야]]:동행 || CFLAG:[[에이린]]:동행
 	RETURNF 1
-SIF FLAG:연회개최플래그 == 3 && TIME >= FLAG:33
+SIF FLAG:연회개최플래그 == 3 && TIME >= FLAG:개시시간
 	RETURNF 1
 RETURNF 0
 
+;--------------------------------------------------
+;이동불능시 표시되는 메시지
+;--------------------------------------------------
+@MAP_CANNOT_WORD_4(ARG)
+SELECTCASE TFLAG:이동불능메시지
+	CASE 1
+		PRINTW 친한 사람이 없는 동안은 영원정의 안쪽에는 들어갈 수 있게 해 주지 않는다…
+		CLEARLINE 2
+ENDSELECT
+REUSELASTLINE
+
+;-----------------------------------------
+;거점 전용의 정경묘사
+;WAIT는 걸리지 않도록
+;-----------------------------------------
+@MAP_UNIQUEMESSAGE_4
+IF WITH_MOB()
+	CALL MOB_MESSAGE_4
+	RETURN 1
+ENDIF
+
+;-----------------------------------------
+;거점의 장소ID를 외출맵상의 장소ID로 치환하는 함수
+;ARG      대상의 장소ID (거점맵)
+;RETURNF  교체 장소ID (외출맵)
+;-----------------------------------------
+@MAP_SEARCH_REPLACEMENT_4(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE P401영원정입구 TO P406손님용화장실
+		RETURNF 영원정
+	CASE P407복도 TO P430지하실
+		RETURNF 영원정안채
+	CASE P431토끼동굴
+		RETURNF 토끼동굴
+	CASE P432카게로의집, P433사각의죽림, P442빈오두막, P445모코우의집
+		RETURNF 사각의죽림
+	CASE P434미혹의샛길, P435우물, P440폐가, P441온천
+		RETURNF 미혹의샛길
+	CASE P436무명의언덕, P437메디슨의집
+		RETURNF 무명의언덕
+	CASE P438태양의밭, P439라바의집
+		RETURNF 태양의밭
+	CASE P450몽환관현관 TO P466몽환관정원
+		RETURNF 몽환관
+	CASEELSE
+		RETURNF 죽림입구
+ENDSELECT
+RETURNF 0
+
+;--------------------------------------------------
+;맵의 소개문
+;--------------------------------------------------
 @MAP소개_4
 ;とりあえず5行
 PRINTFORML ※소개문 모집 중※

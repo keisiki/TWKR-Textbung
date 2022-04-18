@@ -1,65 +1,177 @@
 ﻿;--------------------------------------------------
-;	맵내 이동 처리 확장 패치 부속
-;	명련사MAP용 함수
+;지점명 변경 함수
 ;--------------------------------------------------
 @MAP_PLACENAME_8(ARG)
 #FUNCTIONS
-
 IF GET_MAPID(ARG) == MAIN_MAP
 	SELECTCASE ARG
-		CASE 1 TO (MAXROOM - 1)
+		CASE P823빈방
+			IF CFLAG:MASTER:초기위치 == ARG
+				RETURNF CALLNAME:MASTER + "의 방" ;私室
+			ELSE
+				RETURNF "빈 방"
+			ENDIF
+		CASE SUMIKOMI_ROOM
+			;※このマップでは未実装
+			IF FLAG:더부살이캐릭터
+				RETURNF CALLNAME:(FLAG:더부살이캐릭터) + "의 방"
+			ELSE
+				RETURNF "빈 방"
+			ENDIF
+		CASE MINROOM() TO (MAXROOM - 1)
 			RETURNF STR:(ARG + 8000)
-		CASE 898
+		CASE OMANEKIBEYA()
 			RETURNF OMANEKI_PLACE()
-		CASE 899
+		CASE SUKIMA()
 			RETURNF "스키마 공간"
 		CASE MAXROOM
-			RETURNF "길의 저 편"
+			RETURNF "산기슭" ;山の麓
 		CASEELSE
 			RETURNF "불명"
 	ENDSELECT
 ELSE
-	RETURNF "불명"
+	RETURNF "산정 밖"
 ENDIF
 
-@MAP_VIEWING_8(AA,COLOR)
-#DIMS REF AA, 0
-#DIMS REF COLOR, 0
-IF !TFLAG:맵변환
-	SELECTCASE CFLAG:MASTER:현재위치
-		CASE 830, 832, 833
-			TFLAG:맵변환 = 3
-		CASE 811 TO 826
-			TFLAG:맵변환 = 2
-		CASE 831, 834 TO 842
-			TFLAG:맵변환 = 4
-		CASEELSE
-			TFLAG:맵변환 = 1
-	ENDSELECT
-ENDIF
-CALL DRAW_INFORMATIONLINE(@"%MAPNAME:(TFLAG:맵변환)%")
-PRINTFORML 
-IF RECOLOREDMAPS
-TRYCCALLFORM COLOREDMAP_SUMMIT_{TFLAG:맵변환}(AA,COLOR)
-CATCH
-RECOLOREDMAPS = 0
-CALL DRAW_MAP
-RECOLOREDMAPS = 1
-RETURN
-ENDCATCH
-ELSE
-TRYCALLFORM MAP_SUMMIT_{TFLAG:맵변환}(AA)
-ENDIF
-
-@MAP_CAN_MOVE_8(ARG, ARG:1)
+;--------------------------------------------------
+;장소 ARG가 어느 지역에 있는지
+;표시하는 맵의 번호와 연동 (TFLAG:맵변환)
+;ARG     장소ID
+;--------------------------------------------------
+@MAP_AREASELECT_8(ARG)
 #FUNCTION
-RETURNF 1
-
-
-@MAP_CANNOT_WORD_8(ARG)
-SELECTCASE TFLAG:이동불능메시지
+SELECTCASE ARG
+	;천계
+	CASE P830현운해, P832유정천거리, P833도원
+		RETURNF 3
+	;守矢神社
+	CASE P811경내 TO P826복도
+		RETURNF 2
+	;比那名居邸
+	CASE P831히나나위저택앞, P834히나나위저택봉당 TO P842히나나위저택헛간
+		RETURNF 4
+	;妖怪の山・山頂
+	CASEELSE
+		RETURNF 1
 ENDSELECT
 
+;--------------------------------------------------
+;내부구조가 있는 장소의 내부 판정
+;		TFLAG:맵변환	내부감지(察知)가 필요한 맵 번호
+;				P_ID  	표시버튼의 장소ID
+;				Q_ID  	판정하는 내부 장소ID, 반드시 P_ID와 일치하는 수치도 포함
+;--------------------------------------------------
+@GETMAP_BUILDING_8(P_ID, Q_ID)
+#FUNCTION
+#DIM P_ID
+#DIM Q_ID
+IF TFLAG:맵변환 == 1
+	SELECTCASE P_ID
+		;천계
+		CASE P830현운해
+			SELECTCASE Q_ID
+			CASE P830현운해 TO P842히나나위저택헛간
+				RETURNF 1
+			ENDSELECT
+		;守矢神社
+		CASE P811경내
+			SELECTCASE Q_ID
+			CASE P811경내 TO P826복도
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ELSEIF TFLAG:맵변환 == 3
+	SELECTCASE P_ID
+		;比那名居邸
+		CASE P831히나나위저택앞
+			SELECTCASE Q_ID
+			CASE P831히나나위저택앞, P834히나나위저택봉당 TO P842히나나위저택헛간
+				RETURNF 1
+			ENDSELECT
+	ENDSELECT
+ENDIF
+RETURNF 0
+
+;--------------------------------------------------
+;이동제한설정
+;ARG    장소ID
+;CHARA  이동하는 캐릭터ID
+;RETURNF 1=이동 가능, 0=이동 불가능
+;TFLAG:이동불능메시지   ↓の@MAP_CANNOT_WORD용 설정
+;--------------------------------------------------
+@MAP_CAN_MOVE_8(ARG, CHARA)
+#FUNCTION
+#DIM CHARA
+SELECTCASE ARG
+	;誰かが住んでないと入れない
+	CASE P823빈방
+		IF !PRIVATEROOM:(ARG % 100) && CFLAG:MASTER:초기위치 != ARG
+			TFLAG:이동불능메시지 = 999
+			RETURNF 0
+		ENDIF
+ENDSELECT
+RETURNF 1
+
+;--------------------------------------------------
+;이동불능시 표시되는 메시지
+;--------------------------------------------------
+@MAP_CANNOT_WORD_8(ARG)
+RETURN
+SELECTCASE TFLAG:이동불능메시지
+	CASE 1
+		PRINTFORMW ※ここにメッセージを入れる。行数+1のCLEARLINEをする
+		CLEARLINE 2
+ENDSELECT
+REUSELASTLINE
+
+;-----------------------------------------
+;거점 전용의 정경묘사
+;WAIT는 걸리지 않도록
+;-----------------------------------------
+@MAP_UNIQUEMESSAGE_8
+IF WITH_MOB()
+	RETURN 1
+ELSE
+	SELECTCASE CFLAG:MASTER:현재위치
+		;索道駅
+		CASE P803삭도역
+			IF INRANGE(TIME, 540, 1020)
+				PRINTFORML 보기에도 의욕이 없어 보이는 캇파가 삭도의 접수를 받고 있다
+			ELSE
+				PRINTFORML 삭도역은 닫혀 있다
+			ENDIF
+	ENDSELECT
+ENDIF
+RETURN 1
+
+;-----------------------------------------
+;거점의 장소ID를 외출맵상의 장소ID로 치환하는 함수
+;ARG      대상의 장소ID (거점맵)
+;RETURNF  교체 장소ID (외출맵)
+;-----------------------------------------
+@MAP_SEARCH_REPLACEMENT_8(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE P830현운해 TO P842히나나위저택헛간
+		RETURNF 천계
+	CASE P801산정입구, P802다리, P803삭도역, P806폭포뒤 TO P809하타테댁
+		RETURNF 구천의폭포
+	CASE P805정상, P851쿠다카의오두막 TO P854메구무댁
+		RETURNF 절경의언덕
+	CASE P814호숫가
+		RETURNF 산의호수
+	CASE P804모리야신사토리이, P811경내, P813신사사무소, P815마당
+		RETURNF 모리야신사경내
+	CASE P855홍룡동, P856모모요의거처
+		RETURNF 홍룡동
+	CASEELSE
+		RETURNF 모리야신사본전
+ENDSELECT
+RETURNF 0
+
+;--------------------------------------------------
+;맵의 소개문
+;--------------------------------------------------
 @MAP소개_8
 ;とりあえず5行
 PRINTFORML 모리야 신사를 중심으로 텐구의 주거나 천계까지를 포함한 맵.
