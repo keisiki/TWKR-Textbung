@@ -1,0 +1,213 @@
+﻿;-------------------------------------------------
+;화이트데이
+;-------------------------------------------------
+@COM491
+
+#DIM CAN_COOK
+#DIM 호감도상승량
+#DIM 신뢰도상승량
+#DIM WD_BUFF
+#DIMS WD_GIFT
+
+호감도상승량 = 0
+신뢰도상승량 = 0
+CAN_COOK = 0
+WD_BUFF = 0
+
+;調理可能か
+CALL COM_ABLE413
+CAN_COOK = RESULT
+IF FESTIVAL() == "화이트 데이" && INRANGE(CFLAG:TARGET:발렌타인,1,4) && SHIRAHU(TARGET)
+	CALL ASK_M("답례 상대 목록",1,"답례용 과자를 만든다 (감미재 5개)",ITEM:감미재 >= 5,@"%CALLNAME:TARGET%에게 답례품을 전달",1)
+ELSE
+	CALL ASK_M("답례 상대 목록",1,"답례용 과자를 만든다",1)
+ENDIF
+SELECTCASE RESULT
+	CASE 0
+		CALL Valentine_List
+		WAIT
+		RETURN -1
+	CASE 1
+		IF !CAN_COOK
+			PRINTFORMW 요리를 할 수 있는 환경이 필요하다
+			RETURN -1
+		ENDIF
+		CALL WD_COOK
+		RETURN RESULT
+	CASE 2
+		PRINTFORML 무엇을 건네줄까？（받은 것：%Valentine_Chocolate(TARGET)%）
+		{
+		CALL ASK_M("그만둔다",1,"블랙썬더",ITEM:블랙썬더,"로터초코",ITEM:로터초코,"WD초콜릿",ITEM:WD초콜릿,
+		"수제초코쿠키",ITEM:수제초코쿠키,"WD푸딩",ITEM:WD푸딩,
+		"수제푸딩",ITEM:수제푸딩,"데코레이션케이크",ITEM:데코레이션케이크 && CFLAG:TARGET:발렌타인 == 4)
+		}
+		SELECTCASE RESULT
+			CASE 0
+				RETURN -1
+			CASE 1
+				WD_GIFT = 블랙썬더
+				SIF CFLAG:발렌타인 > 1
+					PRINTFORMW %타겟은% 석연치 않은 얼굴을 하고 있다……
+				호감도상승량 = 30
+				신뢰도상승량 = 30
+			CASE 2
+				WD_GIFT = 로터초코
+				호감도상승량 = 50
+				신뢰도상승량 = 50
+				SOURCE:쾌C += 3000
+				SOURCE:반감 += 300
+			CASE 3
+				WD_GIFT = WD초콜릿
+				호감도상승량 = 100
+				신뢰도상승량 = 100
+				WD_BUFF = 100
+			CASE 4
+				WD_GIFT = 수제초코쿠키
+				호감도상승량 = 150
+				신뢰도상승량 = 150
+				EXP:애정경험 += 1
+				WD_BUFF = 100
+			CASE 5
+				WD_GIFT = WD푸딩
+				호감도상승량 = 200
+				신뢰도상승량 = 200
+				EXP:애정경험 += 3
+				WD_BUFF = 100
+			CASE 6
+				WD_GIFT = 수제푸딩
+				호감도상승량 = 300
+				신뢰도상승량 = 300
+				EXP:애정경험 += 5
+				WD_BUFF = 200
+			CASE 7
+				WD_GIFT = 데코레이션케이크
+				호감도상승량 = 1000
+				신뢰도상승량 = 1000
+				EXP:애정경험 += 30
+				WD_BUFF = 1000
+		ENDSELECT
+		TFLAG:193 = RESULT
+		SIF RESULT >= 5
+			TALENT:기분 = 1
+		PRINTFORMW %타겟에게% %조사처리(WD_GIFT,"를")% 선물했다
+		ITEM:WD_GIFT --
+		CALL CHANGE_CFLAG(2,TARGET,호감도상승량)
+		CALL CHANGE_CFLAG(4,TARGET,신뢰도상승량)
+		IF WD_BUFF
+			CALL BUFF_BASE(TARGET,BASE_체력, WD_BUFF, 1)
+			CALL BUFF_BASE(TARGET,BASE_기력, WD_BUFF, 1)
+		ENDIF
+		CFLAG:TARGET:발렌타인 += 100
+		TIME += 10
+		RETURN 1
+ENDSELECT
+
+
+@Valentine_List
+FOR LOCAL,1,CHARANUM
+	SIF !CFLAG:LOCAL:발렌타인
+		CONTINUE
+	SELECTCASE CFLAG:LOCAL:발렌타인 % 100
+		CASE 2
+			SETCOLOR C_GREEN
+		CASE 3
+			SETCOLOR C_YELLOW
+		CASE 4
+			SETCOLOR C_PINK
+	ENDSELECT
+	;返礼済みなら打ち消し線
+	SIF CFLAG:LOCAL:발렌타인 > 100
+		FONTSTYLE 4
+	PRINTFORMLC [{LOCAL}]%CALLNAME:LOCAL%
+	FONTREGULAR
+	RESETCOLOR
+NEXT
+PRINTFORML 
+DRAWLINE
+SETCOLOR C_PINK
+PRINTFORM 수제　
+SETCOLOR C_YELLOW
+PRINTFORM 고급　
+SETCOLOR C_GREEN
+PRINTFORM 보통　
+RESETCOLOR
+PRINTFORML 의리
+
+@WD_COOK
+PRINTFORML 무엇을 만들까？（전부 감미재５개 소비）
+{
+CALL ASK_M("그만둔다",1, "초코쿠키×10＋α：대량으로 만들 수 있다。흩뿌리기용。",1,
+"푸딩×5＋α：밸런스가 좋다。벌꿀이 필요。（필요: 벌꿀）",ITEM:벌꿀,
+"데코레이션케이크：소중한 사람에게。（필요: 딸기３・요리기능４）",ITEM:딸기 >= 3 && ABL:MASTER:요리기능 >= 4,
+"로터초코×5：로터를 사용한 먹을 수 있는 수수께끼의 초콜릿。（필요: 로터）",ITEM:로터)
+}
+SELECTCASE RESULT
+	CASE 0
+		RETURN -1
+	CASE 1
+		CALL GET_ITEM("수제초코쿠키", 10 + ABL:MASTER:요리기능, 2)
+		ITEM:감미재 -= 5
+	CASE 2
+		CALL GET_ITEM("수제푸딩", 5 + ABL:MASTER:요리기능 / 3, 2)
+		ITEM:감미재 -= 5
+		ITEM:벌꿀 -= 1
+	CASE 3
+		ITEM:감미재 -= 5
+		ITEM:딸기 -= 3
+		CALL GET_ITEM("데코레이션케이크", 1, 2)
+	CASE 4
+		CALL GET_ITEM("로터초코", 5, 2)
+		ITEM:감미재 -= 5
+		ITEM:로터 -= 1
+ENDSELECT
+TIME += 60
+EXP:MASTER:요리경험 += 3
+DOWNBASE:MASTER:기력 = 300
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE491
+;チョコレートを贈る実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(491)
+	RETURN RESULT
+;気力0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+;停止中は不可
+SIF FLAG:70 == 1
+	RETURN 0
+;添い寝中
+SIF CFLAG:동침중
+	RETURN 0
+;イタズラ中
+SIF CFLAG:MASTER:장난
+	RETURN 0
+SIF CFLAG:우후후 == 2
+	RETURN 0
+SIF !PREPARE_WD()
+	RETURN 0
+RETURN 1
+
+@PREPARE_WD()
+#FUNCTION
+SIF DAY:2 != 1
+	RETURNF 0
+SIF DAY:3 > 14
+	RETURNF 0
+RETURNF 1
+
+;デバッグ用
+@WD_DEBUG
+ITEM:감미재 = 99
+ITEM:딸기 = 99
+ITEM:벌꿀 = 99
+DAY:2 = 1
+DAY:3 = 13
+FOR LOCAL,1,CHARANUM
+	CFLAG:LOCAL:발렌타인 = 1 + RAND:4
+NEXT
