@@ -31,7 +31,6 @@ SELECTCASE ARG
 	;인력설정 (CFLAG:LOCAL:인력점을 설정한다)
 	CASE 8
 ENDSELECT
-
 @EXIST_캐릭터데이터30
 #LOCALSIZE 1
 #LOCALSSIZE 1
@@ -174,24 +173,25 @@ IF CFLAG:CHARA:대체적용
 		ENDIF
 	ELSE
 		;服
-		IF NUDITYCHECK(CHARA) == 1
-			RESULTS = _パンイチ
-			SIF FLAG:스탠딩종류
-				RESULTS = _半裸
-		ELSEIF NUDITYCHECK(CHARA) == 2
-			RESULTS = _ブラ
-			SIF FLAG:스탠딩종류
+		SELECTCASE NUDITYCHECK(CHARA)
+			CASE 1
+				RESULTS = _%\@ FLAG:스탠딩종류 ? 半裸 # パンイチ \@%
+			CASE 2
+				RESULTS = _%\@ FLAG:스탠딩종류 ? 下着 # ブラ \@%
+			CASE 3
 				RESULTS = _下着
-		ELSEIF NUDITYCHECK(CHARA) == 3
-			RESULTS = _下着
-		ELSEIF (BETWEENTIME(CFLAG:CHARA:취침시간-180, CFLAG:CHARA:기상시간+30) && CFLAG:현재위치 ==  CFLAG:CHARA:초기위치) || CFLAG:CHARA:수면
-			RESULTS = _パジャマ
-			;素敵なＴシャツセットからは、おはようからおやすみまで逃げられない
-			SIF (BETWEENTIME(CFLAG:CHARA:기상시간, CFLAG:CHARA:취침시간) && CFLAG:현재위치 == CFLAG:CHARA:초기위치) && !CFLAG:CHARA:수면 && CFLAG:CHARA:의상일시변경 == 62
-				RESULTS = _変Ｔ
-		ELSEIF CFLAG:CHARA:의상일시변경 == 62
-			RESULTS = _変Ｔ
-		ENDIF
+			CASEELSE
+				IF (BETWEENTIME(CFLAG:CHARA:취침시간 - 60, CFLAG:CHARA:기상시간 + 30) && CFLAG:현재위치 ==  CFLAG:CHARA:초기위치) || CFLAG:CHARA:수면
+					RESULTS = _パジャマ
+					;素敵なＴシャツセットからは、おはようからおやすみまで逃げられない
+					SIF (BETWEENTIME(CFLAG:CHARA:기상시간, CFLAG:CHARA:취침시간) && CFLAG:현재위치 == CFLAG:CHARA:초기위치) && !CFLAG:CHARA:수면 && CFLAG:CHARA:의상일시변경 == 62
+						RESULTS = _変Ｔ
+				ELSEIF CFLAG:CHARA:의상일시변경 == 62
+					RESULTS = _変Ｔ
+				ELSEIF CFLAG:CHARA:의상일시변경 == 17 && DAY:3 == 28
+					RESULTS = _うさぎ
+				ENDIF
+		ENDSELECT
 	ENDIF
 ELSE
 	;通常画像
@@ -202,10 +202,9 @@ ELSE
 		ELSE
 			;立ち絵
 		ENDIF
-	ELSE
+	ELSEIF CFLAG:CHARA:의상일시변경 == 62
 		;服
-		SIF CFLAG:CHARA:의상일시변경 == 62
-			RESULTS = _変Ｔ
+		RESULTS = _変Ｔ
 	ENDIF
 ENDIF
 
@@ -223,6 +222,8 @@ ENDIF
 VARSET RESULTS
 
 IF CFLAG:CHARA:대체적용
+	SIF CFLAG:CHARA:의상일시변경 == 17
+		RETURN
 	;差し替え画像
 	SIF TALENT:CHARA:임신 && CFLAG:CHARA:임신경과일수 >= 40
 		RESULTS = 妊娠
@@ -257,6 +258,10 @@ IF CFLAG:CHARA:대체적용
 		SIF TCVAR:CHARA:363 == TIME:0 && TCVAR:CHARA:363 > 0
 			SWAP RESULTS:0, RESULTS:1
 	ENDIF
+	IF SPRITECREATED("K30_ANIME_FLAG") && FLAG:시간정지
+		RESULTS:0 = 停止
+		RESULTS:1 = 停止
+	ENDIF
 ELSE
 	;通常画像
 	IF FLAG:스탠딩종류
@@ -285,9 +290,14 @@ IF CFLAG:CHARA:대체적용
 		CASE 19, 20, 80 TO 88, 312, 501, 505, 508 TO 512, 563
 			SIF TALENT:CHARA:연모
 				RESULTS:0 = LOVE
-		;赤面表情、開帳、尻を撫でる、スカートをめくる
-		CASE 8, 13, 310, 330
+		;開帳時、赤面表情
+		CASE 8, 13
 			RESULTS:0 = 赤面
+		;尻を撫でる、スカートをめくる
+		CASE 310, 330
+			RESULTS:0 = 赤面
+			SIF TCVAR:CHARA:356
+				RESULTS:0 = 反発
 		;メシの顔
 		CASE 413, 414, 415
 			SIF TALENT:CHARA:기분 < 0 || CFLAG:CHARA:의상일시변경 == 62 || !SHIRAHU(CHARA) || MARK:CHARA:3 || !FLAG:스탠딩종류
@@ -509,6 +519,7 @@ IF CFLAG:CHARA:대체적용
 				ENDIF
 			ENDIF
 		ENDIF
+		RETURN エフェクト数
 	ENDIF
 	IF FLAG:스탠딩종류
 		;顔絵

@@ -63,6 +63,8 @@ CASE "의뢰 발생율"
 	ENDIF
 CASE "의뢰 발생 조건"
 ;섹프or애욕かつ욕구불만도700以上 or 걸레
+	;debug
+	;SIF TALENT:ARG:처녀
 	SIF (TALENT:ARG:섹프 && CFLAG:TARGET:욕구불만도 > 500) || (TALENT:ARG:애욕 && CFLAG:TARGET:욕구불만도 > 500) || TALENT:ARG:걸레
 		CALLF MAKE_INT(V_NAME, 1)
 CASE "의뢰 수탁 가능 조건"
@@ -87,12 +89,10 @@ ENDSELECT
 #DIMS SCENE
 #DIM  CLIENT_ID
 #DIM 장소
+#DIMS 일기기술
 ;1=대상의 방 2=혼숙 여관・러브호텔 3=유카리 파생 전용 4=이외
-#DIM 주입량
-#DIM 기본주입량
 #DIM 호감도상승량
 #DIM 횟수
-#DIM 경험증가수,58
 #DIMS PLACE
 CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
 SELECTCASE SCENE
@@ -116,29 +116,6 @@ CASE "의뢰실행시"
 ;この依頼は「作業」扱いであり、CLIENTがTARGETになっている時のみ実行できます
 ;
 ;
-VARSET 경험증가수
-횟수 = MAX(MIN(ABL:CLIENT_ID:욕망 / 2, 5) + CFLAG:CLIENT_ID:욕구불만도 / 200,1)
-주입량 = 0
-
-경험증가수:0 += 1 + RAND:(횟수 * 2) 
-경험증가수:4 += 3 + ABL:CLIENT_ID:M감각 * 2
-경험증가수:3 += RAND:(횟수 * 2) 
-경험증가수:5 += 경험증가수:0 / 2
-경험증가수:8 += 경험증가수:3 / 2
-경험증가수:10 += 경험증가수:0 / 2
-경험증가수:25 = 경험증가수:4
-경험증가수:27 = 경험증가수:4
-EXP:MASTER:M경험 += 경험증가수:4
-EXP:MASTER:키스경험 += 경험증가수:4
-EXP:MASTER:펠라티오경험 += 경험증가수:4
-기본주입량 = (ABL:CLIENT_ID:질 + 1) * 20 + BASE:MASTER:정력 / 25
-FOR LOCAL,1,횟수
-	주입량 += 기본주입량 + RAND:(기본주입량)
-NEXT
-
-주입량 = MIN(주입량, BASE:MASTER:정력)
-
-CALL ADD_SAMEN_V(CLIENT_ID, 주입량)
 
 
 ;以下デフォルト地の文
@@ -156,7 +133,7 @@ ENDIF
 
 	;장소分岐
 	;そのキャラの自室があるMAPの場合33%で自室に連れ込む
-	IF GET_MAPID(CFLAG:MASTER:현재위치) == GET_MAPID(GET_CHARAHOME(CLIENT_ID)) && RAND:3 ==0
+	IF GET_MAPID(CFLAG:MASTER:현재위치) == GET_MAPID(GET_CHARAHOME(CLIENT_ID)) && RAND:3 == 0
 		PRINTFORMW %CALLNAME:CLIENT_ID%의 방으로 들어갔다
 			IF TALENT:CLIENT_ID:자존심 == 1
 				PRINTFORML %조사처리(CALLNAME:CLIENT_ID,"는")% 당신이 흥분을 깨닫지 못 하도록 새침한 표정을 지었으나,
@@ -781,86 +758,24 @@ ENDIF
 			ENDIF
 		ENDSELECT
 		PRINTFORML %TEXTR("자궁구를/Ｇ스팟 쪽을/")% %TEXTR("끈적끈적하게 반죽하듯/퍽퍽 힘차게/")% 찔러주자,
-		PRINTFORM %조사처리(CALLNAME:CLIENT_ID,"는")% 움찔움찔 등골을 떨며 절정을 하고 
-		SELECTCASE RAND:4
-		CASE 0
-			PRINTFORMW 녹아버린 질육이 %CALLNAME:MASTER%의 육봉을 꽉 조여주었다
-		CASE 1
-			PRINTFORMW 칠칠치 못한 몰골을 드러냈다
-		CASE 2
-			PRINTFORMW 쾌락으로 느슨해진 입에서 침을 흘렸다
-		CASE 3
-			PRINTFORMW 억제하지 못한 음란한 소리가 주변에 울려퍼졌다
-		ENDSELECT
+		{
+		PRINTFORMW %조사처리(CALLNAME:CLIENT_ID,"는")% 움찔움찔 등골을 떨며 절정해 %TEXTR("녹아버린 질육으로 육봉을 꽉 조여주었다/
+		칠칠치 못한 몰골을 드러냈다/쾌락으로 느슨해진 입에서 침을 흘렸다/억제하지 못한 음란한 소리가 주변에 울려퍼졌다")%
+		}
 	ELSE
+		
 	ENDIF
-	PRINTFORML ・
-	PRINTFORML ・
-	PRINTFORMW ・
-	PRINTFORM %마스터는% 
-	IF TALENT:CLIENT_ID:처녀
-		PRINTFORM %CALLNAME:CLIENT_ID%의 순결을 뺏고,
-	ELSE
-		PRINTFORM %조사처리(CALLNAME:CLIENT_ID,"를")% {횟수}번 %TEXTR("범하여/안아/")%, 
-	ENDIF
-	PRINTFORMW 자궁에 {주입량}의 정액을 쏟아냈다.
 
 	;以上デフォルト地の文
+횟수 = MAX(MIN(ABL:CLIENT_ID:욕망 / 2, 5) + CFLAG:CLIENT_ID:욕구불만도 / 200,1)
+CALL MAKELOVE(CLIENT_ID, "V", 횟수, "역원교/돈을 내고", @"%CALLNAME:CLIENT_ID%에게 역원교를 제의받아、{횟수}번 했다")
 
-	SIF TALENT:MASTER:키스미경험
-		CALL SET_FIRSTKISS(MASTER, CLIENT_ID, 2)
-	SIF TALENT:CLIENT_ID:키스미경험
-		CALL SET_FIRSTKISS(CLIENT_ID, MASTER, 2, "흘러가는 대로")
-
-IF TALENT:CLIENT_ID:처녀 == -1
-	SETCOLOR 247,171,166
-	PRINTFORMW 【무자각비처녀상실】
-	TALENT:CLIENT_ID:처녀 = 0
-ENDIF
-IF TALENT:CLIENT_ID:처녀 == 1
-	SETCOLOR 247,171,166
-	PRINTFORMW 【처녀상실】
-	CALL SET_HISTORY_LOST_V(CLIENT_ID, MASTER, "페니스", "역원교", "돈을 내고")
-ENDIF
-
-SETCOLOR C_YELLOW
-FOR LOCAL,0,58
-	IF 경험증가수:LOCAL
-		PRINTFORML %EXPNAME:LOCAL% ＋{경험증가수:LOCAL}
-		EXP:CLIENT_ID:LOCAL += 경험증가수:LOCAL
-	ENDIF
-NEXT
-RESETCOLOR
-CALL JUEL_UP_SPECIAL(CLIENT_ID,"욕정","욕망",20,1)
-IF TCVAR:CLIENT_ID:파과
-	CALL JUEL_UP_SPECIAL(CLIENT_ID,"쾌V","V감각",100,1)
-ELSE
-	CALL JUEL_UP_SPECIAL(CLIENT_ID,"쾌V","V감각",15,1)
-ENDIF
-CALL ADD_EXP_LESNIAN(횟수 * 5, CLIENT_ID, "PRINT")
 PRINTFORMW …
 PRINTFORMW ……
 PRINTFORMW ………
 
-TIME += 횟수 * 20
 EXP:MASTER:청소경험 ++
-DOWNBASE:MASTER:체력 = 횟수 * 100
-DOWNBASE:MASTER:기력 = 횟수 * 150
-호감도상승량 = 횟수 * ABL:CLIENT_ID:친밀 * 5
 
-CALL CHANGE_CFLAG(2,CLIENT_ID,호감도상승량)
-CFLAG:CLIENT_ID:욕구불만도 = 0
-TCVAR:CLIENT_ID:파과 = 0
-
-;TWあなたは片づけせずにはいられない
-$BYEBYE
-
-SIF GETBIT(TALENT:MASTER:성별, 1)
-	DOWNBASE:MASTER:정력 = 주입량
-	
-;이거 필요해? これいる？
-;PRINTFORML 
-;PRINTFORMW 질펀한 섹스를 끝내고 %CALLNAME:CLIENT_ID%와 %마스터는% 원래 장소로 되돌아갔다.
 
 
 RETURN IRAI_CONST_RESULT("실행해 성공")
@@ -929,3 +844,127 @@ PRINTFORMW ・
 PRINTFORML 
 PRINTFORM %PLACE%%PRE% %TEXTR("질척질척 하는 거친 물소리/희미한 물소리/「팡 팡」하는 파열음 비슷한 소리/운동을 하는 듯 거친 두 사람의 호흡 소리")%와 
 PRINTFORMW %TEXTR("억누를 수 없는 달콤한 목소리가/분명치 않은 교성이/")% %POST%
+
+;抱かれたい依頼の経験などの処理を切り出し
+
+@MAKELOVE(C_ID, type, 횟수, 시추에이션, 일기기술)
+#DIM  C_ID
+#DIM 주입량
+#DIM 기본주입량
+#DIM 호감도상승량
+#DIM 횟수
+#DIM 경험증가수,58
+#DIMS type
+#DIMS 시추에이션
+#DIMS 일기기술
+VARSET 경험증가수
+SPLIT @"%시추에이션%", "/", LOCALS
+
+주입량 = 0
+기본주입량 = BASE:MASTER:정력 / 25
+SELECTCASE type
+	CASE "A"
+		기본주입량 += (ABL:C_ID:애널 + ABL:C_ID:허리 + 1) * 10
+	CASE "V"
+		기본주입량 += (ABL:C_ID:질 + ABL:C_ID:허리 + 1) * 10
+ENDSELECT
+
+FOR LOCAL,1,횟수 + 1
+	주입량 += 기본주입량 + RAND:(기본주입량)
+NEXT
+
+주입량 = MIN(주입량, BASE:MASTER:정력)
+
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+PRINTFORM %마스터는% 
+IF TALENT:C_ID:처녀 && type == "V"
+	PRINTFORM %CALLNAME:C_ID%의 순결을 빼았고、
+ELSE
+	PRINTFORM %조사처리(CALLNAME:CLIENT_ID,"를")% {횟수}번 %TEXTR("범하여/안아/")%、
+ENDIF
+PRINTFORMW \@ type == "A"? 항문 # 자궁\@에 {주입량}의 정액을 쏟아부었다
+SIF TALENT:MASTER:키스미경험
+	CALL SET_FIRSTKISS(MASTER, C_ID, 2)
+SIF TALENT:C_ID:키스미경험
+	CALL SET_FIRSTKISS(C_ID, MASTER, 2)
+
+;C
+경험증가수:0 += 1 + RAND:(횟수 * 2) 
+경험증가수:5 += 경험증가수:0 / 2
+;B
+경험증가수:3 += RAND:(횟수 * 2) 
+경험증가수:8 += 경험증가수:3 / 2
+;M
+경험증가수:4 += 3 + ABL:C_ID:M감각 * 2
+;絶頂経験
+경험증가수:10 += 경험증가수:0 / 2
+;口淫経験
+경험증가수:25 = 경험증가수:4
+;キス経験
+경험증가수:27 = 경험증가수:4
+EXP:MASTER:M경험 += 경험증가수:4
+EXP:MASTER:키스경험 += 경험증가수:4
+EXP:MASTER:펠라티오경험 += 경험증가수:4
+
+IF type == "A"
+	IF !CFLAG:C_ID:애널처녀상실기념일
+		SETCOLOR 247,171,166
+		PRINTFORMW 【애널처녀상실】
+		CALL SET_HISTORY_LOST_A(C_ID, MASTER, "페니스", @"%LOCALS:0%", @"%LOCALS:1%")
+	ENDIF
+	경험증가수:2 += 횟수 * 2 
+	경험증가수:7 += 횟수
+	경험증가수:17 += 횟수
+	경험증가수:21 += 횟수 * 2 
+	CALL ADD_SAMEN_A(C_ID, 주입량)
+ENDIF
+IF type == "V"
+	IF TALENT:C_ID:처녀 == -1
+		SETCOLOR 247,171,166
+		PRINTFORMW 【무자각비처녀상실】
+		TALENT:C_ID:처녀 = 0
+	ENDIF
+	IF TALENT:C_ID:처녀 == 1
+		SETCOLOR 247,171,166
+		PRINTFORMW 【처녀상실】
+		CALL SET_HISTORY_LOST_V(C_ID, MASTER, "페니스", @"%LOCALS:0%", @"%LOCALS:1%")
+	ENDIF
+	경험증가수:1 += 횟수 * 2 
+	경험증가수:6 += 횟수
+	경험증가수:16 += 횟수
+	경험증가수:20 += 횟수 * 2 
+	CALL ADD_SAMEN_V(C_ID, 주입량)
+ENDIF
+
+SETCOLOR C_YELLOW
+FOR LOCAL,0,58
+	IF 경험증가수:LOCAL
+		PRINTFORML %EXPNAME:LOCAL% ＋{경험증가수:LOCAL}
+		EXP:C_ID:LOCAL += 경험증가수:LOCAL
+	ENDIF
+NEXT
+RESETCOLOR
+CALL JUEL_UP_SPECIAL(C_ID,"욕정","욕망",20,1)
+IF type == "V"
+	IF TCVAR:C_ID:파과
+		CALL JUEL_UP_SPECIAL(C_ID,"쾌V","V감각",100,1)
+	ELSE
+		CALL JUEL_UP_SPECIAL(C_ID,"쾌V","V감각",15,1)
+	ENDIF
+ELSEIF type == "A"
+	CALL JUEL_UP_SPECIAL(C_ID,"쾌A","A감각",100,1)
+ENDIF
+CALL ADD_EXP_LESNIAN(횟수 * 5, C_ID, "PRINT")
+TIME += 횟수 * 20
+DOWNBASE:MASTER:체력 = 횟수 * 100
+DOWNBASE:MASTER:기력 = 횟수 * 150
+호감도상승량 = 횟수 * ABL:C_ID:친밀 * 5
+
+CALL CHANGE_CFLAG(2,C_ID,호감도상승량)
+CFLAG:C_ID:욕구불만도 = 0
+TCVAR:C_ID:파과 = 0
+SIF GETBIT(TALENT:MASTER:성별, 1)
+	DOWNBASE:MASTER:정력 = 주입량
+CALL ASK_DAIRY(@"%일기기술%")

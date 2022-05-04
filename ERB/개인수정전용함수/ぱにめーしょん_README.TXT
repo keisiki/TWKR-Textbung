@@ -69,7 +69,7 @@
 SETFONT "나눔명조"
 FONTSTYLE 3
 REDRAW 0
-CALL FULLCUTIN(40, 25, "에 째─실마리응Presents", "  ", "  ", "　　　　　　-광기의 전화면 컷 인")
+CALL FULLCUTIN_KR(40, 25, "에 째─실마리응Presents", "  ", "  ", "　　　　　　-광기의 전화면 컷 인")
 FONTSTYLE 0
 SETFONT "D2era"
 REDRAW 1
