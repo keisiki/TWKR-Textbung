@@ -1,0 +1,1075 @@
+﻿;スイカ割り
+@COM484
+#DIM CHARA
+#DIM 동실인원
+#DIM 참가가능인원
+
+;雨天中止
+IF GROUPMATCH(날씨, 4, 5, 6, 7, 8, 10, 11, 12, 13) || GROUPMATCH(FLAG:이상기상, 9, 10)
+	IF OUTROOF(CFLAG:MASTER:현재위치)
+		PRINTFORMW 天気が悪いのでやめておこう…
+		RETURN -1
+	ENDIF
+;料理がある
+ELSEIF DISH_NAME != ""
+	PRINTFORMW 手に持っている料理をどうにかしよう…
+	RETURN -1
+ENDIF
+
+;참가가능인원チェック
+참가가능인원 = 0
+동실인원 = GET_TARGETNUM()
+FOR LOCAL, 1, 동실인원 + 1
+	CHARA = TARGET:LOCAL
+	SIF !SHIRAHU(CHARA)
+		CONTINUE
+	SIF CFLAG:CHARA:행동 == 5
+		CONTINUE
+	SIF BASE:CHARA:기력 < 500 || BASE:CHARA:체력 < 500
+		CONTINUE
+	참가가능인원 ++
+NEXT
+;TARGETは実行判定で可能なはずなのでエラーチェック
+SIF 참가가능인원 == 0
+	THROW
+SUIKA_PLAYERNUM = 0
+CALL SUIKA_CHARASELECT(동실인원, 참가가능인원)
+;キャンセル
+SIF RESULT == -1
+	RETURN -1
+
+;武器選択
+CALL SUIKA_WEAPONSELECT
+
+;開幕地の文
+DRAWLINE
+IF GROUPMATCH(SUIKA_WEAPON, "打ち出の小槌", "制御棒")
+	PRINTFORML %CALLNAME:MASTER%はアイマスクを装着すると、一心不乱にその場で回転し始めた…
+ELSE
+	PRINTFORML %CALLNAME:MASTER%はアイマスクを装着すると、地面に突き立てた%SUIKA_WEAPON%を軸にして一心不乱に回転し始めた…
+ENDIF
+;セットアップ
+CALL SUIKA_SETUP
+WAIT
+;TARGETが参加していない場合はTARGETを変更しておく
+IF FLAG:데이트상대
+	;参加しなくても最優先,そんなひどいことする？
+	TARGET = FLAG:데이트상대
+ELSEIF !MATCH(SUIKA_PLAYER, TARGET)
+	;一人目をターゲットに変更
+	TARGET = SUIKA_PLAYER:1
+ENDIF
+
+TARGET = SUIKA_PLAYER:1
+;ゲーム開始
+CALL SUIKA_SMASHING
+TFLAG:193 = RESULT
+
+;ソース獲得
+DOWNBASE:MASTER:체력 = 200
+DOWNBASE:MASTER:기력 = 300
+FOR LOCAL, 1, SUIKA_PLAYERNUM + 1
+	CHARA = SUIKA_PLAYER:LOCAL
+	DOWNBASE:CHARA:기력 += 100
+	DOWNBASE:CHARA:체력 += 50
+	SELECTCASE TFLAG:193
+	CASE 0
+		SOURCE:CHARA:환락 = 1500 + ABL:CHARA:친밀 * 100
+		SOURCE:CHARA:수동 = 100 + 50 * ABL:CHARA:순종
+		SOURCE:CHARA:정복 = 200 + 80 * ABL:CHARA:새드끼
+	CASE 1, 2
+		SOURCE:CHARA:환락 = 2500 + ABL:CHARA:친밀 * 100
+		SOURCE:CHARA:수동 = 200 + 60 * ABL:CHARA:순종
+		SOURCE:CHARA:정복 = 400 + 120 * ABL:CHARA:새드끼
+	CASE -1
+		IF SUIKA_LIAR:LOCAL || CHARA == [[세이자]]
+			SOURCE:CHARA:환락 = 1500 + ABL:CHARA:친밀 * 100
+			SOURCE:CHARA:정복 = 400 + 120 * ABL:CHARA:새드끼
+		ELSE
+			SOURCE:CHARA:환락 = 800 + ABL:CHARA:친밀 * 100
+			SOURCE:CHARA:수동 = 100 + 50 * ABL:CHARA:순종
+			SOURCE:CHARA:정복 = 50 + 20 * ABL:CHARA:새드끼
+		ENDIF
+	ENDSELECT
+	IF TFLAG:193 >= 0
+		SIF CHARA == TARGET
+			TFLAG:신뢰도관리 = 1 + TFLAG:193
+		IF TFLAG:193 == 2
+			TIMES SOURCE:CHARA:환락, 1.20
+			TIMES SOURCE:CHARA:수동, 1.20
+			TIMES SOURCE:CHARA:정복, 1.20
+		ENDIF
+	ENDIF
+	;口上用に役職情報を渡しておく
+	SIF CHARA == TARGET && (SUIKA_LIAR:LOCAL || CHARA == [[세이자]])
+		TFLAG:194 = 1
+	;◆口上
+	CALL KOJO_MESSAGE_SEND("SUIKA", 0, CHARA, SUIKA_LIAR:LOCAL, 0, "結果")
+	IF RESULTS != ""
+		PRINTL 
+		PRINTFORML %CALLNAME:CHARA%
+		PRINTFORMW 「%RESULTS%」
+		RESETCOLOR
+	ENDIF
+	;なるべく動かない
+	TCVAR:CHARA:가능한한움직이지않는다 = 1
+NEXT
+
+;料理生成
+SIF TFLAG:193 >= 0
+	CALL 요리생성("자른수박")
+	
+;結果記録
+IF TFLAG:193 > 0
+	SUIKA_GREAT ++
+ELSEIF TFLAG:193 == 0
+	SUIKA_SUCCESS ++
+ENDIF
+
+;時間経過
+TIME += 60
+
+;フラグをリセットしてあなたのフラグを立てる
+VARSET SUIKA_PLAYER
+CVARSET TCVAR, GETNUM(TCVAR, "수박깨기참가"), 0
+TCVAR:MASTER:수박깨기참가 = 1
+
+RETURN 1
+
+;-------------------------------------------------
+;実行可能判定
+;-------------------------------------------------
+;スイカ割り
+@COM_ABLE484
+;時間停止中
+SIF FLAG:시간정지
+	RETURN 0
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(484)
+	RETURN RESULT
+;スイカがない
+SIF !ITEM:수박
+	RETURN 0
+;アイマスクがない
+SIF !ITEM:눈가리개
+	RETURN 0
+;夏じゃない
+SIF GET_MONTH() != "여름의 달"
+	RETURN 0
+;とりあえず訓練できる場所
+SIF !전투훈련가능(CFLAG:MASTER:현재위치)
+	RETURN 0
+;一日一回まで
+SIF TCVAR:MASTER:수박깨기참가
+	RETURN 0
+;対象がいない
+SIF TARGET <= 0
+	RETURN 0
+;意識がない
+SIF !SHIRAHU(TARGET)
+	RETURN 0
+;添い寝中
+SIF CFLAG:MASTER:동침중
+	RETURN 0
+;うふふ中
+SIF CFLAG:MASTER:우후후
+	RETURN 0
+;仕事中
+SIF CFLAG:행동 == 5
+	RETURN 0
+;体力・気力不足
+SIF BASE:MASTER:기력 < 500 || BASE:MASTER:체력 < 500
+	RETURN 0
+;体力・気力不足
+SIF BASE:TARGET:기력 < 500 || BASE:TARGET:체력 < 500
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;スイカ割り：キャラクターセレクト関数
+;ARG 동실인원
+;-------------------------------------------------
+@SUIKA_CHARASELECT(ARG, 참가가능인원)
+#DIM CHARA
+#DIM 참가가능인원
+#DIM LINE
+#DIM 参加要求
+VARSET LOCAL
+LINE = 7
+DRAWLINE
+;全員参加指示
+SIF 参加要求
+	SUIKA_PLAYERNUM = MIN(참가가능인원, SUIKA_MAXPLAYER)
+PRINTFORML ●参加者を選んでください（%TOFULL(TOSTR(SUIKA_PLAYERNUM))%／%TOFULL(TOSTR(SUIKA_MAXPLAYER))%）ウソつきの数：{SUIKA_LIARNUM()}
+FOR LOCAL, 1, ARG + 1
+	CHARA = TARGET:LOCAL
+	SIF !SHIRAHU(CHARA)
+		CONTINUE
+	SIF CFLAG:CHARA:행동 == 5
+		CONTINUE
+	SIF BASE:CHARA:기력 < 500 || BASE:CHARA:체력 < 500
+		CONTINUE
+	;全員参加指示
+	IF 参加要求
+		TCVAR:CHARA:수박깨기참가 = LOCAL:1 + 1
+		SUIKA_PLAYER:(LOCAL:1 + 1) = CHARA
+	ENDIF
+	SIF TCVAR:CHARA:수박깨기참가
+		SETCOLOR C_AQUA
+	PRINTFORM [{CHARA, 3}] %CALLNAME:CHARA, 18, LEFT%
+	LOCAL:1 ++
+	IF LOCAL:1 % 3 == 0
+		PRINTL 
+		LINE ++
+	ENDIF
+	RESETCOLOR
+	SIF 参加要求 && LOCAL:1 == SUIKA_MAXPLAYER
+		参加要求 = 0
+NEXT
+参加要求 = 0
+IF LOCAL:1 % 3
+	PRINTL 
+	LINE ++
+ENDIF
+IF 참가가능인원 > SUIKA_MAXPLAYER
+	PRINTL [902] 上から８人を参加
+ELSE
+	PRINTL [901] 全員参加
+ENDIF
+DRAWLINE
+PRINTL [900] 決定　　　　　　　[903] ルール説明
+PRINTL [999] やっぱりやめる
+INPUT
+
+;やめる
+IF RESULT == 999
+	;参加フラグをリセットする
+	CVARSET TCVAR, GETNUM(TCVAR, "수박깨기참가"), 0
+	VARSET SUIKA_PLAYER
+	RETURN -1
+;決定
+ELSEIF RESULT == 900
+	IF INRANGE(SUIKA_PLAYERNUM, 1, SUIKA_MAXPLAYER)
+		RETURN 1
+	ELSE
+		PRINTFORMW 参加者が１～%TOFULL(TOSTR(SUIKA_MAXPLAYER))%人になるようにしてください！
+		LINE ++
+	ENDIF
+;全員参加,上から８人を参加
+ELSEIF RESULT == 901 || RESULT == 902
+	;一旦リセット
+	CVARSET TCVAR, GETNUM(TCVAR, "수박깨기참가"), 0
+	SUIKA_PLAYERNUM = 0
+	VARSET SUIKA_PLAYER
+	参加要求 = 1
+;ルール説明
+ELSEIF RESULT == 903
+	CALL SUIKA_TUTORIAL
+	RESTART
+;キャラ選択
+ELSEIF INRANGE(RESULT, 1, CHARANUM) && MATCH(TARGET, RESULT)
+	;参加エントリー
+	IF !TCVAR:RESULT:수박깨기참가
+		;上限
+		IF SUIKA_PLAYERNUM >= SUIKA_MAXPLAYER
+			PRINTW これ以上参加できません！
+			LINE ++
+		ELSE
+			FOR LOCAL, 1, SUIKA_MAXPLAYER + 1
+				;空きに入れる
+				IF !SUIKA_PLAYER:LOCAL
+					SUIKA_PLAYER:LOCAL = RESULT
+					TCVAR:RESULT:수박깨기참가 = LOCAL
+					BREAK
+				ENDIF
+			NEXT
+			SUIKA_PLAYERNUM ++
+		ENDIF
+	;参加キャンセル
+	ELSE
+		FOR LOCAL, TCVAR:RESULT:수박깨기참가, SUIKA_MAXPLAYER + 1
+			;参加者はキャンセルする
+			IF SUIKA_PLAYER:LOCAL == RESULT
+				SUIKA_PLAYER:LOCAL = 0
+			;番号が後の人がいるなら登録番号を一つ下げる
+			ELSEIF SUIKA_PLAYER:LOCAL
+				TCVAR:(SUIKA_PLAYER:LOCAL):수박깨기참가 --
+			ENDIF
+		NEXT
+		;その後シフトする
+		FOR LOCAL, TCVAR:RESULT:수박깨기참가, SUIKA_MAXPLAYER + 1
+			SIF !SUIKA_PLAYER:LOCAL
+				SWAP SUIKA_PLAYER:LOCAL, SUIKA_PLAYER:(LOCAL + 1)
+		NEXT
+		;参加状態を戻す
+		TCVAR:RESULT:수박깨기참가 = 0
+		SUIKA_PLAYERNUM --
+	ENDIF
+ENDIF
+CLEARLINE LINE
+RESTART
+
+;-------------------------------------------------
+;スイカ割り：チュートリアル
+;-------------------------------------------------
+@SUIKA_TUTORIAL
+#DIM MAXPAGE
+#DIM PAGE
+MAXPAGE = 4
+SIF !PAGE
+	PAGE = 1
+DRAWLINE
+PRINTFORML ●ルール説明({PAGE} / {MAXPAGE})
+SELECTCASE PAGE
+CASE 1
+	PRINTFORML あなたが目隠しをした状態で打撃武器を持ち、幻想少女たちの声を頼りに
+	PRINTFORML フィールドのどこかにあるスイカを叩いて割るゲームです。
+	PRINTL 
+	PRINTFORML ただし参加者の中には（人数に応じた）ウソつき役が混ざっています。
+	PRINTFORML ウソつきとなったキャラはあなたに対して嘘のヒントを与えてきます。
+CASE 2
+	PRINTFORML 叩ける回数は基本的に１回のみなので、誰がウソつきなのか、
+	PRINTFORML どのヒントが真実なのかを探りながら慎重に移動しましょう。
+	PRINTL 
+	PRINTFORML フィールドの外に移動しようとすると参加者にぶつかってしまいます。
+	PRINTFORML その場合移動はできません。
+CASE 3
+	PRINTFORML スイカの位置を完全に捉えていると大成功。
+	PRINTFORML おしいと成功になります。
+	PRINTL 
+	PRINTFORML おしい状態でもキャラによっては「そこだ！」等の指示をします。
+	PRINTFORML 大成功を狙うならより吟味すると良いでしょう。
+CASE 4
+	PRINTFORML 人数が（3人以上で）奇数のときはウソつき役の割合が多くなり難易度が上がります。
+	PRINTFORML 難しいと感じたら偶数人でプレイすると良いでしょう。
+	PRINTL 
+	PRINTFORML 見事スイカを割ることができると＜カットスイカ＞が出来上がります。
+	PRINTFORML ぜひ参加者のみんなで食べましょう。
+ENDSELECT
+PRINTL 
+PRINTFORML \@ PAGE < MAXPAGE ? [1] 次へ # \@
+PRINTFORML \@ PAGE > 1 ? [2] 前へ # \@
+PRINTFORML [0] 戻る
+INPUT
+IF RESULT == 1 && PAGE < MAXPAGE
+	PAGE ++
+ELSEIF RESULT == 2 && PAGE > 1
+	PAGE --
+ELSE
+	PAGE = 0
+	RETURN
+ENDIF
+CLEARLINE 12
+RESTART
+
+;-------------------------------------------------
+;スイカ割り：武器選択関数
+;-------------------------------------------------
+@SUIKA_WEAPONSELECT
+DRAWLINE
+PRINTFORML ●使用する武器を選んでください
+PRINTFORML [1] - マイほうき　　%CALLNAME:MASTER%がいつも持ち歩いている箒。１回までお手つきが許される。
+PRINTFORML [2] - お祓い棒　　　少しだけホーミングする不思議な祭具。開始時に必ずスイカのある方向に向く。
+PRINTFORML [3] - 木刀　　　　　切断力のあるシンプルな武器。綺麗に割れれば獲得リソースが増える。上級者向き。
+PRINTFORML [4] - 打ち出の小槌　願いの込められた小槌。かすっただけでも綺麗に割れる。
+PRINTFORML [5] - 制御棒　　　　核エネルギーを吸収する重たい棒。開始時にスイカを引き寄せる。
+INPUT
+IF INRANGE(RESULT, 1, 5)
+	SELECTCASE RESULT
+	CASE 1
+		SUIKA_WEAPON = マイほうき
+	CASE 2
+		SUIKA_WEAPON = お祓い棒
+	CASE 3
+		SUIKA_WEAPON = 木刀
+	CASE 4
+		SUIKA_WEAPON = 打ち出の小槌
+	CASE 5
+		SUIKA_WEAPON = 制御棒
+	ENDSELECT
+ELSE
+	CLEARLINE 8
+	RESTART
+ENDIF
+
+;-------------------------------------------------
+;スイカ割り：ウソつきの人数
+;-------------------------------------------------
+@SUIKA_LIARNUM
+#FUNCTION
+RETURNF MAX((SUIKA_PLAYERNUM - 1) / 2, 0)
+
+;-------------------------------------------------
+;スイカ割り：二点間の距離
+;ARG:1,座標１ ARG:2,座標２ ARG:3,0=合計距離,1=X軸距離,2=Y軸距離
+;-------------------------------------------------
+@SUIKA_DISTANCE(ARG:1, ARG:2, ARG:3)
+#FUNCTION
+LOCAL:1 = ARG:1 / 10
+LOCAL:2 = ARG:2 / 10
+LOCAL:3 = ARG:1 % 10
+LOCAL:4 = ARG:2 % 10
+LOCAL:5 = ABS(LOCAL:1 - LOCAL:2)
+LOCAL:6 = ABS(LOCAL:3 - LOCAL:4)
+IF ARG:3 == 1
+	RETURNF LOCAL:5
+ELSEIF ARG:3 == 2
+	RETURNF LOCAL:6
+ELSE
+	RETURNF LOCAL:5 + LOCAL:6
+ENDIF
+
+;-------------------------------------------------
+;スイカ割り：打撃する位置（正面位置）
+;-------------------------------------------------
+@SUIKA_AIMING
+#FUNCTION
+SELECTCASE SUIKA_DIRECTION 
+CASE 2
+	RETURNF SUIKA_MASTER_P - 1
+CASE 4
+	RETURNF SUIKA_MASTER_P - 10
+CASE 6
+	RETURNF SUIKA_MASTER_P + 10
+CASE 8
+	RETURNF SUIKA_MASTER_P + 1
+ENDSELECT
+
+;-------------------------------------------------
+;スイカ割り：背面位置
+;-------------------------------------------------
+@SUIKA_BACK
+#FUNCTION
+SELECTCASE SUIKA_DIRECTION 
+CASE 2
+	RETURNF SUIKA_MASTER_P + 1
+CASE 4
+	RETURNF SUIKA_MASTER_P + 10
+CASE 6
+	RETURNF SUIKA_MASTER_P - 10
+CASE 8
+	RETURNF SUIKA_MASTER_P - 1
+ENDSELECT
+
+;-------------------------------------------------
+;スイカ割り：位置が場外に出ている判定
+;ARG,座標
+;-------------------------------------------------
+@SUIKA_OVER(ARG)
+#FUNCTION
+SIF ARG >= 100 || ARG % 10 == 0 || ARG / 10 == 0
+	RETURNF 1
+
+;-------------------------------------------------
+;スイカ割り：スイカのある方向（客観方向）
+;ARG,0=軸指定なし,1=X軸,2=Y軸
+;-------------------------------------------------
+@SUIKA_RADAR(ARG)
+#FUNCTION
+IF !ARG
+	LOCAL = RAND:2 + 1
+ELSE
+	LOCAL = ARG
+ENDIF
+
+IF LOCAL == 1
+	IF SUIKA_MASTER_P / 10 - SUIKA_SUIKA_P / 10 > 0
+		RETURNF 4
+	ELSEIF SUIKA_MASTER_P / 10 - SUIKA_SUIKA_P / 10 < 0
+		RETURNF 6
+	ELSE
+		RETURNF 5
+	ENDIF
+ELSEIF LOCAL == 2
+	IF SUIKA_MASTER_P % 10 - SUIKA_SUIKA_P % 10 > 0
+		RETURNF 2
+	ELSEIF SUIKA_MASTER_P % 10 - SUIKA_SUIKA_P % 10 < 0
+		RETURNF 8
+	ELSE
+		RETURNF 5
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;スイカ割り：セットアップ関数
+;-------------------------------------------------
+@SUIKA_SETUP
+#DIM 最大距離
+;挑戦回数＋１
+SUIKA_CHALLENGE ++
+;得点リセット
+SUIKA_SCORE = 0
+;スイカを失う
+CALL LOST_ITEM("수박", 1, 1)
+;お手つき許容回数
+IF SUIKA_WEAPON == "マイほうき"
+	SUIKA_OTETSUKI = 1
+ELSE
+	SUIKA_OTETSUKI = 0
+ENDIF
+;スイカの位置
+SUIKA_SUIKA_P = (RAND:9 + 1) * 10 + RAND:9 + 1
+;あなたの位置,スイカの位置と距離が6以上12以内,（制御棒なら距離8以内）
+SUIKA_MASTER_P = 0
+IF SUIKA_WEAPON == "制御棒"
+	PRINTFORML 【制御棒の効果】ｽﾞｽﾞｽﾞ……　制御棒の効果でスイカが引き寄せられた！
+	最大距離 = 8
+ELSE
+	最大距離 = 16
+ENDIF
+WHILE !SUIKA_MASTER_P || !INRANGE(SUIKA_DISTANCE(SUIKA_SUIKA_P, SUIKA_MASTER_P), 6, 最大距離)
+	SUIKA_MASTER_P = (RAND:9 + 1) * 10 + RAND:9 + 1
+WEND
+;あなたの向き
+SUIKA_DIRECTION = 5
+IF SUIKA_WEAPON == "お祓い棒"
+	WHILE SUIKA_DIRECTION % 2 != 0
+		SUIKA_DIRECTION = SUIKA_RADAR()
+	WEND
+	PRINTFORML 【お祓い棒の効果】お祓い棒に引き寄せられて、%CALLNAME:MASTER%の身体はスイカのある方向へ向いた！
+ELSE
+	SUIKA_DIRECTION = RAND:4 * 2 + 2
+ENDIF
+;ウソつき役の設定
+VARSET SUIKA_LIAR
+SIF !SUIKA_LIARNUM()
+	RETURN
+CALL FISHER_YATES_SHAFFLE(SUIKA_PLAYERNUM)
+FOR LOCAL:1, 0, SUIKA_LIARNUM()
+	LOCAL = SHAFFLE_ARRAY:(LOCAL:1) + 1
+	SUIKA_LIAR:LOCAL = 1
+NEXT
+[IF_DEBUG]
+	DRAWLINE
+	PRINTFORML SUIKA_SUIKA_P:{SUIKA_SUIKA_P}
+	PRINTFORML SUIKA_MASTER_P:{SUIKA_MASTER_P}
+	PRINTFORML SUIKA_DISTANCE:{SUIKA_DISTANCE(SUIKA_SUIKA_P, SUIKA_MASTER_P)}, {SUIKA_DISTANCE(SUIKA_SUIKA_P, SUIKA_MASTER_P, 1)}, {SUIKA_DISTANCE(SUIKA_SUIKA_P, SUIKA_MASTER_P, 2)}
+	PRINTFORML SUIKA_DIRECTION:{SUIKA_DIRECTION}
+	PRINTFORML SUIKA_AIMING:{SUIKA_AIMING()}
+	FOR LOCAL, 1, SUIKA_PLAYERNUM + 1
+		PRINTFORML SUIKA_PLAYER:{LOCAL} %CALLNAME:(SUIKA_PLAYER:LOCAL)% \@ SUIKA_LIAR:LOCAL ? ● # ○ \@
+	NEXT
+	PRINTFORML SUIKA_WEAPON:%SUIKA_WEAPON%
+[ENDIF]
+
+;-------------------------------------------------
+;スイカ割り：ゲーム部分関数
+;-------------------------------------------------
+@SUIKA_SMASHING
+#DIM CHARA
+#DIM LINENUM
+#DIM LINENUM_PLUS
+CALL FISHER_YATES_SHAFFLE(8)
+
+LINENUM_PLUS = 0
+DRAWLINE
+FOR LINENUM, 1, 9
+	IF LINENUM % 2 == 1
+		LOCAL = SHAFFLE_ARRAY:(LINENUM - 1) + 1
+		CHARA = SUIKA_PLAYER:LOCAL
+		PRINTPLAINFORM % CHARA ? CALLNAME:CHARA # "" , 30, LEFT%
+	ELSE
+		LOCAL = SHAFFLE_ARRAY:(LINENUM - 2) + 1
+		CHARA = SUIKA_PLAYER:LOCAL
+		CALL SUIKA_MESSAGE(CHARA, LOCAL, 1)
+	ENDIF
+	SELECTCASE LINENUM
+	CASE 2
+		PRINTFORM 　　　　　[8] 一歩前へ　　　　　
+	CASE 4
+		PRINTFORM 　[4] 左を向く　　[6] 右を向く　
+	CASE 6
+		PRINTFORM 　　　＜＜[5] 叩く！＞＞　　　　
+	CASE 8
+		PRINTFORM 　　　　　[2] 一歩後ろへ　　　　
+	CASEELSE
+		PRINTFORM %" " * 32%
+	ENDSELECT
+	IF LINENUM % 2 == 1
+		LOCAL = SHAFFLE_ARRAY:(LINENUM) + 1
+		CHARA = SUIKA_PLAYER:LOCAL
+		PRINTPLAINFORM % CHARA ? CALLNAME:CHARA # "" , 30, RIGHT%
+	ELSE
+		LOCAL = SHAFFLE_ARRAY:(LINENUM - 1) + 1
+		CHARA = SUIKA_PLAYER:LOCAL
+		CALL SUIKA_MESSAGE(CHARA, LOCAL, 2)
+	ENDIF
+	PRINTL 
+NEXT
+INPUT
+DRAWLINE
+SELECTCASE RESULT
+CASE 5
+	PRINTL 
+	PRINTFORMW %CALLNAME:MASTER%は渾身の力を込めて目の前に%SUIKA_WEAPON%を叩きつけた！
+	PRINTL 
+	LINENUM_PLUS += 3
+	IF SUIKA_DISTANCE(SUIKA_AIMING(), SUIKA_SUIKA_P) == 0
+		IF SUIKA_WEAPON == "木刀"
+			CALL COLORMESSAGE("SLAAAASH!!", C_ORANGE, 2, 3)
+			RETURN 2
+		ELSE
+			CALL COLORMESSAGE("SMAAAASH!!", C_V_PINK, 2, 3)
+			RETURN 1
+		ENDIF
+	ELSEIF SUIKA_DISTANCE(SUIKA_AIMING(), SUIKA_SUIKA_P) == 1
+		IF SUIKA_WEAPON == "打ち出の小槌"
+			CALL COLORMESSAGE("LUCKY STRIKE!", C_YELLOW, 2, 3)
+			RETURN 1
+		ELSE
+			CALL COLORMESSAGE("HIT!", C_YELLOW, 2, 2)
+			RETURN 0
+		ENDIF
+	ELSE
+		CALL COLORMESSAGE("からぶりー！", C_CREAM, 2, 2)
+		IF SUIKA_OTETSUKI
+			PRINTL 
+			PRINTFORMW …しかしマイほうきルールにより許された
+			SUIKA_OTETSUKI --
+			LINENUM_PLUS += 4
+		ELSE
+			RETURN -1
+		ENDIF
+	ENDIF
+CASE 4
+	PRINTFORML …………
+	PRINTFORMW %CALLNAME:MASTER%は左を向いた
+	SELECTCASE SUIKA_DIRECTION
+	CASE 2
+		SUIKA_DIRECTION = 6
+	CASE 4
+		SUIKA_DIRECTION = 2
+	CASE 6
+		SUIKA_DIRECTION = 8
+	CASE 8
+		SUIKA_DIRECTION = 4
+	ENDSELECT
+	LINENUM_PLUS += 2
+CASE 6
+	PRINTFORML …………
+	PRINTFORMW %CALLNAME:MASTER%は右を向いた
+	SELECTCASE SUIKA_DIRECTION
+	CASE 2
+		SUIKA_DIRECTION = 4
+	CASE 4
+		SUIKA_DIRECTION = 8
+	CASE 6
+		SUIKA_DIRECTION = 2
+	CASE 8
+		SUIKA_DIRECTION = 6
+	ENDSELECT
+	LINENUM_PLUS += 2
+CASE 2
+	PRINTFORML …………
+	IF SUIKA_OVER(SUIKA_BACK())
+		CALL SUIKA_COLLISION
+		LINENUM_PLUS += RESULT
+	ELSE
+		PRINTFORMW %CALLNAME:MASTER%は一歩下がった
+		SUIKA_MASTER_P = SUIKA_BACK()
+		LINENUM_PLUS += 2
+	ENDIF
+CASEELSE
+	PRINTFORML …………
+	IF SUIKA_OVER(SUIKA_AIMING())
+		CALL SUIKA_COLLISION
+		LINENUM_PLUS += RESULT
+	ELSE
+		PRINTFORMW %CALLNAME:MASTER%は一歩前に出た
+		SUIKA_MASTER_P = SUIKA_AIMING()
+		LINENUM_PLUS += 2
+	ENDIF
+ENDSELECT
+CLEARLINE 11 + LINENUM_PLUS
+RESTART
+
+;-------------------------------------------------
+;スイカ割り：衝突メッセージ
+;-------------------------------------------------
+@SUIKA_COLLISION
+#DIM LINE
+LINE = 4
+LOCAL = SUIKA_PLAYER:(RAND:SUIKA_PLAYERNUM + 1)
+PRINTFORMW ゴツンッ！
+PRINTL 
+;◆口上
+CALL KOJO_MESSAGE_SEND("SUIKA", 0, LOCAL, 0, 0, "衝突")
+IF RESULTS != ""
+	PRINTFORMW 「%RESULTS%」
+	PRINTL 
+	LINE += 2
+ENDIF
+RESETCOLOR
+;◆口上設定（※未実装）
+IF LOCAL == [[스이카]]
+	PRINTFORMW それはスイカではなく萃香だ
+ELSE
+	PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:LOCAL%とぶつかってしまった……
+ENDIF
+RETURN LINE
+
+;-------------------------------------------------
+;スイカ割り：台詞関数１,どんな台詞を言うかの判定
+;ARG,プレイヤー番号
+;ARG:1,表示位置 1=LEFT,2=RIGHT
+;-------------------------------------------------
+@SUIKA_MESSAGE(CHARA, ARG, ARG:1)
+#DIM CHARA
+#DIM 客観方向
+#DIMS 主観方向
+#DIM ウソつき
+#DIMS 正直な指示
+#DIMS 指示
+;非表示
+IF !CHARA
+	IF ARG:1 == 1
+		PRINTPLAINFORM %"" , 30, LEFT%
+	ELSE
+		PRINTPLAINFORM %"" , 30, RIGHT%
+	ENDIF
+	RETURN
+ENDIF
+
+;完全一致
+IF SUIKA_DISTANCE(SUIKA_AIMING(), SUIKA_SUIKA_P) == 0
+	正直な指示 = そこだ！
+;1マスずれ（2分の1）
+ELSEIF SUIKA_DISTANCE(SUIKA_AIMING(), SUIKA_SUIKA_P) == 1 && !RAND:2
+	正直な指示 = そこだ！
+;重なっている（1マスずれの漏れ）
+ELSEIF SUIKA_DISTANCE(SUIKA_MASTER_P, SUIKA_SUIKA_P) == 0
+	正直な指示 = 少し後ろ
+;それ以外
+ELSE
+	;近さ判定
+	;LOCAL:1,距離について言う判定
+	;LOCAL:2,「少し」を付けて言う判定
+	IF SUIKA_DISTANCE(SUIKA_AIMING(), SUIKA_SUIKA_P) == 1
+		LOCAL:1 = !RAND:2
+		LOCAL:2 = 1
+	ELSEIF SUIKA_DISTANCE(SUIKA_AIMING(), SUIKA_SUIKA_P) == 2
+		LOCAL:1 = !RAND:2
+		LOCAL:2 = !RAND:2
+	ELSEIF SUIKA_DISTANCE(SUIKA_AIMING(), SUIKA_SUIKA_P) == 3
+		LOCAL:1 = !RAND:3
+		LOCAL:2 = !RAND:4
+	ELSE
+		LOCAL:1 = !RAND:4
+		LOCAL:2 = 0
+	ENDIF
+	;距離のヒント
+	IF LOCAL:1
+		IF SUIKA_DISTANCE(SUIKA_AIMING(), SUIKA_SUIKA_P) <= 3
+			正直な指示 = 近い
+		ELSEIF SUIKA_DISTANCE(SUIKA_AIMING(), SUIKA_SUIKA_P) >= 8
+			正直な指示 = かなり遠い
+		ELSE
+			正直な指示 = 遠い
+		ENDIF
+	;方向のヒント
+	ELSE
+		客観方向 = 5
+		WHILE 客観方向 % 2 != 0
+			客観方向 = SUIKA_RADAR()
+		WEND
+		IF 客観方向 == SUIKA_DIRECTION
+			主観方向 = 前
+		ELSE
+			SELECTCASE SUIKA_DIRECTION
+			CASE 2
+				SELECTCASE 客観方向
+				CASE 4
+					主観方向 = 右
+				CASE 6
+					主観方向 = 左
+				CASE 8
+					主観方向 = 後ろ
+				ENDSELECT
+			CASE 4
+				SELECTCASE 客観方向
+				CASE 2
+					主観方向 = 左
+				CASE 6
+					主観方向 = 後ろ
+				CASE 8
+					主観方向 = 右
+				ENDSELECT
+			CASE 6
+				SELECTCASE 客観方向
+				CASE 2
+					主観方向 = 右
+				CASE 4
+					主観方向 = 後ろ
+				CASE 8
+					主観方向 = 左
+				ENDSELECT
+			CASE 8
+				SELECTCASE 客観方向
+				CASE 2
+					主観方向 = 後ろ
+				CASE 4
+					主観方向 = 左
+				CASE 6
+					主観方向 = 右
+				ENDSELECT
+			ENDSELECT
+		ENDIF
+		SIF LOCAL:2
+			主観方向 = 少し%主観方向%
+		正直な指示 = %主観方向%
+	ENDIF
+ENDIF
+;正邪は役職を無視して嘘をつく
+IF SUIKA_LIAR:ARG || CHARA == [[세이자]]
+	ウソつき = 1
+ELSE
+	ウソつき = 0
+ENDIF
+IF ウソつき
+	SELECTCASE 正直な指示
+	CASE "そこだ！"
+		指示 =%TEXTR("少し後ろ/少し前/少し右/少し左")%
+	CASE "近い"
+		指示 = 遠い
+	CASE "遠い"
+		指示 = 近い
+	CASE "かなり遠い"
+		指示 = 遠い
+	CASE "前"
+		指示 = 後ろ
+	CASE "少し前"
+		指示 = %TEXTR("少し後ろ/そこだ！")%
+	CASE "後ろ"
+		指示 = 前
+	CASE "少し後ろ"
+		指示 = %TEXTR("少し前/そこだ！")%
+	CASE "右"
+		指示 = 左
+	CASE "少し右"
+		指示 = %TEXTR("少し左/そこだ！")%
+	CASE "左"
+		指示 = 右
+	CASE "少し左"
+		指示 = %TEXTR("少し右/そこだ！")%
+	ENDSELECT
+ELSE
+	指示 = %正直な指示%
+ENDIF
+;◆口上
+CALL KOJO_MESSAGE_SEND("SUIKA", 0, CHARA, 0, 0, 指示)
+IF RESULTS != ""
+	IF ARG:1 == 1
+		PRINTPLAINFORM %"「" + RESULTS + "」", 30, LEFT%
+	ELSE
+		PRINTPLAINFORM %"「" + RESULTS + "」", 30, RIGHT%
+	ENDIF
+ELSE
+	IF ARG:1 == 1
+		PRINTPLAINFORM %SUIKA_MESSAGE_2(CHARA, ARG, 指示), 30, LEFT%
+	ELSE
+		PRINTPLAINFORM %SUIKA_MESSAGE_2(CHARA, ARG, 指示), 30, RIGHT%
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;スイカ割り：台詞関数２,実際に喋る台詞
+;ARG,プレイヤー番号
+;-------------------------------------------------
+@SUIKA_MESSAGE_2(CHARA, ARG, 指示)
+#FUNCTIONS
+#DIM CHARA
+#DIMS 指示
+;汎用台詞
+SELECTCASE 指示
+CASE "そこだ！"
+	SELECTCASE CFLAG:CHARA:어조
+	;～です系
+	CASE 1
+		RESULTS = %TEXTR("そこです！/今です！")%
+	;～だよ系
+	CASE 2
+		RESULTS = %TEXTR("そこ！/今！")%
+	;～だぞ系
+	CASE 3
+		RESULTS = %TEXTR("そこだ！/今だ！")%
+	;～のじゃ系
+	CASE 4
+		RESULTS = %TEXTR("そこじゃ！/今じゃ！")%
+	;無口系
+	CASE 5
+		RESULTS = %TEXTR("そこ…！/今…！")%
+	;～のよ系
+	CASEELSE
+		RESULTS = %TEXTR("そこよ！/今よ！")%
+	ENDSELECT
+CASE "近い"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("かなり近いです/近づいてます/もう少しです")%
+	CASE 2
+		RESULTS = %TEXTR("近い！近いよ！/近づいてるよ！/あとちょっと！")%
+	CASE 3
+		RESULTS = %TEXTR("かなり近いぞ/近づいてるぞ/あと少しだ")%
+	CASE 4
+		RESULTS = %TEXTR("近いのう/近づいてるぞい/あと少しじゃ")%
+	CASE 5
+		RESULTS = %TEXTR("……かなり近い/……近づいている/……もう少し")%
+	CASEELSE
+		RESULTS = %TEXTR("かなり近いわ/近づいてるわよ/もう少しよ")%
+	ENDSELECT
+CASE "遠い"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("まだ遠いですね/まだ遠いです")%
+	CASE 2
+		RESULTS = %TEXTR("まだ遠いよ/まだまだ～")%
+	CASE 3
+		RESULTS = %TEXTR("まだ遠いな/まだ遠いぞ")%
+	CASE 4
+		RESULTS = %TEXTR("まだ遠いのう/まだ遠いぞい")%
+	CASE 5
+		RESULTS = %TEXTR("……遠い/……まだ遠い")%
+	CASEELSE
+		RESULTS = %TEXTR("まだ遠いわね/まだ遠いわよ")%
+	ENDSELECT
+CASE "かなり遠い"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("まだまだ遠いです/だいぶ遠いですね")%
+	CASE 2
+		RESULTS = %TEXTR("全然遠いよー/まだまだずっと遠いー")%
+	CASE 3
+		RESULTS = %TEXTR("かなり遠いな/だいぶ離れてるぞ")%
+	CASE 4
+		RESULTS = %TEXTR("まだ遠いぞい/まだまだ遠いのう")%
+	CASE 5
+		RESULTS = %TEXTR("……かなり遠い/……かけ離れている")%
+	CASEELSE
+		RESULTS = %TEXTR("かなり遠いわ/だいぶ離れてるわね")%
+	ENDSELECT
+CASE "前"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("前にあります/そのままです/向きは合ってます")%
+	CASE 2
+		RESULTS = %TEXTR("前にあるよ/そのまま、そのまま/そっちそっち")%
+	CASE 3
+		RESULTS = %TEXTR("前の方だ/そのまま前/正面を向いてるぞ")%
+	CASE 4
+		RESULTS = %TEXTR("前じゃ/そのままで良いぞ/ほれ、歩け")%
+	CASE 5
+		RESULTS = %TEXTR("……前/……そのまま/……その方向")%
+	CASEELSE
+		RESULTS = %TEXTR("前にあるわ/そのまま歩いて/そっちの方向よ")%
+	ENDSELECT
+CASE "少し前"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("ちょっと前です/少し前です/一歩前でしょうか…")%
+	CASE 2
+		RESULTS = %TEXTR("ちょっとだけ前！/すこーし前/あと一歩！")%
+	CASE 3
+		RESULTS = %TEXTR("ちょっと前だ/少し前だぞ/一歩前かな")%
+	CASE 4
+		RESULTS = %TEXTR("やや前じゃ/少し前じゃぞ/一歩前じゃな")%
+	CASE 5
+		RESULTS = %TEXTR("……やや前/……少し前/……あと一歩")%
+	CASEELSE
+		RESULTS = %TEXTR("ちょっとだけ前よ/まだ少し前ね/あと一歩前かしら")%
+	ENDSELECT
+CASE "後ろ"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("後ろです/反対を向いてます/そっちの方には無いです")%
+	CASE 2
+		RESULTS = %TEXTR("後ろ向いてる！/逆、逆！/そっちじゃないよー")%
+	CASE 3
+		RESULTS = %TEXTR("後ろだぞ/後ろ向きだ/そっちにはないぞ")%
+	CASE 4
+		RESULTS = %TEXTR("後ろじゃ/逆さを向いておる/そっちには無いぞい")%
+	CASE 5
+		RESULTS = %TEXTR("……後ろ/……逆/……そっちじゃない")%
+	CASEELSE
+		RESULTS = %TEXTR("後ろよ/反対方向よ/そっちの方じゃないわ")%
+	ENDSELECT
+CASE "少し後ろ"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("すぐ後ろです/少し後ろです/一歩後ろでしょうか…")%
+	CASE 2
+		RESULTS = %TEXTR("すぐ後ろだよ！/すこーし後ろ/一歩後ろ！")%
+	CASE 3
+		RESULTS = %TEXTR("すぐ後ろだな/少し後ろだぞ/一歩後ろかな")%
+	CASE 4
+		RESULTS = %TEXTR("やや後ろじゃ/少し後ろじゃぞ/一歩後ろじゃな")%
+	CASE 5
+		RESULTS = %TEXTR("……やや後ろ/……少し後ろ/……一歩下がって")%
+	CASEELSE
+		RESULTS = %TEXTR("すぐ後ろね/少し後ろよ/一歩後ろかしら")%
+	ENDSELECT
+CASE "右"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("右です/右ですよー/右の方です")%
+	CASE 2
+		RESULTS = %TEXTR("右だよ/右、右/もっと右")%
+	CASE 3
+		RESULTS = %TEXTR("右だぞ/右だな/右だ")%
+	CASE 4
+		RESULTS = %TEXTR("右じゃ/右じゃぞ/右じゃな")%
+	CASE 5
+		RESULTS = %TEXTR("右/……右/……右よ")%
+	CASEELSE
+		RESULTS = %TEXTR("右よ/まだ右ね/右かしら")%
+	ENDSELECT
+CASE "少し右"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("やや右です/少し右でしょうか")%
+	CASE 2
+		RESULTS = %TEXTR("ちょっとだけ右/まだ右かな")%
+	CASE 3
+		RESULTS = %TEXTR("少し右だ/まだ右だな")%
+	CASE 4
+		RESULTS = %TEXTR("少し右じゃ/やや右じゃな")%
+	CASE 5
+		RESULTS = %TEXTR("……少し右/……やや右")%
+	CASEELSE
+		RESULTS = %TEXTR("やや右ね/少し右かしら")%
+	ENDSELECT
+CASE "左"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("左です/左ですよー/左の方です")%
+	CASE 2
+		RESULTS = %TEXTR("左だよ/左、左/もっと左")%
+	CASE 3
+		RESULTS = %TEXTR("左だぞ/左だな/左だ")%
+	CASE 4
+		RESULTS = %TEXTR("左じゃ/左じゃぞ/左じゃな")%
+	CASE 5
+		RESULTS = %TEXTR("左/……左/……左よ")%
+	CASEELSE
+		RESULTS = %TEXTR("左よ/まだ左ね/左かしら")%
+	ENDSELECT
+CASE "少し左"
+	SELECTCASE CFLAG:CHARA:어조
+	CASE 1
+		RESULTS = %TEXTR("やや左です/少し左でしょうか")%
+	CASE 2
+		RESULTS = %TEXTR("ちょっとだけ左/まだ左かな")%
+	CASE 3
+		RESULTS = %TEXTR("少し左だ/まだ左だな")%
+	CASE 4
+		RESULTS = %TEXTR("少し左じゃ/やや左じゃな")%
+	CASE 5
+		RESULTS = %TEXTR("……少し左/……やや左")%
+	CASEELSE
+		RESULTS = %TEXTR("やや左ね/少し左かしら")%
+	ENDSELECT
+ENDSELECT
+RETURNF "「" + RESULTS + "」"
+
+
