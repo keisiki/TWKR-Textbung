@@ -61,7 +61,8 @@ SIF !EXP:캐릭터등록번호:사정경험 && TALENT:캐릭터등록번호:성�
 	EXP:캐릭터등록번호:이상경험 += 1
 
 EXP:캐릭터등록번호:절정경험 ++ 
-MAXBASE:캐릭터등록번호:정력 += 사정회수*3;;정력증가;KR판 구잔재 또는 오리지날
+; MAXBASE:캐릭터등록번호:정력 += 사정회수*3;;정력증가;KR판 구잔재 또는 오리지날
+CALL 사정정력최대치증가(캐릭터등록번호, 사정회수 * 3) ;개인 임의수정, 사정에 의한 정력증가를 함수로 처리
 EXP:캐릭터등록번호:사정경험 += 사정회수
 
 NOWEX:캐릭터등록번호:사정 += 사정회수
@@ -749,7 +750,8 @@ TCVAR:RECEIVER:포이즌게이지 += 게이지증가
 ; 하단에도 같은 케이스문이 있는데, 개발 편의를 위해 걍 여기서 한번 더 돌리는거야!
 ; 방중술보다 먼저 처리되게 설계되어있어. 생명력(?) 소진 알고리즘이 방중술로 인해서 고장나는 버그가 있어서야!
 ; By Subroutineuser
-AblBonus = BASE:SENDER:정력 / 50
+; AblBonus = BASE:SENDER:정력 / 50
+AblBonus = MAXBASE:SENDER:정력 / 100 ;BASE 대신 MAXBASE로 처리하도록, 대신 배율감소. 3000 cap 기준 30%증가
 DEBUGPRINTFORML "-SAMEN_SHOOT2.AblBonus: " + {AblBonus} + " (BEFORE HANDLE)"
 ; 만약 사정자가 절륜 소질을 가지고 있다면 25% 추가
 IF TALENT:SENDER:절륜
@@ -789,6 +791,7 @@ IF BASE:SENDER:정력 == 0
 	ENDIF	
 	RESETCOLOR
 ENDIF
+; BASE:SENDER:정력 = MAX(0, BASE:SENDER:정력 - NOWEX:SENDER:사정량)
 BASE:SENDER:정력 = MAX(0, BASE:SENDER:정력 - (NOWEX:SENDER:사정량 - OriginalShoot))
 DEBUGPRINTFORML "-SAMEN_SHOOT2.AblBonus: " + {AblBonus} + " (AFTER HANDLE)"
 ; End
@@ -815,6 +818,25 @@ IF GETBIT(TALENT:SENDER:179, 0) || GETBIT(TALENT:SENDER:179, 1)
 		BASE:(AbsorbCouple:0):체력 = LIMIT(BASE:(AbsorbCouple:0):체력 + 100, 0, MAXBASE:(AbsorbCouple:0):체력)
 		BASE:(AbsorbCouple:1):체력 = LIMIT(BASE:(AbsorbCouple:1):체력 - 20, 0, MAXBASE:(AbsorbCouple:1):체력)
 	ENDIF
+ENDIF
+
+;===========================================
+;개인 임의수정, KR판 고유요소 사정에 의한 정력증가를 함수로 처리
+;===========================================
+@사정정력최대치증가(C_ID, up_value)
+#DIM C_ID		;캐릭터ID
+#DIM up_value 	;상승시킬값
+
+#DIM cap_value	;상한치, 현상 3000
+#DIM 실제정력
+
+VARSET cap_value, 3000
+실제정력 = MAXBASE:C_ID:정력 - BUFF:C_ID:6
+
+IF 실제정력 < cap_value
+	SIF (실제정력 + up_value) > cap_value
+		up_value = cap_value - 실제정력
+	MAXBASE:C_ID:정력 = MAXBASE:C_ID:정력 + up_value
 ENDIF
 
 
