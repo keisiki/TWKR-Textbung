@@ -1,6 +1,8 @@
 ﻿@영양실조
 #DIM DYNAMIC 기력감소량
 #DIM DYNAMIC 요구칼로리
+#DIM DYNAMIC 이월비율
+이월비율 = 70
 ;리얼리티버젼
 PRINTL
 요구칼로리 = 최종요구영양소("칼로리")
@@ -17,7 +19,7 @@ ELSE
         ENDIF
     NEXT
     IF 요구칼로리
-        요구칼로리 -= 4* FLAG:체내탄수화물
+        요구칼로리 -= 4 * FLAG:체내탄수화물
         FOR LOCAL,0,FLAG:체내지방
             IF LOCAL * 9 >= 요구칼로리
                 FLAG:체내지방 -= LOCAL
@@ -62,16 +64,16 @@ IF CHECK_CHARA(MASTER,"요괴")
     ENDIF
 ENDIF
 ;이월되는 영양소의 양 감소
-FLAG:체내탄수화물 /= 10
-FLAG:체내단백질 /= 10
-FLAG:체내지방 /= 10
-FLAG:체내비타민 /= 10
-FLAG:체내나트륨 /= 10
-FLAG:체내요력 /= 10
+FLAG:체내탄수화물 = (이월비율 - 영양소소프트캡(FLAG:체내탄수화물,"탄수화물")) * FLAG:체내탄수화물 / 100
+FLAG:체내단백질 = (이월비율 - 영양소소프트캡(FLAG:체내단백질,"단백질")) * FLAG:체내단백질 / 100
+FLAG:체내지방 = (이월비율 - 영양소소프트캡(FLAG:체내지방,"지방")) * FLAG:체내지방 / 100
+FLAG:체내비타민 = (이월비율 - 영양소소프트캡(FLAG:체내비타민,"비타민")) * FLAG:체내비타민 / 100
+FLAG:체내나트륨 = (이월비율 - 영양소소프트캡(FLAG:체내나트륨, "나트륨"))* FLAG:체내나트륨 / 100
+FLAG:체내요력 = (이월비율 - 영양소소프트캡(FLAG:체내요력, "요력")) * FLAG:체내요력 / 100
 
 ;기력감소
 IF 기력감소량
-    IF MAXBASE:MASTER:기력 > 424
+    IF MAXBASE:MASTER:기력 >= 550
         PRINTFORML %마스터의% 건강이 악화되는 기분이다
         MAXBASE:MASTER:기력 -= 기력감소량
         FLAG:굶어서감소기력 += 기력감소량
@@ -80,14 +82,42 @@ IF 기력감소량
         CFLAG:MASTER:철야 = 1
     ENDIF
 ELSE
-    IF FLAG:굶어서감소기력 >= 25
+    IF FLAG:굶어서감소기력 >= 50
         FLAG:오늘밥 = 0
         PRINTFORML 밥을 먹으니 건강이 조금 개선되는 느낌이다!
-        FLAG:굶어서감소기력 -= 25
-        MAXBASE:MASTER:기력 += 25
+        FLAG:굶어서감소기력 -= 50
+        MAXBASE:MASTER:기력 += 50
     ENDIF
-    FLAG:훈련강화 = 1
-    CALL COLORMESSAGE("충분한 식사로 인해 훈련 효율이 증가한다!", C_YELLOW, 1)
+    IF 사식의마법 >= 4
+        요구칼로리 = 100
+        IF (FLAG:체내탄수화물*4)+(FLAG:체내지방*9) < 요구칼로리
+        ELSE
+            FOR LOCAL,0,FLAG:체내탄수화물
+                IF LOCAL * 4 >= 요구칼로리
+                    FLAG:체내탄수화물 -= LOCAL
+                    요구칼로리 = 0
+                    BREAK
+                ENDIF
+            NEXT
+            IF 요구칼로리
+                요구칼로리 -= 4 * FLAG:체내탄수화물
+                FOR LOCAL,0,FLAG:체내지방
+                    IF LOCAL * 9 >= 요구칼로리
+                        FLAG:체내지방 -= LOCAL
+                        요구칼로리 = 0
+                        BREAK
+                    ENDIF
+                NEXT
+            ENDIF
+            IF 요구칼로리 <= 0
+                FLAG:훈련강화 = 1
+                CALL COLORMESSAGE("넘치는 열량으로 훈련 효율이 증가한다!", C_YELLOW, 1)
+            ENDIF
+        ENDIF
+    ELSE
+        FLAG:훈련강화 = 1
+        CALL COLORMESSAGE("충분한 식사로 인해 훈련 효율이 증가한다!", C_YELLOW, 1)
+    ENDIF
 ENDIF
 
 
@@ -129,3 +159,58 @@ IF LOCAL <= 0
     LOCAL = 0
 ENDIF
 RETURNF LOCAL
+
+;이월감소치
+@영양소소프트캡(ARG,ARGS)
+#FUNCTION
+#DIM DYNAMIC 요구량
+#DIM DYNAMIC 감소량
+SELECTCASE ARGS
+    CASE "단백질"
+        요구량 = 65
+    CASE "비타민"
+        요구량 = 30
+    CASE "나트륨"
+        요구량 = 100
+    CASE "칼로리"
+        요구량 = 500
+    CASE "요력"
+        IF CHECK_CHARA(MASTER,"요괴")
+            요구량 = 1000 ; 1/10 될거 감안해서 크게
+        ELSE
+            요구량 = 0
+        ENDIF
+ENDSELECT
+요구량 -= (사식의마법 * (요구량/5))
+;종족별 감쇄량
+IF CHECK_CHARA(MASTER,"요정") || CHECK_CHARA(MASTER,"인형") || CHECK_CHARA(MASTER,"봉래인")
+    요구량 = 0
+ENDIF
+IF CHECK_CHARA(MASTER,"선인") || CHECK_CHARA(MASTER,"천인") 
+    요구량 /= 2
+ENDIF
+IF CHECK_CHARA(MASTER,"요괴")
+    요구량 /= 10
+ENDIF
+
+IF 요구량 <= 0
+    요구량 = 0
+ENDIF
+
+;요구량의 3배 섭취
+IF 요구량 * 2 <= ARG
+    감소량 = 40 ;실제 30
+;요구량의 1.66배 섭취
+ELSEIF 요구량 * 2 / 3 <= ARG
+    감소량 = 30 ;실제 40
+;요구량의 1.5배 섭취
+ELSEIF 요구량 * 2 / 4 <= ARG
+    감소량 = 20 ;실제 50
+;요구량의 1.4배 섭취
+ELSEIF 요구량 * 2 / 5 <= ARG
+    감소량 = 10 ;실제 60
+ELSE
+    감소량 = 0  ;실제 70
+ENDIF
+
+RETURNF 감소량
