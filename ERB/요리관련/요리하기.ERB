@@ -1,4 +1,45 @@
-﻿@요리하기
+﻿@임시영양소표시
+VARSET YN_탄수화물
+VARSET YN_단백질
+VARSET YN_지방
+VARSET YN_비타민
+VARSET YN_나트륨
+VARSET TEMP요리영양소
+IF 주재료
+    CALL 영양소표(주재료)
+    ;탄단지비나
+    CALL TEMP영양소올리기(YN_탄수화물,YN_단백질,YN_지방,YN_비타민,YN_나트륨)
+    CALL TEMP기타영양소올리기(YN_요력)
+ENDIF
+;PRINTFORMW {YN_탄수화물},{YN_단백질},{YN_지방},{YN_비타민},{YN_나트륨}
+FOR LOCAL,0 ,10
+    SIF !부재료:LOCAL
+        CONTINUE
+    CALL 영양소표(부재료:LOCAL)
+    CALL TEMP영양소올리기(YN_탄수화물,YN_단백질,YN_지방,YN_비타민,YN_나트륨)
+    CALL TEMP기타영양소올리기(YN_요력)
+;    PRINTFORMW {YN_탄수화물},{YN_단백질},{YN_지방},{YN_비타민},{YN_나트륨}
+NEXT
+FOR LOCAL,0 ,10
+    SIF !양념:LOCAL
+        CONTINUE
+    CALL 영양소표(양념:LOCAL,1)
+    CALL TEMP영양소올리기(YN_탄수화물,YN_단백질,YN_지방,YN_비타민,YN_나트륨)
+    CALL TEMP기타영양소올리기(YN_요력)
+;    PRINTFORMW {YN_탄수화물},{YN_단백질},{YN_지방},{YN_비타민},{YN_나트륨}
+NEXT
+
+@TEMP영양소올리기(ARG:0,ARG:1,ARG:2,ARG:3,ARG:4)
+TEMP요리영양소:0 += ARG:0 ;탄수화물
+TEMP요리영양소:1 += ARG:1 ;단백질
+TEMP요리영양소:2 += ARG:2 ;지방
+TEMP요리영양소:3 += ARG:3 ;비타민
+TEMP요리영양소:4 += ARG:4 ;나트륨
+
+@TEMP기타영양소올리기(ARG:0)
+TEMP요리영양소:5 += ARG:0 ;요력
+
+@요리하기
 CALL Y_PRE_ERROR_CORRECT
 VARSET 사용된재료
 VARSET 주재료
@@ -23,6 +64,7 @@ DRAWLINE
 PRINTFORMLC %"[부재료]", 26, LEFT%
 PRINTFORMLC %"[양　념]", 26, LEFT%
 PRINTFORMLC %"[첨가물]", 26, LEFT%
+CALL 임시영양소표시
 PRINTFORML
 FOR LOCAL, 0, 10
     ;200대 : 부재료
@@ -36,6 +78,21 @@ FOR LOCAL, 0, 10
             LOCAL:1 = DISH_DRG_2
         PRINTFORMLC [{LOCAL+400}] %사용된재료표시(-2,LOCAL:1),20,LEFT%
     ENDIF
+    SELECTCASE LOCAL
+        CASE 2
+            PRINTFORMLC 탄수화물 : {TEMP요리영양소:0}
+        CASE 3
+            PRINTFORMLC 단백질　 : {TEMP요리영양소:1}
+        CASE 4
+            PRINTFORMLC 지방　　 : {TEMP요리영양소:2}
+        CASE 5
+            PRINTFORMLC 비타민　 : {TEMP요리영양소:3}
+        CASE 6
+            PRINTFORMLC 나트륨　 : {TEMP요리영양소:4}
+        CASE 7
+            SIF 요리영양소:5
+                PRINTFORMLC 요력　　 : {TEMP요리영양소:5}
+    ENDSELECT
     PRINTFORML
 NEXT
 DRAWLINE
@@ -429,7 +486,7 @@ WEND
 IF 부재료:ARG != 0
     사용된재료:(부재료:ARG) --
     SIF INRANGE(부재료:ARG,1,100)
-        기본제공품사용료 -= 500
+        기본제공품사용료 -= 250
 ENDIF
 부재료:ARG = 0
 부재료요리법:ARG = 0
@@ -488,10 +545,10 @@ ELSE
         IF (RESULT == 표시되는재료:LOCAL && ITEM:RESULT > 0 )|| INRANGE(RESULT,1,기본제공품)
             IF ITEM:RESULT > 0|| INRANGE(RESULT,1,기본제공품)
                 IF INRANGE(RESULT,1,기본제공품)
-                    기본제공품사용료 += 500
+                    기본제공품사용료 += 250
                     IF MONEY < 기본제공품사용료
                         PRINTFORMW 돈이 부족합니다
-                        기본제공품사용료 -= 500
+                        기본제공품사용료 -= 250
                         GOTO LOOP1
                     ENDIF
                 ENDIF
@@ -643,6 +700,7 @@ VARSET YN_나트륨
 CALL 영양소표(주재료)
 ;탄단지비나
 CALL 영양소올리기(YN_탄수화물,YN_단백질,YN_지방,YN_비타민,YN_나트륨)
+CALL 기타영양소올리기(YN_요력)
 ;PRINTFORMW {YN_탄수화물},{YN_단백질},{YN_지방},{YN_비타민},{YN_나트륨}
 FOR LOCAL,0 ,10
     VARSET YN_탄수화물
@@ -652,6 +710,7 @@ FOR LOCAL,0 ,10
     VARSET YN_나트륨
     CALL 영양소표(부재료:LOCAL)
     CALL 영양소올리기(YN_탄수화물,YN_단백질,YN_지방,YN_비타민,YN_나트륨)
+    CALL 기타영양소올리기(YN_요력)
 ;    PRINTFORMW {YN_탄수화물},{YN_단백질},{YN_지방},{YN_비타민},{YN_나트륨}
 NEXT
 FOR LOCAL,0 ,10
@@ -662,6 +721,7 @@ FOR LOCAL,0 ,10
     VARSET YN_나트륨
     CALL 영양소표(양념:LOCAL,1)
     CALL 영양소올리기(YN_탄수화물,YN_단백질,YN_지방,YN_비타민,YN_나트륨)
+    CALL 기타영양소올리기(YN_요력)
 ;    PRINTFORMW {YN_탄수화물},{YN_단백질},{YN_지방},{YN_비타민},{YN_나트륨}
 NEXT
 IF DISH_DRG_2 == GETNUM(ITEM,"영양강화제")
@@ -815,7 +875,23 @@ ELSE
 	PRINTFORML 　／%CALLNAME:MASTER%의 능력 x 2({ABL:MASTER:요리기능 * 2}) + 식재료의 품질({DISH_RANK}) \@ 도구력 ? + 도구의 품질({도구력}) # \@ \@ 보너스점수 ? + 보너스점수({보너스점수}) # \@ \@ 감점 ? - 첨가물({감점}) # \@
 ENDIF
 PRINTL 
-
+LOCAL = (DISH_BASEPOINT - 300) * 100 / 400
+IF 명중판정(MIN(90,3 * LOCAL / 2) + 1) || 1
+    CALL COLORMESSAGE("이번 요리는 특별히 잘 된 것 같다!",C_YELLOW,1)
+    요리영양소:0 += 2
+    요리영양소:1 += 2
+    요리영양소:2 += 2
+    요리영양소:3 += 2
+    요리영양소:4 += 2
+    요리영양소:5 += 2
+    TIMES 요리영양소:0 , 1.5
+    TIMES 요리영양소:1 , 1.5
+    TIMES 요리영양소:2 , 1.5
+    TIMES 요리영양소:3 , 1.5
+    TIMES 요리영양소:4 , 1.5
+    TIMES 요리영양소:5 , 1.5
+    DISH_BASEPOINT += 20
+ENDIF
 ;첨가물
 ;#DIM CONST BIT_MIX_DRUG = 0, 21, 22, 23, 24
 IF DISH_DRG != 0
@@ -862,7 +938,12 @@ ENDIF
 
 ;표시용 음식명
 EX_DISH_NAME = %DISH_NAME%
-PRINTFORML 영양정보 : 탄수화물 {요리영양소:0} / 단백질 {요리영양소:1} / 지방 {요리영양소:2} / 나트륨 {요리영양소:3} / 비타민 {요리영양소:4}
+PRINTFORM 영양정보 : 탄수화물 {요리영양소:0} / 단백질 {요리영양소:1} / 지방 {요리영양소:2} / 나트륨 {요리영양소:4} / 비타민 {요리영양소:3}
+IF 요리영양소:5
+    PRINTFORM  / 요력 {요리영양소:5}
+ENDIF
+PRINTL
+
 @요리법포함여부(ARG)
 #FUNCTION
 IF 주재료요리법 == ARG
@@ -927,6 +1008,10 @@ ENDIF
 요리영양소:2 += ARG:2 ;지방
 요리영양소:3 += ARG:3 ;비타민
 요리영양소:4 += ARG:4 ;나트륨
+
+@기타영양소올리기(ARG:0)
+요리영양소:5 += ARG:0 ;요력
+
 
 @자동요리이름
 #FUNCTIONS
