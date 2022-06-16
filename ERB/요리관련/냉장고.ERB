@@ -1,0 +1,210 @@
+﻿@냉장고
+
+PRINTFORML 냉장고를 열었다...
+DRAWLINE
+FOR LOCAL,0,10
+    IF Y_REFRI:LOCAL:0 == 1
+        PRINTBUTTON @"[%Y_REFRI_CHAR:LOCAL:0,50,LEFT%][잔여:{냉장고_남은시간표시(LOCAL),3,RIGHT}일]",LOCAL
+    ELSE
+        PRINTBUTTON @"[　　　　　　　　　　　　　　　　　　　　　　　　　]",LOCAL
+    ENDIF
+    PRINTL
+NEXT
+DRAWLINE
+SIF ITEM:냉장고 == 1
+    PRINTFORML [998] 얼음보충(잔량:{Y_REFRI_ICE}/하루 소비량:{Y_REFRI_ICE_REQUIRE})
+PRINTFORML [999] 닫는다
+$LOOP
+INPUT
+IF RESULT == 999
+    RETURN
+ELSEIF RESULT == 998
+    IF ITEM:냉장고 == 1
+        PRINTFORML 얼마나 넣을까?(얼음 소지량:{ITEM:얼음}/하루 소비량:{Y_REFRI_ICE_REQUIRE})
+        INPUT
+        LOCAL = LIMIT(RESULT,0,ITEM:얼음)
+        PRINTFORML 얼음 {LOCAL}개를 얼음칸에 넣었다
+        ITEM:얼음 -= LOCAL
+        Y_REFRI_ICE += LOCAL
+    ELSE
+        GOTO LOOP
+    ENDIF
+ELSE
+    LOCAL = RESULT
+    IF !INRANGE(LOCAL,0,Y_REFRI_MAX)
+        GOTO LOOP
+    ENDIF
+    
+    IF Y_REFRI:LOCAL:0 == 1
+        PRINTFORML <%조사처리(Y_REFRI_CHAR:LOCAL:0,"가")%> 들어있다...
+        PRINTFORML [0] 꺼낸다
+        PRINTFORML [1] 비운다
+        PRINTFORML [9] 돌아가기
+        INPUT
+        SELECTCASE RESULT
+            CASE 0
+                CALL 냉장고_음식꺼내기()
+            CASE 1
+                CALL 냉장고_칸비우기()
+            CASE 9
+                RESTART
+        ENDSELECT
+    ELSE
+        IF FLAG:요리
+            PRINTFORML <%조사처리(DISH_NAME,"을")%> 냉장고에 넣을까?
+            CALL ASK_YN()
+            IF RESULT
+                RESTART
+            ENDIF
+            CALL 냉장고_음식넣기(LOCAL)
+        ELSE
+            PRINTFORMW 가지고 있는 음식이 없습니다
+            RESTART
+        ENDIF
+    ENDIF
+ENDIF
+RESTART
+
+@냉장고_남은시간표시(ARG)
+#FUNCTION
+
+LOCAL = Y_REFRI:ARG:6
+LOCAL /= 1440
+RETURNF LOCAL
+
+@냉장고_음식넣기(ARG)
+
+LOCAL = ARG
+Y_REFRI:LOCAL:0 = 1
+Y_REFRI:LOCAL:1 = DISH_DRG
+Y_REFRI:LOCAL:2 = DISH_DRG_2
+Y_REFRI:LOCAL:3 = DISH_ASSI
+Y_REFRI:LOCAL:4 = DISH_BASEPOINT
+Y_REFRI:LOCAL:5 = 주문_알코올
+Y_REFRI:LOCAL:6 = DISH_LIMIT * Y_REFRI_RATIO
+Y_REFRI:LOCAL:7 = DISH_RANK
+Y_REFRI:LOCAL:8 = 요리영양소:0
+Y_REFRI:LOCAL:9 = 요리영양소:1
+Y_REFRI:LOCAL:10 = 요리영양소:2
+Y_REFRI:LOCAL:11 = 요리영양소:3
+Y_REFRI:LOCAL:12 = 요리영양소:4
+Y_REFRI_CHAR:LOCAL:0 '= DISH_NAME
+Y_REFRI_CHAR:LOCAL:1 '= DISH_TASTE
+Y_REFRI_CHAR:LOCAL:2 '= EX_DISH_NAME
+Y_REFRI_CHAR:LOCAL:3 '= DISH_TYPE
+CALL RESET_DISH()
+
+@냉장고_음식꺼내기(ARG)
+#DIM DYNAMIC 버퍼1,13
+#DIMS DYNAMIC 버퍼2,4
+LOCAL = ARG
+IF FLAG:요리
+    버퍼1:0 = 1
+    버퍼1:1 = DISH_DRG
+    버퍼1:2 = DISH_DRG_2
+    버퍼1:3 = DISH_ASSI
+    버퍼1:4 = DISH_BASEPOINT
+    버퍼1:5 = 주문_알코올
+    버퍼1:6 = DISH_LIMIT * Y_REFRI_RATIO
+    버퍼1:7 = DISH_RANK
+    버퍼1:8 = 요리영양소:0
+    버퍼1:9 = 요리영양소:1
+    버퍼1:10 = 요리영양소:2
+    버퍼1:11 = 요리영양소:3
+    버퍼1:12 = 요리영양소:4
+    버퍼2:0 '= DISH_NAME
+    버퍼2:1 '= DISH_TASTE
+    버퍼2:2 '= EX_DISH_NAME
+    버퍼2:3 '= DISH_TYPE
+    LOCAL:1 = 1
+ENDIF
+CALL RESET_DISH()
+DISH_DRG = Y_REFRI:LOCAL:1
+DISH_DRG_2 = Y_REFRI:LOCAL:2
+DISH_ASSI = Y_REFRI:LOCAL:3
+DISH_BASEPOINT = Y_REFRI:LOCAL:4
+주문_알코올 = Y_REFRI:LOCAL:5
+DISH_LIMIT = Y_REFRI:LOCAL:6 / Y_REFRI_RATIO
+DISH_RANK = Y_REFRI:LOCAL:7
+요리영양소:0 = Y_REFRI:LOCAL:8
+요리영양소:1 = Y_REFRI:LOCAL:9
+요리영양소:2 = Y_REFRI:LOCAL:10
+요리영양소:3 = Y_REFRI:LOCAL:11
+요리영양소:4 = Y_REFRI:LOCAL:12
+DISH_NAME '= Y_REFRI_CHAR:LOCAL:0
+DISH_TASTE '= Y_REFRI_CHAR:LOCAL:1
+EX_DISH_NAME '= Y_REFRI_CHAR:LOCAL:2
+DISH_TYPE '= Y_REFRI_CHAR:LOCAL:3
+FLAG:요리 = 1
+
+IF 주문_알코올
+    주문내용_술 = 1
+ENDIF
+CALL 냉장고_칸비우기(LOCAL)
+
+IF LOCAL:1 == 1
+    ;원래 가진 음식이 있다면
+    Y_REFRI:LOCAL:0    =  버퍼1:0  
+    Y_REFRI:LOCAL:1    =  버퍼1:1  
+    Y_REFRI:LOCAL:2    =  버퍼1:2  
+    Y_REFRI:LOCAL:3    =  버퍼1:3  
+    Y_REFRI:LOCAL:4    =  버퍼1:4  
+    Y_REFRI:LOCAL:5    =  버퍼1:5  
+    Y_REFRI:LOCAL:6    =  버퍼1:6  
+    Y_REFRI:LOCAL:7    =  버퍼1:7  
+    Y_REFRI:LOCAL:8    =  버퍼1:8  
+    Y_REFRI:LOCAL:9    =  버퍼1:9  
+    Y_REFRI:LOCAL:10   =  버퍼1:10 
+    Y_REFRI:LOCAL:11   =  버퍼1:11 
+    Y_REFRI:LOCAL:12   =  버퍼1:12 
+    Y_REFRI_CHAR:LOCAL:0   '= 버퍼2:0  
+    Y_REFRI_CHAR:LOCAL:1   '= 버퍼2:1   
+    Y_REFRI_CHAR:LOCAL:2   '= 버퍼2:2   
+    Y_REFRI_CHAR:LOCAL:3   '= 버퍼2:3  
+    LOCAL:1 = 0
+ENDIF
+
+@냉장고_칸비우기(ARG)
+LOCAL = ARG
+Y_REFRI:LOCAL:0 = 0
+Y_REFRI:LOCAL:1 = 0
+Y_REFRI:LOCAL:2 = 0
+Y_REFRI:LOCAL:3 = 0
+Y_REFRI:LOCAL:4 = 0
+Y_REFRI:LOCAL:5 = 0
+Y_REFRI:LOCAL:6 = 0
+Y_REFRI:LOCAL:7 = 0
+Y_REFRI:LOCAL:8 = 0
+Y_REFRI:LOCAL:9 = 0
+Y_REFRI:LOCAL:10 = 0
+Y_REFRI:LOCAL:11 = 0
+Y_REFRI:LOCAL:12 = 0
+Y_REFRI_CHAR:LOCAL:0 =
+Y_REFRI_CHAR:LOCAL:1 =
+Y_REFRI_CHAR:LOCAL:2 =
+Y_REFRI_CHAR:LOCAL:3 =
+
+@냉장고_날짜변동
+#DIM DYNAMIC 식품데미지
+IF !ITEM:냉장고
+    RETURN 0
+ENDIF
+
+IF ITEM:냉장고 == 1
+    IF Y_REFRI_ICE >= Y_REFRI_ICE_REQUIRE
+        Y_REFRI_ICE -= Y_REFRI_ICE_REQUIRE
+    ELSE
+        PRINTFORMW 냉장고의 얼음이 다 떨어져버렸다!
+        식품데미지 = (Y_REFRI_ICE_REQUIRE - Y_REFRI_ICE) / 2
+    ENDIF
+ENDIF
+
+FOR LOCAL,0,Y_REFRI_MAX
+    IF Y_REFRI:LOCAL:0 == 1
+        Y_REFRI:LOCAL:6 = MAX(0,Y_REFRI:LOCAL:6 - (1440 + (480 *식품데미지)))
+        IF Y_REFRI:LOCAL:6 <= 0
+            PRINTFORMW 냉장고에 있던 %조사처리(Y_REFRI_CHAR:LOCAL:0,"가")% 상해버렸다!
+            CALL 냉장고_칸비우기(LOCAL)
+        ENDIF
+    ENDIF
+NEXT
