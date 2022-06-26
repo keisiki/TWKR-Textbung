@@ -30,15 +30,29 @@ ENDIF
 RETURN 좌표
 
 ;대상간의 거리, 혹은 대상과 지점간의 거리를 측정
+;은신과는 영향이 없음, 절대거리만을 측정
 @TB_거리(대상 = 0,좌표 = 0)
 #FUNCTION
 #DIM DYNAMIC 대상
 #DIM DYNAMIC 좌표
-
-IF 대상 && 좌표
-    RETURNF ABS(T_위치:대상:0 - 좌표)
+LOCAL = 99
+IF 좌표
+    RETURNF ABS(TB_위치(대상,LOCAL) - 좌표)
 ELSE
-    RETURNF ABS(T_위치:T_대상1:0 - T_위치:T_대상2:0)
+    RETURNF ABS(TB_위치(대상,LOCAL) - TB_위치(사용자반대(대상),LOCAL))
+ENDIF
+
+;은신 등에 의해 왜곡되는 거리, 무조건 대상 번호를 전달해야함
+@TB_거리_은신(대상,좌표 = 0)
+#FUNCTION
+#DIM DYNAMIC 대상
+#DIM DYNAMIC 좌표
+IF 좌표
+    LOCAL = TB_MAX_VALUE(사용자반대(대상),TCV_은신간파)
+    RETURNF ABS(TB_위치(대상,LOCAL) - 좌표)
+ELSE
+    LOCAL = TB_MAX_VALUE(사용자반대(대상),TCV_은신간파)
+    RETURNF ABS(TB_위치(대상,LOCAL) - TB_위치(사용자반대(대상),LOCAL))
 ENDIF
 
 
@@ -64,9 +78,33 @@ ELSE
 ENDIF
 
 ;혹여 이상하게 건드렸다가 값 꼬이지 않게 + 코드가 단정해짐
-@TB_위치(ARG)
+@TB_위치(ARG,디코이무시 = -1)
 #FUNCTION
-RETURNF T_위치:ARG:0
+#DIM DYNAMIC 디코이무시
+IF 디코이무시 == -1 || ARG == T_시전자
+    디코이무시 = 99
+ENDIF
+IF 디코이무시 >= TB_MAX_VALUE(ARG,TCV_은신) || 0 >= TB_MAX_VALUE(ARG,TCV_은신)
+    LOCAL = T_위치:ARG:0
+ELSE
+    LOCAL:1 = RAND:TB_MAX_VALUE(ARG,TCV_은신)
+    IF GROUPMATCH(T_위치:ARG:0,TB_위치값한계,0)
+        IF T_위치:ARG:0 == 0
+            ;무조건 양수로만
+            LOCAL:1 *= 1
+        ELSE
+            ;무조건 음수로만
+            LOCAL:1 *= -1
+        ENDIF
+    ELSE
+        IF RAND:2 == 0
+            ;50% 확률로 방향 역전
+            LOCAL:1 *= -1
+        ENDIF
+    ENDIF
+    LOCAL = LIMIT(T_위치:ARG:0 + LOCAL:1,0,TB_위치값한계)
+ENDIF
+RETURNF LOCAL
 
 ;ARG의 입장에서 ARG:1의 방향
 @TB_방향(ARG,ARG:1)
