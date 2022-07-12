@@ -18,6 +18,17 @@
 
 상대자가낚시했다 = 0
 ;참가자 판정
+IF FLAG:시간정지
+	PRINTFORML 시간을 멈춘채 물 속으로 뛰어들었다!
+	IF 명중판정(88)
+		CHARA = 0
+		GOTO 시간정지스킵
+	ELSE
+		PRINTFORML 그러나 수영에 실패해 허우적거리다 시간정지가 풀린채 물 위로 떠올라버렸다...
+		DOWNBASE:MASTER:체력 += 100
+		RETURN 0
+	ENDIF
+ENDIF
 IF FLAG:데이트상대
 	CHARA = FLAG:데이트상대
 ELSEIF TARGET && ABL:TARGET:친밀 >= 5 - TALENT:TARGET:낚시Lv && SHIRAHU(TARGET) && CFLAG:TARGET:행동 != 5
@@ -58,6 +69,7 @@ IF !TALENT:[[와카사기히메]]:사망&&(CHARA == [[와카사기히메]] || TA
 	ENDIF
 ENDIF
 
+$시간정지스킵
 ;季節ごとの活性
 SELECTCASE DAY:2
 	CASE 1  ;春
@@ -117,6 +129,8 @@ FOR LOCAL, 0, 5
 	REUSELASTLINE  \@ CHARA ?  %조사처리(CALLNAME:CHARA,"과")% 함께 #  \@낚시중. %". " * LOCAL%
 	TWAIT 150, 1
 NEXT
+
+
 ;낚시파워설정
 낚시파워M = MIN(10 + TALENT:MASTER:낚시Lv * 15 + 낚시운 + 잡히지않는보정 + 히메보너스,100)
 SIF CHARA
@@ -312,7 +326,9 @@ IF CHARA > 0
 ENDIF
 
 ;시간경과
-TIME += 20
+IF !FLAG:시간정지
+	TIME += 20
+ENDIF
 
 ;플래그 인도
 TFLAG:SELECTCOM분기 = 잡힌것
@@ -329,7 +345,7 @@ RETURN 1
 SIF GLOBAL_COMABLE(621)
 	RETURN RESULT
 ;낚싯대가 없다
-SIF !ITEM:낚싯대
+SIF !ITEM:낚싯대 && !FLAG:70
 	RETURN 0
 ;거점에서는 할 수 없다(가짜)
 SIF !FISHING_SPOT(CFLAG:MASTER:현재위치)
@@ -347,8 +363,8 @@ SIF CFLAG:MASTER:우후후
 SIF CFLAG:MASTER:수면
 	RETURN 0
 ;시간정지중
-SIF FLAG:70
-	RETURN 0
+;SIF FLAG:70
+;	RETURN 0
 RETURN 1
 
 ;FileName_DATE_CMN.ERB ------------------------------- Rev1. 00
