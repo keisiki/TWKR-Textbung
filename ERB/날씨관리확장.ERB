@@ -1,0 +1,2213 @@
+﻿
+;-------------------------------------------------
+;天候管理システム本体
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM
+#DIMS 저기압위치
+#DIMS 적란운위치
+#DIM 최신날씨경향
+
+저기압위치 = %GET_LOCATION_LOW()%
+적란운위치 = %GET_LOCATION_CUMULUS()%
+
+IF 저기압위치 == "台風接近強風域" || 저기압위치 == "台風接近暴風域" || 저기압위치 == "台風通過暴風域" || 저기압위치 == "台風通過強風域" || (IS_TYPHOON:2 != 2 && 저기압위치 == "台風最接近")
+	최신날씨경향 = 16
+ELSEIF 저기압위치 == "台風最接近"
+	최신날씨경향 = 17
+ELSEIF 저기압위치 == "寒冷渦遠方" && DAY:2 == 4
+	최신날씨경향 = 19
+ELSEIF 저기압위치 == "寒冷渦接近" && DAY:2 == 4
+	최신날씨경향 = 13
+ELSEIF 저기압위치 == "寒冷渦接近" && (DAY:2 == 1 || DAY:2 == 3) && !IS_RAINY_SEASON1 && !IS_RAINY_SEASON2
+	최신날씨경향 = 5
+ELSEIF IS_RAINY_SEASON1:1 == 1 || (IS_RAINY_SEASON2 == 1 && 저기압위치 == "台風勢力圏") || (IS_TYPHOON:3 == 1 && 저기압위치 == "台風勢力圏")
+	최신날씨경향 = 15
+ELSEIF IS_RAINY_SEASON1:0 == 1 || IS_RAINY_SEASON2 == 1
+	최신날씨경향 = 14
+ELSEIF 저기압위치 == "二つ玉低気圧接近" || 저기압위치 == "日本海低気圧接近"
+	최신날씨경향 = 10
+ELSEIF 저기압위치 == "二つ玉低気圧通過中" || 저기압위치 == "日本海低気圧通過中"
+	최신날씨경향 = 11
+ELSEIF 저기압위치 == "疑似好天"
+	최신날씨경향 = 19
+ELSEIF 저기압위치 == "南岸低気圧接近"
+	최신날씨경향 = 12
+ELSEIF 저기압위치 == "温暖前線接近"
+	최신날씨경향 = 2
+ELSEIF 저기압위치 == "暖域"
+	최신날씨경향 = 3
+ELSEIF 저기압위치 == "寒冷前線通過"
+	최신날씨경향 = 4
+ELSEIF TIME:0 >= 240 && TIME:0 <= 600 && CAN_STRATUS == 1
+	최신날씨경향 = 18
+ELSEIF DAY:2 == 1 || DAY:2 == 3
+	최신날씨경향 = 1
+ELSEIF DAY:2 == 4
+	최신날씨경향 = 9
+ELSEIF DAY:2 == 2 && 적란운위치 == "積乱雲接近"
+	최신날씨경향 = 7
+ELSEIF DAY:2 == 2 && 적란운위치 == "積乱雲直下"
+	최신날씨경향 = 8
+ELSE
+	최신날씨경향 = 6
+ENDIF
+
+;天候が変わっていればその場で変更
+IF NOW_WEATHER_CONTROL != 최신날씨경향
+	NOW_WEATHER_CONTROL = 최신날씨경향
+	;異常気象発生時は処理終了
+	SIF FLAG:이상기상
+		RETURN
+	;天候変更禁止ならば処理終了
+	SIF FORBIDDEN_CHANGE_WEATHER == 1
+		RETURN
+	TRYCALLFORM CHANGE_WEATHER_SYSTEM_{최신날씨경향}
+ENDIF
+
+;-------------------------------------------------
+;1 春・秋の天気(基本)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_1
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 5, 6, 7, 9, IS >= 8
+		LOCAL = 12
+	CASEELSE
+		LOCAL = 24
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		;晴れの時
+		CASE 0
+			;20%で晴天に移行
+			IF RAND:5 == 0
+				SETBIT TIME:5,0
+			;20%で薄曇に移行
+			ELSEIF RAND:5 == 0
+				SETBIT TIME:5,1
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			;上記確率に引っかからなかったら晴れ
+			ELSE
+				TIME:5 = 0
+			ENDIF
+		CASE 1
+			;20%で晴れに移行
+			IF RAND:5 == 0
+				CLEARBIT TIME:5,0
+			;20%で薄曇に移行
+			ELSEIF RAND:5 == 0
+				TIME:5 = 2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			ENDIF
+		;曇りの時
+		CASE 2,3
+			;25%で弱体化
+			IF RAND:4 == 0
+				TIME:5 = 2
+			ELSE
+				;20%で晴れに移行
+				IF RAND:5 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						IF TIME:2 >= 5 && TIME:2 <= 7
+							PRINTW 별이 보인다
+						ELSE
+							PRINTW 해가 비친다
+						ENDIF
+					ENDIF
+				ENDIF
+			ENDIF
+		;雨の時
+		CASE 4,5
+			;25%で弱体化
+			IF RAND:4 == 0
+				TIME:5 = 4
+				PRINTW 비가 약해졌다
+			ELSE
+				;25%で曇りに移行
+				IF RAND:4 == 0
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 그친 것 같다
+					;念のため相合い傘を解除
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				;雨なら10%で霧雨かみぞれに移行
+				ELSEIF TIME:5 == 4 && RAND:10 == 0
+					TIME:5 = 6
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 물방울이 가늘어졌다
+				;10%で晴れに移行
+				ELSEIF RAND:10 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						;かもしれないといいつつ確実に見えるのは気分をよくさせる魔法
+						IF TIME:2 >= 5 && TIME:2 <= 7
+							PRINTW 갑자기 밤하늘이 펼쳐졌다！달무지개가 보일지도 모른다
+						ELSE
+							PRINTW 갑자기 해가 비친다！무지개가 보일지도 모른다
+						ENDIF
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+					ENDIF
+					;更に低確率で快晴
+					SIF RAND:100 < 5
+						TIME:5 = 1
+					;雨→晴れを処理したら虹が出る
+					TIME:7 = 1
+					;市場が開かれる
+					FLAG:시장의신 = 1
+				ENDIF
+			ENDIF
+		;霧・霧雨の時
+		CASE 6, 7
+			TIME:5 = 0
+			IF !CFLAG:MASTER:우후후 && !지저
+				IF TIME:2 >= 5 && TIME:2 <= 7
+					PRINTW 별이 보인다
+				ELSE
+					PRINTW 해가 비친다
+				ENDIF
+				;念のため相合い傘を解除
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+			ENDIF
+		CASE IS >= 8
+			;雪は冬以外降らない
+			IF TIME:5 == 8
+				;雨になる
+				CLEARBIT TIME:5,3
+				SETBIT TIME:5,2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈이 비로 바뀐 것 같다
+			;50%の確率で弱体化
+			ELSEIF GETBIT(TIME:5,0) && RAND:2
+				CLEARBIT TIME:5,0
+				PRINTW 눈은 약해진 것 같다
+			
+			ELSE
+				;25%で曇りに移行
+				IF RAND:4 == 0
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 그친 것 같다
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				;雪なら10%で細雪かみぞれに移行
+				ELSEIF TIME:5 == 8 && RAND:10 == 0
+					IF RAND:2
+						TIME:5 = 10
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈의 결정이 가늘어졌다
+					ELSE
+						TIME:5 = 12
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 조금 비도 섞이기 시작했다
+					ENDIF
+					;更に10%の確率で霧雪,あられに移行
+					SIF RAND:10 == 0
+						SETBIT TIME:5,0
+				;10%で晴れに移行
+				ELSEIF RAND:10 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						PRINTFORMW \@ TIME:2 >= 5 && TIME:2 <= 7? 갑자기 밤하늘이 펼쳐졌다！# 갑자기 해가 비친다！\@ 다이아몬드 더스트가 보일지도 모른다
+						FOR LOCAL,0,CHARANUM
+							SIF TEQUIP:LOCAL:201
+								TEQUIP:LOCAL:201 = 0
+						NEXT
+					ENDIF
+					;更に低確率で快晴
+					SIF RAND:100 < 5
+						TIME:5 = 1
+					;雪→晴れを処理したらダイヤモンドダストが出る
+					TIME:7 = 2
+				ENDIF
+			ENDIF
+		CASEELSE
+			TIME:5 = RAND:4
+	ENDSELECT
+ENDIF
+
+;強風である場合風がおさまる
+IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
+	WIND_VELOCITY = 0
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+;-------------------------------------------------
+;2 春・秋の天気(温暖前線接近時)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_2
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 0, 1, IS >= 5
+		LOCAL = 12
+	CASEELSE
+		LOCAL = 24
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		;快晴の時
+		CASE 1
+			TIME:5 = 0
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 조금 구름이 끼었다
+		;晴れの時
+		CASE 0
+			;60%で薄曇に移行
+			IF RAND:2 == 0
+				SETBIT TIME:5,1
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			;10%で曇りに移行
+			ELSEIF RAND:10 == 0
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 하늘이 온통 구름으로 덮였다
+			ENDIF
+		;薄曇の時
+		CASE 2
+			;60%で曇りに移行
+			IF RAND:2 == 0
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 하늘이 온통 구름으로 덮였다
+			;10%で雨に移行
+			ELSEIF RAND:10 == 0
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 내리기 시작했다！
+			ENDIF
+		;曇の時
+		CASE 3
+			;60%で曇りに移行
+			IF RAND:2 == 0
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 내리기 시작했다！
+			ENDIF
+		CASE IS >= 5
+			TIME:5 = 2
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 살짝 흐려졌다
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+;3 春・秋の天気(暖域時)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_3
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+IF (TIME:5 != 0 || TIME:5 != 2) && CFLAG:MASTER:현재위치 != 천계
+	IF RAND:2 == 1
+		TIME:5 = 0
+		IF !CFLAG:MASTER:우후후 && !지저
+			IF TIME:2 >= 5 && TIME:2 <= 7
+				IF TIME:5 >= 4
+					PRINTW 밤하늘이 펼쳐졌다！달무지개가 보일지도 모른다
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+					;雨→晴れを処理したら虹が出る
+					TIME:7 = 1
+					;市場が開かれる
+					FLAG:시장의신 = 1
+				ELSE
+					PRINTW 별이 보인다
+				ENDIF
+			ELSE
+				IF TIME:5 >= 4
+					PRINTW 해가 비친다！무지개가 보일지도 모른다
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+					;雨→晴れを処理したら虹が出る
+					TIME:7 = 1
+					;市場が開かれる
+					FLAG:시장의신 = 1
+				ELSE
+					PRINTW 해가 비친다
+				ENDIF
+			ENDIF
+		ENDIF
+	ELSE
+		TIME:5 = 2
+		IF !CFLAG:MASTER:우후후 && !지저 && TIME:5 >= 4
+			PRINTW 비가 그친 것 같다
+		ENDIF
+		;念のため相合い傘を解除
+		FOR LOCAL,0,CHARANUM
+			SIF TEQUIP:LOCAL:201
+				TEQUIP:LOCAL:201 = 0
+		NEXT
+	ENDIF
+ENDIF
+
+;風速変化の確立
+LOCAL:1 = RAND:10
+
+;50%の確率で風速弱体化。暖気が強い場合20%の確率で風速強化
+;但し春第1タームは確実に強風
+IF DAY:2 == 1 && NOW_TERM == 1 && WIND_VELOCITY != 1 && CFLAG:MASTER:현재위치 != 천계
+	WIND_VELOCITY = 1
+	IF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 세졌다 봄바람(春一番)이다！
+		CALL ASK_DIARY("봄바람이 불었다")
+	ENDIF	
+ELSEIF POWER_WARM_AIR >= 4 && LOCAL:1 >= 8 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 0
+	WIND_VELOCITY = 1
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 세졌다
+ELSEIF LOCAL:1 >= 5 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY > 0
+	WIND_VELOCITY = 0
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+;-------------------------------------------------
+;4 春・秋の天気(寒冷前線通過時)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_4
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+IF (TIME:5 != 4 || TIME:5 != 5) && CFLAG:MASTER:현재위치 != 천계
+	IF RAND:3 == 0
+		TIME:5 = 4
+		SIF !CFLAG:MASTER:우후후 && !지저
+			PRINTW 비가 내리기 시작했다！
+	ELSE
+		TIME:5 = 5
+		SIF !CFLAG:MASTER:우후후 && !지저
+			PRINTW 억수같이 쏟아진다！
+	ENDIF
+ELSEIF CFLAG:MASTER:현재위치 != 천계
+	IF RAND:4 == 0
+		;25%で強化or弱体化
+		INVERTBIT TIME:5,0
+		IF TIME:5 == 5 && !CFLAG:MASTER:우후후 && !지저
+			PRINTW 억수같이 쏟아진다！
+		ELSEIF !CFLAG:MASTER:우후후 && !지저
+			PRINTW 비가 약해졌다
+		ENDIF
+	ENDIF
+ENDIF
+
+;風速変化の確立
+LOCAL:1 = RAND:4
+
+;強風である場合25%で風がおさまる
+IF LOCAL:1 == 0 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
+	WIND_VELOCITY = 0
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+
+;-------------------------------------------------
+;5 春・秋の天気(寒冷渦接近時)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_5
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 3
+		LOCAL = 16
+	CASE 4, 8, 12, 13
+		LOCAL = 24
+	CASE 5, 9
+		LOCAL = 48
+	CASEELSE
+		LOCAL = 12
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	;暖気が1の場合降雪の可能性
+	IF POWER_WARM_AIR == 1
+		SELECTCASE TIME:5
+			;曇り
+			CASE 3
+				SELECTCASE RAND:5
+					CASE 0
+						TIME:5 = 13
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 우박이 내리기 시작했다！
+					CASE 1, 2
+						TIME:5 = 8
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈이 내리기 시작했다！
+					CASEELSE
+						TIME:5 = 9
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈이 내리기 시작했다！폭설이다
+				ENDSELECT
+			;雪
+			CASE 8
+				SELECTCASE RAND:5
+					CASE 0
+						TIME:5 = 13
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 우박이 내리기 시작했다！
+					CASE 1
+						TIME:5 = 3
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW  눈이 그친 것 같다
+						FOR LOCAL,0,CHARANUM
+							SIF TEQUIP:LOCAL:201
+								TEQUIP:LOCAL:201 = 0
+						NEXT
+					CASEELSE
+						TIME:5 = 9
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈발이 거세졌다！
+				ENDSELECT
+			;大雪
+			CASE 9
+				SELECTCASE RAND:5
+					CASE 0
+						TIME:5 = 13
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 우박이 내리기 시작했다！
+					CASE 1
+						TIME:5 = 3
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW  눈이 그친 것 같다
+						FOR LOCAL,0,CHARANUM
+							SIF TEQUIP:LOCAL:201
+								TEQUIP:LOCAL:201 = 0
+						NEXT
+					CASEELSE
+						TIME:5 = 8
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈은 약해진 것 같다
+				ENDSELECT
+			;あられ
+			CASE 13
+				SELECTCASE RAND:4
+					CASE 0
+						TIME:5 = 8
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈이 내리기 시작했다！
+					CASEELSE
+						TIME:5 = 9
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈발이 거세졌다！
+				ENDSELECT
+			CASEELSE
+				TIME:5 = 9
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈이 내리기 시작했다！폭설이다
+		ENDSELECT
+	ELSE
+		SELECTCASE TIME:5
+			;曇り
+			CASE 3
+				SELECTCASE RAND:6
+					CASE 0
+						TIME:5 = 13
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 우박이 내리기 시작했다！
+					CASE 1
+						TIME:5 = 12
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW みぞれが降ってきた！
+					CASE 2
+						TIME:5 = 4
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 비가 내리기 시작했다！
+					CASEELSE
+						TIME:5 = 5
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 억수같이 쏟아진다！
+				ENDSELECT
+			;雨
+			CASE 4
+				SELECTCASE RAND:6
+					CASE 0
+						TIME:5 = 13
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 우박이 내리기 시작했다！
+					CASE 1
+						TIME:5 = 12
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW みぞれが降ってきた！
+					CASE 2
+						TIME:5 = 3
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW  비가 그친 것 같다
+						FOR LOCAL,0,CHARANUM
+							SIF TEQUIP:LOCAL:201
+								TEQUIP:LOCAL:201 = 0
+						NEXT
+					CASEELSE
+						TIME:5 = 5
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 억수같이 쏟아진다！
+				ENDSELECT
+			;大雨
+			CASE 5
+				SELECTCASE RAND:5
+					CASE 0
+						TIME:5 = 13
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 우박이 내리기 시작했다！
+					CASE 1
+						TIME:5 = 3
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW  비가 그친 것 같다
+						FOR LOCAL,0,CHARANUM
+							SIF TEQUIP:LOCAL:201
+								TEQUIP:LOCAL:201 = 0
+						NEXT
+					CASEELSE
+						TIME:5 = 4
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 비가 약해졌다
+				ENDSELECT
+			;みぞれ
+			CASE 12
+				SELECTCASE RAND:5
+					CASE 0
+						TIME:5 = 13
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 우박이 내리기 시작했다！
+					CASE 1, 2
+						TIME:5 = 3
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW  비가 그친 것 같다
+						FOR LOCAL,0,CHARANUM
+							SIF TEQUIP:LOCAL:201
+								TEQUIP:LOCAL:201 = 0
+						NEXT
+					CASEELSE
+						TIME:5 = 4
+				ENDSELECT
+			;あられ
+			CASE 13
+				SELECTCASE RAND:4
+					CASE 0
+						TIME:5 = 4
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 비가 내리기 시작했다！
+					CASEELSE
+						TIME:5 = 5
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 억수같이 쏟아진다！
+				ENDSELECT
+			CASEELSE
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+		ENDSELECT
+	ENDIF
+ENDIF
+
+;風速変化の確立
+LOCAL:1 = RAND:20
+
+;10%の確率で暴風
+IF LOCAL:1 == 0 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 1
+	WIND_VELOCITY = 2
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 더욱 거세졌다！
+;50%の確率で暴風から強風に弱体化
+ELSEIF LOCAL:1 >= 10 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 2
+	WIND_VELOCITY = 1
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 조금 수그러들었다
+ELSEIF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 0
+	WIND_VELOCITY = 1
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 세졌다
+ENDIF
+
+;-------------------------------------------------
+;6 夏の天気(基本)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_6
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;暖気が1のとき
+IF POWER_WARM_AIR == 1 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		;晴れの時
+		CASE 0
+			;20%で晴天に移行
+			IF RAND:5 == 0
+				SETBIT TIME:5,0
+			;20%で薄曇に移行
+			ELSEIF RAND:5 == 0
+				SETBIT TIME:5,1
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			;上記確率に引っかからなかったら晴れ
+			ELSE
+				TIME:5 = 0
+			ENDIF
+		CASE 1
+			;20%で晴れに移行
+			IF RAND:5 == 0
+				CLEARBIT TIME:5,0
+			;20%で薄曇に移行
+			ELSEIF RAND:5 == 0
+				TIME:5 = 2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			ENDIF
+		;曇りの時
+		CASE 2,3
+			;25%で弱体化
+			IF RAND:4 == 0
+				TIME:5 = 2
+			ELSE
+				;20%で晴れに移行
+				IF RAND:5 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						IF TIME:2 >= 5 && TIME:2 <= 7
+							PRINTW 별이 보인다
+						ELSE
+							PRINTW 해가 비친다
+						ENDIF
+					ENDIF
+				ENDIF
+			ENDIF
+		;雨の時
+		CASE 4,5
+			;25%で弱体化
+			IF RAND:4 == 0
+				TIME:5 = 4
+				PRINTW 비가 약해졌다
+			ELSE
+				;25%で曇りに移行
+				IF RAND:4 == 0
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 그친 것 같다
+					;念のため相合い傘を解除
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				;雨なら10%で霧雨かみぞれに移行
+				ELSEIF TIME:5 == 4 && RAND:10 == 0
+					TIME:5 = 6
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 물방울이 가늘어졌다
+				;10%で晴れに移行
+				ELSEIF RAND:10 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						;かもしれないといいつつ確実に見えるのは気分をよくさせる魔法
+						IF TIME:2 >= 5 && TIME:2 <= 7
+							PRINTW 갑자기 밤하늘이 펼쳐졌다！달무지개가 보일지도 모른다
+						ELSE
+							PRINTW 갑자기 해가 비친다！무지개가 보일지도 모른다
+						ENDIF
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+					ENDIF
+					;更に低確率で快晴
+					SIF RAND:100 < 5
+						TIME:5 = 1
+					;雨→晴れを処理したら虹が出る
+					TIME:7 = 1
+					;市場が開かれる
+					FLAG:시장의신 = 1
+				ENDIF
+			ENDIF
+		;霧・霧雨の時
+		CASE 6, 7
+			TIME:5 = 0
+			IF !CFLAG:MASTER:우후후 && !지저
+				IF TIME:2 >= 5 && TIME:2 <= 7
+					PRINTW 별이 보인다
+				ELSE
+					PRINTW 해가 비친다
+				ENDIF
+				;念のため相合い傘を解除
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+			ENDIF
+		;雪の時
+		CASE IS >= 8
+			;雪は冬以外降らない
+			IF TIME:5 == 8
+				;雨になる
+				CLEARBIT TIME:5,3
+				SETBIT TIME:5,2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈이 비로 바뀐 것 같다
+			;50%の確率で弱体化
+			ELSEIF GETBIT(TIME:5,0) && RAND:2
+				CLEARBIT TIME:5,0
+				PRINTW 눈은 약해진 것 같다
+			
+			ELSE
+				;25%で曇りに移行
+				IF RAND:4 == 0
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 그친 것 같다
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				;雪なら10%で細雪かみぞれに移行
+				ELSEIF TIME:5 == 8 && RAND:10 == 0
+					IF RAND:2
+						TIME:5 = 10
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈의 결정이 가늘어졌다
+					ELSE
+						TIME:5 = 12
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 조금 비도 섞이기 시작했다
+					ENDIF
+					;更に10%の確率で霧雪,あられに移行
+					SIF RAND:10 == 0
+						SETBIT TIME:5,0
+				;10%で晴れに移行
+				ELSEIF RAND:10 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						PRINTFORMW \@ TIME:2 >= 5 && TIME:2 <= 7? 갑자기 밤하늘이 펼쳐졌다！# 갑자기 해가 비친다！\@ 다이아몬드 더스트가 보일지도 모른다
+						FOR LOCAL,0,CHARANUM
+							SIF TEQUIP:LOCAL:201
+								TEQUIP:LOCAL:201 = 0
+						NEXT
+					ENDIF
+					;更に低確率で快晴
+					SIF RAND:100 < 5
+						TIME:5 = 1
+					;雪→晴れを処理したらダイヤモンドダストが出る
+					TIME:7 = 2
+				ENDIF
+			ENDIF
+		CASEELSE
+			TIME:5 = RAND:4
+	ENDSELECT
+;暖気が2以上
+ELSEIF CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		;晴れの時
+		CASE 0
+			TIME:5 = 1
+		;曇りの時
+		CASE 2,3
+			TIME:5 = 1
+			IF !CFLAG:MASTER:우후후 && !지저
+				IF TIME:2 >= 5 && TIME:2 <= 7
+					PRINTW 별이 보인다
+				ELSE
+					PRINTW 해가 비친다
+				ENDIF
+			ENDIF
+		;雨の時
+		CASE 4,5,6,7
+			;25%で曇りに移行
+			IF RAND:4 == 0
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 그친 것 같다
+				;念のため相合い傘を解除
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+			;75%で晴れに移行
+			ELSE
+				TIME:5 = 0
+				IF !CFLAG:MASTER:우후후 && !지저
+					;かもしれないといいつつ確実に見えるのは気分をよくさせる魔法
+					IF TIME:2 >= 5 && TIME:2 <= 7
+						PRINTW 갑자기 밤하늘이 펼쳐졌다！달무지개가 보일지도 모른다
+					ELSE
+						PRINTW 갑자기 해가 비친다！무지개가 보일지도 모른다
+					ENDIF
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+				ENDIF
+				;更に確率で快晴
+				SIF RAND:10 < 5
+					TIME:5 = 1
+				;雨→晴れを処理したら虹が出る
+				TIME:7 = 1
+				;市場が開かれる
+				FLAG:시장의신 = 1
+			ENDIF
+		;雪の時
+		CASE IS >= 8
+			;雪は冬以外降らない
+			IF TIME:5 == 8
+				;雨になる
+				CLEARBIT TIME:5,3
+				SETBIT TIME:5,2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈이 비로 바뀐 것 같다
+			;50%の確率で弱体化
+			ELSEIF GETBIT(TIME:5,0) && RAND:2
+				CLEARBIT TIME:5,0
+				PRINTW 눈은 약해진 것 같다
+			
+			ELSE
+				;25%で曇りに移行
+				IF RAND:4 == 0
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 그친 것 같다
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				;雪なら10%で細雪かみぞれに移行
+				ELSEIF TIME:5 == 8 && RAND:10 == 0
+					IF RAND:2
+						TIME:5 = 10
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 눈의 결정이 가늘어졌다
+					ELSE
+						TIME:5 = 12
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 조금 비도 섞이기 시작했다
+					ENDIF
+					;更に10%の確率で霧雪,あられに移行
+					SIF RAND:10 == 0
+						SETBIT TIME:5,0
+				;10%で晴れに移行
+				ELSEIF RAND:10 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						PRINTFORMW \@ TIME:2 >= 5 && TIME:2 <= 7? 갑자기 밤하늘이 펼쳐졌다！# 갑자기 해가 비친다！\@ 다이아몬드 더스트가 보일지도 모른다
+						FOR LOCAL,0,CHARANUM
+							SIF TEQUIP:LOCAL:201
+								TEQUIP:LOCAL:201 = 0
+						NEXT
+					ENDIF
+					;更に低確率で快晴
+					SIF RAND:100 < 5
+						TIME:5 = 1
+					;雪→晴れを処理したらダイヤモンドダストが出る
+					TIME:7 = 2
+				ENDIF
+			ENDIF
+		CASEELSE
+			TIME:5 = 1
+	ENDSELECT
+ENDIF
+
+;強風である場合風がおさまる
+IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
+	WIND_VELOCITY = 0
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+;-------------------------------------------------
+;7 夏の天気(夕立接近時)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_7
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+IF CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE CAN_CUMULUS:0
+		CASE 1
+			TIME:5 = 0
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 적운이 떠올랐다
+		CASE 2, 3
+			IF RAND:2 == 0
+				TIME:5 = 0
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 적운이 떠올랐다
+			ELSE
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			ENDIF
+		CASE 4
+			IF RAND:2 == 0
+				TIME:5 = 2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 권운이 퍼지기 시작했다
+			ELSE
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 흐려졌다
+			ENDIF
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 찬바람이 불었다！
+		CASE 5
+			TIME:5 = 3
+			IF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 하늘이 어두워졌다……
+				PRINTW 찬바람이 불었다！
+			ENDIF
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+;8 夏の天気(夕立通過後)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_8
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+IF CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE CAN_CUMULUS:0
+		CASE 1
+			IF RAND:2 == 0 && TIME:5 <= 1
+				TIME:5 = 0
+			ELSEIF TIME:5 < 3
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 흐려졌다
+			ENDIF
+		CASE 2
+			IF RAND:3 == 0 && TIME:5 < 4
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 내리기 시작했다！
+			ELSEIF TIME:5 < 3
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 흐려졌다
+			ENDIF
+		CASE 3
+			IF RAND:3 == 0 && TIME:5 < 4
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+			ELSEIF TIME:5 < 4
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 내리기 시작했다！
+			ENDIF
+		CASE 4
+			IF RAND:3 == 0 && TIME:5 == 5
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 우박이 내리기 시작했다！
+			ELSEIF TIME:5 != 5
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+			ENDIF
+		CASE 5
+			IF RAND:3 == 0 && TIME:5 != 13
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 우박이 내리기 시작했다！
+			ELSEIF TIME:5 != 5
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+			ENDIF
+	ENDSELECT
+ENDIF
+
+;ダウンバースト発生
+IF CAN_CUMULUS:2 == 2 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 2
+	WIND_VELOCITY = 2
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 거센 바람이다！
+	;ダウンバーストによる作物への影響
+	IF FLAG:지주 > 0
+		FLAG:밭일성과 = MAX(0, FLAG:밭일성과 - 30)
+		IS_STORM_CROP_DAMAGE ++
+	ENDIF
+ELSEIF CAN_CUMULUS:2 == 1 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 1
+	WIND_VELOCITY = 1
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 거세졌다！
+ENDIF
+
+;竜巻発生
+IF CAN_CUMULUS:2 == 2 && RAND:100 == 0 && CFLAG:MASTER:현재위치 != 천계 && !CFLAG:MASTER:우후후 && !지저 && OUTROOF(CFLAG:MASTER:현재위치)
+	SETCOLOR C_RED
+	PRINTW 토네이도다！！
+	RESETCOLOR
+	PRINTL 
+	PRINTW 토네이도에 휘말려 버려서 날아가 버렸다……
+	PRINTL 
+	CALL ASK_DIARY("토네이도와 조우했다")
+	BASE:MASTER:체력 -= 1000
+ENDIF
+
+;-------------------------------------------------
+;9 冬の天気(基本)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_9
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 4, 5, 6, 7, 9
+		LOCAL = 12
+	CASEELSE
+		LOCAL = 24
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		;晴れの時
+		CASE 0
+			;20%で晴天に移行
+			IF RAND:5 == 0
+				SETBIT TIME:5,0
+			;20%で薄曇に移行
+			ELSEIF RAND:5 == 0
+				SETBIT TIME:5,1
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			;5%で曇りに移行
+			ELSEIF RAND:20 == 0
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 구름이 떠올랐다
+			;上記確率に引っかからなかったら晴れ
+			ELSE
+				TIME:5 = 0
+			ENDIF
+		CASE 1
+			;20%で晴れに移行
+			IF RAND:5 == 0
+				CLEARBIT TIME:5,0
+			;20%で薄曇に移行
+			ELSEIF RAND:5 == 0
+				TIME:5 = 2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			ENDIF
+		;曇りの時
+		CASE 2,3
+			;25%で強化or弱体化
+			IF RAND:4 == 0
+				INVERTBIT TIME:5,0
+			ELSE
+				;20%で晴れに移行
+				IF RAND:5 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						IF TIME:2 >= 5 && TIME:2 <= 7
+							PRINTW 별이 보인다
+						ELSE
+							PRINTW 해가 비친다
+						ENDIF
+					ENDIF
+				;薄曇なら10%で雨か雪に移行
+				ELSEIF TIME:5 == 2 && RAND:10 == 0
+					TIME:5 = 8
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 내리기 시작했다！
+					;更に10%の確率で霧雨,細雪に移行
+					SIF RAND:10 == 0
+						SETBIT TIME:5,1
+				;曇りなら30%で雨に移行
+				ELSEIF TIME:5 == 3 && RAND:10 < 3
+					TIME:5 = 8
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 내리기 시작했다！
+				ENDIF
+			ENDIF
+		;雨の時
+		CASE 4,5
+			TIME:5 = 8
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 눈이 내리기 시작했다！
+		;霧・霧雨の時
+		CASE 6, 7
+			TIME:5 = 0
+			IF !CFLAG:MASTER:우후후 && !지저
+				IF TIME:2 >= 5 && TIME:2 <= 7
+					PRINTW 별이 보인다
+				ELSE
+					PRINTW 해가 비친다
+				ENDIF
+				;念のため相合い傘を解除
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+			ENDIF
+		;雪の時
+		CASE IS >= 8
+			;50%の確率で弱体化
+			IF GETBIT(TIME:5,0) && RAND:2
+				CLEARBIT TIME:5,0
+				PRINTW 눈은 약해진 것 같다
+			
+			ELSE
+				;25%で曇りに移行
+				IF RAND:4 == 0
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 그친 것 같다
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				;雪なら10%で細雪かみぞれに移行
+				ELSEIF TIME:5 == 8 && RAND:10 == 0
+					TIME:5 = 10
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈의 결정이 가늘어졌다
+					;更に10%の確率で霧雪,あられに移行
+					SIF RAND:10 == 0
+						SETBIT TIME:5,0
+				;10%で晴れに移行
+				ELSEIF RAND:10 == 0
+					TIME:5 = 0
+					IF !CFLAG:MASTER:우후후 && !지저
+						PRINTFORMW \@ TIME:2 >= 5 && TIME:2 <= 7? 갑자기 밤하늘이 펼쳐졌다！# 갑자기 해가 비친다！\@ 다이아몬드 더스트가 보일지도 모른다
+						FOR LOCAL,0,CHARANUM
+							SIF TEQUIP:LOCAL:201
+								TEQUIP:LOCAL:201 = 0
+						NEXT
+					ENDIF
+					;更に低確率で快晴
+					SIF RAND:100 < 5
+						TIME:5 = 1
+					;雪→晴れを処理したらダイヤモンドダストが出る
+					TIME:7 = 2
+				ENDIF
+			ENDIF
+		CASEELSE
+			TIME:5 = RAND:4
+	ENDSELECT
+ENDIF
+
+;強風である場合風がおさまる
+IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
+	WIND_VELOCITY = 0
+	SIF !지저
+		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+;-------------------------------------------------
+;10 冬の天気(日本海低気圧接近時)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_10
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 0, 1, IS >= 5
+		LOCAL = 12
+	CASEELSE
+		LOCAL = 24
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		;快晴の時
+		CASE 1
+			TIME:5 = 0
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 조금 구름이 끼었다
+		;晴れの時
+		CASE 0
+			;60%で薄曇に移行
+			IF RAND:2 == 0
+				SETBIT TIME:5,1
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 살짝 흐려졌다
+			;10%で曇りに移行
+			ELSEIF RAND:10 == 0
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 하늘이 온통 구름으로 덮였다
+			ENDIF
+		;薄曇の時
+		CASE 2
+			;60%で曇りに移行
+			IF RAND:2 == 0
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 하늘이 온통 구름으로 덮였다
+			;10%で雨・雪に移行
+			ELSEIF RAND:10 == 0
+				;暖気の強さによって雨か雪を区別
+				IF POWER_WARM_AIR >= 3
+					TIME:5 = 4
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 내리기 시작했다！
+				ELSE
+					TIME:5 = 8
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 내리기 시작했다！
+				ENDIF
+			ENDIF
+		;曇の時
+		CASE 3
+			;50%で雨・雪に移行
+			IF RAND:2 == 0
+				;暖気の強さによって雨か雪を区別
+				IF POWER_WARM_AIR >= 3
+					TIME:5 = 4
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 내리기 시작했다！
+				ELSE
+					TIME:5 = 8
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 내리기 시작했다！
+				ENDIF
+			ENDIF
+		;雨の時
+		CASE 4
+			;50%で大雨・大雪に移行
+			IF RAND:2 == 0
+				;暖気の強さによって雨か雪を区別
+				IF POWER_WARM_AIR >= 3
+					TIME:5 = 5
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 억수같이 쏟아진다！
+				ELSE
+					TIME:5 = 9
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 눈으로 변했다！
+				ENDIF
+			ENDIF
+		;雪の時
+		CASE 8
+			;50%で大雨・大雪に移行
+			IF RAND:2 == 0
+				;暖気の強さによって雨か雪を区別
+				IF POWER_WARM_AIR >= 3
+					TIME:5 = 5
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 억수같이 쏟아진다！
+				ELSE
+					TIME:5 = 9
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈발이 거세졌다！
+				ENDIF
+			ENDIF
+		CASE 6, 7, IS >= 10
+			;暖気の強さによって雨か雪を区別
+			IF POWER_WARM_AIR >= 3
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 내리기 시작했다！
+			ELSE
+				TIME:5 = 8
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈이 내리기 시작했다！
+			ENDIF
+	ENDSELECT
+ENDIF
+
+IF (POWER_WARM_AIR >= 4 || IS_SoJ_LOW ==2) && CFLAG:MASTER:현재위치 != 천계
+	IF WIND_VELOCITY == 0
+		WIND_VELOCITY = 1
+		SIF !CFLAG:MASTER:우후후 && !지저
+			PRINTW 바람이 세졌다
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;11 冬の天気(日本海低気圧通過時)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_11
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE IS < 8
+		LOCAL = 12
+	CASEELSE
+		LOCAL = 24
+ENDSELECT
+
+IF IS_SoJ_LOW ==2 && CFLAG:MASTER:현재위치 != 천계
+	IF TIME:5 != 9 || WIND_VELOCITY < 2
+		TIME:5 = 9
+		WIND_VELOCITY = 2
+		IF !CFLAG:MASTER:우후후 && !지저
+			PRINTW 눈보라가 몰아친다！
+			CALL ASK_DIARY("맑개 갠 하늘에서 날씨가 돌변했다")
+		ENDIF
+	ENDIF
+RETURN
+ENDIF
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		CASE IS < 8
+			IF POWER_COLD_AIR < 3
+				TIME:5 = 8
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈이 내리기 시작했다！
+			ELSE
+				TIME:5 = 9
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 大雪になった！
+			ENDIF
+		CASE 8
+			IF POWER_COLD_AIR >= 3
+				IF RAND:3 > 1
+					TIME:5 = 9
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈발이 거세졌다！
+				ELSEIF RAND:3 == 1
+					TIME:5 = 13
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 우박이 내리기 시작했다！
+				ENDIF
+			ENDIF
+		CASE 9
+			IF RAND:3 == 0
+				TIME:5 = 8
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈이 약해진 것 같다
+			ELSEIF RAND:3 == 1
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 우박이 내리기 시작했다！
+			ENDIF
+		CASE 13
+			IF POWER_COLD_AIR >= 3
+				TIME:5 = 9
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈발이 거세졌다！
+			ELSE
+				TIME:5 = 8
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 눈이 내리기 시작했다！
+			ENDIF
+		CASEELSE
+			TIME:5 = 8
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 눈이 내리기 시작했다！
+	ENDSELECT
+ENDIF
+
+;風速変化の確立
+LOCAL:1 = RAND:20
+
+;5%の確率で暴風
+IF LOCAL:1 == 0 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 1 && POWER_COLD_AIR >= 4
+	WIND_VELOCITY = 2
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 더욱 거세졌다！
+;50%の確率で暴風から強風に弱体化
+ELSEIF LOCAL:1 >= 10 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 2
+	WIND_VELOCITY = 1
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 조금 수그러들었다
+ELSEIF LOCAL:1 >= 10 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 0
+	WIND_VELOCITY = 1
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 세졌다
+ENDIF
+
+;-------------------------------------------------
+;12 冬の天気(南岸低気圧接近時)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_12
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 4, 5, 6, 7, 9
+		LOCAL = 12
+	CASEELSE
+		LOCAL = 24
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		;晴れの時
+		CASE 0, 1
+			TIME:5 = 3
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 구름이 떠올랐다
+		;曇りの時
+		CASE 2,3
+			;25%で強化or弱体化
+			IF RAND:4 == 0
+				INVERTBIT TIME:5,0
+			ELSE
+				;薄曇なら25%で雨か雪に移行
+				IF TIME:5 == 2 && RAND:4 == 0
+					TIME:5 = 8
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 내리기 시작했다！
+				;曇りなら50%で雨に移行
+				ELSEIF TIME:5 == 3 && RAND:2 == 0
+					TIME:5 = 8
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 내리기 시작했다！
+				ENDIF
+			ENDIF
+		;雨の時
+		CASE 4,5,6,7
+			TIME:5 = 8
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 눈이 내리기 시작했다！
+		;雪の時
+		CASE IS >= 8
+			;10%で強化
+			IF !GETBIT(TIME:5,0) && RAND:10 == 0
+				SETBIT TIME:5,0
+				PRINTW 눈발이 거세졌다！
+			;50%の確率で弱体化
+			ELSEIF GETBIT(TIME:5,0) && RAND:2
+				CLEARBIT TIME:5,0
+				PRINTW 눈은 약해진 것 같다
+			
+			ELSE
+				;25%で曇りに移行
+				IF RAND:4 == 0
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 그친 것 같다
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				;雪なら10%で細雪かみぞれに移行
+				ELSEIF TIME:5 == 8 && RAND:10 == 0
+					TIME:5 = 10
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈의 결정이 가늘어졌다
+					;更に10%の確率で霧雪,あられに移行
+					SIF RAND:10 == 0
+						SETBIT TIME:5,0
+				ENDIF
+			ENDIF
+		CASEELSE
+			TIME:5 = 8
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 눈이 내리기 시작했다！
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+;13 冬の天気(寒冷渦接近時)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_13
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 3
+		LOCAL = 16
+	CASE 8, 13
+		LOCAL = 24
+	CASE 9
+		LOCAL = 48
+	CASEELSE
+		LOCAL = 12
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		;曇り
+		CASE 3
+			SELECTCASE RAND:5
+				CASE 0
+					TIME:5 = 13
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 우박이 내리기 시작했다！
+				CASE 1, 2
+					TIME:5 = 8
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 내리기 시작했다！
+				CASEELSE
+					TIME:5 = 9
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 내리기 시작했다！폭설이다
+			ENDSELECT
+		;雪
+		CASE 8
+			SELECTCASE RAND:5
+				CASE 0
+					TIME:5 = 13
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 우박이 내리기 시작했다！
+				CASE 1
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW  눈이 그친 것 같다
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				CASEELSE
+					TIME:5 = 9
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈발이 거세졌다！
+			ENDSELECT
+		;大雪
+		CASE 9
+			SELECTCASE RAND:5
+				CASE 0
+					TIME:5 = 13
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 우박이 내리기 시작했다！
+				CASE 1
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW  눈이 그친 것 같다
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				CASEELSE
+					TIME:5 = 8
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈은 약해진 것 같다
+			ENDSELECT
+		;あられ
+		CASE 13
+			SELECTCASE RAND:4
+				CASE 0
+					TIME:5 = 8
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈이 내리기 시작했다！
+				CASEELSE
+					TIME:5 = 9
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 눈발이 거세졌다！
+			ENDSELECT
+		CASEELSE
+			TIME:5 = 9
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 눈이 내리기 시작했다！폭설이다
+		ENDSELECT
+ENDIF
+
+;風速変化の確立
+LOCAL:1 = RAND:20
+
+;10%の確率で暴風
+IF LOCAL:1 == 0 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 1
+	WIND_VELOCITY = 2
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 더욱 거세졌다！
+;50%の確率で暴風から強風に弱体化
+ELSEIF LOCAL:1 >= 10 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 2
+	WIND_VELOCITY = 1
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 조금 수그러들었다
+ELSEIF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 0
+	WIND_VELOCITY = 1
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 세졌다
+ENDIF
+
+;-------------------------------------------------
+;14 梅雨・秋雨の天気(基本)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_14
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 1
+		LOCAL = 16
+	CASE 2, 3
+		LOCAL = 24
+	CASE 4
+		LOCAL = 48
+	CASEELSE
+		LOCAL = 12
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		CASE 1
+			TIME:5 = 2
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 조금 구름이 끼었다
+		CASE 2
+			IF RAND:4 == 0
+				IF !CFLAG:MASTER:우후후 && !지저
+					IF TIME:2 >= 5 && TIME:2 <= 7
+						PRINTW 별이 보인다
+					ELSE
+						PRINTW 해가 비친다
+					ENDIF
+				ENDIF
+			ELSE
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 구름이 두꺼워졌다
+			ENDIF
+		CASE 3
+			IF RAND:3 == 0
+				TIME:5 = 2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 구름이 걷혀간다
+			ELSE
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 내리기 시작했다！
+			ENDIF
+		CASE 4
+			IF RAND:3 == 0
+				TIME:5 = 0
+				IF !CFLAG:MASTER:우후후 && !지저
+					;かもしれないといいつつ確実に見えるのは気分をよくさせる魔法
+					IF TIME:2 >= 5 && TIME:2 <= 7
+						PRINTW 갑자기 밤하늘이 펼쳐졌다！달무지개가 보일지도 모른다
+					ELSE
+						PRINTW 갑자기 해가 비친다！무지개가 보일지도 모른다
+					ENDIF
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+				ENDIF
+				;雨→晴れを処理したら虹が出る
+				TIME:7 = 1
+				;市場が開かれる
+				FLAG:시장의신 = 1
+			ELSE
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 그친 것 같다
+				;念のため相合い傘を解除
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+			ENDIF
+		CASEELSE
+			TIME:5 = 3
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 구름이 두꺼워졌다
+	ENDSELECT
+ENDIF
+
+;強風である場合風がおさまる
+IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
+	WIND_VELOCITY = 0
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+;-------------------------------------------------
+;15 梅雨・秋雨(梅雨末期・秋雨+台風接近)・先駆降雨帯発生時の天気
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_15
+#DIM 지저
+#DIM 활발화플래그
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 3
+		LOCAL = 16
+	CASE 4, 5
+		LOCAL = 24
+	CASEELSE
+		LOCAL = 12
+ENDSELECT
+
+활발화플래그 = 0
+SIF POWER_WARM_AIR == 5 || GET_LOCATION_LOW() == "台風勢力圏"
+	활발화플래그 = 1
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		CASE 3
+			IF 활발화플래그 == 1
+				IF RAND:3 == 0
+					TIME:5 = 5
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 억수같이 쏟아진다！
+				ELSEIF RAND:2 == 0
+					TIME:5 = 13
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 우박이 내리기 시작했다！
+				ELSE
+					TIME:5 = 4
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 내리기 시작했다！
+				ENDIF
+			ELSE
+				IF RAND:4 == 0
+					TIME:5 = 5
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 억수같이 쏟아진다！
+				ELSE
+					TIME:5 = 4
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 내리기 시작했다！
+				ENDIF
+			ENDIF
+		CASE 4
+			IF 활발화플래그 == 1
+				IF RAND:3 != 0
+					TIME:5 = 5
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 억수같이 쏟아진다！
+				ELSEIF RAND:2 == 0
+					TIME:5 = 13
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 우박이 내리기 시작했다！
+				ELSE
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 그친 것 같다
+					;念のため相合い傘を解除
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				ENDIF
+			ELSE
+				IF RAND:2 != 0
+					TIME:5 = 5
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 억수같이 쏟아진다！
+				ELSE
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 그친 것 같다
+					;念のため相合い傘を解除
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				ENDIF
+			ENDIF
+		CASE 5
+			IF 활발화플래그 == 1
+				IF RAND:2 != 0
+					TIME:5 = 13
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 우박이 내리기 시작했다！
+				ELSE
+					TIME:5 = 4
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 약해졌다
+				ENDIF
+			ELSE
+				IF RAND:2 != 0
+					TIME:5 = 4
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 약해졌다
+				ELSE
+					TIME:5 = 3
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 비가 그친 것 같다
+					;念のため相合い傘を解除
+					FOR LOCAL,0,CHARANUM
+						SIF TEQUIP:LOCAL:201
+							TEQUIP:LOCAL:201 = 0
+					NEXT
+				ENDIF
+			ENDIF
+		CASE 13
+			TIME:5 = 5
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 억수같이 쏟아진다！
+		CASEELSE
+			TIME:5 = 4
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 비가 내리기 시작했다！
+	ENDSELECT
+ENDIF
+
+;強風である場合風がおさまる
+IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
+	WIND_VELOCITY = 0
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+;-------------------------------------------------
+;16 台風接近時の天気(基本)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_16
+#DIM 지저
+#DIM 현재태풍위치
+#DIMS 저기압위치
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 3
+		LOCAL = 16
+	CASE 4, 5
+		LOCAL = 24
+	CASEELSE
+		LOCAL = 12
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		CASE 3
+			IF RAND:2 == 0
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+			ELSEIF RAND:2 == 0
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 우박이 내리기 시작했다！
+			ELSE
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 내리기 시작했다！
+			ENDIF
+		CASE 4
+			IF RAND:2 != 0
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+			ELSEIF RAND:2 == 0
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 우박이 내리기 시작했다！
+			ELSE
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 그친 것 같다
+				;念のため相合い傘を解除
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+			ENDIF
+		CASE 5
+			IF RAND:2 != 0
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 우박이 내리기 시작했다！
+			ELSE
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 약해졌다
+			ENDIF
+		CASE 13
+			TIME:5 = 5
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 억수같이 쏟아진다！
+		CASEELSE
+			TIME:5 = 4
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 비가 내리기 시작했다！
+	ENDSELECT
+ENDIF
+
+SELECTCASE GET_LOCATION_LOW()
+	CASE "台風接近強風域", "台風通過強風域"
+		현재태풍위치 = 1
+	CASE "台風接近暴風域", "台風通過暴風域", "台風最接近"
+		현재태풍위치 = 2
+ENDSELECT
+
+IF CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE WIND_VELOCITY
+		CASE 0
+			IF 현재태풍위치 == 1
+				WIND_VELOCITY = 1
+				IF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 바람이 거세졌다！
+					저기압위치 = %GET_LOCATION_LOW()%
+					SIF 저기압위치 == "台風接近強風域"
+						CALL ASK_DIARY("태풍이 몰아쳤다")
+				ENDIF
+			ELSEIF 현재태풍위치 == 2
+				WIND_VELOCITY = 2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 바람이 갑자기 거세졌다！
+			ENDIF
+		CASE 1
+			IF 현재태풍위치 == 2
+				WIND_VELOCITY = 2
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 더욱 바람이 거세졌다！
+				;台風直撃による作物への影響
+				IF FLAG:지주 > 0
+					IF IS_TYPHOON:2 == 2
+						FLAG:밭일성과 = MAX(0, FLAG:밭일성과 - 30)
+						IS_STORM_CROP_DAMAGE ++
+					ENDIF
+				ENDIF
+			ENDIF
+		CASE 2
+			IF 현재태풍위치 == 1
+				WIND_VELOCITY = 1
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 아까보다 바람이 약해졌다
+			ENDIF
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+;17 台風接近時の天気(台風の目)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_17
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+IF CFLAG:MASTER:현재위치 != 천계
+	IF IS_TYPHOON:1 < 3 && (TIME:5 != 2 || WIND_VELOCITY != 0)
+		TIME:5 = 2
+		WIND_VELOCITY = 0
+		SIF !CFLAG:MASTER:우후후 && !지저
+			PRINTW 바람이 잔잔해졌다
+		;念のため相合い傘を解除
+		FOR LOCAL,0,CHARANUM
+			SIF TEQUIP:LOCAL:201
+				TEQUIP:LOCAL:201 = 0
+		NEXT
+	ELSEIF TIME:5 != 0 || WIND_VELOCITY != 0
+		TIME:5 = 0
+		WIND_VELOCITY = 0
+		SIF !CFLAG:MASTER:우후후 && !지저
+			PRINTW 바람이 잔잔해졌다
+		;念のため相合い傘を解除
+		FOR LOCAL,0,CHARANUM
+			SIF TEQUIP:LOCAL:201
+				TEQUIP:LOCAL:201 = 0
+		NEXT
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;18 霧の天気
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_18
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 6, 7, 10
+		LOCAL = 24
+	CASEELSE
+		LOCAL = 12
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		CASE 6
+			TIME:5 = 7
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 비가 그쳤다
+			;念のため相合い傘を解除
+			FOR LOCAL,0,CHARANUM
+				SIF TEQUIP:LOCAL:201
+					TEQUIP:LOCAL:201 = 0
+			NEXT
+		CASE 10
+			TIME:5 = 7
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 눈이 그쳤다
+			;念のため相合い傘を解除
+			FOR LOCAL,0,CHARANUM
+				SIF TEQUIP:LOCAL:201
+					TEQUIP:LOCAL:201 = 0
+			NEXT
+		CASE 7
+			IF DAY:2 == 4
+				TIME:5 = 10
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 가루눈이 되었다
+			ELSE
+				TIME:5 = 6
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 이슬비가 되었다
+			ENDIF
+		CASEELSE
+			IF RAND:2 == 0
+				TIME:5 = 7
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 안개가 끼기 시작했다
+				;念のため相合い傘を解除
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+			ELSEIF DAY:2 == 4
+				TIME:5 = 10
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 가루눈이 되었다
+			ELSE
+				TIME:5 = 6
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 이슬비가 되었다
+			ENDIF
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+;19 疑似好天
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_19
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+IF CFLAG:MASTER:현재위치 != 천계
+	IF TIME:5 != 1 || WIND_VELOCITY != 0
+		TIME:5 = 1
+		WIND_VELOCITY = 0
+		SIF !CFLAG:MASTER:우후후 && !지저
+			PRINTW 하늘이 맑게 개었다！！
+		FOR LOCAL,0,CHARANUM
+			SIF TEQUIP:LOCAL:201
+				TEQUIP:LOCAL:201 = 0
+		NEXT
+	ENDIF
+ENDIF
+

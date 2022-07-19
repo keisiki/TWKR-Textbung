@@ -153,6 +153,8 @@ IF CFLAG:CHARA:대체적용
 			;顔絵
 		ELSE
 			;立ち絵
+			SIF INRANGE(NUDITYCHECK(CHARA), 1, 3) && !TCVAR:CHARA:350
+				RESULTS = _下着
 		ENDIF
 	ELSE
 		;服
@@ -206,13 +208,18 @@ ENDIF
 @IMAGE_I55_体形(CHARA)
 #DIM CHARA
 VARSET RESULTS
-
+SIF TCVAR:CHARA:350
+	RETURN
 IF CFLAG:CHARA:대체적용
 	;差し替え画像
 	IF FLAG:스탠딩종류
 		;顔絵
 	ELSE
 		;立ち絵
+		SIF TALENT:CHARA:가슴사이즈 >= 2
+			RESULTS += "爆乳"
+		SIF CFLAG:CHARA:임신경과일수 >= 40
+			RESULTS += "妊娠"
 	ENDIF
 ELSE
 	;通常画像
@@ -238,8 +245,11 @@ IF CFLAG:CHARA:대체적용
 	;差し替え画像
 	IF FLAG:스탠딩종류
 		;顔絵
-	ELSE
+	ELSEIF TCVAR:CHARA:350
 		;立ち絵
+		RESULTS:0 = 通常
+		RESULTS:1 = 通常２
+		
 	ENDIF
 ELSE
 	;通常画像
@@ -261,13 +271,19 @@ ENDIF
 @IMAGE_I55_特殊表情COM(CHARA, コマンド)
 #DIM CHARA
 #DIM コマンド
-
+SIF TCVAR:CHARA:350
+	RETURN
 IF CFLAG:CHARA:대체적용
 	;差し替え画像
 	IF FLAG:스탠딩종류
 		;顔絵
 	ELSE
 		;立ち絵
+		SIF 絶頂判定(CHARA) || 絶頂判定2(CHARA)
+			RESULTS:1 = 絶頂
+		;うふふかつ絶頂時2/3でマウスオーバーと表情交代
+		SIF RAND:3 && CFLAG:CHARA:우후후 && 絶頂判定(CHARA)
+			SWAP RESULTS:0, RESULTS:1
 	ENDIF
 ELSE
 	;通常画像
@@ -295,6 +311,11 @@ IF CFLAG:CHARA:대체적용
 		;顔絵
 	ELSE
 		;立ち絵
+		IF TCVAR:CHARA:350 == (1 + CHECK_NUDE(CHARA))
+			RESULTS = _コマンド
+		ELSE
+			TCVAR:CHARA:350 = 0
+		ENDIF
 	ENDIF
 ELSE
 	;通常画像
@@ -397,6 +418,10 @@ ENDIF
 
 IF CFLAG:CHARA:대체적용
 	;差し替え画像
+	SIF STRFIND(エフェクト, "胎内") != -1
+		RETURN 1
+	SIF STRFIND(エフェクト, "テレテレ") != -1
+		RETURN 1
 ELSE
 	;通常画像
 	SIF STRFIND(エフェクト, "母乳") != -1
@@ -419,12 +444,38 @@ RETURN 0
 #DIM CHARA
 #DIM DYNAMIC エフェクト数 = 0
 VARSET RESULTS
+SIF TCVAR:CHARA:350
+	RETURN
 
 IF CFLAG:CHARA:대체적용
 	;差し替え画像
 	IF FLAG:스탠딩종류
 		;顔絵
 	ELSE
+		;お腹撫でコマンドで受精時
+		IF SELECTCOM == 306 && CFLAG:CHARA:임신경과일수
+			SELECTCASE CFLAG:CHARA:임신경과일수
+				CASE 1 TO 9
+					RESULTS:エフェクト数 = 胎内0
+				CASE 10 TO 19
+					RESULTS:エフェクト数 = 胎内1
+				CASE 20 TO 29
+					RESULTS:エフェクト数 = 胎内2
+				CASE 30 TO 39
+					RESULTS:エフェクト数 = 胎内3
+				CASE 40 TO 59
+					RESULTS:エフェクト数 = 胎内4
+				CASE 60 TO 70
+					RESULTS:エフェクト数 = 胎内5
+				CASE 71 TO 100
+					RESULTS:エフェクト数 = 胎内6
+			ENDSELECT
+			エフェクト数 ++
+		;開帳コマンド
+		ELSEIF GROUPMATCH(SELECTCOM, 8, 13)
+			RESULTS:エフェクト数 = テレテレ
+			エフェクト数 ++
+		ENDIF
 		;立ち絵
 	ENDIF
 ELSE

@@ -1,7 +1,4 @@
-﻿;-------------------------------------------------
-;술집
-;외출 커맨드
-;-------------------------------------------------
+﻿
 @COM619
 #DIM 店員
 #DIMS 表情
@@ -49,18 +46,18 @@ ELSEIF RESULT != 0
 ENDIF
 
 FLAG:마지막에술집에방문한날 = DAY
-IF FLAG:술집누적전매이익 > 3000000 && FLAG:술집매각율플래그 == 2
-	FLAG:술집매각율플래그 = 3
+IF FLAG:술집누적전매이익 > 3000000 && FLAG:술집매각률플래그 == 2
+	FLAG:술집매각률플래그 = 3
 	PRINTL 
 	PRINTFORML 가게에서 나가려 했는데 불러 세웠다
 	台詞 = 「두둑하게 술을 조달해줘서 정말 살겠어∼, 앞으로는 매입 금액 더 쳐줄게」
-ELSEIF FLAG:술집누적전매이익 > 1000000 && FLAG:술집매각율플래그 == 1
-	FLAG:술집매각율플래그 = 2
+ELSEIF FLAG:술집누적전매이익 > 1000000 && FLAG:술집매각률플래그 == 1
+	FLAG:술집매각률플래그 = 2
 	PRINTL 
 	PRINTFORML 가게에서 나가려 했는데 불러 세웠다
 	台詞 = 「두둑하게 술을 조달해줘서 살겠어―, 매입 금액 더 쳐줄 테니 더 조달해주지 않을래?」
-ELSEIF FLAG:술집누적전매이익 > 100000 && FLAG:술집매각율플래그 == 0
-	FLAG:술집매각율플래그 = 1
+ELSEIF FLAG:술집누적전매이익 > 100000 && FLAG:술집매각률플래그 == 0
+	FLAG:술집매각률플래그 = 1
 	PRINTL 
 	PRINTFORML 가게에서 나가려 했는데 불러 세웠다
 	台詞 = 「늘 술을 조달해줘서 고마워. 사례로 다음 번부터 매입 금액 더 쳐줄게―」
@@ -134,109 +131,97 @@ ELSE
 ENDIF
 
 @술도매
-#DIM 할인율
+#DIM 매각률
 #DIM 소지수
 #DIM 선택한상품
 #DIM 매각개수
 #DIM 매각액
 
-SELECTCASE FLAG:술집매각율플래그
+SELECTCASE FLAG:술집매각률플래그
 	CASE 0
-		;할인율을 90%로 설정(정가의 10%로 구입해 준다)
-		할인율 = 90
+		;매각률을 90%로 설정(정가의 10%로 구입해 준다)
+		매각률 = 90
 	CASE 1
-		;할인율을 85%로 설정(정가의 15%로 구입해 준다)
-		할인율 = 85
+		;매각률을 85%로 설정(정가의 15%로 구입해 준다)
+		매각률 = 85
 	CASE 2
-		;할인율을 80%로 설정(정가의 20%로 구입해 준다)
-		할인율 = 80
+		;매각률을 80%로 설정(정가의 20%로 구입해 준다)
+		매각률 = 80
 	CASE 3
-		;할인율을 70%로 설정(정가의 30%로 구입해 준다)
-		할인율 = 70
+		;매각률을 70%로 설정(정가의 30%로 구입해 준다)
+		매각률 = 70
 ENDSELECT
 SIF FLAG:술집매입강화
-	할인율 -= 20
+	매각률 -= 20
 $INPUT_LOOP2
 DRAWLINE
 PRINT 「
 IF FLAG:술집매입강화
 	PRINT 매입 강화 캠페인중이니까 특별히
-ELSEIF FLAG:술집매각율플래그
+ELSEIF FLAG:술집매각률플래그
 	PRINT 고객이니까 특별히
 ENDIF
-PRINTFORML 정가의 {100 - 할인율}\%로 살게」
+PRINTFORML 정가의 {100 - 매각률}\%로 살게」
 DRAWLINE
 PRINT 무엇을 팔까…  
 PRINTFORML 소지금:%금액표시(MONEY)%
-FOR LOCAL, GETNUM(ITEM, "탁주"), GETNUM(ITEM, "오니고로시") + 1
-	LOCALS = [{LOCAL}]%ITEMNAME:(LOCAL)%
-	IF ITEMPRICE:LOCAL
-		PRINTFORML %LOCALS%	(\\{ITEMPRICE:(LOCAL) * (100 - 할인율) / 100})  	(소지:{ITEM:LOCAL})
-	ENDIF
-NEXT
-PRINT [100] - 돌아간다
-$INPUT_LOOP
-INPUT
-IF RESULT == 100
+CALL 술일람표시(0, "매각", 매각률)
+IF RESULT == 0
 	RETURN -1
-ELSEIF INRANGE(RESULT, GETNUM(ITEM, "탁주"), GETNUM(ITEM, "오니고로시"))
-	;선택한 번호에 따라 소지수를 격납
-	소지수 = ITEM:RESULT
-	
-	;소지 0의 경우
-	IF 소지수 == 0
-		PRINTL 
-		PRINTL 물건이 없기에 팔고 싶어도 팔 수 없다
-	;소지 0으로 없는 경우 개수를 묻는다
-	ELSE
-		;다시 한번 INPUT를 사용하기 때문에 지금의 값을 퇴피
-		선택한상품 = RESULT
-		매각개수 = 0
-		$SELL_LOOP
-		PRINTFORML %ITEMNAME:선택한상품%를 몇 개 팔까…
-		PRINTFORML 파는 수：{매각개수}
-		PRINTFORML [-100]　[ -10]　[  -1]　[  +1]　[ +10]　[+100]
-		PRINTBUTTON "[전부] ", 999
-		PRINTBUTTON " [리셋]", -999
-		PRINTL 
-		PRINTBUTTON "[판다]", 0
-		INPUT
-		IF RESULT
-			IF RESULT == 999
-				매각개수 = 소지수
-			ELSEIF RESULT == -999
-				매각개수 = 0
-			ELSE
-				매각개수 = LIMIT(매각개수 + RESULT, 0, 소지수)
-			ENDIF
-			CLEARLINE 6
-			GOTO SELL_LOOP
-		ENDIF
-		IF 매각개수 <= 0
-			PRINTL 
-			PRINTL 역시 파는 건 그만두자
-			GOTO INPUT_LOOP2
-		ENDIF
-		IF 매각개수 > 소지수
-			PRINTL 
-			PRINTL 그렇게나 많이 가지고 있지 않다
-			GOTO INPUT_LOOP2
-		ENDIF
-		
-		;1개당의 매각값을 산출
-		매각액 = ITEMPRICE:선택한상품 * (100 - 할인율) / 100
-		ITEM:선택한상품 -= 매각개수
-		MONEY += 매각액 * 매각개수
-		;가게는 정가의 80%로 판매
-		FLAG:술집누적전매이익 += ITEMPRICE:선택한상품 * (할인율 - 20) / 100 * 매각개수
-		PRINTFORMW %ITEMNAME:선택한상품%를 ￥{매각액*매각개수}로 {매각개수}개 매각했습니다
-		;판매개수를 증가시키는 처리
-		ITEMSALES:선택한상품 += 매각개수
-	ENDIF
-	GOTO INPUT_LOOP2
-ELSE
-	GOTO INPUT_LOOP
 ENDIF
+;選んだ番号にしたがって소지수を格納
+소지수 = ITEM:RESULT
+;所持0の場合
+IF 소지수 == 0
+	PRINTL 
+		PRINTL 물건이 없기에 팔고 싶어도 팔 수 없다
+	RETURN -1
+ENDIF
+;所持0で無い場合個数を尋ねる
+;もう一回INPUTを使うため今の値を退避
+선택한상품 = RESULT
+매각개수 = 0
+$SELL_LOOP
+PRINTFORML %조사처리(ITEMNAME:선택한상품,"을")% 몇 개 팔까…
+PRINTFORML 판매 수：{매각개수}
+PRINTFORML [-100]　[ -10]　[  -1]　[  +1]　[ +10]　[+100]
+PRINTBUTTON "[전부] ", 999
+PRINTBUTTON " [리셋]", -999
+PRINTL 
+PRINTBUTTON "[판다]", 0
+INPUT
+IF RESULT
+	IF RESULT == 999
+		매각개수 = 소지수
+	ELSEIF RESULT == -999
+		매각개수 = 0
+	ELSE
+		매각개수 = LIMIT(매각개수 + RESULT, 0, 소지수)
+	ENDIF
+	CLEARLINE 6
+	GOTO SELL_LOOP
+ENDIF
+IF 매각개수 <= 0
+	PRINTL 
+	PRINTL 역시 파는 건 그만두자
+	GOTO INPUT_LOOP2
+ENDIF
+IF 매각개수 > 소지수
+	PRINTL 
+	PRINTL 그렇게나 많이 가지고 있지 않다
+	GOTO INPUT_LOOP2
+ENDIF
+	
+;一つあたりの매각액を算出
+매각액 = ITEMPRICE:선택한상품 * 매각률 / 100
+ITEM:선택한상품 -= 매각개수
+MONEY += 매각액 * 매각개수
+;お店は定価の80％で販売
+FLAG:술집누적전매이익 += ITEMPRICE:선택한상품 * (80 - 매각률) / 100 * 매각개수
+PRINTFORMW %조사처리(ITEMNAME:선택한상품,"을")% %금액표시(매각액 * 매각개수)%로 {매각개수}개 매각했습니다
+;販売個数を増加させる処理
+ITEMSALES:선택한상품 += 매각개수
+GOTO INPUT_LOOP2
 
 ;-------------------------------------------------
 ;在庫の変動
@@ -246,15 +231,15 @@ ENDIF
 #DIM 재고증가수
 ;宴会前日は酒が品薄に
 IF FLAG:개시일 == DAY + 1
-	ITEMSALES:탁주 += RAND:(2 + FLAG:술집매각율플래그 * 1)
-	ITEMSALES:청주     += RAND:(2 + FLAG:술집매각율플래그 * 1)
-	ITEMSALES:오니고로시   += RAND:(1 + FLAG:술집매각율플래그 * 1)
-	ITEMSALES:감주     += RAND:(3 + FLAG:술집매각율플래그 * 2)
+	ITEMSALES:탁주 += RAND:(2 + FLAG:술집매각률플래그 * 1)
+	ITEMSALES:청주     += RAND:(2 + FLAG:술집매각률플래그 * 1)
+	ITEMSALES:오니고로시   += RAND:(1 + FLAG:술집매각률플래그 * 1)
+	ITEMSALES:감주     += RAND:(3 + FLAG:술집매각률플래그 * 2)
 ELSE
-	ITEMSALES:탁주 += RAND:(3 + FLAG:술집매각율플래그 * 3)
-	ITEMSALES:청주     += RAND:(3 + FLAG:술집매각율플래그 * 2)
-	ITEMSALES:오니고로시   += RAND:(2 + FLAG:술집매각율플래그 * 1)
-	ITEMSALES:감주     += RAND:(4 + FLAG:술집매각율플래그 * 3)
+	ITEMSALES:탁주 += RAND:(3 + FLAG:술집매각률플래그 * 3)
+	ITEMSALES:청주     += RAND:(3 + FLAG:술집매각률플래그 * 2)
+	ITEMSALES:오니고로시   += RAND:(2 + FLAG:술집매각률플래그 * 1)
+	ITEMSALES:감주     += RAND:(4 + FLAG:술집매각률플래그 * 3)
 ENDIF
 ;累積購入額に応じても在庫が増加
 IF FLAG:술집에서누적구입액

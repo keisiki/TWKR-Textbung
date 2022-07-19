@@ -184,7 +184,8 @@ SELECTCASE TIME
 	CASE 0 TO 239, IS >= 1380
 		LOCAL = 7
 ENDSELECT
-
+;(天候パッチ)現在の天候傾向を判定
+CALL CHANGE_WEATHER_SYSTEM
 
 IF LOCAL != TIME:2
 	TIME:2 = LOCAL
@@ -223,7 +224,7 @@ IF FLAG:이상기상
 	RETURNF 표시_이상기상:(FLAG:이상기상)
 ENDIF
 SIF !STRLENS(LOCALS)
-	SPLIT "맑음/쾌청/약간흐림/흐림/비/폭우/이슬비/안개/눈/눈보라/가루눈/안개눈/진눈깨비/우박", "/", LOCALS
+	SPLIT "맑음/쾌청/약간흐림/흐림/비/폭우/이슬비/안개/눈/폭설/가루눈/안개눈/진눈깨비/우박", "/", LOCALS
 RETURNF LOCALS:(TIME:5)
 
 ;-------------------------------------------------
@@ -369,226 +370,13 @@ SIF FLAG:이상기상
 	RETURN
 SIF TIME:5 > 15
 	TIME:5 = 0
-;날씨 변화 확률(표준은50%)
-SELECTCASE TIME:5
-	CASE 5
-		LOCAL = 16
-	CASE 9
-		IF DAY:2 == 2
-			LOCAL = 12
-		ELSE
-			LOCAL = 16
-		ENDIF
-	CASE IS >= 8
-		IF DAY:2 == 4
-			LOCAL = 24
-		ELSEIF DAY:2 == 2
-			LOCAL = 12
-		ELSE
-			LOCAL = 16
-		ENDIF
-	CASEELSE
-		LOCAL = 24
-ENDSELECT
+;(天候パッチ)天候変更禁止ならば処理終了
+SIF FORBIDDEN_CHANGE_WEATHER == 1
+	RETURN
+	
+;(天候パッチ)新しい天候管理システムへ
+TRYCALLFORM CHANGE_WEATHER_SYSTEM_{NOW_WEATHER_CONTROL}
 
-IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
-	;날씨 변화 발생으로 무지개는 사라진다
-	;TIME:7 = 0
-	SELECTCASE TIME:5
-		;개이고의 때
-		CASE 0
-			;20%로 맑은 하늘에 이행
-			IF RAND:5 == 0
-				SETBIT TIME:5, 0
-			;20%로 박담에 이행
-			ELSEIF RAND:5 == 0
-				SETBIT TIME:5, 1
-				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 살짝 흐려졌다
-			;5%로 흐림에 이행
-			ELSEIF RAND:20 == 0
-				TIME:5 = 3
-				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 구름이 나왔다
-			;상기 확률에 걸리지 않았으면 맑음
-			ELSE
-				TIME:5 = 0
-			ENDIF
-		CASE 1
-			;20%로 맑음에 이행
-			IF RAND:5 == 0
-				CLEARBIT TIME:5, 0
-			;20%로 박담에 이행
-			ELSEIF RAND:5 == 0
-				TIME:5 = 2
-				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 살짝 흐려졌다
-			ENDIF
-		;흐림때
-		CASE 2,3
-			;25%로 강화 or약체화
-			IF RAND:4 == 0
-				INVERTBIT TIME:5, 0
-			ELSE
-				;20%로 맑음에 이행
-				IF RAND:5 == 0
-					TIME:5 = 0
-					IF !CFLAG:MASTER:우후후 && !지저
-						IF TIME:2 >= 5 && TIME:2 <= 7
-							PRINTW 별이 보인다
-						ELSE
-							PRINTW 해가 비친다
-						ENDIF
-					ENDIF
-				;박담이라면10%로 비나 눈에 이행
-				ELSEIF TIME:5 == 2 && RAND:10 == 0
-					IF DAY:2 == 4 && RAND:5
-						TIME:5 = 8
-						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 눈이 내리기 시작했다!
-					ELSE
-						TIME:5 = 4
-						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 비가 내리기 시작했다!
-					ENDIF
-					;더욱10%의 확률로 안개비, 가루눈에 이행
-					SIF RAND:10 == 0
-						SETBIT TIME:5, 1
-				;흐림이라면30%로 비에 이행
-				ELSEIF TIME:5 == 3 && RAND:10 < 3
-					IF DAY:2 == 4 && RAND:5
-						TIME:5 = 8
-						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 눈이 내리기 시작했다!
-					ELSE
-						TIME:5 = 4
-						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 비가 내리기 시작했다!
-					ENDIF
-				ENDIF
-			ENDIF
-		;비때
-		CASE 4,5,6,7
-			;25%로 강화 or약체화
-			IF RAND:4 == 0
-				INVERTBIT TIME:5, 0
-				IF TIME:5 == 5
-					PRINTW 비가 억수같이 쏟아진다!
-				ELSE
-					PRINTW 비가 약해졌다
-				ENDIF
-			ELSE
-				;25%로 흐림에 이행
-				IF RAND:4 == 0
-					TIME:5 = 3
-					SIF !CFLAG:MASTER:우후후 && !지저
-						PRINTW 비가 그친 것 같다
-					;만약을 위해 한우산을씀을 해제
-					FOR LOCAL, 0, CHARANUM
-						SIF TEQUIP:LOCAL:201
-							TEQUIP:LOCAL:201 = 0
-					NEXT
-				;비라면10%로 안개비인가 진눈깨비에 이행
-				ELSEIF TIME:5 == 4 && RAND:10 == 0
-					IF DAY:2 == 4
-						TIME:5 = 12
-						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 눈이 약간 섞여있다
-					ELSE
-						TIME:5 = 6
-						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 빗줄기가 가늘어졌다
-					;더욱10%의 확률로 안개, 뻥튀기에 이행
-					SIF RAND:10 == 0
-						SETBIT TIME:5, 0
-					ENDIF
-				;10%로 맑음에 이행
-				ELSEIF RAND:10 == 0
-					TIME:5 = 0
-					IF !CFLAG:MASTER:우후후 && !지저
-						;일지도 모르면 좋은 개개 확실히 보이는 것은 기분을 자주(잘) 시키는 마법
-						IF TIME:2 >= 5 && TIME:2 <= 7
-							PRINTW 갑자기 밤하늘이 개었다! 달무리가 보일지도 모르겠다
-						ELSE
-							PRINTW 갑자기 해가 비쳤다! 무지개가 보일지도 모르겠다
-						ENDIF
-					FOR LOCAL, 0, CHARANUM
-						SIF TEQUIP:LOCAL:201
-							TEQUIP:LOCAL:201 = 0
-					NEXT
-					ENDIF
-					;더욱 저확률로 쾌청
-					SIF RAND:100 < 5
-						TIME:5 = 1
-					;비→개이고를 처리하면(자) 무지개가 나온다
-					TIME:7 = 1
-					;시장이 열린다
-					FLAG:시장의신 = 1
-				ENDIF
-			ENDIF
-		;눈때
-		CASE IS >= 8
-			;눈은 겨울 이외 내리지 않는다
-			IF DAY:2 != 4
-				;비가 내린다
-				CLEARBIT TIME:5, 3
-				SETBIT TIME:5, 2
-				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 눈은 비로 바뀐 것 같다
-			;10%로 강화
-			ELSEIF !GETBIT(TIME:5, 0) && RAND:10 == 0
-				SETBIT TIME:5, 0
-				PRINTW 눈보라치기 시작했다!
-			;50%의 확률로 약체화
-			ELSEIF GETBIT(TIME:5, 0) && RAND:2
-				CLEARBIT TIME:5, 0
-				PRINTW 눈보라는 약해진 것 같다
-			
-			ELSE
-				;25%로 흐림에 이행
-				IF RAND:4 == 0
-					TIME:5 = 3
-					SIF !CFLAG:MASTER:우후후 && !지저
-						PRINTW 눈이 그친 것 같다
-					FOR LOCAL, 0, CHARANUM
-						SIF TEQUIP:LOCAL:201
-							TEQUIP:LOCAL:201 = 0
-					NEXT
-				;눈이라면10%로 가루눈이나 진눈깨비에 이행
-				ELSEIF TIME:5 == 8 && RAND:10 == 0
-					IF RAND:2
-						TIME:5 = 10
-						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 눈송이가 작아졌다
-					ELSE
-						TIME:5 = 12
-						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 비도 약간 섞여있다
-					ENDIF
-					;더욱10%의 확률로 안개눈, 우박에 이행
-					SIF RAND:10 == 0
-						SETBIT TIME:5, 0
-				;10%로 맑음에 이행
-				ELSEIF RAND:10 == 0
-					TIME:5 = 0
-					IF !CFLAG:MASTER:우후후 && !지저
-						PRINTFORMW \@ TIME:2 >= 5 && TIME:2 <= 7? 갑자기 밤하늘이 개었다! # 갑자기 해가 비쳤다!\@ 다이아몬드 더스트가 보일지도 모른다
-						FOR LOCAL,0,CHARANUM
-							SIF TEQUIP:LOCAL:201
-								TEQUIP:LOCAL:201 = 0
-						NEXT
-					ENDIF
-					;더욱 저확률로 쾌청
-					SIF RAND:100 < 5
-						TIME:5 = 1
-					;눈→개이고를 처리하면(자) 다이아몬드 더스트가 나온다
-					TIME:7 = 2
-				ENDIF
-			ENDIF
-		CASEELSE
-			TIME:5 = RAND:5
-	ENDSELECT
-ENDIF
 [SKIPSTART]
 @현재기온설정
 ;높낮이차이를 5 분할

@@ -1397,3 +1397,556 @@ IF TFLAG:193 >= 0
 	PRINTL 
 	CALL COLORMESSAGE("【カットスイカ】ができあがりました。", C_AQUA, 1)
 ENDIF
+
+;-------------------------------------------------
+;495,空を眺める
+;-------------------------------------------------
+@MESSAGE_COM495
+#DIM 지저
+#DIMS 저기압위치
+#DIMS 적란운위치
+
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+
+저기압위치 = %GET_LOCATION_LOW()%
+적란운위치 = %GET_LOCATION_CUMULUS()%
+
+[IF_DEBUG]
+	DEBUGPRINTFORML %GET_MONTH()% {DAY:3}일 第{GET_TERM()}ターム %시각표시(TIME)%
+	IF IS_RAINY_SEASON1:0 == 1 && IS_RAINY_SEASON1:1 == 1
+		DEBUGPRINTFORML 장마말기
+	ELSEIF IS_RAINY_SEASON1:0 == 1
+		DEBUGPRINTFORML 장마
+	ELSEIF IS_RAINY_SEASON2 == 1
+		DEBUGPRINTFORML 가을비
+	ENDIF
+	DEBUGPRINTFORML 한기의강도 {POWER_COLD_AIR}
+	DEBUGPRINTFORML 온기의강도 {POWER_WARM_AIR}
+	
+	SELECTCASE NOW_WEATHER_CONTROL
+		CASE 1
+			DEBUGPRINTFORML 현재날씨경향 [1 春・秋の天気(基本)]
+		CASE 2
+			DEBUGPRINTFORML 현재날씨경향 [2 春・秋の天気(温暖前線接近時)]
+		CASE 3
+			DEBUGPRINTFORML 현재날씨경향 [3 春・秋の天気(暖域時)]
+		CASE 4
+			DEBUGPRINTFORML 현재날씨경향 [4 春・秋の天気(寒冷前線通過時)]
+		CASE 5
+			DEBUGPRINTFORML 현재날씨경향 [5 春・秋の天気(寒冷渦接近時)]
+		CASE 6
+			DEBUGPRINTFORML 현재날씨경향 [6 夏の天気(基本)]
+		CASE 7
+			DEBUGPRINTFORML 현재날씨경향 [7 夏の天気(夕立接近時)]
+		CASE 8
+			DEBUGPRINTFORML 현재날씨경향 [8 夏の天気(夕立通過後)]
+		CASE 9
+			DEBUGPRINTFORML 현재날씨경향 [9 冬の天気(基本)]
+		CASE 10
+			DEBUGPRINTFORML 현재날씨경향 [10 冬の天気(日本海低気圧接近時)]
+		CASE 11
+			DEBUGPRINTFORML 현재날씨경향 [11 冬の天気(日本海低気圧通過時)]
+		CASE 12
+			DEBUGPRINTFORML 현재날씨경향 [12 冬の天気(南岸低気圧接近時)]
+		CASE 13
+			DEBUGPRINTFORML 현재날씨경향 [13 冬の天気(寒冷渦接近時)]
+		CASE 14
+			DEBUGPRINTFORML 현재날씨경향 [14 梅雨・秋雨の天気(基本)]
+		CASE 15
+			DEBUGPRINTFORML 현재날씨경향 [15 梅雨・秋雨(梅雨末期・秋雨+台風接近)・先駆降雨帯発生時の天気]
+		CASE 16
+			DEBUGPRINTFORML 현재날씨경향 [16 台風接近時の天気(基本)]
+		CASE 17
+			DEBUGPRINTFORML 현재날씨경향 [17 台風接近時の天気(台風の目)]
+		CASE 18
+			DEBUGPRINTFORML 현재날씨경향 [18 霧の天気]
+		CASE 19
+			DEBUGPRINTFORML 현재날씨경향 [19 疑似好天]
+		CASEELSE
+			DEBUGPRINTFORML 현재날씨경향 [에러]
+	ENDSELECT
+	
+	DEBUGPRINTFORML 현재날씨 %GET_WEATHER()%
+	DEBUGPRINTFORML 현재풍속 {WIND_VELOCITY}
+	
+	SIF FORBIDDEN_CHANGE_WEATHER == 1
+		DEBUGPRINTFORML 날씨변경금지
+	
+	DEBUGPRINTFORML 저기압의현황：%GET_LOCATION_LOW()%
+	
+	IF IS_COLD_LOW
+		DEBUGPRINTFORML 寒冷渦発生
+		DEBUGPRINTFORML 　　勢力圏突入 %GET_MONTH(TIME_ENTER_TERRITORY_COLD_LOW:0)% {TIME_ENTER_TERRITORY_COLD_LOW:1}日 %시각표시(TIME_ENTER_TERRITORY_COLD_LOW:2)%
+		DEBUGPRINTFORML 　　勢力圏通過 %GET_MONTH(TIME_PASSAGE_TERRITORY_COLD_LOW:0)% {TIME_PASSAGE_TERRITORY_COLD_LOW:1}日 %시각표시(TIME_PASSAGE_TERRITORY_COLD_LOW:2)%
+	ENDIF
+	
+	IF IS_TYPHOON:0
+		DEBUGPRINTFORML 台風発生 勢力{IS_TYPHOON:1} 通過位置{IS_TYPHOON:2}
+		IF IS_TYPHOON:1 >= 3
+			DEBUGPRINTFORML 　　勢力圏突入 　%GET_MONTH(TIME_ENTER_TERRITORY_TYPHOON:0)% {TIME_ENTER_TERRITORY_TYPHOON:1}日 %시각표시(TIME_ENTER_TERRITORY_TYPHOON:2)%
+			DEBUGPRINTFORML 　　強風域突入　 %GET_MONTH(TIME_ENTER_WIND_ZONE_TYPHOON:0)% {TIME_ENTER_WIND_ZONE_TYPHOON:1}日 %시각표시(TIME_ENTER_WIND_ZONE_TYPHOON:2)%
+			DEBUGPRINTFORML 　　暴風域突入 　%GET_MONTH(TIME_ENTER_STORM_AREA_TYPHOON:0)% {TIME_ENTER_STORM_AREA_TYPHOON:1}日 %시각표시(TIME_ENTER_STORM_AREA_TYPHOON:2)%
+			DEBUGPRINTFORML 　　最接近     　%GET_MONTH(TIME_CLOSEST_TYPHOON:0)% {TIME_CLOSEST_TYPHOON:1}日 %시각표시(TIME_CLOSEST_TYPHOON:2)%
+			DEBUGPRINTFORML 　　台風の目通過 %GET_MONTH(TIME_PASSAGE_EYE_TYPHOON:0)% {TIME_PASSAGE_EYE_TYPHOON:1}日 %시각표시(TIME_PASSAGE_EYE_TYPHOON:2)%
+			DEBUGPRINTFORML 　　暴風域通過 　%GET_MONTH(TIME_PASSAGE_STORM_AREA_TYPHOON:0)% {TIME_PASSAGE_STORM_AREA_TYPHOON:1}日 %시각표시(TIME_PASSAGE_STORM_AREA_TYPHOON:2)%
+			DEBUGPRINTFORML 　　強風域通過 　%GET_MONTH(TIME_PASSAGE_WIND_ZONE_TYPHOON:0)% {TIME_PASSAGE_WIND_ZONE_TYPHOON:1}日 %시각표시(TIME_PASSAGE_WIND_ZONE_TYPHOON:2)%
+		ELSE
+			DEBUGPRINTFORML 　　勢力圏突入 　%GET_MONTH(TIME_ENTER_TERRITORY_TYPHOON:0)% {TIME_ENTER_TERRITORY_TYPHOON:1}日 %시각표시(TIME_ENTER_TERRITORY_TYPHOON:2)%
+			DEBUGPRINTFORML 　　強風域突入 　%GET_MONTH(TIME_ENTER_WIND_ZONE_TYPHOON:0)% {TIME_ENTER_WIND_ZONE_TYPHOON:1}日 %시각표시(TIME_ENTER_WIND_ZONE_TYPHOON:2)%
+			DEBUGPRINTFORML 　　最接近     　%GET_MONTH(TIME_CLOSEST_TYPHOON:0)% {TIME_CLOSEST_TYPHOON:1}日 %시각표시(TIME_CLOSEST_TYPHOON:2)%
+			DEBUGPRINTFORML 　　台風の目通過 %GET_MONTH(TIME_PASSAGE_EYE_TYPHOON:0)% {TIME_PASSAGE_EYE_TYPHOON:1}日 %시각표시(TIME_PASSAGE_EYE_TYPHOON:2)%
+			DEBUGPRINTFORML 　　強風域通過 　%GET_MONTH(TIME_PASSAGE_WIND_ZONE_TYPHOON:0)% {TIME_PASSAGE_WIND_ZONE_TYPHOON:1}日 %시각표시(TIME_PASSAGE_WIND_ZONE_TYPHOON:2)%
+		ENDIF
+		SIF IS_TYPHOON:0 && IS_COLD_LOW
+			DEBUGPRINTFORM 　　備考:迷走台風
+		SIF IS_TYPHOON:3 == 1
+			DEBUGPRINTFORM 　　備考:先駆降雨帯発生
+	ENDIF
+	IF IS_SoJ_LOW == 2
+		DEBUGPRINTFORML 二つ玉低気圧発生
+		DEBUGPRINTFORML 　　勢力圏突入 　%GET_MONTH(TIME_ENTER_TERRITORY_SoJ_LOW:0)% {TIME_ENTER_TERRITORY_SoJ_LOW:1}日 %시각표시(TIME_ENTER_TERRITORY_SoJ_LOW:2)%
+		DEBUGPRINTFORML 　　最接近 　　　%GET_MONTH(TIME_CLOSEST_SoJ_LOW:0)% {TIME_CLOSEST_SoJ_LOW:1}日 %시각표시(TIME_CLOSEST_SoJ_LOW:2)%
+		DEBUGPRINTFORML 　　疑似好天終了 %GET_MONTH(TIME_PASSAGE_FAKE_FINE:0)% {TIME_PASSAGE_FAKE_FINE:1}日 %시각표시(TIME_PASSAGE_FAKE_FINE:2)%
+		DEBUGPRINTFORML 　　通過 　　　　%GET_MONTH(TIME_PASSAGE_SoJ_LOW:0)% {TIME_PASSAGE_SoJ_LOW:1}日 %시각표시(TIME_PASSAGE_SoJ_LOW:2)%
+	ELSEIF IS_SoJ_LOW == 1
+		DEBUGPRINTFORML 日本海低気圧発生
+		DEBUGPRINTFORML 　　勢力圏突入 %GET_MONTH(TIME_ENTER_TERRITORY_SoJ_LOW:0)% {TIME_ENTER_TERRITORY_SoJ_LOW:1}日 %시각표시(TIME_ENTER_TERRITORY_SoJ_LOW:2)%
+		DEBUGPRINTFORML 　　最接近 　　%GET_MONTH(TIME_CLOSEST_SoJ_LOW:0)% {TIME_CLOSEST_SoJ_LOW:1}日 %시각표시(TIME_CLOSEST_SoJ_LOW:2)%
+		DEBUGPRINTFORML 　　通過 　　　%GET_MONTH(TIME_PASSAGE_SoJ_LOW:0)% {TIME_PASSAGE_SoJ_LOW:1}日 %시각표시(TIME_PASSAGE_SoJ_LOW:2)%
+	ENDIF
+	IF IS_SOUTHERN_LOW
+		DEBUGPRINTFORML 南岸低気圧発生
+		DEBUGPRINTFORML 　　勢力圏突入 %GET_MONTH(TIME_ENTER_TERRITORY_SOUTHERN_LOW:0)% {TIME_ENTER_TERRITORY_SOUTHERN_LOW:1}日 %시각표시(TIME_ENTER_TERRITORY_SOUTHERN_LOW:2)%
+		DEBUGPRINTFORML 　　通過 　　　%GET_MONTH(TIME_PASSAGE_SOUTHERN_LOW:0)% {TIME_PASSAGE_SOUTHERN_LOW:1}日 %시각표시(TIME_PASSAGE_SOUTHERN_LOW:2)%
+	ENDIF
+	;「TIME_ENTER_TERRITORY_EXTRATROPICAL_LOW:0」が0でないとき温暖低気圧発生中
+	IF TIME_ENTER_TERRITORY_EXTRATROPICAL_LOW:0 > 0
+		DEBUGPRINTFORML 温暖低気圧発生
+		DEBUGPRINTFORML 　　勢力圏突入 　%GET_MONTH(TIME_ENTER_TERRITORY_EXTRATROPICAL_LOW:0)% {TIME_ENTER_TERRITORY_EXTRATROPICAL_LOW:1}日 %시각표시(TIME_ENTER_TERRITORY_EXTRATROPICAL_LOW:2)%
+		DEBUGPRINTFORML 　　温暖前線通過 %GET_MONTH(TIME_PASSAGE_WARM_FRONT:0)% {TIME_PASSAGE_WARM_FRONT:1}日 %시각표시(TIME_PASSAGE_WARM_FRONT:2)%
+		DEBUGPRINTFORML 　　寒冷前線通過 %GET_MONTH(TIME_PASSAGE_COLD_FRONT:0)% {TIME_PASSAGE_COLD_FRONT:1}日 %시각표시(TIME_PASSAGE_COLD_FRONT:2)%
+		DEBUGPRINTFORML 　　通過 　　　　%GET_MONTH(TIME_PASSAGE_EXTRATROPICAL_LOW:0)% {TIME_PASSAGE_EXTRATROPICAL_LOW:1}日 %시각표시(TIME_PASSAGE_EXTRATROPICAL_LOW:2)%
+	ENDIF
+	SIF CAN_STRATUS
+		DEBUGPRINTFORML 霧予報
+	SELECTCASE CAN_CUMULUS:0
+		CASE 0
+			DEBUGPRINTFORML 積雲未発生
+		CASE 1
+			IF CAN_CUMULUS:1 == 0
+				DEBUGPRINTFORML 積雲遠方
+			ELSE
+				DEBUGPRINTFORML 積雲直撃
+				DEBUGPRINTFORML 　　勢力圏突入 %시각표시(TIME_ENTER_TERRITORY_CUMULUS)%
+				DEBUGPRINTFORML 　　最接近 　　%시각표시(TIME_CLOSEST_CUMULUS)%
+				DEBUGPRINTFORML 　　通過 　　　%시각표시(TIME_PASSAGE_CUMULUS)%
+			ENDIF
+		CASE 2
+			IF CAN_CUMULUS:1 == 0
+				DEBUGPRINTFORML 雄大積雲遠方
+				
+			ELSE
+				DEBUGPRINTFORML 雄大積雲直撃
+				DEBUGPRINTFORML 　　勢力圏突入 %시각표시(TIME_ENTER_TERRITORY_CUMULUS)%
+				DEBUGPRINTFORML 　　最接近 　　%시각표시(TIME_CLOSEST_CUMULUS)%
+				DEBUGPRINTFORML 　　通過 　　　%시각표시(TIME_PASSAGE_CUMULUS)%
+			ENDIF
+		CASE 3
+			IF CAN_CUMULUS:1 == 0
+				DEBUGPRINTFORML 積乱雲(적란운)遠方
+				
+			ELSE
+				DEBUGPRINTFORML 積乱雲(적란운)直撃
+				DEBUGPRINTFORML 　　勢力圏突入 %시각표시(TIME_ENTER_TERRITORY_CUMULUS)%
+				DEBUGPRINTFORML 　　最接近 　　%시각표시(TIME_CLOSEST_CUMULUS)%
+				DEBUGPRINTFORML 　　通過 　　　%시각표시(TIME_PASSAGE_CUMULUS)%
+			ENDIF
+		CASE 4
+			IF CAN_CUMULUS:1 == 0
+				DEBUGPRINTFORML 積乱雲(かなとこ雲)遠方
+				
+			ELSE
+				DEBUGPRINTFORML 積乱雲(かなとこ雲)直撃
+				DEBUGPRINTFORML 　　勢力圏突入 %시각표시(TIME_ENTER_TERRITORY_CUMULUS)%
+				DEBUGPRINTFORML 　　最接近 　　%시각표시(TIME_CLOSEST_CUMULUS)%
+				DEBUGPRINTFORML 　　通過 　　　%시각표시(TIME_PASSAGE_CUMULUS)%
+			ENDIF
+		CASE 5
+			IF CAN_CUMULUS:1 == 0
+				DEBUGPRINTFORML 積乱雲(スーパーセル)遠方
+				
+			ELSE
+				DEBUGPRINTFORML 積乱雲(スーパーセル)直撃
+				DEBUGPRINTFORML 　　勢力圏突入 %시각표시(TIME_ENTER_TERRITORY_CUMULUS)%
+				DEBUGPRINTFORML 　　最接近 　　%시각표시(TIME_CLOSEST_CUMULUS)%
+				DEBUGPRINTFORML 　　通過 　　　%시각표시(TIME_PASSAGE_CUMULUS)%
+			ENDIF
+	ENDSELECT
+[ENDIF]
+
+IF 지저 == 1
+	PRINTW 하늘을 바라보았다
+	PRINTL ……
+	PRINTW 여기서 하늘이 보일리 없다！
+	PRINTL 
+	RETURN
+ELSEIF CFLAG:MASTER:현재위치 == 천계
+	PRINTW 하늘을 바라보았다
+	PRINTL ……
+	PRINTW 어디까지나 푸른 하늘이 펼쳐져 있다
+	PRINTL 
+	RETURN
+ENDIF
+
+IF OUTROOF(CFLAG:MASTER:현재위치)
+	PRINTW 하늘을 바라보았다
+ELSE
+	PRINTW 창밖을 내다보았다
+ENDIF
+PRINTL ……
+
+
+SELECTCASE TIME:0
+	;AM4~6　早朝
+	CASE 240 TO 359
+		SELECTCASE TIME:5
+			CASE IS < 3
+				IF 저기압위치 == "台風最接近"
+					PRINTW 구름이 주위를 고속으로 떠다니고 있다
+					PRINTL 
+					CALL ASK_DIARY("태풍의 눈에 들어왔다")
+				ELSE
+					PRINTW 하늘이 밝아왔다
+					PRINTL 
+				ENDIF
+			CASE 6, 7, 11
+				PRINTW 온통 안개로 새하얗다
+				PRINTL 
+			CASEELSE
+				IF GET_LOCATION_AREA_TYPHOON() == 1 || 저기압위치 == "寒冷渦接近"
+					PRINTW 구름의 흐름이 빠르다
+					PRINTL 
+				ELSE
+					PRINTW 하늘은 온통 구름으로 덮여 있다
+					PRINTL 
+				ENDIF
+		ENDSELECT
+	;AM6~8　正午前
+	CASE 360 TO 479
+		SELECTCASE TIME:5
+			CASE IS < 3
+				IF 저기압위치 == "台風勢力圏"
+					PRINTW 평소보다 붉고 선명한 아침노을이다
+					PRINTL 
+				ELSEIF 저기압위치 == "寒冷渦遠方" || 저기압위치 == "疑似好天" || 저기압위치 == "暖域"
+					PRINTW 밝아오는 하늘 저편에는 벽처럼 이어진 구름이 보인다
+					PRINTL 
+				ELSEIF 저기압위치 == "寒冷渦接近" || IS_COLD_LOW || 저기압위치 == "二つ玉低気圧接近" || 저기압위치 == "日本海低気圧接近" || 저기압위치 == "南岸低気圧接近" || 저기압위치 == "温暖前線接近"
+					PRINTW 새빨간 아침노을이다
+					PRINTL 
+				ELSEIF 저기압위치 == "台風最接近"
+					PRINTW 구름이 주위를 고속으로 떠다니고 있다
+					PRINTL 
+					CALL ASK_DIARY("태풍의 눈에 들어왔다")
+				ELSE
+					PRINTW 완전히 날이 밝았다
+					PRINTL 
+				ENDIF
+			CASE 6, 7, 11
+				PRINTW 온통 안개로 새하얗다
+				PRINTL 
+			CASEELSE
+				IF GET_LOCATION_AREA_TYPHOON() == 1 || 저기압위치 == "寒冷渦接近"
+					PRINTW 구름의 흐름이 빠르다
+					PRINTL 
+				ELSE
+					PRINTW 하늘은 온통 구름으로 덮여 있다
+					PRINTL 
+				ENDIF 
+		ENDSELECT
+	;AM8~12　正午前
+	CASE 480 TO 719
+		SELECTCASE TIME:5
+			CASE IS < 3
+				IF DAY:2 == 2
+					IF IS_COLD_LOW || 저기압위치 == "台風勢力圏"
+						PRINTW 저쪽에 많은 적란운이 보인다
+						PRINTL 
+					ELSEIF POWER_WARM_AIR >= 4
+						PRINTW 저쪽에 적운이 많이 떠 있다
+						PRINTL 
+					ELSEIF POWER_WARM_AIR <= 1
+						PRINTW 개운치 않은 날씨다
+						PRINTL 
+					ELSE
+						PRINTW 푸른 하늘이다！오늘도 더워질 것 같다
+						PRINTL 
+					ENDIF
+				ELSE
+					IF 저기압위치 == "寒冷渦遠方" || 저기압위치 == "疑似好天" || 저기압위치 == "暖域"
+						PRINTW 하늘 저편에는 벽처럼 이어진 구름이 보인다
+						PRINTL 
+					ELSEIF 저기압위치 == "台風最接近"
+						PRINTW 구름이 주위를 고속으로 떠다니고 있다
+						PRINTL 
+						CALL ASK_DIARY("태풍의 눈에 들어왔다")
+					ELSEIF 저기압위치 == "二つ玉低気圧接近" || 저기압위치 == "日本海低気圧接近" || 저기압위치 == "南岸低気圧接近" || 저기압위치 == "温暖前線接近"
+						IF TIME:5 == 3
+							PRINTW 고층운이 펼쳐져 있다
+							PRINTL 
+						ELSE
+							PRINTW 권적운이 펼쳐져 있다
+							PRINTL 
+						ENDIF
+					ELSE
+						PRINTW 평온한 하늘이다
+						PRINTL 
+					ENDIF
+				ENDIF
+			CASE 6, 7, 11
+				PRINTW 온통 안개로 새하얗다
+				PRINTL 
+			CASEELSE
+				IF GET_LOCATION_AREA_TYPHOON() == 1 || 저기압위치 == "寒冷渦接近"
+					PRINTW 구름의 흐름이 빠르다
+					PRINTL 
+				ELSE
+					PRINTW 하늘은 온통 구름으로 덮여 있다
+					PRINTL 
+				ENDIF 
+		ENDSELECT
+	;PM12~6　昼
+	CASE 720 TO 1079
+		SELECTCASE TIME:5
+			CASE IS < 4
+				IF DAY:2 == 2
+					SELECTCASE 적란운위치
+						CASE "積乱雲遠方", "積乱雲未発生"
+							IF IS_COLD_LOW || 저기압위치 == "台風勢力圏"
+								PRINTW 저쪽에 수많은 뭉게구름이 보인다
+								PRINTL 
+							ELSEIF POWER_WARM_AIR <= 1
+								PRINTW 개운치 않은 날씨다
+								PRINTL 
+							ELSE
+								SELECTCASE CAN_CUMULUS:0
+									CASE 0
+										PRINTW 활짝 갠 여름 하늘이다
+										PRINTL 
+									CASE 1
+										PRINTW 저쪽에는 적운이 떠 있다
+										PRINTL 
+									CASE 2, 3
+										PRINTW 저쪽에는 적란운이 떠 있다
+										PRINTL 
+									CASE 4
+										PRINTW 저쪽에는 모루구름이 떠 있다
+										PRINTL 
+									CASE 5
+										PRINTW 저쪽에서는 구름이 소용돌이치고 있다
+										PRINTL 
+								ENDSELECT
+							ENDIF
+						CASE "積乱雲視認"
+							SELECTCASE CAN_CUMULUS:0
+								CASE 1
+									PRINTW 적운이 나왔다
+									PRINTL 
+								CASE 2, 3
+									PRINTW 적란운이 뭉게뭉게 성장하고 있다
+									PRINTL 
+								CASE 4
+									PRINTW 적란운의 정상이 평평하다 모루구름이다！
+									PRINTL 
+								CASE 5
+									PRINTW 멀리서 구름덩어리가 소용돌이치고 있다……
+									PRINTL 
+								CASEELSE
+									PRINTW 활짝 갠 여름 하늘이다
+									PRINTL 
+							ENDSELECT
+						CASE "積乱雲接近"
+							SELECTCASE CAN_CUMULUS:0
+								CASE 1
+									PRINTW 적운이 둥실둥실 떠 있다
+									PRINTL 
+								CASE 2
+									PRINTW 구름 밑이 어둑어둑하다
+									PRINTL 
+								CASE 3
+									PRINTW 길게 늘어선 구름이 다가오고 있다
+									PRINTL 
+								CASE 4
+									PRINTW 검은 길게 늘어선 구름이 다가오고 있다
+									PRINTL 
+									IF CAN_CUMULUS:2 == 1
+										PRINTW ……자세히 보니 구름에 젖이 달려 있다！
+										PRINTL 
+										CALL ASK_DIARY("구름에 젖이 달려 있었다")
+									ELSEIF CAN_CUMULUS:2 == 2
+										PRINTW ……자세히 보니 구름에 자지가 나 있다！
+										PRINTL 
+										CALL ASK_DIARY("구름에 자지가 나 있었다")
+									ENDIF
+								CASE 5
+									PRINTW 아치형 구름이 다가오고 있다
+									PRINTL 
+									IF CAN_CUMULUS:2 == 1
+										PRINTW ……자세히 보니 구름에 젖이 달려 있다！
+										PRINTL 
+										CALL ASK_DIARY("구름에 젖이 달려 있었다")
+									ELSEIF CAN_CUMULUS:2 == 2
+										PRINTW ……자세히 보니 구름에 자지가 나 있다！
+										PRINTL 
+										CALL ASK_DIARY("구름에 자지가 나 있었다")
+									ENDIF
+								CASEELSE
+									PRINTW 활짝 갠 여름 하늘이다
+									PRINTL 
+							ENDSELECT
+						CASEELSE
+							PRINTW 적운이 둥실둥실 떠 있다
+							PRINTL 
+					ENDSELECT
+				ELSE
+					IF 저기압위치 == "寒冷渦遠方" || 저기압위치 == "疑似好天" || 저기압위치 == "暖域"
+						PRINTW 하늘 저편에는 벽처럼 이어진 구름이 보인다
+						PRINTL 
+					ELSEIF 저기압위치 == "台風最接近"
+						PRINTW 구름이 주위를 고속으로 떠다니고 있다
+						PRINTL 
+						CALL ASK_DIARY("태풍의 눈에 들어왔다")
+					ELSEIF 저기압위치 == "二つ玉低気圧接近" || 저기압위치 == "日本海低気圧接近" || 저기압위치 == "南岸低気圧接近" || 저기압위치 == "温暖前線接近"
+						IF TIME:5 == 3
+							PRINTW 고층운이 펼쳐져 있다
+							PRINTL 
+						ELSE
+							PRINTW 권적운이 펼쳐져 있다
+							PRINTL 
+						ENDIF
+					ELSE
+						PRINTW 평온한 하늘이다
+						PRINTL 
+					ENDIF
+				ENDIF
+			CASE 6, 7, 11
+				PRINTW 온통 안개로 새하얗다
+				PRINTL 
+			CASEELSE
+				IF 적란운위치 == "積乱雲直下"
+					 SELECTCASE CAN_CUMULUS:0
+					 	CASE IS < 4
+					 		PRINTW 하늘은 어둑어둑하다
+					 		PRINTL 
+					 	CASE 4
+					 		PRINTW 하늘은 캄캄하다
+					 		PRINTL 
+							IF CAN_CUMULUS:2 == 1
+								PRINTW ……자세히 보니 구름에 젖이 달려 있다！
+								PRINTL 
+								CALL ASK_DIARY("구름에 젖이 달려 있었다")
+							ELSEIF CAN_CUMULUS:2 == 2
+								PRINTW ……자세히 보니 구름에 자지가 나 있다！
+								PRINTL 
+								CALL ASK_DIARY("구름에 자지가 나 있었다")
+							ENDIF
+					 	CASE 5
+					 		PRINTW 시커먼 구름이 소용돌이치고 있다
+					 		PRINTL 
+							IF CAN_CUMULUS:2 == 1
+								PRINTW ……자세히 보니 구름에 젖이 달려 있다！
+								PRINTL 
+								CALL ASK_DIARY("구름에 젖이 달려 있었다")
+							ELSEIF CAN_CUMULUS:2 == 2
+								PRINTW ……자세히 보니 구름에 자지가 나 있다！
+								PRINTL 
+								CALL ASK_DIARY("구름에 자지가 나 있었다")
+							ENDIF
+					 ENDSELECT
+				ELSEIF GET_LOCATION_AREA_TYPHOON() == 1 || 저기압위치 == "寒冷渦接近"
+					PRINTW 구름의 흐름이 빠르다
+					PRINTL 
+				ELSE
+					PRINTW 하늘은 온통 구름으로 덮여 있다
+					PRINTL 
+				ENDIF 
+		ENDSELECT
+	;PM6~8　夕
+	CASE 1080 TO 1199
+		SELECTCASE TIME:5
+			CASE IS < 3
+				IF 저기압위치 == "台風勢力圏"
+					PRINTW 평소보다 붉고 선명한 노을이다
+					PRINTL 
+				ELSEIF 저기압위치 == "寒冷渦遠方" || 저기압위치 == "疑似好天" || 저기압위치 == "暖域"
+					PRINTW 노을 하늘 저편에는 벽처럼 이어진 구름이 보인다
+					PRINTL 
+				ELSEIF 저기압위치 == "台風遠方" || 저기압위치 == "台風一過" || 저기압위치 == "二つ玉低気圧通過" || 저기압위치 == "日本海低気圧通過" || 저기압위치 == "南岸低気圧通過" || 저기압위치 == "温帯低気圧通過" || 저기압위치 == "低気圧未発生"
+					PRINTW 노을이 아름답다
+					PRINTL 
+				ELSEIF 저기압위치 == "台風最接近"
+					PRINTW 구름이 주위를 고속으로 떠다니고 있다
+					PRINTL 
+					CALL ASK_DIARY("태풍의 눈에 들어왔다")
+				ELSE
+					PRINTW 해가 저물기 시작했다
+					PRINTL 
+				ENDIF
+			CASE 6, 7, 11
+				PRINTW 온통 안개로 새하얗다
+				PRINTL 
+			CASEELSE
+				IF GET_LOCATION_AREA_TYPHOON() == 1 || 저기압위치 == "寒冷渦接近"
+					PRINTW 구름의 흐름이 빠르다
+					PRINTL 
+				ELSE
+					PRINTW 하늘은 온통 구름으로 덮여 있다
+					PRINTL 
+				ENDIF 
+		ENDSELECT
+	;PM8~AM4　夜・深夜
+	CASE 0 TO 239, IS >= 1200
+		SELECTCASE TIME:5
+			CASE IS < 3
+				IF IS_COLD_LOW || 저기압위치 == "台風勢力圏" || 저기압위치 == "疑似好天" || WIND_VELOCITY >= 1 || 저기압위치 == "暖域"
+					PRINTW 별이 깜빡이고 있다
+					PRINTL 
+				ELSEIF 저기압위치 == "台風最接近"
+					PRINTW 구름이 주위를 고속으로 떠다니고 있다
+					PRINTL 
+					CALL ASK_DIARY("태풍의 눈에 들어왔다")
+				ELSEIF 저기압위치 == "二つ玉低気圧接近" || 저기압위치 == "日本海低気圧接近" || 저기압위치 == "南岸低気圧接近" || 저기압위치 == "温暖前線接近"
+					IF TIME:5 == 2 && MOON_WATCH(DAY:3)
+						PRINTW 달무리가 졌다
+						PRINTL 
+					ELSEIF TIME:5 == 2
+						PRINTW 옅은 구름으로 별에 안개가 끼어 있다
+						PRINTL 
+					ENDIF
+				ELSE
+					PRINTW 별이 예쁘다
+					PRINTL 
+				ENDIF
+			CASE 6, 7, 11
+				PRINTW 온통 안개로 새하얗다
+				PRINTL 
+			CASEELSE
+				IF GET_LOCATION_AREA_TYPHOON() == 1 || 저기압위치 == "寒冷渦接近"
+					PRINTW 구름의 흐름이 빠르다
+					PRINTL 
+				ELSEIF 저기압위치 == "二つ玉低気圧接近" || 저기압위치 == "日本海低気圧接近" || 저기압위치 == "南岸低気圧接近" || 저기압위치 == "温暖前線接近"
+					IF TIME:5 == 3
+						PRINTW 낮은 구름이 별을 가리고 있다
+						PRINTL 
+					ENDIF
+				ELSE
+					PRINTW 하늘은 온통 구름으로 덮여 있다
+					PRINTL 
+				ENDIF 
+		ENDSELECT
+ENDSELECT

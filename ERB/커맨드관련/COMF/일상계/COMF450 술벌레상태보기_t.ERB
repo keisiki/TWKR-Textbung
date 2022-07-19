@@ -4,58 +4,160 @@
 ;-------------------------------------------------
 @COM450
 #DIM 양조량
-;FLAG:술벌레 물의 종류, 50 넘으면 술의 아이템 번호
+#DIM 술ID
 
 VARSET LOCAL
 
+술ID = ALC_ID()
+양조량 = GET_INT(0, "술데이터", 술ID, "양조수")
+LOCALS '= @"%조사처리(VAR_WATER,"와")% 바꿔넣는다"
+LOCAL = 1
+IF VAR_WATER == ""
+	LOCALS '= "갈아넣을 물도 없이 퍼낼 수는 없다"
+	LOCAL = 0
+ENDIF
 PRINTFORML %마스터는% 술벌레가 들어있는 병을 들여다보았다
-PRINTFORML 병은 %조사처리(STR:(7000 + FLAG:술벌레),"으로")% 채워지고 있다…
+PRINTFORML 병은 %조사처리(VAR_FERMENT,"으로")% 채워져 있다…
 DRAWLINE
-PRINTFORML [0] 아무것도 안 한다
-IF TFLAG:물긷기 && ITEM:(FLAG:술벌레) < 99
-	PRINTFORML [1] %조사처리(STR:(TFLAG:물긷기 + 7000),"과")% 바꿔넣는다
-ELSE
-	IF ITEM:(FLAG:술벌레) == 99
-		PRINTFORM [1] 이 이상 %조사처리(STR:(7000 + FLAG:술벌레),"를")% 가질 수 없다
-	ELSE
-	PRINTPLAIN [1] 갈아넣을 물도 없이 퍼낼 수는 없다
-	ENDIF
-	PRINTL 
-ENDIF
-SIF ITEM:탁주 >= 5 && FLAG:술벌레 == 1 && DAY:10 < 3
-	PRINTFORML [2] 탁주를 더한다(탁주를 5 소비)
-;그 이상 손봐도 내용이 변화하지 않는 경우는 표시시키지 않게
-SIF BASE:MASTER:8 >= 2400 && (FLAG:술벌레 < 51 || FLAG:술벌레 == 51)
-	PRINTFORML [3] 시간조작 주조(TSP2400 소비)
-INPUT
-IF RESULT == 1 && TFLAG:물긷기 && ITEM:(FLAG:술벌레) < 99
-	PRINTFORML %마스터는%  %조사처리(STR:(7000 + FLAG:술벌레),"를")% 퍼내고 %조사처리(STR:(TFLAG:물긷기 + 7000),"과")% 바꿔넣었다
-	;술이 생기고 있었던 경우
-	IF FLAG:술벌레 > 50
-		양조량 = 양조할수있던양(FLAG:술벌레)
-		PRINTFORML %조사처리(ITEMNAME:(FLAG:술벌레),"를")% {양조량}개 손에 넣었다
-		ITEM:(FLAG:술벌레) += 양조량
-		SIF ITEM:(FLAG:술벌레) > 99
-			ITEM:(FLAG:술벌레) = 99
-	ENDIF
-	DAY:10 = 0
-	FLAG:술벌레 = TFLAG:물긷기
-	TFLAG:물긷기 = 0
-ELSEIF RESULT == 2 && ITEM:탁주 >= 5 && FLAG:술벌레 == 1 && DAY:10 < 3
-	PRINTFORML %마스터는% 병에 탁주를 쏟아부었다
-	PRINTFORML 이로써 조금 일찍 완성될 것이다…
-	DAY:10 += 3
-	ITEM:탁주 -= 5
-;그 이상 손봐도 내용이 변화하지 않는 경우는 표시시키지 않게
-ELSEIF RESULT == 3 && BASE:MASTER:8 >= 2400 && (FLAG:술벌레 < 51 || FLAG:술벌레 == 51)
-	PRINTFORML %마스터는% 시간정지 능력을 응용해 억지로 병 안의 시간을 진행시켰다
-	DAY:10 += 1
-	BASE:MASTER:8 -= 2400
-ELSE
-	RETURN -1
-ENDIF
+{
+CALL ASK_M("아무것도 안 한다",1,@"%LOCALS%", LOCAL,"시간조작 주조（TSP2400소비）",BASE:MASTER:8 >= 2400,
+"아이템을 더한다",1)
+}
+SELECTCASE RESULT
+	CASE 0
+		RETURN -1
+	CASE 1
+		IF ITEM:술ID >= 99
+			PRINTFORMW 이 이상 %조사처리(VAR_FERMENT,"를")% 가질 수 없다
+			RETURN -1
+		ENDIF
+		PRINTFORML %마스터는% %조사처리(VAR_FERMENT,"를")% 퍼내고 %VAR_WATER%와 바꿔넣었다
+		IF 양조량 > 0
+			CALL GET_ITEM(@"%VAR_FERMENT%", 양조량, 2)
+		ENDIF
+		VAR_FERMENT = %VAR_WATER%
+		VAR_WATER =
+		DAY:10 = 0
+	CASE 2
+		IF GET_STR(0, "술데이터", 술ID, "변화처") == ""
+			PRINTFORMW %VAR_FERMENT%에는 해도 의미가 없다
+			RETURN -1
+		ENDIF
+		PRINTFORML %마스터는% 시간정지 능력을 응용해 억지로 병 속의 시간을 진행시켰다
+		BASE:MASTER:8 -= 2400
+		;PRINTFORML デバッグパワーでもっと進めた
+		;DAY:10 += 10
+		CALL 주조
+	CASE 3
+		CALL COM450_1
+ENDSELECT
 TIME += 5
 RETURN 1
+
+@COM450_1
+IF LOCAL == 0
+	{
+	CALL ASK_M("고구마＊１０", ITEM:고구마 >= 10 && CAN_FERMENT(),
+	"벌꿀＊１０", ITEM:벌꿀 >= 10 && CAN_FERMENT(),
+	"나무딸기＊２０", ITEM:나무딸기 >= 20 && CAN_FERMENT(),
+	"머루＊２０", ITEM:머루 >= 20 && CAN_FERMENT(),
+	"곰팡이핀포도＊２０", ITEM:곰팡이핀포도 >= 20 && CAN_FERMENT(),
+	"다음",1,
+	"그만둔다",1)
+	}
+	SELECTCASE RESULT
+		CASE 0
+			CALL LOST_ITEM("고구마", 10, 1)
+			VAR_FERMENT = 고구마넣은물
+		CASE 1
+			CALL LOST_ITEM("벌꿀", 10, 1)
+			VAR_FERMENT = 벌꿀물
+		CASE 2
+			CALL LOST_ITEM("나무딸기", 20, 1)
+			VAR_FERMENT = 나무딸기물
+		CASE 3
+			CALL LOST_ITEM("머루", 20, 1)
+			CALL GET_ITEM("포머스", 1, 1)
+			VAR_FERMENT = 포도즙
+		CASE 4
+			CALL LOST_ITEM("곰팡이핀포도", 20, 1)
+			CALL GET_ITEM("포머스", 1, 1)
+			VAR_FERMENT = 귀부포도즙
+		CASE 5
+			LOCAL = 1
+			;KR판 임의수정, CLEARLINE 6 > 8
+			CLEARLINE 8
+			RESTART
+		CASE 6
+	ENDSELECT
+ENDIF
+IF LOCAL == 1
+	;KR판 임의수정, VAR_WATER == "그냥 물"을 VAR_FERMENT == 으로 변경
+	{
+	CALL ASK_M("탁주＊５", ITEM:탁주 >= 5 && VAR_FERMENT == "그냥 물",
+	"감미재＊１０", ITEM:감미재 >= 10 && CAN_FERMENT(),
+	"숙성전럼", ITEM:숙성전럼 && CAN_FERMENT(),
+	"숙성전프랑부아즈", ITEM:숙성전프랑부아즈 && CAN_FERMENT(),
+	"증류주", ITEM:증류주 && VAR_FERMENT == "포도즙",
+	"숙성전브랜디", ITEM:숙성전브랜디 && CAN_FERMENT(),
+	"다음",1,
+	"그만둔다",1)
+	}
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORML %마스터는% 병에 탁주를 부어 넣었다
+			PRINTFORML 이로써 조금 일찍 완성될 것이다…
+			DAY:10 += 3
+			CALL LOST_ITEM("탁주", 5, 1)
+		CASE 1
+			CALL LOST_ITEM("감미재", 10, 1)
+			VAR_FERMENT = 설탕물
+		CASE 2
+			CALL LOST_ITEM("숙성전럼", 1, 1)
+			VAR_FERMENT = 숙성전럼
+		CASE 3
+			CALL LOST_ITEM("숙성전프랑부아즈", 1, 1)
+			VAR_FERMENT = 숙성전프랑부아즈
+		CASE 4
+			CALL LOST_ITEM("증류주", 1, 1)
+			VAR_FERMENT = 포도즙(ALC첨가)
+		CASE 5
+			CALL LOST_ITEM("숙성전브랜디", 1, 1)
+			VAR_FERMENT = 숙성전브랜디
+		CASE 6
+			LOCAL = 2
+			;KR판 임의수정, CLEARLINE 7 > 9
+			CLEARLINE 9
+			RESTART
+		CASE 7
+	ENDSELECT
+ENDIF
+
+IF LOCAL == 2
+	;KR판 임의수정, VAR_WATER == "탁주"를 VAR_FERMENT == 으로 변경
+	{
+	CALL ASK_M("상급식재", ITEM:상급식재 && CAN_FERMENT(),
+	"초목회", ITEM:초목회 && VAR_FERMENT == "탁주",
+	"다음",1,
+	"그만둔다",1)
+	}
+	SELECTCASE RESULT
+		CASE 0
+			CALL LOST_ITEM("상급식재", 1, 1)
+			VAR_FERMENT = 쌀누룩
+		CASE 1
+			CALL LOST_ITEM("초목회", 1, 1)
+			VAR_FERMENT = 아쿠모찌자케
+		CASE 2
+			LOCAL = 0
+			;KR판 임의수정, CLEARLINE 3 > 5
+			CLEARLINE 5
+			RESTART
+		CASE 3
+	ENDSELECT
+ENDIF
+RETURN
+
 
 
 ;술벌레의 상태를 본다
@@ -75,3 +177,11 @@ SIF CFLAG:MASTER:현재위치 != 거점_술벌레
 SIF CFLAG:우후후
 	RETURN 0
 RETURN 1
+
+@CAN_FERMENT(ARG)
+#FUNCTION
+SIF DAY:10 >= 3
+	RETURNF 0
+SIF GROUPMATCH(VAR_FERMENT, "그냥 물", "안개의 호수의 물", "지옥 온천의 물", "기적의 물")
+	RETURNF 1
+RETURNF 0
