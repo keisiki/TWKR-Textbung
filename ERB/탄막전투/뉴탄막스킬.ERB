@@ -633,6 +633,8 @@ WEND
 #DIM DYNAMIC SKIPCOUNT
 #DIM DYNAMIC PRINTCOUNT
 #DIM DYNAMIC LASTPAGE
+#DIM DYNAMIC 출력형태
+#DIMS DYNAMIC 검색문구
 IF BATTLE_NOW
     T_시전자 = T_턴주인
     T_시전자반대 = T_턴반대
@@ -642,30 +644,51 @@ ELSE
     T_시전자반대 = MASTER 
 ENDIF
 $LOOP
-PRINTL 어떤 스킬의 설명을 볼까?
+PRINTL
+PRINT 어떤 스킬의 설명을 볼까? 
+IF 출력형태 != 1
+    PRINTBUTTON "[검색모드]" , 514514
+ELSE
+    PRINTBUTTON "[통상모드]" , 514514
+ENDIF
+PRINTL
 DRAWLINE
 PRINTCOUNT = 0
 SKIPCOUNT = 0
 FOR 스킬번호,1,T_스킬한계값
-    IF (IS_MEMORIZED(스킬번호)&&IS_BATTLE)||(HAVE_T_SKILL(MASTER, 스킬번호)&&!IS_BATTLE)
-        IF PAGE * 25 > SKIPCOUNT
-            SKIPCOUNT++
+    IF IS_BATTLE
+        IF IS_MEMORIZED(스킬번호)
+            IF 출력형태 == 1 && STRFIND(TALENTNAME:(500+스킬번호), 검색문구) == -1
+                CONTINUE
+            ENDIF
+        ELSE
             CONTINUE
         ENDIF
-        ;스킬 소유, 스킬창에 이름 표시
-        CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
-        PRINTFORMLC [{스킬번호}] %RESULTS%
-        RESETCOLOR
-        PRINTL
-        PRINTCOUNT++
-        IF PRINTCOUNT >= 25
-            BREAK
-        ENDIF
     ELSE
-        ;스킬 소유하고 있지 않음
+        IF HAVE_T_SKILL(MASTER, 스킬번호)
+            IF 출력형태 == 1 && STRFIND(TALENTNAME:(500+스킬번호), 검색문구) == -1
+                CONTINUE
+            ENDIF
+        ELSE
+            CONTINUE
+        ENDIF
+    ENDIF
+    IF PAGE * 25 > SKIPCOUNT
+        SKIPCOUNT++
+        CONTINUE
+    ENDIF
+    ;스킬 소유, 스킬창에 이름 표시
+    CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
+    PRINTFORMLC [{스킬번호}] %RESULTS%
+    RESETCOLOR
+    PRINTL
+    PRINTCOUNT++
+    IF PRINTCOUNT >= 25
+        BREAK
     ENDIF
 NEXT
 PRINTL
+DRAWLINE
 IF PRINTCOUNT < 25
     LASTPAGE = 1
 ENDIF
@@ -692,7 +715,24 @@ WHILE 1
             CLEARLINE 6
         ENDIF
         GOTO LOOP
-        
+    ELSEIF RESULT == 514514
+        IF 출력형태 == 0
+            출력형태 = 1
+            $검색어루프
+            PRINT 검색어를 입력해 주세요
+            INPUTS
+            IF STRLENS(RESULTS) >= 20
+                PRINTFORMW 너무 깁니다
+                CLEARLINE 2
+                GOTO 검색어루프
+            ELSE
+                검색문구 = %RESULTS%
+                CLEARLINE 2
+            ENDIF
+        ELSE
+            출력형태 = 0
+        ENDIF
+        GOTO LOOP
     ELSEIF (IS_MEMORIZED(LOCAL)&&IS_BATTLE)||(HAVE_T_SKILL(MASTER, LOCAL)&&!IS_BATTLE)
         DRAWLINE
         CALLFORMF T_SKILL{LOCAL}_STR("스킬명")
