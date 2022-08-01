@@ -399,6 +399,9 @@ CALL 画像一斉表示(0, 0, 1, -1)
 #DIMS 表情
 #DIMS 表情_マウスオーバー
 #DIMS 差分
+#DIMS 乳型 = "絶壁", "貧乳", "並乳", "巨乳", "爆乳"
+#DIM CHARA_CSV_乳型
+#DIM LOOP_乳型
 
 ;表示形式
 表示形式 = %GET_BASESTYLE(CHARA, 表示形式)%
@@ -422,17 +425,56 @@ IF 服装 == ""
 	CATCH
 	ENDCATCH
 ENDIF
-SIF CHECK_BIGBREAST(CHARA, 表示形式, 差分)
-	服装 '= "巨乳" + 服装
+IF FLAG:거유차이표시
+	CHARA_CSV_乳型 = CSVTALENT(CHARA, GETNUM(TALENT, "가슴사이즈"))
+	LOOP_乳型 = TALENT:CHARA:가슴사이즈
+	RESULT = 0
+
+	FOR LOCAL, 0, 4
+		LOOP_乳型 = MAX(-2, LOOP_乳型)
+		LOOP_乳型 = MIN(2, LOOP_乳型)
+	
+		CALL GET表情体形完整(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分, 乳型:(LOOP_乳型+2))
+		SIF !RESULT
+			CALL GET表情体形拆分组合(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分, 乳型:(LOOP_乳型+2))
+		
+		SIF RESULT || LOOP_乳型==CHARA_CSV_乳型
+			BREAK
+		
+		IF CHARA_CSV_乳型 > LOOP_乳型
+			LOOP_乳型++
+		ELSE
+			LOOP_乳型--
+		ENDIF
+		
+	NEXT
+ENDIF
+
+IF !RESULT
+	CALL GET表情体形完整(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分)
+ENDIF
+
+RETURN RESULT
+
+@GET表情体形完整(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分, 乳量 = "")
+#DIM CHARA
+#DIMS 表示形式
+#DIMS 服装
+#DIMS 表情
+#DIMS 表情_マウスオーバー
+#DIMS 差分
+#DIMS 乳量
+
+服装 = %乳量%%服装%
 TRYCCALLFORM IMAGE_I{CHARA}_体形(CHARA)
-	服装 '= RESULTS + 服装
+	服装 = %RESULTS%%服装%
 CATCH
 ENDCATCH
 
 ;表情(RESULTSに格納)
-SIF 表情 == ""
+IF 表情 == ""
     CALL GET_FACETYPE(CHARA, 表示形式, 服装, 差分)
-IF 表情 != ""
+ELSE
     RESULTS:0 = %表情%
     RESULTS:1 = %表情%
 ENDIF
@@ -449,6 +491,76 @@ SIF !SPRITECREATED(RESULTS:1)
     RETURN 0
 
 RETURN 1
+@GET表情体形拆分组合(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分, 乳量)
+#DIM GID
+#DIM CHARA
+#DIMS 表示形式
+#DIMS 服装
+#DIMS 表情
+#DIMS 表情_マウスオーバー
+#DIMS 差分
+#DIMS 乳量
+#DIMS SET_RESOURCE = "BASE巨乳拆分", "マウスオーバー巨乳拆分", "BASE", "マウスオーバー", "BASE巨乳", "マウスオーバー巨乳"
+
+SET_RESOURCE:4 = %乳量%%服装%
+TRYCCALLFORM IMAGE_I{CHARA}_体形(CHARA)
+	服装 = %RESULTS%%服装%
+	SET_RESOURCE:4 = %RESULTS%%SET_RESOURCE:4%
+CATCH
+ENDCATCH
+
+;表情(RESULTSに格納)
+IF 表情 == ""
+    CALL GET_FACETYPE(CHARA, 表示形式, 服装, 差分)
+	SET_RESOURCE:2 = %RESULTS:0%
+	SET_RESOURCE:3 = %RESULTS:1%
+ELSE
+    SET_RESOURCE:2 = %表情%
+    SET_RESOURCE:3 = %表情%
+ENDIF
+SIF 表情_マウスオーバー != ""
+    SET_RESOURCE:3 = %表情_マウスオーバー%
+
+;get 巨乳拆分
+SET_RESOURCE:0 = %表示形式%_%服装%_%SET_RESOURCE:2%_%乳量%拆分_{CHARA}%差分%
+IF !SPRITECREATED(SET_RESOURCE:0)
+	SET_RESOURCE:0 = %表示形式%_%服装%_%乳量%拆分_{CHARA}%差分%
+	SIF !SPRITECREATED(SET_RESOURCE:0)
+		RETURN 0
+ENDIF
+SET_RESOURCE:1 = %表示形式%_%服装%_%SET_RESOURCE:3%_%乳量%拆分_{CHARA}%差分%
+IF !SPRITECREATED(SET_RESOURCE:1)
+	SET_RESOURCE:1 = %表示形式%_%服装%_%乳量%拆分_{CHARA}%差分%
+	SIF !SPRITECREATED(SET_RESOURCE:1)
+		RETURN 0
+ENDIF
+
+;name of combined image
+SET_RESOURCE:5 = %表示形式%_%SET_RESOURCE:4%_%SET_RESOURCE:3%_{CHARA}%差分%
+SET_RESOURCE:4 = %表示形式%_%SET_RESOURCE:4%_%SET_RESOURCE:2%_{CHARA}%差分%
+
+;get body
+SET_RESOURCE:2 = %表示形式%_%服装%_%SET_RESOURCE:2%_{CHARA}%差分%
+SET_RESOURCE:3 = %表示形式%_%服装%_%SET_RESOURCE:3%_{CHARA}%差分%
+
+SIF !SPRITECREATED(SET_RESOURCE:2) || !SPRITECREATED(SET_RESOURCE:3)
+	RETURN 0
+
+GID = 0
+CALL 그림합성(GID, SET_RESOURCE:2)
+CALL 그림합성(GID, SET_RESOURCE:0)
+CALL リソース登録(SET_RESOURCE:4, GID)
+
+GID = 0
+CALL 그림합성(GID, SET_RESOURCE:3)
+CALL 그림합성(GID, SET_RESOURCE:1)
+CALL リソース登録(SET_RESOURCE:5, GID)
+
+RESULTS:0 = %SET_RESOURCE:4%
+RESULTS:1 = %SET_RESOURCE:5%
+
+RETURN 1
+
 
 ;표시 형식을 반환하다
 @GET_BASESTYLE(CHARA, 表示形式 = "")
@@ -472,20 +584,7 @@ ENDIF
 
 RETURNF 表示形式
 
-;巨乳差分の有無を判定する
-@CHECK_BIGBREAST(CHARA, 表示形式, 差分)
-#FUNCTION
-#DIM CHARA
-#DIMS 表示形式
-#DIMS 差分
 
-SIF TALENT:CHARA:가슴사이즈 <= 0
-	RETURNF 0
-SIF !FLAG:거유차이표시
-	RETURNF 0
-SIF !SPRITECREATED(@"%表示形式%_巨乳裸_通常_{CHARA}%差分%")
-	RETURNF 0
-RETURNF 1
 
 ;裸表示条件を返却する
 @CHECK_NUDE(CHARA)
@@ -668,7 +767,7 @@ IF STRFIND(エフェクト, "照れ") != -1 || (エフェクト == "" && CHECK_B
 		エフェクト名 '= RESULTS + エフェクト名
 	CATCH
 	ENDCATCH
-	SIF (CHECK_NUDE(CHARA) || STRFIND(エフェクト, "照れ") != -1) && SPRITECREATED(@"%表示形式%_裸照れ_{CHARA}%差分%")
+	SIF (CHECK_NUDE(CHARA) || STRFIND(エフェクト, "照れ") != -1) && SPRITECREATED(@"%表示形式%_裸%エフェクト名%_{CHARA}%差分%")
 		エフェクト名 '= "裸" + エフェクト名
 	IF SPRITECREATED(@"%表示形式%_%エフェクト名%_{CHARA}%差分%")
 		リソース:(エフェクト数) = %表示形式%_%エフェクト名%_{CHARA}%差分%
@@ -683,7 +782,7 @@ IF STRFIND(エフェクト, "吐息") != -1 || (エフェクト == "" && CHECK_E
 		エフェクト名 '= RESULTS + エフェクト名
 	CATCH
 	ENDCATCH
-	SIF (CHECK_NUDE(CHARA) || STRFIND(エフェクト, "吐息") != -1) && SPRITECREATED(@"%表示形式%_裸吐息_{CHARA}%差分%")
+	SIF (CHECK_NUDE(CHARA) || STRFIND(エフェクト, "吐息") != -1) && SPRITECREATED(@"%表示形式%_裸%エフェクト名%_{CHARA}%差分%")
 		エフェクト名 '= "裸" + エフェクト名
 	IF SPRITECREATED(@"%表示形式%_%エフェクト名%_{CHARA}%差分%")
 		リソース:(エフェクト数) = %表示形式%_%エフェクト名%_{CHARA}%差分%
@@ -698,7 +797,7 @@ IF STRFIND(エフェクト, "汗") != -1 || (エフェクト == "" && CHECK_SWEA
 		エフェクト名 '= RESULTS + エフェクト名
 	CATCH
 	ENDCATCH
-	SIF (CHECK_NUDE(CHARA) || STRFIND(エフェクト, "汗") != -1) && SPRITECREATED(@"%表示形式%_裸汗_{CHARA}%差分%")
+	SIF (CHECK_NUDE(CHARA) || STRFIND(エフェクト, "汗") != -1) && SPRITECREATED(@"%表示形式%_裸%エフェクト名%_{CHARA}%差分%")
 		エフェクト名 '= "裸" + エフェクト名
 	IF SPRITECREATED(@"%表示形式%_%エフェクト名%_{CHARA}%差分%")
 		リソース:(エフェクト数) = %表示形式%_%エフェクト名%_{CHARA}%差分%
@@ -765,6 +864,11 @@ RETURNF 0
 #FUNCTION
 #DIM CHARA
 #DIM SPENT_TIME
+
+;夏の12~15時で晴れと晴天かつ屋外か地底なら常時汗エフェクト
+;04/07/06画像加工者より。時間帯 = 3 となっていたのを 時間帯 == 3 と修正しました
+SIF DAY:2 == 2 && 시간대 == 3 && INRANGE(날씨, 0, 1) && (OUTROOF(CFLAG:CHARA:현재위치) || GET_MAPID(CFLAG:CHARA:현재위치) == 9)
+	RETURNF 1
 
 SIF FLAG:시간정지
 	RETURNF 0

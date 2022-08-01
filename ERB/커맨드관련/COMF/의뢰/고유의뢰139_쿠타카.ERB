@@ -1,0 +1,133 @@
+﻿@고유의뢰139(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE ARG % 1000
+;ID101：精液を分けて
+CASE 101
+	SELECTCASE O_DATA
+	CASE "의뢰명"
+		CALLF MAKE_STR(V_NAME, "精液を分けて")
+	CASE "의뢰내용 표시"
+		CALLF MAKE_STR(V_NAME, "濃厚な精液を提供する")
+	CASE "의뢰 보수 표시"
+		CALLF MAKE_STR(V_NAME, @"\\50000")
+	CASE "의뢰실행 커맨드 이름"
+		CALLF MAKE_STR(V_NAME, "精液を採取する")
+		
+	CASE "의뢰내용"
+		CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "작업"))
+	CASE "의뢰 서브"
+	CASE "의뢰기한"
+	;発生時ではなく受託時に確定します
+		CALLF MAKE_INT(V_NAME, 30)
+	CASE "의뢰 발생율"
+	;これは他の固有依頼との相対確率なんで10％ではありません
+		CALLF MAKE_INT(V_NAME, 20)
+	CASE "의뢰 발생 조건"
+	SIF EXP:139:정액경험 > 0 && (TALENT:MASTER:성별 == 2 || TALENT:MASTER:성별 == 3)
+		CALLF MAKE_INT(V_NAME, 1)
+	CASE "의뢰 수탁 가능 조건"
+	;受託可能は@COM_ABLE366も確認のこと
+	;ここを参照するのは依頼人をTARGETにしてる時なので素通しでよし
+		CALLF MAKE_INT(V_NAME, 1)
+	CASE "의뢰실행 가능 조건"
+	;実行可能は@COM_ABLE367も確認のこと
+		IF FLAG:70
+		ELSE
+			;SIF TALENT:MASTER:濃厚精液
+			CALLF MAKE_INT(V_NAME, 1)
+		ENDIF
+	;成功/失敗処理はCARRYOUTで直接書く
+	;SOURCEやITEM入手など、内容が複雑なので
+	CASE "의뢰 소멸 조건"
+	;30％で消失
+		SIF RAND:100 < 30
+			CALLF MAKE_INT(V_NAME, 1)
+	ENDSELECT
+ENDSELECT
+
+
+
+;固有依頼の設定用
+;この関数は実行/成功/失敗時の
+;報酬とペナルティと地の文のみを扱います
+;各キャラのメッセージは別所にて
+@IRAI_固有139(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+SELECTCASE STR_DATA_IRAI(IRAI_ID, "의뢰명", CLIENT_ID)
+	
+CASE "精液を分けて"
+	SELECTCASE SCENE
+	CASE "의뢰 조건 표시"
+	;何か専用の表示情報を設けたい時用
+	;受託済みの依頼表示で使用されます
+	;
+	;PRINT系だけでSOURCEとかは入れちゃダメ、WAITも無しで
+	;ここ以外の表示項目は
+	;PRINTFORML 　　　　　：
+	;となっているのでスペースを揃えたほうが見栄えが良いです
+	
+	CASE "의뢰실행시"
+	;このCASEに限り、RESULTが意味を持ちます
+	;依頼実行時のRESULTにはIRAI_CONST_RESULT()を使用してください
+	;可能な引数は"キャンセル", "実行して成功", "実行して失敗", "実行して未解決"です
+	;独自処理を仕込みたい時は"実行して未解決"で先延ばしするなりしてください
+		DOWNBASE:MASTER:기력 += 50
+		DOWNBASE:MASTER:정력 += 250
+		IF TALENT:139:처녀 == 1
+			IF EXP:펠라티오경험 > 0
+				PRINTFORMW %CALLNAME:MASTER%は典に口で抜いてもらったときのことを想いだしながらペニスを扱いた…
+			ELSE
+				PRINTFORMW %CALLNAME:MASTER%は典の裸を想像しながらペニスを扱いた…
+			ENDIF
+		ELSE
+			PRINTFORMW %CALLNAME:MASTER%は典との性交を思い出しながらペニスを扱いた…
+		ENDIF
+		TIME += 10
+			IF TALENT:MASTER:농후정액
+				PRINTFORML 典から預かった試験管に、糊のような濃い精液をたっぷりと注ぎ込んだ…
+				PRINTFORML 量といい粘度といい文句のつけようがないだろう
+				PRINTW 
+				RETURN IRAI_CONST_RESULT("실행해 성공")
+			ELSE
+				PRINTFORML 典から預かった試験管に、精液をたっぷりと注ぎ込んだ…
+				PRINTFORML しかし、典から依頼された精液は濃厚なものだ
+				PRINTFORML これでは納得してくれないだろう
+				PRINTL 
+				PRINTFORML ※日を改めるなどして[濃厚精液]状態になってから臨みましょう
+				PRINTW 
+				RETURN IRAI_CONST_RESULT("실행해 미해결")
+			ENDIF
+			SOURCE:MASTER:달성 = 500
+	CASE "의뢰 성공시"
+	;成功報告時の報酬など
+		CALL KIGEN_CHANGE(TARGET, 100, 1)
+		SOURCE:TARGET:환락 = 1000
+		SOURCE:TARGET:정복 = 500
+		SOURCE:TARGET:달성 = 500
+		SOURCE:TARGET:욕정 = 3000
+		SOURCE:MASTER:욕정 = 1000
+		;システムメッセージつき好感度変化
+		;最後の引数だけ好感度が変化
+		CALL CHANGE_CFLAG(2, TARGET, 40)
+		;システムメッセージつき信頼度変化
+		;最後の引数だけ信頼度が変化
+		CALL CHANGE_CFLAG(4, TARGET, 25)
+		CALL GET_MONEY_YEN(50000, 2)
+	CASE "의뢰 실패시"
+	;失敗報告時の処理
+		;システムメッセージつき好感度変化
+		;最後の引数だけ好感度が変化
+		CALL CHANGE_CFLAG(2, TARGET, -20)
+		;システムメッセージつき信頼度変化
+		;最後の引数だけ信頼度が変化
+		CALL CHANGE_CFLAG(4, TARGET, -10)
+	ENDSELECT
+ENDSELECT
