@@ -1,35 +1,58 @@
 ﻿
 @TSC_34
 #DIM DYNAMIC 의뢰비
-PRINTFORML 「이상한 책을 주웠으니 해석을...?」
-IF TALENT:[[코스즈]]:연인||TALENT:[[코스즈]]:연모 || TALENT:[[코스즈]]:애욕||TALENT:[[코스즈]]:사모
-	PRINTFORML 「%마스터의% 부탁이라면야, 싸게 해 드릴게요♪」
+IF 미번역책:3 == 101
+	PRINTFORML 「네에 해석된 책입니다」
+	PRINTFORML 「가져가시겠어요? 아니면 여기에 파실래요?」
+	PRINTFORML 등급:%미번역본등급(KG_미번역책:2)%　종류:%미번역본종류(KG_미번역책:2)  추정 가치:{미번역본가치()}원
+	미번역책:3 = 999
+	PRINTFORML [0] 판다
+	PRINTFORML [1] 가져간다
+	INPUT
+	IF RESULT == 0
+		PRINTFORML 「네에 감사합니다~」
+		PRINTFORML 판매 대금으로 {미번역본가치()}원 받았다!
+		MONEY += 미번역본가치()
+		VARSET 미번역본
+		VARSET KG_미번역본
+	ELSE
+		PRINTFORML 「네에 그럼 여기있습니다」
+		번역된책:0 = 미번역책:0
+		번역된책:1 = 미번역책:1
+		번역된책:2 = 미번역책:2
+		번역된책:3 = 미번역책:4
+	ENDIF
 ELSE
-	PRINTFORML 「수고료만 내 주신다면야...」
+	PRINTFORML 「이상한 책을 주웠으니 해석을...?」
+	IF TALENT:[[코스즈]]:연인||TALENT:[[코스즈]]:연모 || TALENT:[[코스즈]]:애욕||TALENT:[[코스즈]]:사모
+		PRINTFORML 「%마스터의% 부탁이라면야, 싸게 해 드릴게요♪」
+	ELSE
+		PRINTFORML 「수고료만 내 주신다면야...」
+	ENDIF
+	의뢰비 = 미번역책:2 * 15000 + 60000
+	IF TALENT:[[코스즈]]:사모
+		의뢰비 -= 15000
+	ENDIF
+	IF TALENT:[[코스즈]]:연모 || TALENT:[[코스즈]]:애욕
+		의뢰비 -= 20000
+	ENDIF
+	IF TALENT:[[코스즈]]:연인
+		의뢰비 -= 25000
+	ENDIF
+	PRINTFORML 의뢰비 : {의뢰비}￦
+	IF MONEY < 의뢰비
+		PRINTFORMW 돈이 없다
+		RETURN
+	ENDIF
+	PRINTFORML 해석 의뢰를 맡길까?
+	CALL ASK_YN()
+	IF RESULT
+		RETURN
+	ENDIF
+	MONEY -= 의뢰비
+	미번역책:3++
+	PRINTFORML 「그러면 해석해보도록 할게요, 다 하면 연락드릴게요」
 ENDIF
-의뢰비 = 미번역책:2 * 15000 + 60000
-IF TALENT:[[코스즈]]:사모
-	의뢰비 -= 15000
-ENDIF
-IF TALENT:[[코스즈]]:연모 || TALENT:[[코스즈]]:애욕
-	의뢰비 -= 20000
-ENDIF
-IF TALENT:[[코스즈]]:연인
-	의뢰비 -= 25000
-ENDIF
-PRINTFORML 의뢰비 : {의뢰비}￦
-IF MONEY < 의뢰비
-	PRINTFORMW 돈이 없다
-	RETURN
-ENDIF
-PRINTFORML 해석 의뢰를 맡길까?
-CALL ASK_YN()
-IF RESULT
-	RETURN
-ENDIF
-MONEY -= 의뢰비
-미번역책:3++
-PRINTFORML 「그러면 해석해보도록 할게요, 다 하면 보내드릴게요」
 
 @TSC_NAME34
 #DIMS DYNAMIC 커맨드이름
@@ -54,3 +77,208 @@ SIF FLAG:70
 	RETURN 0
 RETURN 2
 
+@미번역본등급(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+	CASE 0
+		RETURNF "커먼"
+	CASE 1
+		RETURNF "레어"
+	CASE 2
+		RETURNF "유니크"
+	CASE 3
+		RETURNF "레전더리"
+ENDSELECT
+
+@미번역본종류(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+	CASE 0
+		RETURNF "상정외"
+	CASE 1
+		RETURNF "그냥 책"
+	CASE 2
+		RETURNF "외래서"
+	CASE 3
+		RETURNF "마도서"
+	CASE 4
+		RETURNF "요마서"
+ENDSELECT
+
+@미번역본가치()
+#FUNCTION
+LOCAL += KG_미번역책:1
+SELECTCASE KG_미번역책:2
+	CASE 0
+		TIMES LOCAL, 1.00
+	CASE 1
+		TIMES LOCAL, 1.10
+	CASE 2
+		TIMES LOCAL, 1.30
+	CASE 3
+		TIMES LOCAL, 1.50
+ENDSELECT
+SELECTCASE KG_미번역책:0
+	CASE 0
+		TIMES LOCAL, 0.90
+	CASE 1
+		TIMES LOCAL, 1.00
+	CASE 2
+		TIMES LOCAL, 1.10
+	CASE 3
+		TIMES LOCAL, 1.10
+ENDSELECT
+RETURNF LOCAL
+
+@미번역본진척도
+#DIM DYNAMIC 진행량
+#DIM DYNAMIC KG_보정
+IF 미번역책:3 == 100
+	IF TALENT:[[코스즈]]:당신의노예
+		KG_보정 += 20
+	ENDIF
+	IF TALENT:[[코스즈]]:연인
+		KG_보정 += 5
+	ENDIF
+	IF TALENT:[[코스즈]]:연모||TALENT:[[코스즈]]:애욕
+		KG_보정 += 5
+	ENDIF
+	IF TALENT:[[코스즈]]:사모
+		KG_보정 += 5
+	ENDIF
+	PRINTFORMW 영나암에서 해석 완료를 알리는 편지가 왔다...
+	미번역책:3 = 101
+	IF 명중판정(60 + KG_보정)
+		KG_미번역책:0 = 미번역책:0
+		KG_미번역책:1 = 미번역책:1
+		KG_미번역책:2 = 미번역책:2
+		KG_미번역책:3 = 999
+	ELSE
+		;후려침
+		SELECTCASE RAND:3
+			CASE 0
+				;1단계
+				SELECTCASE 미번역책:0
+					CASE 1
+						KG_미번역책:0 = 2
+					CASE 2
+						KG_미번역책:0 = 1
+					CASE 3
+						KG_미번역책:0 = 2
+					CASE 4
+						KG_미번역책:0 = 3
+				ENDSELECT
+				KG_미번역책:1 = KG_미번역책:1 * (900 - RAND:101) / 1000
+				SELECTCASE 미번역책:2
+					CASE 0
+						IF 명중판정(60 + KG_보정)
+							KG_미번역책:2 = 0
+						ELSE
+							KG_미번역책:2 = 0
+						ENDIF
+					CASE 1
+						IF 명중판정(60 + KG_보정)
+							KG_미번역책:2 = 1
+						ELSE
+							KG_미번역책:2 = 0
+						ENDIF
+					CASE 2
+						IF 명중판정(60 + KG_보정)
+							KG_미번역책:2 = 2
+						ELSE
+							KG_미번역책:2 = 1
+						ENDIF
+					CASE 3
+						IF 명중판정(60 + KG_보정)
+							KG_미번역책:2 = 3
+						ELSE
+							KG_미번역책:2 = 2
+						ENDIF
+				ENDSELECT
+				KG_미번역책:3 = 999
+			CASE 1
+				;2단계
+				SELECTCASE 미번역책:0
+					CASE 1
+						KG_미번역책:0 = 2
+					CASE 2
+						KG_미번역책:0 = 1
+					CASE 3
+						KG_미번역책:0 = 1
+					CASE 4
+						KG_미번역책:0 = 2
+				ENDSELECT
+				KG_미번역책:1 = KG_미번역책:1 * (800 - RAND:101) / 1000
+				SELECTCASE 미번역책:2
+					CASE 0
+						IF 명중판정(50 + KG_보정)
+							KG_미번역책:2 = 0
+						ELSE
+							KG_미번역책:2 = 0
+						ENDIF
+					CASE 1
+						IF 명중판정(50 + KG_보정)
+							KG_미번역책:2 = 1
+						ELSE
+							KG_미번역책:2 = 0
+						ENDIF
+					CASE 2
+						IF 명중판정(50 + KG_보정)
+							KG_미번역책:2 = 2
+						ELSE
+							KG_미번역책:2 = 0
+						ENDIF
+					CASE 3
+						IF 명중판정(50 + KG_보정)
+							KG_미번역책:2 = 3
+						ELSEIF 명중판정(20 + KG_보정)
+							KG_미번역책:2 = 2
+						ELSE
+							KG_미번역책:2 = 1
+						ENDIF
+				ENDSELECT
+				KG_미번역책:3 = 999
+			CASE 2
+				;3단계
+				SELECTCASE 미번역책:0
+					CASE 1
+						KG_미번역책:0 = RAND:4 + 1
+					CASE 2
+						KG_미번역책:0 = RAND:4 + 1
+					CASE 3
+						KG_미번역책:0 = RAND:4 + 1
+					CASE 4
+						KG_미번역책:0 = RAND:4 + 1
+				ENDSELECT
+				KG_미번역책:1 = KG_미번역책:1 * (650 - RAND:101) / 1000
+				KG_미번역책:2 = RAND:4
+				KG_미번역책:3 = 999
+		ENDSELECT
+	ENDIF
+	RETURN
+ENDIF
+진행량 += 20
+IF TALENT:[[코스즈]]:연인
+	진행량 += 5
+ENDIF
+IF TALENT:[[코스즈]]:연모||TALENT:[[코스즈]]:애욕
+	진행량 += 5
+ENDIF
+IF TALENT:[[코스즈]]:사모
+	진행량 += 5
+ENDIF
+SELECTCASE 미번역책:2
+	CASE 0
+		진행량 += 5
+	CASE 1
+		진행량 += 0
+	CASE 2
+		진행량 -= 5
+	CASE 3
+		진행량 -= 10
+ENDSELECT
+
+미번역책:3 += 진행량
+IF 미번역책:3 >= 100
+	미번역책:3 = 100
+ENDIF
