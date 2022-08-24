@@ -36,8 +36,10 @@ IF !重複防止:(GET_MAPID(CFLAG:MASTER:현재위치))
 ENDIF
 IF FLAG:기념품점염가대매출 >= 100 && FLAG:기념품점염가대매출 % 100 == CFLAG:MASTER:데이트중
 	CALL COLORMESSAGE(@"대할인 개최 중!", C_YELLOW, 1)
-ELSE
+ELSEIF FLAG:데이트상대
 	PRINTFORML %CALLNAME:TARGET%에게 뭔가 사주자……
+ELSE
+	PRINTFORML 누군가에게 선물할 만한걸 찾아보자...
 ENDIF
 DRAWLINE
 
@@ -96,6 +98,20 @@ ELSEIF INRANGE(RESULT, 1, 상품상한 + 1)
 		생성완료 = 1
 		CLEARLINE 9 + 상품상한
 		RESTART
+	ELSEIF !FLAG:데이트상대
+		BOUGHT_GIFT = RESULT
+		台詞 = 「감사합니다.」/「%TEXTR("잘 사셨네요/또 오세요/바로 보내드리면 될까요?")%」
+		CALL SPTALK, 0, "笑顔", 店員, 台詞, 1
+		MONEY -= GIFT_PRICE:BOUGHT_GIFT
+		重複防止:(GET_MAPID(CFLAG:MASTER:현재위치)) = 0
+		IF P_선물보내기용:0 == 1
+			PRINTFORML 원래 가지고 있던 %조사처리(P_선물보내기용이름,"은")% 버렸다
+		ENDIF
+		P_선물보내기용:0 = 1
+		P_선물보내기용:1 = GIFT_LIST:BOUGHT_GIFT
+		P_선물보내기용:2 = GIFT_PRICE:BOUGHT_GIFT
+		P_선물보내기용이름 '= GIFT_NAME:BOUGHT_GIFT
+
 	;商品購入
 	ELSE
 		BOUGHT_GIFT = RESULT
@@ -180,11 +196,11 @@ SIF GLOBAL_COMABLE(626)
 SIF !GIFT_SHOP(CFLAG:MASTER:현재위치)
 	RETURN 0
 ;데이트중でない
-SIF !FLAG:데이트상대
-	RETURN 0
+;SIF !FLAG:데이트상대
+;	RETURN 0
 ;TARGETが데이트상대ではない
-SIF TARGET != FLAG:데이트상대
-	RETURN 0
+;SIF TARGET != FLAG:데이트상대
+;	RETURN 0
 ;일일일회
 SIF GETBIT(TFLAG:일일일회, 10)
 	RETURN 0

@@ -1,13 +1,14 @@
 ﻿
 @TSC_33
 #DIM CONST 우편요금 = 4000
+#DIM DYNAMIC SCORE
 PRINTL
 PRINTFORML 우체국에 들어섰다...
 DRAWLINE
 PRINTFORML 우편 및 소포 당일 특급 요금 : {우편요금}￦/1통
 DRAWLINE
 PRINTFORMC [001] 우편 및 소포 발송
-;PRINTFORMC [002] 택배 발송
+PRINTFORMC [002] 택배 발송
 PRINTL
 DRAWLINE
 PRINTFORML [999] 나간다
@@ -81,7 +82,87 @@ SELECTCASE RESULT
 			MONEY -= 우편요금
 		ENDIF
 	CASE 2
-
+		IF MONEY <우편요금
+			PRINTFORMW 돈이 부족하다...
+			RESTART
+		ENDIF
+		PRINTFORML 받으시는 분의 우편번호를 적어주세요
+		INPUT
+		IF !INRANGE(RESULT,1,CHARANUM)
+			PRINTFORMW 옳지 않은 우편번호 입니다
+		ELSEIF TALENT:RESULT:사망 || CFLAG:RESULT:출금
+			PRINTFORMW 말소된 우편번호 입니다
+		ELSE
+			LOCAL = RESULT
+			PRINTFORML 무엇을 보내시겠습니까?
+			DRAWLINE
+			SIF P_선물보내기용:0
+				PRINTFORML [001] 선물 보내기
+			DRAWLINE
+			PRINTFORML [999] 돌아가기
+			$택배루프
+			INPUT
+			IF RESULT == 999
+				RESTART
+			ELSEIF RESULT == 1
+				PRINTFORML 가지고 있는 %조사처리(P_선물보내기용이름,"을")% 택배에 넣어 보냈다...
+				;받은횟수をチェック
+				LOCAL:1 = GET_GIFTDATA(CFLAG:LOCAL:선물스톡, "횟수") + 1
+				;건네준횟수をチェック
+				LOCAL:2 = CFLAG:MASTER:건네준선물 / 1000 + 1
+				;批評する
+				CALL REVIEW_GIFT(LOCAL, P_선물보내기용:1)
+				SCORE = RESULT
+				[IF_DEBUG]
+					PRINTFORML ◆디버그용◆
+					PRINTFORML 득점:{SCORE}
+					PRINTFORML 득점을 조작할 수 있습니다 (1～999)
+					INPUT
+					SIF INRANGE(RESULT, 1, 999)
+						SCORE = RESULT
+				[ENDIF]
+				;ストックにGIFT_IDを保存
+				CFLAG:LOCAL:선물스톡 = LOCAL:1 * 10000000000000000 + SCORE * 10000000000000 + DAY * 1000000000 + CFLAG:MASTER:데이트중 * 10000000 + P_선물보내기용:1
+				;ストレージにも保存
+				GIFT_GOT:LOCAL:(LOCAL:1 % 100) = CFLAG:LOCAL:선물스톡
+				;LOCALはID,MASTERは渡したキャラを保存
+				TCVAR:LOCAL:오늘의선물 = CFLAG:LOCAL:선물스톡
+				TCVAR:MASTER:오늘의선물 = LOCAL
+				;MASTERは건네준횟수と渡したキャラを保存
+				CFLAG:MASTER:건네준선물 = LOCAL:2 * 1000 + LOCAL
+		;		PRINTFORMW ID:{CFLAG:LOCAL:선물스톡}
+				;ソースの계수
+				TFLAG:193 = SCORE / 100
+				
+				;ソースの獲得,일일일회限定でコストもかかるのでかなり大きめ（これでも時間効率はスキンシップと同等）
+				SOURCE:LOCAL:환락 = 800 + 1500 * TFLAG:193 + 800 * 호감도계수(LOCAL)
+				SOURCE:LOCAL:수동 = 600 + 1500 * TFLAG:193 + 800 * ABL:LOCAL:순종
+				SOURCE:LOCAL:정복 = 600 + 800 * TFLAG:193 + 1500 * ABL:LOCAL:새드끼
+				;연인補正
+				SIF TALENT:LOCAL:연인
+					TIMES SOURCE:LOCAL:환락, 2.00
+				;祭日補正,評価と二重になるけど
+				SIF FESTIVAL() != ""
+					TIMES SOURCE:LOCAL:환락, 2.00
+				;信頼度,大きめ
+				TFLAG:98 = (TFLAG:193 + 1) / 2 + 1
+				
+				;地の文用の分岐と기분修整
+				IF TFLAG:193 >= 7
+					SIF TALENT:LOCAL:기분 < 0
+						CALL KIGEN_CHANGE(LOCAL, 100, 1)
+					TFLAG:194 = 3
+				ELSEIF TFLAG:193 >= 4
+					TFLAG:194 = 2
+				ELSE
+					TFLAG:194 = 1
+				ENDIF
+				
+			ELSE
+				GOTO 택배루프
+			ENDIF
+			MONEY -= 우편요금
+		ENDIF
 ENDSELECT
 RESTART
 
