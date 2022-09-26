@@ -2,31 +2,34 @@
 @COM620
 #DIM CHARISMA
 #DIM ItemId
-
+#DIM DYNAMIC 사본구매
+#DIM DYNAMIC C_책값
 $C_LOOP
+C_책값 = 3000
+IF 사본구매
+	C_책값 *= 10
+ENDIF
 DRAWLINE
 IF !CHARISMA
 	PRINTFORML 소지금:%금액표시(MONEY)%
 ELSE
 	PRINTFORML 소지카리스마:{MONEY:2}
 ENDIF
-PRINTL 「임차료는 모두 \3000 입니다」
+PRINTL 「%사본구매 ? 임차료 # 구매비%는 모두 \{C_책값} 입니다」
 DRAWLINE
 FOR LOCAL,1, BookTitles + 1
 	ItemId = LOCAL + 100
 	PRINTFORM [{LOCAL}] %ITEMNAME:ItemId%
 	IF ITEM:ItemId
-		PRINTFORML (%마스터가% 빌리고 있다)
+		PRINTFORML (%마스터가% %ITEM:ItemId == 2 ? 가지고 # 빌리고% 있다)
 	ELSEIF GETBIT (FLAG:1011,LOCAL)
 		PRINTL (대출중)
 	ELSE
 		PRINTL 　
 	ENDIF
 NEXT
-IF !FLAG:조교전
-	;PRINTFORML [69] 동??교?
-ENDIF
 
+PRINTFORML [99] %사본구매? 대여 모드 # 사본 구매%%
 IF !CHARISMA
 	PRINTFORML [100] 카리스마 지불
 ELSE
@@ -39,7 +42,7 @@ $LOOP
 INPUT
 FOR LOCAL,1, BookTitles + 1
 	ItemId = LOCAL + 100
-	IF ITEM:ItemId
+	IF ITEM:ItemId == 1
 		PRINTL 「2권 이상의 대출은 할 수 없습니다」
 		RETURN -1
 	ENDIF
@@ -48,8 +51,8 @@ NEXT
 IF RESULT == 100
 	IF !CHARISMA
 		PRINTFORMW 「카리스마로 지불해???」
-		PRINTFORMW 「그러니까……그럼 10 카리스마? 로 괜찮아……」
-		IF MONEY:2 < 10
+		PRINTFORMW 「그러니까……그럼 {C_책값 / 300} 카리스마? 로 괜찮아……」
+		IF MONEY:2 < C_책값 / 300
 			PRINTFORMW 카리스마가 부족하다
 			GOTO C_LOOP
 		ENDIF
@@ -59,34 +62,16 @@ IF RESULT == 100
 	PRINTFORML 
 	CHARISMA = !CHARISMA
 	GOTO C_LOOP
-ELSEIF RESULT == 69 && 0
-	PRINTL 「아, 그 책은..」
-	PRINTL 「뭔가 오싹해 보이는 책이라 처분하려 했는데, 혹시 관심있으신가요?」
-	PRINTL 「한 15000원 정도에 넘길게요, 어때요?」
-	CALL ASK_YN()
-	IF RESULT
-		GOTO C_LOOP
-	ELSE
-		IF MONEY >= 15000
-			FLAG:조교전 = 1
-			ITEM:조교전++
-			MONEY -= 15000
-			PRINTL 동??교? 을 구매했다...
-			PRINTL 「조심하세요, 왜인지 꺼림칙하니까...요괴랑 관련된 걸 수도 있다고요?」
-			PRINTW ...해어진 표지의 먼지를 털어내니 희미하게 원 제목이 보인다...
-			PRINTL
-			PRINTW 동방 조교전
-			PRINTFORMW %마스터는% 조교전을 획득하였다
-		ELSE
-			PRINTL 「...근데 돈 모자라네요, 뭐어...관심있으시다면야 나중에라도 다시 오세요」
-			PRINTL 「한동안은 버리지 않고 있을테니」
-		ENDIF
-	ENDIF
-
-
+ELSEIF RESULT == 99
+	사본구매 = !사본구매
+	GOTO C_LOOP
 ELSE
-	IF !CHARISMA && MONEY < 3000
+	IF !CHARISMA && MONEY < C_책값
 		PRINTW 돈이 모자랐다…
+		RETURN -1
+	ENDIF
+	IF ITEM:(100 + RESULT) == 2
+		PRINTW 이미 산 책이다
 		RETURN -1
 	ENDIF
 	IF INRANGE(RESULT, 1, BookTitles)
@@ -100,23 +85,41 @@ ELSE
 				CALL SPTALK, 0, "通常", 12, @"%LOCALS%", 1
 			ENDIF
 		ELSE
-			SETBIT FLAG:1011,RESULT
-			IF !CHARISMA
-				MONEY -= 3000
+			IF 사본구매
+				IF !CHARISMA
+					MONEY -= C_책값
+				ELSE
+					MONEY:2 -= C_책값/300
+				ENDIF
+				ITEM:(100 + RESULT) = 2
+				PRINTFORML %조사처리(ITEMNAME:(100 + RESULT),"를")% 샀다
+				LOCALS = 「구매해 주셔서 감사합니다」
+				IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
+					CALL SPTALK, [[코스즈]], "笑顔", 0, @"%LOCALS%", 1
+					SIF TARGET != [[코스즈]]
+						RESETCOLOR
+				ELSE
+					CALL SPTALK, 0, "笑顔", 12, @"%LOCALS%", 1
+				ENDIF
 			ELSE
-				MONEY:2 -= 10
-			ENDIF
-			ITEM:(100 + RESULT) = 1
-			FLAG:대본반환기한 = 8
-			TFLAG:193 = 1
-			PRINTFORML %조사처리(ITEMNAME:(100 + RESULT),"를")% 빌렸다
-			LOCALS = 「감사합니다」/「대출 기간은 일주일간입니다」 
-			IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
-				CALL SPTALK, [[코스즈]], "笑顔", 0, @"%LOCALS%", 1
-				SIF TARGET != [[코스즈]]
-					RESETCOLOR
-			ELSE
-				CALL SPTALK, 0, "笑顔", 12, @"%LOCALS%", 1
+				SETBIT FLAG:1011,RESULT
+				IF !CHARISMA
+					MONEY -= C_책값
+				ELSE
+					MONEY:2 -= C_책값/300
+				ENDIF
+				ITEM:(100 + RESULT) = 1
+				FLAG:대본반환기한 = 8
+				TFLAG:193 = 1
+				PRINTFORML %조사처리(ITEMNAME:(100 + RESULT),"를")% 빌렸다
+				LOCALS = 「감사합니다」/「대출 기간은 일주일간입니다」 
+				IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
+					CALL SPTALK, [[코스즈]], "笑顔", 0, @"%LOCALS%", 1
+					SIF TARGET != [[코스즈]]
+						RESETCOLOR
+				ELSE
+					CALL SPTALK, 0, "笑顔", 12, @"%LOCALS%", 1
+				ENDIF
 			ENDIF
 			RETURN 1
 		ENDIF
@@ -167,7 +170,8 @@ SIF FLAG:대본반환기한
 	FLAG:대본반환기한 -= 1
 IF FLAG:대본반환기한 == 1
 	FOR LOCAL,1,BookTitles + 1
-		ITEM:(100 + LOCAL) = 0
+		SIF ITEM:(100 + LOCAL) == 1
+			ITEM:(100 + LOCAL) = 0
 	NEXT
 	PRINTL 반환 기한이 왔으므로, 빌리고 있던 책을 돌려주었습니다.
 ENDIF
