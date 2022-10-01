@@ -50,7 +50,7 @@ FLAG:일일이벤트 = RAND:1000
 FLAG:70 = 0
 RESETBGCOLOR
 CFLAG:MASTER:동침중 = 0
-IF IN_HOME(CFLAG:MASTER:초기위치) == 0 || CFLAG:MASTER:초기위치 <= 0
+IF (IN_HOME(CFLAG:MASTER:초기위치) == 0 || CFLAG:MASTER:초기위치 <= 0) && !FLAG:노숙
 	PRINTW 초기위치가 부정합니다. Default의 위치에 되돌립니다.
 	CFLAG:MASTER:초기위치 = Default초기위치
 ENDIF
@@ -175,7 +175,7 @@ ENDIF
 
 CFLAG:동거사람:마지막에만난날 = DAY
 
-IF TALENT:동거사람:연모 && INRANGE(TIME:3, CFLAG:동거사람:기상시간 - 180, CFLAG:동거사람:기상시간) && !FLAG:감방남은일수
+IF TALENT:동거사람:연모 && INRANGE(TIME:3, CFLAG:동거사람:기상시간 - 180, CFLAG:동거사람:기상시간) && !FLAG:감방남은일수 && !FLAG:노숙
 	기상방해확률 = 20
 	SIF DAY:2 == 2
 		기상방해확률 = 10
@@ -426,15 +426,23 @@ FOR LOCAL,1,CHARANUM
 		CALL 아침밥생성(LOCAL)
 	ENDIF
 NEXT
-IF FLAG:정액도난 || (FLAG:지정아침발기 && RAND:3 != 0)
+IF FLAG:정액도난 || (FLAG:지정아침발기 && RAND:3 != 0 && !FLAG:노숙)
 	PRINTFORML 왜인지 하의가 벗겨져있고, 정액이 마구잡이로 흘러 주위를 더럽히고 있다...
 	PRINTFORML 아랫도리가 텅 빈 느낌이다...
 	BASE:MASTER:정력 = BASE:MASTER:정력 * (100 - (FLAG:정액도난 * 20)) / MAXBASE:MASTER:정력
 	FLAG:정액도난 = 0
-ELSEIF FLAG:지정아침발기
+ELSEIF FLAG:지정아침발기&&!FLAG:노숙
 	CALL 아침발기처리발각(FLAG:지정아침발기)
 ENDIF
-
+IF FLAG:노숙
+	PRINTFORML 길에서 자서인지 몸이 쑤신다...
+	BASE:MASTER:체력 = BASE:MASTER:체력 * 90 / 100
+	IF !ITEM:텐트
+		BASE:MASTER:체력 = BASE:MASTER:체력 * 80 / 100
+	ENDIF
+	CFLAG:MASTER:데이트중 = FLAG:노숙
+	FLAG:노숙 = 0
+ENDIF
 ;----------------------------------------------
 
 ;----------------------------------------------
