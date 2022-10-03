@@ -5,6 +5,10 @@
 @COM402
 #DIM 노동량
 #DIM 수익
+#DIM 주인의수
+#DIM 주인순서
+#DIM 루프횟수
+#DIM 검증비트
 
 IF FLAG:부업 && BASE:MASTER:기력 > 300 && BASE:MASTER:TSP > 0
 	PRINTFORML %마스터는% 자기 전에 남은 TSP를 사용해 부업을 했다
@@ -34,8 +38,61 @@ IF 아이의수면시간(TARGET) && CFLAG:출산경과일 >= CHILD_아장아장 
 	RESETCOLOR
 ENDIF
 
+FLAG:주인강간쿨타임 = MAX(0,FLAG:주인강간쿨타임 - 1)
+IF !FLAG:주인강간쿨타임 && (TALENT:MASTER:노예 && 명중판정(2))
+	주인의수 = 0
+	주인순서 = 0
+	검증비트 = 0
+	루프횟수 = 0
+	;주인이 몇 명인지
+	FOR 루프횟수, 1, CHARANUM
+		IF TALENT:루프횟수:주인 == 1&&!TALENT:루프횟수:사망 && !CFLAG:루프횟수:출금 && !CFLAG:루프횟수:감금됨
+			주인의수++
+		ENDIF
+	NEXT
+	;그 주인들 중 몇 번째 주인이 찾아오는지
+	IF 주인의수 == 0
+		;주인수 0일때에 무한루프 발생을 억제
+		GOTO 정상적인잠
+	ENDIF
+	주인순서 = RAND:주인의수
+	FOR 루프횟수, 1, CHARANUM
+		IF TALENT:루프횟수:주인 == 1&&!TALENT:루프횟수:사망 && !CFLAG:루프횟수:출금 && !CFLAG:루프횟수:감금됨
+			검증비트++
+			IF 검증비트 >= 주인순서
+				TARGET = 루프횟수
+				BREAK
+			ENDIF
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTFORMW 늦은 밤, %마스터의% 방문을 누군가 똑똑 두드렸다
+	PRINTFORM 문을 열어보니...
+	PRINTFORMW %타겟이% 서 있었다!
+	PRINTFORMW 방으로 들어온 %타겟은% %마스터를% 넘어뜨린 채 조교를 개시했다...
+	GOTO 조교타임
+ENDIF
+$정상적인잠
 CALL OYASUMI
 
+
+$조교타임
+BASE:MASTER:체력 = MIN(MAXBASE:MASTER:체력,BASE:MASTER:체력 + 500)
+BASE:MASTER:기력 = MIN(MAXBASE:MASTER:기력,BASE:MASTER:기력 + 500)
+BASE:체력 = MIN(MAXBASE:체력,BASE:체력 + 1000)
+BASE:기력 = MIN(MAXBASE:기력,BASE:기력 + 1000)
+TCVAR:MASTER:잠들지않아 = 1
+TCVAR:잠들지않아 = 1
+CFLAG:MASTER:우후후 = 2
+CFLAG:우후후 = 2
+CFLAG:수면 = 0
+TCVAR:역레이프 = 1
+TCVAR:귀가지연 = 20
+FLAG:주인강간쿨타임 = 2
+CALL SETTING_PERSONALITY(TARGET)
+CFLAG:MASTER:취침시간 = DAY * 1440 + TIME
+TIME += 60 * (1 + RAND:3)
+CFLAG:현재위치 = CFLAG:MASTER:현재위치
 RETURN 1
 
 ;취침
