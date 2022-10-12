@@ -1,6 +1,10 @@
 ﻿@외출처로부터귀가
 #DIM DIST_TO_HOME
 #DIM ReqTSP
+#DIM 道迷い時間
+#DIMS 低気圧位置
+
+低気圧位置 = %GET_LOCATION_LOW()%
 
 ReqTSP = TIME_REQUIRED(MAIN_MAP,CFLAG:MASTER:데이트중) * 3
 IF !FLAG:데이트상대 && !FLAG:70 && BASE:MASTER:TSP >= ReqTSP
@@ -17,7 +21,97 @@ IF !FLAG:데이트상대 && !FLAG:70 && BASE:MASTER:TSP >= ReqTSP
 	ENDIF
 ENDIF
 IF !FLAG:70
+	;(天候パッチ)連続降水カウンター20以上で土砂崩れに巻き込まれる可能性
+	IF CONTINUOUS_RAINFALL >= 20 && RAND:(MAX(2, (40 - CONTINUOUS_RAINFALL) / 2)) == 0
+		PRINTFORML …길을 걷고 있는데 산 고지대에서 이상한 소리가 들려왔다
+		PRINTFORMW ！！　산사태다！！
+		
+		PRINTFORML 
+		PRINTFORML %마스터는% 토사에 휩쓸리면서도
+		PRINTFORML 가까스로 탈출하는데 성공했다…
+		PRINTL 
+		CALL ASK_DIARY("산사태와 조우했다")
+		BASE:MASTER:체력 = 0
+		
+		GOTO WARP2
+	ENDIF
+	;(天候パッチ)猛烈な台風の暴風域にいるとき飛来物に巻き込まれる可能性 颶風時には確率上昇
+	IF (低気圧位置 == "台風接近暴風域" || 低気圧位置 == "台風通過暴風域") && IS_TYPHOON:1 >= 5 && (RAND:20 == 0 || (WIND_VELOCITY >= 3 && RAND:3 == 0))
+		PRINTFORML …길을 걷고 있는데 무언가가 이쪽으로 날아왔다
+		PRINTFORMW ！！　기와가 날아온다！！
+		
+		PRINTFORML 
+		PRINTFORML 폭풍에 날려 버려진 기와가 %마스터에게% 직격했다…
+		PRINTL 
+		CALL ASK_DIARY("비래물에 직격했다")
+		BASE:MASTER:체력 = 0
+		
+		GOTO WARP3
+	ENDIF
+	;(天候パッチ)雪崩発生フラグが立っているとき雪崩に巻き込まれる可能性
+	IF POSSIBLITY_AVALANCHE == 1 && POWER_COLD_AIR >= 3 && RAND:((6 - POWER_COLD_AIR) * 10) == 0
+		PRINTFORML …길을 걷고 있는데 산 고지대에서 무언가가 덮쳐왔다
+		PRINTFORMW ！！　눈사태다！！
+		
+		PRINTFORML 
+		PRINTFORML %마스터는% 눈사태에 휘말리면서도
+		PRINTFORML 가까스로 탈출하는데 성공했다…
+		PRINTL 
+		
+		POSSIBLITY_AVALANCHE = 0
+		CONTINUOUS_SNOWFALL = 0
+		
+		CALL ASK_DIARY("눈사태와 조우했다")
+		BASE:MASTER:체력 = 0
+		
+		GOTO WARP4
+	ELSEIF POSSIBLITY_AVALANCHE == 2 && POWER_WARM_AIR >= 2 && RAND:((6 - POWER_WARM_AIR) * 10) == 0
+		PRINTFORML …길을 걷고 있는데 산 고지대에서 무언가가 덮쳐왔다
+		PRINTFORMW ！！　눈사태다！！
+		
+		PRINTFORML 
+		PRINTFORML %마스터는% 눈사태에 휘말리면서도
+		PRINTFORML 가까스로 탈출하는데 성공했다…
+		PRINTL 
+		
+		SNOW_COVERAGE = 0
+		CONTINUOUS_SNOWFALL = 0
+		SNOW_COVERAGE = 0
+		
+		CALL ASK_DIARY("눈사태와 조우했다")
+		BASE:MASTER:체력 = 0
+		
+		GOTO WARP5
+	ENDIF
+	;(天候パッチ)暴風雪発生時にホワイトアウト発生の可能性 颶風時には確率上昇
+	IF TIME:5 == 9 && ((WIND_VELOCITY == 2 && RAND:3 == 0) || WIND_VELOCITY >= 3)
+		道迷い時間 = 60 + RAND:120
+		PRINTFORML 쏟아지는 눈이 맹렬한 바람에 몰아쳐
+		PRINTFORMW 눈 앞이 새하얘졌다！
+		PRINTFORML 
+		PRINTFORML ……길을 잃고 {道迷い時間}분 쓸데없이 걸어 버렸다
+		TIME:0 += 道迷い時間
+		BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - (20 * 道迷い時間), 0)
+		
+		GOTO WARP6
+	ELSEIF TIME:5 == 8 && ((WIND_VELOCITY == 2 && RAND:10 == 0) || WIND_VELOCITY >= 3)
+		道迷い時間 = 30 + RAND:60
+		PRINTFORML 쏟아지는 눈이 맹렬한 바람에 몰아쳐
+		PRINTFORMW 눈 앞이 새하얘졌다！
+		PRINTFORML 
+		PRINTFORML ……길을 잃고 {道迷い時間}분 쓸데없이 걸어 버렸다
+		TIME:0 += 道迷い時間
+		BASE:MASTER:체력 = MAX(BASE:MASTER:체력 - (15 * 道迷い時間), 0)
+		
+		GOTO WARP7
+	ENDIF
 	CALL 외출이벤트
+	$WARP2
+	$WARP3
+	$WARP4
+	$WARP5
+	$WARP6
+	$WARP7
 	CALL 귀가의시간경과
 ELSEIF BASE:MASTER:TSP < ReqTSP
 	PRINTW TSP가 부족하기 때문에 시간을 멈춘 상태로는 돌아갈 수 없다

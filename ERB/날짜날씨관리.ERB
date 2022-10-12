@@ -28,6 +28,8 @@ IF DAY:3 > 31
 	IF DAY:2 > 4
 		DAY:2 = 1
 		FLAG:연시대출금 = FLAG:지주대출금
+		;(天候パッチ)長期予報を行う
+		CALL WEATHER_FORECAST_1YEAR
 	ENDIF
 	FLAG:은행털기기회 = 0
 	;여름이 되면 발렌타인 플래그 리셋
@@ -151,7 +153,7 @@ SIF DAY:2 < 1 || DAY:2 > 4
 ;COMMENT	
 ;-----------------------------------------------------------
 @CHANGE_TIMEZONE
-
+#DIM 現在時間帯
 ;SELECTCASE TIME
 ;	CASE 240 TO 599
 ;		LOCAL = 1
@@ -184,17 +186,49 @@ SELECTCASE TIME
 	CASE 0 TO 239, IS >= 1380
 		LOCAL = 7
 ENDSELECT
+;(天候パッチ)天候システム上の時間帯管理
+SELECTCASE TIME
+	;AM0~3　未明
+	CASE 0 TO 179
+		現在時間帯 = 1
+	;AM3~6　明け方
+	CASE 180 TO 359
+		現在時間帯 = 2
+	;AM6~9　朝
+	CASE 360 TO 539
+		現在時間帯 = 3
+	;AM9~12　昼前
+	CASE 540 TO 719
+		現在時間帯 = 4
+	;PM0~3　昼過ぎ
+	CASE 720 TO 899
+		現在時間帯 = 5
+	;PM3~6　夕方
+	CASE 900 TO 1079
+		現在時間帯 = 6
+	;PM6~9　夜のはじめ頃
+	CASE 1080 TO 1259
+		現在時間帯 = 7
+	;PM9~12　夜遅く
+	CASE IS >= 1260
+		現在時間帯 = 8
+ENDSELECT
+
 ;(天候パッチ)現在の天候傾向を判定
 CALL CHANGE_WEATHER_SYSTEM
 
 IF LOCAL != TIME:2
 	TIME:2 = LOCAL
-	CALL CHANGE_WEATHER
 	TRYCALLFORM MOB_PLACE_{MAIN_MAP}
 	CALL TIMEZONE_MOVE
 ENDIF
+;(天候パッチ)天候システム上の時間帯変動・天候変化
+IF WEATHER_TIMEZOME != 現在時間帯
+	WEATHER_TIMEZOME = 現在時間帯
+	CALL CHANGE_WEATHER
+ENDIF
 
-;FileName_COMMON.ERB ------------------------------- Rev1. 00
+;FileName_COMMON.ERB ------------------------------- Rev1.00
 ;계절 이름 취득
 ;CALL		USER
 ;ARG		인수가 없는 경우 DAY:2
@@ -219,12 +253,15 @@ RETURNF LOCALS:(ARG)
 @GET_WEATHER
 #FUNCTIONS
 #DIMS 표시_이상기상, 15
-IF FLAG:이상기상
+;(天候パッチ)台風・猛吹雪は表示しない
+IF FLAG:이상기상 && FLAG:이상기상 != 9 && FLAG:이상기상 != 10
+	;SPLIT " /Ｃ敏感/Ｖ敏感/Ａ敏感/Ｂ敏感/Ｍ敏感/スカート/パンツ/桃色の風/台風/猛吹雪", "/", 表示_異常気象
 	SPLIT " /C민감/V민감/A민감/B민감/M민감/치마/팬티/분홍바람/태풍/비바람/아파테이아/아타락시아/", "/", 표시_이상기상
 	RETURNF 표시_이상기상:(FLAG:이상기상)
 ENDIF
 SIF !STRLENS(LOCALS)
-	SPLIT "맑음/쾌청/약간흐림/흐림/비/폭우/이슬비/안개/눈/폭설/가루눈/안개눈/진눈깨비/우박", "/", LOCALS
+	SPLIT "맑음/쾌청/약간흐림/흐림/비/폭우/이슬비/안개/눈/폭설/가루눈/안개눈/진눈깨비/싸라기눈/호우/우박", "/", LOCALS
+	;SPLIT "晴れ/快晴/薄曇   /曇り/雨/大雨/霧雨  /霧  /雪/大雪/細雪  /霧雪  /みぞれ /あられ  /豪雨/ひょう", "/", LOCALS
 RETURNF LOCALS:(TIME:5)
 
 ;-------------------------------------------------

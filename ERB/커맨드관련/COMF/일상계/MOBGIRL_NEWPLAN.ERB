@@ -3,12 +3,12 @@
 #DIM 체인지횟수
 #DIM 지명횟수
 #DIM 희망
-#DIM 폭 = 3, 5, 5, 13
-#DIM 위치 = 0, 3, 8, 0
+#DIM 폭 = 0, 5, 10, 0
+#DIM 위치  = 5, 5, 5, 15
 {
-#DIMS AWAHIME_RACE = "유부녀", "마을 아가씨", "泡姫",
+#DIMS AWAHIME_RACE = "유부녀", "마을 아가씨", "泡姫", "카라스텐구", "캇파",
 					 "둔갑너구리", "둔갑여우", "이나바", "백랑텐구", "둔갑고양이",
-					 "오니", "캇파", "메이드요정", "좀비 페어리", "요정"
+					 "오니", "메이드요정", "좀비 페어리", "요정", "서큐버스"
 }
 체인지횟수 = 0
 지명횟수 = 0
@@ -18,9 +18,6 @@ VARSET LOCAL
 ;３日に一度販売員がお勤め
 SIF ((GETTIME()/1000000000) % 100) % 3 == 2
 	AWAHIME_RACE:5 = 販売員
-;２日に一度タヌキが変わる
-SIF DAY % 2
-	AWAHIME_RACE:3 = 茨たぬき
 IF !STRCOUNT(CSTR:0:0, "泡入浴/")
 	CSTR:0:0 = %CSTR:0:0%泡入浴/
 	PRINTL 「んーぎゃ、いい判断だぎゃ」
@@ -42,7 +39,7 @@ ENDIF
 PRINTL
 $LOOP_SOAP0
 PRINTFORML 「\@ !RESULT ? ほったら # もーいっきゃー \@、好みのメスっこのてゃーぷ、ぎゃーにおしえるだぎゃー」
-PRINTL [1] 인간
+PRINTL [1] 普通の娘
 PRINTL [2] ケモミミっ娘
 PRINTL [3] 人外娘
 PRINTL [4] おまかせ
@@ -119,6 +116,8 @@ IF 희망 == 4
 ELSE
 	체인지횟수 ++
 	LOCAL = RAND(폭:희망) + 위치:희망
+	SIF AWAHIME_RACE:LOCAL == "둔갑너구리" && RAND:2
+		AWAHIME_RACE:LOCAL = 茨たぬき
 	CALL MAKE_YUKIZURI(RANDOM_CHARANUM, AWAHIME_RACE:LOCAL, 2)
 ENDIF
 TEQUIP:RANDOM_CHARANUM:상반신착의상황 = 1
@@ -200,9 +199,9 @@ SELECTCASE RESULT
 			ENDIF
 			PRINTW 
 			CALL TALK_MOBGIRL("泡姫挨拶")
-			SETBIT TFLAG:일일일회, 9
 			;交渉成立ならうふふ
 			IF INRANGE(RESULT, 1, 3)
+				SETBIT TFLAG:일일일회, 9
 				LOCAL:0 = TIME / 60 * 60
 				LOCAL:1 = LOCAL:0 + 600 > 1440 ? LOCAL:0 - 840 # LOCAL:0 + 600
 				LOCAL:2 = RESULT
@@ -317,7 +316,7 @@ SELECTCASE ARGS
 	CASE "体力限界"
 		CALL TALK_MOBGIRL("泡姫体力限界", 회복횟수)
 		RESETCOLOR
-		IF !회복횟수
+		IF RESULT
 			회복횟수 ++
 			BASE:CHR:체력 += MAXBASE:CHR:체력 / 3 * 2
 			BASE:CHR:기력 += MAXBASE:CHR:기력 / 2

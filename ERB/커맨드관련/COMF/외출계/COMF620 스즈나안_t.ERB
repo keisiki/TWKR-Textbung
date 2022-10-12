@@ -2,6 +2,7 @@
 @COM620
 #DIM CHARISMA
 #DIM ItemId
+#DIM Borrow
 #DIM DYNAMIC 사본구매
 #DIM DYNAMIC C_책값
 $C_LOOP
@@ -21,7 +22,14 @@ FOR LOCAL,1, BookTitles + 1
 	ItemId = LOCAL + 100
 	PRINTFORM [{LOCAL}] %ITEMNAME:ItemId%
 	IF ITEM:ItemId
+		;---- EDIT START ---------------------------------
+		SETCOLOR C_AQUA
+		;---- EDIT END -----------------------------------
 		PRINTFORML (%마스터가% \@ITEM:ItemId == 2 ? 가지고 # 빌리고\@ 있다)
+		;---- EDIT START ---------------------------------
+		RESETCOLOR
+		Borrow = ItemId
+		;---- EDIT END -----------------------------------
 	ELSEIF GETBIT (FLAG:1011,LOCAL)
 		PRINTL (대출중)
 	ELSE
@@ -61,15 +69,6 @@ ELSEIF RESULT == 99
 ELSEIF RESULT == 0
 	RETURN -1
 ELSE
-	IF !사본구매
-		FOR LOCAL,1, BookTitles + 1
-			ItemId = LOCAL + 100
-			IF ITEM:ItemId == 1
-				PRINTL 「2권 이상의 대출은 할 수 없습니다」
-				GOTO LOOP
-			ENDIF
-		NEXT
-	ENDIF
 	IF !CHARISMA && MONEY < C_책값
 		PRINTW 돈이 모자랐다…
 		RETURN -1
@@ -79,7 +78,40 @@ ELSE
 		RETURN -1
 	ENDIF
 	IF INRANGE(RESULT, 1, BookTitles)
-		IF GETBIT (FLAG:1011,RESULT)
+		;KR판 추가수정, 책 반납기능 추가
+		;---- EDIT START ---------------------------------
+		IF Borrow
+			IF INRANGE(RESULT, 1, BookTitles)
+				LOCALS = 2권 이상은 대출할 수 없어/아니면 반납할꺼야? 반납해도 대출비는 반환되지 않아
+				IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
+					CALL SPTALK, [[코스즈]], "通常", 0, @"%LOCALS%", 1
+					SIF TARGET != [[코스즈]]
+						RESETCOLOR
+				ELSE
+					CALL SPTALK, 0, "通常", 12, @"%LOCALS%", 1
+				ENDIF
+				RESETCOLOR
+				PRINTFORML [1] 반납한다
+				PRINTFORML [2] 반납하지 않는다
+				INPUT
+
+				IF RESULT == 1
+					FLAG:대본반환기한 = 0
+					FOR LOCAL,1,BookTitles + 1
+						IF ITEM:(100 + LOCAL) > 0
+							ITEM:(100 + LOCAL) = 0
+							CLEARBIT FLAG:1011,LOCAL
+						ENDIF
+					NEXT
+					PRINTW 빌리고 있던 책을 돌려주었습니다
+					Borrow = 0
+					GOTO C_LOOP
+				ELSEIF RESULT == 2
+					GOTO C_LOOP
+				ENDIF
+			ENDIF
+		;---- EDIT END -----------------------------------
+		ELSEIF GETBIT (FLAG:1011,RESULT)
 			LOCALS = 「대출중입니다」
 			IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
 				CALL SPTALK, [[코스즈]], "通常", 0, @"%LOCALS%", 1
@@ -164,12 +196,13 @@ SIF ARG == GET_MAP_REPLACEMENT(213)
 RETURNF 0
 
 @BOOKLEND
-FOR LOCAL,1,BookTitles + 1
-	SIF LOCAL == 6	;[그림연극]을 패스
-		CONTINUE
-	SIF !ITEM:(100 + LOCAL) && !RAND:3
-		INVERTBIT FLAG:1011,LOCAL
-NEXT
+;KR판 추가수정, 매일 1/3의 확률로 대출중 전환 주석처리
+; FOR LOCAL,1,BookTitles + 1
+; 	SIF LOCAL == 6	;[그림연극]을 패스
+; 		CONTINUE
+; 	SIF !ITEM:(100 + LOCAL) && !RAND:3
+; 		INVERTBIT FLAG:1011,LOCAL
+; NEXT
 SIF FLAG:대본반환기한
 	FLAG:대본반환기한 -= 1
 IF FLAG:대본반환기한 == 1

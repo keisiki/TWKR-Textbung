@@ -1,10 +1,10 @@
 ﻿;==================================================
-;300,会話
+;300,회화
 ;==================================================
 @M_KOJO_MESSAGE_COM_K63_300
-;成否判定
-;TFLAG:192(-2=コマンド終了、-1＝強制失敗、0=COM依存、1=強制成功or大成功
-;발정中は必ず失敗
+;성공실패 판정
+;TFLAG:192 (-2=커맨드 종료, -1＝강제실패, 0=COM의존, 1=강제성공or대성공)
+;発情中は必ず失敗
 IF TCVAR:발정
 	TFLAG:192 = -1
 	CALL COLORMESSAGE(@"욕구불만이 올랐다",C_YELLOW,1)
@@ -14,16 +14,16 @@ IF TCVAR:발정
 		PALAM:TARGET:윤활 += 100
 	ENDIF
 ENDIF
-;コマンド共通メッセージ(TRAIN_MESSAGE) 
+;커맨드 공통 메시지(TRAIN_MESSAGE) 
 ;削除すると「～話をした。」とかが消えます
 ;CALL TRAIN_MESSAGE
-;口上メイン呼出
+;구상메인호출
 CALL M_KOJO_MESSAGE_COM_K63_300_1
 RETURN RESULT
 
 @M_KOJO_MESSAGE_COM_K63_300_1
 ;-------------------------------------------------
-;기입체크（=0, 비표시、1, 표시）
+;기입체크 (=0, 비표시、1, 표시)
 LOCAL = 1
 ;-------------------------------------------------
 IF LOCAL && !FLAG:70 
@@ -325,8 +325,10 @@ IF LOCAL && !FLAG:70
 				ENDSELECT
 			ENDIF
 		ENDSELECT
-	ELSEIF DAY:3 != 15 && !TCVAR:354
+	ELSEIF K63_CAN_KENGAKU()
 		CALL K63_職場見学
+	ELSEIF !TCVAR:356 && (TALENT:연모 || TALENT:사모) && !MARK:반발각인
+		CALL K63_RETRIEVE
 	;ウルフ・レッドムーン
 	ELSEIF !RAND:15
 		EXP:가창경험 ++
@@ -334,7 +336,7 @@ IF LOCAL && !FLAG:70
 		PRINTFORMW 「갈라지는ー 정적ー 어디까지나ー♪」(ウルフ・レッドムーン)
 	;연모の会話
 	ELSEIF TALENT:연모
-		SELECTCASE RAND:40
+		SELECTCASE RAND:45
 		;幻想郷に英語という概念はある
 		CASE 0
 			PRINTFORMW 「언제나 "늑대남"이라는 소리를 자주 들어버려」
@@ -389,17 +391,36 @@ IF LOCAL && !FLAG:70
 				PRINTFORMW 「처음에는 당황했지만 의외로 즐거워」
 				PRINTFORMW 「%CALLNAME:MASTER%도 있으니까, 후후, 사치스러운 생활이네♪」
 			ELSE
-				PRINTFORMW 「神社の生活はどうかしら」
+				PRINTFORMW 「신사 생활은 어때」
 				PRINTFORMW 「내가 할 수 있는 일이라면 도와줄 수 있어」
 				PRINTFORMW 「으음ー 청소…는 안 되겠지……」
 				PRINTFORMW 「아! 식량 조달이라든가!」
 			ENDIF
 		CASE 5
-			PRINTFORMW 「안개의 호수에는 와카사기히메라는 내 인어 친구가 살고 있어」
-			PRINTFORMW 「대범하고 아주 얌전한 아이야」
-			PRINTFORMW 「돌을 모으는 특이한 취미도 있고…」
-			PRINTFORMW 「그리고 노래를 정말 잘 해. 물가에서 노래하는 모습은 환상적이라서」
-			PRINTFORMW 「넋을 잃고 보게된달까～」
+			IF FIRSTTIME("姫の話題")
+				PRINTFORMW 「안개의 호수에는 와카사기히메라는 내 인어 친구가 살고 있어」
+				PRINTFORMW 「대범하고 아주 얌전한 아이야」
+				PRINTFORMW 「돌을 모으는 특이한 취미도 있고…」
+				PRINTFORMW 「그리고 노래를 정말 잘 해. 물가에서 노래하는 모습은 환상적이라서」
+				PRINTFORMW 「넋을 잃고 보게된달까～」
+			ELSE
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORML 「히메에게는 알 수 없는 품위가 있지」
+						PRINTFORML 「보통의 요괴일 텐데 왜 그럴까」
+					CASE 1
+						PRINTFORML 「보물이나 매직아이템 수집가보다, 예쁜 돌을 모으는 히메가 더 대단하다고 생각해」
+						PRINTFORML 「아무도 신경 쓰지 않는 것의 좋음을 알고 있다는 것인걸」
+					CASE 2
+						PRINTFORML 「히메의 돌 컬렉션, 대체로는 예쁘지만 가끔 뭐가 그렇게 좋은지 모르는 게 있어」
+						CALL ASK_YN("다른 사람의 취미란건 그런 것","히메는 많이 봐왔으니까")
+						IF !RESULT
+							PRINTFORML 「그럴지도ー…내 감각도 통하지 않을 때도 있고……」
+						ELSE
+							PRINTFORML 「과연ー！많이 봐왔으니까, 보통 눈치채지 못하는 미묘한 차이를 알 수 있다는 거네！」
+						ENDIF
+				ENDSELECT
+			ENDIF
 		CASE 6
 			PRINTFORMW 「아무래도 배가 고파서 식량이 없을 때는 몰래 마을로 가는 편이야」
 			PRINTFORMW 「언제나 들키지 않을까 하고 조마조마해……」
@@ -674,6 +695,7 @@ IF LOCAL && !FLAG:70
 			PRINTFORMW 「응?…… 킁킁」
 			SELECTCASE TIME:5
 			;そんな機能はない
+			;今なら天候管理作調システムの応用が使える？
 			CASE 0,1,2,3
 				PRINTFORMW 「왠지 비가 올 것 같은 분위기네…」
 			CASEELSE
@@ -730,12 +752,61 @@ IF LOCAL && !FLAG:70
 			PRINTFORMW 「킁킁…… 늑대니까…… 킁킁……」
 			PRINTFORMW 「코가 좋으니까…… 킁킁……」
 			CALL KUNKUN_KAGEROU
+		CASE 40
+			PRINTFORML 저기, 만약 늑대남자가 될 방법이 있다면, %마스터는% 인간을 그만둬 줄래？
+			CALL ASK_M("그래",1,"아니",1,"모르겠어",1)
+			SELECTCASE RESULT
+				CASE 0
+					PRINTFORML 「즉답！？」
+					PRINTFORML 「그렇다면 좋지만, 좀 더 진지하게 생각하고 대답해줬으면 좋았으려나」
+				CASE 1
+					PRINTFORML 「뭐 그렇지……」
+					PRINTFORML 「무서운 무녀에게 노려질 것 같고」
+				CASE 2
+					PRINTFORML 「그거야 고민되겠지」
+					PRINTFORML 「나도 늑대여자 그만두고 인간이 되라고 물어봐지면 망설여져ー…」
+			ENDSELECT
+		CASE 41
+			PRINTFORML 「유목민이라는 종류의 인간은 조상이 늑대인 것 같아」
+			PRINTFORML 「%마스터는% 유목민？」
+			PRINTFORML 「아닌가」
+		CASE 42
+			PRINTFORML 몸가짐에는 꽤 신경을 쓸 생각이지만, 진지하게 하려고 하면 손이 많이 가서 힘들지
+			PRINTFORML 바깥세상에는 뭔가, 이쪽에는 없는 미용술이 있어？
+			CALL ASK_M("속눈썹 연장",1,"네일아트",1,"레이저 제모",1)
+			SELECTCASE RESULT
+				CASE 0
+					PRINTFORML 「잘 만든 속눈썹을 붙이는 거야？ 재밌겠네！」
+					PRINTFORML 「속눈썹은 머리와 달리 원하는 대로 기를 수 없는 걸」
+				CASE 1
+					PRINTFORML 「매니큐어 정도라면 이쪽에도 있는데、그거랑은 다른건가？」
+					PRINTFORML 「과연, 세세한 그림을 그린 붙이는 손톱……한번 보고 싶네, 이쪽에서도 할 수 있을까？」
+				CASE 2
+					PRINTFORML 「레이저란 흑백의 마법사 같은 게 날리는 광선이지？ 그걸로 제모？」
+					PRINTFORML 「피부에 묻혀 있는 털의 뿌리를 구워버린다！？ 우와ー아프겠네！」
+					PRINTFORML 「그거 피부 어떻게 되지 않아？ 역시 화상을 입는구나……」
+					PRINTFORML 「으ー음, 털을 관리하지 않아도 되는 것은 매력이지만, 영원히 자라지 못하게 되는 건 그건 그것대로 곤란할 것 같네」
+					PRINTFORML 「대머리 늑대가 되고 싶진 않아」
+			ENDSELECT
+		CASE 43
+			PRINTFORML 「인간도 선인？ 이 되면 인간을 그만둘 수 있다고 하는데, 인간을 그만두고 싶어도 %마스터는% 그렇게 되지 말아줘」
+			PRINTFORML 「얽매이지 않는 그냥 요괴나 되서, 나나 풀뿌리 동료들과 편하게 사는게 어때？」
+		CASE 44
+			PRINTFORML 「반키는 다리가 가늘고 예브지」
+			PRINTFORML 「미니스커트도 스스럼없이 입을 수 있어서 부러워」
+		CASE 45
+			PRINTFORML 「%마스터가% 볼 때, 반키는 인간 마을에 녹아든 느낌이야？」
+			CALL ASK_YN("제대로","별로")
+			IF !RESULT
+				PRINTFORML 「헤ー！어찌저찌 잘 하고 있나보네」
+			ELSE
+				PRINTFORML 「역시나……」
+			ENDIF
 		ENDSELECT
 	;会話不能
 	ELSEIF TCVAR:302
 		PRINTFORMW 「어라? 왜 그래?」
 		PRINTFORMW 「…………………」
-
 	;普段の会話
 	ELSE
 		SELECTCASE RAND:30
@@ -776,13 +847,22 @@ IF LOCAL && !FLAG:70
 			PRINTFORMW 「그래서 나도 가끔 놀러가는데」
 			PRINTFORMW 「그 무녀는 약간의 스릴같은 거야」
 		CASE 5
-			PRINTFORMW 「안개의 호수에는 인어가 살고 있어」
-			IF TALENT:사모
-				PRINTFORMW 「와카사기히메라고 해」
-				PRINTFORMW 「처음 만났을 때는 잘못해서 먹을 뻔했어♪」
-				PRINTFORMW 「아하하, 지금은 사이좋게 지내니까 괜찮아」
+			IF FIRSTTIME("姫の話題")
+				PRINTFORML 「안개의 호수에는 인어가 살고 있어」
+				IF TALENT:사모
+					PRINTFORML 「와카사기히메라고 해」
+					PRINTFORML 「처음 만났을 때는 잘못해서 먹을 뻔했어♪」
+					PRINTFORMW 「아하하, 지금은 사이좋게 지내니까 괜찮아」
+				ENDIF
+				IF CFLAG:[[와카사기히메]]:안면
+					PRINTFORMW 「아, 만난 적 있어？」
+				ELSE
+					PRINTFORMW 「알고 있었어?」
+				ENDIF
 			ELSE
-				PRINTFORMW 「알고 있었어?」
+				PRINTFORML 「히메는 예쁜 돌을 모으는게 취미야――아, 죽림의 공주님이 아니라 와카사기히메 쪽 말이야」
+				PRINTFORML 「%CALLNAME:MASTER%도 괜찮아 보이는 걸 찾으면 선물해 줘」
+				PRINTFORML 「찾아낼 만큼 돌 같은 건 보지 않아？……뭐어, 그렇지」
 			ENDIF
 		CASE 6
 			PRINTFORMW 「아무래도 배가 고파서 식량이 없을 때는 몰래 마을로 가는 편이야」
@@ -898,6 +978,18 @@ IF LOCAL && !FLAG:70
 			PRINTFORMW 「킁킁…… 늑대니까…… 킁킁……」
 			PRINTFORMW 「코는 좋으니까…… 킁킁……」
 			CALL KUNKUN_KAGEROU
+		CASE 30
+			PRINTFORML 「인간 마을의 버드나무 밑에서 나오는 요괴 이야기, 들어본적 있어？」
+			CALL ASK_M("알고 있다",1,"모르겠다",1,"누구를 말하는지 알겠다",ABL:[[반키]]:친밀 >= 2)
+			SELECTCASE RESULT
+				CASE 0
+					PRINTFORML 「헤ー！왜래인인 %CALLNAME:MASTER%도 알고 있구나！」
+				CASE 1
+					PRINTFORML 「역시 말해질 정도로 알려져 있진 않네……」
+				CASE 2
+					PRINTFORML 「우와……신입 외래인에게조차 정체 탄로났네……」
+					PRINTFORML 「정말 인간 마을에서 잘 하고 있는걸까나, 그 애」
+			ENDSELECT
 		ENDSELECT
 	ENDIF
 ENDIF

@@ -22,6 +22,7 @@ ELSE
 	SIF RAND:LOCAL > 0
 		RETURN -1
 ENDIF
+;DAILY_EV41_発生回数 ++
 CALL DAILY_EV41
 RETURN 1
 
@@ -37,13 +38,13 @@ ENDIF
 ;初回用
 @DAILY_EV41_0
 CALL SPTALK, [[카게로]], "通常", 0, @"「こんばんわー」", 1
-PRINTFORMW 문을 열자 훌륭한 산새를 들고있는 카게로가 서 있었다
+PRINTFORMW 문을 열자 훌륭한 구리꿩를 들고있는 카게로가 서 있었다
 PRINTFORML 「ね、これすごいでしょ？さっき獲ってきたの」
 PRINTFORMW 「%CALLNAME:MASTER%料理得意でしょ？おすそ分けするからなにか作ってくれない？」
 PRINTFORML 
 CALL ASK_YN("어쩔 수 없다", "대접해 준다면")
 CALL EV41_MEAL(300)
-CALL GET_ITEM("산새", 5, 1)
+CALL GET_ITEM("구리꿩", 5, 1)
 PRINTFORML 
 PRINTFORML 「いまさらこんなことを聞くのもなんだけど…」
 PRINTFORML 「いきなり夜中に押しかけて迷惑だった？」
@@ -75,19 +76,25 @@ ENDIF
 CALL SPTALK, [[카게로]], "笑顔", 0, @"「こんばんわー」", 1
 PRINTFORMW 또 카게로가 왔다
 PRINTFORMW 「上がっていい？」
-SELECTCASE RAND:10
+SELECTCASE RAND:12
 	CASE 0
 		PRINTFORML 「見て見て、大きいのが獲れたの！また捌いてくれない？」
 		CALL EV41_MEAL(300)
-		CALL GET_ITEM("산새", 5, 1)
+		CALL GET_ITEM("구리꿩", 5, 1)
 	CASE 1
 		PRINTFORML 「珍しい石を見つけたから持ってきたわ」
 		PRINTFORMW 「あ、姫には内緒よ？」
 		CALL GET_ITEM("진사", 1, 1)
 	CASE 2, 3
-		PRINTFORML 「お魚を獲ってきたわ」
-		PRINTFORMW 「ウサギ狩りしてよかったらもっとお肉が食べられるんだけどね」
+		IF !RAND:2
+			PRINTFORML 「お魚を獲ってきたわ」
+			PRINTFORMW 「ウサギ狩りしてよかったらもっとお肉が食べられるんだけどね」
+		ELSE
+			PRINTFORMW 「自慢できる程のじゃないけど、獲れたからお裾分けね」
+		ENDIF
 		CALL EV41_MEAL(100)
+	CASE 4
+		CALL EV28_MAMUSHI
 	CASEELSE
 		PRINTFORML 「はいお土産！」
 		LOCALS = %TEXTR("죽순/고려인삼/산나물/쓴뿌리")%
@@ -283,7 +290,7 @@ CALL ADD_EXP_LESNIAN(횟수 * 5, [[카게로]], "PRINT")
 호감도상승량 = 횟수 * ABL:[[카게로]]:친밀 * 10
 CALL CHANGE_CFLAG(2,[[카게로]],호감도상승량)
 ;竹林以外が拠点なら泊まっていく
-IF MAIN_MAP != 4
+IF MAIN_MAP != 4 && !FLAG:일시체재
 	FLAG:일시체재 = [[카게로]]
 	CFLAG:[[카게로]]:본래의초기위치 = CFLAG:[[카게로]]:초기위치
 	CFLAG:[[카게로]]:초기위치 = CFLAG:MASTER:초기위치
@@ -460,3 +467,59 @@ ELSEIF finish == 2
 ENDIF
 PRINTFORMW 「もう一周して」
 GOTO LOOP
+@EV28_MAMUSHI
+IF FIRSTTIME("土産マムシ", 0, [[카게로]])
+	PRINTFORMW 「見てー！マムシー！」
+	PRINTFORMW まだ動いてる蛇の死体を見せつけてきた……
+	PRINTFORML 「食べたことないの？塩焼きにすると美味しいのよ」
+	PRINTFORMW 「いつも作ってもらってるから、今日は私がやるわね！」
+	PRINTFORMW ……
+	PRINTFORMW 意外と美味しかった
+ELSE
+	PRINTFORMW またマムシ捕ってきたわよ
+	{
+	PRINTFORMW %TEXTR("心臓いる？じゃあ私が貰うわね/皮をビーッって剥くのが楽しいのよね/
+	姫たちは食べてくれないのよね、美味しいのに/
+	レアでも美味しいんだけど、%CALLNAME:MASTER%がお腹壊すといけないからちゃんと焼かないとね")%
+	}
+	PRINTFORMW ……
+ENDIF
+CALL BUFF_BASE(MASTER,BASE_체력,50,1)
+CALL BUFF_BASE(MASTER,BASE_기력,50,1)
+CALL BUFF_BASE(MASTER,BASE_정력,300,1)
+CALL BUFF_BASE([[카게로]],BASE_체력,50,1)
+CALL BUFF_BASE([[카게로]],BASE_기력,50,1)
+EXP:[[카게로]]:요리경험 ++
+
+
+;PRINTFORMW 「所詮私はただの妖獣だものねー……」
+;CALL ASK_YN("そう言うな","気にしてる？")
+;IF !RESULT
+;
+;ELSE
+;	PRINTFORMW 「そりゃあね」
+;	PRINTFORMW 「近所には月のお姫様が住んでいて」
+;	PRINTFORMW 「山に狩りに行けば河童や天狗がのさばってて」
+;	PRINTFORMW 「友達のところに遊びに行けば紅い悪魔のお屋敷がでーんと建ってるのが目に入ってくるし」
+;	PRINTFORMW 「気にしない方が無理でしょ」
+;	IF TALENT:恋慕
+;		PRINTFORMW 「まあ、最近は昔ほどは気にならないわ」
+;		PRINTFORMW 「%CALLNAME:MASTER%にちやほやされると、自分が何かひとかどの妖怪にでもなったような気分にされちゃうからね」
+;		CALL ASK_YN("ならもっとちやほやしよう","すごい存在になりたい？")
+;		IF !RESULT
+;			PRINTFORMW 「ふふ、ありがと」
+;		ELSE
+;			{
+;			PRINTFORMW 「う～～ん……はっきりと何になりたいとか何がしたいとかあるわけじゃないし、
+;			人狼なのが嫌ってわけでもないんだけど……」
+;			}
+;			PRINTFORMW 「嫌なことがあったとき、自分が別の存在だったらこんな思いしないで済むのにって感じることがあるのよ」
+;			CALL ASK_YN("ない物ねだりするな","人間でもそういうことはある")
+;			IF !RESULT
+;				PRINTFORMW 「そう言われたらそれまでだけどね」
+;			ELSE
+;				PRINTFORMW 「ほんと？人間も人間で、それなりに面倒があるのね」
+;			ENDIF
+;		ENDIF
+;	ENDIF
+;ENDIF

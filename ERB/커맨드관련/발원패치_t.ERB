@@ -261,19 +261,70 @@ ELSE
 ENDIF
 
 @PINK_WIND
+#DIM 供物
+#DIM 捧げる枚数
+#DIM 総数
+#DIM HIT
+捧げる枚数 = 0
+総数 = 0
+DO
+	IF FLAG:팬티수송 == 0
+		供物 = 0
+		BREAK
+	ENDIF
+	PRINTFORML 공물로 소지한 팬티를 추가로 바치겠습니까？
+	CALL ASK_M("하지 않는다", 1, "바친다", 1, "소지 팬티 확인", 1)
+	SELECTCASE RESULT
+		CASE 0, 1
+			供物 = RESULT
+			BREAK
+		CASE 2
+			CALL SHOW_HAVE_COLLECTION()
+			PRINTL 
+	ENDSELECT
+LOOP 1
 SETCOLOR 255,100,255
 FONTBOLD
 PRINTFORMW 환상향에 분홍빛 바람이 불었다!
 FOR LOCAL,1,CHARANUM
-	IF !RAND:15
+	IF 供物
+		CALL CHECK_COLLECTION(LOCAL, 1)
+		捧げる枚数 = RESULT
+	ENDIF
+	HIT = !RAND:15
+	;供物を捧げることにより元の持ち主に桃色の風を確定で当てる
+	IF HIT || (供物 && 捧げる枚数 > 0)
+		IF 供物
+			IF 捧げる枚数 > 0
+				IF HIT
+					PRINTFORM 〇●
+					;従来通りの確率に当たりかつ捧げた場合に加算
+					総数 ++
+				ELSE
+					PRINTFORM 〇　
+				ENDIF
+				;同キャラのパンツを2枚以上捧げた枚数分加算
+				SIF 捧げる枚数 > 1
+					総数 += (捧げる枚数 - 1) * 2
+			ELSEIF HIT
+				PRINTFORM 　●
+			ENDIF
+		ENDIF
 		PRINTFORML 분홍빛 바람을 받은 %조사처리(CALLNAME:LOCAL,"는")% 이상한 기분이 되었다…
 		CFLAG:LOCAL:욕구불만도 += LIMIT((10 + RAND:20 + RAND:20 + RAND:20) * ABL:LOCAL:욕망, 200,1000)
+		;捧げてかつ、くすねてはいていない場合追加効果あってもよさげ？
 	ENDIF
 NEXT
 RESETCOLOR
 FONTREGULAR
 PRINTW ((네 소원은 성취되었도다……))
+IF 供物
+	PRINTFORML 정신을 차려보니 공물로 바쳤던 팬티는 사라져 있었다
+	VARSET PANTS_TEMP
+	FLAG:팬티수송 = 0
+ENDIF
 PRINTFORML %마스터는% 팬티님에 대한 경신의 생각을 새로이 했다
+FLAG:독신 += (1 + 総数)
 
 @DOWSING_PANTS
 #DIM CHK_SLOT

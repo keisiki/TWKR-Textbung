@@ -38,7 +38,7 @@ IF TALENT:ARG:성별 == 3
 	MAXBASE:ARG:발기 = 1500
 ENDIF
 
-DBB = TFLAG:행운보정 * 2 + (泡姫 * 10)
+DBB = TFLAG:행운보정 * 2 + (泡姫 * 10) + ((ARGS == "서큐버스") * 15)
 ;DBB=Dosukebe Body Bonus
 ;남성기피등이 귀찮은 소질이 붙었을 경우 민감이 다하기 쉬워진다
 
@@ -90,6 +90,8 @@ SIF ARGS == "캇파" && !RAND:7
 	CSTR:ARG:3 '= "악덕상인"
 SIF ARGS == "백랑텐구" && !RAND:3
 	CSTR:ARG:3 '= "말단 초계 텐구"
+SIF ARGS == "카라스텐구" && !RAND:3
+	CSTR:ARG:3 '= "신문기자"
 SIF ARGS == "둔갑너구리" && !RAND:3
 	CSTR:ARG:3 '= "채권 추심인"
 SIF ARGS == "둔갑너구리" && !RAND:3
@@ -101,7 +103,7 @@ SIF ARGS == "이나바" && !RAND:5
 ; SIF ARGS == "이나바" && !RAND:7
 ; 	CSTR:ARG:3 '= "수상한 돌의 방문 판매원"
 SIF ARGS == "販売員" && RAND:3
-	CSTR:ARG:3 '= @"%TEXTR("怪しい石/胡散臭い石/あやしい薬/ヤバい薬")%の訪問販売員"
+	CSTR:ARG:3 '= @"%TEXTR("수상한 돌/수상쩍은 돌/수상한 약/위험한 약")%의 방문판매원"
 SIF ARGS == "옥토끼" && !RAND:3
 	CSTR:ARG:3 '= "월인의 종자"
 SIF ARGS == "옥토끼" && !RAND:3
@@ -159,7 +161,7 @@ IF 泡姫
 		CSTR:ARG:모브코종족 = %\@ LOCAL ? %LOCALS% # \@%%GET_TRIBENAME(ARG, GETNUM(TALENT, "인간"))%%\@ LOCAL ? # くずれ\@%
 	ELSEIF TALENT:ARG:인간 == 1 && TALENT:ARG:유부녀
 		CSTR:ARG:모브코종족 = %TEXTR("堕ちた/売られた/堕落した")%%GET_TALENTNAME(198, TALENT:ARG:유부녀)%
-	ELSEIF ARGS != "泡姫"
+	ELSEIF !GROUPMATCH(ARGS, "泡姫", "서큐버스")
 		CSTR:ARG:모브코종족 = %TEXTR("堕ちた/売られた/堕落した")%%ARGS%
 	ENDIF
 	MARK:RANDOM_CHARANUM:쾌락각인 = 3
@@ -168,6 +170,15 @@ ELSEIF ENEMY
 	CSTR:ARG:모브코프로필1 = %CALLNAME:ARG%：%PRINT_DATE_F(DAY)%에 싸움을 건 %ARGS%
 ELSE
 	CSTR:ARG:모브코프로필1 = %CALLNAME:ARG%：%PRINT_DATE_F(DAY)%에 %GET_MAPNAME(CFLAG:MASTER:현재위치 / 100)%에서 만난 %ARGS%
+ENDIF
+;人妻に低確率で出産経験と母乳体質付与
+IF TALENT:ARG:유부녀
+	ABL:ARG:청소기능 += RAND:2
+	ABL:ARG:요리기능 += RAND:2
+	SIF !TALENT:ARG:처녀 && !RAND:4
+		EXP:ARG:출산경험 += 1 + RAND:3
+	SIF !RAND:(15 - (EXP:ARG:출산경험 * 3))
+		TALENT:ARG:모유체질 = 2
 ENDIF
 ;モブ子の一人称/二人称決める
 LOCAL = ENEMY == 1 ? 1 # 0
@@ -182,6 +193,7 @@ CALL SET_MOB_PERSON(ARG, LOCAL)
 #DIM 店員
 의상변경 = 0
 ;리셋 작업 추가.어떤 소질도 일률적으로 2%의 확률을 부여하고 붙으면 곤란한 것은 0으로 덮어쓰기
+VARSET RANDOM_TALENT_RATE
 VARSET RANDOM_TALENT_RATE, 20, 0, 100
 LOCAL:0 = 1, 3, 4, 5, 7, 8, 9, 17, 34, 72, 73, 74, 75, 76, 77, 78, 84, 85, 90, 91
 FOR COUNT, 0, 20
@@ -191,7 +203,7 @@ NEXT
 ;점원으로 취득 소질의 확률 강화.부정적인 것은 무시.범용성은 없다
 ;유지에게 기대
 SELECTCASE ARGS
-	CASE "캇파"
+	CASE "캇파", "야마와로"
 		RANDOM_BASE:0 = 300
 		RANDOM_BASE:1 = 300
 		RANDOM_TALENT_RATE:(GETNUM(TALENT, "성별")) = 1000
@@ -235,18 +247,19 @@ SELECTCASE ARGS
 		CALL SET_BIASED_TALENT(ARG, "체형",         -2, 100, -1, 250, 1, 50)
 		CALL SET_BIASED_TALENT(ARG, "가슴사이즈", -2, 70, -1, 100, 1, 150)
 		CALL SET_BIASED_TALENT(ARG, "술내성",       -2, 0, -1, 50, 1, 200, 2, 100, 3, 50)
-	
-		ABL:ARG:전투능력 = 1 + RAND:2
 		ABL:ARG:친밀 = 1
+		ABL:ARG:전투능력 = 1 + RAND:2
 		ABL:ARG:기교 = 2
 		ABL:ARG:손가락 = 1
-		TALENT:ARG:낚시Lv = 2 + RAND:2
-		TALENT:ARG:수서 = 1
-		TALENT:ARG:요괴 = 4
-		CFLAG:ARG:모브얼굴패턴 = 20
+		;衣装セットは共通
+		;オブジェクト変数よくわからんので設定できない
 		;캇파 세트
 		의상변경 = 12
-		;랜덤でにとりのスキルを取得している
+		IF ARGS == "캇파"
+			TALENT:ARG:낚시Lv = 2 + RAND:2
+			TALENT:ARG:수서 = 1
+			TALENT:ARG:요괴 = 4
+		;ランダムでにとりのスキルを取得している
 		SIF !RAND:3
 			SETBIT CFLAG:ARG:탄막특능, 1
 		ABL:ARG:전투능력 = 3 + RAND:3
@@ -256,7 +269,17 @@ SELECTCASE ARGS
 		CFLAG:ARG:인내 = 35 + RAND:30
 		CFLAG:ARG:속도 = 30 + RAND:30
 		CFLAG:ARG:운   = 30 + RAND:30
-	CASE "백랑텐구"
+	;山童
+		ELSE
+			SIF !RAND:3 
+				ABL:ARG:전투능력 ++
+			TALENT:ARG:채집Lv = 2 + RAND:2
+			TALENT:ARG:요괴 = 12
+			;ランダムでたかねのスキルを取得している
+			SIF !RAND:3
+				SETBIT CFLAG:ARG:탄막특능, 5
+		ENDIF
+	CASE "백랑텐구", "카라스텐구"
 		RANDOM_BASE:0 = 400
 		RANDOM_BASE:1 = 400
 		RANDOM_TALENT_RATE:(GETNUM(TALENT, "성별")) = 1000
@@ -303,18 +326,31 @@ SELECTCASE ARGS
 		ABL:ARG:전투능력 = 2
 		SIF !RAND:3
 			ABL:ARG:전투능력 ++
-		TALENT:ARG:채집Lv = 1
 		TALENT:ARG:요괴 = 5
 		ABL:ARG:기교 = 1
-		TALENT:ARG:동물귀 = 3
-		CFLAG:ARG:모브얼굴패턴 = 25
-		;백랑텐구 세트
-		의상변경 = 14
-		;랜덤で椛のスキルを取得している
-		SIF !RAND:3
-			SETBIT CFLAG:ARG:탄막특능, 0
-		SIF !RAND:3
-			SETBIT CFLAG:ARG:탄막특능, 2
+		IF ARGS == "백랑텐구"
+			TALENT:ARG:채집Lv = 1
+			TALENT:ARG:동물귀 = 3
+			;白狼天狗セット
+			의상변경 = 14
+			;ランダムで椛のスキルを取得している
+			SIF !RAND:3
+				SETBIT CFLAG:ARG:탄막특능, 0
+			SIF !RAND:3
+				SETBIT CFLAG:ARG:탄막특능, 2
+		ELSE
+			ABL:ARG:전투능력 ++
+			ABL:ARG:화술기능 = 2
+			;鴉天狗セット
+			의상변경 = 15
+			;ランダムで文のスキルを取得している
+			SIF !RAND:3
+				SETBIT CFLAG:ARG:탄막특능, 0
+			SIF !RAND:3
+				SETBIT CFLAG:ARG:탄막특능, 7
+			SIF !RAND:3
+				SETBIT CFLAG:ARG:탄막특능, 8
+		ENDIF
 		ABL:ARG:전투능력 = 3 + RAND:3
 		ABL:ARG:레벨 = 35 + RAND:20
 		CFLAG:ARG:힘   = 50 + RAND:30
@@ -375,7 +411,6 @@ SELECTCASE ARGS
 		TALENT:ARG:요괴 = 6
 		ABL:ARG:전투능력 = 2
 		ABL:ARG:기교 = 1 + RAND:3
-		CFLAG:ARG:모브얼굴패턴 = 39
 		;レイセンのスキルを取得している
 		SETBIT CFLAG:ARG:탄막특능, 2
 		ABL:ARG:전투능력 = 2 + RAND:4
@@ -451,8 +486,8 @@ SELECTCASE ARGS
 		CFLAG:ARG:속도 = 35 + RAND:30
 		CFLAG:ARG:운   = 40 + RAND:30
 	CASE "이나바", "販売員"
-	;요정に近いがヤることはヤってる
-		;기력체력
+	;妖精に近いがヤることはヤってる
+		;気力体力
 		RANDOM_BASE:0 = 200
 		RANDOM_BASE:1 = 200
 		RANDOM_TALENT_RATE:(GETNUM(TALENT, "성별")) = 1000
@@ -506,8 +541,6 @@ SELECTCASE ARGS
 		ABL:ARG:기교 = 1 + RAND:2
 		SIF !RAND:4
 			ABL:ARG:전투능력 ++
-		CFLAG:ARG:모브얼굴패턴 = 40 + RAND:2
-				;랜덤でてゐのスキルを取得している
 		SIF !RAND:5
 			SETBIT CFLAG:ARG:탄막특능, 4
 		SIF !RAND:5
@@ -574,7 +607,6 @@ SELECTCASE ARGS
 		ENDIF
 		TALENT:ARG:요정 = 1
 		ABL:ARG:전투능력 = 1
-		CFLAG:ARG:모브얼굴패턴 = 30 + RAND:4
 		
 		;랜덤で三月精のスキルを取得している
 		SIF !RAND:8
@@ -752,7 +784,7 @@ SELECTCASE ARGS
 		CFLAG:ARG:인내 = 8 + RAND:35
 		CFLAG:ARG:속도 = 8 + RAND:35
 		CFLAG:ARG:운   = 8 + RAND:35
-CASE "泡姫"
+CASE "泡姫", "서큐버스"
 	;하기 위해 만든 프로 사람이기 때문에 아무 생각 없이 플러스 소질만
 		;気力体力
 		RANDOM_BASE:0 = 350
@@ -768,7 +800,7 @@ CASE "泡姫"
 		RANDOM_TALENT_RATE:(GETNUM(TALENT, "일선을넘지않음")) = 0
 		RANDOM_TALENT_RATE:(GETNUM(TALENT, "눈에띄고싶어함")) = 500
 		RANDOM_TALENT_RATE:(GETNUM(TALENT, "저항")) = 0
-		RANDOM_TALENT_RATE:(GETNUM(TALENT, "자위하기쉬움")) = 300 
+		RANDOM_TALENT_RATE:(GETNUM(TALENT, "자위하기쉬움")) = 250
 		RANDOM_TALENT_RATE:(GETNUM(TALENT, "헌신적")) = 500
 		RANDOM_TALENT_RATE:(GETNUM(TALENT, "중독되기쉬움")) = 250
 		RANDOM_TALENT_RATE:(GETNUM(TALENT, "도착적")) = 250
@@ -786,7 +818,7 @@ CASE "泡姫"
 		CALL SET_BIASED_TALENT(ARG, "통각",       -1, 100, 1, 100)
 		CALL SET_BIASED_TALENT(ARG, "젖기쉬움",   -1, 0,   1, 500)
 		CALL SET_BIASED_TALENT(ARG, "습득속도",   -1, 0,   1, 100)
-		CALL SET_BIASED_TALENT(ARG, "쾌감응답",   -1, 0,  1, 350)
+		CALL SET_BIASED_TALENT(ARG, "쾌감응답",   -1, 0,  1, 400)
 		CALL SET_BIASED_TALENT(ARG, "정조",       -1, 200, 1, 0)
 		CALL SET_BIASED_TALENT(ARG, "자기애",     -1, 0,   1, 250)
 		
@@ -796,17 +828,28 @@ CASE "泡姫"
 		CALL SET_BIASED_TALENT(ARG, "체형",         -2, 50, -1, 150, 1, 100)
 		CALL SET_BIASED_TALENT(ARG, "가슴사이즈",   -2, 80, -1, 150, 1, 100, 2, 100)
 		CALL SET_BIASED_TALENT(ARG, "술내성",       -2, 80, -1, 150, 1, 150, 2, 100, 3, 40)
-		TALENT:ARG:인간 = 1
-		IF !RAND:4
-			TALENT:ARG:인간 = 2 + RAND:5
-			SIF GROUPMATCH(TALENT:ARG:인간, 3, 4)
-				RANDOM_TALENT_RATE:(GETNUM(TALENT, "용모")) = 400
-		ENDIF
-		ABL:ARG:교양 += RAND:2
 		ABL:ARG:기교 = 3
-		ABL:ARG:화술기능 = 1 + RAND:3
-		TALENT:ARG:풍속양 = 2
 		의상변경 = 11
+		IF ARGS == "泡姫"
+			TALENT:ARG:인간 = 1
+			IF !RAND:4
+				TALENT:ARG:인간 = 2 + RAND:5
+				SIF GROUPMATCH(TALENT:ARG:인간, 3, 4)
+					RANDOM_TALENT_RATE:(GETNUM(TALENT, "용모")) = 400
+			ENDIF
+			TALENT:ARG:풍속양 = 2
+			ABL:ARG:교양 += RAND:3
+			ABL:ARG:화술기능 = 2 + RAND:3
+		ELSE
+			CALL SET_BIASED_TALENT(ARG, "성별기호",     -1, 750, 1, 0, 2,  0)
+			CALL SET_BIASED_TALENT(ARG, "가슴사이즈", -2, 50, -1, 100, 1, 200, 2, 150)
+			CALL SET_BIASED_TALENT(ARG, "모유체질",      1, 0, 2, 250)
+			RANDOM_TALENT_RATE:(GETNUM(TALENT, "용모")) = 350
+			RANDOM_TALENT_RATE:(GETNUM(TALENT, "처녀")) = 50
+			RANDOM_TALENT_RATE:(GETNUM(TALENT, "소악마")) = 250
+			ABL:ARG:화술기능 = 1 + RAND:2
+			TALENT:ARG:요괴 = 9
+		ENDIF
 	CASE "오니"
 		RANDOM_BASE:0 = 1000
 		RANDOM_BASE:1 = 1000
@@ -1032,8 +1075,6 @@ CFLAG:ARG:출금 = 0
 SIF !TALENT:ARG:유치
 	CFLAG:ARG:생리주기 = RAND:9 + 1
 
-SIF !CFLAG:ARG:모브얼굴패턴
-	CFLAG:ARG:모브얼굴패턴 = RAND:MOB_FACETYPES + 1
 CALL MAKE_SIZE(ARG)
 CFLAG:ARG:신체측정 = 1
 ;=可変画像用のCSTR設定==========
@@ -1069,9 +1110,11 @@ CALL CLOTHES_SETTING_TRAIN(ARG)
 
 SETBIT CFLAG:ARG:갈아입음실행, 0
 
-@랜덤경험능력부여(ARG, ARGS, 店員 = 0)
+@랜덤경험능력부여(ARG, ARGS, RANK = 0)
 #DIM LESBIAN
-#DIM 店員
+#DIM RANK
+SIF ARGS == "서큐버스" && !TALENT:ARG:처녀
+	RANK = 2 
 ;性技とか経験足した方がいいんだろうがめんどい
 
 ABL:ARG:C감각 = RAND:(2 + TALENT:ARG:자위하기쉬움)
@@ -1082,25 +1125,27 @@ ABL:ARG:M감각 = RAND:(2 - TALENT:ARG:키스미경험)
 ABL:ARG:욕망 = RAND:3
 ABL:ARG:요리기능 = RAND:3
 IF !TALENT:ARG:처녀
-	ABL:ARG:V감각 += 1 + 店員 * 3
-	EXP:ARG:V경험 = 20 + RAND:5 + 店員 * 30
-	ABL:ARG:욕망 += RAND:3 + 店員 * 4
-	ABL:ARG:질 += 1 + 店員 * 2
-	ABL:ARG:C감각 += RAND:2 + 店員 * 3
-	ABL:ARG:B감각 += RAND:2 + 店員 * 3
-	ABL:ARG:A감각 += RAND:2 + RAND(1 + 店員)
+	ABL:ARG:V감각 += 1 + RANK * 3
+	EXP:ARG:V경험 = 20 + RAND:5 + RANK * 30
+	ABL:ARG:욕망 += RAND:3 + RANK * 4
+	ABL:ARG:질 += 1 + RANK * 2
+	ABL:ARG:C감각 += RAND:2 + RANK * 3
+	ABL:ARG:B감각 += RAND:2 + RANK * 3
+	ABL:ARG:A감각 += RAND:2 + RAND(1 + RANK)
 	IF TALENT:ARG:자위하기쉬움 && !RAND:4
 		CSTR:ARG:처녀상실이력 = 자위중 실수로 찢어버렸다
 	ELSE
-		IF !RAND:5 && (TALENT:ARG:정조 < 1 || 店員)
+		IF !RAND:5 && (TALENT:ARG:정조 < 1 || RANK)
 			TALENT:ARG:걸레 = 1
-			ABL:ARG:C감각 += RAND:2 + 2 + 店員 * 3
-			ABL:ARG:B감각 += RAND:2 + 2 + 店員 * 3
-			ABL:ARG:A감각 += RAND:2 + 2 + 店員 * 2
-			ABL:ARG:V감각 += RAND:2 + 2 + 店員 * 3
-			EXP:ARG:V경험 += 50 + RAND:20 + 店員 * 30
+			ABL:ARG:C감각 += RAND:2 + 2 + RANK * 3
+			ABL:ARG:B감각 += RAND:2 + 2 + RANK * 3
+			ABL:ARG:A감각 += RAND:2 + 2 + RANK * 2
+			ABL:ARG:V감각 += RAND:2 + 2 + RANK * 3
+			EXP:ARG:V경험 += 50 + RAND:20 + RANK * 30
 		ENDIF
-		IF TALENT:ARG:성별기호 == -1 && RAND:2
+		IF ARGS == "서큐버스"
+			LESBIAN = 0
+		ELSEIF TALENT:ARG:성별기호 == -1 && RAND:2
 			LESBIAN = 1
 		ELSEIF TALENT:ARG:성별기호 == 3
 			LESBIAN = -1
@@ -1110,13 +1155,13 @@ IF !TALENT:ARG:처녀
 			LESBIAN = 0
 		ENDIF
 		EXP:ARG:V성교경험 = EXP:ARG:V경험
-		EXP:ARG:정액경험 = (EXP:ARG:V성교경험 * 3 / 4 ) + RAND:((10  + 店員 * 60) * POWER(1 + TALENT:ARG:걸레, 2))
-		EXP:ARG:질내사정경험 = EXP:ARG:V성교경험 * 3 / 4 + (店員 * RAND:30)
-		IF 店員
+		EXP:ARG:정액경험 = (EXP:ARG:V성교경험 * 3 / 4 ) + RAND:((10  + RANK * 60) * POWER(1 + TALENT:ARG:걸레, 2))
+		EXP:ARG:질내사정경험 = EXP:ARG:V성교경험 * 3 / 4 + (RANK * RAND:30)
+		IF RANK
 			EXP:ARG:자궁구개발경험 = EXP:ARG:V성교경험 / 4 * 3 
 			TALENT:ARG:포르치오성감 = EXP:ARG:자궁구개발경험 > 50 ? 1 # 0
 		ENDIF
-		IF !RAND:(9 - TALENT:ARG:정조) && !GROUPMATCH(ARGS, "마을 아가씨", "泡姫")
+		IF !RAND:(9 - TALENT:ARG:정조) && !GROUPMATCH(ARGS, "마을 아가씨", "泡姫", "서큐버스")
 			TALENT:ARG:유부녀 = 1
 			SIF !RAND:5
 				TALENT:ARG:유부녀 = 2
@@ -1126,6 +1171,8 @@ IF !TALENT:ARG:처녀
 				CSTR:ARG:처녀상실이력 = %TEXTR("돈으로 팔았다/요정의 장난으로 빼았겼다/마을의 남자에게 강간당해 빼앗겼다/요괴에게 강간당해 빼앗겼다/술에 취해 남자들에게 장난삼아 잃었다")%
 			ELSEIF ARGS == "오니"
 				CSTR:ARG:처녀상실이력 = %TEXTR("독주로 곤드레만드레가 되어있는 동안 빼앗겼다/싸움에서 져서 제멋대로 당해 빼앗겼다")%
+			ELSEIF ARGS == "서큐버스"
+				CSTR:ARG:처녀상실이력 = %TEXTR("부하에게 관계를 강요해서/술에 취해 남자들을 장난감으로 만들면서/요괴 퇴치꾼을 역강간해서")% 버렸다
 			ELSE
 				CSTR:ARG:처녀상실이력 = %TEXTR("상사에게 관계를 강요당해 빼앗겼다/술에 취해 남자들에게 장난삼아 잃었다/요괴퇴치꾼에게 강간당해 빼앗겼다")%
 			ENDIF
@@ -1135,12 +1182,14 @@ IF !TALENT:ARG:처녀
 			CSTR:ARG:처녀상실이력 = 납치해온 인간 %TEXTR("남자/아이")%로 버렸다
 		ELSEIF TALENT:ARG:유부녀 && !RAND:2 && !LESBIAN
 			CSTR:ARG:처녀상실이력 = %TEXTR("사랑하는/사랑하지도 않은")% 남편에게 바쳤다
+		ELSEIF ARGS == "서큐버스"
+			CSTR:ARG:처녀상실이력 = %TEXTR("난교 중에 어느새 잃고 있었다/철이 들었을 때에는 잃고 있었다/처음 본 인간을 그 자리에서 덮쳐서 버렸다")%
 		ELSE
 			CSTR:ARG:처녀상실이력 = %TEXTR("남친/전남친/동료/그다지 친하지도 않은 상대")%에게 바쳤다
 		ENDIF
 		SIF TALENT:ARG:유부녀
 			CSTR:ARG:처녀상실이력 = %REPLACE(@"%CSTR:ARG:처녀상실이력%","남친","전남친")%
-		SIF 店員 && STRCOUNT(CSTR:ARG:처녀상실이력, "(奪われた|失った|親しくも|同僚)") && RAND:2
+		SIF RANK && STRCOUNT(CSTR:ARG:처녀상실이력, "(奪われた|失った|親しくも|同僚)") && RAND:2
 			CSTR:ARG:처녀상실이력 = %TEXTR("初めて取った/強引な/興味本位の")%客に奪われた
 	ENDIF
 	IF ARGS == "마을 아가씨"
@@ -1151,15 +1200,15 @@ IF !TALENT:ARG:처녀
 		CSTR:ARG:처녀상실이력 = %REPLACE(@"%CSTR:ARG:처녀상실이력%","전남친","전여친")%
 	ENDIF
 ENDIF
-;Ａ性交関係 V경험とは干渉なし
-IF !RAND:(10 - TALENT:ARG:쾌감응답 - TALENT:ARG:악취내성 - TALENT:ARG:성적흥미 - TALENT:ARG:A감도) || (店員 && !RAND(5 - 店員))
-	EXP:ARG:A성교경험 = 10 + RAND:20 + 店員 * 20
-	EXP:ARG:A경험 = 40 + EXP:ARG:A성교경험 + 店員 * 30
-	EXP:ARG:항내사정경험 = EXP:ARG:A성교경험 * 3 / 4 + (店員 * RAND:8)
-	EXP:ARG:정액경험 += EXP:ARG:A성교경험 * 3 / 4 + (店員 * RAND:12)
+;Ａ性交関係 Ｖ経験とは干渉なし
+IF !RAND:(10 - TALENT:ARG:쾌감응답 - TALENT:ARG:악취내성 - TALENT:ARG:성적흥미 - TALENT:ARG:A감도) || (RANK && !RAND(5 - RANK))
+	EXP:ARG:A성교경험 = 10 + RAND:20 + RANK * 20
+	EXP:ARG:A경험 = 40 + EXP:ARG:A성교경험 + RANK * 30
+	EXP:ARG:항내사정경험 = EXP:ARG:A성교경험 * 3 / 4 + (RANK * RAND:8)
+	EXP:ARG:정액경험 += EXP:ARG:A성교경험 * 3 / 4 + (RANK * RAND:12)
 	ABL:ARG:A감각 = MIN(ABL:ARG:A감각 + 2, 10)
-	ABL:ARG:애널 += 2 + (店員 > 0)
-	;非처녀の場合、50％は喪失履歴を揃える
+	ABL:ARG:애널 += 2 + (RANK > 0)
+	;非処女の場合、50％は喪失履歴を揃える
 	IF !RAND:2 && !TALENT:ARG:처녀 && CSTR:ARG:처녀상실이력 != "자위중 실수로 찢어버렸다"
 		CSTR:ARG:애널처녀상실이력 = %CSTR:ARG:처녀상실이력%
 	ELSE
@@ -1168,6 +1217,8 @@ IF !RAND:(10 - TALENT:ARG:쾌감응답 - TALENT:ARG:악취내성 - TALENT:ARG:�
 				CSTR:ARG:애널처녀상실이력 = %TEXTR("여기라면, 이라며 돈으로 팔았다/요정의 장난으로 빼앗겼다/남자에게 강요당해 여기라면, 이라며 바쳤다")%
 			ELSEIF ARGS == "오니"
 				CSTR:ARG:애널처녀상실이력 = %TEXTR("독주로 곤드레만드레가 되어있는 동안 빼앗겼다/싸움에서 져서 제멋대로 당해 빼앗겼다")%
+			ELSEIF ARGS == "서큐버스"
+				CSTR:ARG:애널처녀상실이력 = 역강간한 김에 버렸다
 			ELSE
 				CSTR:ARG:애널처녀상실이력 = %TEXTR("상사에게 관계를 강요당해 부득이하게 바쳤다/요괴퇴치꾼에게 강간당해 빼앗겼다")%
 			ENDIF
@@ -1177,10 +1228,12 @@ IF !RAND:(10 - TALENT:ARG:쾌감응답 - TALENT:ARG:악취내성 - TALENT:ARG:�
 			CSTR:ARG:애널처녀상실이력 = 납치해온 인간 %TEXTR("남자/아이")%에게 흥미 본위로 해 주었다
 		ELSEIF TALENT:ARG:유부녀 && !RAND:2 && !LESBIAN
 			CSTR:ARG:애널처녀상실이력 = %TEXTR("사랑하는 남편/사랑하지도 않는 남편/불륜 상대/전 상사")%에게 바쳤다
+		ELSEIF ARGS == "서큐버스"
+			CSTR:ARG:애널처녀상실이력 = %TEXTR("適当な男を襲って捨てた/見ず知らずの男にくれてやった/")%
 		ELSE
 			CSTR:ARG:애널처녀상실이력 = %TEXTR("남친/전남친/동료/그다지 친하지도 않은 상대")%에게 바쳤다
 		ENDIF
-		SIF 店員 && STRCOUNT(CSTR:ARG:처녀상실이력, "(奪われた|失った|親しくも|同僚)") && RAND:2
+		SIF RANK && STRCOUNT(CSTR:ARG:처녀상실이력, "(奪われた|失った|親しくも|同僚)") && RAND:2
 			CSTR:ARG:처녀상실이력 = %TEXTR("初めて取った/強引な/興味本位の")%客に奪われた
 	ENDIF
 	IF TALENT:ARG:처녀
@@ -1197,64 +1250,61 @@ IF !RAND:(10 - TALENT:ARG:쾌감응답 - TALENT:ARG:악취내성 - TALENT:ARG:�
 	ENDIF
 	;喪失履歴の消失除け
 	CFLAG:ARG:애널처녀상실기념일 = DAY
-ELSEIF 店員
+ELSEIF RANK
 	EXP:ARG:A경험 = 19 + RAND:5
 ENDIF
 ;いずれかで성교経験がある場合、봉사系経験・技能を設定
 IF EXP:ARG:V성교경험 || EXP:ARG:A성교경험
-	IF !RAND:2 || 店員
+	IF !RAND:2 || RANK
 		EXP:ARG:정음경험 = RAND:(MAX(EXP:ARG:정액경험 - EXP:ARG:질내사정경험 - EXP:ARG:항내사정경험, 1))
-		EXP:ARG:펠라티오경험 = EXP:ARG:정음경험 + RAND:(30 * POWER(1 + TALENT:ARG:걸레, 2))  + RAND:(1 + 店員 * 10 * POWER(店員, 2)) 
-		ABL:ARG:혀 = MIN(MAX(EXP:ARG:펠라티오경험 / 50, 1) + MAX(TALENT:ARG:습득속도, 0), 4) + 店員 
+		EXP:ARG:펠라티오경험 = EXP:ARG:정음경험 + RAND:(30 * POWER(1 + TALENT:ARG:걸레, 2))  + RAND:(1 + RANK * 10 * POWER(RANK, 2)) 
+		ABL:ARG:혀 = MIN(MAX(EXP:ARG:펠라티오경험 / 50, 1) + MAX(TALENT:ARG:습득속도, 0), 4) + RANK 
 	ENDIF
-	IF !RAND:(4 - TALENT:ARG:가슴사이즈) || 店員
+	IF !RAND:(4 - TALENT:ARG:가슴사이즈) || RANK
 		SIF EXP:ARG:정음경험 == 0
 			EXP:ARG:정음경험 = RAND:(MAX(EXP:ARG:정액경험 - EXP:ARG:질내사정경험, 1))
-		EXP:ARG:파이즈리경험 = EXP:ARG:정음경험 + RAND:(30 * POWER(1 + TALENT:ARG:걸레, 2)) + 店員 * 30
-		ABL:ARG:가슴 = MIN(MAX(EXP:ARG:파이즈리경험 / 40, 1) + MAX(TALENT:ARG:습득속도, 0), 4) + 店員
+		EXP:ARG:파이즈리경험 = EXP:ARG:정음경험 + RAND:(30 * POWER(1 + TALENT:ARG:걸레, 2)) + RANK * 30
+		ABL:ARG:가슴 = MIN(MAX(EXP:ARG:파이즈리경험 / 40, 1) + MAX(TALENT:ARG:습득속도, 0), 4) + RANK
 	ENDIF
-	EXP:ARG:수음경험 += RAND:(30 * POWER(1 + TALENT:ARG:걸레, 2) + 店員 * 10)
+	EXP:ARG:수음경험 += RAND:(30 * POWER(1 + TALENT:ARG:걸레, 2) + RANK * 10)
 	SIF EXP:ARG:수음경험
-		ABL:ARG:손가락 = MIN(MAX(EXP:ARG:수음경험 / 50, 1) + MAX(TALENT:ARG:습득속도, 0), 4) + 店員
+		ABL:ARG:손가락 = MIN(MAX(EXP:ARG:수음경험 / 50, 1) + MAX(TALENT:ARG:습득속도, 0), 4) + RANK
 ENDIF
 
 ;노출系
-IF 店員
-	ABL:ARG:노출벽 += 店員 * 2
-	EXP:ARG:노출쾌락경험 += MAX(RAND:100, 店員 * 20 + RAND:10)
+IF RANK
+	ABL:ARG:노출벽 += RANK * 2
+	EXP:ARG:노출쾌락경험 += MAX(RAND:100, RANK * 20 + RAND:10)
 ELSEIF !RAND:(8 - TALENT:ARG:쾌감응답 - TALENT:ARG:성적흥미 + TALENT:ARG:수치심 + TALENT:ARG:정조)
 	ABL:ARG:노출벽 += 1
 	EXP:ARG:노출쾌락경험 += MAX(RAND:30, 1)
 ENDIF
 ;腰技能
 SIF EXP:ARG:V성교경험 || EXP:ARG:A성교경험
-	ABL:ARG:허리 += MAX((EXP:ARG:V성교경험 + EXP:ARG:A성교경험) / 200, 1) + MAX(TALENT:ARG:습득속도, 0) + 店員
+	ABL:ARG:허리 += MAX((EXP:ARG:V성교경험 + EXP:ARG:A성교경험) / 200, 1) + MAX(TALENT:ARG:습득속도, 0) + RANK
 ;기교
-ABL:ARG:기교 = MIN(ABL:ARG:기교 + MAX(ABL:ARG:손가락, ABL:ARG:혀, ABL:ARG:가슴, ABL:ARG:허리, 0), 4) + 店員
-SIF TALENT:ARG:店員
+ABL:ARG:기교 = MIN(ABL:ARG:기교 + MAX(ABL:ARG:손가락, ABL:ARG:혀, ABL:ARG:가슴, ABL:ARG:허리, 0), 4) + RANK
+SIF RANK
 	ABL:ARG:기교 = MAX(ABL:ARG:기교, 3)
 
 SIF TALENT:ARG:새드
 	ABL:ARG:새드끼 = 2 + RAND:2
 SIF TALENT:ARG:마조
 	ABL:ARG:마조끼 = 2 + RAND:2
-IF ARGS == "유부녀"
-	ABL:ARG:요리기능 += RAND:2
-ENDIF
-;各種経験 基本は感覚があるもののみ追加 M감각に関しては키스경험とも絡むのでちょっと特殊
+;各種経験 基本は感覚があるもののみ追加 Ｍ感覚に関してはキス経験とも絡むのでちょっと特殊
 SIF ABL:ARG:C감각
 	EXP:ARG:C경험 = RAND:(MAX((ABL:ARG:C감각 + TALENT:ARG:자위하기쉬움) * 40, MAX(ABL:ARG:C감각, 1) * 10))
 SIF ABL:ARG:A감각 && EXP:ARG:A경험 < 50;Ａ성교で加算されてる場合は避ける
 	EXP:ARG:A경험 += RAND:(MAX((ABL:ARG:A감각 + TALENT:ARG:자위하기쉬움) * 30, MAX(ABL:ARG:A감각, 1) * 10))
 SIF ABL:ARG:B감각 || EXP:ARG:파이즈리경험
 	EXP:ARG:B경험 = RAND:(MAX((ABL:ARG:B감각 + TALENT:ARG:자위하기쉬움) * 40, MAX(ABL:ARG:B감각, 1) * 10)) + EXP:ARG:파이즈리경험
-IF ABL:ARG:M감각 || EXP:ARG:펠라티오경험 || 店員
+IF ABL:ARG:M감각 || EXP:ARG:펠라티오경험 || RANK
 	EXP:ARG:M경험 = RAND:(MAX(ABL:ARG:M감각 * 15, MAX(ABL:ARG:M감각, 1) * 5)) + EXP:ARG:펠라티오경험
 	SIF TALENT:ARG:키스미경험 && EXP:ARG:펠라티오경험 == 0
 		EXP:ARG:M경험 = 0
 	SIF TALENT:ARG:키스미경험 == 0
 		EXP:ARG:키스경험 = EXP:ARG:M경험 - EXP:ARG:펠라티오경험
-	IF 店員
+	IF RANK
 		EXP:ARG:키스경험 += EXP:ARG:펠라티오경험
 		ABL:ARG:M감각 = (ABL:ARG:C감각+ ABL:ARG:V감각 + ABL:ARG:B감각) / 3
 	ENDIF
@@ -1273,7 +1323,7 @@ EXP:ARG:B절정경험 = ABL:ARG:B감각
 EXP:ARG:M절정경험 = ABL:ARG:M감각
 
 ;중독과 정상을 부풀렸다
-IF 店員
+IF RANK
 	FOR COUNT, 5, 10
 		EXP:ARG:COUNT += (EXP:ARG:COUNT * 5) + RAND:9
 	NEXT
@@ -1286,7 +1336,18 @@ IF 店員
 ELSE
 	EXP:ARG:절정경험 = ABL:ARG:C감각+ ABL:ARG:V감각 + ABL:ARG:A감각 + ABL:ARG:B감각 + ABL:ARG:M감각
 ENDIF
-CFLAG:ARG:욕구불만도 = RAND:(ABL:ARG:욕망 * 50 + 100) + RAND:(ABL:ARG:욕망 * 50 + 100) + RAND:(店員 * 250 + 1)
+CFLAG:ARG:욕구불만도 = RAND:(ABL:ARG:욕망 * 50 + 100) + RAND:(ABL:ARG:욕망 * 50 + 100) + RAND:(RANK * 250 + 1)
+;[娼婦]とサキュバスには[淫乱]付与
+IF RANK > 1
+	TALENT:ARG:음란 = 1
+	;実績解除済み＆敏感素質有りなら上位快感応答素質も付与
+	FOR COUNT, 1, 6
+		SIF !GETBIT (FLAG:기능보너스취득상황, COUNT) || TALENT:ARG:(100 + (COUNT == 5) + COUNT) < 1
+			CONTINUE
+		TALENT:ARG:(72 + COUNT) = 1
+	NEXT
+ENDIF
+
 
 ;----------------------------------------------------------------------------------------
 ;BIASED_RANDOM를 사용해 이산적인 수치의 TALENT를 설정할게 함수
@@ -1368,6 +1429,10 @@ ELSE
 	CASE 210
 	ENDSELECT
 ENDIF
+;保留中
+@REVEAL_SUCCUBUS
+@HIDE_SUCCUBUS
+
 [SKIPEND]
 
 @REVEAL_YOUKAI(ARG)
@@ -1426,7 +1491,7 @@ ELSEIF (TALENT:ARG:유치 || TALENT:ARG:애같음) && 年齢差 != 2
 	年齢差 = 1
 ENDIF
 モブ子一人称 = %TEXTR(@"あたい/あたし/私/わたし/%CALLNAME:ARG%")%
-IF CFLAG:ARG:성격경향 == 2 ||  (TALENT:ARG:담력 > 0 && TALENT:ARG:자존심 > 0)
+IF CFLAG:ARG:성격경향 == 2 || (TALENT:ARG:담력 > 0 && TALENT:ARG:자존심 > 0)
 	SIF !RAND:5 && CSTR:ARG:모브코종족 == "오니"
 		モブ子一人称 = %TEXTR("オレ/俺")%
 	SIF !RAND:4

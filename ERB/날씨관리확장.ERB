@@ -3,40 +3,46 @@
 ;天候管理システム本体
 ;-------------------------------------------------
 @CHANGE_WEATHER_SYSTEM
-#DIMS 저기압위치
+#DIMS 低気圧位置
+#DIMS 선상강수대위치
 #DIMS 적란운위치
 #DIM 최신날씨경향
 
-저기압위치 = %GET_LOCATION_LOW()%
+低気圧位置 = %GET_LOCATION_LOW()%
+선상강수대위치 = %GET_LOCATION_LINER_RAINBAND()%
 적란운위치 = %GET_LOCATION_CUMULUS()%
 
-IF 저기압위치 == "台風接近強風域" || 저기압위치 == "台風接近暴風域" || 저기압위치 == "台風通過暴風域" || 저기압위치 == "台風通過強風域" || (IS_TYPHOON:2 != 2 && 저기압위치 == "台風最接近")
+IF 低気圧位置 == "台風接近強風域" || 低気圧位置 == "台風通過強風域"
 	최신날씨경향 = 16
-ELSEIF 저기압위치 == "台風最接近"
+ELSEIF 低気圧位置 == "台風接近暴風域" || 低気圧位置 == "台風通過暴風域" || (IS_TYPHOON:2 != 2 && 低気圧位置 == "台風最接近")
+	최신날씨경향 = 21
+ELSEIF 低気圧位置 == "台風最接近"
 	최신날씨경향 = 17
-ELSEIF 저기압위치 == "寒冷渦遠方" && DAY:2 == 4
+ELSEIF 선상강수대위치 == "線状降水帯勢力圏"
+	최신날씨경향 = 20
+ELSEIF 低気圧位置 == "寒冷渦遠方" && DAY:2 == 4
 	최신날씨경향 = 19
-ELSEIF 저기압위치 == "寒冷渦接近" && DAY:2 == 4
+ELSEIF 低気圧位置 == "寒冷渦接近" && DAY:2 == 4
 	최신날씨경향 = 13
-ELSEIF 저기압위치 == "寒冷渦接近" && (DAY:2 == 1 || DAY:2 == 3) && !IS_RAINY_SEASON1 && !IS_RAINY_SEASON2
+ELSEIF 低気圧位置 == "寒冷渦接近" && (DAY:2 == 1 || DAY:2 == 3) && !IS_RAINY_SEASON1 && !IS_RAINY_SEASON2
 	최신날씨경향 = 5
-ELSEIF IS_RAINY_SEASON1:1 == 1 || (IS_RAINY_SEASON2 == 1 && 저기압위치 == "台風勢力圏") || (IS_TYPHOON:3 == 1 && 저기압위치 == "台風勢力圏")
+ELSEIF IS_RAINY_SEASON1:1 == 1 || (IS_RAINY_SEASON2 == 1 && 低気圧位置 == "台風勢力圏") || (IS_TYPHOON:3 == 1 && 低気圧位置 == "台風勢力圏")
 	최신날씨경향 = 15
 ELSEIF IS_RAINY_SEASON1:0 == 1 || IS_RAINY_SEASON2 == 1
 	최신날씨경향 = 14
-ELSEIF 저기압위치 == "二つ玉低気圧接近" || 저기압위치 == "日本海低気圧接近"
+ELSEIF 低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "日本海低気圧接近"
 	최신날씨경향 = 10
-ELSEIF 저기압위치 == "二つ玉低気圧通過中" || 저기압위치 == "日本海低気圧通過中"
+ELSEIF 低気圧位置 == "二つ玉低気圧通過中" || 低気圧位置 == "日本海低気圧通過中"
 	최신날씨경향 = 11
-ELSEIF 저기압위치 == "疑似好天"
+ELSEIF 低気圧位置 == "疑似好天"
 	최신날씨경향 = 19
-ELSEIF 저기압위치 == "南岸低気圧接近"
+ELSEIF 低気圧位置 == "南岸低気圧接近"
 	최신날씨경향 = 12
-ELSEIF 저기압위치 == "温暖前線接近"
+ELSEIF 低気圧位置 == "温暖前線接近"
 	최신날씨경향 = 2
-ELSEIF 저기압위치 == "暖域"
+ELSEIF 低気圧位置 == "暖域"
 	최신날씨경향 = 3
-ELSEIF 저기압위치 == "寒冷前線通過"
+ELSEIF 低気圧位置 == "寒冷前線通過"
 	최신날씨경향 = 4
 ELSEIF TIME:0 >= 240 && TIME:0 <= 600 && CAN_STRATUS == 1
 	최신날씨경향 = 18
@@ -62,6 +68,8 @@ IF NOW_WEATHER_CONTROL != 최신날씨경향
 	SIF FORBIDDEN_CHANGE_WEATHER == 1
 		RETURN
 	TRYCALLFORM CHANGE_WEATHER_SYSTEM_{최신날씨경향}
+	;(天候パッチ)台風接近時・猛吹雪時にFLAG:異常気象を設定
+	CALL SET_ABNORMAL_WEATHER
 ENDIF
 
 ;-------------------------------------------------
@@ -130,7 +138,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				ENDIF
 			ENDIF
 		;雨の時
-		CASE 4,5
+		CASE 4,5,14,15
 			;25%で弱体化
 			IF RAND:4 == 0
 				TIME:5 = 4
@@ -249,11 +257,84 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
 ;強風である場合風がおさまる
 IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
 	WIND_VELOCITY = 0
 	SIF !CFLAG:MASTER:우후후 && !지저
 		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+;春第2タームまでは降雪・雪崩判定
+IF DAY:2 == 1 && NOW_TERM <= 2
+	;連続降雪カウンター
+	SELECTCASE TIME:5
+		CASE 0,1,2,3,7
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+			ENDIF
+		CASE 4,5,6,14
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 5)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 6)
+			ENDIF
+		CASE 8
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 1
+			ELSE
+				SNOW_COVERAGE += 1
+			ENDIF
+		CASE 9
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 3
+			ELSE
+				SNOW_COVERAGE += 3
+			ENDIF
+		CASEELSE
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+			ENDIF
+	ENDSELECT
+	
+	;雪崩発生フラグ判定
+	IF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 15 && (POWER_WARM_AIR >= 3 || TIME:5 <= 7 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 10 && (POWER_WARM_AIR == 4 || TIME:5 == 4 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 7 && (POWER_WARM_AIR >= 5 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSE
+		POSSIBLITY_AVALANCHE = 0
+	ENDIF
+ELSE
+	CONTINUOUS_SNOWFALL = 0
+	SNOW_COVERAGE = 0
+	POSSIBLITY_AVALANCHE = 0
 ENDIF
 
 ;-------------------------------------------------
@@ -325,6 +406,79 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
+;春第2タームまでは降雪・雪崩判定
+IF DAY:2 == 1 && NOW_TERM <= 2
+	;連続降雪カウンター
+	SELECTCASE TIME:5
+		CASE 0,1,2,3,7
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+			ENDIF
+		CASE 4,5,6,14
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 5)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 6)
+			ENDIF
+		CASE 8
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 1
+			ELSE
+				SNOW_COVERAGE += 1
+			ENDIF
+		CASE 9
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 3
+			ELSE
+				SNOW_COVERAGE += 3
+			ENDIF
+		CASEELSE
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+			ENDIF
+	ENDSELECT
+	
+	;雪崩発生フラグ判定
+	IF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 15 && (POWER_WARM_AIR >= 3 || TIME:5 <= 7 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 10 && (POWER_WARM_AIR == 4 || TIME:5 == 4 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 7 && (POWER_WARM_AIR >= 5 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSE
+		POSSIBLITY_AVALANCHE = 0
+	ENDIF
+ELSE
+	CONTINUOUS_SNOWFALL = 0
+	SNOW_COVERAGE = 0
+	POSSIBLITY_AVALANCHE = 0
+ENDIF
+
 ;-------------------------------------------------
 ;3 春・秋の天気(暖域時)
 ;-------------------------------------------------
@@ -385,6 +539,18 @@ IF (TIME:5 != 0 || TIME:5 != 2) && CFLAG:MASTER:현재위치 != 천계
 	ENDIF
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
 ;風速変化の確立
 LOCAL:1 = RAND:10
 
@@ -406,6 +572,67 @@ ELSEIF LOCAL:1 >= 5 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY > 0
 		PRINTW 바람이 가라앉기 시작했다
 ENDIF
 
+;春第2タームまでは降雪・雪崩判定
+IF DAY:2 == 1 && NOW_TERM <= 2
+	;連続降雪カウンター
+	SELECTCASE TIME:5
+		CASE 0,1,2,3,7
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+			ENDIF
+		CASE 4,5,6,14
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 5)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 6)
+			ENDIF
+		CASE 8
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 1
+			ELSE
+				SNOW_COVERAGE += 1
+			ENDIF
+		CASE 9
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 3
+			ELSE
+				SNOW_COVERAGE += 3
+			ENDIF
+		CASEELSE
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+			ENDIF
+	ENDSELECT
+	
+	;雪崩発生フラグ判定
+	IF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 15 && (POWER_WARM_AIR >= 3 || TIME:5 <= 7 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 10 && (POWER_WARM_AIR == 4 || TIME:5 == 4 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 7 && (POWER_WARM_AIR >= 5 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSE
+		POSSIBLITY_AVALANCHE = 0
+	ENDIF
+ELSE
+	CONTINUOUS_SNOWFALL = 0
+	SNOW_COVERAGE = 0
+	POSSIBLITY_AVALANCHE = 0
+ENDIF
+
 ;-------------------------------------------------
 ;4 春・秋の天気(寒冷前線通過時)
 ;-------------------------------------------------
@@ -419,11 +646,32 @@ ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초
 ENDIF
 TIME:7 = 0
 
-IF (TIME:5 != 4 || TIME:5 != 5) && CFLAG:MASTER:현재위치 != 천계
+IF (TIME:5 == 13 || TIME:5 == 15) && CFLAG:MASTER:현재위치 != 천계
+	TIME:5 = 5
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 억수같이 쏟아진다！
+ELSEIF TIME:5 != 4 && TIME:5 != 5 && CFLAG:MASTER:현재위치 != 천계
 	IF RAND:3 == 0
 		TIME:5 = 4
 		SIF !CFLAG:MASTER:우후후 && !지저
 			PRINTW 비가 내리기 시작했다！
+	ELSEIF RAND:3 == 1 && GET_FRONTAL_THUNDERSTORM() == 1
+		SELECTCASE POWER_WARM_AIR
+			CASE 5
+				IF RAND:3 == 0
+					TIME:5 = 15
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 우박이 내리기 시작했다！
+				ELSE
+					TIME:5 = 13
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 싸라기눈이 내리기 시작했다！
+				ENDIF
+			CASEELSE
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 싸라기눈이 내리기 시작했다！
+		ENDSELECT
 	ELSE
 		TIME:5 = 5
 		SIF !CFLAG:MASTER:우후후 && !지저
@@ -441,6 +689,18 @@ ELSEIF CFLAG:MASTER:현재위치 != 천계
 	ENDIF
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
 ;風速変化の確立
 LOCAL:1 = RAND:4
 
@@ -449,6 +709,67 @@ IF LOCAL:1 == 0 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
 	WIND_VELOCITY = 0
 	SIF !CFLAG:MASTER:우후후 && !지저
 		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+;春第2タームまでは降雪・雪崩判定
+IF DAY:2 == 1 && NOW_TERM <= 2
+	;連続降雪カウンター
+	SELECTCASE TIME:5
+		CASE 0,1,2,3,7
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+			ENDIF
+		CASE 4,5,6,14
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 5)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 6)
+			ENDIF
+		CASE 8
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 1
+			ELSE
+				SNOW_COVERAGE += 1
+			ENDIF
+		CASE 9
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 3
+			ELSE
+				SNOW_COVERAGE += 3
+			ENDIF
+		CASEELSE
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+			ENDIF
+	ENDSELECT
+	
+	;雪崩発生フラグ判定
+	IF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 15 && (POWER_WARM_AIR >= 3 || TIME:5 <= 7 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 10 && (POWER_WARM_AIR == 4 || TIME:5 == 4 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 7 && (POWER_WARM_AIR >= 5 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSE
+		POSSIBLITY_AVALANCHE = 0
+	ENDIF
+ELSE
+	CONTINUOUS_SNOWFALL = 0
+	SNOW_COVERAGE = 0
+	POSSIBLITY_AVALANCHE = 0
 ENDIF
 
 
@@ -487,7 +808,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 					CASE 0
 						TIME:5 = 13
 						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 우박이 내리기 시작했다！
+							PRINTW 싸라기눈이 내리기 시작했다！
 					CASE 1, 2
 						TIME:5 = 8
 						SIF !CFLAG:MASTER:우후후 && !지저
@@ -503,7 +824,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 					CASE 0
 						TIME:5 = 13
 						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 우박이 내리기 시작했다！
+							PRINTW 싸라기눈이 내리기 시작했다！
 					CASE 1
 						TIME:5 = 3
 						SIF !CFLAG:MASTER:우후후 && !지저
@@ -523,7 +844,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 					CASE 0
 						TIME:5 = 13
 						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 우박이 내리기 시작했다！
+							PRINTW 싸라기눈이 내리기 시작했다！
 					CASE 1
 						TIME:5 = 3
 						SIF !CFLAG:MASTER:우후후 && !지저
@@ -562,7 +883,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 					CASE 0
 						TIME:5 = 13
 						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 우박이 내리기 시작했다！
+							PRINTW 싸라기눈이 내리기 시작했다！
 					CASE 1
 						TIME:5 = 12
 						SIF !CFLAG:MASTER:우후후 && !지저
@@ -582,11 +903,11 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 					CASE 0
 						TIME:5 = 13
 						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 우박이 내리기 시작했다！
+							PRINTW 싸라기눈이 내리기 시작했다！
 					CASE 1
 						TIME:5 = 12
 						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW みぞれが降ってきた！
+							PRINTW 진눈깨비가 내리기 시작했다！
 					CASE 2
 						TIME:5 = 3
 						SIF !CFLAG:MASTER:우후후 && !지저
@@ -606,7 +927,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 					CASE 0
 						TIME:5 = 13
 						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 우박이 내리기 시작했다！
+							PRINTW 싸라기눈이 내리기 시작했다！
 					CASE 1
 						TIME:5 = 3
 						SIF !CFLAG:MASTER:우후후 && !지저
@@ -626,7 +947,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 					CASE 0
 						TIME:5 = 13
 						SIF !CFLAG:MASTER:우후후 && !지저
-							PRINTW 우박이 내리기 시작했다！
+							PRINTW 싸라기눈이 내리기 시작했다！
 					CASE 1, 2
 						TIME:5 = 3
 						SIF !CFLAG:MASTER:우후후 && !지저
@@ -658,6 +979,18 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDIF
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
 ;風速変化の確立
 LOCAL:1 = RAND:20
 
@@ -675,6 +1008,67 @@ ELSEIF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 0
 	WIND_VELOCITY = 1
 	SIF !CFLAG:MASTER:우후후 && !지저
 		PRINTW 바람이 세졌다
+ENDIF
+
+;春第2タームまでは降雪・雪崩判定
+IF DAY:2 == 1 && NOW_TERM <= 2
+	;連続降雪カウンター
+	SELECTCASE TIME:5
+		CASE 0,1,2,3,7
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+			ENDIF
+		CASE 4,5,6,14
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 5)
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 6)
+			ENDIF
+		CASE 8
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 1
+			ELSE
+				SNOW_COVERAGE += 1
+			ENDIF
+		CASE 9
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+				SNOW_COVERAGE += 3
+			ELSE
+				SNOW_COVERAGE += 3
+			ENDIF
+		CASEELSE
+			IF CONTINUOUS_SNOWFALL >= 1
+				SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+				CONTINUOUS_SNOWFALL = 0
+			ELSE
+				SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+			ENDIF
+	ENDSELECT
+	
+	;雪崩発生フラグ判定
+	IF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 15 && (POWER_WARM_AIR >= 3 || TIME:5 <= 7 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 10 && (POWER_WARM_AIR == 4 || TIME:5 == 4 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 7 && (POWER_WARM_AIR >= 5 || TIME:5 == 5 || TIME:5 == 14)
+		POSSIBLITY_AVALANCHE = 2
+	ELSE
+		POSSIBLITY_AVALANCHE = 0
+	ENDIF
+ELSE
+	CONTINUOUS_SNOWFALL = 0
+	SNOW_COVERAGE = 0
+	POSSIBLITY_AVALANCHE = 0
 ENDIF
 
 ;-------------------------------------------------
@@ -736,7 +1130,7 @@ IF POWER_WARM_AIR == 1 && CFLAG:MASTER:현재위치 != 천계
 				ENDIF
 			ENDIF
 		;雨の時
-		CASE 4,5
+		CASE 4,5,14,15
 			;25%で弱体化
 			IF RAND:4 == 0
 				TIME:5 = 4
@@ -752,7 +1146,7 @@ IF POWER_WARM_AIR == 1 && CFLAG:MASTER:현재위치 != 천계
 						SIF TEQUIP:LOCAL:201
 							TEQUIP:LOCAL:201 = 0
 					NEXT
-				;雨なら10%で霧雨かみぞれに移行
+				;雨なら10%で霧雨に移行
 				ELSEIF TIME:5 == 4 && RAND:10 == 0
 					TIME:5 = 6
 					SIF !CFLAG:MASTER:우후후 && !지저
@@ -871,7 +1265,7 @@ ELSEIF CFLAG:MASTER:현재위치 != 천계
 				ENDIF
 			ENDIF
 		;雨の時
-		CASE 4,5,6,7
+		CASE 4,5,6,7,14,15
 			;25%で曇りに移行
 			IF RAND:4 == 0
 				TIME:5 = 3
@@ -965,12 +1359,29 @@ ELSEIF CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
 ;強風である場合風がおさまる
 IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
 	WIND_VELOCITY = 0
 	SIF !CFLAG:MASTER:우후후 && !지저
 		PRINTW 바람이 가라앉기 시작했다
 ENDIF
+
+;降雪・雪崩判定を解除
+CONTINUOUS_SNOWFALL = 0
+SNOW_COVERAGE = 0
+POSSIBLITY_AVALANCHE = 0
 
 ;-------------------------------------------------
 ;7 夏の天気(夕立接近時)
@@ -1022,6 +1433,23 @@ IF CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
+;降雪・雪崩判定を解除
+CONTINUOUS_SNOWFALL = 0
+SNOW_COVERAGE = 0
+POSSIBLITY_AVALANCHE = 0
+
 ;-------------------------------------------------
 ;8 夏の天気(夕立通過後)
 ;-------------------------------------------------
@@ -1069,24 +1497,36 @@ IF CFLAG:MASTER:현재위치 != 천계
 			IF RAND:3 == 0 && TIME:5 == 5
 				TIME:5 = 13
 				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 우박이 내리기 시작했다！
+					PRINTW 싸라기눈이 내리기 시작했다！
 			ELSEIF TIME:5 != 5
 				TIME:5 = 5
 				SIF !CFLAG:MASTER:우후후 && !지저
 					PRINTW 억수같이 쏟아진다！
 			ENDIF
 		CASE 5
-			IF RAND:3 == 0 && TIME:5 != 13
-				TIME:5 = 13
+			IF RAND:3 == 0 && TIME:5 != 15
+				TIME:5 = 15
 				SIF !CFLAG:MASTER:우후후 && !지저
 					PRINTW 우박이 내리기 시작했다！
-			ELSEIF TIME:5 != 5
-				TIME:5 = 5
+			ELSEIF TIME:5 != 14
+				TIME:5 = 14
 				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 억수같이 쏟아진다！
+					PRINTW 맹렬한 비다！
 			ENDIF
 	ENDSELECT
 ENDIF
+
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
 
 ;ダウンバースト発生
 IF CAN_CUMULUS:2 == 2 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 2
@@ -1104,8 +1544,13 @@ ELSEIF CAN_CUMULUS:2 == 1 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCIT
 		PRINTW 바람이 거세졌다！
 ENDIF
 
+;降雪・雪崩判定を解除
+CONTINUOUS_SNOWFALL = 0
+SNOW_COVERAGE = 0
+POSSIBLITY_AVALANCHE = 0
+
 ;竜巻発生
-IF CAN_CUMULUS:2 == 2 && RAND:100 == 0 && CFLAG:MASTER:현재위치 != 천계 && !CFLAG:MASTER:우후후 && !지저 && OUTROOF(CFLAG:MASTER:현재위치)
+IF CAN_CUMULUS:2 == 2 && RAND:10 == 0 && CFLAG:MASTER:현재위치 != 천계 && !CFLAG:MASTER:우후후 && !지저 && OUTROOF(CFLAG:MASTER:현재위치)
 	SETCOLOR C_RED
 	PRINTW 토네이도다！！
 	RESETCOLOR
@@ -1113,7 +1558,7 @@ IF CAN_CUMULUS:2 == 2 && RAND:100 == 0 && CFLAG:MASTER:현재위치 != 천계 &&
 	PRINTW 토네이도에 휘말려 버려서 날아가 버렸다……
 	PRINTL 
 	CALL ASK_DIARY("토네이도와 조우했다")
-	BASE:MASTER:체력 -= 1000
+	BASE:MASTER:체력 = 0
 ENDIF
 
 ;-------------------------------------------------
@@ -1200,7 +1645,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				ENDIF
 			ENDIF
 		;雨の時
-		CASE 4,5
+		CASE 4,5,14,15
 			TIME:5 = 8
 			SIF !CFLAG:MASTER:우후후 && !지저
 				PRINTW 눈이 내리기 시작했다！
@@ -1266,11 +1711,68 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
+;連続降雪カウンター
+SELECTCASE TIME:5
+	CASE 0,1
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+		ENDIF
+	CASE 4,5,6,14
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+		ENDIF
+	CASE 8
+		CONTINUOUS_SNOWFALL += 1
+	CASE 9
+		CONTINUOUS_SNOWFALL += 3
+ENDSELECT
+
 ;強風である場合風がおさまる
-IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
-	WIND_VELOCITY = 0
-	SIF !지저
-		PRINTW 바람이 가라앉기 시작했다
+IF CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE WIND_VELOCITY
+		CASE 1
+			WIND_VELOCITY = 0
+			SIF !지저
+				PRINTW 바람이 가라앉기 시작했다
+		CASE 2
+			WIND_VELOCITY = 1
+			SIF !지저
+				PRINTW 바람이 조금 수그러들었다
+		CASE IS >= 3
+			WIND_VELOCITY = 2
+			SIF !지저
+				PRINTW 아까보다 바람이 약해졌다
+	ENDSELECT
+ENDIF
+
+;雪崩発生フラグ判定
+IF SNOW_COVERAGE >= 15 && CONTINUOUS_SNOWFALL >= 10
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 10 && CONTINUOUS_SNOWFALL >= 7 && WIND_VELOCITY >= 1
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 5 && CONTINUOUS_SNOWFALL >= 5 && WIND_VELOCITY >= 2
+	POSSIBLITY_AVALANCHE = 1
+ELSE
+	POSSIBLITY_AVALANCHE = 0
 ENDIF
 
 ;-------------------------------------------------
@@ -1393,12 +1895,62 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
+;連続降雪カウンター
+SELECTCASE TIME:5
+	CASE 0,1
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+		ENDIF
+	CASE 4,5,6,14
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+		ENDIF
+	CASE 8
+		CONTINUOUS_SNOWFALL += 1
+	CASE 9
+		CONTINUOUS_SNOWFALL += 3
+ENDSELECT
+
 IF (POWER_WARM_AIR >= 4 || IS_SoJ_LOW ==2) && CFLAG:MASTER:현재위치 != 천계
 	IF WIND_VELOCITY == 0
 		WIND_VELOCITY = 1
 		SIF !CFLAG:MASTER:우후후 && !지저
 			PRINTW 바람이 세졌다
 	ENDIF
+ENDIF
+
+;雪崩発生フラグ判定
+IF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 15 && (POWER_WARM_AIR == 4 || TIME:5 == 4)
+	POSSIBLITY_AVALANCHE = 2
+ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 10 && (POWER_WARM_AIR >= 5 || TIME:5 == 5)
+	POSSIBLITY_AVALANCHE = 2
+ELSEIF SNOW_COVERAGE >= 15 && CONTINUOUS_SNOWFALL >= 10
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 10 && CONTINUOUS_SNOWFALL >= 7 && WIND_VELOCITY >= 1
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 5 && CONTINUOUS_SNOWFALL >= 5 && WIND_VELOCITY >= 2
+	POSSIBLITY_AVALANCHE = 1
+ELSE
+	POSSIBLITY_AVALANCHE = 0
 ENDIF
 
 ;-------------------------------------------------
@@ -1425,10 +1977,18 @@ ENDSELECT
 IF IS_SoJ_LOW ==2 && CFLAG:MASTER:현재위치 != 천계
 	IF TIME:5 != 9 || WIND_VELOCITY < 2
 		TIME:5 = 9
-		WIND_VELOCITY = 2
-		IF !CFLAG:MASTER:우후후 && !지저
-			PRINTW 눈보라가 몰아친다！
-			CALL ASK_DIARY("맑개 갠 하늘에서 날씨가 돌변했다")
+		IF POWER_COLD_AIR >= 4 && POWER_WARM_AIR >= 5
+			WIND_VELOCITY = 3
+			IF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 눈보라가 몰아친다！
+				CALL ASK_DIARY("맑개 갠 하늘에서 날씨가 돌변했다")
+			ENDIF
+		ELSE
+			WIND_VELOCITY = 2
+			IF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 눈보라가 몰아친다！
+				CALL ASK_DIARY("맑개 갠 하늘에서 날씨가 돌변했다")
+			ENDIF
 		ENDIF
 	ENDIF
 RETURN
@@ -1455,7 +2015,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				ELSEIF RAND:3 == 1
 					TIME:5 = 13
 					SIF !CFLAG:MASTER:우후후 && !지저
-						PRINTW 우박이 내리기 시작했다！
+						PRINTW 싸라기눈이 내리기 시작했다！
 				ENDIF
 			ENDIF
 		CASE 9
@@ -1466,7 +2026,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 			ELSEIF RAND:3 == 1
 				TIME:5 = 13
 				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 우박이 내리기 시작했다！
+					PRINTW 싸라기눈이 내리기 시작했다！
 			ENDIF
 		CASE 13
 			IF POWER_COLD_AIR >= 3
@@ -1485,6 +2045,41 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
+;連続降雪カウンター
+SELECTCASE TIME:5
+	CASE 0,1
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+		ENDIF
+	CASE 4,5,6,14
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+		ENDIF
+	CASE 8
+		CONTINUOUS_SNOWFALL += 1
+	CASE 9
+		CONTINUOUS_SNOWFALL += 3
+ENDSELECT
+
 ;風速変化の確立
 LOCAL:1 = RAND:20
 
@@ -1502,6 +2097,17 @@ ELSEIF LOCAL:1 >= 10 && CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 
 	WIND_VELOCITY = 1
 	SIF !CFLAG:MASTER:우후후 && !지저
 		PRINTW 바람이 세졌다
+ENDIF
+
+;雪崩発生フラグ判定
+IF SNOW_COVERAGE >= 15 && CONTINUOUS_SNOWFALL >= 10
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 10 && CONTINUOUS_SNOWFALL >= 7 && WIND_VELOCITY >= 1
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 5 && CONTINUOUS_SNOWFALL >= 5 && WIND_VELOCITY >= 2
+	POSSIBLITY_AVALANCHE = 1
+ELSE
+	POSSIBLITY_AVALANCHE = 0
 ENDIF
 
 ;-------------------------------------------------
@@ -1551,7 +2157,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				ENDIF
 			ENDIF
 		;雨の時
-		CASE 4,5,6,7
+		CASE 4,5,6,7,14,15
 			TIME:5 = 8
 			SIF !CFLAG:MASTER:우후후 && !지저
 				PRINTW 눈이 내리기 시작했다！
@@ -1593,6 +2199,56 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
+;連続降雪カウンター
+SELECTCASE TIME:5
+	CASE 0,1
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+		ENDIF
+	CASE 4,5,6,14
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+		ENDIF
+	CASE 8
+		CONTINUOUS_SNOWFALL += 1
+	CASE 9
+		CONTINUOUS_SNOWFALL += 3
+ENDSELECT
+
+;雪崩発生フラグ判定
+IF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 15 && (POWER_WARM_AIR == 4 || TIME:5 == 4)
+	POSSIBLITY_AVALANCHE = 2
+ELSEIF SNOW_COVERAGE + CONTINUOUS_SNOWFALL >= 10 && (POWER_WARM_AIR >= 5 || TIME:5 == 5)
+	POSSIBLITY_AVALANCHE = 2
+ELSEIF SNOW_COVERAGE >= 15 && CONTINUOUS_SNOWFALL >= 10
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 10 && CONTINUOUS_SNOWFALL >= 7 && WIND_VELOCITY >= 1
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 5 && CONTINUOUS_SNOWFALL >= 5 && WIND_VELOCITY >= 2
+	POSSIBLITY_AVALANCHE = 1
+ELSE
+	POSSIBLITY_AVALANCHE = 0
+ENDIF
+
 ;-------------------------------------------------
 ;13 冬の天気(寒冷渦接近時)
 ;-------------------------------------------------
@@ -1626,7 +2282,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				CASE 0
 					TIME:5 = 13
 					SIF !CFLAG:MASTER:우후후 && !지저
-						PRINTW 우박이 내리기 시작했다！
+						PRINTW 싸라기눈이 내리기 시작했다！
 				CASE 1, 2
 					TIME:5 = 8
 					SIF !CFLAG:MASTER:우후후 && !지저
@@ -1642,7 +2298,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				CASE 0
 					TIME:5 = 13
 					SIF !CFLAG:MASTER:우후후 && !지저
-						PRINTW 우박이 내리기 시작했다！
+						PRINTW 싸라기눈이 내리기 시작했다！
 				CASE 1
 					TIME:5 = 3
 					SIF !CFLAG:MASTER:우후후 && !지저
@@ -1662,7 +2318,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				CASE 0
 					TIME:5 = 13
 					SIF !CFLAG:MASTER:우후후 && !지저
-						PRINTW 우박이 내리기 시작했다！
+						PRINTW 싸라기눈이 내리기 시작했다！
 				CASE 1
 					TIME:5 = 3
 					SIF !CFLAG:MASTER:우후후 && !지저
@@ -1695,6 +2351,41 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 		ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
+;連続降雪カウンター
+SELECTCASE TIME:5
+	CASE 0,1
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 1)
+		ENDIF
+	CASE 4,5,6,14
+		IF CONTINUOUS_SNOWFALL >= 1
+			SNOW_COVERAGE = CONTINUOUS_SNOWFALL
+			CONTINUOUS_SNOWFALL = 0
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 2)
+		ELSE
+			SNOW_COVERAGE = MAX(0, SNOW_COVERAGE - 3)
+		ENDIF
+	CASE 8
+		CONTINUOUS_SNOWFALL += 1
+	CASE 9
+		CONTINUOUS_SNOWFALL += 3
+ENDSELECT
+
 ;風速変化の確立
 LOCAL:1 = RAND:20
 
@@ -1712,6 +2403,17 @@ ELSEIF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY == 0
 	WIND_VELOCITY = 1
 	SIF !CFLAG:MASTER:우후후 && !지저
 		PRINTW 바람이 세졌다
+ENDIF
+
+;雪崩発生フラグ判定
+IF SNOW_COVERAGE >= 15 && CONTINUOUS_SNOWFALL >= 10
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 10 && CONTINUOUS_SNOWFALL >= 7 && WIND_VELOCITY >= 1
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 5 && CONTINUOUS_SNOWFALL >= 5 && WIND_VELOCITY >= 2
+	POSSIBLITY_AVALANCHE = 1
+ELSE
+	POSSIBLITY_AVALANCHE = 0
 ENDIF
 
 ;-------------------------------------------------
@@ -1769,7 +2471,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				SIF !CFLAG:MASTER:우후후 && !지저
 					PRINTW 비가 내리기 시작했다！
 			ENDIF
-		CASE 4
+		CASE 4,5,6,7,14,15
 			IF RAND:3 == 0
 				TIME:5 = 0
 				IF !CFLAG:MASTER:우후후 && !지저
@@ -1805,12 +2507,29 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
 ;強風である場合風がおさまる
 IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
 	WIND_VELOCITY = 0
 	SIF !CFLAG:MASTER:우후후 && !지저
 		PRINTW 바람이 가라앉기 시작했다
 ENDIF
+
+;降雪・雪崩判定を解除
+CONTINUOUS_SNOWFALL = 0
+SNOW_COVERAGE = 0
+POSSIBLITY_AVALANCHE = 0
 
 ;-------------------------------------------------
 ;15 梅雨・秋雨(梅雨末期・秋雨+台風接近)・先駆降雨帯発生時の天気
@@ -1851,7 +2570,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				ELSEIF RAND:2 == 0
 					TIME:5 = 13
 					SIF !CFLAG:MASTER:우후후 && !지저
-						PRINTW 우박이 내리기 시작했다！
+						PRINTW 싸라기눈이 내리기 시작했다！
 				ELSE
 					TIME:5 = 4
 					SIF !CFLAG:MASTER:우후후 && !지저
@@ -1868,7 +2587,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 						PRINTW 비가 내리기 시작했다！
 				ENDIF
 			ENDIF
-		CASE 4
+		CASE 4,6,7
 			IF 활발화플래그 == 1
 				IF RAND:3 != 0
 					TIME:5 = 5
@@ -1877,7 +2596,7 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 				ELSEIF RAND:2 == 0
 					TIME:5 = 13
 					SIF !CFLAG:MASTER:우후후 && !지저
-						PRINTW 우박이 내리기 시작했다！
+						PRINTW 싸라기눈이 내리기 시작했다！
 				ELSE
 					TIME:5 = 3
 					SIF !CFLAG:MASTER:우후후 && !지저
@@ -1904,12 +2623,12 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 					NEXT
 				ENDIF
 			ENDIF
-		CASE 5
+		CASE 5,14,15
 			IF 활발화플래그 == 1
 				IF RAND:2 != 0
 					TIME:5 = 13
 					SIF !CFLAG:MASTER:우후후 && !지저
-						PRINTW 우박이 내리기 시작했다！
+						PRINTW 싸라기눈이 내리기 시작했다！
 				ELSE
 					TIME:5 = 4
 					SIF !CFLAG:MASTER:우후후 && !지저
@@ -1942,6 +2661,18 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
 ;強風である場合風がおさまる
 IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
 	WIND_VELOCITY = 0
@@ -1949,13 +2680,17 @@ IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
 		PRINTW 바람이 가라앉기 시작했다
 ENDIF
 
+;降雪・雪崩判定を解除
+CONTINUOUS_SNOWFALL = 0
+SNOW_COVERAGE = 0
+POSSIBLITY_AVALANCHE = 0
+
 ;-------------------------------------------------
-;16 台風接近時の天気(基本)
+;16 台風接近時の天気(強風域)
 ;-------------------------------------------------
 @CHANGE_WEATHER_SYSTEM_16
 #DIM 지저
-#DIM 현재태풍위치
-#DIMS 저기압위치
+#DIMS 低気圧位置
 지저 = 0
 IF CFLAG:MASTER:데이트중 == 9
 	지저 = 1
@@ -1984,13 +2719,13 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 			ELSEIF RAND:2 == 0
 				TIME:5 = 13
 				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 우박이 내리기 시작했다！
+					PRINTW 싸라기눈이 내리기 시작했다！
 			ELSE
 				TIME:5 = 4
 				SIF !CFLAG:MASTER:우후후 && !지저
 					PRINTW 비가 내리기 시작했다！
 			ENDIF
-		CASE 4
+		CASE 4,6,7
 			IF RAND:2 != 0
 				TIME:5 = 5
 				SIF !CFLAG:MASTER:우후후 && !지저
@@ -1998,31 +2733,37 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 			ELSEIF RAND:2 == 0
 				TIME:5 = 13
 				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 우박이 내리기 시작했다！
+					PRINTW 싸라기눈이 내리기 시작했다！
 			ELSE
 				TIME:5 = 3
 				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 비가 그친 것 같다
+					PRINTW 雨があがったようだ
 				;念のため相合い傘を解除
 				FOR LOCAL,0,CHARANUM
 					SIF TEQUIP:LOCAL:201
 						TEQUIP:LOCAL:201 = 0
 				NEXT
 			ENDIF
-		CASE 5
+		CASE 5,14
 			IF RAND:2 != 0
 				TIME:5 = 13
 				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 우박이 내리기 시작했다！
+					PRINTW 싸라기눈이 내리기 시작했다！
 			ELSE
 				TIME:5 = 4
 				SIF !CFLAG:MASTER:우후후 && !지저
 					PRINTW 비가 약해졌다
 			ENDIF
-		CASE 13
-			TIME:5 = 5
-			SIF !CFLAG:MASTER:우후후 && !지저
-				PRINTW 억수같이 쏟아진다！
+		CASE 13,15
+			IF TIME:5 == 13 && IS_TYPHOON:1 >= 5 && RAND:3 == 0
+				TIME:5 = 15
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 우박이 내리기 시작했다！
+			ELSE
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+			ENDIF
 		CASEELSE
 			TIME:5 = 4
 			SIF !CFLAG:MASTER:우후후 && !지저
@@ -2030,50 +2771,196 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
-SELECTCASE GET_LOCATION_LOW()
-	CASE "台風接近強風域", "台風通過強風域"
-		현재태풍위치 = 1
-	CASE "台風接近暴風域", "台風通過暴風域", "台風最接近"
-		현재태풍위치 = 2
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
 ENDSELECT
 
 IF CFLAG:MASTER:현재위치 != 천계
 	SELECTCASE WIND_VELOCITY
 		CASE 0
-			IF 현재태풍위치 == 1
-				WIND_VELOCITY = 1
-				IF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 바람이 거세졌다！
-					저기압위치 = %GET_LOCATION_LOW()%
-					SIF 저기압위치 == "台風接近強風域"
-						CALL ASK_DIARY("태풍이 몰아쳤다")
-				ENDIF
-			ELSEIF 현재태풍위치 == 2
+			WIND_VELOCITY = 1
+			IF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 바람이 거세졌다！
+				低気圧位置 = %GET_LOCATION_LOW()%
+				SIF 低気圧位置 == "台風接近強風域"
+					CALL ASK_DIARY("태풍이 몰아쳤다")
+			ENDIF
+		CASE IS >= 2
+			WIND_VELOCITY = 1
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 아까보다 바람이 약해졌다
+	ENDSELECT
+ENDIF
+
+;降雪・雪崩判定を解除
+CONTINUOUS_SNOWFALL = 0
+SNOW_COVERAGE = 0
+POSSIBLITY_AVALANCHE = 0
+
+
+;-------------------------------------------------
+;21 台風接近時の天気(暴風域・最接近)
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_21
+#DIM 지저
+#DIM 現在台風位置
+#DIM 颶風フラグ
+#DIMS 低気圧位置
+지저 = 0
+颶風フラグ = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+;天候変化確率（標準は50%）
+SELECTCASE TIME:5
+	CASE 3
+		LOCAL = 16
+	CASE 4, 5
+		LOCAL = 24
+	CASEELSE
+		LOCAL = 12
+ENDSELECT
+
+IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		CASE 3
+			IF RAND:2 == 0
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+			ELSEIF RAND:2 == 0
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 싸라기눈이 내리기 시작했다！
+			ELSE
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 내리기 시작했다！
+			ENDIF
+		CASE 4,6,7
+			IF RAND:2 != 0
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+			ELSEIF RAND:2 == 0
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 싸라기눈이 내리기 시작했다！
+			ELSE
+				TIME:5 = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 雨があがったようだ
+				;念のため相合い傘を解除
+				FOR LOCAL,0,CHARANUM
+					SIF TEQUIP:LOCAL:201
+						TEQUIP:LOCAL:201 = 0
+				NEXT
+			ENDIF
+		CASE 5,14
+			IF RAND:2 != 0
+				TIME:5 = 13
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 싸라기눈이 내리기 시작했다！
+			ELSE
+				TIME:5 = 4
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 비가 약해졌다
+			ENDIF
+		CASE 13,15
+			IF TIME:5 == 13 && IS_TYPHOON:1 >= 5 && RAND:3 == 0
+				TIME:5 = 15
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 우박이 내리기 시작했다！
+			ELSE
+				TIME:5 = 5
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 억수같이 쏟아진다！
+			ENDIF
+		CASEELSE
+			TIME:5 = 4
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 비가 내리기 시작했다！
+	ENDSELECT
+ENDIF
+
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+ENDSELECT
+
+SELECTCASE GET_LOCATION_LOW()
+	CASE "台風接近暴風域", "台風最接近"
+		現在台風位置 = 1
+	CASE "台風通過暴風域"
+		現在台風位置 = 2
+ENDSELECT
+
+;台風勢力5以上、寒気1かつ暖気5のとき颶風フラグオン
+SIF IS_TYPHOON:1 >= 5 && POWER_COLD_AIR == 1 && POWER_WARM_AIR >= 5
+	颶風フラグ = 1
+
+IF CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE WIND_VELOCITY
+		CASE 0
+			IF 颶風フラグ == 1
+				WIND_VELOCITY = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 갑자기 맹렬한 바람이 되었다！
+			ELSE
 				WIND_VELOCITY = 2
 				SIF !CFLAG:MASTER:우후후 && !지저
 					PRINTW 바람이 갑자기 거세졌다！
 			ENDIF
 		CASE 1
-			IF 현재태풍위치 == 2
-				WIND_VELOCITY = 2
-				SIF !CFLAG:MASTER:우후후 && !지저
-					PRINTW 더욱 바람이 거세졌다！
-				;台風直撃による作物への影響
-				IF FLAG:지주 > 0
-					IF IS_TYPHOON:2 == 2
-						FLAG:밭일성과 = MAX(0, FLAG:밭일성과 - 30)
-						IS_STORM_CROP_DAMAGE ++
-					ENDIF
+			WIND_VELOCITY = 2
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 더욱 바람이 거세졌다！
+			;台風直撃による作物への影響
+			IF FLAG:지주 > 0
+				IF IS_TYPHOON:2 == 2
+					FLAG:밭일성과 = MAX(0, FLAG:밭일성과 - 30)
+					IS_STORM_CROP_DAMAGE ++
 				ENDIF
 			ENDIF
 		CASE 2
-			IF 현재태풍위치 == 1
-				WIND_VELOCITY = 1
+			IF 颶風フラグ == 1 && 現在台風位置 == 1
+				WIND_VELOCITY = 3
+				SIF !CFLAG:MASTER:우후후 && !지저
+					PRINTW 맹렬한 바람이 되었다！
+				;猛烈な風による作物への影響
+				IF FLAG:지주 > 0
+					FLAG:밭일성과 = MAX(0, FLAG:밭일성과 - 30)
+					IS_STORM_CROP_DAMAGE ++
+				ENDIF
+			ENDIF
+		CASE IS >= 3
+			IF 現在台風位置 == 2
+				WIND_VELOCITY = 2
 				SIF !CFLAG:MASTER:우후후 && !지저
 					PRINTW 아까보다 바람이 약해졌다
 			ENDIF
 	ENDSELECT
 ENDIF
+
+;降雪・雪崩判定を解除
+CONTINUOUS_SNOWFALL = 0
+SNOW_COVERAGE = 0
+POSSIBLITY_AVALANCHE = 0
 
 ;-------------------------------------------------
 ;17 台風接近時の天気(台風の目)
@@ -2111,6 +2998,11 @@ IF CFLAG:MASTER:현재위치 != 천계
 		NEXT
 	ENDIF
 ENDIF
+
+;降雪・雪崩判定を解除
+CONTINUOUS_SNOWFALL = 0
+SNOW_COVERAGE = 0
+POSSIBLITY_AVALANCHE = 0
 
 ;-------------------------------------------------
 ;18 霧の天気
@@ -2185,6 +3077,18 @@ IF RAND:LOCAL + 1 <= 12 && CFLAG:MASTER:현재위치 != 천계
 	ENDSELECT
 ENDIF
 
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
 ;-------------------------------------------------
 ;19 疑似好天
 ;-------------------------------------------------
@@ -2210,4 +3114,107 @@ IF CFLAG:MASTER:현재위치 != 천계
 		NEXT
 	ENDIF
 ENDIF
+
+;雪崩発生フラグ判定
+IF SNOW_COVERAGE >= 15 && CONTINUOUS_SNOWFALL >= 10
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 10 && CONTINUOUS_SNOWFALL >= 7 && WIND_VELOCITY >= 1
+	POSSIBLITY_AVALANCHE = 1
+ELSEIF SNOW_COVERAGE >= 5 && CONTINUOUS_SNOWFALL >= 5 && WIND_VELOCITY >= 2
+	POSSIBLITY_AVALANCHE = 1
+ELSE
+	POSSIBLITY_AVALANCHE = 0
+ENDIF
+
+;-------------------------------------------------
+;20 集中豪雨時の天気
+;-------------------------------------------------
+@CHANGE_WEATHER_SYSTEM_20
+#DIM 지저
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+TIME:7 = 0
+
+IF CFLAG:MASTER:현재위치 != 천계
+	SELECTCASE TIME:5
+		CASE 5
+			SELECTCASE RAND:3
+				CASE 0
+					TIME:5 = 14
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 더욱 비가 거세졌다！
+				CASE 1
+					IF POWER_WARM_AIR >= 3 && RAND:(6 - POWER_WARM_AIR) == 0
+						TIME:5 = 15
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 우박이 내리기 시작했다！
+					ELSE
+						TIME:5 = 13
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 싸라기눈이 내리기 시작했다！
+					ENDIF
+			ENDSELECT
+		CASE 14
+			SELECTCASE RAND:3
+				CASE 0
+					TIME:5 = 5
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 조금 비가 수그러들었다
+				CASE 1
+					IF POWER_WARM_AIR >= 3 && RAND:(6 - POWER_WARM_AIR) == 0
+						TIME:5 = 15
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 우박이 내리기 시작했다！
+					ELSE
+						TIME:5 = 13
+						SIF !CFLAG:MASTER:우후후 && !지저
+							PRINTW 싸라기눈이 내리기 시작했다！
+					ENDIF
+			ENDSELECT
+		CASE 13,15
+			SELECTCASE RAND:2
+				CASE 0
+					TIME:5 = 5
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 억수같이 쏟아진다！
+				CASE 1
+					TIME:5 = 14
+					SIF !CFLAG:MASTER:우후후 && !지저
+						PRINTW 맹렬한 비가 되었다！
+			ENDSELECT
+		CASEELSE
+			TIME:5 = 14
+			SIF !CFLAG:MASTER:우후후 && !지저
+				PRINTW 맹렬한 비가 되었다！
+	ENDSELECT
+ENDIF
+
+;連続降水カウンター
+SELECTCASE TIME:5
+	CASE 0,1,2
+		CONTINUOUS_RAINFALL = 0
+	CASE 5
+		CONTINUOUS_RAINFALL += 1
+	CASE 14
+		CONTINUOUS_RAINFALL += 3
+	CASE 3,6,7,10,11
+		CONTINUOUS_RAINFALL = MAX(0, CONTINUOUS_RAINFALL - 1)
+ENDSELECT
+
+;強風である場合風がおさまる
+IF CFLAG:MASTER:현재위치 != 천계 && WIND_VELOCITY != 0
+	WIND_VELOCITY = 0
+	SIF !CFLAG:MASTER:우후후 && !지저
+		PRINTW 바람이 가라앉기 시작했다
+ENDIF
+
+;降雪・雪崩判定を解除
+CONTINUOUS_SNOWFALL = 0
+SNOW_COVERAGE = 0
+POSSIBLITY_AVALANCHE = 0
+
 

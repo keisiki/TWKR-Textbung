@@ -1,0 +1,2349 @@
+﻿;稼ぐ手段の紅魔カジノに対して雰囲気+ロールプレイ用な感じで差別化したいなあ
+;ほとんどのコードをカジノから引っ張ってきてます
+@賭場_導入
+#DIM 退店フラグ
+退店フラグ = 0
+DRAWLINE
+CALL 賭場_台詞("入店中")
+DRAWLINE
+PRINTFORML 
+PRINTFORML ～駒草の賭場～
+PRINTFORML 　あなたの持ち金　　%금액표시(MONEY), 13, RIGHT%
+PRINTFORML 　持っているコマ札　%세자리구분(KOMAFUDA:MASTER), 13, RIGHT%
+PRINTFORML 
+PRINTFORML [1]丁半博打で遊ぶ
+PRINTFORML [2]チンチロリンで遊ぶ
+;PRINTFORML [3]おいちょかぶで遊ぶ-札表示のスクリプト組めたらやりたい
+;PRINTFORML [4]ナンパする-お金で即セフレになるモブ子を湧かせる、とか
+;PRINTFORML [5]酒を頼む-酔っ払うとダイス判定に極小メリット＆強烈なデバフをつける、とか
+;PRINTFORML [6]おだいじん-モブ子も酔うとクリファン率上がる、とか
+PRINTFORML 
+PRINTFORML [8]コマ札交換
+PRINTFORML [9]せつめい
+PRINTFORML [0]帰る
+DO
+	INPUT
+	SELECTCASE RESULT
+		CASE 0
+			退店フラグ = 1
+			BREAK
+		CASE 1
+			IF KOMAFUDA:0 < 50
+				CALL COLORMESSAGE(@"「お客さん、タネもないんじゃあ博打は遊べないよ」", 0xD37CD0, 1, 0)
+				CALL COLORMESSAGE(@"「先にコマに変えてきておくれ」", 0xD37CD0, 2, 0)
+				PRINTFORMW コマ札が100枚以上必要です
+				BREAK
+			ENDIF
+			CALL COLORMESSAGE("「それじゃあどの場を立てるか決めておくれ」", 0xD37CD0, 1, 0)
+			{
+			 CALL ASK_M("子供の御遊戯場　:最大賭数=二百枚", KOMAFUDA:0 >= 100,
+						"紳士淑女の社交場:最大賭数=五百枚", KOMAFUDA:0 >= 250,
+						"ひりつく鉄火場　:最大賭数=　千枚", KOMAFUDA:0 >= 500,
+						"修　　 羅 　　場:最大賭数=？？？（未実装)", 0,
+						"やっぱりやめる", 1)
+			}
+			LOCAL = RESULT
+			IF RESULT == 4
+				CALL COLORMESSAGE(@"「そうかい、また気が向いたら声をかけとくれよ」", 0xD37CD0, 2, 0)
+			ELSE
+				CALL COLORMESSAGE(@"「そしたらあたいがツボを振るんで準備をしなきゃあね」", 0xD37CD0, 1, 0)
+				CALL COLORMESSAGE(@"「面子が集まりしだい始めるよ」", 0xD37CD0, 2, 0)
+				RESULT = 0
+				CALL 丁半博打_メイン(LOCAL)
+				退店フラグ = RESULT
+			ENDIF
+		CASE 2
+			IF KOMAFUDA:0 < 50
+				CALL COLORMESSAGE(@"「お客さん、タネもないんじゃあ博打は遊べないよ」", 0xD37CD0, 1, 0)
+				CALL COLORMESSAGE(@"「先にコマに変えてきておくれ」", 0xD37CD0, 2, 0)
+				PRINTFORMW コマ札が40枚以上必要です
+				BREAK
+			ENDIF
+			CALL COLORMESSAGE("「それじゃあどの場で遊んでくか決めとくれよ」", 0xD37CD0, 1, 0)
+			{
+			 CALL ASK_M("子供の御遊戯場　:最大賭数=二十枚", KOMAFUDA:0 >= 40,
+						"紳士淑女の社交場:最大賭数=ニ百枚", KOMAFUDA:0 >= 400,
+						"ひりつく鉄火場　:最大賭数=ニ千枚（未実装)", 0,
+						"修　　 羅 　　場:最大賭数=？？？（未実装)", 0,
+						"やっぱりやめる", 1)
+			}
+			LOCAL = RESULT
+			LOCALS:0 '= "あいよ、仲良く楽しんできな", "そうかい、しっかり稼いできなよ", "おやおや、せいぜい頑張ってきなよ", "…まあ別に止めはしないよ", "おや、気が変わったのかい？"
+			RESULT = 0
+			CALL COLORMESSAGE(@"「%LOCALS:LOCAL%」", 0xD37CD0, 2, 0)
+			SIF LOCAL < 4
+				CALL チンチロリン_メイン(LOCAL)
+			退店フラグ = RESULT
+		CASE 8
+			CALL 賭場_コマ札交換
+		CASE 9
+			CALL 賭場_台詞("へるぷ")
+		CASEELSE
+			CLEARLINE 1
+			CONTINUE
+	ENDSELECT
+	SIF NEMUKE() >= 700
+		退店フラグ = 2
+	BREAK
+LOOP 1
+IF 退店フラグ
+	CALL 賭場_台詞("退店", 退店フラグ)
+	RETURN
+ENDIF
+RESTART
+
+;賭場システムメッセージ部分
+;@CASINO_CHECK_EVENTをだいたい流用
+@賭場_台詞(ARGS, ARG)
+#DIM 賭場入店
+#DIM 賭場退店
+#DIM 人物
+#DIM メッセージ
+#DIM ラッキー
+#DIMS モブ
+#DIMS 自称
+#DIMS 台詞
+#DIMS 表情
+人物 = FLAG:데이트상대
+表情 = %\@ 人物 == 139 ? 怒り # 通常 \@%
+メッセージ = 0
+SELECTCASE ARGS
+	CASE "入店中"
+		;初回
+		IF !FLAG:노름판방문일
+			SELECTCASE 人物
+				;神奈子/諏訪子/久侘歌/魅須丸/龍
+				CASE 32, 33, 129, 138, 140
+					{
+					台詞 = 「これはこれは…」
+						/「%\@ 人物 == 138 ? 大天狗様に # 神様にわざわざ \@%お越しいただけるとは光栄の極み」
+						/「ここは紳士淑女の社交場」
+						/「このひとときだけは俗世の憂いも忘れてお楽しみを」
+					}
+				;典 
+				CASE 139
+					{
+					台詞 = 「おやおや…」
+						/「管狐風情がなんの用事だい？」
+						/「ここは紳士淑女の社交場」
+						/「つまんないおイタはよしとくれよ」
+					}
+				CASEELSE
+					;山頂/山麓住まい
+					IF GROUPMATCH(CSVCFLAG(人物, GETNUM(CFLAG, "자택위치")) / 100 , 7, 8)
+						{
+						台詞 = 「よく来てくれたね。歓迎するよ」
+							/「ここは紳士淑女の社交場」
+							/「命の洗濯にはぴったりの場所さ」
+							/「ま、熱くなりすぎないぐらいに楽しんでいっておくれよ」
+						}
+					ELSEIF !人物
+						{
+						台詞 = 「おや？　見ない顔だね…」
+							/「ようこそ。ここは駒草の賭場」
+							/「紳士淑女の社交場さ」
+							/「せっかく来たんだ。ゆっくり楽しんでいっておくれよ」
+						}
+					ELSE
+						{
+						台詞 = 「おや？　ここで会うのは初めてかな…」
+							/「ようこそ。ここは駒草の賭場」
+							/「紳士淑女の社交場、皆が楽しむための場所さ」
+							/「うっかり能力を使うとか、野暮なことはよしとくれよ」
+						}
+					ENDIF
+			ENDSELECT
+			賭場入店 = 1
+			賭場退店 = 0
+			FLAG:노름판방문일 = DAY
+			メッセージ = 1
+		;その日初めての入店
+		ELSEIF DAY - FLAG:노름판방문일
+			SELECTCASE 人物
+				;神奈子/諏訪子/久侘歌/魅須丸/龍
+				CASE 32, 33, 129, 138, 140
+					台詞 = 「いらっしゃいませ」/「お連れ様と息抜きですか？」/「どうぞごゆっくりお楽しみを」
+				;典
+				CASE 139
+					台詞 = 「おやおや、こんとなところに管狐がふらついてるよ」/「主様をほっぽらかして結構なご身分だねえ」
+				CASEELSE
+					台詞 = 「おや、いらっしゃい」/「ここは気に入ってくれたかい？」/「ゆっくり楽しんでいっておくれよ」
+			ENDSELECT
+			賭場入店 = 1
+			賭場退店 = 0
+			FLAG:노름판방문일 = DAY
+			メッセージ = 1
+		;当日再来店
+		ELSEIF 賭場入店 == 賭場退店
+			SELECTCASE 人物
+				;神奈子/諏訪子/久侘歌/魅須丸/龍
+				CASE 32, 33, 129, 138, 140
+					台詞 = 「おや、またお越しで？」/「どうぞどうぞ、ご満足いただけるまでお楽しみを」
+				;典
+				CASE 139
+					台詞 = 「さっきからチョロチョロと…」/「なにか悪巧みでもしてるのかい？」/「あんまり妙なことしでかすんじゃないよ」
+				CASEELSE
+					台詞 = 「おやおや…まだ遊び足りないのかい？」/「いいさ、気の済むまでゆっくりしてきなよ」
+			ENDSELECT
+			賭場退店 ++
+			メッセージ = 1
+	;にぎやかし
+		ELSEIF !RAND:3
+			モブ = %TEXTR("야마와로/캇파/카라스텐구/둔갑너구리/둔갑여우/둔갑고양이/이나바/")%
+			自称 = %TEXTR("わたし/私/あたい/あたし/")%
+			SIF !RAND:4
+				自称 = %TEXTR("ボク/僕/")%
+			SIF FLAG:구상색
+				SETCOLOR GET_CN_WORD_COLOR(STR:(RAND:13 + 2050))
+			;しょーもないネタは低確率
+			IF !RAND:25
+				PRINTFORMDL 入り口の脇で%モブ%が頭を抱えている…
+				PRINTFORML 
+				PRINTFORML 「大事なお金…%TEXTR("あの子の/店の/姉御から預かった/")%お金まで…使っちゃった…」
+				PRINTFORMW 「残りあと200円…どうしよう…」
+				PRINTFORMDL ……ﾌﾟｼｭ! ｸﾞﾋﾞﾘ!
+				PRINTFORML 「残り80円…もうだめぽお…」
+				PRINTFORMDL …ジュース飲んでんじゃネーヨはげ！！
+			ELSEIF RAND:2
+				PRINTDATADL
+					DATAFORM 派手に勝った様子の%モブ%が騒いでいる…
+					DATAFORM 大勝負に勝った%モブ%が立ち上がって吠えている…
+					DATAFORM コマを山ほど抱えた%モブ%が浮かれている…
+					DATAFORM 一発当てた%モブ%がげらげらと笑っている…
+				ENDDATA
+				PRINTFORML 
+				PRINTDATAL LOCAL
+					DATAFORM 「いやあ、こんだけ勝てるなんて最高だねえ！」\n「あーつらいわー、勝ちすぎちゃって辛いわー♪」
+					DATAFORM 「どーだい！？　見たか！！」\n「これが%自称%の実力だよ！」
+					DATAFORM 「いやー悪いねー」\n「%自称%ばっかり勝っちゃってほんと悪いねー♪」
+					DATAFORM 「あっははは！　いい気分だよ」\n「おーい、誰か酒持ってこーいっ」\n「この負け犬どもに恵んでやるよ♪」
+					DATAFORM 「もうひと勝負？」\n「いいよいいよ、何番だって付き合うよ」\n「今の%自称%は負ける気がしないんだ」
+					DATAFORM 「イカサマ？　何言ってるのさ」\n「そんなんやるわけないじゃーん」\n「ほらほら、さっさと払いなよこの負け犬♪」
+				ENDDATA
+				IF !LOCAL && !RAND:5 && ラッキー != DAY
+					WAIT
+					ラッキー = DAY
+					PRINTFORML 
+					PRINTFORML 「おーい、そこの\@ TALENT:MASTER:성별 == 2 ? 兄 # 姐 \@さん！　調子はどうだい？」
+					PRINTFORML 「あたい、今とっても気分がいいんだ！　あんたにもこのツキを少し分けてやんよ」
+					PRINTFORML 「ほらっ、とっときな！」
+					PRINTFORMDL 見知らぬ%モブ%からコマ札を100枚もらった
+					KOMAFUDA:MASTER += 100
+				ENDIF
+			ELSE
+				PRINTDATADL
+					DATAFORM 入り口の脇で%モブ%が頭を抱えている…
+					DATAFORM うつろな目をした%モブ%がブツブツと呟いている…
+					DATAFORM 呆けた顔の%モブ%が壁際に座り込んでいる…
+					DATAFORM 顔色を失った%モブ%がぼーっと立っている…
+				ENDDATA
+				PRINTFORML 
+				PRINTDATAL
+					DATAFORM 「大事なお金…%TEXTR("あの子の/店の/姉御から預かった/")%お金まで…使っちゃった…」\n「どうしよう……どうしよう…」
+					DATAFORM 「%自称%のお金%自称%のお金%自称%のお金%自称%のお金…%自称%の大事なお金…」\n「全部なくなっちゃった…」
+					DATAFORM 「あそこでピンが出なけりゃ%自称%の勝ちだったのに…」\n「なんで、なんであそこで…」
+					DATAFORM 「…………………」\n「……………………」\n「やらかした…」
+					DATAFORM 「…いっそ人里まで出て…人間を…」\n「…でも巫女にバレたら…」\n「…あとは、地底の湯屋か…」
+				ENDDATA
+			ENDIF
+		ELSE
+			PRINTFORML 
+			PRINTDATAL
+				DATAFORM 賭場は独特の熱気に包まれている…
+				DATAFORM 大きな笑い声とかすかな舌打ちが聞こえる…
+				DATAFORM やけに盛り上がっている一角がある\nどうやら大勝負が繰り広げられているようだ…
+				DATAFORM なにやら言い争う声がする\nと思ったらすぐに聞こえなくなった…
+				DATAFORM 泣きながら謝る声が聞こえる\nと思ったらすぐに外へと引きずり出されていった…
+				DATAFORM 誰も%CALLNAME:MASTER%を気にもとめない\nみんな目の前の勝負に真剣のようだ…
+			ENDDATA
+		ENDIF
+	CASE "退店"
+		;神奈子/諏訪子/久侘歌/魅須丸/龍
+		IF GROUPMATCH(人物, 32, 33, 129, 138, 140)
+			台詞 = 「お帰りですか？」/「楽しんでいただけたのなら何よりです」
+		;典
+		ELSEIF 人物 == 139
+			台詞 = 「はいよ」/「そんじゃ、お出口はあちら」/「さっさと帰んな」
+		ELSE
+			台詞 = 「楽しんでくれたかい？」/「また来ておくれよ」
+		ENDIF
+		賭場退店 ++
+		メッセージ = 1
+	CASE "へるぷ"
+		SIF FLAG:구상색
+			SETCOLOR 0xD37CD0
+		PRINTFORML 「そうだね、ここでの決まりごとを簡単に説明させてもらうよ」
+		PRINTFORML 
+		PRINTFORML 「うちはコマ札を持ってないと遊んでけないんだ」
+		PRINTFORML 「最初にここで交換していっておくれ」
+		PRINTFORML 「コマ１枚につき\105円で貸し出し、半端を出したくないんで10枚単位でよろしく頼むよ」
+		PRINTFORML 「買い取りは\100円、当たり前だけどこっちは端数もきっちり計算するから安心しな」
+		PRINTFORML 
+		PRINTFORML 「比率が悪い？　そいつはテラ銭、あたいらの取り分ってやつさ」
+		PRINTFORML 「大事なおまんまのタネなんだ。悪く思わないでおくれ」
+		PRINTFORML 「あとは…遊んでる途中でコマが足らなくなったらそこでお開き」
+		PRINTFORML 「足りないコマは手間賃込みのお高い値段で買ってもらうよ」
+		PRINTFORML 「ま、タネは切らさないように気をつけておくんだね」
+		$EXP_LOOP
+		RESETCOLOR
+		{
+		 CALL ASK_M("もどる",1,
+		 			"丁半博打について聞く", 1,
+					"チンチロリンについて聞く", 1)
+		}
+		SIF FLAG:구상색
+			SETCOLOR 0xD37CD0
+		SELECTCASE RESULT
+			CASE 0
+			CASE 1
+				PRINTFORML 「丁半博打は…説明なんているのかい？」
+				PRINTFORML 「振った賽が奇数か偶数かを当てる、それだけだね」
+				PRINTFORML 「賭けゴマは十枚単位、上限が場によって決まってるからそれに従っておくれ」
+				PRINTFORML 「ああ…でもコマのやり取りの方はちょいとややこしいかな」
+				PRINTFORML 
+				PRINTFORML 「丁半賭けて外れたらコマは無くなる…まあこれは当たり前さね」
+				PRINTFORML 「で、当てた時なんだが賭けゴマがいきなり倍になったりはしないよ」
+				PRINTFORML 「外した奴の賭けゴマを当てた側が賭けゴマの割合に応じて山分けするんだ」
+				PRINTFORML 
+				PRINTFORML 「例えば丁に四人半に三人、皆がコマ100枚賭けたとするだろ？」
+				PRINTFORML 「これで出目が半なら、丁に張られた400枚を半に賭けた三人で分ける寸法さ」
+				PRINTFORMW 「この場合だと均等分け、コマ166枚の儲けなって戻ってくるね」
+				PRINTFORML 
+				PRINTFORML 「ここまで言っておいてなんだけど、口で説明するだけじゃわかりづらいかもしれないねえ…」
+				PRINTFORML 「ま、ドカンと賭けるもチマチマ遊んでくもお好きなようにってやつさ」
+				PRINTFORMW 「しっかり楽しんでいっておくれよ」
+				GOTO EXP_LOOP
+			CASE 2
+				PRINTFORML 「そんじゃ、この賭場での決まりごとをざっと言っとこうか」
+				PRINTFORML 「ヒフミは倍付け払い、シゴロ二倍アラシ三倍ピンゾロで五倍取り」
+				PRINTFORML 「役目を出したら勝ち負け関係なく親流れ」
+				PRINTFORML 「ヒフミ、ションベン、目なし、ピンなら親を続けるようになってるよ」
+				PRINTFORML 「そうそう、全員が一度親を終わらせるまで途中抜けは出来ないから気をつけな」
+				PRINTFORMW 「賽の目一回でいきなりかっぱがれて、勝ち逃げされちゃあ相手だってたまんないからね」
+				PRINTFORML 
+				PRINTFORML 「もっと詳しいやり方？　さすがにそこらへんは自分で調べときな」
+				PRINTFORML 「博打を手取り足取り教えてもらおうなんて、そいつは野暮ってもんじゃあないかい？」
+				PRINTFORML 「ま、簡単なもんさ。やってきゃあそのうちに覚えるって」
+				GOTO EXP_LOOP
+		ENDSELECT
+ENDSELECT
+SIF メッセージ
+	CALL SPTALK, 0, 表情, 95, 台詞, 1
+RESETCOLOR
+RETURN
+
+;やっぱりCASINOから構文お借りしてます
+@賭場_コマ札交換
+#DIM 閾値 = 0, 1050, 2100, 10500, 105000
+LOCAL = LINECOUNT
+PRINTFORML 持っている￥　　　　%금액표시(MONEY), 13, RIGHT%
+PRINTFORML 持ちコマ札　　　　　%세자리구분(KOMAFUDA:MASTER), 13, RIGHT%
+PRINTFORML [1]コマ札を借りる　（105円＝1枚）※10枚以上から受付
+PRINTFORML [2]コマ札を換金する（1枚＝100円）
+PRINTFORML [0]もどる
+DO
+	INPUT
+	SELECTCASE RESULT
+		CASE 0
+			CLEARLINE 1
+			RETURN 0
+		CASE 1
+			CALL COLORMESSAGE(@"「いくつ欲しいんだい？」", 0xD37CD0, 1, 0)
+			SIF MONEY >= 1050
+				PRINTFORML [1]持ち金全部を交換（{MONEY / 105}枚） 
+			SIF MONEY >= 2100
+				PRINTFORML [2]持ち金半分を交換（{MONEY / 210}枚）
+			SIF MONEY >= 10500
+				PRINTFORML [3]100枚交換
+			SIF MONEY >= 105000
+				PRINTFORML [4]1000枚交換
+			PRINTFORML [0]やめる
+			PRINTFORML （欲しい枚数を直接入力、またはボタンを選んでください）
+			$BUY_LOOP
+			INPUT
+			IF INRANGE(RESULT, 1, 4) && (MONEY < 閾値:RESULT)
+				CLEARLINE 1
+				GOTO BUY_LOOP
+			ENDIF
+			SELECTCASE RESULT
+				CASE 0
+					CLEARLINE LINECOUNT - LOCAL
+					RESTART
+				CASE 1
+					KOMAFUDA:MASTER += MONEY / 105
+					MONEY = MONEY % 105
+				CASE 2
+					KOMAFUDA:MASTER += MONEY / 210
+					MONEY /= 2
+				CASE 3, 4
+					MONEY -= 閾値:RESULT
+					KOMAFUDA:MASTER = RESULT == 3 ? KOMAFUDA:MASTER + 100 # KOMAFUDA:MASTER + 1000
+				CASE IS < 0, 5 TO 9
+					CLEARLINE 1
+					GOTO BUY_LOOP
+				CASEELSE
+					IF RESULT * 105 > MONEY
+						CLEARLINE 1
+						GOTO BUY_LOOP
+					ENDIF
+					MONEY -= RESULT * 105
+					KOMAFUDA:MASTER += RESULT
+			ENDSELECT
+			CALL COLORMESSAGE(@"「ほら、持ってきなよ」", 0xD37CD0, 2, 0)
+		CASE 2
+			IF !KOMAFUDA:MASTER
+				CLEARLINE LINECOUNT - LOCAL
+				RESTART
+			ENDIF
+			CALL COLORMESSAGE(@"「どんだけ替えるんだい？」", 0xD37CD0, 1, 0)
+			PRINTFORML [0]持ち札全部を換金（%금액표시(KOMAFUDA:MASTER * 100)%） 
+			PRINTFORML （換金する枚数を直接入力、またはボタンを選んでください）
+			PRINTFORML [-1]やめる
+			$SELL_LOOP
+			INPUT
+			SELECTCASE RESULT
+				CASE IS < -1
+					CLEARLINE 1
+					GOTO SELL_LOOP
+				CASE -1
+					CLEARLINE LINECOUNT - LOCAL
+					RESTART
+				CASE 0
+					MONEY += KOMAFUDA:MASTER * 100
+					KOMAFUDA:MASTER = 0
+				CASEELSE
+					IF RESULT > KOMAFUDA:MASTER
+						CLEARLINE 1
+						GOTO SELL_LOOP
+					ENDIF
+					MONEY += RESULT *100
+					KOMAFUDA:MASTER -= RESULT
+			ENDSELECT
+			CALL COLORMESSAGE(@"「ほら、この場で確かめとくんだよ」", 0xD37CD0, 2, 0)
+	ENDSELECT
+	CLEARLINE LINECOUNT - LOCAL
+	RESTART
+LOOP 1
+
+;ここから試行錯誤のオリジナル
+@チンチロリン_メイン(レート)
+#DIM 回数
+#DIM 増減
+#DIM 胴元
+#DIM レート
+#DIM 判定
+#DIM プール
+#DIM 賭駒, 5
+#DIM 強さ, 5
+#DIM 親継続, 6
+#DIM L_COUNT
+#DIM TGT
+#DIM 表示色
+#DIM 眠い
+#DIM レート指数 = 1, 10, 100 ,500
+#DIM 役倍率 = 5, 3, 3 ,3, 3, 3, 2
+眠い = 0
+VARSET 親継続
+FOR COUNT, 1, 5
+	IF KOMAFUDA:COUNT < レート指数:レート * 40
+		PRINTFORMW ……面子が集まりません。この場を抜けます
+		RETURN 0
+	ENDIF
+NEXT
+回数 = 0
+DRAWLINE
+PRINTFORML 
+PRINTFORML ～チンチロリン～
+PRINTFORML 
+PRINTFORML 親決めに賽を一個ずつ振ります
+PRINTFORMW 
+CALL TOBA_FILL_DICE(強さ, 5)
+FOR COUNT, 6, 1, -1
+	胴元 = FINDELEMENT (強さ, COUNT)
+	SIF 胴元 == -1
+		CONTINUE
+	BREAK
+NEXT
+FOR COUNT, 0, 5
+	PRINTFORML %BAKUTO_NAME:COUNT%　　　%\@ STRLENS(BAKUTO_NAME:COUNT) > 4 ? # 　 \@%%TOKANJIT(強さ:COUNT)%
+NEXT
+PRINTL
+PRINTFORMW %BAKUTO_NAME:胴元%が最初の親です
+PRINTFORML 
+親継続:胴元 = 1
+$GAME_LOOP
+IF NEMUKE() >= 540 && !眠い
+	眠い = 1
+	PRINTFORML あなたは眠気でうまく集中できません…
+	PRINTFORMW 賽を狙った通りに投げられない確率が増えます
+	PRINTFORML 
+ENDIF
+SIF レート > 1
+	役倍率 = 10, 6, 5 ,4, 3, 2, 2
+回数 ++
+CALL PRINT_TOBA_STATE(回数, レート, !胴元)
+LOCAL = LINECOUNT
+
+;COMの賭けゴマを適当に決める
+FOR COUNT, 1, 5
+	IF KOMAFUDA:COUNT >= レート指数:レート * 50 && RAND:4
+		TGT = 20
+	ELSEIF KOMAFUDA:COUNT >= レート指数:レート * 20
+		TGT = 10
+	ELSEIF KOMAFUDA:COUNT <= レート指数:レート * 10
+		TGT = KOMAFUDA:COUNT / レート指数:レート
+	ELSE
+		TGT = 5
+	ENDIF
+	賭駒:COUNT = レート指数:レート * TGT
+NEXT
+賭駒:胴元 = 0
+
+IF 胴元
+	PRINTFORML この回の賭け口を決めてください（一口＝{レート指数:レート}枚）
+	PRINTFORML [20]最大枚数　　　{20 * レート指数:レート}枚
+	PRINTFORML [10]限度の半分　　{10 * レート指数:レート}枚
+	PRINTFORML または1～19を直接入力
+	$INPUT_LOOP
+	INPUT
+	IF !INRANGE(RESULT, 1, 20) || (レート指数:レート * RESULT > KOMAFUDA:MASTER)
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+	ENDIF
+	賭駒:MASTER = レート指数:レート * RESULT
+ENDIF
+CLEARLINE LINECOUNT - LOCAL
+FOR COUNT, 0, 4
+	TGT = TOBA_ROTATE:胴元:COUNT
+	PRINTFORML %BAKUTO_NAME:TGT%の張りゴマ　　　　　%\@ STRLENS(BAKUTO_NAME:TGT) > 4 ? # 　 \@%%세자리구분(賭駒:TGT)%枚
+	TWAIT 200, 0
+NEXT
+PRINTFORML 
+;親の処理
+PRINTFORML 親の手番
+LOCAL = LINECOUNT
+PRINTFORML 
+PRINTFORML %BAKUTO_NAME:胴元%が賽を振ります
+TWAIT 1000, 0
+CALL THROW_CHINCHIRO_DICE(胴元, -1)
+強さ:胴元 = RESULT
+CLEARLINE LINECOUNT -LOCAL
+;その場で勝ち負け確定判定
+IF !INRANGE(強さ:胴元, 4, 7)
+	IF 強さ:胴元 > 7
+		CALL COLORMESSAGE(@"親の%CHIN_PRIZE:(強さ:胴元)%！", C_YELLOW, 1, 1)
+		PRINTFORML %BAKUTO_NAME:胴元%%\@ 強さ:胴元 > 8 ? は張りゴマの%TOKANJIS(役倍率:(15 - 強さ:胴元))%倍を徴収！ # が張りゴマ総取り \@%！
+	ELSE
+		CALL COLORMESSAGE(@"親の%CHIN_PRIZE:(強さ:胴元)%…", C_YELLOW, 1, 1)
+		PRINTFORML %BAKUTO_NAME:胴元%は全員に張りゴマ\@ 強さ:胴元 == 0 ? を倍付けで # 分を \@支払います
+		親継続:5 = 1
+	ENDIF
+	RESULT = 0
+	TGT = !胴元 ? RAND(1, 5) # 胴元
+	IF (TGT != 胴元 && RAND:2) || !胴元
+		CALL TOBA_GAMBLER_TWEET(TGT, "一投目", 強さ:胴元)
+	ELSE
+		CALL TOBA_GAMBLER_TWEET(胴元, "親で振った後", 強さ:胴元)
+	ENDIF
+	GOTO PAY
+ENDIF
+PRINTFORML 親の出目：　　　　　　　%CHIN_PRIZE:(強さ:胴元)%
+PRINTFORML 
+CALL TOBA_GAMBLER_TWEET(胴元, "親で振った後", 強さ:胴元)
+;子の処理
+PRINTFORML 子の手番
+FOR L_COUNT, 0, 4
+	TGT = TOBA_ROTATE:胴元:L_COUNT
+	LOCAL = LINECOUNT
+	PRINTFORML 
+	PRINTFORML %BAKUTO_NAME:TGT%が賽を振ります
+	TWAIT 1000, 0
+	CALL THROW_CHINCHIRO_DICE(TGT, 強さ:胴元)
+	強さ:TGT = RESULT
+	TWAIT 600, 0
+	CLEARLINE LINECOUNT - LOCAL
+	PRINTFORML %BAKUTO_NAME:TGT%の出目：　　　　　%\@ STRLENS(BAKUTO_NAME:TGT) > 4 ? # %UNICODE(0x3000)% \@%%CHIN_PRIZE:(強さ:TGT)%
+NEXT
+PRINTFORML 精算を行います
+$PAY
+PRINTFORML 
+増減 = 0
+プール = 0
+;親と勝負・出目判定処理
+IF INRANGE(強さ:胴元, 4, 7)
+	FOR COUNT, 0, 4
+		TGT = TOBA_ROTATE:胴元:COUNT
+		SELECTCASE 強さ:TGT
+			CASE 0
+				判定 = 2
+				増減 = -(賭駒:TGT * 2)
+			CASE 1, 2, 3
+				判定 = 0
+				増減 = -(賭駒:TGT)
+			CASE 4 TO 8
+				判定 = 1
+				IF 強さ:TGT == 強さ:胴元
+					増減 = 0
+				ELSEIF 強さ:TGT > 強さ:胴元
+					増減 = 賭駒:TGT
+				ELSE
+					増減 = -(賭駒:TGT)
+				ENDIF
+			CASEELSE
+				判定 = 役倍率:(15 - 強さ:TGT)
+				増減 = 賭駒:TGT * 判定
+		ENDSELECT
+		PRINTFORM %BAKUTO_NAME:TGT%の出目：%CHIN_PRIZE:(強さ:TGT)%　＝　
+		IF 増減 < 0
+			PRINTFORML 親の勝ち！
+			SIF 判定 > 1
+				CALL COLORMESSAGE(@"ヒフミを出した%BAKUTO_NAME:TGT%は倍付け払い…", C_YELLOW, 1, 1)
+		ELSEIF 増減 > 0
+			PRINTFORML 子の勝ち！
+			SIF 判定 > 1
+				CALL COLORMESSAGE(@"%CHIN_PRIZE:(強さ:TGT)%を出した%BAKUTO_NAME:TGT%には%TOKANJIS(判定)%倍戻し！！", C_YELLOW, 1, 1)
+		ELSE
+			PRINTFORML 引き分け
+			PRINTFORML 張りゴマがそのまま戻ります
+		ENDIF
+		TWAIT 500, 0
+		;親のコマ変動を一時保存
+		プール -= 増減
+		;子のコマ変動を表示
+		KOMAFUDA:TGT = KOMAFUDA:TGT + 増減
+		SIF 増減
+			CALL TOBA_RESULT_PRINT(TGT, 増減)
+		PRINTFORML 
+	NEXT
+;親の総取り/総付け処理
+ELSE
+	FOR L_COUNT, 0, 4
+		TGT = TOBA_ROTATE:胴元:L_COUNT
+		SELECTCASE 強さ:胴元
+			;ヒフミ
+			CASE 0
+				プール -= 賭駒:TGT * 2
+				KOMAFUDA:TGT += 賭駒:TGT * 2
+				増減 = 賭駒:TGT * 2
+			;ションベン目無しピン
+			CASE 1, 2, 3
+				プール -= 賭駒:TGT
+				KOMAFUDA:TGT += 賭駒:TGT
+				増減 = 賭駒:TGT
+			;ロッポウ
+			CASE 8
+				プール += 賭駒:TGT
+				KOMAFUDA:TGT -= 賭駒:TGT
+				増減 = -賭駒:TGT
+			;倍付以上
+			CASEELSE
+				プール += 賭駒:TGT * 役倍率:(15 - 強さ:胴元)
+				KOMAFUDA:TGT -= 賭駒:TGT * 役倍率:(15 - 強さ:胴元)
+				増減 = -(賭駒:TGT * 役倍率:(15 - 強さ:胴元))
+		ENDSELECT
+		CALL TOBA_RESULT_PRINT(TGT, 増減)
+		TWAIT 500, 0
+	NEXT
+	PRINTFORML 
+ENDIF
+KOMAFUDA:胴元 += プール
+IF プール
+	表示色 = プール > 0 ? C_GREEN # C_D_RED
+	PRINTFORM %BAKUTO_NAME:胴元%の収支　　　　　　%\@ STRLENS(BAKUTO_NAME:胴元) > 4 ? # %UNICODE(0x3000)% \@%
+	CALL COLORMESSAGE(@"%\@ プール > 0 ? ＋ # － \@%{ABS(プール)}枚", 表示色, 1, 1)
+	SIF ABS(プール) >= レート指数:レート * 80
+		CALL TOBA_GAMBLER_TWEET(胴元, @"%\@ プール > 0 ? 得 # 失 \@%意", 強さ:胴元)
+	PRINTFORML 
+ENDIF
+
+TIME += 5
+;タネ銭足りないと終了
+FOR COUNT, 0, 5
+	SIF KOMAFUDA:COUNT >= レート指数:レート * 2
+		CONTINUE
+	PRINTFORML 
+	IF COUNT > 0 || KOMAFUDA:0 >= 0
+		PRINTFORML %BAKUTO_NAME:COUNT%の持ちゴマが\@ KOMAFUDA:COUNT > 0 ? 足らなく # 無く \@なりました
+		PRINTFORMW この場でお開きになります
+		RETURN 0
+	ELSE
+		SIF FLAG:구상색
+			SETCOLOR 0xD37CD0
+		PRINTFORML 「あー、お前さん…タネが無いならもう手仕舞いにしときなよ」
+		PRINTFORML 「……って、負け分が足らないとか、いったいどういう了見だい！？」
+		PRINTFORMW 「有り金はたいてでもきっちり払ってもらうよ！！」
+		PRINTFORMDL ……マイナス分のコマを（割増価格で）強制的に買わされました
+		PRINTFORMDW 一旦この場を抜けます
+		RESETCOLOR
+		MONEY = MONEY + KOMAFUDA:MASTER * 125
+		KOMAFUDA:MASTER = 0
+		RETURN 0
+	ENDIF
+NEXT
+;親の目がショボいときは親を続行
+IF 親継続:5 == 1
+	PRINTFORMW %BAKUTO_NAME:胴元%が親を続けます
+	親継続:5 = 0
+	GOTO GAME_LOOP
+;親交代
+ELSEIF SUMARRAY(親継続, 0, 5) < 5
+	胴元 = 胴元 == 4 ? 0 # 胴元 + 1
+	親継続:胴元 = 1
+	PRINTFORMW 次の親は%BAKUTO_NAME:胴元%です
+	GOTO GAME_LOOP
+ENDIF
+IF NEMUKE() >= 700
+	PRINTFORMW 眠気がそろそろ限界です。場を抜けます
+	RETURN 2
+ENDIF
+;一周したら一区切り
+PRINTFORML 
+PRINTFORML 親が一巡したので途中抜けできます
+PRINTFORML [0]このまま続ける
+PRINTFORML [1]終了する
+DO
+ 	INPUT
+ 	IF !INRANGE(RESULT, 0, 1)
+ 		CLEARLINE 1
+ 		CONTINUE
+ 	ELSEIF !RESULT
+ 		VARSET 親継続
+ 		胴元 = 胴元 == 4 ? 0 # 胴元 + 1
+ 		親継続:胴元 = 1
+ 		PRINTFORML このまま続けます
+		PRINTFORMW 次の親は%BAKUTO_NAME:胴元%です
+ 		GOTO GAME_LOOP
+ 	ENDIF
+ 	RETURN 0
+LOOP 1
+
+
+;紅魔館のとなんとか差別化しようとして結構頑張ってます
+@丁半博打_メイン(レート)
+#DIM CH_TURN, 7
+#DIM CH_BET, 7
+#DIM BET_POOL, 3
+#DIM CH_PROFIT, 7
+#DIM CH_COUNT,2
+#DIM DICE, 2
+#DIM TGT
+#DIM L_COUNT
+#DIM PL_BET
+#DIM 賭駒, 7
+#DIM 連勝, 7
+#DIM 回数
+#DIM 結果
+#DIM レート
+#DIM レート指数 = 20, 50, 100 ,1000
+回数 = 0
+VARSET 連勝
+FOR L_COUNT, 1, 7
+	IF KOMAFUDA:L_COUNT < レート指数:レート * 5
+		PRINTFORMW ……面子が集まりません。この場を抜けます
+		RETURN 0
+	ENDIF
+NEXT
+DRAWLINE
+PRINTFORML 
+PRINTFORML ～丁半博打～
+PRINTFORML 
+CALL TOBA_DEALER_TWEET(3, "挨拶")
+
+$GAME_LOOP
+回数 ++
+CALL PRINT_TOBA_STATE(回数, レート, 0)
+TWAIT 1200, 0
+VARSET CH_BET
+VARSET CH_COUNT
+VARSET BET_POOL
+REDRAW 0
+CALL TOBA_FILL_DICE(DICE, 2)
+LOCAL = LINECOUNT
+CALL TOBA_DEALER_TWEET(0, "スタート口上",0, 0, 回数)
+TWAIT 1500, 0
+CLEARLINE LINECOUNT-LOCAL
+
+LOCAL = LINECOUNT
+CALL TOBA_DEALER_TWEET(0, "構え口上", DICE:0, DICE:1)
+TWAIT 1500, 0
+CLEARLINE LINECOUNT-LOCAL
+
+CALL TOBA_DEALER_TWEET(0, "被り口上")
+TWAIT 1200, 0
+PRINTFORML 
+REDRAW 1
+CALLF FUNC_FISHER_YATES_SHAFFLE(CH_TURN, 7)
+;予想ターン
+FOR L_COUNT, 0, 7
+	TGT = CH_TURN:L_COUNT
+	IF !TGT
+		REDRAW 0
+		PL_BET = 0
+		$BET_LOOP
+		LOCAL = LINECOUNT
+		PRINTPLAIN [丁][半]どちらか選択後、この回の賭け口を決めてください
+		PRINTFORML 
+		PRINTFORML 一口＝コマ札10枚　最大%세자리구분(レート指数:レート * 10)%枚
+		PRINTFORML あなたの持ちコマ　　　%세자리구분(KOMAFUDA:MASTER)%枚
+		CALL PRINTBUTTON_EX("　　　[丁]", -1, 0, (PL_BET == -1))
+		CALL PRINTBUTTON_EX("　　　[半]", -2, 0, (PL_BET == -2))
+		PRINTFORML 
+		PRINTBUTTON @"[{レート指数:レート * 10}枚-限度いっぱいまで張る]", レート指数:レート
+		PRINTFORML 
+		PRINTBUTTON @"[{レート指数:レート * 5}枚-上限の半分を賭ける]", レート指数:レート / 2
+		PRINTFORML 
+		PRINTBUTTON @"[{レート指数:レート / 4 * 10}枚-控えめに様子を見る]", レート指数:レート / 4
+		PRINTFORML 
+		PRINTFORML または1～{レート指数:レート - 1}を直接入力
+		INPUT
+		CLEARLINE LINECOUNT - LOCAL
+		SELECTCASE RESULT
+			CASE IS < -2, 0, IS > レート指数:レート
+				GOTO BET_LOOP
+			CASE -1, -2
+				PL_BET = RESULT
+				GOTO BET_LOOP
+			CASEELSE
+				SIF !PL_BET || RESULT * 10 > KOMAFUDA:MASTER
+					GOTO BET_LOOP
+				賭駒:MASTER = RESULT * 10
+				CH_BET:MASTER = PL_BET == -1 ? 0 # 1
+		ENDSELECT
+		PRINTFORML あなたは%\@ CH_BET:MASTER == 0 ? 丁 # 半 \@%に{賭駒:MASTER}枚賭けました
+		TWAIT 350, 0
+		REDRAW 1
+	ELSE
+		;NPCの丁半予想と賭けゴマ数を決定
+		CH_BET:TGT = RAND:2
+		賭駒:TGT = BET_CHOHAN(TGT, レート指数:レート, 連勝:TGT)
+		CALL TOBA_GAMBLER_TWEET(TGT, "丁半選択", CH_BET:TGT, 連勝:TGT)
+		IF !RESULT && TGT != 4
+			CALL COLORMESSAGE(@"「%\@ CH_BET:TGT ? 半 # 丁 \@%%UNICODE(0xFF01)*RAND(1,4)%」", BAKUTO_WORDCOLOR:TGT, 1, 0)
+			TWAIT 300, 0
+		ENDIF
+		PRINTFORML %BAKUTO_NAME:TGT%は%\@ CH_BET:TGT == 0 ? 丁 # 半 \@%に{賭駒:TGT}枚賭けました
+		TWAIT 600, 0
+	ENDIF
+	PRINTFORML 
+	CH_COUNT:(CH_BET:TGT) ++
+	;BET_POOL:第一引数 0=丁の賭けゴマ 1=半の賭けゴマ 2=賭けゴマ総数
+	BET_POOL:(CH_BET:TGT) += 賭駒:TGT
+	SIF L_COUNT == 6
+		BREAK
+	CALL TOBA_DEALER_TWEET(0, "煽り", CH_COUNT:0, CH_COUNT:1, CH_BET:TGT)
+	PRINTFORML 
+	TWAIT 350 + RAND(3, 7) * 50, 0
+NEXT
+PRINTFORML 　　賭け方集計
+PRINTFORML 　　丁:{CH_COUNT:0}人　　{BET_POOL:0}枚
+PRINTFORMW 　　半:{CH_COUNT:1}人　　{BET_POOL:1}枚
+BET_POOL:2 = BET_POOL:0 + BET_POOL:1
+
+;ツボを開くターン
+CALL TOBA_FILL_DICE(DICE, 2)
+結果 = (DICE:0 + DICE:1) % 2
+CALL TOBA_CREATE_DICEIMAGE(DICE:0, 0, DICE:1, 2)
+LOCAL = LINECOUNT
+TGT = (ABS(CH_COUNT:0 - CH_COUNT:1) == 7) * 3
+REDRAW 0
+CALL TOBA_DEALER_TWEET(TGT, "予想終了", CH_COUNT:0, CH_COUNT:1)
+SIF TGT
+	CALL COLORMESSAGE(@"「…では、改めて」\n「勝負！」", 0xD37CD0, 1, 0)
+TWAIT 1600 + (RAND(2, 5) * 200), 0
+CLEARLINE LINECOUNT - LOCAL
+CALL TOBA_DEALER_TWEET(0, "勝負！", DICE:0, DICE:1, 結果)
+TWAIT 1200, 0
+REDRAW 1
+;コマ札やり取りのターン
+VARSET CH_PROFIT
+;丁半コマ揃って勝負
+IF CH_COUNT:0 && CH_COUNT:1
+	FOR L_COUNT, 0, 7
+		IF CH_BET:L_COUNT == 結果
+			CH_PROFIT:L_COUNT = (BET_POOL:(!結果) * ((10000 * 賭駒:L_COUNT) / BET_POOL:結果)) / 10000
+		ELSE
+			CH_PROFIT:L_COUNT = -(賭駒:L_COUNT)
+		ENDIF
+		KOMAFUDA:L_COUNT += CH_PROFIT:L_COUNT
+	NEXT
+;全員同じ方に賭けて当たった
+ELSEIF CH_BET:MASTER == 結果
+	FOR L_COUNT, 0, 7
+		CH_PROFIT:L_COUNT = (BET_POOL:2 * ((4500 * 賭駒:L_COUNT) / BET_POOL:2)) / 10000
+		KOMAFUDA:L_COUNT += CH_PROFIT:L_COUNT
+	NEXT
+;皆ハズレ
+ELSE
+	FOR L_COUNT, 0, 7
+		CH_PROFIT:L_COUNT = -(賭駒:L_COUNT)
+		KOMAFUDA:L_COUNT += CH_PROFIT:L_COUNT
+	NEXT
+ENDIF
+;ランダムで誰か一言
+TGT = RAND(1, 7)
+CALL TOBA_GAMBLER_TWEET(TGT, @"%\@ CH_BET:TGT == 結果 ? 安堵 # 失望 \@%", 0, 0, 7)
+
+;結果表示
+FOR L_COUNT, 0, 7
+	TGT = CH_TURN:L_COUNT
+	CALL TOBA_RESULT_PRINT(TGT, CH_PROFIT:TGT)
+	IF CH_PROFIT:TGT > 0
+		連勝:TGT ++
+	ELSE
+		連勝:TGT = 0
+	ENDIF
+	TWAIT 250, 0
+NEXT
+
+;BET最大値より儲けるとツボ振りとのサシ勝負提案
+IF CH_PROFIT:MASTER > レート指数:レート * 10
+	REDRAW 0
+	CALL TOBA_DEALER_TWEET(0, "サシ持ちかけ")
+	CALL ASK_YN
+	IF RESULT
+		CALL TOBA_DEALER_TWEET(3, "サシお断り")
+		REDRAW 1
+	ELSE
+		REDRAW 0
+		LOCAL = LINECOUNT
+		CALL TOBA_DEALER_TWEET(0, "スタート口上",0, 0, 0)
+		TWAIT 1500, 0
+		CLEARLINE LINECOUNT-LOCAL
+
+		LOCAL = LINECOUNT
+		CALL TOBA_DEALER_TWEET(0, "構え口上", DICE:0, DICE:1, 1)
+		TWAIT 1800, 0
+		CLEARLINE LINECOUNT-LOCAL
+		
+		CALL TOBA_DEALER_TWEET(0, "被り口上", 0, 0, 1)
+		CALL ASK_YN("丁", "半")
+		CH_BET:MASTER = RESULT
+		CALL TOBA_FILL_DICE(DICE, 2)
+		結果 = (DICE:0 + DICE:1) % 2
+		CALL TOBA_CREATE_DICEIMAGE(DICE:0, 0, DICE:1, 2)
+		LOCAL = LINECOUNT
+		CALL TOBA_DEALER_TWEET(0, "予想終了", CH_BET:MASTER, 0, 1)
+		TWAIT 2000 + (RAND(2, 5) * 200), 0
+		CLEARLINE LINECOUNT - LOCAL
+		CALL TOBA_DEALER_TWEET(0, "勝負！", DICE:0, DICE:1, 結果)
+		TWAIT 1200, 0
+		IF CH_BET:MASTER == 結果
+			CALL TOBA_DEALER_TWEET(3, "サシで負け")
+			KOMAFUDA:MASTER += CH_PROFIT:MASTER
+			連勝:MASTER ++
+		ELSE
+			CALL TOBA_DEALER_TWEET(3, "サシで勝ち")
+			KOMAFUDA:MASTER -= CH_PROFIT:MASTER
+			連勝:MASTER = 0
+			CH_PROFIT:MASTER = -(CH_PROFIT:MASTER)
+		ENDIF
+		REDRAW 1
+		CALL TOBA_RESULT_PRINT(MASTER, CH_PROFIT:MASTER)
+		PRINTFORML あなたの持ちゴマ　　　　%세자리구분(KOMAFUDA:MASTER)%枚
+	ENDIF
+ENDIF
+
+TIME += 5
+;継続/終了チェック
+PRINTFORML 
+FOR L_COUNT, 0, 7
+	SIF KOMAFUDA:L_COUNT >= レート指数:レート * 5
+		CONTINUE
+	PRINTFORML %BAKUTO_NAME:L_COUNT%の持ちゴマが無くなったようです
+	PRINTFORMW この場でお開きになります
+	RETURN 0
+NEXT
+IF NEMUKE() >= 700
+	PRINTFORMW 眠気が限界に近づきました…場を抜けます
+	RETURN 2
+ENDIF
+
+CALL TOBA_DEALER_TWEET(0, "継続口上", (CH_BET:MASTER == 結果), (連勝:MASTER > 1))
+CALL ASK_YN("続ける", "やめる")
+SIF !RESULT
+	GOTO GAME_LOOP
+CALL COLORMESSAGE(@"「%TEXTR("そうかい/おや残念/ならしょうがないねえ")%」\n「それじゃあお疲れさん」", 0xD37CD0, 2, 0)
+RETURN 0
+
+
+;丁半博打で賭けゴマの枚数を決める式中関数
+;評価値とか重み付けとか難しいことはよくわからんので乱数頼み
+@BET_CHOHAN(TGT, MAX_BET, WINS)
+#FUNCTION
+#DIM TGT
+#DIM MAX_BET
+#DIM BASE_BET
+#DIM ADD
+#DIM WINS
+#DIM BET
+;勝っていると稀に全ツッパ
+SIF RAND:100 + 1 < MIN(WINS, 3)
+	RETURNF MIN(KOMAFUDA:TGT / 10, MAX_BET) * 10
+BASE_BET = MAX_BET / 4
+ADD = RAND(3 + WINS) > 1 ? RAND(BASE_BET) # -(RAND(BASE_BET))
+SELECTCASE RAND:15 + MIN(WINS, 4) 
+	CASE IS > 11
+		BASE = BASE_BET * 3 + (ADD / 4)
+	CASE 5 TO 11
+		BASE = BASE_BET * 2 + (ADD / 3)
+	CASE IS < 5
+		BASE = BASE_BET + (ADD / 2)
+ENDSELECT
+BASE = LIMIT(BASE, 1, KOMAFUDA:TGT / 100 * 8) * 10
+RETURNF BASE
+
+;チンチロリンダイス表示＆判定関数
+@THROW_CHINCHIRO_DICE(振り手, ARG)
+#DIM 出目
+#DIM L_COUNT
+#DIM D_COUNT
+#DIM 賽, 3
+#DIM DICE, 3
+#DIM 失敗率
+#DIM ファンブル
+#DIM 振り手
+;ファンブル率2％、あなたのみ眠気ありで+2％
+失敗率 = 1 + (!振り手 && NEMUKE() >= 540) * 2
+ファンブル = 0
+CALL TOBA_GAMBLER_TWEET(振り手, "一投目", ARG)
+FOR L_COUNT, 1, 4
+	LOCAL = LINECOUNT
+	CALL TOBA_FILL_DICE(賽, 3)
+	VARSET DICE
+	ARRAYCOPY "賽", "DICE"
+	;昇順に並び替え
+	ARRAYSORT DICE, FORWARD
+	;値が同じ=ゾロ目
+	IF ALLSAMES(DICE:0, DICE:1, DICE:2)
+		IF DICE:0 == 1
+			出目 = 15
+		ELSE
+			出目 = 15 - (7 - DICE:0)
+		ENDIF
+	;値が全て異なる=目無し/ヒフミ/シゴロ
+	ELSEIF !((DICE:0 == DICE:1) || (DICE:1 == DICE:2) || (DICE:0 == DICE:2))
+		IF DICE:0 == 1 && DICE:2 == 3
+			出目 = 0
+		ELSEIF DICE:0 == 4 && DICE:2 == 6
+			出目 = 9
+		ELSE
+			出目 = 2
+		ENDIF
+	;XXYパターン=Yの値で判定
+	ELSEIF DICE:0 == DICE:1
+		出目 = 2 + DICE:2
+	;XYYパターン=Xの値で判定
+	ELSE
+		出目 = 2 + DICE:0
+	ENDIF
+	;ファンブル判定
+	ファンブル = RAND:100 <= 失敗率 ? 1 # 0
+	PRINTFORML ～%TOKANJIT(L_COUNT)%投目～
+	REDRAW 0
+	IF FLAG:화상표시
+		CALL TOBA_CREATE_DICEIMAGE(賽:0, 賽:1, 賽:2, ファンブル)
+		CALL PRINT_IMAGE_ANIMATION("SAI_",0 ,13, 1, 0, 33)
+		CALL PRINT_IMAGE("SAI_RESULT")
+		TWAIT 250, 0
+	ELSE
+		FOR D_COUNT, 0, 3
+			PRINTFORM %TOKANJIT(賽:D_COUNT)%　%\@ D_COUNT == 2 ? ！ # \@%
+			TWAIT 30 + RAND(25, 50 + D_COUNT * 20), 0
+		NEXT
+	ENDIF
+	IF ファンブル
+		PRINTFORML あっ！？
+		PRINTFORML %BAKUTO_NAME:振り手%の振った賽が%TEXTR("どこかへすっ飛んでいき/ぱっと目の前で消え/突然現れたスキマに飲み込まれ")%ました…
+		SIF !振り手
+			TWAIT 1000, 0
+		出目 = 1
+		BREAK
+	ELSEIF 出目 == 2
+		PRINTFORML \@ L_COUNT < 3 ? 出目が無いので振り直します # ３回振っても目が出ませんでした… \@
+		CALL TOBA_GAMBLER_TWEET(振り手, "n投目", L_COUNT, 0, (3 + (L_COUNT == 3) * 4))
+		SIF !RESULT
+			TWAIT 1000, 0
+		REDRAW 0
+		CLEARLINE LINECOUNT - LOCAL
+		SIF L_COUNT < 3 
+			CONTINUE
+		REDRAW 1
+	ENDIF
+	BREAK
+NEXT
+RESULT = 0
+IF 出目 == 2 || !振り手
+;出目が極端なら必ずつぶやく
+ELSEIF 出目 == 0 || (INRANGE(ARG, 0, 4) && ARG > 出目)
+	CALL TOBA_GAMBLER_TWEET(振り手, "悲鳴", 出目, 0, 7)
+ELSEIF 出目 == 1
+	CALL TOBA_GAMBLER_TWEET(振り手, "罵声", 出目, 0, 7)
+ELSEIF 出目 > 8 || (ARG > 6 && 出目 > ARG)
+	CALL TOBA_GAMBLER_TWEET(振り手, "歓声", 出目, 0, 7)
+;通常の勝ち負け/出目
+ELSEIF (ARG < 0 && INRANGE(出目, 3, 4)) || ARG > 出目
+	CALL TOBA_GAMBLER_TWEET(振り手, "失望", 出目)
+ELSEIF (ARG < 0 && INRANGE(出目, 7, 8)) || (ARG >= 0 && ARG < 出目)
+	CALL TOBA_GAMBLER_TWEET(振り手, "安堵", 出目)
+ENDIF
+SIF !RESULT
+	TWAIT 600, 0
+REDRAW 1
+RETURN 出目
+
+;博徒の呟きを表示する関数
+;CHARA:1=山童 2=河童 3= 鴉天狗, 4=蟒蛇 5=ランダムモブ子Ａ 6=ランダムモブ子Ｂ
+;L_FEED：表示分類=BIT0 ONでウエイトあり BIT1 ONでCLEARLINE BIT2 ONで必ず表示
+@TOBA_GAMBLER_TWEET(CHARA, 状況, 分類, SUB = 0, L_FEED = 3)
+#DIM CHARA
+#DIM 分類
+#DIM L_FEED
+#DIM SUB
+#DIM EFFECT
+#DIM L_COUNT
+#DIM 表示CID = 0, 91, 92, 93, 94, 25, 26
+#DIMS エフェクト = "", "顔絵_ざわ", "顔絵_ぐにゃあ"
+#DIMS 状況
+#DIMS 表情
+#DIMS MESSAGE
+#DIMS FONTCOLOR
+#DIMS MESSAGE_PRINT, 50
+;ペラペラ喋ると発言すぐ被るので発生抑えめ
+SIF !(!RAND:3 || 分類 == 15 || GETBIT(L_FEED, 2)) || CHARA == MASTER
+	RETURN 0
+EFFECT = 0
+MESSAGE = %BAKUTO_TALK_STRINGS(CHARA, 状況, 分類, SUB)%
+DEBUGPRINTFORML {CHARA} %MESSAGE%
+SIF MESSAGE == ""
+	RETURN 0
+表情 = %RESULTS%
+LOCAL = LINECOUNT
+;表示部分は@SP_TALKのカスタム
+IF 顔絵付きメッセージ
+	キャラ画像表示サイズ比 = 100
+	FONTCOLOR = %TOSTR(BAKUTO_WORDCOLOR:CHARA, "X")% 
+	VARSET MESSAGE_PRINT
+	SIF FLAG:멀티사이즈
+		デフォルトキャラ画像横幅 = 180
+	CALL 画像セット(@"顔絵_服_%表情%_MOB_{表示CID:CHARA}", 0, 0, キャラ画像表示サイズ比, 0)
+	SIF EFFECT
+		CALL 画像セット(エフェクト:EFFECT, 0, 0, キャラ画像表示サイズ比, 1)
+	MESSAGE = %SPTALK整形(MESSAGE)%
+	SPLIT MESSAGE, "/", MESSAGE_PRINT
+	FOR L_COUNT, 0, RESULT
+		SIF L_COUNT != 0 || EFFECT
+			CALL ダミーセット(0, 0, キャラ画像表示サイズ比, L_COUNT)
+		TEMP_HTML:L_COUNT += @"<font color='#%FONTCOLOR%'>%MESSAGE_PRINT:L_COUNT%</font>"
+	NEXT
+	CALL 画像一斉表示(0, 0, 1, -1)
+	IF GETBIT(L_FEED, 0)
+		PRINTW 
+	ELSE
+		PRINTL
+	ENDIF
+ELSE
+	SIF FLAG:구상색
+		SETCOLOR BAKUTO_WORDCOLOR:CHARA
+	SPLIT MESSAGE, "/", MESSAGE_PRINT
+	FOR L_COUNT, 0, RESULT
+		PRINTFORML %MESSAGE_PRINT:L_COUNT%
+	NEXT
+	RESETCOLOR
+	SIF GETBIT(L_FEED, 0)
+		WAIT
+ENDIF
+REDRAW 0
+SIF GETBIT(L_FEED, 1)
+	CLEARLINE LINECOUNT - LOCAL
+REDRAW 1
+RETURN 1
+
+;博徒の呟きと表情を決める式中関数
+;キャラ:1=山童 2=河童 3=鴉天狗 4=蟒蛇 5=ランダムモブ子１ 6=ランダムモブ子２
+@BAKUTO_TALK_STRINGS(キャラ, 状況, 分類, SUB = 0)
+#FUNCTIONS
+#DIM キャラ
+#DIM 分類
+#DIM SUB
+#DIM 初回
+#DIM 定義済
+#DIM L_COUNT
+#DIMS 賭け = "丁", "半"
+#DIMS 自称, 2
+#DIMS 状況
+#DIMS 台詞
+#DIMS 候補
+RESULTS = 通常
+台詞 = 
+IF 定義済 != DAY
+	定義済 = DAY
+	FOR L_COUNT, 0, 2
+		自称:L_COUNT = %TEXTR("わたし/私/あたい/あたし/")%
+		SIF !RAND:4
+			自称:L_COUNT = %TEXTR("ボク/僕/")%
+	NEXT
+ENDIF
+SELECTCASE 状況
+	;チンチロリン台詞
+	;親・子の一投目：分類 = 親の出目
+	CASE "一投目"
+		SELECTCASE 分類
+			;親がピン以下勝ち確時の煽り
+			CASE 0 TO 3
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「おやおや、もしかして宵越しの銭は持たない主義ですか？」/「それじゃあ有り難く頂いてきますね♪」
+							DATAFORM 「座ってるだけでコマが増えてくなんて」/「ほんと…良い賭場だこと♪」
+							DATAFORM 「まあまあ、この後できっと良い事ぐらいありますよ」/「でも、ここにいる間はそのまま養分でいてください♪」
+							DATAFORM 「『負けるが勝ち』なんて言葉もありますし」/「最後に勝っていればいいんじゃないですか？」/「だから、今はもっと勝ちを譲るべきですよ♪」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「ぱーっとみんなにコマ配りだなんて景気がいいねー」/「よっ！　おだいじーん♪」
+							DATAFORM 「ごちになりまーす♪」
+							DATAFORM 「ねぇねぇ、大損しちゃったけど今どんな気持ち？」/「今、どんな気持ち？　ねぇ、どんな気持ち？」
+							DATAFORM 「ぷっ、ぷぷっ…ぷぷぷっ」/「…ウケるー♪」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「あははっ、コマ札もあんたのところは居心地悪いってさ！」/「安心しな、あたいが責任持って引き取ってやるよ♪」
+							DATAFORM 「いやー、身銭を切ってみんなを笑顔にする」/「あんたとんでもない聖人だわー」\n「なんだか後光が差して見えてきたよ♪」
+							DATAFORM 「おっーと！？　見てるだけでコマが増えたー？」/「いやー、儲けた儲けた♪」
+							DATAFORM 「他人の不幸は蜜の味ってね♪」/「こんな蜜ならずっと舐めててたいわー」
+						ENDDATA
+					CASE 4
+						RESULTS = 笑顔
+						STRDATA 台詞
+							DATAFORM （蟒蛇はくるくる回っている…）
+							DATAFORM （蟒蛇は嬉しそうに大きく口を開けた…）
+							DATAFORM （蟒蛇はとぐろを巻きながらびよーんと伸びた…）
+							DATAFORM （蟒蛇は舌舐めずりしている…）
+						ENDDATA
+				ENDSELECT
+			CASE 4
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「これなら負けようがありませんね」
+							DATAFORM 「ふふふっ、手加減してくれてありがとうございます」
+							DATAFORM 「これも勝負、遠慮なんてできませんから」
+							DATAFORM 「ここは手堅く勝たせてもらいますよ」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「おっとぉ、手加減してくれてるの？」/「じゃあ遠慮なく貰ってくねー」
+							DATAFORM 「いやー気前がいいなー、あこがれちゃうなー」/「でも真似はしたくないかなー♪」
+							DATAFORM 「いやー悪いねー」/「でもこれも勝負だしねー♪」
+							DATAFORM 「あははっ、ごめんねごめんねー♪」/「ちゃちゃっと振って決めちゃうよ」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「悪いけど、ここはもらっておくよ」
+							DATAFORM 「まあ、こういうこともあるよねー」/「そんなに気を落としなさんな」
+							DATAFORM 「勝てるときには勝っとかないとね」
+							DATAFORM 「あははっ、あんた気前がいいねえ」/「ま、遠慮なく頂くよっと」
+						ENDDATA
+					CASE 4
+						STRDATA 台詞
+							DATAFORM （蟒蛇は口で咥えてから賽を振り落とした）
+							DATAFORM （蟒蛇は舌を使って器用に賽を振った）
+							DATAFORM （蟒蛇はしっぽで賽を弾いた）/（賽は空中へ舞い上がりきれいに転がった…）
+						ENDDATA
+				ENDSELECT
+			CASE -1, 5, 6
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「はい、振りますよ」
+							DATAFORM 「いきますよ…はいっ」
+							DATAFORM 「では、いきます」
+							DATAFORM 「慎重に慎重に…それっ」
+							DATAFORM 「それっ」
+							DATAFORM 「いいの、こいっ」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「それっ！」
+							DATAFORM 「ほいっと」
+							DATAFORM 「コロコロっとね」
+							DATAFORM 「よし…こいっ！」
+							DATAFORM 「ほいよっと」
+							DATAFORM 「ピンゾロピンゾロ頼むよ…」/「はい、どーん！」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「それっ」
+							DATAFORM 「ぱぱっといくよっ！」
+							DATAFORM 「いくよっと」
+							DATAFORM 「神様仏様…たのみますよっと」
+							DATAFORM 「サクサクいくよっと」
+							DATAFORM 「ピンゾロ…こいっ！」
+						ENDDATA
+					CASE 4
+						STRDATA 台詞
+							DATAFORM （蟒蛇は口で咥えてから賽を振り落とした）
+							DATAFORM （蟒蛇は舌を使って器用に賽を振った）
+							DATAFORM （蟒蛇はしっぽで賽を弾いた）/（賽は空中へ舞い上がりきれいに転がった…）
+						ENDDATA
+				ENDSELECT
+			CASE 7
+				RESULTS = 泣き
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「うーん、厳しいですねえ…」
+							DATAFORM 「やるだけやってみれば、もしかしたら…」
+							DATAFORM 「少しでも、可能性があるなら…」
+							DATAFORM 「ま、まだ…負けたわけじゃ、ないから…」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「あちゃー、これは厳しいねぇ…」
+							DATAFORM 「いっちょ、どーんとやってみる…」/「しかないよねえ…」
+							DATAFORM 「案外振ってみたらなんとかなる…かも？」
+							DATAFORM 「ダメもと、ダメもと…サクっといってみるよ」＠通常
+						ENDDATA
+					CASE 3
+						RESULTS = 通常
+						STRDATA 台詞
+							DATAFORM 「これで勝ったら、あたいカッコよくなーい？」
+							DATAFORM 「いやいや、振ってみるまではわかんないよー？」
+							DATAFORM 「こんなんに勝ったら気持ちいいだろうなー」
+							DATAFORM 「気合！　気合でなんとかなるよっ、それっ！」
+						ENDDATA
+					CASE 4
+						STRDATA 台詞
+							DATAFORM （蟒蛇は自信なさげに賽を振った…）
+							DATAFORM （蟒蛇はなにやら考え込んでから賽を振った…）
+							DATAFORM （蟒蛇はいつもより丁寧に賽を振った…）
+						ENDDATA
+				ENDSELECT
+			CASE 8 TO 15
+				SELECTCASE キャラ
+					CASE 1
+						RESULTS = 怒り
+						STRDATA 台詞
+							DATAFORM 「…一旦預けるだけですから」/「絶対返してもらいますよっ」
+							DATAFORM 「損して得取れ損して得取れ損して得取れ…」/「ええ、きっと取り戻します！」
+							DATAFORM 「これはなんとも言えずもやもやしますね」/「手も出せずに持ってかれるのは、なんか、こう…」＠泣き
+						ENDDATA
+					CASE 2
+						RESULTS = 泣き
+						STRDATA 台詞
+							DATAFORM 「賽振りを見守るだけで終わる簡単なお仕事です」/「なお、お給料は逆に持ってかれますってね」/「あー、やだやだ」
+							DATAFORM 「えっ、今振ったのって練習でしょー？」/「さあさあ、早く本番振っちゃって！」/「…あ、誤魔化されない？　やっぱり？」
+							DATAFORM 「こんなの全然盛り上がらないしー」/「ちゃんとみんな賽を振ってさ」/「最後にボクの一人勝ちが理想の流れじゃない！？」
+						ENDDATA
+					CASE 3
+						RESULTS = 怒り
+						STRDATA 台詞
+							DATAFORM 「あーあ、なんか場がシラケちゃったわー」/「どうすんのさ、この空気」
+							DATAFORM 「あたい知ってるよ」/「こういう事の後ってさ、なんか手痛いしっぺ返しがあるんだよね」＠通常
+							DATAFORM 「何にもしないうちに終わっちゃってる…」/「あー、つまんないわー」
+						ENDDATA
+					CASE 4
+						RESULTS = 泣き
+						STRDATA 台詞
+							DATAFORM （蟒蛇はしょんぼりしている…）
+							DATAFORM （蟒蛇はへにょへにょしている…）
+							DATAFORM （蟒蛇はなんだか悲しそうだ…）
+							DATAFORM （蟒蛇は首をうなだれている…）
+						ENDDATA
+				ENDSELECT
+		ENDSELECT
+	;親子共通n回目の賽振り:分類 = 振り終わった回数
+	CASE "n投目"
+		SELECTCASE 分類
+			CASE 1
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「もう一回ですね」
+							DATAFORM 「あらら、出ませんでしたか」
+							DATAFORM 「振り直しますよ」
+							DATAFORM 「はいはい、いきますよ」
+							DATAFORM 「ぱぱっと決めたいですね」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「ほい、もう一回っと」
+							DATAFORM 「もう一回振りまーす」
+							DATAFORM 「振り直しだね」
+							DATAFORM 「はいはい、次ね次」
+							DATAFORM 「次はいいのくるかなー」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「変なのが出るよりいっか…それっ」
+							DATAFORM 「はいはい、振りますよっと」
+							DATAFORM 「じゃあもう一回、それっ」
+							DATAFORM 「よしっ、気合入った…こいっ」
+							DATAFORM 「次できっちり決めるよっ」
+						ENDDATA
+					CASE 4
+						STRDATA 台詞
+							DATAFORM （蟒蛇は口で咥えてから賽を振り落とした）
+							DATAFORM （蟒蛇は舌を使って器用に賽を振った）
+							DATAFORM （蟒蛇はしっぽで賽を弾いた）/（賽は空中へ舞い上がりきれいに転がった…）
+						ENDDATA
+				ENDSELECT
+			CASE 2
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「ちょっと…たのみますよー」
+							DATAFORM 「もう…ぱっと決めたいのに」
+							DATAFORM 「あれっ？　調子悪いですね…」
+							DATAFORM 「まあ、最後で決めればいいんですけどね」
+							DATAFORM 「皆を油断させてから…」/「ここっ」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「ためてためて…ここだっ！」
+							DATAFORM 「あーもう、サクッといきたいねっ」
+							DATAFORM 「ちょーっとあせっちゃうなあ…」
+							DATAFORM 「あれ…おかしいなー、また？」
+							DATAFORM 「最後までためてかーらーのー」/「はい、どーんっ」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「アセんないアセんない…それっ」
+							DATAFORM 「ここまではつかみ、ここから本番…」/「それっ」
+							DATAFORM 「まずは勝負にならないと、ねっ」
+							DATAFORM 「はーい本気だすよー、いっくよー」
+							DATAFORM 「これで見せ場を作ってるんだよっと」
+						ENDDATA
+					CASE 4
+						STRDATA 台詞
+							DATAFORM （蟒蛇はさらにもう一度賽を振った）
+							DATAFORM （蟒蛇はなんだか焦っている…）＠泣き
+							DATAFORM （蟒蛇は首をかしげている…）
+						ENDDATA
+				ENDSELECT
+			CASEELSE
+				RESULTS = 泣き
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「た、たまには…こういうことだって…」
+							DATAFORM 「ツイてないですね…」
+							DATAFORM 「あ、あれ？　上手くいかない…」
+							DATAFORM 「勝負の舞台にも立てないのは、ちょっと…」
+							DATAFORM 「う、うーん…」/「これは切り替えないと…」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「こ、こんなのもたまにはあるって、ね？」
+							DATAFORM 「あー、ツイてないなー」
+							DATAFORM 「うわーっ、やらかしたぁ…」
+							DATAFORM 「はーい負け負け、負けちゃったねー」/「あーやだやだ！」＠怒り
+							DATAFORM 「サイコロさーん」/「もっーと根性出して転がってほしかったなー」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「あー、もう…ここでこう出るかぁ…」
+							DATAFORM 「ほんとツイてないねぇ…」
+							DATAFORM 「あー、やらかした、もー、やらかした」
+							DATAFORM 「はいはい、負けですよ、あたいの負けっ！」＠怒り
+							DATAFORM 「この次この次、絶対取り返すよっ！」＠怒り
+						ENDDATA
+					CASE 4
+						STRDATA 台詞
+							DATAFORM （蟒蛇は真顔になっている…）＠通常
+							DATAFORM （蟒蛇はしょんぼりしている…）
+							DATAFORM （蟒蛇は首をかしげている…）
+						ENDDATA
+				ENDSELECT
+		ENDSELECT
+	CASE "親で振った後"
+		SELECTCASE 分類
+			CASE 0
+				RESULTS = 泣き
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「これは…痛すぎます…」
+							DATAFORM 「何もここで出なくても…」/「はぁ…」
+							DATAFORM 「あぁ、この負けはお財布に直撃…」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「やだやだぁ！　なにこれー」
+							DATAFORM 「これはイタすぎるってばー」
+							DATAFORM 「ちょっと待ってよー」/「なんなのこれー」＠怒り
+						ENDDATA
+					CASE 3
+					RESULTS = 怒り
+						STRDATA 台詞
+							DATAFORM 「何なのよ、もーっ！」/「あたい何か悪いことしたっけ！？」
+							DATAFORM 「よりによってここで出るぅ！？」/「あーもう、むーかーつーくーっ！！」
+							DATAFORM 「笑ってられるのも今のうちだよっ」/「あんたらだって、こうなるかもねっ！」
+						ENDDATA
+					CASE 4
+						STRDATA 台詞
+							DATAFORM （蟒蛇はショックで固まっている…）
+							DATAFORM （蟒蛇は混乱のあまりなぜかダンスをしている…）＠通常
+							DATAFORM （蟒蛇はぷるぷると震えている…）
+						ENDDATA
+				ENDSELECT
+			CASE 1 TO 3
+				RESULTS = 泣き
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「いやあ～っ、持ってかれる～」
+							DATAFORM 「まあ、次ですね次…次があります」
+							DATAFORM 「こんなの引きずってたら勝てるものも勝てません」/「ええ、切り替えてきましょう」
+							DATAFORM 「うわぁ…結構キツいですね、これ…」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「はい、次！　もう次いこう！」＠怒り
+							DATAFORM 「こんなん出してちゃねー」
+							DATAFORM 「せめて勝負できる目だったら…」/「けど、これじゃあねえ…」
+							DATAFORM 「こういうこともね、たまにはあるけどさっ」/「もうこれでおしまいっ」/「さあ次、次いくよっ！」＠怒り
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「勝負にすらならないって」/「ああ、こりゃだめすぎだわあ…」
+							DATAFORM 「ツキがなかっただけなんだから」/「次振ったらびっくりさせてやるよっ！」＠怒り
+							DATAFORM 「切り替えてこ、そうしよっと」
+							DATAFORM 「はっ、これじゃあ確かに勝てるわけないさ」/「はいはい、次いこ、次いくよっ」＠怒り
+						ENDDATA
+					CASE 4
+						台詞 = （蟒蛇は%TEXTR("しょんぼりして/ガックリして/うなだれて")%いる…）
+				ENDSELECT
+			CASE 4
+				RESULTS = 泣き
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「お手柔らかにお願いします…」
+							DATAFORM 「やっちゃっいましたね…」
+							DATAFORM 「これは…ダメ、でしょうか…」
+							DATAFORM 「意外とこういうときに」/「皆さん足元を掬われたり…とか…」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「えーと、お手柔らかにしてほしいなあ…」
+							DATAFORM 「うわっ、やらかした…」
+							DATAFORM 「あっ…これはダメだぁ…」
+							DATAFORM 「こ、このあと、何が起こるかわかんないし…」/「ボクが勝ったりなんて、ある…かも…」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「ま、まだわかんないし…」/「まだ結果はわかんない、よね？」
+							DATAFORM 「あー、やっちゃったかなあ…」
+							DATAFORM 「うわー、これはちょっと…」
+							DATAFORM 「あっ、でも…これより下って結構あるよね？」/「あたいはまだ…諦めないよっ」＠通常
+						ENDDATA
+					CASE 4
+						台詞 = （蟒蛇は%TEXTR("しょんぼりして/ガックリして/うなだれて")%いる…）
+				ENDSELECT
+			CASE 5
+				RESULTS = 泣き
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「うーん…安心とはいきませんねえ…」
+							DATAFORM 「ちょっと物足りませんね…」
+							DATAFORM 「……微妙ですね」
+							DATAFORM 「またなんとも言えない出目を…」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「やっばいかなあ…」
+							DATAFORM 「ちょっと足りないかなあ…」
+							DATAFORM 「ちょっと微妙かなあ…」
+							DATAFORM 「うーん、これはなんと言うか…」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「もう一声欲しかったねえ…」
+							DATAFORM 「うーん、もうちょっと…」/「もうちょっとなんだけどねえ…」
+							DATAFORM 「あーこれは、微妙…」
+							DATAFORM 「こういう時って、意外とみんなコケるもんだよねえ」＠通常
+						ENDDATA
+					CASE 4
+						RESULTS = 通常
+						STRDATA 台詞
+							DATAFORM （蟒蛇はなんとなく不服そうだ…）
+							DATAFORM （蟒蛇はとぐろを巻いている…）
+							DATAFORM （蟒蛇はシーッと音を立てて鳴いた）
+						ENDDATA
+				ENDSELECT
+			CASE 6
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「確率的には…分があるかしら？」
+							DATAFORM 「まあ、悪くはありませんね」
+							DATAFORM 「これは…いけますね」
+							DATAFORM 「これなら余裕あるかも…」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「まっ、こんなもんじゃない？」
+							DATAFORM 「これなら悪くないかな？」
+							DATAFORM 「よしっ、これならいけるかな」
+							DATAFORM 「みんな…空気読んでくれるよね？」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「はいはい、勝負勝負」/「まあ、いけるでしょ」
+							DATAFORM 「よしっ、コレなら悪くない…」/「上等上等」
+							DATAFORM 「うん、いけてるいけてる」
+							DATAFORM 「いや、これ結構高い壁だよ？」/「ほんと、これ以上って結構出ないから」
+						ENDDATA
+					CASE 4
+						RESULTS = 笑顔
+						STRDATA 台詞
+							DATAFORM （蟒蛇は嬉しそうだ…）
+							DATAFORM （蟒蛇は満足そうにうなずいている…）
+							DATAFORM （蟒蛇はシーッと音を立てて鳴いた）
+							DATAFORM （蟒蛇はチロチロと舌を出し入れしている…）
+						ENDDATA
+				ENDSELECT
+			CASE 7
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「…勝ちましたね♪」
+							DATAFORM 「ほらほらっ、見てくださいよこれ！」/「これに勝つのは…厳しいですよ♪」
+							DATAFORM 「はーい、じゃあ皆さん振ってくださいね♪」
+							DATAFORM 「ふふっ、余裕が出来ました♪」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「いやー、ごめんねー」/「ほとんど勝っちゃってごめんねー♪」
+							DATAFORM 「あははっ♪　見て見てコレ！」
+							DATAFORM 「あはっ、もう余裕だわー安心できるわー」
+							DATAFORM 「ぷぷぷっ…多分無理だと思うけどー」/「ほーら、がんばれ♥　がんばれ♥」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「やったぁ♪　これ勝ち確ってやつじゃん！」
+							DATAFORM 「ははっ、見た？　これどうよ！」
+							DATAFORM 「ほらほら、無駄な抵抗ってやつを見せてごらん♪」
+							DATAFORM 「あっはっは、これに勝つのは大変だわあ」/「あたいだったら諦めちゃうなあ♪」
+						ENDDATA
+					CASE 4
+						RESULTS = 笑顔
+						STRDATA 台詞
+							DATAFORM （蟒蛇は嬉しそうだ…）
+							DATAFORM （蟒蛇は満足そうにうなずいている…）
+							DATAFORM （蟒蛇はシーッと音を立てて鳴いた）
+							DATAFORM （蟒蛇はチロチロと舌を出し入れしている…）
+						ENDDATA
+				ENDSELECT
+			CASE 8
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「それじゃあ、頂いてきますね♪」
+							DATAFORM 「はいっ、じゃあ早く精算しましょうか♪」
+							DATAFORM 「総取りって…気持ちいいですね♪」
+							DATAFORM 「あははっ」/「このコマぜーんぶわたしのモ・ノ♪」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「要はみんなに振らせなきゃ、絶対勝てるよねっ♪」
+							DATAFORM 「わーい、やったぁあ！！」
+							DATAFORM 「はーい、そんじゃあ全部もらってちゃうよっと♪」
+							DATAFORM 「いやー、大変だー」/「みんなのコマがボクのとこに来たがってるよー」/「ちゃーん預かってあげるねっ♪」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「いやー、いい目が出たねー」/「あたいさすがだわー」
+							DATAFORM 「最高の展開ってやつだね、これ！」
+							DATAFORM 「はいはい、総取り総取り」/「全部あたいのもんだよーっ♪」
+							DATAFORM 「頂点は常に１つ…」/「そう、全てのコマはあたいのところに集まる…」/「あっはははは！」
+						ENDDATA
+					CASE 4
+						RESULTS = 笑顔
+						STRDATA 台詞
+							DATAFORM （蟒蛇は喜びのダンスを踊っている…）
+							DATAFORM （蟒蛇は嬉しそうにその場をぐるぐると這い回っている…）
+							DATAFORM （蟒蛇はリズムを取って左右に身体を振っている）/（どうやら大喜びしているらしい…）
+						ENDDATA
+				ENDSELECT
+			CASE 15
+				SELECTCASE キャラ
+					CASE 1
+						台詞 = 「……あっ♥」/「ちょ、ちょっとまって、くださいね…」/「わたし、いま…イッちゃったみたい…で…♥」/「下着、替えてきます…♥」
+					CASE 2
+						台詞 = 「はっはっはっ、妾こそチンチロリンの女神」/「さあ下賤のものよ、ありったけを捧げるのだー」
+					CASE 3
+						台詞 = 「うわっ！？？　これ、すごっ！？」/「え、これヤバくない？」/「いやほんとヤバくない？」/「…マジでこれヤバくない？」
+					CASE 4
+						台詞 = （蟒蛇はとぐろを巻きその場でびよーんと…飛び跳ねた！？）/（そのまま連続で弾んでいる）/（よほど嬉しいらしい…）
+				ENDSELECT
+			CASEELSE
+				SELECTCASE キャラ
+					CASE 1
+						STRDATA 台詞
+							DATAFORM 「ふふふっ、ごめんなさいね♪」
+							DATAFORM 「あぁ…気持ちいい…」/「もう…サイコーです♪」
+							DATAFORM 「ふふっ」/「この%CHIN_PRIZE:分類%から…もっともっと上を狙っていきますよ♪」
+						ENDDATA
+					CASE 2
+						STRDATA 台詞
+							DATAFORM 「あはははははっ！」/「みんなして『ぐぬぬっ』って顔してるー」/「ちょーウケるー♪」
+							DATAFORM 「さぁさぁさぁ！！」/「出すもんみーんな出してもらうよっ♪」
+							DATAFORM 「%CHIN_PRIZE:分類%…いい響きだねっ」/「次からもずーっとこれでいきたいね♪」
+						ENDDATA
+					CASE 3
+						STRDATA 台詞
+							DATAFORM 「来たね…」/「これはもう…あたいの時代、来ちゃったね♪」
+							DATAFORM 「ほらほらーちゃっちゃと払って払って」/「ここにあるだけじゃあ足りないんだよっ♪」
+							DATAFORM 「ふふふ、あたいは常に上を目指す女…」/「そう、次に狙うは%CHIN_PRIZE:(分類 + 1)%…」/「決まりだねっ♪」
+						ENDDATA
+					CASE 4
+						RESULTS = 笑顔
+						STRDATA 台詞
+							DATAFORM （蟒蛇は嬉しそうだ…）
+							DATAFORM （蟒蛇は満足そうにうなずいている…）
+							DATAFORM （蟒蛇はシーッと音を立てて鳴いた）
+						ENDDATA
+				ENDSELECT
+		ENDSELECT
+	CASE "悲鳴"
+		;親子共通ヒフミ/子が親のニゾウに負けた/親あなたがシゴロ以上
+		RESULTS = 泣き
+		SELECTCASE キャラ
+			CASE 1
+				STRDATA 台詞
+					DATAFORM 「……え、%CHIN_PRIZE:分類%？」/「ええぇーーっ！！？」
+					DATAFORM 「やだああああぁあ！！」
+					DATAFORM 「ちょっと待ってえええ！！？」
+					DATAFORM 「ええぇええっ！？　嘘でしょー！！？」
+				ENDDATA
+			CASE 2
+				STRDATA 台詞
+					DATAFORM 「うえぇえええっ！？　やめてやめてっ！」/「ここで%CHIN_PRIZE:分類%とかやめてよーっ！」
+					DATAFORM 「ひえええぇえええ！？　なにこれぇー！！」
+					DATAFORM 「くぁwせdrftgyふじこlp！！！」
+					DATAFORM 「うっそだあああああ！？？」
+				ENDDATA
+			CASE 3
+				STRDATA 台詞
+					DATAFORM 「ちょっとちょっと！？」/「%CHIN_PRIZE:分類%とか聞いてないってー！！」
+					DATAFORM 「うわあぁあああ！　まーじーかーっ！！」
+					DATAFORM 「はああぁああああ！！？」
+					DATAFORM 「ええぇーーーーー！？？」
+				ENDDATA
+			CASE 4
+				STRDATA 台詞
+					DATAFORM （蟒蛇は悲しそうに賽の目を見つめている…）
+					DATAFORM （蟒蛇はオロオロとしている…）
+					DATAFORM （蟒蛇はシーッと音を立てて鳴いた）
+				ENDDATA
+		ENDSELECT
+	;親子共通シゴロ以上/子が親のゴケに勝った
+	CASE "歓声"
+		SELECTCASE キャラ
+			CASE 1
+				STRDATA 台詞
+					DATAFORM 「%CHIN_PRIZE:分類%！？」/「すごいすごーーい！！」
+					DATAFORM 「やったぁーー！！」
+					DATAFORM 「すごーーいっ！　うそみたーい！！」
+					DATAFORM 「きゃーーっ！　すっごーい！」/「ほんとにほんと！？」
+				ENDDATA
+			CASE 2
+				STRDATA 台詞
+					DATAFORM 「%CHIN_PRIZE:分類%ｷﾀ―――(ﾟ∀ﾟ)――――！！」
+					DATAFORM 「あーッ！！　きたきたーっ！」/「きちゃったよこれーっ！！」
+					DATAFORM 「あっははははは！！」/「これだから博打はやめられないよっ！！」
+					DATAFORM 「やったああぁああ！！」
+				ENDDATA
+			CASE 3
+				STRDATA 台詞
+					DATAFORM 「おぉーーーっ！？　%CHIN_PRIZE:分類%！！」/「まじでーっ！？」
+					DATAFORM 「よしきたーーーっ！！」
+					DATAFORM 「あははははっ、どうだ見たかーーーっ！！」
+					DATAFORM 「いやっほーーーーーっい！！！」
+				ENDDATA
+			CASE 4
+				RESULTS = 笑顔
+				STRDATA 台詞
+					DATAFORM （蟒蛇は嬉しそうだ…）
+					DATAFORM （蟒蛇は満足そうにうなずいている…）
+					DATAFORM （蟒蛇は身体を波打たせている）/（おそらく一人？ウェーブをやっているのだろう…）
+					DATAFORM （蟒蛇は皆に向かって…ウインクをした！？）/（『ばちこん☆』と音が聞こえた気がする…）
+				ENDDATA
+		ENDSELECT
+	;親子共通ションベン
+	CASE "罵声"
+		RESULTS = 怒り
+		SELECTCASE キャラ
+			CASE 1
+				STRDATA 台詞
+					DATAFORM 「ええぇーっ！？　ちょっとぉ！？」
+					DATAFORM 「いやいやいやいや」/「おかしくないですかこれ！？」
+					DATAFORM 「いや、待ってくださいよ！？」/「これなんの冗談ですか！？」
+				ENDDATA
+			CASE 2
+				STRDATA 台詞
+					DATAFORM 「うぉおおおい！？」/「なにこれなにこれっ！　フザけてんの！？」
+					DATAFORM 「異議あり異議ありっ！　こんなんナシだってー！」
+					DATAFORM 「はあぁ！？　意味わかんないしー！」
+				ENDDATA
+			CASE 3
+				STRDATA 台詞
+					DATAFORM 「ちょっと待った！？　待った！！」/「マジこんなのありえんでしょ！？」
+					DATAFORM 「はぁああぁ！？？」/「いやいや、おかしいっしょコレ！？」
+					DATAFORM 「ちょっとちょっと！？　ねえちょっと！」/「こんなんありぃ！？」
+				ENDDATA
+			CASE 4
+				RESULTS = 泣き
+				STRDATA 台詞
+					DATAFORM （蟒蛇は消えた賽を探している…）
+					DATAFORM （蟒蛇はびっくりして固まっている…）
+					DATAFORM （蟒蛇はしょんぼりしている…）
+				ENDDATA
+		ENDSELECT
+	;親収支マイナスがレートの80倍以上
+	CASE "失意"
+		RESULTS = 泣き
+		SELECTCASE キャラ
+			CASE 1
+				STRDATA 台詞
+					DATAFORM 「これ、ちゃんと取り戻せるのかしら…？」
+					DATAFORM 「ああ、こんなにも減ってしまって…」
+					DATAFORM 「一生懸命コツコツ貯めても」/「一振りでどかーんと持っていかれる」/「…ええ、わたしだってどかーんと取り返しますよっ！」＠怒り
+				ENDDATA
+			CASE 2
+				STRDATA 台詞
+					DATAFORM 「おーい…」/「コマちゃんやー、きっとボクのところに戻ってくるんだよー」/「約束だよー」
+					DATAFORM 「うわっ…ボクの持ちゴマ、減りすぎ…？」
+					DATAFORM 「えっ？　この状況で入れる保険があるの！？」/「……ごめん、あるわけないよね」
+				ENDDATA
+			CASE 3
+				STRDATA 台詞
+					DATAFORM 「うわあぁ、本当にかっぱがれたぁ…」/「きっついねぇ…」
+					DATAFORM 「ああっ、もう！」/「こっからピンゾロ十連発ぐらいしてやるんだからっ！」＠怒り
+					DATAFORM 「いや、これほんとやっばいなあ…」/「あれっ、あたい…あといくつ持ってたっけ…？」
+				ENDDATA
+			CASE 4
+				STRDATA 台詞
+					DATAFORM （蟒蛇はコマの上でとぐろを巻いて威嚇している…）/（だが他の参加者に睨まれるとすぐにどいた）
+					DATAFORM （蟒蛇はシーッと音を立てて鳴いた）/（とても爬虫類とは思えない情けない顔をしている…）
+					DATAFORM （蟒蛇はその場をぐるぐると這い回っている）/（とても困っているのがよくわかる…）
+				ENDDATA
+		ENDSELECT
+	;親収支プラスがレートの80倍以上
+	CASE "得意"
+		SELECTCASE キャラ
+			CASE 1
+				STRDATA 台詞
+					DATAFORM 「ああ…これです、この瞬間…」/「何度味わっても…たまんない…♥」
+					DATAFORM 「んー、とってもいい流れです」/「このまま…イっちゃいましょう♥」
+					DATAFORM 「ふふふっ…」/「ふふふふふっ♪」/「ふふふっ♥」
+				ENDDATA
+			CASE 2
+				STRDATA 台詞
+					DATAFORM 「おー、大漁大漁♪」/「もちろん次も狙っちゃうよっと」
+					DATAFORM 「あははっ、ここぞの場面で結果を出す…」/「もしかして」/「ボクって結構デキる女…？」
+					DATAFORM 「よーしよし、この調子！」/「ジャンジャンバリバリいっちゃうよーっ♪」
+				ENDDATA
+			CASE 3
+				STRDATA 台詞
+					DATAFORM 「いやー、ホントいい気分だわ」/「このままずっとあたいを接待してくれると助かるねえ♪」
+					DATAFORM 「ほらほらあんたたち、手元のコマにも気をつけときなよ」/「いつの間にか全部あたいのとこに来ちゃってるかもね♪」
+					DATAFORM 「実はなんだけどさ…」/「あたい、この目を狙って出したんだよ♪」/「いや、ほんとだって」/「そう、次も%CHIN_PRIZE:分類%…いっとこーか♪」
+				ENDDATA
+			CASE 4
+			RESULTS = 笑顔
+				STRDATA 台詞
+					DATAFORM （蟒蛇は嬉しそうに身体を波打たせている）/（これは…ウェーブ！？）
+					DATAFORM （蟒蛇は喜びのダンスを踊っている…）
+					DATAFORM （蟒蛇は尻尾？を左右に振っている…）
+				ENDDATA
+		ENDSELECT
+	;丁半博打
+	;丁半博打選択台詞
+	CASE "丁半選択"
+		IF RAND:2
+			SIF キャラ == 4
+				RETURNF @"（蟒蛇はツボ振りに手伝ってもらい%賭け:分類%方に張った）"
+			RETURNF @"「%賭け:分類%%UNICODE(0xFF01)*RAND(1,4)%」"
+		ENDIF
+		SELECTCASE キャラ
+			CASE 1
+				STRDATA 台詞
+					DATAFORM 「あれこれ考えても意味ないですし」/「…%賭け:分類%、ですかね」
+					DATAFORM 「ここは直感に従って…」/「%賭け:分類%！」
+					DATAFORM 「これが本当の一か八か…」/「わたしが選ぶのは…%賭け:分類%！」
+				ENDDATA
+			CASE 2
+				STRDATA 台詞
+					DATAFORM 「こんなのノリと勢いで決めるが正解！」/「だから%賭け:分類%！」
+					DATAFORM 「…おぼろげながら、浮かんできたんだよ」/「{RAND(1, 5) * 2 + !分類}という数字が」/「…%賭け:分類%！」
+					DATAFORM 「下手に迷うと後悔しちゃうからね」/「ぱっと思い浮かんだ%賭け:分類%でいっとくよ」
+				ENDDATA
+			CASE 3
+				STRDATA 台詞
+					DATAFORM 「おっと閃いた」/「ここは%賭け:分類%！　絶対%賭け:分類%だって！」
+					DATAFORM 「あーもう、考えてもわっかんないしー」/「%賭け:分類%かな？　%賭け:分類%でいいや！」
+					DATAFORM 「…よし、決めた！」/「ここは、%賭け:分類%だ！」
+				ENDDATA
+			CASE 4
+				DO 
+					LOCAL = RAND(1, 7)
+				LOOP  LOCAL == 4
+				STRDATA 台詞
+					DATAFORM （蟒蛇は%賭け:分類%方にコマを頑張って押し込んでいる…）
+					DATAFORM （蟒蛇はせっせとコマを口で咥えて運んでいる）/（しばらくすると%賭け:分類%方にコマが積み上がった）
+					DATAFORM （蟒蛇は%BAKUTO_NAME:LOCAL%の袖を咥えて引っ張っている…）/（%BAKUTO_NAME:LOCAL%は蟒蛇のコマを%賭け:分類%方に張ってあげた）
+				ENDDATA
+			CASE 5, 6
+				STRDATA 台詞
+					DATAFORM 「ここは%自称:(キャラ - 5)%の運試し」/「次に来るのは…ズバリ%賭け:分類%！」
+					DATAFORM 「迷ったところでどーしよもないしね」/「ここはもう%賭け:分類%でいこいこっ！」
+					DATAFORM 「丁？　半？　あれ、ホントどっちだろ？？」/「ええっとぉ、えーと……」/「…%賭け:分類%っ！」
+				ENDDATA
+		ENDSELECT
+	;共通台詞
+	;チンチロリン親子共通ピン・ニゾウ/子負け/丁半博打負け
+	CASE "失望"
+		RESULTS = %\@ キャラ > 4 ? 怒り # 泣き \@%
+		候補 = うわぁ…/……えーっ/うそぉ…/…やめてよー/んっ？　んんんっ？？/え、えぇ……/…しまった/
+		SELECTCASE キャラ
+			CASE 1
+				候補 = %候補%やだぁ…/あっ…あら？/…勘弁してぇ/あ、痛ぁい…/えっ、これって…/あら…わたし、負け？
+			CASE 2
+				候補 = %候補%…やめちくりー/…マジで？/うっそでしょ…/参ったなぁ…/…あちゃー/…やられた、ボクの負けかあ
+			CASE 3
+				候補 = %候補%おいおいおい…/…あっ、やべっ/うわ、きっつ…/うへぇ…/げげっ…/うーわ、あたい負けちゃったよ…
+			CASE 4
+				STRDATA 台詞
+					DATAFORM （蟒蛇はがっくりしている…）
+					DATAFORM （蟒蛇はしょんぼりしている…）
+					DATAFORM （蟒蛇は悲しそうに賽を見つめている…）
+					DATAFORM （蟒蛇はへにょへにょしている…）
+				ENDDATA
+			CASE 5, 6
+				候補 = %候補%えー！？　なんでー/うっわ、外した…/ああっ、くそっ！/あーあ、さっさと次いこっ！/うげーっ、サイアク…/あーあ、%自称:(キャラ - 5)%の負け負けっ！
+		ENDSELECT
+		SIF キャラ != 4
+			台詞 = 「%TEXTR(候補)%」
+	;チンチロリン親子共通ゴケ・ロッポウ/子勝ち/丁半博打勝ち
+	CASE "安堵"
+		RESULTS = %\@ キャラ > 3 ? 笑顔 # 通常 \@%
+		SELECTCASE キャラ
+			CASE 1
+				候補 = やったぁ！/…勝ちました♪/うふふっ♪/…きましたねっ！/…あはっ♪/きゃーっ、うれしー♪/これこれっ、これですよ♪/ふふっ、読みどおりです♪
+			CASE 2
+				候補 = やったやったーっ！/…勝っちゃったね♪/ ( ΦωΦ)σ　ヨシ！/やったね！/…最高！/…ばっちりだね！/これは…来ちゃったね♪/ボク、冴えてるねっ♪
+			CASE 3
+				候補 = …お？　来ちゃったかな♪/…勝った勝った♪/へへんっ/これこれっ♪/やりぃー！/もらったぁ！/よしよしっと♪/おっし、もうけもうけ♪
+			CASE 4
+				STRDATA 台詞
+					DATAFORM （蟒蛇はびよーんと伸び上がった）
+					DATAFORM （蟒蛇は楽しそうに身体を振っている…）
+					DATAFORM （蟒蛇はその場をぐるぐると這い回っている…）
+					DATAFORM （蟒蛇は満面の笑みを浮かべている…？）/（ずいぶんと表情筋の発達した蛇だ…）
+				ENDDATA
+			CASE 5, 6
+				候補 = …おし、来たっ♪/よーし、よしよしよし♪/やった♪/勝った勝った♪/やりぃー！/もらいっ♪/よしっ、読みどおり♪/よーし、%自称:(キャラ - 5)%の勝ちっ♪
+		ENDSELECT
+		SIF キャラ != 4
+			台詞 = 「%TEXTR(候補)%」
+ENDSELECT
+IF STRFIND(台詞, "＠") > -1
+	VARSET LOCALS
+	SPLIT 台詞, "＠", LOCALS
+	台詞 = %LOCALS:0%
+	RESULTS = %LOCALS:1%
+ENDIF
+RETURNF 台詞
+
+;ツボ振りの呟きを表示する関数
+@TOBA_DEALER_TWEET(L_FEED, 状況, NUM_A, NUM_B, SUB = 0)
+;L_FEED：表示分類 BIT0 ONでウエイトあり BIT1 ONでCLEARLINE BIT2 ONで必ず表示
+#DIM NUM_A
+#DIM NUM_B
+#DIM SUB
+#DIM L_FEED
+#DIM EFFECT
+#DIM L_COUNT
+#DIMS エフェクト = "", "顔絵_ざわ", "顔絵_ぐにゃあ"
+#DIMS 状況
+#DIMS 表情
+#DIMS MESSAGE
+#DIMS MESSAGE_PRINT, 50
+#DIMS RESOURCE
+EFFECT = 0
+MESSAGE = %DEALER_TALK_STRINGS(状況, NUM_A, NUM_B, SUB)%
+SIF MESSAGE == ""
+	RETURN 0
+表情 = %RESULTS%
+LOCAL = LINECOUNT
+;表示部分は@SP_TALKのカスタム
+IF !顔絵付きメッセージ || STRFIND(状況, "煽り") > -1
+	SIF FLAG:구상색
+		SETCOLOR 0xD37CD0
+	SPLIT MESSAGE, "/", MESSAGE_PRINT
+	FOR L_COUNT, 0, RESULT
+		PRINTFORML %MESSAGE_PRINT:L_COUNT%
+	NEXT
+	RESETCOLOR
+	SIF GETBIT(L_FEED, 0)
+		WAIT
+ELSE
+	キャラ画像表示サイズ比 = 100
+	VARSET MESSAGE_PRINT
+	SIF FLAG:멀티사이즈
+		デフォルトキャラ画像横幅 = 180
+	RESOURCE = %\@ 状況 == "勝負！" ? SAI_RESULT # 顔絵_はだけ_%表情%_MOB_95 \@%
+	CALL 画像セット(RESOURCE, 0, 0, キャラ画像表示サイズ比, 0)
+	SIF EFFECT
+		CALL 画像セット(エフェクト:EFFECT, 0, 0, キャラ画像表示サイズ比, 1)
+	MESSAGE = %SPTALK整形(MESSAGE)%
+	SPLIT MESSAGE, "/", MESSAGE_PRINT
+	FOR L_COUNT, 0, RESULT
+		SIF L_COUNT != 0 || EFFECT
+			CALL ダミーセット(0, 0, キャラ画像表示サイズ比, L_COUNT)
+		TEMP_HTML:L_COUNT += @"<font color='#0xD37CD0'>%MESSAGE_PRINT:L_COUNT%</font>"
+	NEXT
+	CALL 画像一斉表示(0, 0, 1, -1)
+	IF GETBIT(L_FEED, 0)
+		PRINTW 
+	ELSE
+		PRINTL
+	ENDIF
+ENDIF
+SIF GETBIT(L_FEED, 1)
+	CLEARLINE LINECOUNT - LOCAL
+RETURN 1
+
+;ツボ振りの呟きと表情を決める式中関数
+@DEALER_TALK_STRINGS(状況, NUM_A, NUM_B, SUB)
+#FUNCTIONS
+#DIM NUM_A
+#DIM NUM_B
+#DIM BIAS
+#DIM SUB
+#DIM POS
+#DIM 初回
+#DIMS 賭け = "丁方", "半方"
+#DIMS 状況
+#DIMS 台詞
+#DIMS 候補
+#DIMS 呼称
+呼称 = %\@ TALENT:MASTER:성별 == 2 ? 兄 # 姐 \@%さん
+POS = NUM_A - NUM_B
+RESULTS = 通常
+台詞 = 
+SELECTCASE 状況
+	;チンチロリン台詞
+	;ツボ振り挨拶
+	CASE "挨拶"
+		STRDATA 台詞
+			DATAFORM 「どうやら面子も揃ったようだね…」/「%BAKUTO_NAME:5%と%BAKUTO_NAME:6%の姐さん方\@ 初回 == DAY ? も引き続き # 、ここはお初かい？」/「今日はしっかり \@楽しんでいっておくれよ」
+			DATAFORM 「よし、もう始めても良さそうだ」/「ツボを振るのは\@ 初回 == DAY ? 引き続いてあたいだよ」/「まあ他に振れる奴もいないんだけどね」 # このあたい…別に名のる程の者でもないよ」/「ただの木っ端山女郎さね」/「よろしく頼むよ」 \@
+			DATAFORM 「そろそろいいかい？」/「始めに言っとくけど勝っても負けても恨みっこなし」/「楽しんでくのが一番だかんね」
+		ENDDATA
+		初回 = DAY
+	;ツボ振り直前
+	CASE "スタート口上"
+		SELECTCASE SUB
+			CASE 0
+				STRDATA 候補
+					DATAFORM 「そうこなくっちゃな！」
+					DATAFORM 「よーしよし、あたいも楽しみだ」
+					DATAFORM 「%呼称%ならのってくれると信じてたよ」
+				ENDDATA
+				台詞 = %候補%/「さあ、よござんすね？」
+			CASE 1
+				候補 = %TEXTR(@"「…ま、挨拶はこれくらいにして」/「…と、まあ御託はここまでにしとかなきゃね」/「…では、どなたさんもよござんすね？」")%
+				台詞 = %候補%/「早くお楽しみを始めるよ」
+			CASEELSE
+				STRDATA 台詞
+					DATAFORM 「さあ、%\@ RAND:2 ? じゃんじゃん # \@%いくよっ」
+					DATAFORM 「そうそう、まだまだ%\@ RAND:2 ? お楽しみ # 勝負 \@%はこれからだよっ」
+					DATAFORM 「いいね、みんな調子が出てきたんじゃないかい？」
+					DATAFORM 「ほら、もうひと勝負といこうじゃないか」
+					DATAFORM 「さあ、どんどんいこうか」
+					DATAFORM 「さあさあ、次の勝負だよっ」
+					DATAFORM 「ほらほら、遠慮しないでみんな当てとくれっ」
+					DATAFORM 「お客さん、いくらでも付き合いますよ」
+					DATAFORM 「さあさあ、どなたさんもまだまだよござんすね？」
+				ENDDATA
+		ENDSELECT
+	CASE "構え口上"
+		STRDATA 台詞
+			DATAFORM 「ツボ、かぶります」
+			DATAFORM 「%CH_PRIZE:NUM_A:NUM_B%から入ります」
+			DATAFORM 「%CH_PRIZE:NUM_A:NUM_B%、かぶります」
+			DATAFORM 「入ります」
+		ENDDATA
+	;ツボかぶり
+	CASE "被り口上"
+		RESULTS =  賽振り
+		台詞 = 「さあ%\@ SUB ? 、スパッと決めとくれっ # ！　張った張った \@%！」
+	;丁半選択時合いの手
+	;NUM_A=丁選択人数 NUM_B=半選択人数 SUB=張り方 0=丁 1=半
+	CASE "煽り"
+		BIAS = ((POS > 0 && !SUB) || (POS < 0 && SUB))
+		IF ABS(POS) > 2 && BIAS
+			台詞 = 「んんっ！？　%\@ ABS(POS) > 3 ? まーた # \@%%賭け:SUB%！？」/
+		ELSE
+			台詞 = 「%賭け:SUB%入った、%賭け:SUB%っ！」/
+		ENDIF
+		SELECTCASE ABS(POS)
+			CASE 0
+				STRDATA 候補
+					DATAFORM 「さあ丁方半方、どっちもどっちも！」
+					DATAFORM 「さあどっちもどっちも！」/「%賭け:(!SUB)%無いか？　%賭け:SUB%無いか！」
+					DATAFORM 「さあ%賭け:(!SUB)%無いか？　%賭け:(!SUB)%無いか？」
+					DATAFORM 「さあ丁方半方、どんどん張っとくれ！」
+				ENDDATA
+			CASE 1, 2
+				STRDATA 候補
+					DATAFORM 「さあ%賭け:(POS > 0)%無いか？　%賭け:(!SUB)%無いか？」
+					DATAFORM 「張った張った！　%賭け:(POS > 0)%無いか？」/「さあ丁方半方、どっちもどっちも！」
+					DATAFORM 「さあさあ張っとくれ！　さあ%賭け:(!SUB)%張っとくれ！」
+					DATAFORM 「さあ丁方半方、張っとくれ！」/「さあさあ%賭け:(POS > 0)%無いか？　%賭け:(!SUB)%無いかっ！」
+				ENDDATA
+			CASE 3, 4, 5
+				STRDATA 候補
+					DATAFORM 「%賭け:(POS > 0)%無いよ？　%賭け:(POS > 0)%っ！」/「%賭け:(POS > 0)%空いてるよっ！」
+					DATAFORM 「おいおい、%賭け:(POS > 0)%%\@ BIAS ? じゃないのかい # もやっと来たよ \@%！」/「さあ%賭け:(POS > 0)%ないか？　%賭け:(POS > 0)%っ！」
+					DATAFORM 「なんだいなんだい、%賭け:(POS > 0)%%\@ BIAS ? 人気無いねえ！ # もようやくだねえ \@%！」/「さあ%賭け:(POS > 0)%無いか！　%賭け:(POS > 0)%ドカンといっとくれよ！」
+					DATAFORM 「ちょっとちょっと！　%賭け:(POS > 0)%コマ足りないよ！」/「さあさあ%\@ BIAS ? 皆同じじゃつまんないよっ # %賭け:(POS > 0)%につづいたつづいたっ \@%！」/「%賭け:(POS > 0)%無いかっ！」
+				ENDDATA
+			CASE 6
+				RESULTS = 怒り
+				STRDATA 候補
+					DATAFORM 「なんだいなんだい、どうなってんのさコレ！」/「お客さんたち、なんか示し合わせてるのかいっ！？」
+					DATAFORM 「おいおい、なんだか残念なことになってんねえ」/「こんな博打やってもつまんなくないかい！？」
+					DATAFORM 「ちょっとちょっと！　勘弁しとくれよっ！」/「何をやったらこんなに偏るんだいっ！？」
+				ENDDATA
+		ENDSELECT
+		台詞 = %台詞%%候補%
+	;ツボを開く直前
+	CASE "予想終了"
+		;サシ勝負
+		IF SUB
+			台詞 = 「%賭け:NUM_A%%TEXTR("で間違いないね？/、確かに承ったよ/…どうやらお決まりのようだ")%」
+			STRDATA 候補
+				DATAFORM 「%呼称%とあたいどっちが勝つか」/「…勝負！」
+				DATAFORM 「そうかい、%呼称%はそうきたか…」/「いざ、勝負！」
+				DATAFORM 「%呼称%は思い切りが良くていいねえ…」/「さあ、勝負！」
+			ENDDATA
+			台詞 = %台詞%/%候補%
+		;通常
+		ELSEIF ABS(POS) < 7
+			台詞 = 「それでは丁半コマ揃いました」/「…勝負！」
+		;全員同じ張り方
+		ELSE
+			RESULTS = 怒り
+			{
+			台詞 = 「あー…こうなっちまったもんはしょうがない」/
+					「場を成立させんのに賭場の方から%賭け:(POS > 0)%にコマを回すとするよ」/
+					「た・だ・し、テラ銭はしっかりと引いてあるからね」/
+					「勝ってもたいして稼げないけどそこらへんはあきらめとくれっ！」
+			}
+		ENDIF
+	;賽の目表示
+	CASE "勝負！"
+		台詞 = 「%CH_PRIZE:NUM_A:NUM_B%！！」
+		SIF RAND:2
+			台詞 = %台詞%/「%\@ !SUB ? 丁 # 半 \@%と出ました！」
+	CASE "継続口上"
+		IF NUM_A
+			STRDATA 候補
+				DATAFORM 「%呼称%は勝ち逃げなんてしないよな」
+				DATAFORM 「%呼称%、%\@ NUM_B ? 今イケイケ # こっからノってきそう \@%じゃあないか」
+				DATAFORM 「%呼称%%\@ NUM_B ? 調子上がってるねえ # も調子は悪くなさそうだねえ \@%」
+			ENDDATA
+		ELSE
+			STRDATA 候補
+				DATAFORM 「%呼称%もここで終わっちゃあ気分も良くないよな」
+				DATAFORM 「%呼称%%呼称%、次は取り返す番だと思わないかい」
+				DATAFORM 「次は勝つってね」/「博打にゃあそういう気概が重要だよ」
+			ENDDATA
+		ENDIF
+		台詞 = %候補%/「%TEXTR("当然続けてくんだろ/もう一番いっとこうか/さあもうひと勝負…どうだい")%？」
+	;サシ勝負持ちかけ
+	CASE "サシ持ちかけ"
+		STRDATA 候補
+			DATAFORM 「%呼称%%呼称%、一発当てて気分のいいところでさ」
+			DATAFORM 「おやおや%呼称%ドカンと稼いだねえ」
+			DATAFORM 「おっと%呼称%ツイてるねえ」
+		ENDDATA
+		台詞 = %候補%/「どうだい、その勝った分であたいとサシの勝負といかないか」/「勝てば倍返し、負ければ台無し」
+		STRDATA 候補
+			DATAFORM 「運否天賦、わかりやすくていいだろ？」
+			DATAFORM 「楽しいバクチが打てそうだろ？」
+			DATAFORM 「ほらほら、大儲けの匂いがしてくるだろ？」
+		ENDDATA
+		台詞 = %台詞%/%候補%
+	;	ハハ
+	;（ ﾟωﾟ ）お断りします
+	CASE "サシお断り"
+		RESULTS = 泣き
+		候補 = 「%TEXTR("そりゃあ残念/おやおや…堅実思考だねえ/あらら、振られちまったねえ")%」
+		STRDATA 台詞
+			DATAFORM 「ま、しょうがないか」
+			DATAFORM 「しょうがない、また次に期待するよ」
+			DATAFORM 「女の誘いを断るとは、いけずな%呼称%だよ」
+		ENDDATA
+		台詞 = %候補%/%台詞%
+	;サシ勝負あなたの勝ち
+	CASE "サシで負け"
+		SELECTCASE RAND:4
+			CASE 0, 1
+				STRDATA 台詞
+					DATAFORM 「いやー負けた負けた」/「%呼称%にゃあ敵わないねえ」
+					DATAFORM 「おめでとさん」/「あんたの勝ちだよ」/「ほら、持ってきな」
+					DATAFORM 「あははっ、いやー%呼称%のお強いこと」/「勝った分であたいになんかおごっておくれよ」
+				ENDDATA
+			CASE 2, 3
+				RESULTS = 泣き
+				STRDATA 台詞
+					DATAFORM 「…おおう」/「やられちまったねえ」
+					DATAFORM 「あはは…」/「やっちまったよ」
+					DATAFORM 「あいたたた…」/「あたいも小遣い増やしたかったねえ…」
+				ENDDATA
+			CASE 4
+				RESULTS = 怒り
+				STRDATA 台詞
+					DATAFORM 「…ちっ」/「ドジ踏んじまったねえ」
+					DATAFORM 「…くそっ」/「手元が狂ったよ」
+				ENDDATA
+		ENDSELECT
+	;サシ勝負あなたの負け
+	CASE "サシで勝ち"
+		STRDATA 台詞
+			DATAFORM 「いやー悪いねえ」/「でもこれも勝負、遠慮なく貰っとくよ」
+			DATAFORM 「よしっ！」/「…ここで勝った分はあたいの小遣いになるんだ」/「そりゃあ気合も入るってもんさ」
+			DATAFORM 「残念だったね」/「こいつはあたいが頂いとくよ」
+			DATAFORM 「残念、%呼称%もツキまくりとはいかなかったようだ」
+			DATAFORM 「あはは、儲けそこなったねえ」
+			DATAFORM 「あはは、儲けた儲けた」/「これで高くて旨い酒が飲めそうだよ♪」
+		ENDDATA
+ENDSELECT
+RETURNF 台詞
+
+;ダイス画像を一個一個丁寧に手作りする関数
+;標準でダイス３個、ARGが真ならダイス２個の画像をセット
+;ARG == 2なら丁半用背景画像をセット
+@TOBA_CREATE_DICEIMAGE(DICE:0, DICE:1 = 0, DICE:2 = 0, ARG = 0)
+#DIM DICE,3
+#DIM GID
+#DIM L_COUNT
+#DIM POS_X, 3 = 14, 67, 114
+#DIM POS_Y, 3 = 109, 125, 91
+#DIM RAND_X
+#DIM RAND_Y
+IF GID
+	SPRITEDISPOSE "SAI_RESULT"
+	GDISPOSE GID
+ENDIF
+GID= 0
+CALL 画像合成(GID, @"%\@ ARG == 2 ? CH_BASE # ダミー \@%")
+FOR L_COUNT, 0, 3
+	SIF L_COUNT == 1 && ARG
+		CONTINUE
+	;表示位置にばらつきを持たせる
+	RAND_X = ARG == 2 ? RAND(1, 16) - 9 # RAND(1, 7) - 4 
+	RAND_Y = ARG == 2 ? RAND(1, 16) - 9 # RAND(1, 7) - 4
+	CALL 画像合成(GID, @"D_SURF_{DICE:L_COUNT}", POS_X:L_COUNT + RAND_X, POS_Y:L_COUNT + RAND_Y, 46, 55)
+NEXT
+SPRITECREATE "SAI_RESULT", GID
+RETURN
+
+;コマ札変動を表示位置揃えて表示する関数
+@TOBA_RESULT_PRINT(TGT, BP, ARG = 0)
+#DIM BP
+#DIM NUM
+#DIM TGT
+#DIM COLOR
+#DIMS STRINGS
+COLOR = BP > 0 ? C_GREEN # C_D_RED
+STRINGS = %BAKUTO_NAME:TGT%の持ちゴマ%\@ BP > 0 ? に　 # から \@%
+NUM = (5 + ARG) - STRLENSU(BAKUTO_NAME:TGT)
+STRINGS = %STRINGS%%UNICODE(0x3000) * NUM%
+PRINTFORM %STRINGS%
+CALL COLORMESSAGE(@"%\@ BP > 0 ? ＋ # － \@%{ABS(BP)}枚", COLOR, 1, 1)
+RETURN
+
+;持ちゴマと遊戯回数を表示する関数
+@PRINT_TOBA_STATE(回数, レート, ウエイト)
+#DIM 回数
+#DIM レート
+#DIM ウエイト
+#DIM レート色 = C_AQUA, C_WHITE, C_YELLOW, C_D_PINK
+#DIMS レート表示 = "低", "標準", "高", "廃"
+DRAWLINE
+PRINTFORML ～%TOKANJIT(回数)%回戦～　　　　　　現在時刻:%시각표시(TIME)% 
+PRINTFORML 
+SIF ウエイト
+	TWAIT 750, 0
+PRINTFORML あなたの持ちゴマ　　　　　%세자리구분(KOMAFUDA:MASTER)%枚
+PRINTFORM 現在のレート:
+CALL COLORMESSAGE(レート表示:レート, レート色:レート, 1, 1)
+PRINTFORML 
+RETURN
+
+;配列を{ARG}個のダイス目で埋める参照関数
+@TOBA_FILL_DICE(ダイス目, ARG)
+#DIM REF ダイス目, 0
+#DIM L_COUNT
+FOR L_COUNT, 0, ARG
+	ダイス目:L_COUNT = RAND(1, 7)
+NEXT
+RETURN
+
+;賭場セッティング関数
+@TOBA_SETUP
+#DIM 設定済
+#DIM 代入済
+#DIM L_COUNT
+#DIM KOMA
+#DIMS 種族, 2
+#DIMS 呼び名
+;一日一回所持金確認,モブ子博徒定義
+SIF 設定済 == DAY
+	RETURN
+設定済 = DAY
+;NPC持ちゴマはあなた所持金の４割に設定
+;パッチ取り込まれたらもう少しきちんと処理したい
+KOMA = MONEY / 1000 * 4
+KOMA = MAX(KOMA, 500) 
+VARSET KOMAFUDA, KOMA, 1, 7
+
+VARSET 種族
+FOR L_COUNT, 0, 2
+	DO
+		種族:L_COUNT = %TEXTR("이나바/요정/백랑텐구/오니/둔갑너구리/둔갑고양이/둔갑여우/茨たぬき/販売員")%
+	LOOP 種族:0 == 種族:1
+	CALL モブ店員画像作成(25 + L_COUNT, 種族:L_COUNT)
+	BAKUTO_WORDCOLOR:(5 + L_COUNT) = モブ子店員口上色:(25 + L_COUNT)
+	BAKUTO_NAME:(5 + L_COUNT) '= 種族:L_COUNT
+NEXT
+FOR L_COUNT, 0, 2
+	SIF BAKUTO_NAME:(5 + L_COUNT) == "茨たぬき"
+		BAKUTO_NAME:(5 + L_COUNT) = 子分狸
+NEXT
+;ゲーム中に１回ニ次元配列変数を定義
+SIF 代入済
+	RETURN
+代入済 = 1
+;丁半博打出目の呼称定義
+CH_PRIZE:1:0 '= "", "ピンゾロの丁", "イチニの半", "サンミチの丁", "ヨイチの半", "グイチの丁", "イチロクの半"
+CH_PRIZE:2:0 '= "", "イチニの半", "ニゾロの丁", "サニの半", "シニの丁", "グニの半", "ニロクの丁"
+CH_PRIZE:3:0 '= "", "サンミチの丁", "サニの半", "サンゾロの丁", "シソウの半", "グサンの丁", "サブロクの半"
+CH_PRIZE:4:0 '= "", "ヨイチの半", "シニの丁", "シソウの半", "シゾロの丁", "グシの半", "シロクの丁"
+CH_PRIZE:5:0 '= "", "グイチの丁", "グニの半", "グサンの丁", "グシの半", "ゴゾロの丁", "ゴロクの半"
+CH_PRIZE:6:0 '= "", "イチロクの半", "ニロクの丁", "サブロクの半", "シロクの丁", "ゴロクの半", "ロクゾロの丁"
+;回り胴順番の定義：第一引数 0=あなた 1=山童 2=河童 3=鴉天狗 4=蟒蛇が親、第二引数 FOR構文ループカウント
+TOBA_ROTATE:0:0 = 1, 2, 3, 4
+TOBA_ROTATE:1:0 = 2, 3, 4, 0
+TOBA_ROTATE:2:0 = 3, 4, 0, 1
+TOBA_ROTATE:3:0 = 4, 0, 1, 2
+TOBA_ROTATE:4:0 = 0, 1, 2, 3
+RETURN

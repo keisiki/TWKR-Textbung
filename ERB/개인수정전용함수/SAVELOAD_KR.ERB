@@ -1,0 +1,189 @@
+﻿;-------------------------------------------------
+;세이브파일의 리스트를 출력하는 함수
+;ARG:0  출력할 20단위 인덱스. 일단 확장용으로
+;       ex) ARG:0이면 0 ~ 19번까지 세이브 출력
+;-------------------------------------------------
+@PRINT_SAVEDATA_KR(ARG:0 = 0)
+#DIM L_COUNT
+#DIMS SAVE_DATA
+
+FOR L_COUNT, ARG:0 * 20, (ARG:0 + 1) * 20, 1
+    CHKDATA L_COUNT
+    SAVE_DATA '= RESULTS
+
+    SIF L_COUNT == LAST_SAVE
+        SETCOLOR C_AQUA
+
+    PRINTFORM [{L_COUNT, 2, RIGHT}] 
+    IF RESULT == 1
+        PRINTFORML ----
+    ELSE
+        PRINTFORML %SAVE_DATA%
+    ENDIF
+    RESETCOLOR
+NEXT
+
+
+;-------------------------------------------------
+;로드용 커스텀 함수
+;LOADGAME 대신 사용
+;-------------------------------------------------
+@LOADGAME_KR
+#DIM SAVE_NUM
+#DIMS SAVE_DATA
+
+LOADGLOBAL
+
+$LIST_LOOP
+PRINTL 어느 데이터를 로드하시겠습니까?
+
+CALL PRINT_SAVEDATA_KR, 0
+
+;자동저장 99번 데이터 추가 로드
+CUSTOMDRAWLINE =
+CHKDATA 99
+SAVE_DATA '= RESULTS
+PRINTFORML [99] %SAVE_DATA%
+CUSTOMDRAWLINE =
+
+
+PRINTFORML [200] 세이브 삭제
+PRINTFORML [999] 돌아간다
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 999
+    RETURN
+ELSEIF RESULT == 200
+    CALL DELETE_SAVE_KR
+    GOTO LIST_LOOP
+ELSEIF (RESULT < 0 || RESULT >= 20) && RESULT != 99
+    CLEARLINE 1
+    REUSELASTLINE 잘못된 입력입니다
+    GOTO INPUT_LOOP
+ELSE
+    SAVE_NUM = RESULT
+    CHKDATA SAVE_NUM
+    ;RESULT == 0이라면 로드 가능
+    IF (RESULT != 0 && RESULT != 3)
+        SIF RESULT == 1
+            CLEARLINE 1
+            REUSELASTLINE 저장된 데이터가 없습니다
+        GOTO INPUT_LOOP
+    ENDIF
+    LOADDATA SAVE_NUM
+ENDIF
+
+
+;-------------------------------------------------
+;세이브파일 삭제용 함수
+;-------------------------------------------------
+@DELETE_SAVE_KR
+#DIM SAVE_NUM
+
+$LIST_LOOP
+PRINTL 어느 데이터를 삭제하시겠습니까?
+
+CALL PRINT_SAVEDATA_KR, 0
+
+PRINTFORML [999] 돌아간다
+
+
+INPUT
+IF RESULT == 999
+    RETURN
+ELSE
+    SAVE_NUM = RESULT
+    CHKDATA SAVE_NUM
+    IF RESULT == 1
+        PRINTW 저장된 데이터가 없습니다
+        GOTO LIST_LOOP
+    ELSE
+        DRAWLINE
+        PRINTFORML %RESULTS%
+        PRINTL
+        PRINTL 정말로 선택한 데이터를 삭제하시겠습니까?
+        SETCOLOR C_RED
+        PRINTL ** 삭제한 데이터는 복구가 불가능합니다 **
+        RESETCOLOR
+        PRINTL
+        PRINTLC [0] 삭제한다
+        PRINTLC [1] 삭제하지 않는다
+        
+        $INPUT_LOOP_2
+        INPUT
+        IF RESULT == 0
+            DELDATA SAVE_NUM
+            PRINTW 데이터를 삭제했습니다
+            GOTO LIST_LOOP
+        ELSEIF RESULT == 1
+            GOTO LIST_LOOP
+        ELSE
+            CLEARLINE 1
+            REUSELASTLINE 잘못된 입력입니다
+            GOTO INPUT_LOOP_2
+        ENDIF
+    ENDIF
+ENDIF
+
+
+;-------------------------------------------------
+;저장용 커스텀 함수
+;SAVEGAME 대신 사용
+;-------------------------------------------------
+@SAVEGAME_KR
+#DIM SAVE_NUM
+
+$LIST_LOOP
+PRINTL 어디에 저장하겠습니까?
+
+CALL PRINT_SAVEDATA_KR, 0
+
+PRINTFORML [999] 돌아간다
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 999
+    RETURN
+ELSEIF RESULT < 0 || RESULT >= 20
+    CLEARLINE 1
+    REUSELASTLINE 잘못된 입력입니다
+    GOTO INPUT_LOOP
+ELSE
+    SAVE_NUM = RESULT
+    CHKDATA SAVE_NUM
+    ;RESULT == 1은 "파일이 없음"
+    IF RESULT != 1
+        PRINTL 이미 데이터가 존재합니다. 덮어쓰겠습니까?
+        PRINTLC [0] 예
+        PRINTLC [1] 아니오
+        PRINTL
+        $INPUT_LOOP_2
+        INPUT
+        IF RESULT == 1
+            GOTO LIST_LOOP
+        ELSEIF RESULT != 0
+            GOTO INPUT_LOOP_2
+        ENDIF
+    ENDIF
+    LAST_SAVE = SAVE_NUM
+    SAVEGLOBAL
+    SAVEDATA SAVE_NUM, SAVE_DESCRIPTION_KR()
+ENDIF
+
+
+;-------------------------------------------------
+;세이브파일에 저장할 설명문구를 반환하는 함수
+;@SAVEINFO 형식과 동일
+;-------------------------------------------------
+@SAVE_DESCRIPTION_KR
+#FUNCTIONS
+#DIMS DYNAMIC DESCRIPTION
+
+GETTIME
+DESCRIPTION += RESULTS
+;장소는 요괴의 산(산록)으로 반각 16 문자분 , 이름은 클라운피스로 14 문자분 필요
+DESCRIPTION += @" {DAY,3,RIGHT}일째 %GET_MAPNAME(MAIN_MAP), 16, LEFT% %NAME:MASTER, 14, LEFT% Ver %SAVESTR:본체버전, 9, LEFT%"
+RETURNF DESCRIPTION

@@ -1,7 +1,4 @@
-﻿;-------------------------------------------------
-;낚시를 한다
-;외출 커맨드
-;-------------------------------------------------
+﻿;낚시를 한다
 @COM621
 #DIM 잡힌것
 #DIM 낚시파워
@@ -70,6 +67,20 @@ IF !TALENT:[[와카사기히메]]:사망&&(CHARA == [[와카사기히메]] || TA
 	ENDIF
 ENDIF
 
+
+;(天候パッチ)連続降水カウンター10以上で鉄砲水に巻き込まれる可能性
+IF CONTINUOUS_RAINFALL >= 10 && RAND:(MAX(10, 40 - CONTINUOUS_RAINFALL)) == 0
+	PRINTFORML …강의 모습이 이상하다
+	PRINTFORMW ！！　급류가 범람했다！！
+	
+	PRINTFORML 
+	PRINTFORML %마스터는% 강을 떠내려가면서도
+	PRINTFORML 가까스로 강에서 기어오르는 데 성공했다…
+	PRINTL 
+	CALL ASK_DIARY("급류의 범람과 조우했다")
+	BASE:MASTER:체력 = 0
+	RETURN -1
+ENDIF
 $시간정지스킵
 ;季節ごとの活性
 SELECTCASE DAY:2
@@ -90,12 +101,19 @@ SELECTCASE TIME:2
 		活性 += 5
 ENDSELECT
 ;天気による活性
+;(天候パッチ)豪雨・ひょう・あられ
 SELECTCASE TIME:5
 	CASE 3, 6 ;曇、霧雨
 		活性 += 5
-	CASE 4, 5 ;雨
+	CASE 4, 5, 14, 15 ;雨
 		活性 += 7
-	CASE 8 TO 13 ;雪系統はマイナス
+	CASE 13
+		IF GET_HEAT_THUNDERSTORM() == 1 || GET_FRONTAL_THUNDERSTORM() == 1
+			活性 += 7
+		ELSE
+			活性 -= 3
+		ENDIF
+	CASE 8 TO 12 ;雪系統はマイナス
 		活性 -= 3
 ENDSELECT
 ;虹が出てるときは、雨の後で水が濁っているだろう
@@ -103,6 +121,8 @@ SELECTCASE TIME:7
 	CASE 1
 		活性 += 7
 ENDSELECT
+;(天候パッチ)連続降水カウンター分活性にプラス(最大+10)
+活性 += MIN(10, CONTINUOUS_RAINFALL)
 
 ;일일로―50~+50, 아이템이나 기원등으로 보정을 걸치는 일도 가능
 낚시운 = CFLAG:MASTER:오늘의운세 / 10 - 50
@@ -346,6 +366,20 @@ ENDIF
 
 ;플래그 인도
 TFLAG:SELECTCOM분기 = 잡힌것
+SELECTCASE 잡힌것
+	CASE 0
+		COM_STR = 잡히지 않았다
+	CASE 21
+		COM_STR = 로터
+	CASE 1 TO 60
+		COM_STR = %FISH_NAME(잡힌것)%
+	CASE 610
+		COM_STR = 나무조각
+	CASE 131
+		COM_STR = 종잇조각
+	CASEELSE
+		COM_STR = %ITEMNAME:(잡힌것)%
+ENDSELECT
 TFLAG:SOURCE등에영향을주지않는SELECTCOM분기 = CHARA + (상대자가낚시했다 * 1000)
 
 RETURN 1

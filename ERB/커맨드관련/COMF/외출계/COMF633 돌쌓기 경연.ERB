@@ -1,79 +1,253 @@
 ﻿;**************************************************************
-;積み石コンテストver0.1です
-;受付台詞は瓔花にするか名無しの水子にするか迷って微妙な感じになりました
-;色々ミスがあったりバランス調整も適当で構文も変…と酷い出来なので直してくださるとうれしいです
+;積み石コンテストver2.1です
 ;作者が書いてる分は改変自由で作者への連絡も不要です
-;作者:Cineraria
+;作者:サイネリア
 ;**************************************************************
 @COM633
 #DIM WIN_P
-PRINTL 「돌쌓기 경연에 오신 것을 환영합니다! 어느 급에 도전할래? 참가비는 일률적으로 \3000으로 경연에 참가할 수 있어」
-$LOOP
-DRAWLINE
-{
-CALL ASK_M("EASY-집 짓기 놀이급-(쉽게 쌓을 수 있는 난이도입니다.)",1,"NORMAL-젠가급-(방심하면 무너지는 난이도입니다)", 1,
-"HARD-트럼프 타워급-(첫 번째 돌 쌓는 것도 긴장되는 난이도입니다)",TALENT:MASTER:돌쌓기랭커 >= 1,
-"LUNATIC-피라미드급-(돌이라도 던지지 않으면 해낼 수 없습니다)", TALENT:MASTER:돌쌓기랭커 >= 2,
-"PHANTASM-바벨탑급-(돌을 던져도 부족합니다)", TALENT:MASTER:돌쌓기랭커 >= 3,
-"EXTRA-인간 피라미드급-(한 분은 사양하겠습니다)", CHK_DATENOW(CFLAG:12),
-"HELP",1, "그만둔다",1)
-}
-IF RESULT == 0
-	PRINTFORMW 「집 짓기 놀이급에 도전이네! 두 번 승리하면 우승이야!」
-	CALL Stone_Entry(0, 2, 5000)
-ELSEIF RESULT == 1
-	PRINTFORMW 「젠가급에 도전이네! 이제 돌쌓기에도 익숙해졌나? 세 번 승리하면 우승이야!」
-	CALL Stone_Entry(1, 3, 7000)
-ELSEIF RESULT == 2
-	PRINTFORMW 「트럼프 타워급에 도전이네! 모두 당신을 주목하고 있어! 네 번 승리하면 우승이야!」
-	CALL Stone_Entry(2, 4, 10000)
-ELSEIF RESULT == 3
-	PRINTFORMW 「피라미드급에 도전! 드디어 여기까지 왔네! 다섯 번 승리하면 우승이야!」
-	CALL Stone_Entry_EX(3, 5, 15000)
-ELSEIF RESULT == 4
-	PRINTFORMW 「바벨탑급에 도전!? 환상이라고 불리는 이 계급에 도전하는거야!? 힘내! 다섯 번 승리하면 우승이야!」
-	CALL Stone_Entry_EX(4, 5, 30000)
-ELSEIF RESULT == 5
-	MONEY -= 3000
-	TIME += 60
-	WIN_P = 0
-	PRINTFORMW 「인간 피라미드급에 도전! 아직 임시 실장이지만 그래도 괜찮다면!」
-	PRINTFORMW 「어디 보자… 이번 대전 상대는…」
-	CALL TAGMATCH
-	IF RESULT == 0
-		WIN_P = 1
-	ELSE
-		WIN_P = 0
-	ENDIF
-	IF WIN_P == 1
-		PRINTFORMW
-		PRINTFORMW 「축하합니다! 상금 \5000을 받으세요!」
-		PRINTFORMW 「또 두 명이서 놀러와!」
-		MONEY += 5000
-		RETURN 0
-	ELSE
-		PRINTFORMW
-		PRINTFORMW 「졌으니까 여기서 끝… 수고했어. 또 둘이서 참가해!」
-		RETURN 0
-	ENDIF
-	RETURN 0
-ELSEIF RESULT == 6
-	CALL Stone_Help
-	GOTO LOOP
-ELSEIF RESULT == 7
-	RETURN -1
+#DIM STONE_ENTER ;本日コンテストに来た回数
+
+;名付けイベントを見てないとき、受付水子への地の文の名前呼びは受付水子になる
+SIF STONE_PLAYCOUNT:4 == 0
+	STONE_UKETSUKENAME = 受付水子
+
+
+IF FLAG:주회수 && STONE_BITE_A_DUST < FLAG:주회수
+STONE_BITE_A_DUST = FLAG:주회수
+	SETCOLOR C_RED
+	PRINTFORML バイツァ・ダストにより、獲得技能を除いた積み石コンテストのあらゆる進行状況はリセットされました
+	PRINTFORMW
+	PRINTFORML
+	RESETCOLOR
+	VARSET STONE_PLAYCOUNT
+	VARSET STONE_TUTORIAL
+	VARSET STONE_BATTLECOUNT
+	VARSET STONE_ITEM
+	VARSET STONE_COMBI_WIN
+	VARSET STONE_COMBI_COMBI
+	VARSET STONE_COMBI_CHARA
+	VARSET STONE_COMBI_TROPHY
+	VARSET STONE_FIRSTSEX
+	STONE_UKETSUKEDAY = 0
+	STONE_UKETSUKENAME = 受付水子
 ENDIF
-RETURN 1
+
+;はじめてコンテストに行った
+IF STONE_PLAYCOUNT:0 == 0
+	IF TALENT:MASTER:돌쌓기랭커 > 0
+		IF STONE_BITE_A_DUST > 0
+			IF CHK_DATENOW(CFLAG:MASTER:데이트중) && TARGET == FLAG:데이트상대 && !TARGET == MASTER
+				PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:TARGET%を連れて積み石コンテストに足を運んでみた
+			ELSE
+				PRINTFORMW %CALLNAME:MASTER%は積み石コンテストに足を運んでみた
+			ENDIF
+			PRINTFORML 「こんにちは！はじめまして！ここは積み石コンテストの会場なのですー！ってあれ…？」
+			PRINTFORML
+			PRINTFORMW 「……？参加記録は無いのに積み石ランカーの称号を持ってますね？どういうことでしょう？」
+			PRINTFORMW 「んー………まあ大丈夫でしょう！参加OKです！その称号はそのまま持っててOKです」
+			PRINTFORML
+			PRINTFORMW 「あっもちろん謎の積み石コンテストの称号を引き継がずに消すという選択肢も取れますよ」
+			PRINTFORMW 「引き継いでもデメリットはありませんが、既にベテランなのに新人扱いされる場合があります」
+			PRINTFORMW 「また引き継いでも引き継がなくても、これまでの試合数や勝数はリセットされています」
+			PRINTFORML
+			PRINTFORML 「積み石ランカーの引継ぎをしますか？(※引き継がないを選んだ場合積み石ランクは０からやり直しになります)」
+				CALL ASK_YN("称号を引き継ぐ","称号を引き継がない")
+				IF !RESULT
+					
+				ELSE
+					PRINTFORML %CALLNAME:MASTER%は積み石ランカーの称号を失った…
+					TALENT:MASTER:돌쌓기랭커 = 0
+				ENDIF
+			PRINTFORML
+			PRINTFORML 「では改めまして…」
+		ELSE
+			IF CHK_DATENOW(CFLAG:MASTER:데이트중) && TARGET == FLAG:데이트상대 && !TARGET == MASTER
+				PRINTFORML 「こんにちは！はじめまして！ここは積み石コンテストの会場なのですー！ってあれ…？」
+				PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:TARGET%を連れて前にも参加したことがある積み石コンテストに足を運んでみた
+				PRINTFORML
+				PRINTFORML 「すいません！%CALLNAME:MASTER%さんは以前の積み石コンテストに参加したことありましたね」
+				PRINTFORMW 「ですが…積み石コンテストは新たにバージョンアップして生まれ変わったのです！」
+				PRINTFORMW 「目玉は新設されたカップル部門！%CALLNAME:TARGET%と挑戦できますよー！」
+				PRINTFORMW 「詳しくはHELPを確認してくださいね！」
+				PRINTFORML
+				PRINTFORML 「それで…旧積み石コンテストの称号を引き継ぐことも出来るんですけど…どうします？」
+				PRINTFORMW 「引き継いでもデメリットはありませんが、既にベテランなのに新人扱いされる場合があります」
+				PRINTFORMW 「また引き継いでも引き継がなくても、これまでの試合数や勝数はリセットされます(これまでカウントしていなかったため)」
+				PRINTFORML
+				PRINTFORML 「積み石ランカーの引継ぎをしますか？(※引き継がないを選んだ場合積み石ランクは０からやり直しになります)」
+					CALL ASK_YN("称号を引き継ぐ","称号を引き継がない")
+					IF !RESULT
+						
+					ELSE
+						PRINTFORML %CALLNAME:MASTER%は積み石ランカーの称号を失った…
+						TALENT:MASTER:돌쌓기랭커 = 0
+					ENDIF
+				PRINTFORML
+				PRINTFORML 「では改めまして…」
+			ELSE
+				PRINTFORML 「こんにちは！はじめまして！ここは積み石コンテストの会場なのですー！ってあれ…？」
+				PRINTFORMW %CALLNAME:MASTER%は前にも参加したことがある賽の河原で開かれている積み石コンテストに足を運んでみた
+				PRINTFORML
+				PRINTFORML 「すいません！%CALLNAME:MASTER%さんは以前の積み石コンテストに参加したことありましたね」
+				PRINTFORMW 「ですが…積み石コンテストは新たにバージョンアップして生まれ変わったのですー！」
+				PRINTFORMW 「目玉は新設されたカップル部門！詳しくはHELPを確認してくださいね！」
+				PRINTFORML 「それで…旧積み石コンテストの称号を引き継ぐことも出来るんですけど…どうします？」
+				PRINTFORMW 「引き継いでもデメリットはありませんが、既にベテランなのに新人扱いされる場合があります」
+				PRINTFORMW 「また引き継いでも引き継がなくても、これまでの試合数や勝数はリセットされます(これまでカウントしていなかったため)」
+				PRINTFORML
+				PRINTFORML 「積み石ランカーの引継ぎをしますか？(※引き継がないを選んだ場合積み石ランクは０からやり直しになります)」
+					CALL ASK_YN("称号を引き継ぐ","称号を引き継がない")
+					IF !RESULT
+						
+					ELSE
+						PRINTFORML %CALLNAME:MASTER%は積み石ランカーの称号を失った…
+						TALENT:MASTER:돌쌓기랭커 = 0
+					ENDIF
+				PRINTFORML
+				PRINTFORML 「では改めまして…」
+			ENDIF
+		ENDIF
+	ELSE
+		IF CHK_DATENOW(CFLAG:MASTER:데이트중) && TARGET == FLAG:데이트상대 && !TARGET == MASTER
+			PRINTFORML 「こんにちは！はじめまして！ここは積み石コンテストの会場なのですー！」
+			PRINTFORMW %CALLNAME:MASTER%と%CALLNAME:TARGET%はデート中に賽の河原で開かれている謎のコンテストに足を運んでみた
+			PRINTFORML
+			PRINTFORML 「その名の通り！積み石の技量を競う大会です！」
+			PRINTFORMW 「予約不要でいつでも参加することができますので気軽にどうぞ！」
+			PRINTFORMW 「デート中のお二人はカップル部門での出場をお勧めします！」
+			PRINTFORMW 「詳しくはHELPを確認してくださいね！」
+			PRINTFORML
+			PRINTFORML 「では改めまして…」
+		ELSE
+			PRINTFORML 「こんにちは！はじめまして！ここは積み石コンテストの会場なのですー！」
+			PRINTFORMW %CALLNAME:MASTER%はなんとなしに賽の河原で開かれている謎のコンテストに足を運んでみた
+			PRINTFORML 「その名の通り！積み石の技量を競う大会です！」
+			PRINTFORMW 「予約不要でいつでも参加することができますので気軽にどうぞ！」
+			PRINTFORMW 「初心者でしたらまずは積み木級にチャレンジしてそこからステップアップするのをお勧めします！」
+			PRINTFORMW 「詳しくはHELPを確認してくださいね！」
+			PRINTFORML
+			PRINTFORML 「では改めまして…」
+		ENDIF
+	ENDIF
+	SELECTCASE TALENT:MASTER:돌쌓기랭커
+		CASE 0
+		CASE 1
+			STONE_PLAYCOUNT:1 += 7
+		CASE 2
+			STONE_PLAYCOUNT:1 += 15
+		CASE 3
+			STONE_PLAYCOUNT:1 += 24
+		CASE 4
+			STONE_PLAYCOUNT:1 += 34
+		CASE 5
+			STONE_PLAYCOUNT:1 += 50
+		CASEELSE
+	ENDSELECT
+ENDIF
+
+;受付水子妊娠後
+IF STONE_PLAYCOUNT:2 == 16 && (DAY:0 >= STONE_UKETSUKEDAY + 14)
+	PRINTFORML 「あっ……お久しぶりなのです」
+	PRINTFORMW 「無事、産めました」
+	PRINTFORML
+	PRINTFORMW 「ふふふ……えへへへ……」
+	PRINTFORMW 「おっと！お仕事しないとですね！……忘れ物…取りに来てくださいね」
+	STONE_PLAYCOUNT:2 = 17
+ELSEIF STONE_PLAYCOUNT:2 == 16 && !(DAY:0 >= STONE_UKETSUKEDAY + 14)
+	PRINTFORMW 『現在積み石コンテストはお休みです　{STONE_UKETSUKEDAY + 14 - DAY:0}日後リニューアルオープン』
+	RETURN 0
+ENDIF
+
+;積み石王
+IF STONE_COMBI_TROPHY:31 == 1 && TALENT:MASTER:돌쌓기랭커 == 6
+	PRINTFORMW 「えっすっすごいですー！！！！」
+	PRINTFORMW 「早積み大会の本気瓔花ちゃんに勝ってカップル部門では全制覇？！」
+	PRINTFORMW 「これはもう積み石マスターを超えて積み石王と表現するべきなのです！」
+	PRINTFORMW 「%CALLNAME:MASTER%さんにはこれ以降無料でいくらでも大会に参加できる権利をプレゼント！」
+	PRINTFORMW 「もうやることなんてないかもしれませんけど…また遊びに来てくれると嬉しいですー！」
+	TALENT:MASTER:돌쌓기랭커 = 7
+ENDIF
+
+;今日はじめて来たときの判定
+IF STONE_ENTER < DAY
+	STONE_ENTER = DAY
+	SIF STONE_PLAYCOUNT:2 > 0
+		PRINTFORML 「あっ%CALLNAME:MASTER%さん！」
+	STONE_PLAYCOUNT:1 += 7
+	;受付水子と友達になるとデイリー好感度が増加
+	SIF STONE_PLAYCOUNT:2 > 5
+		STONE_PLAYCOUNT:1 += 3
+	STONE_PLAYCOUNT:0 += 1
+ENDIF
+
+
+IF CHK_DATENOW(CFLAG:MASTER:데이트중) && TARGET == FLAG:데이트상대 && !TARGET == MASTER
+	CALL STONECouple
+;拠点が三途の川～冥界の場合連れ出しているだけでもOK(ただし好感度1000が最低条件)
+ELSEIF MAIN_MAP == 6 && CFLAG:TARGET:동행 && CFLAG:MASTER:동행 
+	IF CFLAG:TARGET:호감도 < 1000
+		PRINTFORMW カップル部門はちょっと…と%CALLNAME:TARGET%に断られてしまった…
+		PRINTFORMW 仕方ない……個人部門に出よう……
+	ELSE
+		CALL STONECouple
+	ENDIF
+ELSE
+	IF TALENT:MASTER:돌쌓기랭커 == 6
+		PRINTL 「積み石コンテストにようこそですー！どの階級に挑戦します？積み石王ですから無料ですよ」
+	ELSE
+		PRINTL 「積み石コンテストにようこそですー！どの階級に挑戦します？参加費は一律￥3000でコンテストに参加できますよ」
+	ENDIF
+	$LOOP1
+	DRAWLINE
+	{
+	CALL ASK_M("EASY-積み木級-(簡単に積める難易度です)",1,
+	"NORMAL-ジェンガ級-(油断してると崩れる難易度です)", TALENT:MASTER:돌쌓기랭커 >= 1,
+	"HARD-トランプタワー級-(一つ目を積むのも緊張する難易度です)",TALENT:MASTER:돌쌓기랭커 >= 2,
+	"LUNATIC-ピラミッド級-(石でも投げないとやってられません)", TALENT:MASTER:돌쌓기랭커 >= 3,
+	"PHANTASM-バベルの塔級-(石を投げても当たりません)", TALENT:MASTER:돌쌓기랭커 >= 4,
+	"今日のテーマは？",1, "戦績",1, "HELP",1, "やめる",1)
+	}
+	IF RESULT == 0
+		PRINTFORMW 「積み木級に挑戦ですね！二回勝ち抜けば優勝ですー！」
+		CALL Stone_Entry(0, 2, 5000)
+	ELSEIF RESULT == 1
+		PRINTFORMW 「ジェンガ級に挑戦ですね！もう積み石にも慣れました？三回勝ち抜けば優勝ですー！」
+		CALL Stone_Entry(1, 3, 7000)
+	ELSEIF RESULT == 2
+		PRINTFORMW 「トランプタワー級に挑戦ですね！みんなあなたに注目してるみたいです！四回勝ち抜けば優勝ですー！」
+		CALL Stone_Entry(2, 4, 10000)
+	ELSEIF RESULT == 3
+		PRINTFORMW 「ピラミッド級に挑戦ですね！ついにここまで来ましたね！五回勝ち抜けば優勝ですー！」
+		CALL Stone_Entry_EX(3, 5, 15000)
+	ELSEIF RESULT == 4
+		PRINTFORMW 「バベルの塔級に挑戦するんです！？幻と言われたこの階級に挑むなんて…！頑張ってくださいね！五回勝ち抜けば優勝ですー！」
+		CALL Stone_Entry_EX(4, 5, 30000)
+	ELSEIF RESULT == 5
+		CALL StoneTheme_Intro
+		GOTO LOOP1
+	ELSEIF RESULT == 6
+		CALL StoneBattle_record
+		GOTO LOOP1
+	ELSEIF RESULT == 7
+		CALL Stone_Help
+		GOTO LOOP1
+	ELSEIF RESULT == 8
+		RETURN -1
+	ENDIF
+	RETURN 1
+ENDIF
+
+
 
 ;-------------------------------------------------
 ;実行可能判定
 ;-------------------------------------------------
-;石積みコンテスト
+;積み石コンテスト
 @COM_ABLE633
 ;一括管理
 SIF GLOBAL_COMABLE(633)
 	RETURN RESULT
-SIF !INRANGE(TIME, 540, 1020)
+SIF !INRANGE(TIME, 480, 1080)
 	RETURN 0
 
 IF !AT_HOME(MASTER)
@@ -84,6 +258,11 @@ ELSE
 	SIF CFLAG:MASTER:현재위치 != 602
 		RETURN 0
 ENDIF
+
+;デート中はデート相手と一緒じゃないとダメ
+SIF CHK_DATENOW(CFLAG:12) && TARGET != FLAG:데이트상대
+	RETURN 0
+
 ;睡眠中
 SIF CFLAG:수면
 	RETURN 0
@@ -92,59 +271,9 @@ SIF FLAG:70
 	RETURN 0
 RETURN 1
 
-@Stone_Help
-{
-CALL ASK_M("돌쌓기 경연이란？",1,"난이도에 대해서 그 첫번째",1,"난이도에 대해서 그 두번째",1,"우승상금이 얼마인지 알려줘",1,
-"이길 수가 없어요. 무엇을 단련해야 돼요?",1, "이 경연은 언제 개최해?",1, "돌아간다",1)
-}
-SELECTCASE RESULT
-	CASE 0
-		PRINTFORML 【돌쌓기 경연이란？】
-		PRINTFORML 에비스 에이카가 주최하는 돌쌓기에 대한 여러가지 것들을 겨루는 경연대회입니다
-		PRINTFORML 여러 부문으로 나뉘고 있습니다만… 당신이 참가할 수 있는 것은 빨리 쌓기 부문뿐입니다
-		PRINTFORML 빨리 쌓기 부문은 제한시간이 종료될 때 쌓은 돌의 수를 겨루는 부문입니다. 열심히 해주세요
-		PRINTFORMW 또한, 자신이 가진 능력은 사용해서는 안 된다는 규칙이 있습니다
-		PRINTFORMW
-	CASE 1
-		PRINTFORML 【난이도에 대해서 그 첫번째】
-		PRINTFORML 빨리 쌓기 부문은 많은 참가자들이 있으며, 그 기량에 따라 계급이 배정됩니다
-		PRINTFORML 처음에는 EASY밖에 참가할 수 없지만 우승하면 다음 난이도에 도전할 수 있게 됩니다
-		PRINTFORML 난이도에 따라 상금도 호화로워집니다
-		PRINTFORMW 참가비는 일률적으로 \3000입니다. 분발해서 참가해 주십시오
-		PRINTFORMW
-	CASE 2
-		PRINTFORML 【난이도에 대해서 그 두번째】
-		PRINTFORML 난이도에 따라 우승까지 싸우는 횟수도 달라집니다
-		PRINTFORML EASY에서는 2번 이기면 우승이지만 NORMAL에서는 3번, HARD에서는 4번… 이런 식으로 늘어납니다
-		PRINTFORML 아직 미실장의 데이트중에만 참가할 수 있는 등급은 단 한 번의 승리로 상품을 받게 됩니다
-		PRINTFORMW 노려라! 돌쌓기 마스터!
-		PRINTFORMW
-	CASE 3
-		PRINTFORML 【우승상금이 얼마인지 알려줘】
-		PRINTFORML EASY - ￥5000
-		PRINTFORML NORMAL - ￥7000
-		PRINTFORML HARD - ￥10000
-		PRINTFORML LUNATIC - ￥15000
-		PRINTFORMW ????? - ￥30000
-		PRINTFORMW
-	CASE 4
-		PRINTFORML 【이길 수가 없어요. 무엇을 단련해야 돼요?】
-		PRINTFORML 손재주가 있는 사람일수록 많이 쌓을 수 있습니다
-		PRINTFORML 기교·손가락 기술은 물론, 조합 등의 손가락을 사용하는 기능을 단련하면 많이 쌓을 수 있습니다
-		PRINTFORML 또한, 몇 가지 가지고 있으면 유리해지는 소질도 존재하고 있습니다
-		PRINTFORMW 참고로 욕망의 수치가 높으면 조금 불리해집니다. 돌을 쌓는 일에는 욕망이 필요없습니다
-		PRINTFORMW
-	CASE 5
-		PRINTFORML 【이 경연은 언제 개최해?】
-		PRINTFORML 9:00 ~ 17:00까지 입니다
-		PRINTFORML 그 시간에 일이 있을 텐데도 경연에 참가하는 아이가 몇몇 있습니다만……
-		PRINTFORML 뭐 신경쓰지 마세요
-		PRINTFORMW 장래적으로 요일을 한정하거나 하루 한 번으로 할 수도 있을지도?
-		PRINTFORMW
-	CASE 6
-		RETURN 0
-ENDSELECT
-RESTART
+;-------------------------------------------------
+;積み石コンテスト実行
+;-------------------------------------------------
 
 @Stone_Entry(Rank, MaxBattle, Prize)
 #DIM Rank
@@ -152,42 +281,117 @@ RESTART
 #DIM Prize
 #DIM WIN_P
 #DIM difficulty
-
 WIN_P = 0
 difficulty = Rank
-MONEY -= 3000
-TIME += 60
+IF !TALENT:MASTER:돌쌓기랭커 == 6 && MONEY < 3000
+	PRINTFORMW 「あの……お金が足りないみたいなんですけど……」
+	STONE_PLAYCOUNT:1 -= 50
+	IF STONE_PLAYCOUNT:2 >= 14
+		PRINTFORMW 「ほーんとしょーがない人%UNICODE(0x2764)%わたしが代わりに払ってあげますよ%UNICODE(0x2764)%」
+	ELSEIF STONE_PLAYCOUNT:2 >= 5
+		PRINTFORMW 「……しょうがない人なのです。友達のよしみでわたしが代わりに払ってあげますよ」
+	ELSE
+		PRINTFORMW 「はぁ……今回だけは特別にやらせてあげますが今回だけですからね？」
+	ENDIF
+ENDIF
+
+SIF !TALENT:MASTER:돌쌓기랭커 == 6 && MONEY < 3000
+	MONEY -= 3000
+
+	
+;持ち込みアイテム
+IF STONE_ITEM:0 > 0
+	PRINTFORML 持ち込む装備を選んでください
+	STONE_ITEM:1 = 0
+	{
+	CALL ASK_M("小石ころ帽子(自分の事故がときどき無かったことになる)", 1,
+	"肉体強化地蔵(最初に積める石が少し増える)", STONE_ITEM:0 >= 2,
+	"気ままな積み石(相手の事故率が少し上がる)", STONE_ITEM:0 >= 3,
+	"正直すぎる石しるべ(相手の積み石を精確に予測できる)", STONE_ITEM:0 == 4,
+	"空白の積み石(何も装備しない)",1,)
+	}
+	IF RESULT == 0
+		STONE_ITEM:1 = 1
+	ELSEIF RESULT == 1
+		STONE_ITEM:1 = 2
+	ELSEIF RESULT == 2
+		STONE_ITEM:1 = 3
+	ELSEIF RESULT == 3
+		STONE_ITEM:1 = 4
+	ELSEIF RESULT == 4
+	ENDIF
+ENDIF
+
 FOR WIN_P, 0, MaxBattle
 	IF WIN_P > 0
+		STONE_PLAYCOUNT:1 += 1
+		STONE_BATTLECOUNT:0 += 1
+		STONE_BATTLECOUNT:1 += 1
 		PRINTFORMW
-		PRINTFORMW 「{WIN_P}연승 축하해! 여기서 그만둘 수도 있는데 어떻게 할 거야? 참가비만큼은 돌려줄 건데?」
-		CALL ASK_YN("계속한다","그만둔다")
+		IF TALENT:MASTER:돌쌓기랭커 == 6
+			PRINTFORMW 「{WIN_P}戦目勝利おめでとうございますっ！ここでやめることもできますけど…どうします？」
+		ELSE
+			PRINTFORMW 「{WIN_P}戦目勝利おめでとうございますっ！ここでやめることもできますけどどうします？参加費分は戻って来ますが…」
+		ENDIF
+		CALL ASK_YN("続ける","やめる")
 		IF RESULT
-			PRINTFORMW 「그렇구나… 또 참가해줘」
+			PRINTFORMW 「そっか…またのご参加お待ちしてまーす！」
+			SIF !TALENT:MASTER:돌쌓기랭커 == 6 && MONEY < 3000
 			MONEY += 3000
+			CALL STONE_UKETSUKE
+			TIME += 50
 			RETURN -1
 		ELSE
-			PRINTFORMW 「그렇게 나와야지!」
+			PRINTFORMW 「そうこなくっちゃです！」
 		ENDIF
 	ENDIF
-	PRINTFORMW 「어디 보자… 제 {WIN_P + 1}회전 그 상대는…」
+	PRINTFORMW 「えーっと…第{WIN_P + 1}回戦の相手は…」
 	CALL STONELEVEL(difficulty)
 	IF RESULT == 1
-		PRINTFORMW 「졌으니까 여기서 끝… 수고했어. 또 참가해줘!」
+		PRINTFORMW 「負けたのでここで終わりです……お疲れ様でした…またのご参加お待ちしてます！」
+		STONE_BATTLECOUNT:0 += 1
+		CALL STONE_UKETSUKE
+		TIME += 50
 		RETURN 0
 	ELSE
 		difficulty ++
 	ENDIF
 NEXT
-PRINTFORMW 「우승 축하해! 상금 ￥{Prize}을 받아!」
+
+PRINTFORMW 「優勝おめでとうございますっ！賞金の￥{Prize}をどうぞですっ！」
+STONE_PLAYCOUNT:1 += 3
+STONE_BATTLECOUNT:0 += 1
+STONE_BATTLECOUNT:1 += 1
 IF TALENT:MASTER:돌쌓기랭커 > Rank
-	PRINTFORML 「이것보다 윗급에서도 통하는 거 아니야?」
+	PRINTFORML 「これより上の級でも通用するんじゃない？」
 ELSE
-	PRINTFORML 「그리고 젠가급 첫 우승의 당신에게는… 새로운 칭호를 선물!」
+	IF TALENT:MASTER:돌쌓기랭커 == 0
+		PRINTFORML 「そして積み木級初優勝のあなたは…積み石ビギナーと呼ぶに相応しいです！」
+		PRINTFORML 「あなたは積み石コンテストジェンガ級への挑戦権を得たみたいです！」
+		PRINTFORML 「ここから始まるあなたの積み石伝説を期待しています！」
+	ELSEIF TALENT:MASTER:돌쌓기랭커 == 1
+		PRINTFORML 「そして積み木級初優勝のあなたは…積み石ルーキーと呼ぶに相応しいです！」
+		PRINTFORML 「あなたは積み石コンテストトランプタワー級への挑戦権を得たみたいです！」
+		PRINTFORML 「期待の新星だって積み石界隈で話題になってるみたいです！」
+	ELSEIF TALENT:MASTER:돌쌓기랭커 == 2
+		PRINTFORML 「そして積み木級初優勝のあなたは…積み石エリートと呼ぶに相応しいです！」
+		PRINTFORML 「あなたは積み石コンテストピラミッド級への挑戦権を得たみたいです！」
+		PRINTFORML 「順調にキャリアを積み上げていますね！積み石だけに！」
+	ENDIF
 	TALENT:MASTER:돌쌓기랭커 = Rank + 1
+	STONE_PLAYCOUNT:1 += 7 + RANK
 ENDIF
-PRINTFORMW 「또 참가해~」
-MONEY += Prize
+PRINTFORMW 「またのご参加お待ちしてます！」
+IF !TALENT:MASTER:돌쌓기랭커 == 6 && MONEY < 3000
+	MONEY += (Prize - 3000)
+ELSE
+	MONEY += Prize
+ENDIF
+
+SIF STONE_PLAYCOUNT:2 > 2
+	ITEM:활석 += 1
+CALL STONE_UKETSUKE
+TIME += 60
 RETURN 0
 
 @Stone_Entry_EX(Rank, MaxBattle, Prize)
@@ -196,9 +400,44 @@ RETURN 0
 #DIM Prize
 #DIM WIN_P
 #DIM difficulty
-TIME += 60
 WIN_P = 0
-MONEY -= 3000
+IF !TALENT:MASTER:돌쌓기랭커 == 6 && MONEY < 3000
+	PRINTFORMW 「あの……お金が足りないみたいなんですけど……」
+	STONE_PLAYCOUNT:1 -= 50
+	IF STONE_PLAYCOUNT:2 >= 14
+		PRINTFORMW 「ほーんとしょーがない人%UNICODE(0x2764)%わたしが代わりに払ってあげますよ%UNICODE(0x2764)%」
+	ELSEIF STONE_PLAYCOUNT:2 >= 5
+		PRINTFORMW 「……しょうがない人なのです。友達のよしみでわたしが代わりに払ってあげますよ」
+	ELSE
+		PRINTFORMW 「はぁ……今回だけは特別にやらせてあげますが今回だけですからね？」
+	ENDIF
+ENDIF
+SIF !TALENT:MASTER:돌쌓기랭커 == 6 && MONEY < 3000
+	MONEY -= 3000
+
+;持ち込みアイテム
+IF STONE_ITEM:0 > 0
+	PRINTFORML 持ち込む装備を選んでください
+	STONE_ITEM:1 = 0
+	{
+	CALL ASK_M("小石ころ帽子(自分の事故がときどき無かったことになる)", 1,
+	"肉体強化地蔵(最初に積める石が少し増える)", STONE_ITEM:0 >= 2,
+	"気ままな積み石(相手の事故率が少し上がる)", STONE_ITEM:0 >= 3,
+	"正直すぎる石しるべ(相手の積み石を精確に予測できる)", STONE_ITEM:0 == 4,
+	"空白の積み石(何も装備しない)",1,)
+	}
+	IF RESULT == 0
+		STONE_ITEM:1 = 1
+	ELSEIF RESULT == 1
+		STONE_ITEM:1 = 2
+	ELSEIF RESULT == 2
+		STONE_ITEM:1 = 3
+	ELSEIF RESULT == 3
+		STONE_ITEM:1 = 4
+	ELSEIF RESULT == 4
+	ENDIF
+ENDIF
+
 IF Rank == 3
 	difficulty = 5
 ELSEIF Rank == 4
@@ -207,24 +446,38 @@ ENDIF
 
 FOR WIN_P, 0, MaxBattle
 	IF WIN_P > 0
+		STONE_PLAYCOUNT:1 += 1
+		STONE_BATTLECOUNT:0 += 1
+		STONE_BATTLECOUNT:1 += 1
 		PRINTFORMW
 		;決勝前
 		IF WIN_P == MaxBattle - 1
-			PRINTFORMW 「네 번째 판 승리 축하해! 다음 상대는 최강이니까 정신 바짝 차리고 있어! 여기서 그만둘 수도 있는데 어떻게 할 거야? 참가비만큼은 돌려줄 건데?」
+			IF TALENT:MASTER:돌쌓기랭커 == 6
+				PRINTFORMW 「四戦目勝利おめでとうございますっ！次の相手はえーかちゃんだけど…%CALLNAME:MASTER%さんなら大丈夫だよね！」
+			ELSE
+				PRINTFORMW 「四戦目勝利おめでとうございますっ！次の相手は最強だから気を引き締めてくださいね！ここでやめることもできるけどどうします？」
+			ENDIF
 		ELSE
-			PRINTFORMW 「{WIN_P}연승 축하해! 여기서 그만둘 수도 있는데 어떻게 할 거야? 참가비만큼은 돌려줄 건데?」
+			IF TALENT:MASTER:돌쌓기랭커 == 6
+				PRINTFORMW 「{WIN_P}戦目勝利おめでとうございますっ！ここでやめることもできるけどどうします？」
+			ELSE
+				PRINTFORMW 「{WIN_P}戦目勝利おめでとうございますっ！ここでやめることもできるけどどうします？参加費分は戻ってきますが…」
+			ENDIF
 		ENDIF
-		CALL ASK_YN("계속한다","그만둔다")
+		CALL ASK_YN("続ける","やめる")
 		IF RESULT
-			PRINTFORMW 「그렇구나… 또 참가해줘」
-			MONEY += 3000
+			PRINTFORMW 「そっか…またのご参加お待ちしてます！」
+			SIF !TALENT:MASTER:돌쌓기랭커 == 6 && MONEY < 3000
+				MONEY += 3000
+			CALL STONE_UKETSUKE
+			TIME += 50
 			RETURN -1
 		ELSE
-			PRINTFORMW 「그렇게 나와야지!」
+			PRINTFORMW 「그렇게 나와야지！」
 		ENDIF
 	ENDIF
 	IF WIN_P == MaxBattle - 1
-		PRINTFORMW 「각오는 됐어? 최종전 상대는…… 그래!」
+		PRINTFORMW 「さていよいよ最終戦……覚悟はできました？最終戦の相手は……そう！」
 		CALL STONELEVEL(Rank + 4)
 	ELSE
 		PRINTFORMW 「어디 보자…제{WIN_P + 1}회전 그 상대는…」
@@ -232,36 +485,1801 @@ FOR WIN_P, 0, MaxBattle
 	ENDIF
 	IF RESULT == 1
 		IF WIN_P == MaxBattle - 1
-			PRINTFORMW 「에이카와 저렇게까지 싸우다니 대단해! 아쉬웠어… 또 도전해!」
+			PRINTFORML
+			PRINTFORMW 「えーかちゃんとあそこまで渡り合うなんてすごいですっ！…また挑戦してくださいね！」
+			STONE_PLAYCOUNT:1 += 1
 		ELSE
-			PRINTFORMW 「졌으니까 여기서 끝… 수고했어. 또 참가해줘!」
+			PRINTFORML
+			PRINTFORMW 「お疲れ様でした。またのご参加お待ちしてます！」
 		ENDIF
+		STONE_BATTLECOUNT:0 += 1
+		CALL STONE_UKETSUKE
+		TIME += 50
 		RETURN 0
 	ELSE
 		difficulty = MIN(difficulty + 1, 6)
 	ENDIF
 NEXT
-PRINTFORMW 「우승 축하해! 상금 ￥{Prize}을 받아!」
+PRINTFORMW 「優勝おめでとうございますっ！賞金の￥{Prize}をどうぞ！」
 ;ピラミッド
 IF Rank == 3
 	IF TALENT:MASTER:돌쌓기랭커 > Rank
-		PRINTFORML 「이것보다 윗급에서도 통하는 거 아니야?」
+		PRINTFORML 「これより上の級でも全然通用しそうですね…」
 	ELSE
-		PRINTFORMW 「그리고 피라미드급 첫 우승의 당신에게는… 돌쌓기 베테랑의 칭호를 선물!」
-		PRINTFORMW 「근데 말이지…」
-		PRINTFORMW 「이게 끝인 줄 알았어?…… 실은 하나 더 위에 진심의 진심인 에이카와 싸울 수 있다고 하는 환상이라고 불리는 계급이 있어. 엄청 강하니까 힘내!」
+		PRINTFORMW 「そしてピラミッド級初優勝のあなたには…積み石ベテランの称号をプレゼントいたしますっ！」
+		PRINTFORMW 「ところで…」
+		PRINTFORMW 「LUNATICだからってこれで終わりかと思いました？……実はもう一個上に本気の本気のえーかちゃんと戦えるっていう幻と言われた階級があるんです」
+		PRINTFORMW 「とっても強いんですが…%CALLNAME:MASTER%さんならいけちゃうかもですね！」
 		TALENT:MASTER:돌쌓기랭커 = Rank + 1
+		STONE_PLAYCOUNT:1 += 10
 	ENDIF
 ;バベル
 ELSEIF Rank == 4
 	IF TALENT:MASTER:돌쌓기랭커 >= 5
-		PRINTFORML 「또 진심인 에이카를 이겨버렸어… 대단해!」
+		PRINTFORML 「또 진심인 에이카짱에게 이겨버렸어… 대단해!」
+		STONE_PLAYCOUNT:1 += 7
 	ELSE
-		PRINTFORML 「그리고 바벨탑급 첫 우승의 당신에게는… 랄까 에이카가 먼저 말해버렸지만…… 돌쌓기 마스터의 칭호를 선물! 굉장해!」
+		PRINTFORML 「そしてバベルの塔級初優勝の%CALLNAME:MASTER%さんには…ってえーかちゃんが先に言っちゃいましたけど積み石マスターの称号をプレゼント！すごいですー！」
 		TALENT:MASTER:돌쌓기랭커 = 5
+		STONE_PLAYCOUNT:1 += 15
 	ENDIF
+	SIF STONE_PLAYCOUNT:2 == 13
+		CALL STONE_UKETSUKE_H
+ENDIF
+STONE_PLAYCOUNT:1 += 1
+STONE_BATTLECOUNT:0 += 1
+STONE_BATTLECOUNT:1 += 1
+PRINTFORMW 「また参加してくださいね！」
+IF !TALENT:MASTER:돌쌓기랭커 == 6 && MONEY < 3000
+	MONEY += (Prize - 3000)
+ELSE
+	MONEY += Prize
+ENDIF
+SIF STONE_PLAYCOUNT:2 > 2
+	ITEM:활석 += 1
+IF STONE_PLAYCOUNT:2 == 9 || STONE_PLAYCOUNT:2 == 11
+	CALL STONE_UKETSUKE_H
+ELSE
+	CALL STONE_UKETSUKE
+ENDIF
+TIME += 60
+RETURN 0
+
+
+;-------------------------------------------------
+;積み石コンテストカップル部門関数
+;-------------------------------------------------
+@STONECouple
+	IF TALENT:MASTER:돌쌓기랭커 == 6
+		PRINTL 「積み石コンテストにようこそですー！どの階級に挑戦します？積み石王ですから無料ですよ」
+	ELSE
+		PRINTL 「積み石コンテストにようこそですー！カップル部門も￥3000で参加できますよっ！」
+	ENDIF
+$LOOP2
+DRAWLINE
+{
+CALL ASK_M("カップル部門に出場する",1, "今日のテーマは？",1, "戦績",1, "HELP",1, "やめる",1)
+}
+IF RESULT == 0
+	PRINTFORMW 「カップル部門に挑戦ですね！じゃあこちらに！」
+	SIF MONEY < 3000
+		PRINTFORMW 出場料3000円が無かったので代わりに%CALLNAME:TARGET%に払ってもらった…
+		CFLAG:TARGET:호감도 -= 50
+	CALL STONECombiBattle
+ELSEIF RESULT == 1
+	CALL StoneTheme_Intro
+	GOTO LOOP2
+ELSEIF RESULT == 2
+	CALL StoneBattle_record
+	GOTO LOOP2
+ELSEIF RESULT == 3
+	CALL StoneCombi_Help
+	GOTO LOOP2
+ELSEIF RESULT == 4
+	RETURN -1
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;積み石コンテストの戦績を呼び出す関数
+;-------------------------------------------------
+@StoneBattle_record
+SETCOLOR C_GREEN
+PRINTFORML ◆%CALLNAME:MASTER%の積み石戦績◆
+RESETCOLOR
+PRINTFORML
+PRINTFORML
+PRINTFORML 早積み部門{STONE_BATTLECOUNT:0}戦　{STONE_BATTLECOUNT:1}勝
+PRINTFORML カップル部門{STONE_BATTLECOUNT:2}戦　{STONE_BATTLECOUNT:3}勝
+;デバッグ用
+;PRINTFORML 通った日数{STONE_PLAYCOUNT:0}受付水子好感度{STONE_PLAYCOUNT:1}進行度{STONE_PLAYCOUNT:2}
+PRINTFORML
+IF TALENT:MASTER:돌쌓기랭커 == 6
+	SETCOLOR C_RED
+	PRINTFORML ★%GET_TALENTNAME(274,TALENT:MASTER:274)%
+	RESETCOLOR
+ELSEIF !TALENT:MASTER:돌쌓기랭커 == 0
+	SETCOLOR C_YELLOW
+	PRINTFORML ★%GET_TALENTNAME(274,TALENT:MASTER:274)%
+	RESETCOLOR
+ELSE
+	SETCOLOR C_L_GRAY
+	PRINTFORML ●あなたはまだ早積み部門では実績を積み上げていません
+	RESETCOLOR
+ENDIF
+PRINTFORML
+IF TALENT:MASTER:돌쌓기랭커 == 4
+	SETCOLOR C_YELLOW
+	PRINTFORML ★瓔花に勝利済
+	RESETCOLOR
+ELSEIF TALENT:MASTER:돌쌓기랭커 > 4
+	SETCOLOR C_RED
+	PRINTFORML ★本気の瓔花に勝利済
+ELSE
+	SETCOLOR C_L_GRAY
+	PRINTFORML ●あなたは？？？に勝利していません
 ENDIF
 
-PRINTFORMW 「또 참가해요~」
-MONEY += Prize
-RETURN 0
+PRINTFORML
+IF STONE_PLAYCOUNT:3 == 0
+	SETCOLOR C_L_GRAY
+	PRINTFORML ●あなたはまだカップル部門では実績を積み上げていません
+	RESETCOLOR
+ELSEIF STONE_COMBI_TROPHY:31 == 1
+	SETCOLOR C_RED
+	PRINTFORML ★全てのカップル部門のテーマを制覇した
+	RESETCOLOR
+ELSE
+	SETCOLOR C_YELLOW
+	PRINTFORML ★{STONE_PLAYCOUNT:3}個のテーマで優勝した
+	RESETCOLOR 
+ENDIF
+PRINTFORML
+IF STONE_PLAYCOUNT:2 < 14
+	SETCOLOR C_L_GRAY
+	PRINTFORML ●？？？？？
+	RESETCOLOR
+ELSEIF STONE_PLAYCOUNT:2 > 15
+	SETCOLOR C_RED
+	PRINTFORML ★%STONE_UKETSUKENAME%を妊娠させた
+	RESETCOLOR
+ELSE
+	SETCOLOR C_YELLOW
+	PRINTFORML ★%STONE_UKETSUKENAME%ととても仲良くなった！
+	RESETCOLOR 
+ENDIF
+PRINTFORML
+PRINTFORML
+IF DAY:3 == 31
+	PRINTFORML 本日は何でもありデーです
+ELSE
+	PRINTFORML 今日のテーマ:%STONECombiDAY(DAY:3)%での%CALLNAME:MASTER%の最高得点
+	IF STONE_COMBI_WIN:(DAY:3) == 0
+		SETCOLOR C_L_GRAY
+		PRINTFORML ●あなたはまだこのテーマに参加したことがありません
+		RESETCOLOR
+	ELSE
+		PRINTFORML {STONE_COMBI_WIN:(DAY:3)}点 パートナー…%CALLNAME:(STONE_COMBI_COMBI:(DAY:3))%
+	ENDIF
+	PRINTFORML
+	IF (MAIN_MAP == 6 && CFLAG:TARGET:동행) || CHK_DATENOW(CFLAG:12)
+		PRINTFORML 今日のテーマ:%STONECombiDAY(DAY:3)%での%CALLNAME:TARGET%の最高得点
+		IF STONE_COMBI_WIN:(DAY:3) == 0
+			SETCOLOR C_L_GRAY
+			PRINTFORML ●%CALLNAME:TARGET%はまだこのテーマに参加したことがありません
+			RESETCOLOR
+		ELSE
+			PRINTFORML {STONE_COMBI_CHARA:TARGET:(DAY:3)}点 
+		ENDIF
+	ENDIF
+ENDIF
+PRINTFORML
+
+{
+CALL ASK_M("もっと自分のデータを詳しく見たい",1,
+			"もっとパートナーのデータを詳しく見たい", (MAIN_MAP == 6 && CFLAG:TARGET:동행) || (CHK_DATENOW(CFLAG:MASTER:데이트중) && TARGET == FLAG:데이트상대 && !TARGET == MASTER) ,
+			"やめる",1)
+}
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML 【もっと自分のデータを詳しく見たい】
+		SETCOLOR C_YELLOW
+		PRINTFORML 優勝済のテーマは黄色で表示されます
+		RESETCOLOR
+		DRAWLINE
+		FOR LOCAL,1, 30
+			SIF STONE_COMBI_WIN:LOCAL == 0
+				CONTINUE
+			SIF STONE_COMBI_WIN:LOCAL > 79
+				SETCOLOR C_YELLOW
+			PRINTFORML %STONECombiDAY(LOCAL)% 最高得点{STONE_COMBI_WIN:LOCAL}点 パートナー…%CALLNAME:(STONE_COMBI_COMBI:LOCAL)%"
+			SIF STONE_COMBI_WIN:LOCAL >79
+				RESETCOLOR
+		NEXT
+		PRINTFORMW
+	CASE 1
+		PRINTFORML 【もっとパートナーのデータを詳しく見たい】
+		SETCOLOR C_YELLOW
+		PRINTFORML 優勝済のテーマは黄色で表示されます
+		RESETCOLOR
+		DRAWLINE
+		FOR LOCAL,1, 30
+			SIF STONE_COMBI_CHARA:TARGET:LOCAL == 0
+				CONTINUE
+			SIF STONE_COMBI_CHARA:TARGET:LOCAL >79
+				SETCOLOR C_YELLOW
+			PRINTFORML %STONECombiDAY(LOCAL)% 最高得点{STONE_COMBI_CHARA:TARGET:LOCAL}点"
+			SIF STONE_COMBI_CHARA:TARGET:LOCAL >79
+				RESETCOLOR
+		NEXT
+		PRINTFORMW
+	CASE 2
+		RETURN 0
+ENDSELECT
+RESTART
+
+;-------------------------------------------------
+;積み石コンテストのヘルプを呼び出す関数
+;-------------------------------------------------
+@Stone_Help
+{
+IF STONE_TUTORIAL:0 == 1 && STONE_TUTORIAL:1 == 1 && STONE_TUTORIAL:2 == 1 && STONE_TUTORIAL:3 == 1
+&& STONE_TUTORIAL:4 == 1 && STONE_TUTORIAL:5 == 1 && STONE_TUTORIAL:6 == 1 && STONE_TUTORIAL:9 == 0
+}
+	PRINTFORML 「あっ全部聞いてくれたんですね！ちょっとめんどくさかったと思うんですけど…」
+	PRINTFORMW 「楽しく聞いてくださったのならわたしもとっても嬉しいです」
+	PRINTFORMW %STONE_UKETSUKENAME%の好感度が30上がった！
+	PRINTFORMW 
+	STONE_PLAYCOUNT:1 += 30
+	STONE_TUTORIAL:9 = 1
+ENDIF
+
+PRINTFORMW
+IF STONE_WASUREMONO < DAY
+	PRINTL 「なんでもわたしに聞いてくださいね！」
+ELSE
+	PRINTL 「もう元の業務に戻りますよっ！それで何か聞きたいことはありますか？」
+ENDIF
+{
+CALL ASK_M("積み石コンテストって？",1, "難易度について",1, "優勝賞金なにか教えて",1, "勝てません。何を鍛えたらいいですか？",1,
+"このコンテストっていつやってるの？",1, "テーマってなに？",1, "実績について",1,
+"ごめんなさい忘れものをしてしまって…",(STONE_PLAYCOUNT:2 >= 12) && STONE_WASUREMONO < DAY, "もどる",1)
+}
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML 【積み石コンテストって？】
+		PRINTFORML 戎瓔花主催の積み石に関する色んな事を競うコンテストなのです
+		PRINTFORML さまざまな部門に分けられていますが…あなた一人で参加できるのは早積み部門だけとなっています
+		PRINTFORML デート中であれば、カップル部門に参加することができます
+		PRINTFORML 早積み部門は制限時間終了時に積んでいる石の数を競う部門です。頑張ってください
+		PRINTFORML なお、自分の持つ能力は使用してはいけないルールとなっています
+		PRINTFORMW
+		SIF STONE_TUTORIAL:0 == 0
+			STONE_TUTORIAL:0 = 1
+	CASE 1
+		PRINTFORML 【難易度について】
+		PRINTFORML 早積み部門はたくさんの参加者がおり、その技量に応じた階級が振り分けられています
+		PRINTFORML 最初はEASYしか参加できませんが優勝すれば次の難易度に挑戦できるようになります
+		PRINTFORML 難易度に応じて優勝までに戦う回数も変わって大変ですが、賞金も豪華になっていきます
+		PRINTFORML 参加費は一律￥3000です。奮ってご参加くださいなのです
+		PRINTFORMW
+		SIF STONE_TUTORIAL:1 == 0
+			STONE_TUTORIAL:1 = 1
+	CASE 2
+		PRINTFORML 【優勝賞金なにか教えて】
+		PRINTFORML EASY - ￥5000
+		PRINTFORML NORMAL - ￥7000
+		PRINTFORML HARD - ￥10000
+		PRINTFORML LUNATIC - ￥15000
+		PRINTFORML ????? - ￥30000
+		PRINTFORMW
+		SIF STONE_TUTORIAL:2 == 0
+			STONE_TUTORIAL:2 = 1
+	CASE 3
+		PRINTFORML 【勝てません。何を鍛えたらいいですか？】
+		PRINTFORML 手先が器用な人ほど多く積むことができるのです
+		PRINTFORML 技巧・指技術はもちろんのこと、調合などの指を使う技能を鍛えると多く積めます
+		PRINTFORML またいくつか持っていると有利になる素質も存在しています
+		PRINTFORML ちなみに欲望の数値が高いと少し不利になります。石を積むという作業に欲望は必要ないのです
+		PRINTFORMW
+		SIF STONE_TUTORIAL:3 == 0
+			STONE_TUTORIAL:3 = 1
+	CASE 4
+		PRINTFORML 【このコンテストっていつやってるの？】
+		PRINTFORML ８：００～１８：００までなのです
+		PRINTFORML いくつかその時間に仕事があるはずなのにコンテストに参加している子がいますが……
+		PRINTFORML まあ気にしないでください
+		PRINTFORMW
+		SIF STONE_TUTORIAL:4 == 0
+			STONE_TUTORIAL:4 = 1
+	CASE 5
+		PRINTFORML 【テーマってなに？】
+		PRINTFORML デート中のみ参加できる人間ピラミッド級カップル部門専用の指標なのです
+		PRINTFORML カップル部門は早積み勝負ではなく、ペアで積み石作品を作って採点されるシステムで
+		PRINTFORML 採点のための要素として日ごとにテーマが決まっており、そのテーマに沿うと高得点になりやすいです
+		PRINTFORML テーマに沿えるかどうかはペアの少女の好みがテーマと合致してるかにかかっています
+		PRINTFORML カップル部門以外ではテーマは関係ないのでお一人様は気にする必要はありません
+		PRINTFORMW
+		SIF STONE_TUTORIAL:5 == 0
+			STONE_TUTORIAL:5 = 1
+	CASE 6
+		PRINTFORML 【実績について】
+		PRINTFORML 積み石コンテスト関係の実績が表示されます
+		PRINTFORML 早積み部門では積み石マスターになること、カップル部門では全テーマ制覇が目標です
+		PRINTFORML その項目の目標を完全達成すると赤くなりますよ(※妊娠フラグがオフだと一つだけ完全達成不可)
+		PRINTFORML ？？？？？の実績が埋まらない？なら……デートしてないときに何度も積み石コンテストに通うといいのです
+		PRINTFORMW 
+		SIF STONE_TUTORIAL:6 == 0
+			STONE_TUTORIAL:6 = 1
+	CASE 7
+		PRINTFORML 【ごめんなさい忘れものをしてしまって…】
+		CALL STONE_UKETSUKESEX(1)
+	CASE 8
+		RETURN 0
+ENDSELECT
+RESTART
+
+;-------------------------------------------------
+;積み石コンテストのカップル部門のヘルプを呼び出す関数
+;-------------------------------------------------
+@StoneCombi_Help
+
+{
+IF STONE_TUTORIAL:10 == 1 && STONE_TUTORIAL:11 == 1 && STONE_TUTORIAL:12 == 1 && STONE_TUTORIAL:13 == 1
+&& STONE_TUTORIAL:14 == 1 && STONE_TUTORIAL:15 == 1 && STONE_TUTORIAL:16 == 1 && STONE_TUTORIAL:20 == 0
+}
+	PRINTFORML 「あっ全部聞いてくれたんですね！ちょっとめんどくさかったと思うんですけど…」
+	PRINTFORMW 「楽しく聞いてくださったのならわたしもとっても嬉しいです！」
+	PRINTFORMW %STONE_UKETSUKENAME%の好感度が30上がった！
+	PRINTFORMW 
+	STONE_PLAYCOUNT:1 += 30
+	STONE_TUTORIAL:20 = 1
+ELSE
+ENDIF
+PRINTFORMW
+IF STONE_WASUREMONO < DAY
+	PRINTL 「なんでもわたしに聞いてくださいね！」
+ELSE
+	PRINTL (なるべく不自然にならないように……バレちゃダメなのです……)
+ENDIF
+{
+CALL ASK_M("積み石コンテストって？",1,"評価のされ方",1,"技術点は何が評価されてるの？",1,"協力点は何が評価されてるの？",1,
+"お題点は何が評価されてるの？",1, "実績について",1, "勝てません。何を鍛えたらいいですか？",1, 
+"ごめんなさい忘れものをしてしまって…",(STONE_PLAYCOUNT:2 >= 12) && STONE_WASUREMONO < DAY, "もどる",1)
+}
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML 【積み石コンテストって？】
+		PRINTFORML 戎瓔花主催の積み石に関する色んな事を競うコンテストです
+		PRINTFORML さまざまな部門に分けられていますが…デート中に参加できるのはカップル部門です
+		PRINTFORML カップル部門は積んでいる石の数を競わず、二人で作り上げた作品の芸術性を評価します
+		PRINTFORML なお、自分の持つ能力は使用してはいけないルールとなっています
+		PRINTFORML ちなみにソロで参加する場合は早積み部門です
+		PRINTFORMW
+		SIF STONE_TUTORIAL:10 == 0
+			STONE_TUTORIAL:10 = 1
+	CASE 1
+		PRINTFORML 【評価のされ方】
+		PRINTFORML カップル部門では３つの評価点があります
+		PRINTFORML １つ目は二人の積み石の技量を量る技術点
+		PRINTFORML ２つ目は二人のラブラブ度…もとい協調性を量る協力点
+		PRINTFORML ３つ目はテーマとどれくらい合致してるかを量るお題点
+		PRINTFORML この３つの合計値を平均した点数が得点となります
+		PRINTFORML 最高点は１００点です(合計が１００を超えたら１００扱い)
+		PRINTFORML 80点取れれば優勝できます
+		PRINTFORML 賞金は優勝なら30000円、２位なら5000円です
+		PRINTFORML すべてのテーマで優勝するとそれとは別に豪華景品がもらえるとか
+		PRINTFORMW
+		SIF STONE_TUTORIAL:11 == 0
+			STONE_TUTORIAL:11 = 1
+	CASE 2
+		PRINTFORML 【技術点は何が評価されてるの？】
+		PRINTFORML 二人の積み石の技術力がそのまま合算されます
+		PRINTFORML 手先が器用な人ほど多く積むことができます
+		PRINTFORML 技巧・指技術はもちろんのこと、調合などの指を使う技能を鍛えると多く積めます
+		PRINTFORML またいくつか持っていると有利になる素質も存在しています
+		PRINTFORML ちなみに欲望の数値が高いと少し不利になります。石を積むという作業に欲望は必要ないのです
+		PRINTFORMW
+		SIF STONE_TUTORIAL:12 == 0
+			STONE_TUTORIAL:12 = 1
+	CASE 3
+		PRINTFORML 【協力点は何が評価されてるの？】
+		PRINTFORML 二人の仲良し度が試されています
+		PRINTFORML 具体的には親密さや恋人かどうかが評価の対象になるとかないとか
+		PRINTFORML 逆に反発刻印がついていたり、ツンデレだと減点があります
+		PRINTFORML わりとそのときのコンディションに影響を受けやすく、同条件でも毎回点数がある程度変化します
+		PRINTFORMW
+		SIF STONE_TUTORIAL:13 == 0
+			STONE_TUTORIAL:13 = 1
+	CASE 4
+		PRINTFORML 【お題点は何が評価されてるの？】
+		PRINTFORML 日ごと決まってるテーマに沿うと高得点になりやすいです
+		PRINTFORML テーマに沿えるかどうかはペアの少女の好みがテーマと合致してるかにかかっています
+		PRINTFORML テーマにあったものが好みの子は加点される傾向があります
+		PRINTFORML 逆にテーマにあったものが苦手な子やテーマと相反すものが苦手な子はマイナスになることも…
+		PRINTFORML ここの点数は鍛えてあげることが出来ないので素直にあったテーマの日に来ましょう
+		PRINTFORML 今日のテーマが何かについては聞いてくださると色々教えますよ
+		PRINTFORMW
+		SIF STONE_TUTORIAL:14 == 0
+			STONE_TUTORIAL:14 = 1
+	CASE 5
+		PRINTFORML 【実績について】
+		PRINTFORML 積み石コンテスト関係の実績が表示されます
+		PRINTFORML 早積み部門では積み石マスターになること、カップル部門では全テーマ制覇が目標です
+		PRINTFORML その項目の目標を完全達成すると赤くなりますよ(※妊娠フラグがオフだと一つだけ完全達成不可)
+		PRINTFORML ？？？？？の実績が埋まらない？なら……デートしてないときに何度も積み石コンテストに通いましょう
+		PRINTFORMW 
+		SIF STONE_TUTORIAL:15 == 0
+			STONE_TUTORIAL:15 = 1
+	CASE 6
+		PRINTFORML 【勝てません。何を鍛えたらいいですか？】
+		PRINTFORML パートナー選びがとにかく大事です。仲良しかつテーマを好む人をデートに誘うことで勝ちやすいです
+		PRINTFORML なぜならあなたの能力はほぼ技術点でしか考慮されないからです
+		PRINTFORML ただもしパートナーに拘り、お題点を捨てるのであれば、その分技術点と仲良し点が重要になります
+		PRINTFORML 技術点は早積みのときの技能とほぼ同じ要素を使って二人分判定しますが、実は早積みの点数計算は積み石称号で加算が入ります
+		PRINTFORML 技術点でも同様に積み石称号で加算が入るので、実は早積み部門の方で優勝することがこちらでの点数にも関係しているんです
+		PRINTFORMW
+		SIF STONE_TUTORIAL:16 == 0
+			STONE_TUTORIAL:16 = 1
+	CASE 7
+		PRINTFORML 【ごめんなさい忘れものをしてしまって…】
+		CALL STONE_UKETSUKESEX(2)
+	CASE 8
+		RETURN 0
+ENDSELECT
+RESTART
+
+
+;-------------------------------------------------
+;積み石コンテストの忘れ物イベント用
+;-------------------------------------------------
+@STONE_UKETSUKESEX(ARG)
+#DIM STONE_SEXTIME
+#DIM STONE_COUPLECHECK
+#DIM 気力回復量
+#DIM 体力回復量
+
+STONE_COUPLECHECK = ARG
+
+SETCOLOR C_PINK
+PRINTFORMW 「…………はい！わかりましたっ！じゃあ確認するのでこちらにきてください！」
+PRINTFORML ……………
+PRINTFORML ………
+PRINTFORMW …
+
+IF STONE_COUPLECHECK == 2
+	PRINTFORML 「デート中に抜け出すなんてサイテーですね%UNICODE(0x2764)%まーったく仕方ない人なのです」
+	STONE_PLAYCOUNT:1 += 2
+ELSE
+	PRINTFORML 「もー色々言い訳して抜け出すのたいへんなんですよー！」
+	SIF STONE_PLAYCOUNT:2 == 17
+		PRINTFORML 「ほんと酷いおとーさんなのです%UNICODE(0x2764)%」
+ENDIF
+PRINTFORMW
+
+IF STONE_COUPLECHECK == 2
+	SELECTCASE RAND:3
+		CASE 0
+			STONE_SEXTIME = 6
+			PRINTFORMW 「%CALLNAME:TARGET%さん…ずいぶんとこっちを怪しむ目で見てたのです%UNICODE(0x2764)%」
+			PRINTFORMW 「なのでここにいられる時間は{STONE_SEXTIME}分ってところでしょうか」
+			PRINTFORMW 「あんまり長くいるとバレちゃうかも？」
+			PRINTFORMW 「わたしはバレても良いですけど…%CALLNAME:MASTER%さんは困りますよね%UNICODE(0x2764)%」
+		CASE 1
+			STONE_SEXTIME = 12
+			PRINTFORMW 「%CALLNAME:TARGET%さん…ちょっとこっちを怪しむ目で見てたのです%UNICODE(0x2764)%」
+			PRINTFORMW 「なのでここにいられる時間は{STONE_SEXTIME}分ってところでしょうか」
+			PRINTFORMW 「あんまり長くいるとバレちゃうかも？」
+			PRINTFORMW 「わたしはバレても良いですけど…%CALLNAME:MASTER%さんは困りますよね%UNICODE(0x2764)%」
+		CASE 2
+			STONE_SEXTIME = 16
+			PRINTFORMW 「%CALLNAME:TARGET%さん…全然疑ってなさそうでしたね？信頼されてるんですねー%UNICODE(0x2764)%」
+			PRINTFORMW 「なのでここにいられる時間は{STONE_SEXTIME}分ってところでしょうか」
+			PRINTFORMW 「あんまりにも長くいるとバレちゃうかもですけど…」
+			PRINTFORMW 「20分も30分も長居しないと気づかないぐらいに信頼されてるのに裏切っちゃうんですね%UNICODE(0x2764)%」
+	ENDSELECT
+ELSE
+	SELECTCASE RAND:3
+		CASE 0
+			STONE_SEXTIME = 10
+			PRINTFORMW 「ただ今日はですね…わたしちょっと忙しいのです」
+			PRINTFORMW 「だからここにいられる時間は{STONE_SEXTIME}分ってところでしょうか…」
+			PRINTFORMW 「本当はなるべく長く一緒に居たいのです…でもおしごとですから…」
+			PRINTFORMW 「こんなこと話してる時間が勿体ないのですよ」
+		CASE 1
+			STONE_SEXTIME = 16
+			PRINTFORMW 「それでですね…今日はまあまあ暇なのです」
+			PRINTFORMW 「だからここにいられる時間は{STONE_SEXTIME}分ってところでしょうか…」
+			PRINTFORMW 「あんまサボってるとバレちゃうのです」
+		CASE 2
+			STONE_SEXTIME = 22
+			PRINTFORMW 「それでですね…今日はだいぶ暇なのです」
+			PRINTFORMW 「だからここには{STONE_SEXTIME}分ぐらい居られるのです」
+			PRINTFORMW 「とはいえ流石にずーっとサボってるとバレちゃうのです……」
+	ENDSELECT
+ENDIF
+
+STONE_WASUREMONO = DAY
+$LOOP_SEX
+
+IF STONE_SEXTIME < 2
+	PRINTFORML
+	PRINTFORML 「あっもうそろそろ時間が不味いのです！急いで戻りましょう！」
+	RESETCOLOR
+	PRINTFORMW %CALLNAME:MASTER%と%STONE_UKETSUKENAME%は関係がバレないよう細心の注意を払って受付に戻った…
+	PRINTFORML
+	RETURN 0
+ELSE
+	PRINTFORML
+	PRINTFORML 「さて、残り時間は{STONE_SEXTIME}分ですが……なにをするのです？」
+ENDIF
+RESETCOLOR
+{
+CALL ASK_M("キスしたい(消費２分)",1,
+"おっぱい触らせて(消費４分)",STONE_SEXTIME >= 4,
+"手でしてほしい(消費６分)",STONE_SEXTIME >= 6 && (TALENT:MASTER:성별 & 2),
+"口でしてほしい(消費６分)",STONE_SEXTIME >= 6 && (TALENT:MASTER:성별 & 2),
+"セックスしたい(消費１０分)",STONE_PLAYCOUNT:2 >= 14 && STONE_SEXTIME >= 10 && (TALENT:MASTER:성별 & 2),
+"お弁当食べよう(消費１０分)",STONE_PLAYCOUNT:2 >= 14 && TIME_PROGRESS(TCVAR:312) && STONE_SEXTIME >= 10,
+"名前をつけたい(消費無し)",STONE_PLAYCOUNT:4 > 0, "やめる",1)
+}
+SETCOLOR C_PINK
+PRINTFORML
+SELECTCASE RESULT
+	CASE 0
+		IF STONE_FIRSTSEX:0 == 0
+			PRINTFORMW 「あっ……そういえばキス…ほっぺにしかしたことなかったですね」
+			PRINTFORMW 「そっちから…お願いします…」
+			PRINTFORMW 「んっ……%UNICODE(0x2764)%」
+			PRINTFORML
+			PRINTFORMW 「%CALLNAME:MASTER%さんの唇……あったかいですね」
+			EXP:MASTER:키스경험 += 1
+			PRINTFORMDL キス経験 +1(%CALLNAME:MASTER%)
+			STONE_FIRSTSEX:0 = 1
+			STONE_PLAYCOUNT:1 += 5
+			CALL SET_FIRSTKISS_MASTER("積み石コンテスト会場から抜け出して水子の少女に捧げた")
+			TIME += 2
+			STONE_SEXTIME -= 2
+			GOTO LOOP_SEX
+		ELSE
+			PRINTFORMW 「キス？それで良いんですか？…ほら…んっ%UNICODE(0x2764)%」
+			SELECTCASE RAND:6
+				CASE 0
+					PRINTFORMW 「ちゅっ…%UNICODE(0x2764)%ちゅぱ…%UNICODE(0x2764)%」
+					PRINTFORMW 「えへへへ…もっとキスをするのです%UNICODE(0x2764)%」
+					PRINTFORMW 「んっ%UNICODE(0x2764)%ちゅっ%UNICODE(0x2764)%ちゅう…%UNICODE(0x2764)%」
+				CASE 1
+					PRINTFORMW 「んっ…%UNICODE(0x2764)%れろっ…%UNICODE(0x2764)%ちゅっ…%UNICODE(0x2764)%」
+					PRINTFORMW 「ぷはっ…べろが絡み合うの…すごい…えっちですね…%UNICODE(0x2764)%」
+				CASE 2
+					PRINTFORMW 「んっ…%UNICODE(0x2764)%ちゅぱ…%UNICODE(0x2764)%ちゅっ…%UNICODE(0x2764)%」
+					PRINTFORMW 「好き…大好きです…%UNICODE(0x2764)%」
+				CASE 3
+					PRINTFORMW 「………………はれっ？」
+					PRINTFORMDL 目を閉じて待つ%STONE_UKETSUKENAME%に対し、おでこにキスをしてあげた
+					PRINTFORMW 「ちょっとー！目を閉じて待ってたのにおでこにキスってどういう…」
+					PRINTFORMW 「んっ%UNICODE(0x2764)%ちゅっ%UNICODE(0x2764)%ちゅう…%UNICODE(0x2764)%」
+					PRINTFORMW 「ふいうち……ひきょうです……%UNICODE(0x2764)%%UNICODE(0x2764)%」
+				CASE 4
+					PRINTFORMW 「ちゅっ…%UNICODE(0x2764)%ちゅっ…%UNICODE(0x2764)%ちゅっ…%UNICODE(0x2764)%ちゅっ…%UNICODE(0x2764)%」
+					PRINTFORMW 「こーいうただ口をかさねるだけなのも…すき…ちゅっ…%UNICODE(0x2764)%」
+				CASE 5
+					PRINTFORMW 「れろっ…%UNICODE(0x2764)%ちゅっ…%UNICODE(0x2764)%れろっ…%UNICODE(0x2764)%」
+					PRINTFORMW 「もっとぉ…%UNICODE(0x2764)%もっとぉ…%UNICODE(0x2764)%」」
+			ENDSELECT
+			EXP:MASTER:키스경험 += 1
+			PRINTFORMDL キス経験 +1(%CALLNAME:MASTER%)
+			STONE_PLAYCOUNT:1 += 5
+			TIME += 2
+			STONE_SEXTIME -= 2
+			GOTO LOOP_SEX
+		ENDIF
+	CASE 1
+		PRINTFORMW 「おっぱいを触りたい…わかりました%UNICODE(0x2764)%ごほーびです%UNICODE(0x2764)%」
+		PRINTFORMW %STONE_UKETSUKENAME%はボロ布を脱ぎ捨てて、土気色の肌をあらわにした
+		PRINTFORMW 「はいどーぞ%UNICODE(0x2764)%」
+		PRINTFORML
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORMW 「んっ…%UNICODE(0x2764)%んんっ……%UNICODE(0x2764)%」
+				PRINTFORMW %CALLNAME:MASTER%は%STONE_UKETSUKENAME%の小ぶりの胸を揉んだ
+				PRINTFORMW 少女の胸は死人特有の冷たい肌で、ひんやりとして気持ちがいい
+				PRINTFORMW 「%CALLNAME:MASTER%の手…すっごくあつい……」
+				EXP:MASTER:수음경험 += 1
+				PRINTFORMDL 手淫経験 +1(%CALLNAME:MASTER%)
+			CASE 1
+				PRINTFORMW 「んっ…%UNICODE(0x2764)%そこばっかりはやめてぇ……%UNICODE(0x2764)%」
+				PRINTFORMW 土気色の肌の中で目立つピンク色の突起を、%CALLNAME:MASTER%は執拗に弄ぶ
+				PRINTFORMW 「ひゃんっ%UNICODE(0x2764)%うぅぅ……%UNICODE(0x2764)%」
+				PRINTFORMW 乳首を指で弾くと悶える少女がかわいらしくてしばらく弄り続けた…
+				EXP:MASTER:수음경험 += 1
+				PRINTFORMDL 手淫経験 +1(%CALLNAME:MASTER%)
+			CASE 2
+				PRINTFORML 「んっ…%UNICODE(0x2764)%さわるんじゃなくて舐めるなんてぇ…%UNICODE(0x2764)%」
+				PRINTFORMW 土気色の肌の中で目立つピンク色の突起を、%CALLNAME:MASTER%は口に含んだ
+				PRINTFORMW 「おっぱいちゅっちゅしたいのはわたしもなのにぃ……%UNICODE(0x2764)%」
+				EXP:MASTER:펠라티오경험 += 1
+				PRINTFORMDL 口淫経験 +1(%CALLNAME:MASTER%)
+		ENDSELECT
+			IF STONE_PLAYCOUNT:2 == 17
+				PRINTFORML
+				PRINTFORMW じゅわぁ………
+				PRINTFORML
+				PRINTFORMW %CALLNAME:MASTER%がしばらく胸を弄っていると、%STONE_UKETSUKENAME%の乳首から赤子のための液体が漏れ出した…
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 「きゃっ%UNICODE(0x2764)%」
+						PRINTFORMW 「これは赤ちゃんのものなのにっ%UNICODE(0x2764)%勝手に吸わないでぇ%UNICODE(0x2764)%」
+						PRINTFORMW %CALLNAME:MASTER%は乳飲み子になれなかった少女の乳を堪能した…
+					CASE 1
+						PRINTFORMW 「あっ……%UNICODE(0x2764)%」
+						PRINTFORMW 「ほんとはダメなんだけど…………飲んじゃいます？パパ%UNICODE(0x2764)%」
+						PRINTFORMW %CALLNAME:MASTER%は乳飲み子になれなかった少女の乳を堪能した…
+					CASE 2
+						PRINTFORMW 「きゃっ%UNICODE(0x2764)%」
+						PRINTFORMW 「もー%UNICODE(0x2764)%おっきな赤ちゃんなのです…%UNICODE(0x2764)%」
+						PRINTFORMW %CALLNAME:MASTER%は乳を飲む赤子にもなれなかった少女の乳を堪能した…
+				ENDSELECT
+				EXP:MASTER:펠라티오경험 += 1
+				CALL COLORMESSAGE(@"%STONE_UKETSUKENAME%の母乳を飲んで少しだけ体力と気力が回復した",C_GREEN,1,1)
+				BASE:MASTER:체력 += 50
+				BASE:MASTER:기력 += 50
+				PRINTFORMDL 口淫経験 +1(%CALLNAME:MASTER%)
+			ENDIF
+		PRINTFORML …………………
+		PRINTFORML ……………
+		PRINTFORMW ………
+		TIME += 4
+		STONE_SEXTIME -= 4
+		GOTO LOOP_SEX
+	CASE 2
+		IF STONE_FIRSTSEX:1 == 0
+			PRINTFORML 「分かったのです…はじめてなので期待しないでほしいのです…」
+			PRINTFORMW 少女は恐る恐るといった様子で、%CALLNAME:MASTER%の竿に触れた
+			PRINTFORML
+			PRINTFORML 「あっ…すごい…あつぃ…%UNICODE(0x2764)%」
+			PRINTFORMW 少女の水子特有のひんやりした手に包まれ、男根はよりいっそう固くなる
+			PRINTFORML
+			PRINTFORML 「えっとこれを上下に……」
+			PRINTFORMW たどたどしい動きで少女は手を動かしだした。やや物足りない快楽が%CALLNAME:MASTER%を襲う
+			PRINTFORML 「んーやっぱり難しいのです…もっと興奮させればいいのでしょうか…？」
+			PRINTFORMW 少女は一度男根から手を離すと、周りを見て誰もいないことを確認すると裸になった
+			PRINTFORML
+			PRINTFORML 「は…はずかしいのです…けれどこれなら！」
+			PRINTFORMW その目論見通り%CALLNAME:MASTER%は少し赤らんだ土気色の肌のぺったんボディを凝視して興奮していた
+			PRINTFORMW 物足りなくて少し柔らかくなっていた男根も再び固くなっていた
+			PRINTFORML 「少しコツも掴んできたし、これなら！」
+			PRINTFORMW 積み石で鍛えた指の動きもようやく本領を発揮。急速に快楽を与えられ、絶頂へと導かれていった…
+			PRINTFORML
+			PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+			PRINTFORML
+			PRINTFORMW 「きゃっ！すごい出てる……」
+			PRINTFORMW 「もー%UNICODE(0x2764)%髪にかかっちゃったんですけどー！あはははは！」
+			STONE_FIRSTSEX:1 = 1
+		ELSE
+			PRINTFORMW 「手で？良いですよ%UNICODE(0x2764)%」
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORML 「あついね…%CALLNAME:MASTER%さんの…」
+					PRINTFORMW %STONE_UKETSUKENAME%は%CALLNAME:MASTER%の竿の感触を楽しむかのようににぎにぎとしている…
+					PRINTFORML 「こういう動きでもきもちいーんですね？じゃあもうちょっと…」
+					PRINTFORMW 少女は新しくおもちゃを見つけたかのようにしばらく%CALLNAME:MASTER%の竿を弄んだ
+				CASE 1
+					PRINTFORML 「どうですか？気持ちいいですか？」
+					PRINTFORMW 器用な手先で竿を上下でこすり上げられ、%CALLNAME:MASTER%から快楽の声が漏れる
+					PRINTFORMW 「ふふふ…気持ちよさそうですね…」
+				CASE 2
+					PRINTFORML 「ふふふ…この動きが気持ちいーんだね」
+					PRINTFORMW %STONE_UKETSUKENAME%は単純な手を上下する動きに緩急をつけながら、%CALLNAME:MASTER%を責め立てる
+					PRINTFORMW 「えへへ…ごほーびですから…もっと気持ちよくなってくださいね%UNICODE(0x2764)%」
+			ENDSELECT
+			PRINTFORML
+			PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+			PRINTFORML
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORMW 「きゃっ%UNICODE(0x2764)%」
+					PRINTFORMW 勢いよく飛び出した%CALLNAME:MASTER%の精液は%STONE_UKETSUKENAME%の髪にかかった
+					PRINTFORML 「もー！困りますよー%UNICODE(0x2764)%匂いついちゃいますよー%UNICODE(0x2764)%」
+					PRINTFORMW %STONE_UKETSUKENAME%はけらけら笑いながら竿に残った精液を吸い出した
+				CASE 1
+					PRINTFORMW 「きゃっ%UNICODE(0x2764)%いっぱい出たね…%UNICODE(0x2764)%」
+					PRINTFORMW %CALLNAME:MASTER%の出した精液は%STONE_UKETSUKENAME%の手のひらへと着地していった
+					PRINTFORMW 「いっぱい出たね…これがこどもの素…」
+					PRINTFORMW %STONE_UKETSUKENAME%は%CALLNAME:MASTER%の出した精液を興味深そうに、そして愛おしそうに眺めていた
+				CASE 2
+					PRINTFORMW 「きゃっ%UNICODE(0x2764)%す、すごいびくびくしてる…」
+					PRINTFORMW %CALLNAME:MASTER%の竿は%STONE_UKETSUKENAME%の手のひらで熱を帯び、射精へと導かれた
+					PRINTFORMW 「ごほーび完了だね%UNICODE(0x2764)%」
+			ENDSELECT
+		ENDIF
+		PRINTFORML …………………
+		PRINTFORML ……………
+		PRINTFORMW ………
+		EXP:MASTER:사정경험 += 1
+		EXP:MASTER:절정경험 += 1
+		PRINTFORMDL 絶頂経験 +1(%CALLNAME:MASTER%)
+		PRINTFORMDL 射精経験 +1(%CALLNAME:MASTER%)
+		TIME += 6
+		STONE_SEXTIME -= 6
+		GOTO LOOP_SEX
+	CASE 3
+		IF STONE_FIRSTSEX:2 == 0
+			PRINTFORML 「分かったのです…はじめてなので期待しないでほしいのです…」
+			PRINTFORMW 少女は恐る恐るといった様子で、%CALLNAME:MASTER%の竿に触れ、口に含んだ
+			PRINTFORML
+			PRINTFORML 「あっ…しゅごひ…あちゅぃ…%UNICODE(0x2764)%」
+			PRINTFORMW 少女の水子特有のひんやりした口内に包まれ、男根はよりいっそう固くなる
+			PRINTFORML
+			PRINTFORML 「へっほ、ほれふぉ…」
+			PRINTFORMW たどたどしい動きで少女は口を動かしだした。やや物足りない快楽が%CALLNAME:MASTER%を襲う
+			PRINTFORML 「ぷはっ！んーやっぱり難しいのです…もっと興奮させればいいのでしょうか…？」
+			PRINTFORMW 少女は一度男根から口を離すと、周りを見て誰もいないことを確認すると裸になった
+			PRINTFORML
+			PRINTFORML 「は…はずかしいのです…けれどこれなら！」
+			PRINTFORMW その目論見通り%CALLNAME:MASTER%は少し赤らんだ土気色の肌のぺったんボディを凝視して興奮していた
+			PRINTFORMW 物足りなくて少し柔らかくなっていた男根も再び固くなっていた
+			PRINTFORML 「しゅほひひゃりはは、わはっへひははほ…」
+			PRINTFORMW 少しずつ要領を掴んできたのか舌の動きがよくなっていく。%CALLNAME:MASTER%は少しずつ快楽を与えられ、絶頂へと導かれていった…
+			PRINTFORML
+			PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+			PRINTFORML
+			PRINTFORMW 「らひへひーよ！……んんんっ！」
+			PRINTFORMW 「…………ごっくんっ！もー%UNICODE(0x2764)%すっごい不味いですー！あはははは！」
+			STONE_FIRSTSEX:2 = 1
+		ELSE
+			PRINTFORMW 「口で？良いですよ%UNICODE(0x2764)%」
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORML 「んっ…あふひ…」
+					PRINTFORMW 少女は%CALLNAME:MASTER%の熱を帯びた竿を口に含んだ
+					PRINTFORML 「じゅっ%UNICODE(0x2764)%ちゅぱっ%UNICODE(0x2764)%じゅぷ…%UNICODE(0x2764)%」
+					PRINTFORMW %CALLNAME:MASTER%の男根は%STONE_UKETSUKENAME%の死人特有の冷たく口内を蹂躙していった…
+				CASE 1
+					PRINTFORML 「%CALLNAME:MASTER%さんの……すごい匂い…」
+					PRINTFORMW 少女に見せつけるように男根を外気に晒すと魅了されたかのように%STONE_UKETSUKENAME%の動きが止まる
+					PRINTFORMW 「……っとごほーびだからわたしが動かないとです…」
+					PRINTFORMW 小さな口を精一杯大きく開けると、先ほどまで目を奪われていた男根を何とか口内に収めて奉仕の動きをはじめた
+					PRINTFORMW 「じゅるっ…ぺろっ…ちゅぱっ%UNICODE(0x2764)%……んちゅっ……」
+				CASE 2
+					PRINTFORML 「じゅぶ、じゅぷぷ、じゅぶぅっ……ちゅぱっ……ぺろっ%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORMW 「ちゅぱっ……%UNICODE(0x2764)%ちゃんと気持ちよく出来てます？」
+					PRINTFORML %CALLNAME:MASTER%は肯定の言葉の代わりに、頭を優しく撫でた
+					PRINTFORMW 「ふふふ…好きです……ちゅぱっ%UNICODE(0x2764)%れろっ%UNICODE(0x2764)%」
+			ENDSELECT
+			PRINTFORML
+			PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+			PRINTFORML
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORMW 「きゃっ%UNICODE(0x2764)%」
+					PRINTFORMW 勢いよく飛び出した%CALLNAME:MASTER%の精液は%STONE_UKETSUKENAME%の顔にかかった
+					PRINTFORML 「もー！口からおちんちんが飛び出すような勢いなんて…%UNICODE(0x2764)%暴れん坊すぎますよー%UNICODE(0x2764)%」
+					PRINTFORMW %STONE_UKETSUKENAME%はけらけら笑いながら竿に残った精液を吸い出した
+				CASE 1
+					PRINTFORMW 「わふっ%UNICODE(0x2764)%んっ%UNICODE(0x2764)%ごっくんっ」
+					PRINTFORMW %CALLNAME:MASTER%の男根から飛び出した生命の源が、ひんやりとした死人の口内を温めるかのように満たしていく
+					PRINTFORMW 「苦いけど…これが%CALLNAME:MASTER%さんの…」
+					PRINTFORMW %STONE_UKETSUKENAME%は喉を通った生命の源を生み出した目の前のニンゲンを、愛おしそうに暫く見つめた…
+				CASE 2
+					PRINTFORMW 「わっ%UNICODE(0x2764)%んんんん～～！！」
+					PRINTFORMW %CALLNAME:MASTER%の男根から飛び出した精液が、%STONE_UKETSUKENAME%の口内を蹂躙してしていった
+					PRINTFORMW 「うぇぇぇ……にが……まず…」
+					PRINTFORMW %STONE_UKETSUKENAME%は顔をしかめながらもそれでも好きなニンゲンの精液をなんとか飲み干した
+			ENDSELECT
+		ENDIF
+		PRINTFORML …………………
+		PRINTFORML ……………
+		PRINTFORMW ………
+		EXP:MASTER:사정경험 += 1
+		EXP:MASTER:절정경험 += 1
+		PRINTFORMDL 絶頂経験 +1(%CALLNAME:MASTER%)
+		PRINTFORMDL 射精経験 +1(%CALLNAME:MASTER%)
+		TIME += 6
+		STONE_SEXTIME -= 6
+		GOTO LOOP_SEX
+		
+	CASE 4
+		IF STONE_FIRSTSEX:3 == 0
+			PRINTFORMW 「前回は…失敗しちゃったから…今度こそ…ですね」
+			PRINTFORMW 「まずはほぐすところから？分かりました…んっ%UNICODE(0x2764)%」
+			PRINTFORMW 「やっ…%UNICODE(0x2764)%んんっ%UNICODE(0x2764)%ゆび…すごい…%UNICODE(0x2764)%」
+			PRINTFORMW 「さすが…積み石マスターなのです…すごいきもちいいよぉ…%UNICODE(0x2764)%」
+			PRINTFORMW 「もう…%UNICODE(0x2764)%充分ですよぉ…%UNICODE(0x2764)%やっ%UNICODE(0x2764)%やぁん%UNICODE(0x2764)%」
+			PRINTFORMW 少し過剰だと思えるぐらい、充分に小さな膣をぬるぬるになるぐらいにローションを使い、ほぐしていった
+			PRINTFORML
+			PRINTFORMW 「そろそろ……挿れて……ください%UNICODE(0x2764)%」
+			PRINTFORMW 「あっ…%UNICODE(0x2764)%やっ%UNICODE(0x2764)%すごい…%UNICODE(0x2764)%」
+			PRINTFORMW 「ちょっぴり痛いけど…きもちいいです…%UNICODE(0x2764)%」
+			PRINTFORMW 「んんっ%UNICODE(0x2764)%あっ%UNICODE(0x2764)%やぁん%UNICODE(0x2764)%」
+			PRINTFORMW 「あっ%UNICODE(0x2764)%もう出るのっ%UNICODE(0x2764)%良いよっ%UNICODE(0x2764)%出してっ%UNICODE(0x2764)%」
+			PRINTFORMW 子供が出来る可能性に気づいていないのか、それとも気づいていて無視しているのか…ともかく%STONE_UKETSUKENAME%は膣で射精を受け止める準備をした…
+			PRINTFORML
+			PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+			PRINTFORML
+			PRINTFORML 「はぁ…はぁ…%UNICODE(0x2764)%凄い勢いでびゅーびゅーって出てる…%UNICODE(0x2764)%」
+			PRINTFORMW 「……大好きです%UNICODE(0x2764)%」
+			STONE_FIRSTSEX:3 = 1
+		ELSE
+			SELECTCASE RAND:5
+				CASE 0
+					PRINTFORMW 「わたしに寝転んでほしい？分かったのです！」
+					PRINTFORMW %STONE_UKETSUKENAME%に背を付くように寝転んでもらうと、いわゆる正常位という体位で充分に濡れるようになった膣に挿入していく
+					PRINTFORMW 「んっ%UNICODE(0x2764)%はいってきました…%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW 「んんっ%UNICODE(0x2764)%あっ%UNICODE(0x2764)%やぁん%UNICODE(0x2764)%」
+					PRINTFORMW 「やっ%UNICODE(0x2764)%おっぱい触るのは…ちょっとぉ…」
+					PRINTFORMW %CALLNAME:MASTER%は少女のその体格通りの小ぶりな胸に触れて、乳首を弄りまわした
+					PRINTFORMW 「おっ%UNICODE(0x2764)%おっぱい%UNICODE(0x2764)%そんなにいじくらないでくだっ%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW 「あっ%UNICODE(0x2764)%ああっ%UNICODE(0x2764)%もうそろそろ…%UNICODE(0x2764)%」
+					PRINTFORMW %STONE_UKETSUKENAME%の言葉を聞き、%CALLNAME:MASTER%はラストスパートとばかりに腰を振るスピードを上げていった
+					PRINTFORMW 「やぁぁぁあぁ%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+					PRINTFORML
+					PRINTFORMW %CALLNAME:MASTER%は%STONE_UKETSUKENAME%の膣の中に思いきり種を撒いた…
+					PRINTFORMW 種付けプレスの状態で%CALLNAME:MASTER%に覆い被さられながらも幸せそうに%STONE_UKETSUKENAME%は呟いた
+				CASE 1
+					PRINTFORMW 「わたしに四つん這いになってほしい？分かったのです！」
+					PRINTFORMW %STONE_UKETSUKENAME%に四つん這いになってもらうと、いわゆる後背位という体位で充分に濡れるようになった膣に挿入していく
+					PRINTFORMW 「んっ%UNICODE(0x2764)%うしろから…はいってきました…%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW 「んんっ%UNICODE(0x2764)%あっ%UNICODE(0x2764)%やぁん%UNICODE(0x2764)%」
+					PRINTFORMW 「やっ%UNICODE(0x2764)%このたいせい……すごいクるっ%UNICODE(0x2764)%」
+					PRINTFORMW %CALLNAME:MASTER%は%STONE_UKETSUKENAME%の細く小さい身体を蹂躙するように腰をふりつけた
+					PRINTFORML
+					PRINTFORMW 「あっ%UNICODE(0x2764)%やぁん%UNICODE(0x2764)%ああっ%UNICODE(0x2764)%きちゃう%UNICODE(0x2764)%%UNICODE(0x2764)%きちゃう%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORMW %STONE_UKETSUKENAME%の言葉を聞き、%CALLNAME:MASTER%はラストスパートとばかりに腰を振るスピードを上げていった
+					PRINTFORMW 「やぁぁぁあぁ%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+					PRINTFORML
+					PRINTFORMW %CALLNAME:MASTER%は%STONE_UKETSUKENAME%の膣の中に思いきり種を撒いた…
+					PRINTFORMW 激しい交尾によって腰が抜けながらも幸せそうに%STONE_UKETSUKENAME%は呟いた
+				CASE 2
+					PRINTFORMW 「わたしに乗ってほしい？分かったのです！」
+					PRINTFORMW %CALLNAME:MASTER%は寝転ぶと%STONE_UKETSUKENAME%に乗ってもらい、いわゆる騎乗位という体位で充分に濡れるようになった膣に挿入していく
+					PRINTFORMW 「んっ%UNICODE(0x2764)%はいってきました…%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW 「んんっ%UNICODE(0x2764)%あっ%UNICODE(0x2764)%やぁん%UNICODE(0x2764)%」
+					PRINTFORMW %CALLNAME:MASTER%はあまり動かず、%STONE_UKETSUKENAME%が好きに快楽を貪る姿を眺めている…
+					PRINTFORMW 「あっ%UNICODE(0x2764)%いつもは見下ろすことなんてないから…新鮮かも…ふぅ%UNICODE(0x2764)%」
+					PRINTFORMW 「んんんっ%UNICODE(0x2764)%このうごき…すごいっ……%UNICODE(0x2764)%」
+					PRINTFORMW 「すごい疲れるけど%UNICODE(0x2764)%そろそろいっきに…%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW 「あっ！うごかないで%UNICODE(0x2764)%やっ%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORMW %STONE_UKETSUKENAME%の言葉を聞き、%CALLNAME:MASTER%はラストスパートとばかりに腰を動かしはじめた
+					PRINTFORMW 「やぁぁぁあぁ%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+					PRINTFORML
+					PRINTFORMW %CALLNAME:MASTER%は%STONE_UKETSUKENAME%の膣の中に思いきり種を撒いた…
+					PRINTFORMW 少女は%CALLNAME:MASTER%の胸に倒れこんだ
+					PRINTFORMW %CALLNAME:MASTER%の胸の中の暖かさと感触を死人の肌で感じながら幸せそうに%STONE_UKETSUKENAME%は呟いた
+				CASE 3
+					PRINTFORMW %CALLNAME:MASTER%は座り込んで膝をポンポンと叩いた
+					PRINTFORMW 「わたしに座ってほしい？分かったのです！」
+					PRINTFORMW %STONE_UKETSUKENAME%に膝の上に乗ってもらい、いわゆる対面座位という体位で充分に濡れるようになった膣に挿入していく
+					PRINTFORMW 「んっ%UNICODE(0x2764)%はいってきました…%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW 「んんっ%UNICODE(0x2764)%あっ%UNICODE(0x2764)%やぁん%UNICODE(0x2764)%」
+					PRINTFORMW %CALLNAME:MASTER%はあまり動かず、%STONE_UKETSUKENAME%が好きに快楽を貪る姿を眺めている…
+					PRINTFORMW 「あっ%UNICODE(0x2764)%目の前に…%CALLNAME:MASTER%が…%UNICODE(0x2764)%」
+					PRINTFORMW 「んんんっ%UNICODE(0x2764)%いろいろちかくて…すごいドキドキします…%UNICODE(0x2764)%」
+					PRINTFORMW 「すごい疲れるけど%UNICODE(0x2764)%そろそろいっきに…%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW 「あっ！うごかないで%UNICODE(0x2764)%やっ%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORMW 我慢できなくなった%CALLNAME:MASTER%は優しく%STONE_UKETSUKENAME%を押し倒し、ラストスパートとばかりに腰を振りつけた
+					PRINTFORMW 「やぁぁぁあぁ%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+					PRINTFORML
+					PRINTFORMW %CALLNAME:MASTER%は%STONE_UKETSUKENAME%の膣の中に思いきり種を撒いた…
+					PRINTFORMW 種付けプレスの状態で%CALLNAME:MASTER%に覆い被さられながらも幸せそうに%STONE_UKETSUKENAME%は呟いた
+				CASE 4
+					PRINTFORMW 「わかりました%UNICODE(0x2764)%わたしもやりたかったのです%UNICODE(0x2764)%」
+					PRINTFORMW %STONE_UKETSUKENAME%はエッチがしたくて待ちきれなかったのか、すぐさま服を脱いで水子特有の土気色の肌を完全に晒した状態になった
+					PRINTFORMW 死人の肌に細い身体も合わさって背徳的なエロスを纏う少女は、尻を突き出してアピールする
+					PRINTFORMW 「はやく！はやくしてほしいのですっ%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORMW %CALLNAME:MASTER%に媚びるように腰を振る%STONE_UKETSUKENAME%により、急激に固くなった男根をぶち込んだ
+					PRINTFORMW 「んっ%UNICODE(0x2764)%はいってきたぁ…%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW 「んんっ%UNICODE(0x2764)%あっ%UNICODE(0x2764)%やぁん%UNICODE(0x2764)%」
+					PRINTFORMW 「やっ%UNICODE(0x2764)%あおってごめんなさいっ%UNICODE(0x2764)%」
+					PRINTFORMW %CALLNAME:MASTER%は%STONE_UKETSUKENAME%の細く小さい身体を蹂躙するように腰をふりつけた
+					PRINTFORMW それは性交という温い言葉ではなく、交尾というべきものだった
+					PRINTFORML
+					PRINTFORMW 「あっ%UNICODE(0x2764)%やぁん%UNICODE(0x2764)%ああっ%UNICODE(0x2764)%きちゃう%UNICODE(0x2764)%%UNICODE(0x2764)%きちゃう%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORMW %STONE_UKETSUKENAME%の言葉を聞き、%CALLNAME:MASTER%はラストスパートとばかりに腰を振るスピードを上げていく
+					PRINTFORMW 「やぁぁぁあぁ%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%%UNICODE(0x2764)%」
+					PRINTFORML
+					PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+					PRINTFORML
+					PRINTFORMW %CALLNAME:MASTER%は%STONE_UKETSUKENAME%を交尾で孕ませるべく膣の中に思いきり種を撒いた…
+					PRINTFORMW 激しい交尾によって腰が抜けながらも幸せそうに%STONE_UKETSUKENAME%は呟いた
+			ENDSELECT
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORMW 「……大好きです%UNICODE(0x2764)%」
+			CASE 1
+				PRINTFORMW 「一番じゃなくても…三番目ぐらいに好きだと嬉しいです%UNICODE(0x2764)%」
+			CASE 2
+				IF STONE_PLAYCOUNT:2 == 17
+					PRINTFORMW 「もっとわたしのこと…愛してくださいね%UNICODE(0x2764)%パパ%UNICODE(0x2764)%」
+				ELSE
+					PRINTFORMW 「もっとわたしのこと…愛してくださいね%UNICODE(0x2764)%」
+				ENDIF
+			CASE 3
+				IF STONE_PLAYCOUNT:2 == 17
+					PRINTFORMW 「二人目…デキちゃうかも……%UNICODE(0x2764)%」
+				ELSE
+					PRINTFORMW 「こども…デキちゃうかも……%UNICODE(0x2764)%」
+				ENDIF
+		ENDSELECT
+		ENDIF
+		IF STONE_PLAYCOUNT:2 == 14 && FLAG:임신스위치
+			IF STONE_PLAYCOUNT:1 > 1200
+				SELECTCASE RAND:3
+					CASE 0
+						STONE_PLAYCOUNT:2 = 15
+					CASEELSE
+				ENDSELECT
+			ELSEIF STONE_PLAYCOUNT:1 > 900
+				SELECTCASE RAND:7
+					CASE 0
+						STONE_PLAYCOUNT:2 = 15
+					CASEELSE
+				ENDSELECT
+			ELSEIF STONE_PLAYCOUNT:1 > 600
+				SELECTCASE RAND:10
+					CASE 0
+						STONE_PLAYCOUNT:2 = 15
+					CASEELSE
+				ENDSELECT
+			ELSE
+				SELECTCASE RAND:12
+					CASE 0
+						STONE_PLAYCOUNT:2 = 15
+					CASEELSE
+				ENDSELECT
+			ENDIF
+		ENDIF
+		PRINTFORML …………………
+		PRINTFORML ……………
+		PRINTFORMW ………
+		STONE_PLAYCOUNT:1 += 5
+		EXP:MASTER:삽입경험 += 1
+		EXP:MASTER:사정경험 += 1
+		EXP:MASTER:절정경험 += 1
+		PRINTFORMDL 挿入経験 +1(%CALLNAME:MASTER%)
+		PRINTFORMDL 絶頂経験 +1(%CALLNAME:MASTER%)
+		PRINTFORMDL 射精経験 +1(%CALLNAME:MASTER%)
+		TIME += 10
+		STONE_SEXTIME -= 10
+		GOTO LOOP_SEX
+	CASE 5
+		PRINTFORMW 「えっ！？少な目だけどお弁当を作ってきてくださったんですか？」
+		PRINTFORMW 「ありがとうございます！一緒に食べましょう！」
+		IF STONE_COUPLECHECK == 2
+			PRINTFORMW 「あれ…？そういえばデート中だったのでは……」
+			PRINTFORMW 「…………まあいいやなのです！」
+		ENDIF
+		SELECTCASE ABL:MASTER:요리기능
+			CASE 0, 1
+				;ろくなもの食べてない水子なので料理が苦手でもそれなりの反応
+				PRINTFORML 「パクパク…ごくんっ」
+				PRINTFORMW 「おいしかったです！ご馳走様でしたっ！」
+				PRINTFORML %STONE_UKETSUKENAME%は喜んでくれたが正直微妙なおいしさだった…
+				PRINTFORMW もっと料理の練習をしよう…
+				STONE_PLAYCOUNT:1 += 5
+				体力回復量 = 100
+				気力回復量 = 300
+			CASE 2, 3, 4
+				PRINTFORML 「パクパク…ごくんっ」
+				PRINTFORMW 「おいしいです！！！流石%CALLNAME:MASTER%さん！」
+				STONE_PLAYCOUNT:1 += 8
+				体力回復量 = 150
+				気力回復量 = 400
+			CASE 5, 6
+				PRINTFORML 「パクパク…ごくんっ」
+				PRINTFORMW 「お、おいしい！！！今までも一番のおいしさですっ！」
+				STONE_PLAYCOUNT:1 += 10
+				体力回復量 = 300
+				気力回復量 = 500
+		ENDSELECT
+		PRINTFORMW %CALLNAME:MASTER%と%STONE_UKETSUKENAME%は小腹を満たした
+		CALL RECOVER(MASTER, 体力回復量, "体力")
+		CALL RECOVER(MASTER, 気力回復量, "気力")
+		CALL 満腹度上昇(MASTER, "軽食")
+		EXP:MASTER:요리경험 += 1
+		TIME += 10
+		STONE_SEXTIME -= 10
+		GOTO LOOP_SEX
+	CASE 6
+		IF STONE_PLAYCOUNT:4 == 2
+			PRINTFORMW 「えっ名前を変えたい？」
+			PRINTFORMW 「今の名前わりと気に入ってるのに…」
+			PRINTFORMW 「でもいいですよ。だって%CALLNAME:MASTER%以外からは呼ばれませんし…」
+		ELSE
+			PRINTFORMW 「やっと名前決まりました？」
+			PRINTFORMW 「早速おしえてください！」
+			PRINTFORMW 「いったいどんな名前になるんでしょう♪」
+		ENDIF
+		CALL STONE_NAMESET
+		GOTO LOOP_SEX
+	CASE 7
+		PRINTFORMW 「えっもう？」
+		PRINTFORMW 「バレること考えると早く帰った方が良いのはそうですけど……」
+		PRINTFORMW 「名残惜しいのです……」
+		RESETCOLOR
+		PRINTFORML
+		PRINTFORMDL 名残惜しそうにする%STONE_UKETSUKENAME%を引きづって、受付に戻った……
+ENDSELECT
+RESETCOLOR
+
+
+;-------------------------------------------------
+;積み石コンテストカップル部門のテーマ説明を呼び出す関数
+;-------------------------------------------------
+@StoneTheme_Intro
+SIF !CHK_DATENOW(CFLAG:12)
+	PRINTFORML 「あれれ…今はデート中じゃないみたい……参加するには相方さんが必要だから注意ですっ！」
+	PRINTFORML
+SELECTCASE DAY:3
+	CASE 1
+		PRINTFORMW 「今日のコンテスト名は『積み石は春風とともに』……春がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「春が好きな子が得意なんです！逆に夏秋冬が好きな子は苦手な傾向があるみたいです…」
+		PRINTFORMW 「春のイメージが強い花が好きな子も得意かもです」
+		PRINTFORMW 「四季テーマは定期的にやっていますのでこの季節が苦手でも別の季節のときならチャンスがありますよ！」
+	CASE 2
+		PRINTFORMW 「今日のコンテスト名は『積み上げる皿が一枚足りない…』……お皿がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「わたしたち水子はご飯を食べないですから食器は積み上げるためのものでしかないのです」
+		PRINTFORMW 「食器とかお皿が好きな子が得意です。ナイフとかお皿以外の食器好きだと影響しない気がします」
+		PRINTFORMW 「あと料理できる人やお皿をよく扱うメイドさんなんかも有利みたいですね」
+	CASE 3
+		PRINTFORMW 「今日のコンテスト名は『こんどの積み石はこわい』……ホラーがテーマです…」
+		PRINTFORML
+		PRINTFORML 「まあ…わたしたちももある意味ホラーですけど…」
+		PRINTFORMW 「まあ分かりやすく血とか闇とか血とかそういうのが好きだと得意みたいですね」
+		PRINTFORMW 「ちなみに傘の妖怪がチャレンジしたことがあるんですけどその子はテーマ加点はありませんでした」
+	CASE 4
+		PRINTFORMW 「今日のコンテスト名は『題名のない積み石コンテスト』……音楽がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「積み石しながら音楽を歌ったり奏でたりするんですよ」
+		PRINTFORMW 「だから当然音楽や楽器が得意だったり、好きだと評価が上がりますー」
+		PRINTFORMW 「ちなみにえーかちゃんはわたしたちのアイドルだからどうしても贔屓点が入ってしまうことを予めご了承くださーい」
+	CASE 5
+		PRINTFORMW 「今日のコンテスト名は『ゆめかわメルヘン積み石』……メルヘンがテーマなのです」
+		PRINTFORML
+		PRINTFORML 「かわいいものが好きだと頑張れるみたいです。逆にかっこいいものや怖いものが好きだと少し苦手みたい？」
+		PRINTFORML 「わたしかわいいもの大好きなのです！ピンクとか…ハートとか！」
+		PRINTFORMW 「わたしもかわいい？えへへ…ありがとうございますです…」
+	CASE 6
+		PRINTFORMW 「今日のコンテスト名は『水子にも衣装』……布飾がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「布を使って積み石を飾り立てるデコり大会ですね」
+		PRINTFORMW 「ぬいぐるみとか人形好きなわたしはこのテーマ得意なんですよ」
+		PRINTFORMW 「かわいいのもいっぱい見られますし、わたしこのテーマ大好きです！」
+	CASE 7
+		PRINTFORMW 「今日のコンテスト名は『虹色に積み上げて』……カラフルがテーマですね」
+		PRINTFORML
+		PRINTFORML 「特定の色だけではなくカラフルなのが条件です！」
+		PRINTFORMW 「だから好きな色があっても嫌いな色もあると苦戦しちゃうかもです」
+	CASE 8
+		PRINTFORMW 「今日のコンテスト名は『積み石は夏風とともに』……夏がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「夏が好きな子が得意なんです！逆に春秋冬が好きな子は苦手な傾向があるみたい…」
+		PRINTFORMW 「夏のイメージが強い花が好きな子も得意かもですね」
+		PRINTFORMW 「四季テーマは定期的にやっていますのでこの季節が苦手でも別の季節のときならチャンスがありますよ！」
+	CASE 9
+		PRINTFORMW 「今日のコンテスト名は『大陸風積み石』……まんま大陸風がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「当然和風や洋風が好きだと苦手ですね」
+		PRINTFORMW 「ううう…大陸風っていうと…あのこわーい邪仙のイメージが…」
+	CASE 10
+		PRINTFORMW 「今日のコンテスト名は『積み石動物園』……動物がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「動物っぽい積み石作品を作るのは分かりやすくて大人気テーマなんですよ」
+		PRINTFORMW 「私もかわいい動物大好きなんでこのテーマ大好きなのです！」
+		PRINTFORMW 「鳥さんとか蛇さんも動物だけど…私はやっぱり獣モチーフの方が可愛くて好きですね」
+	CASE 11
+		PRINTFORMW 「今日のコンテスト名は『積み石バトル！！』……戦いがテーマなのです」
+		PRINTFORML
+		PRINTFORML 「戦いがテーマだから…戦いや刃物や銃が得意な人が上手いみたいなのです！」
+		PRINTFORMW 「逆に刃物や弾や血生臭いのが苦手なわたしたち水子からすると得意なテーマじゃないですね…」
+		PRINTFORMW 「苦手なものだからと言って手は抜かず、ちゃーんとおしごとはしますよ！」
+	CASE 12
+		PRINTFORMW 「今日のコンテスト名は『ROCK TO THE FUTURE』……未来がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「まぁ、水子に未来なんてないんですけど…」
+		PRINTFORMW 「機械仕掛けとか未来を感じさせるのが好きだと得意で、逆にレトロ好きは苦戦しちゃうみたいなのです」
+		PRINTFORMW 「まぁ、水子には過去なんてのもほぼ存在して無いんですけど…」
+	CASE 13
+		PRINTFORMW 「今日のコンテスト名は『積み石は秋風とともに』……秋がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「秋が好きな子が得意なんです！逆に春夏冬が好きな子は苦手な傾向があるみたい…」
+		PRINTFORMW 「秋のイメージが強い葉っぱが好きな子も得意かもですね」
+		PRINTFORMW 「四季テーマは定期的にやっていますのでこの季節が苦手でも別の季節のときならチャンスがありますよ！」
+	CASE 14
+		PRINTFORMW 「今日のコンテスト名は『ONCE UPON TSUMIISHI』……レトロがテーマなのです」
+		PRINTFORML
+		PRINTFORML 「ま、水子に過去なんてほぼないのですけど…」
+		PRINTFORMW 「失われたとか昔を感じさせるのが好きだと得意で、逆に未来的なもの好きは苦戦しちゃうみたいです」
+		PRINTFORMW 「ま、水子には未来なんてのも存在して無いんですけど…」
+	CASE 15
+		PRINTFORMW 「今日のコンテスト名は『積み石マーケット』……高級がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「積み石作品のコレクターさんが採点担当で、高値をつけてでも買いたい作品を選ぶです」
+		PRINTFORMW 「やっぱり高いものを普段から好んでる人ほどうまく作れるみたいですね」
+		PRINTFORMW 「あっ！高いものが好きだとしても貧乏神さんはやめといた方が良いと思います…」
+	CASE 16
+		PRINTFORMW 「今日のコンテスト名は『ウルトラスーパーデラックス積み石』……派手がテーマなのです」
+		PRINTFORML
+		PRINTFORMW 「派手なものが好きだと得意でシンプルとか繊細なのが好きだと苦手な傾向がありますよ」
+		PRINTFORMW 「あと白黒灰みたいなシンプルな色が好きでも苦手みたいですー」
+	CASE 17
+		PRINTFORMW 「今日のコンテスト名は『和風積み石』……そのまんま和風がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「当然大陸風や洋風が好きだと苦手みたいなのです」
+		PRINTFORMW 「積み石はそもそも和風なのでは？っていう疑問は受け付けませーん」
+	CASE 18
+		PRINTFORMW 「今日のコンテスト名は『石と仲良くなろう』……そのまんま鉱石がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「積み石で扱う普通の石だけでなくて、色んな石を使って積み石するのです！」
+		PRINTFORMW 「宝石とかも積む石に使えますけど…盗んだりしないでくださいね」
+	CASE 19
+		PRINTFORMW 「今日のコンテスト名は『ロジカル積み石システム』……知性がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「賢い人が本気で賢く作ったら一体どんな積み石が出来るんだろう…って発想で生まれたテーマなのです」
+		PRINTFORMW 「賢い人は勿論、本を好んで読んでる人も得意みたいですー」
+	CASE 20
+		PRINTFORMW 「今日のコンテスト名は『積み石は冬風とともに』……冬がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「冬が好きな子が得意なんです！逆に春夏秋が好きな子は苦手な傾向があるみたい…」
+		PRINTFORMW 「冬のイメージが強い氷とか雪が好きな子も得意かもですね」
+		PRINTFORMW 「四季テーマは定期的にやっていますのでこの季節が苦手でも別の季節のときならチャンスがありますよ！」
+	CASE 21
+		PRINTFORMW 「今日のコンテスト名は『ツみ石こンてすトカッぷル部もん』……カオスがテーマなのです」
+		PRINTFORML
+		PRINTFORML 「混沌な感じが好きな子が得意で逆に秩序的な感じが好きな子が苦手みたいなのです」
+		PRINTFORMW 「明日は秩序テーマですから、こういうのが苦手ならまた明日来てくださいね！待ってまーす！」
+	CASE 22
+		PRINTFORMW 「今日のコンテスト名は『積み石コンテストカップル部門』……秩序がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「秩序な感じが好きな子が得意で逆に混沌的な感じが好きな子が苦手みたいです」
+		PRINTFORMW 「混沌な感じが好きな人はごめんなさい…昨日なんで次はまた３１日後です…」
+	CASE 23
+		PRINTFORMW 「今日のコンテスト名は『洋風積み石』……そのまんま洋風がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「当然大陸風や和風が好きだと苦手みたいですね」
+		PRINTFORMW 「洋風ってWelcomeHellってやつですよね？えっ違う？」
+	CASE 24
+		PRINTFORMW 「今日のコンテスト名は『積み石の星になれ』……天体がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「星空がテーマなのですけど太陽が好きでも活躍できますよ」
+		PRINTFORMW 「ただ闇は天体のイメージがありそうですけど加点も減点も無いので注意してくださいね」
+	CASE 25
+		PRINTFORMW 「今日のコンテスト名は『水の子コンテスト』……水がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「ある意味では最も身近な存在である水がテーマですね」
+		PRINTFORMW 「水棲生物好きが強いのかも？」
+		PRINTFORMW 「ちなみに三途の河に潜るのは絶対にやめた方が良いですよ。危ないですから」
+	CASE 26
+		PRINTFORMW 「今日のコンテスト名は『守矢プレゼンツ積み石コンテスト』……守矢がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「今日は守矢の方々が出資している特別回なので…だから会場に広告がたくさん！」
+		PRINTFORMW 「巫女とか神霊や大地や風やカエルヘビ好きでも得意な傾向があるみたいですね」
+	CASE 27
+		PRINTFORMW 「今日のコンテスト名は『マジカルストーンバランシング』……魔法使いがテーマなのです」
+		PRINTFORML
+		PRINTFORML 「そのまま魔法や魔女に精通してる人が勿論強いは強いんですけど…」
+		PRINTFORMW 「評価するのはわたしたち水子だから魔女っぽかったら何でもOKしちゃうんですよねー」
+		PRINTFORMW 「何なら書物でも魔法使い判定しちゃうかも」
+	CASE 28
+		PRINTFORMW 「今日のコンテスト名は『バニーの日』……その名の通りバニーがテーマなのです」
+		PRINTFORML
+		PRINTFORML 「毎月２８日はバニーの日！ということでそれに合わせた企画ですね」
+		PRINTFORMW 「それにしてもいったい何なんでしょうねバニーの日って……」
+		PRINTFORMW 「えーっと……とりあえずバニーに関連するウサギとかコインとかが好きな人が有利ですよ！」
+		PRINTFORMW 「逆に苦手なのはそういうのが苦手な人と…あと恥じらいがある人ですね」
+	CASE 29
+		PRINTFORMW 「今日のコンテスト名は『自然のマリアージュ、石と植物の調和』……植物がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「植物自体が好きだととてもうまくて、そうでなくても花や植物がなにかしら好きならって感じだね」
+		PRINTFORMW 「ちなみにキノコは植物ではありません！ざんねーん！」
+	CASE 30
+		PRINTFORMW 「今日のコンテスト名は『自然のマリアージュ、空と風の調和』……風がテーマなのです」
+		PRINTFORML
+		PRINTFORML 「風そのものや空を飛ぶいきものが好きだと有利ですね！」
+		PRINTFORMW 「ただの風じゃなくて空も重要だから地底好きな人は苦戦するかもしれません」
+	CASE 31
+		PRINTFORMW 「今日は何でもありの特別な日！」
+		PRINTFORML 「他の日のテーマの中から一つ選んで、そのテーマで積み石を作ってもらいます！」
+		PRINTFORML
+		PRINTFORMW 「優勝したらその指定した日のテーマで優勝したことになりますよ！」
+		PRINTFORMW 「うっかりやり忘れたら次は３１日後ってならないための救済処置ですね！」
+ENDSELECT
+
+SIF STONE_TUTORIAL:(DAY:3 + 20) == 0
+	STONE_TUTORIAL:(DAY:3 + 20) = 1
+
+IF MINARRAY(STONE_TUTORIAL, 21, 52) == 1 && STONE_TUTORIAL:52 == 0
+	PRINTFORML 「あなたは今日…全てのテーマの解説をわたしから聞くという偉業を成し遂げましたっ！」
+	PRINTFORMW 「まさか全部聞いてくれる人が現れるなんて思ってませんでした…」
+	PRINTFORMW 「わたしの感謝の気持ちぐらいしかあげられるものなんてないです…」
+	PRINTFORMW 「これからも積み石コンテスト…よろしくお願いいたしますね！」
+	STONE_PLAYCOUNT:1 += 100
+	STONE_TUTORIAL:52 = 1
+ENDIF
+
+;-------------------------------------------------
+;受付水子関係のイベント呼び出し
+;-------------------------------------------------
+@STONE_UKETSUKE
+SETCOLOR C_PINK
+PRINTFORML
+PRINTFORML
+IF STONE_PLAYCOUNT:2 == 0 && STONE_BATTLECOUNT:0 > 0
+	PRINTFORMW
+	PRINTFORML %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない崖下で石に座り込み休んでいた
+	PRINTFORMW 「あっこんなところに…さっきぶりなのです」
+	PRINTFORML %CALLNAME:MASTER%の目の前に現れた土気色の肌で瓔花よりも小さい水子が語りかけてきた
+	PRINTFORMW さっきぶりという言葉の通り、さっきまで受付やら実況やらでずっと会話をしてた積み石コンテストのスタッフの子だ
+	PRINTFORML
+	PRINTFORMW 「わたしは今、休憩時間なのです。サボりではないのです」
+	PRINTFORML 「あの……………………………」
+	PRINTFORMW 「………………積み石コンテストどうでした？楽しかったですか？」
+	{
+	CALL ASK_M("とっても楽しかった",1,"簡単だった",1,"良かったけど改善ポイントはある",1,)
+	}
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORMW 「やったー！それは良かったのです！」
+			PRINTFORML 「積み石コンテストはリニューアルしたばかりで実は不安で……」
+			PRINTFORMW 「って運営側のわたしがそんな弱音吐いちゃダメですね…」
+		CASE 1
+			PRINTFORMW 「簡単でしたか！ふむふむ…そういう意見はありがたいのです…」
+			PRINTFORML 「カジュアル向けに少し簡単にっていうのは考えてはいるのですけど…」
+			PRINTFORMW 「歯ごたえを求めてる人もいますよね…」
+		CASE 2
+			PRINTFORMW 「改善点……どこですか？」
+			PRINTFORML 「ゲームが単調？いやそれは積み石だからしかたな…」
+			PRINTFORMW 「いや、運営のわたしがそういう言い訳するのは良くないですね…」
+			PRINTFORMW 「んー…どうしたらいいかな……」
+		ENDSELECT
+	PRINTFORML 「あっ！そうだ！今度また色々感想とか教えてくださいっ！」
+	PRINTFORMW さきほどまで暗い顔をしていた名案を思い付いたかのように少女は顔をほころばせた
+	PRINTFORMW 「あなたの意見があれば色々改善とか逆に強化とか出来るかもしれません！」
+	PRINTFORMW 「積み石コンテストにまた来たら、言ってください！」
+	PRINTFORMW 「わたしが受付担当するので！専属ってやつなのですっ！」
+	PRINTFORML 目の前の水子の少女は、%CALLNAME:MASTER%の肩に手を当てて、興奮した様子でまくし立てている
+	PRINTFORMW %CALLNAME:MASTER%はただ気押され、彼女の提案を了承した…
+	PRINTFORML
+	PRINTFORMW 「やったー！…………とごめんなさい！ちょっと興奮しすぎちゃったのです……」
+	PRINTFORMW 「まずは名前からですよね…お名前を……%CALLNAME:MASTER%さんですね！覚えました！」
+	PRINTFORMW 「え？わたしの名前？…………わたしに名前はないのです。だって名前が付く前に死んじゃいましたから」
+	PRINTFORMW 「だから受付水子とかそんな感じの名前で呼んでくださいねっ！」
+	PRINTFORML
+	PRINTFORMW 「それじゃあまた今度！」
+	STONE_PLAYCOUNT:2 = 1
+ELSEIF STONE_PLAYCOUNT:2 == 1 && STONE_PLAYCOUNT:0 > 1 && STONE_PLAYCOUNT:1 > 20
+	PRINTFORML %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「どうもー！さっきぶりなのです！」
+	PRINTFORMW 休憩で抜け出して来た受付水子が%CALLNAME:MASTER%の前にメモを持って現れた
+	PRINTFORML
+	PRINTFORMW 「ふふん！このメモはなるみちゃんから貰ったんですよ！」
+	PRINTFORMW 「いつも頑張ってるねーってえへへ……」
+	PRINTFORMW そのときの状況を思い出したのか少女は照れた顔をしている…
+	PRINTFORMW 「こほん、さあ色々感想をお願いしますね！メモ取りますので！なるみちゃんから貰ったメモで！」
+	PRINTFORML …………………
+	PRINTFORML ……………
+	PRINTFORMW ……
+	PRINTFORML
+	PRINTFORMW 「ふむふむ……積み石ですから単調なのを改善するのは難しいんですけど…」
+	PRINTFORMW 「なにか別のなにかでやろうって思えるようにすればいいのかな…？んーどうしたら…」
+	PRINTFORMW 予算の範囲内で……とボソッと呟いたのはあえて無視して%CALLNAME:MASTER%はしばらく受付水子と話をしたり積み石で遊んだりして過ごした…
+	STONE_PLAYCOUNT:2 = 2
+ELSEIF STONE_PLAYCOUNT:2 == 2 && STONE_PLAYCOUNT:0 > 3 && STONE_PLAYCOUNT:1 > 50 && STONE_BATTLECOUNT:1 > 1
+	PRINTFORML %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「どうもー！さっきぶりなのです！」
+	PRINTFORMW 休憩で抜け出して来た受付水子が%CALLNAME:MASTER%の前に石を持って現れた
+	PRINTFORML
+	PRINTFORMW 「今日はわたしと積み石勝負しましょう！」
+	PRINTFORMW 「問答無用なのです！」
+	PRINTFORML …………………
+	PRINTFORML ……………
+	PRINTFORMW ……
+	PRINTFORML
+	PRINTFORMW 「ま…負けましたのです…」
+	PRINTFORMW 「でも次なら行ける気がするのです！もう一回やりましょう！」
+	PRINTFORMW %CALLNAME:MASTER%はしばらく受付水子と積み石で遊び、勝ったり負けたりして楽しんだ…
+	STONE_PLAYCOUNT:2 = 3
+ELSEIF STONE_PLAYCOUNT:2 == 3 && STONE_PLAYCOUNT:0 > 5 && STONE_PLAYCOUNT:1 > 80
+	PRINTFORML %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「どうもー！さっきぶりなのです！」
+	PRINTFORMW 休憩で抜け出して来た受付水子が%CALLNAME:MASTER%の前にメモを持って現れた
+	PRINTFORML
+	PRINTFORMW 「今日も色々案出しお願いしますね！」
+	PRINTFORML …………………
+	PRINTFORML ……………
+	PRINTFORMW ……
+	PRINTFORML 「それにしても…えへへ、結構仲良くなってきましたね。わたしたち」
+	PRINTFORML 「もうお友達じゃないですか？」
+	PRINTFORML 「とっくに友達だと思ってた？わっわたしもです！」
+	PRINTFORML 「わたし人間のお友達ってはじめてですー」
+	PRINTFORMW %CALLNAME:MASTER%はしばらく友人である受付水子と話をしたり積み石で遊んだりして過ごした…
+	STONE_PLAYCOUNT:2 = 4
+ELSEIF STONE_PLAYCOUNT:2 == 4 && STONE_PLAYCOUNT:1 > 100 && STONE_BATTLECOUNT:1 > 20 && TALENT:MASTER:돌쌓기랭커 >= 2
+	PRINTFORML %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「どうもー！さっきぶりなのです！」
+	PRINTFORMW 休憩で抜け出して来た受付水子が%CALLNAME:MASTER%の前にメモを持って現れた
+	PRINTFORML
+	PRINTFORMW 「知ってます？最近%CALLNAME:MASTER%さんが話題なんですよ！」
+	PRINTFORMW 「凄い勝ってる期待のルーキーがいるって」
+	SIF TALENT:돌쌓기랭커 >= 5
+	PRINTFORMW 「もう積み石マスターなのに情報が回るのは遅いのです」
+	PRINTFORML 「ま！最初に%CALLNAME:MASTER%さんを見出したのはわたしなんですけどね！初試合のときからわたしは光るモノを…」
+	PRINTFORMW 自慢げな顔をしている少女としばらく話をしたり積み石で遊んだりして過ごした…
+	STONE_PLAYCOUNT:2 = 5
+ELSEIF STONE_PLAYCOUNT:2 == 5 && STONE_PLAYCOUNT:0 > 7 && STONE_PLAYCOUNT:1 > 130
+	PRINTFORML %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「どうもー！さっきぶりなのです！」
+	PRINTFORMW 休憩で抜け出して来た受付水子が%CALLNAME:MASTER%の前にメモを持って現れた
+	PRINTFORML
+	PRINTFORMW 「今日も色々案出しお願いしますね！」
+	PRINTFORML …………………
+	PRINTFORML ……………
+	PRINTFORMW ……
+	PRINTFORML
+	PRINTFORMW 「なるほどなのです。よくわかったのです」
+	PRINTFORMW 「報酬がお金だけだとなんか寂しい……なにか改善案を考えてみますね！」
+	PRINTFORMW 予算の範囲内で……とボソッと呟いたのはあえて無視して%CALLNAME:MASTER%はしばらく受付水子と話をしたり積み石で遊んだりして過ごした…
+	STONE_PLAYCOUNT:2 = 6
+ELSEIF STONE_PLAYCOUNT:2 == 6 && STONE_PLAYCOUNT:0 > 8 && STONE_PLAYCOUNT:1 > 160
+	PRINTFORML %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「どうもー！さっきぶりなのです！」
+	PRINTFORMW 休憩で抜け出して来た受付水子が%CALLNAME:MASTER%の前にメモを持って現れた
+	PRINTFORML
+	PRINTFORMW 「今日は一つ報告があります！」
+	PRINTFORMW 「なんとですね…今度から大会の商品に滑石もつくようになったのですよ！」
+	PRINTFORML 「………………………」
+	PRINTFORMW 「あはは…やっぱりしょぼいですよねぇ…でも水子ですから色々調達も大変でこれが限界なんです…」
+	PRINTFORMW 「なにか無いかなぁ…」
+	STONE_PLAYCOUNT:2 = 7
+ELSEIF STONE_PLAYCOUNT:2 == 7 && TALENT:MASTER:돌쌓기랭커 >= 3
+	PRINTFORML %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「どうもー！さっきぶりなのです！」
+	PRINTFORMW 休憩で抜け出して来た受付水子が%CALLNAME:MASTER%の前に現れた
+	PRINTFORML
+	PRINTFORMW 「%CALLNAME:MASTER%さんメキメキと強くなってますね！」
+	PRINTFORMW 「わたし、積み石強い人のこと尊敬するし好きなのでとっても応援してるのです！」
+	PRINTFORMW 「まあ%CALLNAME:MASTER%さんに関しては……いえなんでも無いです」
+	PRINTFORMW 何やら言いよどんだ少女と%CALLNAME:MASTER%はしばらく話をしたり積み石で遊んだりして過ごした…
+	STONE_PLAYCOUNT:2 = 8
+ELSEIF STONE_PLAYCOUNT:2 == 8 && STONE_PLAYCOUNT:1 > 200
+	PRINTFORML %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「どうもー！さっきぶりなのです！」
+	PRINTFORMW 休憩で抜け出して来た受付水子が%CALLNAME:MASTER%の前にメモを持って現れた
+	PRINTFORML
+	PRINTFORMW 「今日も色々案出しお願いしますね！」
+	PRINTFORML …………………
+	PRINTFORML ……………
+	PRINTFORMW ……
+	PRINTFORML
+	PRINTFORMW 「やっぱり商品にあまり魅力を感じないと…」
+	PRINTFORMW 「んー…色々改善案は考えてはいるのですけどどうしても難しくて…」
+	PRINTFORML %CALLNAME:MASTER%はぶっちゃけこのままだと、自分もその内来る頻度が減るだろうという話をした…
+	PRINTFORMW 「へ？そ、そんな！！せ、せっかく人間の親友が出来たとおおお思ってたのに」
+	PRINTFORML 目の前の少女はいつも以上に土気色の肌になってたどたどしい丁寧語をする余裕もなくショックを受けているようだ…
+	PRINTFORMW 慌てて%CALLNAME:MASTER%がフォローを入れようとするがその前に受付水子はなにやら決意した様子で口を開いた
+	PRINTFORML
+	PRINTFORMW 「わかりました！次ピラミッド級以上で優勝したらごほーびをあげます！」
+	STONE_PLAYCOUNT:2 = 9
+ELSEIF STONE_PLAYCOUNT:2 == 10 && STONE_PLAYCOUNT:1 > 250
+	PRINTFORMW %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「どうもー！さっきぶりなのです！」
+	PRINTFORMW 休憩で抜け出して来た受付水子が%CALLNAME:MASTER%の前にメモを持って現れた
+	PRINTFORML
+	PRINTFORMW 「今日も色々案出しお願いしますね！」
+	PRINTFORML …………………
+	PRINTFORML ……………
+	PRINTFORMW ……
+	PRINTFORML
+	PRINTFORMW 「それでですねー！」
+	PRINTFORMW しばらく話をしたがまるで前回の出来事がなかったかのように受付水子は振舞っている
+	PRINTFORMW もしや頬にキスをされたのは夢かなにかだったのでは？と疑った%CALLNAME:MASTER%は単刀直入にご褒美の件について切り出した
+	PRINTFORMW 「へ？次のご褒美が欲しい…？」
+	PRINTFORML
+	PRINTFORMW 「わ、分かったのです。つ、次ピラミッド級以上で優勝したらごほーびをあげます！」
+	PRINTFORMW そのあとしばらくそわそわした様子の受付水子と会話をした…
+	STONE_PLAYCOUNT:2 = 11
+ELSEIF STONE_PLAYCOUNT:2 == 12 && STONE_PLAYCOUNT:1 > 350
+	PRINTFORMW %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「ここでお話するの久しぶりな気がするのです」
+	PRINTFORML
+	PRINTFORMW この殺風景で石しか無い場所で、彼女と何度も話をしてきた。色々意見を出し合ったり、積み石で遊んだり、賽の河原の外の話をしてあげたこともある
+	PRINTFORMW そしてキスをしたりお互い服を脱いで挿入こそしないもののエッチなことをした場所でもある。
+	PRINTFORML 今にも折れてしまいそうな小さくて細い身体が、既に死んだ者で表す土気色の肌が、賽の河原に吹く不吉な風にゆれるセミロングの白髪が、
+	PRINTFORMW これまでで一番真剣な顔をして、%CALLNAME:MASTER%の目の前に、この場所に存在している
+	PRINTFORML
+	PRINTFORMW 「わたしは、%CALLNAME:MASTER%さんが大好きです」
+	PRINTFORMW 「わたしのはじめての人間のお友達で、積み石が上手くて、わたしの我が儘にも付き合ってくれて、よくここに来てくれて…そんな%CALLNAME:MASTER%が…」
+	PRINTFORMW 「でもわたしは死んじゃってるから、えーかちゃんみたいに外に出れるわけでもないから、%CALLNAME:MASTER%さんの一番にはなれないんですよね」
+	IF TALENT:127:연인
+		PRINTFORMW 「えーかちゃんと恋人なんでしょ？知ってますよ？惚気たまーに聞くのです」
+	ELSEIF TALENT:127:연모
+		PRINTFORMW 「えーかちゃんも%CALLNAME:MASTER%さんのこと好きみたいですし…」
+	ELSE
+		PRINTFORMW 「%CALLNAME:MASTER%さんのことですからきっとたくさんの女の子の大好き度積み上げてるんでしょうねー」
+	ENDIF
+	PRINTFORMW 「っと！別に他の女の子の話なんてどうでもいいのです。一番じゃなくても良いんです。なれないのはわかってますからね」
+	PRINTFORMW 「…………これまでで一番のごほーび……欲しいですか？」
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML ※ごほーびが欲しいを選択すると、最終的にセックスすることになります
+	PRINTFORML ※そのため、童貞プレイや特定キャラに送を立てるプレイをしている人はいいえを選択することをお勧めします
+	CALL ASK_M("ごほーびが欲しい",1,"ごほーびはいらない※受付水子イベントフラグ消失",1)
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORMW 「だよねーそりゃ欲しいよね。わたしだって%CALLNAME:MASTER%さんにごほーびあげたい」
+			PRINTFORMW 「でもわたし水子だから、こどもを作る行為ってどうしても苦手というか…」
+			PRINTFORMW 「一時の快楽に流されてこども作って不幸にするようなダメな男と女が大嫌いなんです」
+			PRINTFORMW 「でも……それを超えそうなぐらい…ごほーびをあげたいとも思ってるのです…」
+			PRINTFORMW 「わたしも…そんなダメなオンナだってことなのですよね…」
+			PRINTFORML
+			PRINTFORMW 「…………次、バベルの塔級で優勝したら…あげます」
+			PRINTFORMW 「……頑張ってください。なのです」
+			STONE_PLAYCOUNT:2 = 13
+		CASE 1
+			PRINTFORMW 「そう……いくじなし」
+			PRINTFORMW 「ん？なんでもないよ！じゃあ話を戻して今日の積み石大会の感想戦でもしましょう！」
+			PRINTFORMW そのあとしばらく受付水子とまるで何も無かったかのように会話をした…
+			STONE_PLAYCOUNT:2 = 18
+	ENDSELECT
+ELSEIF STONE_PLAYCOUNT:2 == 15 && STONE_PLAYCOUNT:1 > 550
+	PRINTFORMW %CALLNAME:MASTER%は積み石コンテストを終えて、会場からそう遠くない場所で石に座り込み休んでいた
+	PRINTFORML 「最近は会場の裏で隠れて会うことが多かったから、久しぶりですね」
+	PRINTFORMW %STONE_UKETSUKENAME%はいつもよりゆったりとしたボロ布を身に着けて、こちらにやってきた
+	PRINTFORMW 「今日はですね。お知らせをしに来たのです」
+	PRINTFORML
+	PRINTFORMW 「それはですね……ママになっちゃったんです」
+	PRINTFORML
+	PRINTFORMW 「はぁ…まさかわたしが流されて子供作る親そのものになっちゃうなんて…」
+	PRINTFORMW 「でも……幸せな気持ちでいっぱいで……気持ちが少しは分かったのです」
+	PRINTFORML
+	PRINTFORMW 「出来た子供は……ちょうど賽の河原にね、子供を失っちゃってそれでもほしくてずっと嘆いているお母さんがたまに来ているんです」
+	PRINTFORMW 「ここから離れられないわたしにはちゃんと育てるなんて出来ないですから、その人に頼もうと思って」
+	PRINTFORMW 「……それで産休のためにしばらく積み石コンテストはお休みなの」
+	PRINTFORMW 「わたしは水子だから結構短い時間で済むんだけど……これから２週間ぐらいお休みをもらうね」
+	STONE_PLAYCOUNT:2 = 16
+	FLAG:스침잉태수 += 1
+	;本当は幽霊孕ませも加算したいがそれだと孕ませ埋めがちょっと楽すぎる気がするのでとりあえず無し
+	STONE_UKETSUKEDAY = DAY:0
+ENDIF
+
+;アイテム獲得
+IF STONE_ITEM:0 == 0 && STONE_PLAYCOUNT:2 >= 3 && STONE_BATTLECOUNT:1 > 15
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML 「あっそういえば！%CALLNAME:MASTER%の案一つ採用決まったんですよ」
+	PRINTFORMW 受付水子は話している間は忘れていたのか、慌ててメモを取り出した
+	PRINTFORMW 「積み石装備システムが次回から実装なのです！」
+	PRINTFORMW パチパチパチ…%STONE_UKETSUKENAME%は一人で拍手をした
+	PRINTFORML
+	PRINTFORMW 「これはですね！%CALLNAME:MASTER%さんが大会エントリー時に選ぶものなんです！」
+	PRINTFORMW 「そして試合連戦中はこの装備の効果を受けられるのです！」
+	PRINTFORMW 「このリストにある４種の装備を使った積み石バトルが始まるんですね！」
+	PRINTFORMW 「まあまだ１種類しか開発できていないんですけど……」
+	PRINTFORMW 「それにまだ実験段階なので１個しかないんですけど…あはは…」
+	PRINTFORMW 「というわけでお願いなんですけど…%CALLNAME:MASTER%さんがその１つを使って大会に出てくれませんか？」
+	PRINTFORMW 「いわゆるテストプレイヤーってやつです！」
+	PRINTFORMW 「お願いします！」
+	PRINTFORMW %CALLNAME:MASTER%は%STONE_UKETSUKENAME%の勢いに押されてうなずくしかなかった…
+	STONE_ITEM:0 = 1
+ELSEIF STONE_ITEM:0 == 1 && STONE_BATTLECOUNT:1 > 30
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML 「あっそういえば！新しく装備アイテム作れたんですよ！」
+	PRINTFORMW %STONE_UKETSUKENAME%は話している間は忘れていたのか、慌ててメモを取り出した
+	PRINTFORMW 「その名も肉体強化地蔵！」
+	PRINTFORMW パチパチパチ…%CALLNAME:MASTER%は拍手をしてあげた
+	PRINTFORML
+	PRINTFORMW 「これはですね！単純明快！最初に積める石の数に補正が入ります！」
+	PRINTFORMW 「というわけでこれも%CALLNAME:MASTER%さんがテストプレイヤーになってください！」
+	PRINTFORMW 「お願いします！」
+	STONE_ITEM:0 = 2
+ELSEIF STONE_ITEM:0 == 2 && STONE_BATTLECOUNT:1 > 50
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML 「あっそういえば！新しく装備アイテム増えたんです！」
+	PRINTFORMW %STONE_UKETSUKENAME%は話している間は忘れていたのか、慌ててメモを取り出した
+	PRINTFORMW 「その名も気ままな積み石！」
+	PRINTFORMW パチパチパチ…%CALLNAME:MASTER%と%STONE_UKETSUKENAME%は一緒に拍手をした
+	PRINTFORML
+	PRINTFORMW 「これはですね！相手に気ままに積み石したくなるようなオーラを発します」
+	PRINTFORMW 「すると、相手は適当に積み石するのでときどき事故ってしまうんです！」
+	PRINTFORMW 「強敵はどんなに強くても事故らせれば勝てますからジャイアントキリング用アイテムといえるでしょう！」
+	PRINTFORMW 「というわけでこれも%CALLNAME:MASTER%さんがテストプレイヤーになってください！」
+	PRINTFORMW 「お願いします！」
+	STONE_ITEM:0 = 3
+ELSEIF STONE_ITEM:0 == 3 && STONE_BATTLECOUNT:1 > 70
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML 「あっそういえば！新しく装備アイテム増えたんです！」
+	PRINTFORMW %STONE_UKETSUKENAME%は話している間は忘れていたのか、慌ててメモを取り出した
+	PRINTFORMW 「その名も積み石スカウター！」
+	PRINTFORMW イエーイ！%CALLNAME:MASTER%と%STONE_UKETSUKENAME%はハイタッチした
+	PRINTFORML
+	PRINTFORMW 「これはですね！相手の積み上げられる積み石の予測を正確にしてくれるんです！」
+	PRINTFORMW 「これで予測よりも15個ぐらい多めに積まれて負け！みたいなのは無くなりますよ！」
+	PRINTFORMW 「ただし、相手が事故る可能性は予測できません」
+	PRINTFORMW 「事故は予測できないから事故なんです」
+	PRINTFORMW 「というわけでこれも%CALLNAME:MASTER%さんがテストプレイヤーになってください！」
+	PRINTFORMW 「お願いします！」
+	STONE_ITEM:0 = 4
+ENDIF
+RESETCOLOR
+
+IF STONE_PLAYCOUNT:2 >= 13 && STONE_PLAYCOUNT:4 == 0
+	PRINTFORMW 「あっそうだ！」
+	PRINTFORMW 受付水子と喋り続けている最中、急になにか名案を思いついたかのように少女は声を上げた
+	PRINTFORML
+	PRINTFORMW 「その……わたしって今名前が無いから%CALLNAME:MASTER%さんが話かけるときにちょっと困ってるじゃないですか」
+	PRINTFORMW 「だから…その……名前をつけてもらえないかなあって」
+	PRINTFORMW 「今まで名前をつけてもらえる機会は何度かあったんですけど…これまでは断ってきたんです」
+	PRINTFORMW 「でも……%CALLNAME:MASTER%さんなら……良いですよ」
+	CALL STONE_NAMESET
+ENDIF
+
+@STONE_UKETSUKE_H
+SETCOLOR C_PINK
+PRINTFORML
+PRINTFORMW
+
+ IF STONE_PLAYCOUNT:2 == 9
+ 	;ここでほっぺでキスを済ませているのはファーストキスしたくない人用の配慮
+	PRINTFORMW 受付水子との約束通り優勝した%CALLNAME:MASTER%はいつもの場所に向かった
+	PRINTFORML 「………………」
+	PRINTFORMW 土気色の肌をいつもより紅潮させた受付水子が真剣な面持ちで佇んでいる
+	PRINTFORML 少女に声をかけると、いつもは賑やかな彼女が喋らずに、そのままこちらに近づく
+	PRINTFORML そのまま顔が至近距離まで近づいてきて……
+	PRINTFORMW ちゅっ%UNICODE(0x2764)%
+	PRINTFORML
+	PRINTFORMW 「今回はほっぺなのです！だけど今度は……やっやっぱりなんでもないのです！！」
+	PRINTFORMW 真っ赤な顔の水子の少女は逃げるように去って行った
+	STONE_PLAYCOUNT:1 += 10
+	STONE_PLAYCOUNT:2 = 10
+ELSEIF STONE_PLAYCOUNT:2 == 11
+	PRINTFORMW 受付水子との約束通り優勝した%CALLNAME:MASTER%はいつもの場所に向かった
+	PRINTFORML 「………………」
+	PRINTFORMW 土気色の肌をいつもより紅潮させた受付水子が真剣な面持ちで佇んでいる
+	PRINTFORML 少女に声をかけると、賑やかな彼女が喋らずに、そのままこちらに近づいてくる…
+	PRINTFORML そのまま顔を近づけると思いきや、少女はしゃがみこんだ
+	IF (TALENT:PLAYER:성별 & 2)
+		PRINTFORMW 「お、おちんちん出してください！！！」
+		PRINTFORMW キスだと思っていた%CALLNAME:MASTER%は戸惑い、とりあえず周りを確認する
+		PRINTFORMW とりあえず周りには誰もいないようだ…
+		PRINTFORMW 「男の人へのごほーびはこ、これが一番だって聞いたのです！！」
+		PRINTFORML そ、そういうことは好きな人相手に……
+		PRINTFORMW 「わ、わたし水子だから恋とか分かってないかもしれないのです！」
+		PRINTFORMW 「け、けれど%CALLNAME:MASTER%さんが好きって気持ちに偽りは無いのです！それじゃあダメなのです…？」
+		PRINTFORMW 「だだだ、大丈夫です！もし%CALLNAME:MASTER%さんに好きな人がいても…%UNICODE(0x2764)%これはご褒美だから浮気にはならないのです…%UNICODE(0x2764)%セーフなのです…%UNICODE(0x2764)%」
+		PRINTFORML %CALLNAME:MASTER%は少女の勢いに押され、自らの男根を外気に晒した
+		PRINTFORMW 「わわっ…これが%CALLNAME:MASTER%さんの…ごくり…%UNICODE(0x2764)%」
+		PRINTFORML 「て、手が良いですか？く、口が良いですか…？」
+		CALL ASK_YN("手でご褒美が欲しい","口でご褒美が欲しい")
+			IF !RESULT
+				PRINTFORML 「分かったのです…はじめてなので期待しないでほしいのです…」
+				PRINTFORMW 少女は恐る恐るといった様子で、%CALLNAME:MASTER%の竿に触れた
+				PRINTFORML
+				PRINTFORML 「あっ…すごい…あつぃ…%UNICODE(0x2764)%」
+				PRINTFORMW 少女の水子特有のひんやりした手に包まれ、男根はよりいっそう固くなる
+				PRINTFORML
+				PRINTFORML 「えっとこれを上下に……」
+				PRINTFORMW たどたどしい動きで少女は手を動かしだした。やや物足りない快楽が%CALLNAME:MASTER%を襲う
+				PRINTFORML 「んーやっぱり難しいのです…もっと興奮させればいいのでしょうか…？」
+				PRINTFORMW 少女は一度男根から手を離すと、周りを見て誰もいないことを確認すると裸になった
+				PRINTFORML
+				PRINTFORML 「は…はずかしいのです…けれどこれなら！」
+				PRINTFORMW その目論見通り%CALLNAME:MASTER%は少し赤らんだ土気色の肌のぺったんボディを凝視して興奮していた
+				PRINTFORMW 物足りなくて少し柔らかくなっていた男根も再び固くなっていた
+				PRINTFORML 「少しコツも掴んできたし、これなら！」
+				PRINTFORMW 積み石で鍛えた指の動きもようやく本領を発揮。急速に快楽を与えられ、絶頂へと導かれていった…
+				PRINTFORML
+				PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+				PRINTFORML
+				PRINTFORMW 「きゃっ！すごい出てる……」
+				PRINTFORMW 「もー%UNICODE(0x2764)%髪にかかっちゃったんですけどー！あはははは！」
+				PRINTFORML …………………
+				PRINTFORML ……………
+				PRINTFORMW ……
+				STONE_FIRSTSEX:1 = 1
+				STONE_PLAYCOUNT:2 = 12
+			ELSE
+				PRINTFORML 「分かったのです…はじめてなので期待しないでほしいのです…」
+				PRINTFORMW 少女は恐る恐るといった様子で、%CALLNAME:MASTER%の竿に触れ、口に含んだ
+				PRINTFORML
+				PRINTFORML 「あっ…しゅごひ…あちゅぃ…%UNICODE(0x2764)%」
+				PRINTFORMW 少女の水子特有のひんやりした口内に包まれ、男根はよりいっそう固くなる
+				PRINTFORML
+				PRINTFORML 「へっほ、ほれふぉ…」
+				PRINTFORMW たどたどしい動きで少女は口を動かしだした。やや物足りない快楽が%CALLNAME:MASTER%を襲う
+				PRINTFORML 「ぷはっ！んーやっぱり難しいのです…もっと興奮させればいいのでしょうか…？」
+				PRINTFORMW 少女は一度男根から口を離すと、周りを見て誰もいないことを確認すると裸になった
+				PRINTFORML
+				PRINTFORML 「は…はずかしいのです…けれどこれなら！」
+				PRINTFORMW その目論見通り%CALLNAME:MASTER%は少し赤らんだ土気色の肌のぺったんボディを凝視して興奮していた
+				PRINTFORMW 物足りなくて少し柔らかくなっていた男根も再び固くなっていた
+				PRINTFORML 「しゅほひひゃりはは、わはっへひははほ…」
+				PRINTFORMW 少しずつ要領を掴んできたのか舌の動きがよくなっていく。%CALLNAME:MASTER%は少しずつ快楽を与えられ、絶頂へと導かれていった…
+				PRINTFORML
+				PRINTFORMW どぴゅっ%UNICODE(0x2764)%ぴゅるるっ%UNICODE(0x2764)%%UNICODE(0x2764)%
+				PRINTFORML
+				PRINTFORMW 「らひへひーよ！……んんんっ！」
+				PRINTFORMW 「…………ごっくんっ！もー%UNICODE(0x2764)%すっごい不味いですー！あはははは！」
+				PRINTFORML …………………
+				PRINTFORML ……………
+				PRINTFORMW ……
+				STONE_FIRSTSEX:2 = 1
+				STONE_PLAYCOUNT:2 = 12
+			ENDIF
+	ELSE
+		PRINTFORMW 「お、おっぱい出してください！！！」
+		PRINTFORMW キスだと思っていた%CALLNAME:MASTER%は戸惑い、とりあえず周りを確認する
+		PRINTFORMW とりあえず周りには誰もいないようだ…
+		PRINTFORML
+		PRINTFORMW 「女の人へのごほーびはこ、これが一番だって聞いたのです！！」
+		PRINTFORML そ、そういうことは好きな人相手に……
+		PRINTFORMW 「わ、わたし水子だから恋とか分かってないかもしれないのです！」
+		PRINTFORMW 「け、けれど%CALLNAME:MASTER%さんが好きって気持ちに偽りは無いのです！それじゃあダメなのです…？」
+		PRINTFORMW 「だだだ、大丈夫です！もし%CALLNAME:MASTER%さんに好きな人がいても…%UNICODE(0x2764)%これはご褒美だから浮気にはならないのです…%UNICODE(0x2764)%セーフなのです…%UNICODE(0x2764)%」
+		PRINTFORML %CALLNAME:MASTER%は少女の勢いに押され、胸をさらけ出した
+		PRINTFORML
+		PRINTFORMW 「わわっ…これが%CALLNAME:MASTER%さんの…ごくり…%UNICODE(0x2764)%」
+		PRINTFORML ご褒美じゃなくてただ水子の習性でおっぱい求めてるだけじゃ…
+		PRINTFORML 「そ、そんなこと……たぶん…無いです…」
+		PRINTFORMW 少女は自分でも自信なさげなのか小声で否定しながら、%CALLNAME:MASTER%の乳首を口に含んだ
+		PRINTFORML
+		PRINTFORMW 「ちゅっちゅぱ…ちゅぱ…」
+		PRINTFORMW 「ちゅる…ちゅっ…れろっ」
+		PRINTFORMW 「満足しました！いてっごめんなさい！確かにこれじゃあわたしのご褒美ですよね！」
+		PRINTFORMW 周りを見て誰もいないことを確認すると裸になった
+		PRINTFORML
+		PRINTFORML 「は…はずかしいのです…けれどこれなら！」
+		PRINTFORMW その目論見通り%CALLNAME:MASTER%は少し赤らんだ土気色の肌のぺったんボディを凝視して興奮していた
+		PRINTFORMW 「これならごほーびになりますね！」
+		PRINTFORMW 「さあ！好きに吸ってほしいのです！」
+		PRINTFORML …………………
+		PRINTFORML ……………
+		PRINTFORMW ……
+		STONE_PLAYCOUNT:2 = 18
+	ENDIF
+	PRINTFORML
+	PRINTFORMW 「はい！ごほーびは終わりなのです！」
+	PRINTFORMW 少女は脱いだボロ服を着ながら、笑顔で語り掛けた
+	PRINTFORMW 「えっ？またやってほしい……？」
+	PRINTFORMW 「……わたしもまたごほーびあげたいんですけど…」
+	PRINTFORMW 「実は最近、わたし休憩取りすぎって怒られちゃって…」
+	PRINTFORMW 「だからここで終わったあと会うってのは中々難しくなっちゃうかも…」
+	PRINTFORML
+	PRINTFORMW 「…………………………」
+	PRINTFORML 「…………あっ！思いついた！こうしましょう！」
+	PRINTFORMW しばらく悩んで喋らないでいた少女だったが、やがて何かを思いついたのか何やら顔を赤らませて口を開いた
+	PRINTFORMW 「積み石コンテストのHELPあるじゃないですか。そこで何か理由をつけて抜け出してやっちゃいましょう！」
+	PRINTFORMW 「そうですね……合言葉は……忘れものをしてしまった。でどうでしょう！」
+	PRINTFORMW 「これなら周りにも怪しまれずに済むのです！もー全く%CALLNAME:MASTER%さんがごほーび欲しいっていうだからしょうがないのです！」
+	PRINTFORMW 「あっ！カップル連れのときに言われても困りますからね！」
+	PRINTFORML
+	PRINTFORMW 「……っと、そろそろ名残惜しいですが休憩時間も終わりですね…ちゅっ%UNICODE(0x2764)%」
+	PRINTFORMW 「じゃ、じゃあお先に失礼しまーす！」
+	EXP:MASTER:사정경험 += 1
+	EXP:MASTER:절정경험 += 1
+	PRINTFORML 絶頂経験 +1(%CALLNAME:MASTER%)
+	PRINTFORML 射精経験 +1(%CALLNAME:MASTER%)
+	STONE_PLAYCOUNT:1 += 10
+ELSEIF STONE_PLAYCOUNT:2 == 13
+	PRINTFORMW 積み石大会で優勝後、いつもの場所で%STONE_UKETSUKENAME%を待っていた
+	PRINTFORMW これまでの経験上、ここは意外と近くに誰も来ず、周りから見えることもないということが分かっている。これからすることにはうってつけだ
+	PRINTFORMW 霧に包まれた三途の河を眺めていると、後ろからふとスルりと肌と布が擦れる音が聞こえてきた
+	PRINTFORML
+	PRINTFORMW 「……まさか水子のわたしが恋人を作ってこういうことする日が来るなんて思っていなかったのです」
+	PRINTFORML %CALLNAME:MASTER%が振り返ると、ボロ布を脱ぎ、素肌を晒した%STONE_UKETSUKENAME%が立っていた
+	PRINTFORMW 「この為に本気のえーかちゃんを倒してくれたんですから…ごほーびあげないとですね」
+	PRINTFORMW 生きているよりも死んでいた時間の方がはるかに長い水子は、普段のあどけない少女の顔ではなく、確かにオンナの顔をしていた
+	PRINTFORML %CALLNAME:MASTER%は大きな石に着ていた服を敷き、そこに少女は座わりこむ
+	PRINTFORMW そして一抹の不安と、そして期待の感情を抱えたオンナの顔で誘うように%STONE_UKETSUKENAME%は言った
+	PRINTFORML
+	PRINTFORMW 「はい、ごほーびをどうぞです%UNICODE(0x2665) *1%」
+	PRINTFORML %CALLNAME:MASTER%は少女に臨戦態勢の男根を突き立て、ナカにゆっくりと挿れていった
+	PRINTFORMW 「ううう…いたいのです……」
+	PRINTFORML 小さいカラダに痛みが走り、大粒の涙を流す
+	PRINTFORMW その痛みはこれまでの水子として過ごして来た時間の間でも、もちろん死ぬ前でも、少女が体験したことの無い痛みだ
+	PRINTFORMW その痛みは、実際はそうではないとしても死んだときと同じくらいの痛みを感じているに違いない
+	PRINTFORML
+	PRINTFORML 「う、動いて…いいですよ…だってごほーびだもん」
+	PRINTFORMW しかし少女はその痛みを感じてなお、幸せな気持ちでいっぱいだった
+	PRINTFORML %CALLNAME:MASTER%は頬に伝う涙を指で拭うとともに、無理しなくていいのだと告げる
+	PRINTFORML …………………
+	PRINTFORML ……………
+	PRINTFORMW ……
+	PRINTFORML
+	PRINTFORML 「ううう…ごめんなさい。ごほーびなのに…」
+	PRINTFORMW 結局のところ、最後まで行うことが出来なかった。はじめての痛みは幼い体格の%STONE_UKETSUKENAME%にはこたえたからだ
+	PRINTFORMW 「でも、一回貫いたなら…次は大丈夫って聞いたことがあるのです」
+	PRINTFORML 「また今度…もう一度やるのです」
+	PRINTFORML 「忘れ物…取りにきてね%UNICODE(0x2665) *1%…%CALLNAME:MASTER%%UNICODE(0x2665) *1%」
+	IF !TALENT:MASTER:비동정
+		CALL COLORMESSAGE("童貞喪失(あなた)", 0XFF64FF, 1, 1)
+		TALENT:MASTER:비동정 = 1
+	ENDIF
+	EXP:MASTER:삽입경험 += 1
+	PRINTFORML 挿入経験 +1(%CALLNAME:MASTER%)
+	STONE_PLAYCOUNT:1 += 10
+	STONE_PLAYCOUNT:2 = 14
+ENDIF
+RESETCOLOR
+
+@STONE_NAMESET
+	LOCALS = 受付水子
+	$LOOP3
+	PRINTL 受付水子の名前を決めましょう
+	PRINTFORML 
+	CALL ASK_M("自分で決める",1, "大事なことだから考える時間が欲しい",1)
+	SELECTCASE RESULT
+		CASE 0
+			PRINTL %STONE_UKETSUKENAME%の呼び方を　入力してください
+			PRINTBUTTON @"[(%LOCALS%)と呼ばせる]", @"%LOCALS%"
+			PRINTL 　
+			;名前を入力するループ
+			$LOOP4
+			INPUTS
+			; 行頭行尾の空白文字削除
+			LOCALS = %RESULTS%
+			REPLACE LOCALS, "\(\^\\s\+\|\\s\+\$)", ""
+			;15文字以上は受け付けない
+			IF STRLENS(LOCALS) > 15
+				CLEARLINE 1
+				REUSELASTLINE 「そんなに長い名前はちょっと…」
+				GOTO LOOP4
+			;空白は受け付けない
+			ELSEIF RESULTS == ""
+				PRINTL 名前を入力してください
+				GOTO LOOP4
+			ELSE
+				; 瓔花と同名
+				IF STRCOUNT(LOCALS, "에이카")
+					PRINTFORML 「えっえーかちゃんと同じ名前？！」
+					PRINTFORML 「流石にそれはちょっと…」
+					GOTO LOOP4
+				ELSE
+					PRINTFORML 「%RESULTS%ですか？」
+				ENDIF
+				PRINTL [0] はい
+				PRINTL [1] いいえ
+				;入力した名前を確定するループ
+				$LOOP5
+				INPUT
+				IF RESULT == 0
+					;受付水子の名前を保存
+					STONE_UKETSUKENAME = %RESULTS%
+					STONE_PLAYCOUNT:4 = 2
+					PRINTFORMW 「%STONE_UKETSUKENAME%……うん！良い名前！気に入りました！」
+					PRINTFORMW 「ありがとうございます！%CALLNAME:MASTER%さん！」
+					PRINTFORML 
+				ELSEIF RESULT == 1
+					PRINTL 名前を入力してください
+					GOTO LOOP4
+				ELSE
+					PRINTL 名前を入力してください
+					GOTO LOOP4
+				ENDIF
+			ENDIF
+		CASE 1
+			PRINTFORMW 「分かりました…一旦保留ですね？」
+			PRINTFORMW 「名前が決まったら…また忘れ物してくださいね？」
+			STONE_PLAYCOUNT:4 = 1
+	ENDSELECT
+
