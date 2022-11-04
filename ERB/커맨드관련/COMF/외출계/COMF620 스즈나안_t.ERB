@@ -28,9 +28,10 @@ FOR LOCAL,1, BookTitles + 1
 		PRINTFORML (%마스터가% \@ITEM:ItemId == 2 ? 가지고 # 빌리고\@ 있다)
 		;---- EDIT START ---------------------------------
 		RESETCOLOR
-		Borrow = ItemId
+		SIF ITEM:ItemId == 1
+			Borrow = ItemId
 		;---- EDIT END -----------------------------------
-	ELSEIF GETBIT (FLAG:1011,LOCAL)
+	ELSEIF 0;GETBIT (FLAG:1011,LOCAL)
 		PRINTL (대출중)
 	ELSE
 		PRINTL 　
@@ -82,36 +83,38 @@ ELSE
 		;---- EDIT START ---------------------------------
 		IF Borrow
 			IF INRANGE(RESULT, 1, BookTitles)
-				LOCALS = 2권 이상은 대출할 수 없어/아니면 반납할꺼야? 반납해도 대출비는 반환되지 않아
-				IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
-					CALL SPTALK, [[코스즈]], "通常", 0, @"%LOCALS%", 1
-					SIF TARGET != [[코스즈]]
-						RESETCOLOR
-				ELSE
-					CALL SPTALK, 0, "通常", 12, @"%LOCALS%", 1
-				ENDIF
-				RESETCOLOR
-				PRINTFORML [1] 반납한다
-				PRINTFORML [2] 반납하지 않는다
-				INPUT
+				IF ITEM:(100 + RESULT) != 2
+					LOCALS = 2권 이상은 대출할 수 없어/아니면 반납할꺼야? 반납해도 대출비는 반환되지 않아
+					IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
+						CALL SPTALK, [[코스즈]], "通常", 0, @"%LOCALS%", 1
+						SIF TARGET != [[코스즈]]
+							RESETCOLOR
+					ELSE
+						CALL SPTALK, 0, "通常", 12, @"%LOCALS%", 1
+					ENDIF
+					RESETCOLOR
+					PRINTFORML [1] 반납한다
+					PRINTFORML [2] 반납하지 않는다
+					INPUT
 
-				IF RESULT == 1
-					FLAG:대본반환기한 = 0
-					FOR LOCAL,1,BookTitles + 1
-						IF ITEM:(100 + LOCAL) > 0
-							ITEM:(100 + LOCAL) = 0
-							CLEARBIT FLAG:1011,LOCAL
-						ENDIF
-					NEXT
-					PRINTW 빌리고 있던 책을 돌려주었습니다
-					Borrow = 0
-					GOTO C_LOOP
-				ELSEIF RESULT == 2
-					GOTO C_LOOP
+					IF RESULT == 1
+						FLAG:대본반환기한 = 0
+						FOR LOCAL,1,BookTitles + 1
+							IF ITEM:(100 + LOCAL) > 0
+								ITEM:(100 + LOCAL) = 0
+								CLEARBIT FLAG:1011,LOCAL
+							ENDIF
+						NEXT
+						PRINTW 빌리고 있던 책을 돌려주었습니다
+						Borrow = 0
+						GOTO C_LOOP
+					ELSEIF RESULT == 2
+						GOTO C_LOOP
+					ENDIF
 				ENDIF
 			ENDIF
 		;---- EDIT END -----------------------------------
-		ELSEIF GETBIT (FLAG:1011,RESULT)
+		ELSEIF 0 && GETBIT (FLAG:1011,RESULT)
 			LOCALS = 「대출중입니다」
 			IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
 				CALL SPTALK, [[코스즈]], "通常", 0, @"%LOCALS%", 1
