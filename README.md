@@ -13,3 +13,9 @@ Eratoho TWKR 0.15.0-beta 2를 기반으로 작성된 사가판(私家版) 게임
 물론 추가된건 별로 없으니 그리 기대는 마시고...
 
 ![GitHub release (latest by date)](https://img.shields.io/github/downloads/keisiki/TWKR-Textbung/latest/total)
+
+This is a variant of the Eratoho TWKR(Eratoho TW:Korean translated).
+increased the difficulty level
+added many new functions, such as New Danmaku system
+
+have any questions? ask at korean era forum: https://arca.live/b/textgame
