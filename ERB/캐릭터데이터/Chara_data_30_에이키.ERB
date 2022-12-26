@@ -151,6 +151,49 @@ DISH_TASTE = 중화/면류//야채/따뜻한/스파이스//스파이스//스파�
 DISH_COMMENT = 염라대왕이 중유의 길 명물로 고안한 라면。무섭게 맵다。
 RETURN 1
 
+;-------------------------------------------------
+;ムシバトルの切り札設定
+;ムシ番号,ランク,Ｇ型,Ｘ型の４つをカスタム可
+;-------------------------------------------------
+@MUSHI_KIRIHUDA_30
+;バフ盛り盛りオオエンマハンミョウorやる気のない死神カマキリ
+IF RAND:2
+	;ムシ番号
+	RESULT = 64
+	;ランク
+	MUSHI_RANK = 99
+	;Ｇ型
+	RESULT:1 = 1
+	;Ｘ型
+	RESULT:2 = 1
+ELSE
+	;ムシ番号
+	RESULT = 318
+	;ランク
+	MUSHI_RANK = 0
+	;Ｇ型
+	RESULT:1 = 0
+	;Ｘ型
+	RESULT:2 = 0
+ENDIF
+RETURN RESULT
+
+;-------------------------------------------------
+;ムシバトルの手持ち指定
+;レアリティ（最大と最低）、ランク（最大と最低）、変異率、地形、地域、種族、属性を指定できます
+;入力しないと自動で決まります
+;条件が厳しすぎるとエラーが発生するのでお手柔らかに
+;-------------------------------------------------
+@MUSHI_CHARACAGE_30
+;弄る前よりほんのり強い程度
+;ランク最低値(0～99)
+RESULT:3 = 5
+;変異率(0～100)
+RESULT:5 = 5
+;属性指定
+;正規表現あってるはずだけどなぜか他の色も拾っちゃう
+RESULTS:2 = \(白\|黒\)
+
 ;IMAGE_I30_特殊服装(CHARA)-------------------------------------------------------------------
 ;キャラクター特有の服装表示条件
 ;エフェクトを共有する服装差分はこちらで指定する
@@ -222,8 +265,6 @@ ENDIF
 VARSET RESULTS
 
 IF CFLAG:CHARA:대체적용
-	SIF CFLAG:CHARA:의상일시변경 == 17
-		RETURN
 	;差し替え画像
 	SIF TALENT:CHARA:임신 && CFLAG:CHARA:임신경과일수 >= 40
 		RESULTS = 妊娠
@@ -300,9 +341,7 @@ IF CFLAG:CHARA:대체적용
 				RESULTS:0 = 反発
 		;メシの顔
 		CASE 413, 414, 415
-			SIF TALENT:CHARA:기분 < 0 || CFLAG:CHARA:의상일시변경 == 62 || !SHIRAHU(CHARA) || MARK:CHARA:3 || !FLAG:스탠딩종류
-				RETURN
-			IF DISHNAME == "지옥라멘(극신)" || TCVAR:30:360 == TIME
+			IF  STRFIND(COM_STR, "K30_辛味") > -1 && FLAG:스탠딩종류
 				RESULTS:0 = お星
 				RESULTS:1 = 笑顔
 			ENDIF
@@ -458,7 +497,7 @@ IF CFLAG:CHARA:대체적용
 		RETURN 1
 	SIF STRFIND(エフェクト, "キラ") != -1 && FLAG:스탠딩종류
 		RETURN 1
-	SIF STRFIND(エフェクト, "ダミー") != -1
+	SIF STRFIND(エフェクト, "無表情") != -1
 		RETURN 1
 ELSE
 	;通常画像
@@ -479,46 +518,52 @@ VARSET RESULTS
 
 IF CFLAG:CHARA:대체적용
 	;差し替え画像
+	;昼寝フェラ顔
+	IF COM_STR == "K30_昼寝フェラ"
+		RESULTS:0 = 精液上
+		RESULTS:1 = 吐息
+		エフェクト数 = 2
+		RETURN エフェクト数
+	ENDIF
 	;辛いもの食べるor作るでお目々キラキラ＆星が湧く
-	IF GROUPMATCH(SELECTCOM, 413, 414, 415) && FLAG:스탠딩종류
-		SIF TALENT:CHARA:기분 < 0 || CFLAG:CHARA:의상일시변경 == 62 || !SHIRAHU(CHARA) || MARK:CHARA:반발각인
-			GOTO SKIP
-		IF DISHNAME == "지옥라멘(극신)" || TCVAR:30:360 == TIME
-			RESULTS:エフェクト数 = キラ
-			エフェクト数 += 1
-			RETURN エフェクト数
-		ENDIF
-	ENDIF
-	$SKIP
-	IF TCVAR:CHARA:억지로 || (CFLAG:CHARA:1600 && CFLAG:CHARA:우후후)
-		RESULTS:エフェクト数 = 泣き
+	IF GROUPMATCH(SELECTCOM, 413, 414, 415) && FLAG:스탠딩종류 && STRFIND(COM_STR, "K30_辛味") > -1
+		RESULTS:エフェクト数 = キラ
 		エフェクト数 += 1
+		RETURN エフェクト数
 	ENDIF
+	;日記口上から指定する顔絵エフェクト盛り合わせ
+	;もう少しスマートなやり方無いもんかね
+	IF TFLAG:192 <= -6
+		RESULTS:エフェクト数 = 照れ
+		エフェクト数 += 1
+		IF TFLAG:192 <= -7
+			RESULTS:エフェクト数 = ハート
+			エフェクト数 += 1
+			IF TFLAG:192 <= -8
+				RESULTS:エフェクト数 = 汗
+				エフェクト数 += 1
+				IF TFLAG:192 <= -9
+					RESULTS:エフェクト数 = 吐息
+					エフェクト数 += 1
+				ENDIF
+			ENDIF
+		ENDIF
+		RETURN エフェクト数
+	ENDIF
+	;母乳
 	IF TALENT:CHARA:모유체질 && NOWEX:CHARA:분유 && CHECK_NUDE(CHARA)
 		RESULTS:エフェクト数 = 母乳
 		エフェクト数 += 1
 	ENDIF
-	;口上から指定する顔絵エフェクト盛り合わせ
-	;もう少しスマートなやり方無いもんかね
-	IF TFLAG:192 <= -5
-		RESULTS:エフェクト数 = ダミー
+	;泣き顔貼り付け
+	IF TCVAR:CHARA:억지로 || (TCVAR:CHARA:386 && CFLAG:CHARA:우후후) || COM_STR == "K30_泣き"
+		RESULTS:エフェクト数 = 泣き
 		エフェクト数 += 1
-		IF TFLAG:192 <= -6
-			RESULTS:エフェクト数 = 照れ
-			エフェクト数 += 1
-			IF TFLAG:192 <= -7
-				RESULTS:エフェクト数 = ハート
-				エフェクト数 += 1
-				IF TFLAG:192 <= -8
-					RESULTS:エフェクト数 = 汗
-					エフェクト数 += 1
-					IF TFLAG:192 <= -9
-						RESULTS:エフェクト数 = 吐息
-						エフェクト数 += 1
-					ENDIF
-				ENDIF
-			ENDIF
-		ENDIF
+	ENDIF
+	;無気力目貼り付け
+	IF (CFLAG:CHARA:1805 > 1 && !CFLAG:CHARA:수면 && !RAND:4)|| COM_STR == "K30_無表情"
+		RESULTS:エフェクト数 = 無表情
+		エフェクト数 += 1
 		RETURN エフェクト数
 	ENDIF
 	IF FLAG:스탠딩종류
@@ -564,15 +609,15 @@ IF CFLAG:CHARA:대체적용
 	ENDIF
 	SIF FLAG:시간정지
 		RETURN エフェクト数
-	IF BASE:CHARA:무드 >= MAXBASE:CHARA:무드 * 8 / 10
-		IF !(TCVAR:CHARA:억지로 || CFLAG:CHARA:1600 || 업무중체크(CHARA)) 
+	IF BASE:CHARA:무드 >= MAXBASE:CHARA:무드 * 8 / 10 && CFLAG:CHARA:1805 < 2
+		IF !(TCVAR:CHARA:억지로 || TCVAR:CHARA:386 || 업무중체크(CHARA)) 
 			RESULTS:エフェクト数 = ハート
 			エフェクト数 += 1
 		ENDIF
 	ELSEIF MARK:CHARA:반발각인 > 0 || CFLAG:CHARA:빡침
 		RESULTS:エフェクト数 = 怒り
 		エフェクト数 += 1
-	ELSEIF CFLAG:CHARA:수면
+	ELSEIF CFLAG:CHARA:수면 && TFLAG:100
 		RESULTS:エフェクト数 = 睡眠
 		エフェクト数 += 1
 	ENDIF

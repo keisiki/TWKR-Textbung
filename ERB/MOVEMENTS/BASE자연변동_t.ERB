@@ -4,6 +4,9 @@
 #DIM 욕구불만
 #DIM 우산대미지
 #DIM Lapse
+#DIM 지저
+#DIMS 低気圧位置
+低気圧位置 = %GET_LOCATION_LOW()%
 Lapse = TIME_PROGRESS(TIME:1)
 CALL D_변동리셋(ARG,Lapse)
 
@@ -445,6 +448,84 @@ IF OUTROOF(CFLAG:ARG:현재위치) && (AT_HOME(ARG) || ARG == MASTER || FLAG:데
 	ENDIF	
 	SIF (CFLAG:ARG:우후후 == 2 && BASE:ARG:기력 > 500) || CFLAG:ARG:우후후 != 2
 		BASE:ARG:체력 = MAX(BASE:ARG:체력 + 날씨에의한영향(ARG, CFLAG:ARG:현재위치) * Lapse, 500)
+ENDIF
+;(天候パッチ)雷・竜巻遭遇判定
+지저 = 0
+IF CFLAG:MASTER:데이트중 == 9
+	지저 = 1
+ELSEIF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && GROUPMATCH(CFLAG:MASTER:초대, 36, 37, 38, 49, 60, 64, 83, 84)
+	지저 = 1
+ENDIF
+IF OUTROOF(CFLAG:ARG:현재위치) && ARG == MASTER && Lapse && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면 && CFLAG:MASTER:현재위치 != 천계 && !지저
+	IF GET_FRONTAL_THUNDERSTORM() == 1 && GET_HEAT_THUNDERSTORM() == 1 && GET_WEATHER_THUNDERSTORM() == 1
+		CALL COLORMESSAGE(@"천둥이 심하게 치고 있다",C_YELLOW,2)
+	ELSEIF (GET_FRONTAL_THUNDERSTORM() == 1 || GET_HEAT_THUNDERSTORM() == 1) && GET_WEATHER_THUNDERSTORM() == 1
+		CALL COLORMESSAGE(@"천둥소리가 들려온다",C_YELLOW,2)
+	ENDIF
+ENDIF
+
+IF OUTROOF(CFLAG:ARG:현재위치) && ARG == MASTER && WIND_VELOCITY >= 2 && Lapse && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면 && CFLAG:MASTER:현재위치 != 천계 && !지저
+	IF CAN_CUMULUS:2 == 2 && RAND:10 == 0
+		SETCOLOR C_RED
+		PRINTW 회오리바람이다！！
+		RESETCOLOR
+		PRINTL 
+		PRINTW 회오리바람에 휘말려버려 날아가 버렸다……
+		PRINTL 
+		CALL ASK_DIARY("회오리바람과 조우했다")
+		BASE:MASTER:체력 -= (MAXBASE:MASTER:체력 * 3)
+	ELSEIF GET_FRONTAL_THUNDERSTORM() == 1 && GET_HEAT_THUNDERSTORM() == 1 && ATMOSPHERIC_INSTABILITY <= -2 && TIME:5 >= 13 && RAND:30 == 0
+		SETCOLOR C_RED
+		PRINTW 회오리바람이다！！
+		RESETCOLOR
+		PRINTL 
+		PRINTW 회오리바람에 휘말려버려 날아가 버렸다……
+		PRINTL 
+		CALL ASK_DIARY("회오리바람과 조우했다")
+		BASE:MASTER:체력 -= (MAXBASE:MASTER:체력 * 3)
+	ENDIF
+ELSEIF OUTROOF(CFLAG:ARG:현재위치) && ARG == MASTER && Lapse && !CFLAG:ARG:우후후 && !CFLAG:ARG:수면 && CFLAG:MASTER:현재위치 != 천계 && !지저
+	IF (低気圧位置 == "台風接近暴風域" || 低気圧位置 == "台風通過暴風域") && IS_TYPHOON:1 >= 5 && WIND_VELOCITY >= 3 && RAND:10 == 0
+		PRINTFORML …길을 걷고 있는데 무언가가 이쪽으로 날아왔다
+		SETCOLOR C_RED
+		PRINTW 쓰러진 나무다！！
+		RESETCOLOR
+		PRINTL 
+		PRINTFORML 폭풍에 날려진 쓰러진 나무가 %CALLNAME:MASTER%에게 직격했다…
+		PRINTL 
+		CALL ASK_DIARY("날아온 물건에 직격했다")
+		BASE:MASTER:체력 -= (MAXBASE:MASTER:체력 * 3)
+	ELSEIF WIND_VELOCITY >= 3 && RAND:20 == 0
+		PRINTFORML …길을 걷고 있는데 무언가가 이쪽으로 날아왔다
+		SETCOLOR C_RED
+		PRINTW 짐수레다！！
+		RESETCOLOR
+		PRINTL 
+		PRINTFORML 폭풍에 날려진 짐수레가 %CALLNAME:MASTER%에게 직격했다…
+		PRINTL 
+		CALL ASK_DIARY("날아온 물건에 직격했다")
+		BASE:MASTER:체력 -= (MAXBASE:MASTER:체력 * 2)
+	ELSEIF (低気圧位置 == "台風接近暴風域" || 低気圧位置 == "台風通過暴風域") && IS_TYPHOON:1 >= 5 && WIND_VELOCITY >= 2 && RAND:40 == 0
+		PRINTFORML …길을 걷고 있는데 무언가가 이쪽으로 날아왔다
+		SETCOLOR C_RED
+		PRINTW 기왓장이다！！
+		RESETCOLOR
+		PRINTL 
+		PRINTFORML 폭풍에 날려진 기왓장이 %CALLNAME:MASTER%에게 직격했다…
+		PRINTL 
+		CALL ASK_DIARY("날아온 물건에 직격했다")
+		BASE:MASTER:체력 -= MAXBASE:MASTER:체력
+	ELSEIF (低気圧位置 == "台風接近暴風域" || 低気圧位置 == "台風通過暴風域") && WIND_VELOCITY >= 2 && RAND:80 == 0
+		PRINTFORML …길을 걷고 있는데 무언가가 이쪽으로 날아왔다
+		SETCOLOR C_RED
+		PRINTW 기왓장이다！！
+		RESETCOLOR
+		PRINTL 
+		PRINTFORML 폭풍에 날려진 기왓장이 %CALLNAME:MASTER%에게 직격했다…
+		PRINTL 
+		CALL ASK_DIARY("날아온 물건에 직격했다")
+		BASE:MASTER:체력 -= MAXBASE:MASTER:체력
+	ENDIF
 ENDIF
 
 ;------------------------------------------

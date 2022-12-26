@@ -155,7 +155,7 @@ ELSEIF DAY:2 == 2 && DAY:3 >= 5 && DAY:3 < 10 && !탄막놀이축제발동
 	탄막놀이축제발동 = 1
 ENDIF
 ;현재의 참가 인원을 리셋
-FLAG:35 = 0
+FLAG:참가인수 = 0
 CALL SET_ENKAI_LOCATIONDISPLAY
 SIF FLAG:연회개최플래그
 	CALL 연회개요
@@ -355,7 +355,7 @@ IF FLAG:연회개최플래그 > 0 && (NOSAMES(CFLAG:ARG:직종, 48, 49, 50, 51) 
 		CALL ENKAI_START(ARG)
 		RETURN 1
 	;이미 시작된 경우
-	ELSEIF FLAG:연회개최플래그 >= 98 && CFLAG:ARG:동행 == 0
+	ELSEIF 연회개최중판정() && CFLAG:ARG:동행 == 0
 		CALL ENKAI_START(ARG)
 		RETURN 1
 	ENDIF
@@ -450,6 +450,12 @@ ENDIF
 RETURN 1
 
 
+@ENKAI_END
+;会場となった場所は荒れ果てる、拠点外でも対象地点の汚れ増加させるためTFLAG:宴会場ではない
+SIF YOGORE:(FLAG:32) < 300
+	YOGORE:(FLAG:32) += 1000
+CALL ENKAI_STOP()
+
 @ENKAI_STOP
 ;악천후 등으로 인한 중지
 FOR LOCAL,0,CHARANUM
@@ -465,10 +471,11 @@ FLAG:32 = 0
 TFLAG:연회장 = 0
 FLAG:33 = 0
 FLAG:개시일 = 0
-FLAG:35 = 0
+FLAG:참가인수 = 0
 FLAG:36 = 0
 FLAG:연회차입 = 0
 ;연회회장표시 = 
+TFLAG:연회상태 = 0
 RETURN 0
 
 @연회예정표시
@@ -530,11 +537,45 @@ FLAG:개시일 += DAY
 
 
 @연회참가인원수재계산
-;연회 참가 인원을 세트
+#DIM 참가상태
+;宴会の参加人数をセット
 FLAG:참가인수 = 0
-FOR LOCAL,0,CHARANUM
-	IF (CFLAG:LOCAL:연회참가 == 1 || CFLAG:LOCAL:연회참가 == 2) && !TCVAR:LOCAL:만취
-		SIF CFLAG:LOCAL:현재위치 == TFLAG:연회장
+;FOR LOCAL,0,CHARANUM
+;	IF (CFLAG:LOCAL:宴会参加 == 1 || CFLAG:LOCAL:宴会参加 == 2) && !TCVAR:LOCAL:泥酔
+;		SIF CFLAG:LOCAL:現在位置 == TFLAG:宴会場
+;			FLAG:参加人数 ++
+;	ENDIF
+;NEXT
+LOCAL = 0
+;参加状態 = 1	;参加者
+WHILE 1
+;	LOCAL = FINDCHARA(CFLAG:宴会参加, 参加状態, LOCAL + 1)
+	LOCAL = FINDCHARA(CFLAG:현재위치, TFLAG:연회장, LOCAL + 1)
+	IF LOCAL < 0
+		;IF 参加状態 == 1
+		;	LOCAL = 0
+		;	参加状態 = 2	;主催者
+		;ELSE
+		;	BREAK
+		;ENDIF
+		BREAK
+	ELSE
+;		SIF CFLAG:LOCAL:現在位置 == TFLAG:宴会場 && !TCVAR:LOCAL:泥酔
+		;泥酔していない参加者および主催者をカウント
+		SIF (CFLAG:LOCAL:연회참가 == 1 || CFLAG:LOCAL:연회참가 == 2) && !TCVAR:LOCAL:만취
 			FLAG:참가인수 ++
 	ENDIF
-NEXT
+WEND
+
+@연회개최중판정
+#FUNCTION
+;RETURNF FLAG:宴会開催フラグ == 98 || FLAG:宴会開催フラグ == 99
+RETURNF TFLAG:연회상태 == 98 || TFLAG:연회상태 == 99
+
+@연회장소재판정(ARG)
+#FUNCTION
+RETURNF 연회개최중판정() && CFLAG:ARG:현재위치 == TFLAG:연회장
+
+@연회개시일판정()
+#FUNCTION
+RETURNF 연회개최중판정() == 0 && DAY >= FLAG:개시일

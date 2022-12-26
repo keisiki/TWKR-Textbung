@@ -538,17 +538,17 @@ IF !IN_HOME(ARG)
 	ENDSELECT
 ELSE
 	SELECTCASE ARG
-		CASE 25;수호신의숲
+		CASE P25수호신의숲
 			RETURNF 1
-		CASE 433;사각의죽림
+		CASE P433사각의죽림
 			RETURNF 2
-		CASE 507 ;버섯군생지
+		CASE P507버섯군생지
 			RETURNF 3
-		CASE 702;山道・沢へ続く道
+		CASE P702산길・늪으로가는길
 			RETURNF 4
-		CASE 805;山頂
+		CASE P805정상
 			RETURNF 5
-		CASE 948;縦穴の底
+		CASE P948수혈의바닥
 			RETURNF 6
 	ENDSELECT
 ENDIF
@@ -579,17 +579,17 @@ IF !IN_HOME(ARG)
 	ENDSELECT
 ELSE
 	SELECTCASE ARG
-		CASE 25;鎮守の森
+		CASE P25수호신의숲
 			LOCALS = 거점의 【수호신의 숲】 주변
-		CASE 433;斜角の竹林
+		CASE P433사각의죽림
 			LOCALS = 거점의 【사각의 죽림】 주변
-		CASE 507 ;キノコ群生地
+		CASE P507버섯군생지
 			LOCALS = 거점의 【버섯군생지】 주변
-		CASE 702;山道・沢へ続く道
+		CASE P702산길・늪으로가는길
 			LOCALS = 거점의 【산길・늪으로 가는 길】 주변
-		CASE 805;山頂
+		CASE P805정상
 			LOCALS = 거점의 【산정】 주변
-		CASE 948;縦穴の底
+		CASE P948수혈의바닥
 			LOCALS = 거점의 【수혈의 바닥】 주변
 		CASEELSE
 			LOCALS = エラーメイン
@@ -620,18 +620,25 @@ CALL CRITTER_DATA(C_ID)
 ;無名（未登録）ならリターン
 SIF CritterName == ""
 	GOTO LOOP
+;タグ上の無登録はリターン
+SIF !STRCOUNT(CritterTribe, "짐승/") && !STRCOUNT(CritterTribe, "새/")
+	GOTO LOOP
 ;[希少][猛禽]は１／２で再抽選に
 SIF (STRCOUNT(CritterTribe, "희소/") || STRCOUNT(CritterTribe, "맹금/")) && RAND:2
 	GOTO LOOP
 ;지저 이외에서 동면하고 있는 생물은 튕긴다.
 SIF 계절 == 4 && STRCOUNT(CritterTribe, "동면/") && HUNTING_SPOT != 6
 	GOTO LOOP
+;夏鳥、冬鳥両持ちの対応
+IF (DAY:2 == 2 && STRCOUNT(CritterTribe, "여름새/")) || (DAY:2 == 4 && STRCOUNT(CritterTribe, "겨울새/"))
+
 ;夏以外の夏鳥を弾く（渡ってきてるので１日限定の季節異変は避ける）
-SIF DAY:2 != 2 && STRCOUNT(CritterTribe, "여름새/")
+ELSEIF DAY:2 != 2 && STRCOUNT(CritterTribe, "여름새/")
 	GOTO LOOP
 ;冬以外の冬鳥を弾く
-SIF DAY:2 != 4 && STRCOUNT(CritterTribe, "겨울새/")
+ELSEIF DAY:2 != 4 && STRCOUNT(CritterTribe, "겨울새/")
 	GOTO LOOP
+ENDIF
 ;罠に応じて捕獲できる獲物のレンジを変える  小…基本の肉の量が2以下  中…肉の量が2～6  大…肉の量が4以上
 SELECTCASE 덫번호
 	CASE 132
@@ -657,13 +664,13 @@ SELECTCASE HUNTING_SPOT
 		SIF STRCOUNT(CritterTribe, "마법의숲/")
 			RETURN C_ID
 	CASE 4;산록의 수해. 다양. 유니크는 츠지노코
-		SIF  STRCOUNT(CritterTribe, "산기슭/")
+		SIF STRCOUNT(CritterTribe, "산기슭/")
 			RETURN C_ID
 	CASE 5;절경의 언덕. 소형 짐승이 조금 줄어든다. 유니크는 하나이즈미모리우시
 		SIF STRCOUNT(CritterTribe, "산정/")
 			RETURN C_ID
 	CASE 6;환상풍혈,수혈의바닥. 특이한 것이 잡힌다. 유니크는 데스웜.
-		SIF  STRCOUNT(CritterTribe, "지저/")
+		SIF STRCOUNT(CritterTribe, "지저/")
 			RETURN C_ID
 	CASEELSE
 		;오류로 인한 무한 루프 제거

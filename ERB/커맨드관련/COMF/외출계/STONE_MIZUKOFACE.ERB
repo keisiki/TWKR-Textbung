@@ -1,0 +1,126 @@
+﻿;顔絵選択・生成
+@MIZUKO_SETUP
+#DIM GID
+#DIM L_FEED
+#DIM 合成数
+#DIMS 生成文字列
+#DIMS 合成文字列配列, 50
+#DIMS 色合成
+;作成済or顔絵無しなら帰る
+IF SPRITECREATED("水子_服_通常") || 受付水子画像文字列:0 == "顔絵なし"
+	RETURN
+;初回選択
+ELSEIF 受付水子画像文字列:0 == ""
+	PRINTFORML %STONE_UKETSUKENAME%に顔絵は
+	CALL ASK_YN("いる", "いらない")
+	IF RESULT
+		受付水子画像文字列:0 = 顔絵なし
+		RETURN
+	ENDIF
+	REDRAW 0
+	CLEARLINE 1
+	PRINTFORML マウスオーバーで表情確認
+	SIF FLAG:멀티사이즈
+		デフォルトキャラ画像横幅 = 180
+	L_FEED = LINECOUNT
+	WHILE 1
+		CALL モブ店員画像作成(27, "水子")
+		CALL 画像セット("顔絵_服_通常_MOB_27", 0, 0, キャラ画像表示サイズ比, 0, 1, "100", STONE_UKETSUKENAME, "顔絵_服_笑顔_MOB_27")
+		CALL 画像一斉表示(0, 0, 1, -1)
+		PRINT [0]気に入った　　
+		PRINTL [1]気に入らない
+		INPUT
+		SIF !RESULT
+			BREAK
+		CLEARLINE LINECOUNT - L_FEED
+		SPRITEDISPOSE "顔絵_服_通常_MOB_27"
+		SPRITEDISPOSE "顔絵_服_笑顔_MOB_27"
+		SPRITEDISPOSE "顔絵_服_怒り_MOB_27"
+		SPRITEDISPOSE "顔絵_裸_通常_MOB_27"
+		SPRITEDISPOSE "顔絵_裸_笑顔_MOB_27"
+		SPRITEDISPOSE "顔絵_裸_怒り_MOB_27"
+		FOR COUNT, 0, 6
+			GDISPOSE モブ子店員GID:27:COUNT
+			モブ子店員GID:27:COUNT = 0
+			モブ子店員画像文字列:27:COUNT = 
+		NEXT
+	WEND
+	REDRAW 1
+	PRINTFORMW 顔絵を設定しました
+	;顔絵生成文字列を日替わり枠からセーブデータ保存枠に移行
+	FOR COUNT, 0, 6
+		受付水子画像文字列:COUNT '= モブ子店員画像文字列:27:COUNT
+	NEXT
+ENDIF
+;MIZUKO_FACEから呼び出せるスプライトを改めて作成
+;@モブ子生成から流用
+FOR COUNT, 0, 6
+	GID = 0
+	VARSET LOCAL
+	VARSET 合成文字列配列,
+	合成数 = 0
+	CALL 画像合成(GID, "ダミー")
+	CALL モブ子リソース探索(合成文字列配列, 合成数, 受付水子画像文字列:COUNT, 1)
+	ARRAYSORT 合成文字列配列, BACK, 0, 合成数
+	FOR LOCAL, 0, 合成数
+		色合成 '= ""
+		IF 合成文字列配列:LOCAL != ""
+			FOR LOCAL:1, 0 , モブ子素材色種別数
+				IF STRFIND(合成文字列配列:LOCAL, @"_%モブ子素材色種別:(LOCAL:1)%_") != -1 && DIC_CONTAINSKEY(受付水子画像文字列:COUNT, @"%モブ子素材色種別:(LOCAL:1)%色")
+					色合成 = %DIC_GET(受付水子画像文字列:COUNT, @"%モブ子素材色種別:(LOCAL:1)%色")%
+					LOCAL:1 = モブ子素材色種別数
+				ENDIF
+			NEXT
+			CALL 画像合成(GID, 合成文字列配列:LOCAL, 0, 0, 0, 0, 色合成)
+		ENDIF
+	NEXT
+	SELECTCASE COUNT
+		CASE 0
+			CALL リソース登録("水子_服_通常", GID)
+		CASE 1
+			CALL リソース登録("水子_服_笑顔", GID)
+		CASE 2
+			CALL リソース登録("水子_服_怒り", GID)
+		CASE 3
+			CALL リソース登録("水子_裸_通常", GID)
+		CASE 4
+			CALL リソース登録("水子_裸_笑顔", GID)
+		CASE 5
+			CALL リソース登録("水子_裸_怒り", GID)
+	ENDSELECT
+NEXT
+RETURN
+
+;水子顔絵表示関数
+@MIZUKO_FACE(表情, 着衣, マウスオーバー = "")
+#DIMS 表情
+#DIMS 着衣
+#DIMS 表示用文字列
+#DIMS マウスオーバー
+#DIMS マウスオーバー文字列
+SIF !FLAG:화상표시 || 受付水子画像文字列:0 == "顔絵なし"
+	RETURN
+マウスオーバー文字列 = 
+SIF !GROUPMATCH(表情, "笑顔", "怒り")
+	表情 = 通常
+SIF 着衣 != "裸"
+	着衣 = 服
+表示用文字列 = 水子_%着衣%_%表情%
+SIF GROUPMATCH(マウスオーバー, "通常", "笑顔", "怒り")
+	マウスオーバー文字列 = 水子_%着衣%_%マウスオーバー%
+SIF FLAG:멀티사이즈
+	デフォルトキャラ画像横幅 = 180
+CALL 画像セット(表示用文字列, 0, 0, キャラ画像表示サイズ比, 0, 1, "999", STONE_UKETSUKENAME, マウスオーバー文字列)
+CALL 画像一斉表示(0, 0, 1, -1)
+RETURN
+
+;周回時設定
+@MIZUKO_BITE_A_DUST
+PRINTFORML \@ STONE_PLAYCOUNT:2 == 17 ? 愛し合い子供まで作らせた # \@%STONE_UKETSUKENAME%のことも…
+CALL ASK_YN("忘れてしまった", "覚えている")
+IF !RESULT
+	VARSET 受付水子画像文字列
+	RETURN 0
+ENDIF
+RETURN 1 
+

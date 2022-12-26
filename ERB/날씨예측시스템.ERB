@@ -64,6 +64,9 @@ RETURN 取得季節, 取得日付, 取得時刻
 #DIM 取得季節
 #DIM 取得ターム
 
+取得季節 = 0
+取得ターム = 0
+
 取得ターム = ターム + 指定ターム
 IF 取得ターム >= 7
 	LOCAL = 取得ターム
@@ -78,15 +81,18 @@ IF 取得季節 >= 5
 ENDIF
 
 RETURN 取得季節, 取得ターム
+
 ;-------------------------------------------------
 ;長期予報
 ;-------------------------------------------------
 @WEATHER_FORECAST_1YEAR
 
-;(天候パッチ)エルニーニョ現象の翌年はラニーニャ現象、ラニーニャ現象の翌年は通常、その他は25％でエルニーニョ現象
+;(天候パッチ)エルニーニョ現象の翌年はラニーニャ現象、ラニーニャ現象の翌年・翌々年は通常、その他は25％でエルニーニョ現象
 SELECTCASE YEAR_WEATHER_CONTROL
-	CASE 3
+	CASE 4
 		YEAR_WEATHER_CONTROL = 1
+	CASE 3
+		YEAR_WEATHER_CONTROL = 4
 	CASE 2
 		YEAR_WEATHER_CONTROL = 3
 	CASE RAND:4 == 0
@@ -118,6 +124,9 @@ NOW_TERM = GET_TERM()
 ;梅雨・秋雨入り判定
 IF DAY:2 == 1 && NOW_TERM == 6
 	IS_RAINY_SEASON1:0 = 1
+	PRINTL 우중충한 날씨다…
+	PRINTW 장마철에 접어든 것 같다
+	CALL ASK_DIARY("장마철에 접어들었다")
 ELSEIF DAY:2 == 3 && NOW_TERM == 1
 	IS_RAINY_SEASON2 = 1
 ENDIF
@@ -127,29 +136,28 @@ SELECTCASE YEAR_WEATHER_CONTROL
 	CASE 3
 		SELECTCASE DAY:2
 			CASE 2
-				POWER_COLD_AIR = MIN(RAND:5 + 3, 5)
-				POWER_WARM_AIR = MIN(RAND:5 + 3, 5)
+				POWER_COLD_AIR = MIN(RAND:5 + 2, 5)
+				POWER_WARM_AIR = MIN(RAND:5 + 2, 5)
 			CASE 4
-				POWER_COLD_AIR = MIN(RAND:5 + 3, 5)
+				POWER_COLD_AIR = MIN(RAND:5 + 2, 5)
 				POWER_WARM_AIR = RAND:5 + 1
 			CASEELSE
 				POWER_COLD_AIR = RAND:5 + 1
-				POWER_WARM_AIR = MIN(RAND:5 + 3, 5)
+				POWER_WARM_AIR = MIN(RAND:5 + 2, 5)
 		ENDSELECT
 	CASE 2
 		SELECTCASE DAY:2
 			CASE 4
-				POWER_COLD_AIR = MAX(RAND:5 - 1, 1)
-				POWER_WARM_AIR = MIN(RAND:5 + 3, 5)
+				POWER_COLD_AIR = MAX(RAND:5, 1)
+				POWER_WARM_AIR = MIN(RAND:5 + 2, 5)
 			CASEELSE
 				POWER_COLD_AIR = RAND:5 + 1
-				POWER_WARM_AIR = MAX(RAND:5 - 1, 1)
+				POWER_WARM_AIR = MAX(RAND:5, 1)
 		ENDSELECT
 	CASEELSE
 		POWER_COLD_AIR = RAND:5 + 1
 		POWER_WARM_AIR = RAND:5 + 1
 ENDSELECT
-
 
 ;寒気・暖気による作物への影響
 IF FLAG:지주 > 0
@@ -175,9 +183,17 @@ IF IS_RAINY_SEASON1:0 == 1 && POWER_WARM_AIR >= 3 && IS_RAINY_SEASON1:1 != 1
 		CALL CALCULATE_ADD_TIME(DAY:2, DAY:3, TIME:0, RAND:4200)
 		CALL GENERATE_LINER_RAINBAND(RESULT:0, RESULT:1, RESULT:2)
 	ENDIF
-ELSEIF IS_RAINY_SEASON1:1 == 1 || (DAY:2 == 3 && NOW_TERM == 1)
+ELSEIF IS_RAINY_SEASON1:0 == 1 && (DAY:2 == 3 && NOW_TERM == 1)
 	IS_RAINY_SEASON1:0 = 0
 	IS_RAINY_SEASON1:1 = 0
+	PRINTL 어느덧 여름의 무더위는 지나갔다
+	PRINTW 결국 장마는 끝나지 않은 것 같다
+	CALL ASK_DIARY("여름이 오지 않았다")
+ELSEIF IS_RAINY_SEASON1:1 == 1
+	IS_RAINY_SEASON1:0 = 0
+	IS_RAINY_SEASON1:1 = 0
+	PRINTL 싱그러운 여름 날씨다！
+	PRINTW 장마가 끝난 것 같다
 	CALL ASK_DIARY("장마가 끝났다")
 ELSEIF DAY:2 == 3 && NOW_TERM == 2
 	IS_RAINY_SEASON2 = 0
@@ -288,7 +304,7 @@ IF (DAY:2 == 1 || (DAY:2 == 3 && NOW_TERM >= 4) || DAY:2 == 4 || TIME_PASSAGE_WI
 ENDIF
 
 ;線状降水帯の消滅判定
-IF (TIME_PASSAGE_LINER_RAINBAND:0 < DAY:2 || GET_LOCATION_LINER_RAINBAND() == "線状降水帯通過") && IS_LINER_RAINBAND:0 == 1
+IF (TIME_PASSAGE_LINER_RAINBAND:0 < DAY:2 || GET_LOCATION_LINER_RAINBAND() == "線状降水帯通過") && IS_LINER_RAINBAND:0 >= 1
 	IS_LINER_RAINBAND:0 = 0
 	IS_LINER_RAINBAND:1 = 0
 	
@@ -382,6 +398,7 @@ IF (DAY:2 == 2 || (DAY:2 == 3 && NOW_TERM <= 2)) && POWER_WARM_AIR == 5 && !IS_T
 	TIME_PASSAGE_WIND_ZONE_TYPHOON:0 = RESULT:0
 	TIME_PASSAGE_WIND_ZONE_TYPHOON:1 = RESULT:1
 	TIME_PASSAGE_WIND_ZONE_TYPHOON:2 = RESULT:2
+	
 	;先駆降雨帯発生時・秋雨時の線状降水帯発生判定
 	IF (IS_TYPHOON:3 == 1 || (TIME_ENTER_TERRITORY_TYPHOON:0 == 3 && TIME_ENTER_TERRITORY_TYPHOON:1 <= 5)) && POWER_WARM_AIR == 5 && RAND:4 == 0 && IS_LINER_RAINBAND:0 == 0
 		CALL GENERATE_LINER_RAINBAND(TIME_ENTER_TERRITORY_TYPHOON:0, TIME_ENTER_TERRITORY_TYPHOON:1, TIME_ENTER_TERRITORY_TYPHOON:2)
@@ -519,59 +536,56 @@ FORBIDDEN_CHANGE_WEATHER = 0
 ;霧発生フラグをリセット
 CAN_STRATUS = 0
 
+;(天候パッチ)1日の大気安定度をリセット
+ATMOSPHERIC_INSTABILITY = 0
+
+;積雲/積乱雲の発生判定をリセット
+CAN_CUMULUS:0 = 0
+CAN_CUMULUS:1 = 0
+CAN_CUMULUS:2 = 0
+TIME_ENTER_TERRITORY_CUMULUS = 0
+TIME_CLOSEST_CUMULUS = 0
+
 ;霧の発生判定
 SIF !IS_COLD_LOW && !IS_TYPHOON:0 && !IS_SoJ_LOW && !IS_SOUTHERN_LOW && !RAND:10
 	CAN_STRATUS = 1
 
+;(天候パッチ)1日の大気安定度を設定
+ATMOSPHERIC_INSTABILITY = RAND:(8 - POWER_WARM_AIR) + (7 - POWER_WARM_AIR - POWER_COLD_AIR)
+SIF DAY:2 == 2 && (IS_COLD_LOW || GET_LOCATION_LOW() == "台風勢力圏")
+	ATMOSPHERIC_INSTABILITY -= 6
+
 ;積雲/積乱雲の発生判定
 IF DAY:2 == 2 && POWER_WARM_AIR >= 2 && !IS_COLD_LOW && (GET_LOCATION_LOW() == "台風遠方" || GET_LOCATION_LOW() == "台風一過" || GET_LOCATION_LOW() == "低気圧未発生")
-	SELECTCASE POWER_WARM_AIR
-		CASE 2, 3
-			SELECTCASE RAND:(POWER_WARM_AIR)
-				CASE 0
-					CAN_CUMULUS:0 = 1
-				CASEELSE
-					CAN_CUMULUS:0 = 2
-			ENDSELECT
-		CASE 4, 5
-			SELECTCASE RAND:(POWER_WARM_AIR)
-				CASE 0
-					CAN_CUMULUS:0 = 1
-				CASE 1
-					CAN_CUMULUS:0 = 2
-				CASEELSE
-					CAN_CUMULUS:0 = 3
-			ENDSELECT
+	SELECTCASE ATMOSPHERIC_INSTABILITY
+		CASE IS >= 4
+			CAN_CUMULUS:0 = 1
+		CASE IS >= 0
+			CAN_CUMULUS:0 = 2
+		CASEELSE
+			CAN_CUMULUS:0 = 3
 	ENDSELECT
 	SIF !RAND:4
 		CAN_CUMULUS:1 = 1
 ELSEIF DAY:2 == 2 && (IS_COLD_LOW || GET_LOCATION_LOW() == "台風勢力圏")
-	SELECTCASE POWER_WARM_AIR
-		CASE 1, 2
-			SELECTCASE RAND:(POWER_WARM_AIR)
-				CASE 0
-					CAN_CUMULUS:0 = 2
-				CASEELSE
-					CAN_CUMULUS:0 = 3
-			ENDSELECT
+	SELECTCASE ATMOSPHERIC_INSTABILITY
+		CASE IS >= 0
+			CAN_CUMULUS:0 = 2
 			SIF !RAND:4
 				CAN_CUMULUS:1 = 1
-		CASE 3, 4
-			SELECTCASE RAND:(POWER_WARM_AIR)
-				CASE 0
-					CAN_CUMULUS:0 = 3
-				CASEELSE
-					CAN_CUMULUS:0 = 4
-			ENDSELECT
+		CASE IS >= -3
+			CAN_CUMULUS:0 = 3
 			SIF !RAND:2
 				CAN_CUMULUS:1 = 1
-		CASE 5
-			SELECTCASE RAND:20
-				CASE 0
-					CAN_CUMULUS:0 = 5
-				CASEELSE
-					CAN_CUMULUS:0 = 4
-			ENDSELECT
+		CASE IS >= -6
+			CAN_CUMULUS:0 = 4
+			SIF !RAND:2
+				CAN_CUMULUS:1 = 1
+		CASE IS >= -8
+			CAN_CUMULUS:0 = 4
+			CAN_CUMULUS:1 = 1
+		CASEELSE
+			CAN_CUMULUS:0 = 5
 			CAN_CUMULUS:1 = 1
 	ENDSELECT
 ;積雲/積乱雲の発生判定をリセット
@@ -603,13 +617,13 @@ ENDIF
 
 ;かなとこ雲とスーパーセルの場合風の強さ判定
 IF CAN_CUMULUS:0 == 4 && CAN_CUMULUS:1 == 1
-	IF RAND:50 == 0
+	IF RAND:(40 + ATMOSPHERIC_INSTABILITY) == 0
 		CAN_CUMULUS:2 = 2
 	ELSE
 		CAN_CUMULUS:2 = 1
 	ENDIF
 ELSEIF CAN_CUMULUS:0 == 5 && CAN_CUMULUS:1 == 1
-	IF RAND:10 == 0
+	IF RAND:5 == 0
 		CAN_CUMULUS:2 = 2
 	ELSE
 		CAN_CUMULUS:2 = 1
@@ -833,7 +847,7 @@ IF CAN_CUMULUS:0 && CAN_CUMULUS:1
 	ELSE
 		RETURNF "積乱雲通過"
 	ENDIF
-ELSE
+ELSEIF CAN_CUMULUS:0
 	RETURNF "積乱雲遠方"
 ENDIF
 
@@ -896,7 +910,7 @@ TIME_PASSAGE_LINER_RAINBAND:2 = RESULT:2
 ;-------------------------------------------------
 @GET_LOCATION_LINER_RAINBAND
 #FUNCTIONS
-IF IS_LINER_RAINBAND:0 == 1
+IF IS_LINER_RAINBAND:0 >= 1
 	;線状降水帯の勢力圏突入時刻以前
 	IF TIME_ENTER_TERRITORY_LINER_RAINBAND:0 > DAY:2
 		RETURNF "線状降水帯遠方"
@@ -936,6 +950,8 @@ IF CONTINUOUS_RAINFALL >= 15
 	RETURNF "大雨特別警報"
 ELSEIF 線状降水帯位置 == "線状降水帯勢力圏" && IS_LINER_RAINBAND:1 == 2
 	RETURNF "大雨特別警報"
+ELSEIF IS_TYPHOON:1 >= 5 && IS_TYPHOON:2 == 3 && POWER_WARM_AIR >= 5 && GET_LOCATION_AREA_TYPHOON() == 1
+	RETURNF "大雨特別警報"
 ELSEIF CONTINUOUS_RAINFALL >= 10
 	RETURNF "大雨警報(土砂災害警戒情報)"
 ELSEIF 線状降水帯位置 == "線状降水帯勢力圏"
@@ -944,6 +960,8 @@ ELSEIF 線状降水帯位置 == "線状降水帯遠方" && IS_LINER_RAINBAND:1 =
 	RETURNF "大雨警報(土砂災害警戒情報)"
 ELSEIF (GET_LOCATION_AREA_TYPHOON() == 1 || 低気圧位置 == "台風勢力圏") && IS_TYPHOON:3 == 1
 	RETURNF "大雨警報"
+ELSEIF GET_LOCATION_AREA_TYPHOON() == 1
+	RETURNF "大雨警報"
 ELSEIF CAN_CUMULUS:0 == 5 && (積乱雲位置 == "積乱雲視認" || 積乱雲位置 == "積乱雲接近" || 積乱雲位置 == "積乱雲直下")
 	RETURNF "大雨警報"
 ELSEIF CAN_CUMULUS:0 == 4 && (積乱雲位置 == "積乱雲接近" || 積乱雲位置 == "積乱雲直下")
@@ -951,6 +969,8 @@ ELSEIF CAN_CUMULUS:0 == 4 && (積乱雲位置 == "積乱雲接近" || 積乱雲�
 ELSEIF CONTINUOUS_RAINFALL >= 5
 	RETURNF "大雨警報"
 ELSEIF 線状降水帯位置 == "線状降水帯遠方" && IS_LINER_RAINBAND:1 == 2 && TIME_ENTER_TERRITORY_LINER_RAINBAND:1 == DAY:3
+	RETURNF "大雨警報"
+ELSEIF TIME:5 == 14
 	RETURNF "大雨警報"
 ELSEIF 線状降水帯位置 == "線状降水帯遠方" && TIME_ENTER_TERRITORY_LINER_RAINBAND:1 == DAY:3 && TIME_ENTER_TERRITORY_LINER_RAINBAND:2 <= TIME:0 + 180
 	RETURNF "大雨注意報"
@@ -965,6 +985,8 @@ ELSEIF CAN_CUMULUS:0 == 5 && 積乱雲位置 == "積乱雲遠方"
 ELSEIF CAN_CUMULUS:0 == 4 && (積乱雲位置 == "積乱雲視認" || (積乱雲位置 == "積乱雲遠方" && TIME:0 >= 720))
 	RETURNF "大雨注意報"
 ELSEIF CAN_CUMULUS:0 == 3 && (積乱雲位置 == "積乱雲接近" || 積乱雲位置 == "積乱雲直下")
+	RETURNF "大雨注意報"
+ELSEIF TIME:5 == 5
 	RETURNF "大雨注意報"
 ELSE
 	RETURNF "大雨注意報未発令"
@@ -1055,6 +1077,8 @@ ENDIF
 
 IF CAN_CUMULUS:2 == 2 && (積乱雲位置 == "積乱雲接近" || 積乱雲位置 == "積乱雲直下")
 	RETURNF "雷注意報(竜巻注意情報)"
+ELSEIF GET_HEAT_THUNDERSTORM() == 1 && GET_FRONTAL_THUNDERSTORM() == 1 && ATMOSPHERIC_INSTABILITY <= -2
+	RETURNF "雷注意報(竜巻注意情報)"
 ELSEIF DAY:2 == 2 && (IS_COLD_LOW || 低気圧位置 == "台風勢力圏")
 	RETURNF "雷注意報"
 ELSEIF CAN_CUMULUS:0 == 3 && (積乱雲位置 == "積乱雲接近" || 積乱雲位置 == "積乱雲直下")
@@ -1062,6 +1086,10 @@ ELSEIF CAN_CUMULUS:0 == 3 && (積乱雲位置 == "積乱雲接近" || 積乱雲�
 ELSEIF 線状降水帯位置 == "線状降水帯勢力圏"
 	RETURNF "雷注意報"
 ELSEIF (DAY:2 == 1 || DAY:2 == 3) && (低気圧位置 == "寒冷前線通過" || 低気圧位置 == "暖域") && POWER_WARM_AIR >= 3 && POWER_COLD_AIR >= 4
+	RETURNF "雷注意報"
+ELSEIF GET_HEAT_THUNDERSTORM() == 1
+	RETURNF "雷注意報"
+ELSEIF GET_FRONTAL_THUNDERSTORM() == 1
 	RETURNF "雷注意報"
 ELSE
 	RETURNF "雷注意報未発令"
@@ -1100,24 +1128,77 @@ ELSE
 	RETURNF "なだれ注意報未発令"
 ENDIF
 
+;早期注意情報（警報級の可能性）
+@GET_WEATHER_ADVISORY_probability_subsequent_WARNING
+#FUNCTIONS
+#DIMS 低気圧位置
+#DIMS 線状降水帯位置
+#DIMS 積乱雲位置
+
+低気圧位置 = %GET_LOCATION_LOW()%
+線状降水帯位置 = %GET_LOCATION_LINER_RAINBAND()%
+積乱雲位置 = %GET_LOCATION_CUMULUS()%
+
+IF (線状降水帯位置 == "線状降水帯遠方" || 線状降水帯位置 == "線状降水帯勢力圏") && TIME_ENTER_TERRITORY_LINER_RAINBAND:1 <= DAY:3 +1
+	RETURNF "警報級の可能性［高］"
+ELSEIF IS_LINER_RAINBAND:1
+	RETURNF "警報級の可能性［中］"
+ELSEIF 低気圧位置 == "台風遠方" && IS_TYPHOON:3 == 1 && TIME_ENTER_TERRITORY_TYPHOON:0 == DAY:2 && TIME_ENTER_TERRITORY_TYPHOON:1 <= DAY:3 + 2
+	RETURNF "警報級の可能性［高］"
+ELSEIF 低気圧位置 == "台風遠方" && TIME_ENTER_TERRITORY_TYPHOON:0 == DAY:2 && TIME_ENTER_TERRITORY_TYPHOON:1 <= DAY:3 + 1
+	RETURNF "警報級の可能性［中］"
+ELSEIF GET_LOCATION_AREA_TYPHOON() == 1 || 低気圧位置 == "台風勢力圏"
+	RETURNF "警報級の可能性［高］"
+ELSEIF GET_HEAT_THUNDERSTORM() && GET_FRONTAL_THUNDERSTORM()
+	RETURNF "警報級の可能性［高］"
+ELSEIF IS_COLD_LOW
+	RETURNF "警報級の可能性［中］"
+ELSEIF CONTINUOUS_RAINFALL >= 3
+	RETURNF "警報級の可能性［中］"
+ELSEIF (IS_SoJ_LOW == 2 && TIME_ENTER_TERRITORY_SoJ_LOW:1 <= DAY:3 + 1) && 低気圧位置 != "二つ玉低気圧通過" && 低気圧位置 != "日本海低気圧通過"
+	RETURNF "警報級の可能性［高］"
+ELSEIF IS_SoJ_LOW && 低気圧位置 != "二つ玉低気圧通過" && 低気圧位置 != "日本海低気圧通過"
+	RETURNF "警報級の可能性［中］"
+ELSE
+	RETURNF "早期注意情報未発表"
+ENDIF
+
 ;-------------------------------------------------
 ;熱雷発生フラグ判定
 ;-------------------------------------------------
 @GET_HEAT_THUNDERSTORM
 #FUNCTION
 #DIMS 積乱雲位置
+#DIMS 線状降水帯位置
+#DIMS 低気圧位置
 
+低気圧位置 = %GET_LOCATION_LOW()%
+線状降水帯位置 = %GET_LOCATION_LINER_RAINBAND()%
 積乱雲位置 = %GET_LOCATION_CUMULUS()%
 
-IF IS_LINER_RAINBAND:0 == 1
+IF 線状降水帯位置 == "線状降水帯勢力圏"
 	RETURNF 1
-ELSEIF 積乱雲位置 != "積乱雲未発生"
+ELSEIF 積乱雲位置 == "積乱雲直下"
+	IF CAN_CUMULUS:0 == 3 && ATMOSPHERIC_INSTABILITY <= -3
+		RETURNF 1
+	ELSEIF CAN_CUMULUS:0 >= 4
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ELSEIF 積乱雲位置 == "積乱雲接近"
+	IF CAN_CUMULUS:0 == 4 && ATMOSPHERIC_INSTABILITY <= -7
+		RETURNF 1
+	ELSEIF CAN_CUMULUS:0 >= 5
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ELSEIF IS_TYPHOON:3 == 1 && 低気圧位置 == "台風勢力圏" && ATMOSPHERIC_INSTABILITY <= -1
 	RETURNF 1
-ELSEIF DAY:2 == 2
+ELSEIF (IS_RAINY_SEASON1:0 == 1 || IS_RAINY_SEASON2 == 1) && POWER_WARM_AIR >= 4 && ATMOSPHERIC_INSTABILITY <= 0
 	RETURNF 1
-ELSEIF GET_LOCATION_AREA_TYPHOON() == 1
-	RETURNF 1
-ELSEIF IS_RAINY_SEASON1:0 == 1 || IS_RAINY_SEASON2 == 1
+ELSEIF (DAY:2 == 1 || DAY:2 == 3) && (低気圧位置 == "温暖前線接近" || 低気圧位置 == "寒冷前線通過" || 低気圧位置 == "寒冷渦接近") && POWER_WARM_AIR >= 5 && ATMOSPHERIC_INSTABILITY <= -1
 	RETURNF 1
 ELSE
 	RETURNF 0
@@ -1132,7 +1213,27 @@ ENDIF
 
 低気圧位置 = %GET_LOCATION_LOW()%
 
-IF (DAY:2 == 1 || DAY:2 == 3) && 低気圧位置 == "寒冷前線通過" && POWER_WARM_AIR >= 3 && POWER_COLD_AIR >= 4
+IF (DAY:2 == 1 || DAY:2 == 3) && (低気圧位置 == "寒冷前線通過" || 低気圧位置 == "寒冷渦接近") && POWER_WARM_AIR >= 3 && POWER_COLD_AIR >= 4
+	RETURNF 1
+ELSEIF IS_RAINY_SEASON1:1 == 1
+	RETURNF 1
+ELSEIF IS_RAINY_SEASON1:0 == 1 && POWER_COLD_AIR >= 4
+	RETURNF 1
+ELSEIF (低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "二つ玉低気圧通過中") && POWER_WARM_AIR >= 3 && POWER_COLD_AIR >= 3
+	RETURNF 1
+ELSEIF (低気圧位置 == "日本海低気圧接近" || 低気圧位置 == "日本海低気圧通過中") && POWER_WARM_AIR >= 3 && POWER_COLD_AIR >= 3
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+
+;-------------------------------------------------
+;天候が雷であるか
+;-------------------------------------------------
+@GET_WEATHER_THUNDERSTORM
+#FUNCTION
+
+IF (GET_HEAT_THUNDERSTORM() == 1 || GET_FRONTAL_THUNDERSTORM() == 1) && TIME:5 != 1 && (FLAG:이상기상 == 0 || FLAG:이상기상 == 9 || FLAG:이상기상 == 10) && !FORBIDDEN_CHANGE_WEATHER
 	RETURNF 1
 ELSE
 	RETURNF 0
@@ -1194,3 +1295,4 @@ ELSEIF TIME:5 >= 8 && TIME:5 <= 13 && GET_HEAT_THUNDERSTORM() == 0 && GET_FRONTA
 ELSE
 	FLAG:이상기상 = 0
 ENDIF
+

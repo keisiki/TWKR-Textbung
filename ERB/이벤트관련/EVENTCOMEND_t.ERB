@@ -31,7 +31,14 @@ IF BASE:MASTER:술기운 >= MAXBASE:MASTER:술기운
 	ENDIF
 	GOTO OYASUMI
 ENDIF
-IF (BASE:MASTER:체력 <= 500 && !TCVAR:TARGET:마음대로해) || BASE:MASTER:체력 <= 0
+IF BASE:MASTER:체력 <= 500 && ITEM:리버스페더
+	FONTSTYLE 1
+	PRINTFORML 리버스 페더가 빛을 발하며　조용히 불타올랐다！
+	FONTREGULAR
+	CALL RECOVER_PERMIL(MASTER, 300, "체력", 0, "리버스페더에 의한 회복")
+	CALL RECOVER_PERMIL(MASTER, 200, "기력", 0, "리버스페더에 의한 회복")
+	ITEM:리버스페더 --
+ELSEIF (BASE:MASTER:체력 <= 500 && !TCVAR:TARGET:마음대로해) || BASE:MASTER:체력 <= 0
 	PRINTL (체력이 한계에 와 있습니다)
 	;발정 없이 방에 들어갈 경우or 뉴 플랜 에는 선택지를 내놓지 않는다.
 	IF CFLAG:MASTER:현재위치 == OMANEKIBEYA() && (!TALENT:TARGET:연모 || TFLAG:거품목욕)
@@ -432,19 +439,14 @@ SIF SELECTCOM == 400
 	TWAIT 100,0
 
 @ENKAI_SINKOU
-;연회의 참가인수를 세트
-FLAG:35 = 0
-FOR LOCAL,0,CHARANUM
-	IF CFLAG:LOCAL:연회참가 == 1 || CFLAG:LOCAL:연회참가 == 2
-		SIF CFLAG:LOCAL:현재위치 == TFLAG:연회장
-			FLAG:35 ++
-	ENDIF
-NEXT
-
-SIF FLAG:연회개최플래그
+SIF FLAG:연회개최플래그 == 0 || TFLAG:연회상태 == 101
 	RETURN
 
-;날씨가 나쁘면 중지가 되는 연회도 있다
+;宴会の参加人数をセット
+CALL 연회참가인원수재계산()
+
+;天気が悪いと中止になる宴会もある
+
 
 IF TIME:5 >= 4 && FLAG:36 > 0 && GROUPMATCH(CFLAG:[[텐시]]:연회참가, 1, 2)
 	PRINTFORMW 악천후로 인해 연회가 중지될 줄 알았지만, 텐시의 힘으로 하늘은 맑아졌다
@@ -459,36 +461,50 @@ IF TIME:5 >= 4 && FLAG:36 > 0 && DAY >= FLAG:개시일 && TIME >= FLAG:33
 	PRINTFORMW 유감스럽게도, \@ CFLAG:MASTER:현재위치 == TFLAG:연회장 ? 날씨가 안 좋아서 연회는 취소되었습니다 # 악천후로 연회는 취소된 것 같습니다\@
 	CALL ENKAI_STOP
 ;연회의 도중에 내리기 시작했을 경우
-ELSEIF FLAG:연회개최플래그 >= 98 && TIME:5 >= 4 && FLAG:36 > 0
+ELSEIF TFLAG:연회상태 >= 98 && TIME:5 >= 4 && FLAG:36 > 0
 	PRINTL  
 	PRINTFORMW 유감스럽게도, \@ CFLAG:MASTER:현재위치 == TFLAG:연회장 ? 날씨가 안 좋아서 연회는 취소되었습니다 # 악천후로 연회는 취소된 것 같습니다\@
 	CALL ENKAI_STOP
 ;연회 개시
-ELSEIF FLAG:연회개최플래그 != 98 && FLAG:연회개최플래그 != 99 && DAY >= FLAG:개시일 && TIME >= FLAG:33
+ELSEIF 연회개시일판정() && TIME >= FLAG:33
 	IF CFLAG:MASTER:현재위치 == TFLAG:연회장
 		PRINTFORML 
-		IF FLAG:35 < 2
+		IF FLAG:참가인수 < 2
 			PRINTW 조용한 분위기 속에서, 연회가 시작되었습니다…
-		ELSEIF FLAG:35 >= 8
+		ELSEIF FLAG:참가인수 >= 8
 			PRINTW 떠들썩한 분위기 속에서, 연회가 시작되었습니다…
 		ELSE
 			PRINTW 화기애애한 분위기 속에서, 연회가 시작되었습니다…
 		ENDIF
 		PRINTFORML 
-		FLAG:연회개최플래그 = 99
+		TFLAG:연회상태 = 99
 	ELSE
-		FLAG:연회개최플래그 = 98
+		TFLAG:연회상태 = 98
 	ENDIF
-ELSEIF FLAG:연회개최플래그 != 99 && DAY >= FLAG:개시일 && TIME >= FLAG:33
+ELSEIF TFLAG:연회상태 == 98 && DAY >= FLAG:개시일 && TIME >= FLAG:33
 	IF CFLAG:MASTER:현재위치 == TFLAG:연회장
 		PRINTL  
 		PRINTW 이미 연회는 시작된 것 같습니다…
 		PRINTL  
-		FLAG:연회개최플래그 = 99
+		TFLAG:연회상태 = 99
 	ENDIF
 	;주최자측은 아직 연회준비 플래그 인 채의 모아 두어 플래그를 억지로 진행한다
 	FOR LOCAL,0,CHARANUM
 		SIF CFLAG:LOCAL:20 == 2
 			CALL ENKAI_WORK(LOCAL)
 	NEXT
+ELSEIF 연회개최중판정() && FLAG:참가인수 == 0
+	IF CFLAG:MASTER:현재위치 == TFLAG:연회장
+		PRINTL
+		PRINTW 연회가 열릴 것 같습니다…
+		PRINTL
+		TFLAG:연회상태 = 101
+	ELSE
+		TFLAG:연회상태 = 100
+	ENDIF
+ELSEIF TFLAG:연회상태 == 100 && CFLAG:MASTER:현재위치 == TFLAG:연회장
+	PRINTL
+	PRINTW 벌써 연회는 끝난 것 같습니다…
+	PRINTL
+	TFLAG:연회상태 = 101
 ENDIF

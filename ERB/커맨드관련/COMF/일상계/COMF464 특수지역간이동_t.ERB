@@ -4,6 +4,8 @@
 ;-------------------------------------------------
 @COM464
 #DIM FEE
+#DIM 목적장소
+#DIM 소요시간
 VARSET LOCAL
 FEE = 0
 FOR LOCAL,1,CHARANUM
@@ -66,7 +68,7 @@ SELECTCASE CFLAG:MASTER:현재위치
 			FEE = 5
 		ENDIF
 		;상대가 오니나 텐구라면 비위 맞추는 웃음
-		IF GROUPMATCH(TARGET, 10, 29, 31, 32, 33, 42, 64, 65)
+		IF GROUPMATCH(TARGET, 10, 29, 31, 32, 33, 42, 64, 65) && CFLAG:TARGET:동행
 			;ガワを山の河童(16)or里の人間(12)に決める
 			LOCAL = 12 + ((CFLAG:MASTER:현재위치 / 100 == 8) * 4)
 			CALL SPTALK, 0, "笑顔", LOCAL, @"「이거이거 %CALLNAME:TARGET% 씨, 이용하시려고요?」",1
@@ -126,7 +128,7 @@ IF AT_HOME(MASTER) || MAIN_MAP != SPECIAL_AREAMOVE() / 100
 	ENDIF
 	PRINTFORML %조사처리(LOCALS,"으로")% 외출합니다
 	TIME += SPECIAL_AREAMOVE_TIME()
-
+	TFLAG:외출중 = 1
 ;住み込み先でないところから住み込み先への移動はデート終了扱い
 ELSEIF !AT_HOME(MASTER) && MAIN_MAP == SPECIAL_AREAMOVE() / 100
 	IF CFLAG:패배자 && TALENT:스침 == 1
@@ -134,21 +136,26 @@ ELSEIF !AT_HOME(MASTER) && MAIN_MAP == SPECIAL_AREAMOVE() / 100
 	ELSE
 		PRINTFORMW \@ CFLAG:MASTER:데이트중 != CFLAG:TARGET:데이트중 || TARGET == MASTER ? 외출 # 데이트 \@에서 돌아왔습니다.
 	ENDIF
+	;デート終了時は強制的にENTRANCEへ飛ばされるため一時保存
+	목적장소 = SPECIAL_AREAMOVE()
+	소요시간 = SPECIAL_AREAMOVE_TIME()
 	CFLAG:MASTER:현재위치 = SPECIAL_AREAMOVE()
 
 	CALL 모리야복권데이트상대의리셋()
 	FOR LOCAL,1,CHARANUM
 		IF CHK_DATENOW(CFLAG:LOCAL:데이트중)
 			CALL DATE_EVENT(LOCAL)
-			CFLAG:LOCAL:현재위치 = SPECIAL_AREAMOVE()
+			CFLAG:LOCAL:현재위치 = 목적장소
 			CALL SET_DATE(99,LOCAL)
+			;デート相手にも改めて現在位置渡す
+			CFLAG:LOCAL:현재위치 = 목적장소
 		ENDIF
 	NEXT
-	SIF CHK_DATENOW(CFLAG:MASTER:데이트중)
-		CALL SET_DATE(99,MASTER)
-
-	TIME += SPECIAL_AREAMOVE_TIME()
-	TFLAG:외출중 = 1
+	CALL SET_DATE(99,MASTER,0)
+	;一時保存情報渡す
+	CFLAG:MASTER:현재위치 = 목적장소
+	TIME += 소요시간
+	TFLAG:외출중 = 0
 ENDIF
 
 ;-------------------------------------------------

@@ -8,19 +8,26 @@
 #DIM CHARA
 #DIM 채집위치
 
-;명백한 사람의 부지에서의 무단 채집은 그만둔다
+;あからさまな人の敷地での無断採集はやめる、弾幕勝負で勝ってれば腕づくで
 SELECTCASE CFLAG:MASTER:현재위치
 	CASE 태양의밭, 438
-		IF ABL:[[유카]]:친밀 < 5&&!FLAG:70
+		IF ABL:[[유카]]:친밀 < 5 && CFLAG:[[유카]]:탄막승부승리 == 0&&!FLAG:70
 			DRAWLINE
-			PRINTFORML 여기서 무단으로 채집을 하는 것은 매우 위험한 생각이 든다…
+			PRINTFORML 여기서 무단으로 채집을 하는 것은 매우 위험할 것 같다…
 			RETURN -1
 		ENDIF
 	;천계, 도원
 	CASE 천계, 833
-		IF ABL:[[텐시]]:친밀 < 5&&!FLAG:70
+		IF ABL:[[텐시]]:친밀 < 5 && CFLAG:[[텐시]]:탄막승부승리 == 0&&!FLAG:70
 			DRAWLINE
-			PRINTFORML 여기서 무단으로 채집을 하는 것은 곤란하다는 생각이 든다…
+			PRINTFORML 여기서 무단으로 채집을 하는 것은 위험할 것 같다…
+			RETURN -1
+		ENDIF
+	;虹龍洞
+	CASE 虹龍洞, 855
+		IF ABL:[[모모요]]:친밀 < 5 && CFLAG:[[모모요]]:탄막승부승리 == 0&&!FLAG:70
+			DRAWLINE
+			PRINTFORML 여기서 무단으로 채집을 하는 것은 위험할 것 같다…
 			RETURN -1
 		ENDIF
 ENDSELECT
@@ -170,13 +177,25 @@ ENDIF
 
 ;시간 정지시는 TSP감
 IF FLAG:70
-	BASE:MASTER:TSP -= 120
+	;虹龍洞は採掘困難
+	IF 채집위치 == 68
+		BASE:MASTER:TSP -= 290
+	ELSE
+		BASE:MASTER:TSP -= 120
+	ENDIF
 ELSE
 	;시간 경과
 	TIME += 60
-	;체력 감소는 전투 능력에 의해 감소 억제
-	DOWNBASE:MASTER:체력 = 180 - (ABL:MASTER:전투능력 * 15)
-	DOWNBASE:MASTER:기력 = 150 
+	;虹龍洞は空気が薄い（無い）ので体力を余計に消耗する　ITEM:空色の勾玉の実装が待たれる
+	IF 채집위치 == 68
+		DOWNBASE:MASTER:체력 = 320 - (ABL:MASTER:전투능력 * 10)
+		DOWNBASE:MASTER:기력 = 280
+		PRINTFORML 갱 내부는 공기가 옅어、몹시 지친다…
+	ELSE
+		;체력 감소는 전투 능력에 의해 감소 억제
+		DOWNBASE:MASTER:체력 = 180 - (ABL:MASTER:전투능력 * 15)
+		DOWNBASE:MASTER:기력 = 150 
+	ENDIF
 ENDIF
 
 ;참가자의 소스, 동일 커맨드 제한을 받지 않기 때문에 소극적으로, 발견되지 않으면 반감
@@ -378,6 +397,8 @@ IF !IN_HOME(ARG) && !ARG:1
 			RETURNF 66
 		CASE 고요의바다
 			RETURNF 67
+		CASE 홍룡동
+			RETURNF 68
 	ENDSELECT
 ELSE
 	;メインマップでの判定
@@ -432,6 +453,8 @@ ELSE
 			RETURNF 36
 		CASE P833도원
 			RETURNF 13
+		CASE P855홍룡동
+			RETURNF 68
 		;지저:작열 지옥자취, 강가, 세로구멍의 바닥
 		CASE P928작열지옥터
 			RETURNF 65
@@ -572,6 +595,10 @@ SELECTCASE ARG:1
 	CASE 67
 		SIF GROUPMATCH(ARG:0, 639)
 			RETURNF 1
+	;홍룡동
+	CASE 68
+		SIF GROUPMATCH(ARG:0, 647)
+			RETURNF 1
 ENDSELECT
 RETURNF 0
 
@@ -594,36 +621,36 @@ SELECTCASE LOCAL
 	;봄:
 	CASE 1
 		SELECTCASE ARG:0
-			CASE 600 TO 602, 604 TO 608, 610 TO 613, 616, 618 TO 627, 629, 631 TO 640, 706
+			CASE 600 TO 602, 604 TO 608, 610 TO 613, 616, 618 TO 627, 629, 631 TO 640, 647, 706
 				RETURNF 1
 		ENDSELECT
 	;여름
 	CASE 2
 		SELECTCASE ARG:0
-			CASE 600 TO 601, 603, 606 TO 608, 612 TO 613, 618 TO 627, 630 TO 640, 665, 706
+			CASE 600 TO 601, 603, 606 TO 608, 612 TO 613, 618 TO 627, 630 TO 640, 647, 665, 706
 				RETURNF 1
 		ENDSELECT
 	;가을
 	CASE 3
 		SELECTCASE ARG:0
-			CASE 600 TO 608, 611 TO 614, 616 TO 623, 625 TO 628, 631 TO 640, 665, 706
+			CASE 600 TO 608, 611 TO 614, 616 TO 623, 625 TO 628, 631 TO 640, 647, 665, 706
 				RETURNF 1
 		ENDSELECT
-		;(酒造パッチ)(天候パッチ)곰팡이핀포도666は寒気の強さが5の時のみ
+		;(酒造パッチ)(天候パッチ)かびたブドウ666は寒気の強さが5の時のみ
 		SIF ARG:0 == 666 && POWER_COLD_AIR == 5
 			RETURNF 1
 	;겨울
 	CASE 4
-		;천계, 지저, 달과 버섯 군생지는 여름으로 간주해 채집 가능
+		;天界、地底、月とキノコ群生地、虹龍洞は夏とみなして採集可能
 		IF ARG:1
 			LOCAL:1 = ARG:1
 		ELSE
 			LOCAL:1 = GATHERING_SPOT(CFLAG:MASTER:현재위치)
 		ENDIF
 
-		IF GROUPMATCH(LOCAL:1, 13, 14, 37, 63, 64, 65, 66, 67)
+		IF GROUPMATCH(LOCAL:1, 13, 14, 37, 63, 64, 65, 66, 67, 68)
 			SELECTCASE ARG:0
-				CASE 600 TO 601, 603, 606 TO 609, 612 TO 613, 618 TO 627, 630 TO 640, 706
+				CASE 600 TO 601, 603, 606 TO 609, 612 TO 613, 618 TO 627, 630 TO 640, 647, 706
 					RETURNF 1
 			ENDSELECT
 		ELSE
@@ -848,6 +875,8 @@ CASE 66
 	ENDIF
 CASE 67
 	LOCALS = 고요의 바다
+CASE 68
+	LOCALS = 홍룡동
 CASEELSE
 	LOCALS =
 ENDSELECT
@@ -865,6 +894,10 @@ RETURNF LOCALS
 #DIM start			;抽選開始値
 #DIM end			;抽選終了値
 #DIM difference		;加算or減算
+#DIMS 低気圧位置
+#DIMS 積乱雲位置
+低気圧位置 = %GET_LOCATION_LOW()%
+積乱雲位置 = %GET_LOCATION_CUMULUS()%
 Chosen = 0
 QTY = 0
 
@@ -895,7 +928,7 @@ FOR LOCAL:0, start, end, difference
 	SIF ITEMNAME:(LOCAL:0) == ""
 		CONTINUE
 	IF ITEM:(LOCAL:0) == 99 && 0 ; 제한 억제
-		DEBUGPRINTFORML 所持上限のため%ITEMNAME:(LOCAL:0)%를 스킵
+		DEBUGPRINTFORML 소지 상한 때문에 %ITEMNAME:(LOCAL:0)%를 스킵
 		CONTINUE
 	ENDIF
 	IF !GATHERING_SEASON(LOCAL:0)
@@ -903,16 +936,30 @@ FOR LOCAL:0, start, end, difference
 		CONTINUE
 	ENDIF
 	IF  GATHERING_PRODUCT(LOCAL:0, 채집위치) < 1
-		DEBUGPRINTFORML 위치が不適切なため%ITEMNAME:(LOCAL:0)%를 스킵
+		DEBUGPRINTFORML 위치가 부적절하기 때문에 %ITEMNAME:(LOCAL:0)%를 스킵
 		CONTINUE
 	ENDIF
 	LOCAL:5 = ITEMPRICE:(LOCAL:0) + 1000
 	;채집 파워＋보정치가 √ 아이템 비용+1000을 웃돌면 입수
-	IF 채집파워 + Modification < SQRT(LOCAL:5)
-		DEBUGPRINTFORML 채집파워不足なため%ITEMNAME:(LOCAL:0)%를 스킵
+	;(天候パッチ)猛烈な台風通過後・二つ玉低気圧通過後・スーパーセル通過後は、龍の爪・竜血・竜骨・龍珠の入手成功率が上昇
+	IF GROUPMATCH(LOCAL:0, 606, 625, 634, 647) && ((低気圧位置 == "台風一過" && IS_TYPHOON:1 >= 5) || 低気圧位置 == "二つ玉低気圧通過" || (積乱雲位置 == "積乱雲通過" && CAN_CUMULUS:0 == 5))
+		DEBUGPRINTFORML %ITEMNAME:(LOCAL:0)% 입수 성공률 상승 중
+		IF 채집파워 + Modification < SQRT((LOCAL:5)/2)
+			DEBUGPRINTFORML 채집파워 부족 때문에 %ITEMNAME:(LOCAL:0)%를 스킵
+			CONTINUE
+		ENDIF
+	;(天候パッチ)寒冷渦通過後・二つ玉低気圧通過後は、氷の鱗の入手成功率が上昇
+	ELSEIF LOCAL:0 == 609 && (低気圧位置 == "寒冷渦通過" || 低気圧位置 == "二つ玉低気圧通過")
+		DEBUGPRINTFORML %ITEMNAME:(LOCAL:0)% 입수 성공률 상승 중
+		IF 채집파워 + Modification < SQRT((LOCAL:5)/2)
+			DEBUGPRINTFORML 채집파워 부족 때문에 %ITEMNAME:(LOCAL:0)%를 스킵
+			CONTINUE
+		ENDIF
+	ELSEIF 채집파워 + Modification < SQRT(LOCAL:5)
+		DEBUGPRINTFORML 채집파워 부족 때문에%ITEMNAME:(LOCAL:0)%를 스킵
 		CONTINUE
 	ENDIF
-	DEBUGPRINTFORML %ITEMNAME:(LOCAL:0)%に決定
+	DEBUGPRINTFORML %ITEMNAME:(LOCAL:0)%로 결정
 	Chosen = LOCAL:0
 	;가격 10000을 넘는 희소 아이템은 1개 밖에 손에 들어 오지 않는, 그것 이하의 가격대는 채집 파워에 응해 복수 입수가 가능하게
 	SELECTCASE LOCAL:5

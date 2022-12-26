@@ -13,6 +13,7 @@
 #DIMS 線状降水帯位置
 #DIMS 積乱雲位置
 #DIMS 台風勢力
+#DIMS 早期注意情報
 
 低気圧位置 = %GET_LOCATION_LOW()%
 線状降水帯位置 = %GET_LOCATION_LINER_RAINBAND()%
@@ -24,6 +25,7 @@
 雷情報 = %GET_WEATHER_WARNING_LIGHTNING()%
 低温情報 = %GET_WEATHER_WARNING_COLD()%
 雪崩情報 = %GET_WEATHER_WARNING_AVALANCHE()%
+早期注意情報 = %GET_WEATHER_ADVISORY_probability_subsequent_WARNING()%
 
 SELECTCASE IS_TYPHOON:1
 	CASE 5
@@ -57,11 +59,87 @@ DEBUGPRINTFORML %暴風情報%
 DEBUGPRINTFORML %雷情報%
 DEBUGPRINTFORML %低温情報%
 DEBUGPRINTFORML %雪崩情報%
+DEBUGPRINTFORML %早期注意情報%
 
 [ENDIF]
 
 PRINTW ラジオのつまみをいじってみた
-PRINTL ……　………　……
+PRINTL
+
+PRINTL ┏━━━━━━┓
+PRINT ┃電源［
+IF 大雨情報 == "大雨特別警報"
+	PRINT □□
+ELSEIF 大雨情報 == "大雨警報(土砂災害警戒情報)" || 大雪情報 == "大雪特別警報" || 暴風情報 == "暴風雪特別警報" || 暴風情報 == "暴風特別警報"
+	IF CONTINUOUS_RAINFALL >= 10
+		SETCOLOR C_P_PURPLE
+		PRINT ■
+		RESETCOLOR
+		PRINT □
+	ELSE
+		SETCOLOR C_P_PURPLE
+		PRINT ■■
+		RESETCOLOR
+	ENDIF
+ELSEIF 大雨情報 == "大雨警報" || 大雪情報 == "大雪警報" || 暴風情報 == "暴風雪警報" || 暴風情報 == "暴風警報" || 雷情報 == "雷注意報(竜巻注意情報)" || 雪崩情報 == "なだれ注意報"
+	SETCOLOR C_RED
+	PRINT ■■
+	RESETCOLOR
+ELSEIF 大雨情報 == "大雨注意報" || 大雪情報 == "大雪注意報" || 暴風情報 == "風雪注意報" || 暴風情報 == "強風注意報" || 雷情報 == "雷注意報"
+	SELECTCASE 早期注意情報
+		CASE "警報級の可能性［高］"
+			SETCOLOR C_YELLOW
+			PRINT ■■
+			RESETCOLOR
+		CASE "警報級の可能性［中］"
+			SETCOLOR C_YELLOW
+			PRINT ■
+			RESETCOLOR
+			PRINT ■
+		CASEELSE
+			SETCOLOR C_YELLOW
+			PRINT ■
+			SETCOLOR C_GREEN
+			PRINT ■
+			RESETCOLOR
+	ENDSELECT
+ELSE
+	SELECTCASE 早期注意情報
+		CASE "警報級の可能性［高］"
+			PRINT ■■
+		CASE "警報級の可能性［中］"
+			SETCOLOR C_GREEN
+			PRINT ■
+			RESETCOLOR
+			PRINT ■
+		CASEELSE
+			SETCOLOR C_GREEN
+			PRINT ■■
+			RESETCOLOR
+	ENDSELECT
+ENDIF
+PRINTL ］┃
+PRINTL ┗━━━━━━┛
+;(天候パッチ)雷発生時はノイズが混じる
+IF GET_FRONTAL_THUNDERSTORM() == 1 && GET_HEAT_THUNDERSTORM() == 1
+	PRINT ……
+	FONTBOLD
+	PRINT ガリガリッ！
+	FONTREGULAR
+	PRINT ………
+	FONTBOLD
+	PRINT ジジジ
+	FONTREGULAR
+	PRINTL ……
+ELSEIF GET_FRONTAL_THUNDERSTORM() == 1 || GET_HEAT_THUNDERSTORM() == 1
+	PRINT ……
+	FONTBOLD
+	PRINT ガリッ
+	FONTREGULAR
+	PRINTL ………　……
+ELSE
+	PRINTL ……　………　……
+ENDIF
 
 SELECTCASE TIME:0
 	CASE 345 TO 359, 375 TO 389, 405 TO 419, 435 TO 449, 465 TO 479, 525 TO 539, 585 TO 599, 705 TO 719, 735 TO 749, 825 TO 839, 885 TO 899, 945 TO 959, 1005 TO 1019, 1065 TO 1079, 1125 TO 1139, 1185 TO 1199, 1245 TO 1259, 1305 TO 1319, 1365 TO 1379
@@ -313,13 +391,20 @@ SELECTCASE TIME:0
 								PRINTFORML …各地で…寸断され……が救助……
 						ENDSELECT
 					CASE IS >= 20
-						SELECTCASE RAND:2
+						SELECTCASE RAND:3
 							CASE 0
 								PRINTFORML …土砂崩れにより…世帯…が孤立……
 							CASE 1
 								PRINTFORML …既に記録的な大雨になっている地域も……
 							CASE 2
 								PRINTFORML …川で氾濫危険水位を超え……
+						ENDSELECT
+					CASE IS >= 10
+						SELECTCASE RAND:2
+							CASE 0
+								PRINTFORML …市に記録的短時間大雨情報を……
+							CASE 1
+								PRINTFORML …に数年に一度の大雨が……
 						ENDSELECT
 				ENDSELECT
 			CASE "大雨警報(土砂災害警戒情報)"
@@ -506,6 +591,32 @@ SELECTCASE TIME:0
 				PRINTFORML …の…には…hPaの高気圧があって…ほとんど停滞……
 		ENDSELECT
 	CASEELSE
+		IF GET_LOCATION_AREA_TYPHOON() == 1 && IS_TYPHOON:1 >= 5
+			SELECTCASE RAND:5
+				CASE 0
+					IF 暴風情報 == "暴風特別警報"
+						PRINTFORML …猛烈な台風…号が記録的な勢力のまま接近……
+					ELSE
+						PRINTFORML …猛烈な台風…号が接近……
+					ENDIF
+				CASE 1
+					IF 暴風情報 == "暴風特別警報"
+						PRINTFORML …台風…号により各地に甚大な被害が……
+					ELSE
+						PRINTFORML …台風…号により各地に被害が……
+					ENDIF
+				CASE 2
+					PRINTFORML …線は全線で運転を見合わせ……
+				CASE 3
+					IF 暴風情報 == "暴風特別警報"
+						PRINTFORML …湾台風以来の…身の安全を確保……
+					ELSE
+						PRINTFORML …できるだけ早いうちに避難を……
+					ENDIF
+				CASE 4
+					PRINTFORML …空の便にも大きな影響が……
+			ENDSELECT
+		ENDIF
 		SELECTCASE 大雨情報
 			CASE "大雨特別警報"
 				SELECTCASE RAND:5
@@ -538,6 +649,13 @@ SELECTCASE TIME:0
 							CASE 2
 								PRINTFORML …川で氾濫危険水位を超え……
 						ENDSELECT
+					CASE IS >= 10
+						SELECTCASE RAND:2
+							CASE 0
+								PRINTFORML …市に記録的短時間大雨情報を……
+							CASE 1
+								PRINTFORML …に数年に一度の大雨が……
+						ENDSELECT
 				ENDSELECT
 			CASE "大雨警報(土砂災害警戒情報)"
 				SELECTCASE RAND:5
@@ -553,32 +671,7 @@ SELECTCASE TIME:0
 						PRINTFORML …線は全線で運転を見合わせ……
 				ENDSELECT
 			CASEELSE
-				IF GET_LOCATION_AREA_TYPHOON() == 1 && IS_TYPHOON:1 >= 5
-					SELECTCASE RAND:5
-						CASE 0
-							IF 暴風情報 == "暴風特別警報"
-								PRINTFORML …猛烈な台風…号が記録的な勢力のまま接近……
-							ELSE
-								PRINTFORML …猛烈な台風…号が接近……
-							ENDIF
-						CASE 1
-							IF 暴風情報 == "暴風特別警報"
-								PRINTFORML …台風…号により各地に甚大な被害が……
-							ELSE
-								PRINTFORML …台風…号により各地に被害が……
-							ENDIF
-						CASE 2
-							PRINTFORML …線は全線で運転を見合わせ……
-						CASE 3
-							IF 暴風情報 == "暴風特別警報"
-								PRINTFORML …湾台風以来の…身の安全を確保……
-							ELSE
-								PRINTFORML …できるだけ早いうちに避難を……
-							ENDIF
-						CASE 4
-							PRINTFORML …空の便にも大きな影響が……
-					ENDSELECT
-				ELSEIF 暴風情報 == "暴風雪特別警報"
+				IF 暴風情報 == "暴風雪特別警報"
 					SELECTCASE RAND:6
 						CASE 0
 							PRINTFORML ……地域に…暴風雪特別警報を……
@@ -634,9 +727,6 @@ TIME += 15
 ;実行判定
 ;-------------------------------------------------
 @COM_ABLE496
-;私室設定
-SIF CFLAG:MASTER:현재위치 != CFLAG:MASTER:311
-	RETURN 0
 SIF !TFLAG:100
 	RETURN 0
 ;停止中は不可

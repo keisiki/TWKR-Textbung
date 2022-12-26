@@ -1206,30 +1206,27 @@ DRAWLINE
 ;소지하고 있는 소재 아이템의 매각 가능물·개수를 리스트화
 LOCAL:1 = 999
 FOR LOCAL:0 ,600, 700
-	SELECTCASE LOCAL:0
-		CASE 600, 602, 610, 611, 616, 621, 626 TO 631, 636, 638, 639, 644, 645
-			;가지고 있어도 팔리지 않는 소재를 위의 CASE에 추가　
-		CASEELSE
-			IF ITEM:(LOCAL:0)
-				LOCALS:0 = [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 16, LEFT%×{ITEM:(LOCAL:0)}    
-				LOCAL:1 += STRLENS(LOCALS:0)
-				SIF ITEM:(LOCAL:0) < 10
-					LOCAL:1 ++
-				IF LOCAL:1 > 90
-					IF LOCAL:1 >= 999
-					;최초만 개행하지 않는다
-					ELSE
-						PRINTL 
-					ENDIF
-					LOCAL:1 = 0
-					PRINT 　　
+	IF UNIQUE_COM_HARBAL_SALES(LOCAL:0)
+		IF ITEM:(LOCAL:0)
+			LOCALS:0 = [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 16, LEFT%×{ITEM:(LOCAL:0)}    
+			LOCAL:1 += STRLENS(LOCALS:0)
+			SIF ITEM:(LOCAL:0) < 10
+				LOCAL:1 ++
+			IF LOCAL:1 > 90
+				IF LOCAL:1 >= 999
+				;最初のみ改行しない
+				ELSE
+					PRINTL 　
 				ENDIF
-				PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 16, LEFT%×{ITEM:(LOCAL:0)}
-				SIF ITEM:(LOCAL:0) < 10
-					PRINT  
+				LOCAL:1 = 0 
 				PRINT 　　
 				ENDIF
-	ENDSELECT
+			PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 16, LEFT%×{ITEM:(LOCAL:0)}
+			SIF ITEM:(LOCAL:0) < 10
+				PRINT  
+			PRINT 　　
+		ENDIF
+	ENDIF
 NEXT
 PRINTL 
 PRINTL 　　[100] 그만둔다
@@ -1237,10 +1234,18 @@ DRAWLINE
 PRINTFORML 「무엇을 팔까?」
 $INPUT_LOOP01
 INPUT
-SELECTCASE RESULT
+후보번호 = RESULT
+
+IF 후보번호 == 100
+;100は先送り、売却不能物、600未満および700以上の入力は無効化する
+ELSEIF UNIQUE_COM_HARBAL_SALES(후보번호) == 0 || 후보번호 < 600 || 후보번호 > 699
+	CLEARLINE 1
+	GOTO INPUT_LOOP01
+ENDIF
+SELECTCASE 후보번호
 	CASE 100
 		RETURN -1
-	CASE 601, 603 TO 609, 612 TO 615, 617 TO 620, 622 TO 625, 632 TO 635, 637, 640 TO 643, 646
+	CASEELSE
 		;★売却可能な素材を上のCASEに追加
 		후보번호 = RESULT
 		후보개수 = ITEM:(후보번호)
@@ -1299,13 +1304,22 @@ SELECTCASE RESULT
 			CLEARLINE 1
 			GOTO INPUT_LOOP01
 		ENDIF
-	CASEELSE
-		CLEARLINE 1
-		GOTO INPUT_LOOP01
 ENDSELECT
 RESTART
 
-
+;売却リストに載せないアイテムを定義
+@UNIQUE_COM_HARBAL_SALES(ARG)
+#FUNCTION
+SELECTCASE ARG
+	;★ここに売却リストに載せないアイテムを記入
+	CASE 600, 602, 610, 611, 616, 621, 626 TO 631, 636, 638, 639, 642, 644, 645, 647, 648, 660 TO 669
+		RETURNF 0
+	;まだ未登録のアイテム
+	CASE 649 TO 659, 670 TO 699
+		RETURNF 0
+	CASEELSE
+		RETURNF ARG
+ENDSELECT
 
 ;-------------------------------------------------
 ;우루미 용
@@ -1536,3 +1550,82 @@ ELSE
 	ENDSELECT
 ENDIF
 
+;-------------------------------------------------
+;龍用
+;-------------------------------------------------
+@UNIQUE_COM_龍珠の取引
+#DIM ORB_PRICE
+#DIM SALES
+
+IF !ITEM:용주
+	PRINTFORML 龍珠を持っていない…
+	RETURN
+ENDIF
+
+;売価はカリスマ取引レート×90×√話術Lvで決定
+ORB_PRICE = CHARISMA_NOW() * 90
+SELECTCASE ABL:MASTER:화술기능
+	CASE 0
+		TIMES ORB_PRICE, 1.0
+	CASE 1
+		TIMES ORB_PRICE, 1.2
+	CASE 2
+		TIMES ORB_PRICE, 1.4
+	CASE 3
+		TIMES ORB_PRICE, 1.7
+	CASE 4
+		TIMES ORB_PRICE, 2.0
+	CASE 5
+		TIMES ORB_PRICE, 2.2
+	CASE 6
+		TIMES ORB_PRICE, 2.4
+	CASEELSE
+		TIMES ORB_PRICE, 2.6
+ENDSELECT
+
+PRINTL 
+PRINTDATAW
+	DATAFORM 「持て余しているならその龍珠、引き取ろう。無論、それなりの対価は支払うよ」
+	DATAFORM 「ん？　そんなものを買い取ってどうするのかって？　はてさて、どうしたものか？」
+	DATAFORM 「どこから掘り出してきたものやら。まあ、使えるモノであることに変わりはない」
+	DATAFORM 「それを手にしているということは、あれに見込まれたということか。いやはや、人は見かけによらないものだね」
+	DATAFORM 「誰かにそそのかされて…というわけでもなさそうだ。では、取引といこうか」
+	DATAFORM 「レアアースの供給元は多いに越したことはないしな。リスクヘッジ、というやつさ」
+ENDDATA
+PRINTFORML 「龍珠１個を\\{ORB_PRICE}で買い取ろう。どうかな？」
+PRINTL 
+DRAWLINE
+PRINTFORML 所持金:%금액표시(MONEY)%　　現在の￥/カリスマレート:%금액표시(CHARISMA_NOW())%←→1CM
+SETCOLOR 0x777777
+PRINTFORML 　何個売りますか？(1～{ITEM:용주}の個数を入力、0で戻る)
+RESETCOLOR
+PRINTL   
+PRINTBUTTON "[0] やめる", 0
+PRINT     
+PRINTBUTTON "[1] 1個", 1
+PRINT     
+IF ITEM:용주 >= 5
+	PRINTBUTTON "[5] 5個", 5
+	PRINT     
+ENDIF
+IF ITEM:용주 >= 10
+	PRINTBUTTON "[10] 10個", 10
+	PRINT    
+ENDIF
+$INPUT_LOOP01
+INPUT
+SELECTCASE RESULT
+	CASE 0
+		CLEARLINE 2
+		PRINTFORMW 「そうか。取引額はカリスマ取引レートに応じた時価だから、その気になったらまた来てくれ」
+		RETURN
+	CASE 1 TO ITEM:용주
+		CLEARLINE 2
+		SALES = RESULT
+		PRINTFORMW 「それでは龍珠を{SALES}つ、\\{ORB_PRICE * SALES}で買い取らせてもらおう」
+		CALL GET_MONEY_YEN(ORB_PRICE * SALES, 1)
+		CALL LOST_ITEM("용주", SALES, 2)
+	CASEELSE
+		CLEARLINE 1
+		GOTO INPUT_LOOP01
+ENDSELECT
