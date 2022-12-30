@@ -9,6 +9,8 @@ FOR LOCAL, 0, CHARANUM
     ENDIF
 NEXT
 DRAWLINE
+SIF TALENT:MASTER:유령
+    PRINTFORML [9997] 스스로의 혼
 PRINTFORML [9998] 흐릿한 혼
 PRINTFORML [9999] 돌아간다
 INPUT
@@ -16,6 +18,8 @@ IF RESULT == 9999
     RETURN 1
 ELSEIF RESULT == 9998
     CALL 모브코의영혼바치기_경험치()
+ELSEIF RESULT == 9997 && TALENT:MASTER:유령
+    CALL 셀프부활
 ELSE
     IF RESULT < 0||RESULT > 150
         GOTO 연성루프
@@ -87,6 +91,44 @@ ELSE
         TALENT:MASTER:(500+(궁극기배열:RESULT)) = 1
         습득한혼:ARG --
     ENDIF
+ENDIF
+@셀프부활
+#DIM DYNAMIC 소모코스트
+소모코스트 = 5000 + (MAXBASE:MASTER:TSP/10)
+PRINTFORML 사라진 몸을 대신할 새 몸을 연성합니까?
+PRINTFORML 대가로 최대 TSP 보유량이 {소모코스트} 만큼 감소합니다
+PRINTFORML 현재 최대 TSP: ({MAXBASE:MASTER:TSP})
+PRINTFORML 소생 후 최대 TSP: ({MAXBASE:MASTER:TSP - 소모코스트})
+IF MAXBASE:MASTER:TSP - 소모코스트 <= 10
+    PRINTL
+    PRINTFORMW TSP가 부족합니다, TSP는 지불후 최소 10 이상 남아야 합니다
+    RETURN
+ENDIF
+CALL ASK_YN
+IF !RESULT
+    PRINTFORML TSP를 소비해 인간회귀를 합니다
+    MAXBASE:MASTER:TSP -= 소모코스트
+    IF MAXBASE:MASTER:TSP > 2500
+        MONEY:1 = 20000
+    ELSEIF MAXBASE:MASTER:TSP > 1500
+        MONEY:1 = 7500
+    ELSEIF MAXBASE:MASTER:TSP > 800
+        MONEY:1 = 3400
+    ELSEIF MAXBASE:MASTER:TSP > 500
+        MONEY:1 = 1125
+    ELSEIF MAXBASE:MASTER:TSP > 200
+        MONEY:1 = 325
+    ELSEIF MAXBASE:MASTER:TSP > 100
+        MONEY:1 = 125
+    ELSEIF MAXBASE:MASTER:TSP <= 100
+        MONEY:1 = 50
+    ENDIF
+    CALL 종족초기화(MASTER)
+    CALL 변화의술보너스초기화()
+    CALL 종족변화("인간")
+
+ELSE
+    RETURN
 ENDIF
 
 @부활시키기(ARG)
