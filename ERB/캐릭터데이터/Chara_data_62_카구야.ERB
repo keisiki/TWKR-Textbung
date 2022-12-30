@@ -151,6 +151,7 @@ IF CFLAG:CHARA:대체적용
 			;顔絵
 		ELSE
 			;立ち絵
+			CALL IMAGE_I62_別立ち判定_服装
 		ENDIF
 	ENDIF
 ELSE
@@ -192,6 +193,7 @@ IF CFLAG:CHARA:대체적용
 		;顔絵
 	ELSE
 		;立ち絵
+		CALL IMAGE_I62_別立ち判定_体形
 	ENDIF
 ELSE
 	;通常画像
@@ -216,37 +218,17 @@ ENDIF
 IF CFLAG:CHARA:대체적용
 	;差し替え画像
 	IF FLAG:스탠딩종류
-		;顔絵
+		;顔絵, 別立ち1没有顔絵
+		CALL IMAGE_I62_通常顔絵特殊表情
 	ELSE
 		;立ち絵
+		CALL IMAGE_I62_別立ち判定_表情
 	ENDIF
 ELSE
 	;通常画像
 	IF FLAG:스탠딩종류
 		;顔絵
-		IF !FLAG:거유차이표시 || TALENT:CHARA:가슴사이즈 <= 0 ;no big breast support
-			IF !CHECK_NUDE(CHARA)
-				LOCALS '= RESULTS:0
-				IF RESULTS:0 == "笑顔"
-					SIF TALENT:CHARA:연모 ;non-smug
-						RESULTS:0 = Smile
-					SIF TALENT:CHARA:사모 || TALENT:CHARA:연모
-						RESULTS:1 = Wink
-				ENDIF
-				IF RESULTS:0 == "発情" || TCVAR:CHARA:미약 || CFLAG:CHARA:욕구불만도 > 850
-					;return back in case smile overrode it
-					RESULTS:0 '= LOCALS
-					IF !TALENT:CHARA:연모
-						RESULTS:1 = Hmph
-					ELSE
-						RESULTS:1 = Uehh
-					ENDIF
-				ENDIF
-			ELSE
-				SIF RESULTS:0 == "発情" || TCVAR:CHARA:미약 || CFLAG:CHARA:욕구불만도 > 850
-					RESULTS:1 = Ufufu
-			ENDIF
-		ENDIF
+		CALL IMAGE_I62_通常顔絵特殊表情
 	ELSE
 		;立ち絵
 	ENDIF
@@ -424,6 +406,8 @@ IF CFLAG:CHARA:대체적용
 		;顔絵
 	ELSE
 		;立ち絵
+		CALL IMAGE_I62_別立ち判定_エフェクト
+		エフェクト数 = RESULT
 	ENDIF
 ELSE
 	;通常画像
@@ -460,4 +444,268 @@ ELSE
 ENDIF
 
 RETURN エフェクト数
+
+
 ;********************************************************************************************
+
+@IMAGE_I62_通常顔絵特殊表情
+IF !FLAG:거유차이표시 || TALENT:62:가슴사이즈 == CSVTALENT(62, GETNUM(TALENT, "가슴사이즈")) ;no big breast support
+	IF !CHECK_NUDE(62)
+		;服
+		LOCALS '= RESULTS:0
+		IF RESULTS:0 == "笑顔"
+			IF (TALENT:62:연모 || TALENT:62:애욕) && RAND:2 ;non-smug
+				RESULTS:0 = Smile
+			ELSEIF TALENT:62:사모 || TALENT:62:섹프
+				RESULTS:1 = Wink
+			ENDIF
+		ENDIF
+		IF RESULTS:0 == "発情" || TCVAR:62:미약 || CFLAG:62:욕구불만도 > 850
+			;return back in case smile overrode it
+			RESULTS:0 '= LOCALS
+			IF !(TALENT:62:연모 || TALENT:62:애욕) && RAND:2
+				RESULTS:1 = Hmph
+			ELSE
+				RESULTS:1 = Uehh
+			ENDIF
+		ENDIF
+	ELSE
+		;裸
+		SIF RESULTS:0 == "発情" || TCVAR:62:미약 || CFLAG:62:욕구불만도 > 850
+			RESULTS:1 = Ufufu
+	ENDIF
+ENDIF
+
+;********************************************************************************************
+
+@IMAGE_I62_別立ち判定_futa()
+#FUNCTION
+RETURNF (TALENT:62:성별==3 && NUDITYCHECK(62) <= 3)
+
+@IMAGE_I62_別立ち判定_腹精液()
+#FUNCTION
+RETURNF (EX:62:질내정액 + EX:62:자궁내정액*2)
+
+@IMAGE_I62_別立ち判定_服装
+LOCAL = NUDITYCHECK(62)
+IF LOCAL == 2
+	RESULTS = _胸罩
+ELSEIF INRANGE(LOCAL,1,3)
+	RESULTS = _下着
+ELSE
+	RESULTS = 
+ENDIF
+
+
+@IMAGE_I62_別立ち判定_体形
+RESULTS = 
+IF CFLAG:62:임신경과일수 >= 40
+	RESULTS = 妊娠%RESULTS%
+ELSEIF 충전율(62,3) >= 100
+	RESULTS = 妊娠%RESULTS%
+ENDIF
+
+IF IMAGE_I62_別立ち判定_futa()
+	RESULTS = 扶她%RESULTS% 
+ENDIF
+
+
+@IMAGE_I62_別立ち判定_表情
+
+IF NOWEX:62:C절정 || NOWEX:62:B절정 || NOWEX:62:V절정 || NOWEX:62:A절정 || NOWEX:62:M절정
+	IF EX:62:TotalEX >= 5
+		RESULTS:0 = 快感急
+		RESULTS:1 = 快感急
+	ELSE
+		RESULTS:0 = 快感缓
+		RESULTS:1 = 快感急
+	ENDIF
+	RETURN
+ENDIF
+	
+IF CFLAG:62:수면
+	LOCAL = EX:62:무자각C절정 + EX:62:무자각V절정 + EX:62:무자각A절정 + EX:62:무자각B절정 + EX:62:무자각M절정
+	IF LOCAL >= 5
+		RESULTS:0 = 眯笑
+		RESULTS:1 = 眯笑
+	ELSE
+		RESULTS:0 = 睡眠
+		RESULTS:1 = 睡眠
+	ENDIF
+	RETURN
+ENDIF
+
+IF CFLAG:62:빡침
+	RESULTS:0 = 怒{RAND:4+1}
+	RESULTS:1 = 怒{RAND:4+1}
+	RETURN
+ELSEIF BASE:62:분노 > 600 || TALENT:62:기분 < 0 || CFLAG:62:언짢음 == 1
+	RESULTS:0 = 不悦
+	RETURN
+ENDIF
+
+IF TALENT:62:연인
+	IF BASE:62:무드 >= 100
+		RESULTS:0 = 笑顔
+		RESULTS:1 = 眯笑
+	ELSE
+		RESULTS:0 = 通常
+	ENDIF
+ELSEIF TALENT:62:연모 || TALENT:62:애욕
+	IF BASE:62:무드 >= 300
+		RESULTS:0 = 笑顔
+		RESULTS:1 = 眯笑
+	ELSE
+		RESULTS:0 = 通常
+	ENDIF
+ELSEIF TALENT:62:사모 || TALENT:62:섹프
+	IF BASE:62:무드 >= 600
+		RESULTS:0 = 笑顔
+		RESULTS:1 = 眯笑
+	ELSE
+		RESULTS:0 = 通常
+	ENDIF
+ELSE
+	IF BASE:62:무드 >= 1200
+		RESULTS:0 = 笑顔
+	ELSE
+		RESULTS:0 = 通常
+	ENDIF
+ENDIF
+
+IF RESULTS:0 == "通常"
+	IF MARK:62:반발각인 <= 0
+		RESULTS:1 = 微开口
+	ENDIF
+ELSEIF RESULTS:0 == "笑顔"
+	IF PALAM:62:욕정 >= PALAMLV:10 || TCVAR:62:발정 || CFLAG:62:욕구불만도 >= 900
+		RESULTS:1 = 开口
+	ELSEIF MARK:62:반발각인 <= 0 && (TFLAG:103==109 || TARGET==109)
+		RESULTS:1 = 貘笑
+	ENDIF
+ENDIF
+
+RETURN
+
+
+@IMAGE_I62_別立ち判定_エフェクト
+#DIMS 气泡名 = "愉悦", "沉默", "羞涩", "疑惑", "不悦", "愤怒", "欲求", "睡眠"
+#DIM 气泡概率, 8
+#DIM DYNAMIC エフェクト数 = 0
+
+;表情
+IF PALAM:62:욕정 >= PALAMLV:10 || TCVAR:62:발정 || CFLAG:62:욕구불만도 >= 900
+	CALL IMAGE_I62_別立ち判定_表情
+	IF RESULTS:0 != "快感急" && RESULTS:0 != "快感缓" && RESULTS:0 != "眯笑" && RESULTS:0 != "睡眠" && RESULTS:1 != "快感急" && RESULTS:1 != "快感缓" && RESULTS:1 != "眯笑" && RESULTS:1 != "睡眠"
+		RESULTS:エフェクト数 = 眼中爱心
+		エフェクト数++
+	ENDIF
+ENDIF
+IF BASE:62:무드 >= 800 || TCVAR:62:발정 || TCVAR:62:미약
+	RESULTS:エフェクト数 = 鼻红晕
+	エフェクト数++
+	RESULTS:エフェクト数 = 腮红
+	エフェクト数++
+ENDIF
+IF PALAM:62:우월 >= PALAMLV:3
+	RESULTS:エフェクト数 = 线状红晕
+	エフェクト数++
+ENDIF
+IF BASE:62:이성 <= 300 || TCVAR:62:발정 || TCVAR:62:미약
+	RESULTS:エフェクト数 = 眼泪
+	エフェクト数++
+ENDIF
+;IF CFLAG:62:うふふ
+;	RESULTS:エフェクト数 = 吐息
+;	エフェクト数++
+;ENDIF
+
+;下体
+IF IMAGE_I62_別立ち判定_futa() && BASE:62:발기 >= 900
+	RESULTS:エフェクト数 = 先走汁
+	エフェクト数++
+ENDIF
+IF CFLAG:62:질내사정 == 1 || CFLAG:62:애널사정
+	LOCAL = NUDITYCHECK(62)
+	IF LOCAL > 3
+		RESULTS:エフェクト数 = 精渍外衣
+	ELSEIF LOCAL==3 && IMAGE_I62_別立ち判定_futa()
+		RESULTS:エフェクト数 = 精渍扶她内衣
+	ELSEIF LOCAL==3
+		RESULTS:エフェクト数 = 精渍内衣
+	ELSE
+		RESULTS:エフェクト数 = 精渍裸
+	ENDIF
+	エフェクト数++
+ENDIF
+
+; only show 断面图 effect and 气泡 effect when current target or last target is 62
+SIF !(TFLAG:103==62 || TARGET==62)
+	RETURN エフェクト数
+
+;断面图
+IF (SELECTCOM == 306 && TFLAG:103==62) || (NOWEX:MASTER:사정 && TEQUIP:62:V섹스 == MASTER && RAND:3==0)
+	IF CFLAG:62:임신경과일수 >= 40 && IMAGE_I62_別立ち判定_腹精液() >= 800 && 충전율(62,3) >= 100
+			RESULTS:エフェクト数 = 断面图安定期储精罐
+			エフェクト数++
+	ELSEIF CFLAG:62:임신경과일수 >= 40
+			RESULTS:エフェクト数 = 断面图安定期
+			エフェクト数++
+	ELSEIF IMAGE_I62_別立ち判定_腹精液() >= 800 && 충전율(62,3) >= 100
+			RESULTS:エフェクト数 = 断面图储精罐
+			エフェクト数++
+	ELSEIF CFLAG:62:임신경과일수 && IMAGE_I62_別立ち判定_腹精液() >= 500
+			RESULTS:エフェクト数 = 断面图怀孕内射
+			エフェクト数++
+	ELSEIF CFLAG:62:임신경과일수
+			RESULTS:エフェクト数 = 断面图怀孕
+			エフェクト数++
+	ELSEIF IMAGE_I62_別立ち判定_腹精液() > 500
+			RESULTS:エフェクト数 = 断面图内射
+			エフェクト数++
+	ENDIF
+ENDIF
+
+;气泡
+气泡概率:0 = MAX(0, GETPALAMLV(PALAM:62:호의,10) -5 + BASE:62:무드/200)
+气泡概率:1 = 5 - MAX(0, GETPALAMLV(PALAM:62:호의,10) -5)
+气泡概率:2 = MAX(0, GETPALAMLV(PALAM:62:치정,5))
+气泡概率:3 = MAX(0, GETPALAMLV(PALAM:62:불쾌,7))
+气泡概率:4 = MAX(0, GETPALAMLV(PALAM:62:억울,5)+ GETPALAMLV(PALAM:62:반감,5))
+气泡概率:5 = BASE:62:분노/100
+气泡概率:6 = TCVAR:62:발정*5
+SIF (CFLAG:62:기정사실 & 합의_우후후)
+	气泡概率:6 += MAX(0, CFLAG:62:욕구불만도/100 - 5)
+气泡概率:7 = 0
+
+IF CFLAG:62:빡침
+	VARSET 气泡概率
+	气泡概率:1 = 1
+	气泡概率:5 = 8
+	气泡概率:4 = 2
+ENDIF
+
+IF TALENT:62:기분 < 0 || CFLAG:62:언짢음 == 1
+	气泡概率:3 += 2
+	气泡概率:4 += 4
+ENDIF
+
+SIF CFLAG:수면
+	气泡概率:7 += 5 + TCVAR:62:수면심도/500
+
+LOCAL:1 = 气泡概率:0 + 气泡概率:1 + 气泡概率:2 + 气泡概率:3 + 气泡概率:4 + 气泡概率:5 + 气泡概率:6 + 气泡概率:7 + 5
+SIF LOCAL:1 == 气泡概率:1 + 5
+	气泡概率:1 = 0
+IF LOCAL:1 > 0
+	LOCAL:1 = RAND:(LOCAL:1)
+	FOR LOCAL, 0, 8
+		LOCAL:1 -= 气泡概率:LOCAL
+		IF LOCAL:1 < 0
+			RESULTS:エフェクト数 = 气泡%气泡名:LOCAL%
+			エフェクト数++
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+RETURN エフェクト数
