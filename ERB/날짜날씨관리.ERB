@@ -326,6 +326,7 @@ RETURNF YOUBI:(ARG % 7)
 #DIM 루프개시
 #DIM 루프종료
 #DIM 루프가산
+#DIM DYNAMIC 날씨변경임시방지
 DEBUGPRINTL 【CHANGE_WEATHER】CALL CHANGE_WATHER
 ;날씨 관리에 메시지 표시 처리시켜 죄송합니다＞＜；
 ;우후후 안은 공기를 읽는 정도의 능력
@@ -406,17 +407,21 @@ IF !지저
 			IF TIME:5 != 4
 				PRINTFORMW 소나기가 내리기 시작했다!
 				TIME:5 = 4
+				날씨변경금지시간 = DAY * 1440 + TIME + 30 + RAND:30
 			ELSE
-				PRINTFORMW 빗줄기가 모두의 옷을 적신다!
+				PRINTFORMW 빗줄기가 거세진다!
+				날씨변경임시방지 = RAND:2
 			ENDIF
 			FOR LOCAL, 1, CHARANUM
-				SIF CFLAG:LOCAL:출금
+				SIF !CAN_MEET(LOCAL)
 					CONTINUE
 				SIF !OUTROOF(CFLAG:LOCAL:현재위치)
 					CONTINUE
-				SIF CFLAG:LOCAL:수면
+				SIF CFLAG:LOCAL:수면 || !VISIT(LOCAL)
 					CONTINUE
-				IF !RAND:50
+				SIF NAME:LOCAL == "모브코"
+					CONTINUE
+				IF !RAND:40
 					PRINTFORML %조사처리(CALLNAME:LOCAL,"는")% 비에 홀딱 젖어버렸다...
 					TCVAR:LOCAL:옷젖음 = 210
 				ENDIF
@@ -435,7 +440,18 @@ SIF FORBIDDEN_CHANGE_WEATHER == 1
 	RETURN
 	
 ;(天候パッチ)新しい天候管理システムへ
-TRYCALLFORM CHANGE_WEATHER_SYSTEM_{NOW_WEATHER_CONTROL}
+SIF 날씨변경금지시간 < DAY * 1440 + TIME && !날씨변경임시방지
+	TRYCALLFORM CHANGE_WEATHER_SYSTEM_{NOW_WEATHER_CONTROL}
+
+IF FLAG:이상기상 == 13 && !GROUPMATCH(TIME:5,4,5,6,7,15)
+	PRINTFORML 소나기는 멈췄다
+	FLAG:이상기상 = 0
+ELSEIF FLAG:이상기상 == 13 && RAND:100 > 95
+	PRINTFORML 소나기는 멈췄다
+	FLAG:이상기상 = 0
+	TRYCALLFORM CHANGE_WEATHER_SYSTEM_{NOW_WEATHER_CONTROL}
+ENDIF
+날씨변경임시방지 = 0
 
 [SKIPSTART]
 @현재기온설정

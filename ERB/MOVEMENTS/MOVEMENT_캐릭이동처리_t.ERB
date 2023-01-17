@@ -387,3 +387,87 @@ SIF IN_HOME(CFLAG:ARG:현재위치) != 1
 SIF 날씨에의한영향(ARG, TCVAR:ARG:인력점) < 0
 	RETURNF 0
 RETURNF 1
+
+
+@비피하기장소선정(ARG)
+#DIM 후보,100,2
+#DIM 포인터
+#DIMS 변동확인
+#DIM 대상
+#DIM 이동코스트
+#DIM 잠정목적지
+#DIM 최종목적지
+#DIM TEMP_현재위치
+#DIM DYNAMIC 경로,5
+#DIM DYNAMIC 무한루프검출
+#DIM DYNAMIC 최소코스트
+IF 변동확인 == "{MAIN_MAP}" + "번"
+	GOTO 맵확인생략
+ENDIF
+변동확인 '= "{MAIN_MAP}" + "번"
+LOCAL = ROOM_NUM()
+FOR LOCAL, MINROOM(), MAXROOM
+	IF !OUTROOF(LOCAL)
+		후보:포인터:0 = LOCAL
+		포인터++
+	ENDIF
+NEXT
+
+$맵확인생략
+FOR LOCAL,0,포인터
+	최종목적지 = 후보:LOCAL:0
+	잠정목적지 = 최종목적지
+	[IF_DEBUG]
+		PRINTFORML 포인터{LOCAL}, {후보:LOCAL:0}
+	[ENDIF]
+	TEMP_현재위치 = CFLAG:ARG:현재위치
+	IF CAN_MOVE(TEMP_현재위치, 잠정목적지) & 1
+		이동코스트 = 1
+	ELSE
+		FOR 이동코스트, 1, 5
+			무한루프검출 = 0
+			WHILE !(CAN_MOVE(TEMP_현재위치, 잠정목적지) & 1)
+				무한루프검출++
+				TRYCALLFORM SKIP_MOVE_{MAIN_MAP}(잠정목적지, TEMP_현재위치)
+				SIF !잠정목적지
+					THROW 잠정목적지가 이상합니다.. {잠정목적지} | {CFLAG:ARG:현재위치} | {SUKIMA()} | {이동코스트} | {CFLAG:MASTER:현재위치} | {ARG} | {최종목적지}
+				[IF_DEBUG]
+				PRINTFORML {TEMP_현재위치}에서 {잠정목적지}로 직접 갈 수 없으니까 {RESULT}를 목표로 한다	
+				[ENDIF]
+				IF !RESULT
+					PRINTFORML 경로:{경로:0}|{경로:1}|{경로:2}|{경로:3}|{경로:4}
+					THROW 반환값이 이상합니다, 위의 숫자도 동봉해서 제보해 주세요 {잠정목적지} | {CFLAG:ARG:현재위치} | {SUKIMA()} | {이동코스트} | {CFLAG:MASTER:현재위치} | {ARG} | {최종목적지}
+				ENDIF
+				IF 무한루프검출 >= 5
+					[IF_DEBUG]
+						PRINTFORML 너무 멈, 목표{최종목적지}는 단념함.
+					[ENDIF]
+					이동코스트 = 6
+					BREAK
+				ENDIF
+				경로:(이동코스트-1) = 잠정목적지
+				잠정목적지 = RESULT
+			WEND
+			SIF CAN_MOVE(잠정목적지, 최종목적지) & 1
+				BREAK
+			TEMP_현재위치 = 잠정목적지
+			잠정목적지 = 최종목적지
+		NEXT
+		[IF_DEBUG]
+			PRINTFORML 목표와 거리 {이동코스트}
+			DRAWLINE
+		[ENDIF]
+		후보:LOCAL:1 = 이동코스트
+		IF 최소코스트 == 0 || 최소코스트 > 이동코스트
+			최소코스트 = 이동코스트
+		ENDIF
+		IF 최소코스트 == 1
+			RETURN 후보:LOCAL:0
+		ENDIF
+	ENDIF
+NEXT
+FOR LOCAL,0,포인터
+	IF 후보:LOCAL:1 <= 최소코스트
+		RETURN 후보:LOCAL:0
+	ENDIF
+NEXT
