@@ -23,6 +23,7 @@
 #DIM N_ID
 #DIM G_POINT
 #DIM DYNAMIC 루프강제종료
+#DIM DYNAMIC 비피하기용
 VARSET LOCAL
 END = 0
 
@@ -81,6 +82,11 @@ IF BATHROOM(N_ID)
 	ELSE
 		무차별이동 = 1
 	ENDIF
+ENDIF
+IF FLAG:이상기상 == 13 && OUTROOF(N_ID) && GROUPMATCH(TIME:5,4,5,6,7,15) && INRANGE(N_ID,MINROOM(),MAXROOM - 1) && !업무중체크(ARG)
+	CALL 비피하기장소선정(ARG)
+	비피하기용 = RESULT
+	RESULT = 0
 ENDIF
 ;화장실에 있어 10분 이상 경과하고 있다
 IF IN_TOILET(N_ID) && TIME_PROGRESS(TIME:1) >= 10 && !TCVAR:ARG:이뇨제
@@ -144,6 +150,16 @@ WHILE 1
 	ELSE
 		FOR LOCAL, 0, MAXROOM - MINROOM()
 			이동처 = SHAFFLE_ARRAY:LOCAL + MAIN_MAP * 100 + 1
+			IF 비피하기용
+				TRYCALLFORM SKIP_MOVE_{MAIN_MAP}(비피하기용, N_ID)
+				이동처 = RESULT
+				WHILE !(CAN_MOVE(N_ID, 이동처) & 1)
+					TRYCALLFORM SKIP_MOVE_{MAIN_MAP}(이동처, N_ID)
+					이동처 = RESULT
+				WEND
+				이동결정 = 이동처
+				GOTO 이동처리1종료
+			ENDIF
 			;현재위치
 			SIF 이동처 == N_ID
 				CONTINUE
@@ -194,6 +210,7 @@ WHILE 1
 
 	ENDIF
 ;強制移動時は移動決定するまでループ
+	$이동처리1종료
 	IF 강제이동 && !이동결정
 		CONTINUE
 	ELSEIF 이동결정
@@ -301,7 +318,7 @@ N_ID = CFLAG:ARG:현재위치
 ;기본 이동율, 1.5% / 분 = 45.0% / 30분
 이동율 = 15 + CFLAG:ARG:이동율보정
 ;당신이 보이면 태도로 업
-SIF CFLAG:MASTER:현재위치 == 이동처 && CAN_MOVE(N_ID, 이동처) == 3
+SIF CFLAG:MASTER:현재위치 == 이동처 && CAN_MOVE(N_ID, 이동처) == 3 && 날씨에의한영향(ARG, 이동처) >= -9
 	이동율 += CFLAG:ARG:태도 * 2
 ;청소부는 청소중 더러움에 영향을 받는다
 SIF TALENT:ARG:청소부 && CFLAG:ARG:신사거주 && BETWEENTIME(720,1080)
@@ -414,11 +431,14 @@ FOR LOCAL, MINROOM(), MAXROOM
 NEXT
 
 $맵확인생략
+[IF_DEBUG]
+	;PRINTFORML %CALLNAME:ARG%의 비피하기 위치 선정
+[ENDIF]
 FOR LOCAL,0,포인터
 	최종목적지 = 후보:LOCAL:0
 	잠정목적지 = 최종목적지
 	[IF_DEBUG]
-		PRINTFORML 포인터{LOCAL}, {후보:LOCAL:0}
+		;PRINTFORML 포인터{LOCAL}, {후보:LOCAL:0}
 	[ENDIF]
 	TEMP_현재위치 = CFLAG:ARG:현재위치
 	IF CAN_MOVE(TEMP_현재위치, 잠정목적지) & 1
@@ -432,7 +452,7 @@ FOR LOCAL,0,포인터
 				SIF !잠정목적지
 					THROW 잠정목적지가 이상합니다.. {잠정목적지} | {CFLAG:ARG:현재위치} | {SUKIMA()} | {이동코스트} | {CFLAG:MASTER:현재위치} | {ARG} | {최종목적지}
 				[IF_DEBUG]
-				PRINTFORML {TEMP_현재위치}에서 {잠정목적지}로 직접 갈 수 없으니까 {RESULT}를 목표로 한다	
+					;PRINTFORML {TEMP_현재위치}에서 {잠정목적지}로 직접 갈 수 없으니까 {RESULT} = %NAME_FROM_PLACE(RESULT)%를 목표로 한다	
 				[ENDIF]
 				IF !RESULT
 					PRINTFORML 경로:{경로:0}|{경로:1}|{경로:2}|{경로:3}|{경로:4}
@@ -440,7 +460,7 @@ FOR LOCAL,0,포인터
 				ENDIF
 				IF 무한루프검출 >= 5
 					[IF_DEBUG]
-						PRINTFORML 너무 멈, 목표{최종목적지}는 단념함.
+						;PRINTFORML 너무 멈, 목표{최종목적지} = %NAME_FROM_PLACE(최종목적지)% 는 단념함.
 					[ENDIF]
 					이동코스트 = 6
 					BREAK
@@ -454,8 +474,8 @@ FOR LOCAL,0,포인터
 			잠정목적지 = 최종목적지
 		NEXT
 		[IF_DEBUG]
-			PRINTFORML 목표와 거리 {이동코스트}
-			DRAWLINE
+			;PRINTFORML 목표와 거리 {이동코스트}
+			;DRAWLINE
 		[ENDIF]
 		후보:LOCAL:1 = 이동코스트
 		IF 최소코스트 == 0 || 최소코스트 > 이동코스트
@@ -468,6 +488,12 @@ FOR LOCAL,0,포인터
 NEXT
 FOR LOCAL,0,포인터
 	IF 후보:LOCAL:1 <= 최소코스트
+		[IF_DEBUG]
+			;SETCOLOR C_RED
+			;PRINTFORML %CALLNAME:ARG%의 최종목표 선정 {후보:LOCAL:0} = %NAME_FROM_PLACE(후보:LOCAL:0)%
+			;RESETCOLOR
+			;DRAWLINE
+		[ENDIF]
 		RETURN 후보:LOCAL:0
 	ENDIF
 NEXT
