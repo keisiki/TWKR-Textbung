@@ -418,6 +418,7 @@ RETURNF 1
 #DIM DYNAMIC 경로,5
 #DIM DYNAMIC 무한루프검출
 #DIM DYNAMIC 최소코스트
+#DIM DYNAMIC 머물지않는다무시
 IF 변동확인 == "{MAIN_MAP}" + "번"
 	GOTO 맵확인생략
 ENDIF
@@ -432,13 +433,13 @@ NEXT
 
 $맵확인생략
 [IF_DEBUG]
-	;PRINTFORML %CALLNAME:ARG%의 비피하기 위치 선정
+	PRINTFORML %CALLNAME:ARG%의 비피하기 위치 선정
 [ENDIF]
 FOR LOCAL,0,포인터
 	최종목적지 = 후보:LOCAL:0
 	잠정목적지 = 최종목적지
 	[IF_DEBUG]
-		;PRINTFORML 포인터{LOCAL}, {후보:LOCAL:0}
+		PRINTFORML 포인터{LOCAL}, {후보:LOCAL:0}
 	[ENDIF]
 	TEMP_현재위치 = CFLAG:ARG:현재위치
 	IF CAN_MOVE(TEMP_현재위치, 잠정목적지) & 1
@@ -452,7 +453,7 @@ FOR LOCAL,0,포인터
 				SIF !잠정목적지
 					THROW 잠정목적지가 이상합니다.. {잠정목적지} | {CFLAG:ARG:현재위치} | {SUKIMA()} | {이동코스트} | {CFLAG:MASTER:현재위치} | {ARG} | {최종목적지}
 				[IF_DEBUG]
-					;PRINTFORML {TEMP_현재위치}에서 {잠정목적지}로 직접 갈 수 없으니까 {RESULT} = %NAME_FROM_PLACE(RESULT)%를 목표로 한다	
+					PRINTFORML {TEMP_현재위치}에서 {잠정목적지}로 직접 갈 수 없으니까 {RESULT} = %NAME_FROM_PLACE(RESULT)%를 목표로 한다	
 				[ENDIF]
 				IF !RESULT
 					PRINTFORML 경로:{경로:0}|{경로:1}|{경로:2}|{경로:3}|{경로:4}
@@ -460,7 +461,7 @@ FOR LOCAL,0,포인터
 				ENDIF
 				IF 무한루프검출 >= 5
 					[IF_DEBUG]
-						;PRINTFORML 너무 멈, 목표{최종목적지} = %NAME_FROM_PLACE(최종목적지)% 는 단념함.
+						PRINTFORML 너무 멈, 목표{최종목적지} = %NAME_FROM_PLACE(최종목적지)% 는 단념함.
 					[ENDIF]
 					이동코스트 = 6
 					BREAK
@@ -474,8 +475,8 @@ FOR LOCAL,0,포인터
 			잠정목적지 = 최종목적지
 		NEXT
 		[IF_DEBUG]
-			;PRINTFORML 목표와 거리 {이동코스트}
-			;DRAWLINE
+			PRINTFORML 목표와 거리 {이동코스트}
+			DRAWLINE
 		[ENDIF]
 		후보:LOCAL:1 = 이동코스트
 		IF 최소코스트 == 0 || 최소코스트 > 이동코스트
@@ -486,14 +487,23 @@ FOR LOCAL,0,포인터
 		ENDIF
 	ENDIF
 NEXT
+$LOOP
 FOR LOCAL,0,포인터
-	IF 후보:LOCAL:1 <= 최소코스트
-		[IF_DEBUG]
-			;SETCOLOR C_RED
-			;PRINTFORML %CALLNAME:ARG%의 최종목표 선정 {후보:LOCAL:0} = %NAME_FROM_PLACE(후보:LOCAL:0)%
-			;RESETCOLOR
-			;DRAWLINE
-		[ENDIF]
-		RETURN 후보:LOCAL:0
+	IF 후보:LOCAL:1 <= 최소코스트 
+		IF (머물지않는다무시 == 1 || !(ROOMDATA:(후보:LOCAL:0 % 100) & 장소_머물지않는다) )
+			[IF_DEBUG]
+				SETCOLOR C_RED
+				PRINTFORML %CALLNAME:ARG%의 최종목표 선정 {후보:LOCAL:0} = %NAME_FROM_PLACE(후보:LOCAL:0)%
+				RESETCOLOR
+				DRAWLINE
+			[ENDIF]
+			RETURN 후보:LOCAL:0
+		ENDIF
 	ENDIF
 NEXT
+IF 머물지않는다무시 == 0
+	머물지않는다무시 = 1
+	GOTO LOOP
+ELSE
+	RETURN 후보:LOCAL:0
+ENDIF
