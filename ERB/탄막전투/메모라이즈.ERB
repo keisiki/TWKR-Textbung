@@ -15,15 +15,11 @@ ELSE
     PRINTFORM - ---------------------------------------------------
 ENDIF
 RESETCOLOR
-PRINT │
-IF 메모라이즈
-    PRINT 메모라이즈
-ENDIF
-
-
-PRINTL
-
-
+PRINT │　　　
+;IF 메모라이즈
+;    PRINT 메모라이즈
+;ENDIF
+;PRINTL
 
 @메모라이즈
 #DIM DYNAMIC 페이지
@@ -32,14 +28,70 @@ PRINTL
 #DIM DYNAMIC 출력형태
 #DIM DYNAMIC 미획득생략
 #DIMS DYNAMIC 검색문구
+#DIM DYNAMIC 현재선택
 [IF_DEBUG]
     탄막디버그 = 1
 [ENDIF]
 $메모라이즈초기루프
 DRAWLINE
+LOCAL:3 = 0
+IF 현재선택
+    CALLFORMF T_SKILL{현재선택}_STR("스킬명")
+    FONTSTYLE 1
+    PRINTFORML %RESULTS%
+    FONTSTYLE 0
+    PRINT 타입　　　　 :
+    CALL 타입표시(현재선택)
+    CALLFORMF T_SKILL{현재선택}_STR("속성")
+    PRINTFORM 속성　　　　 : %RESULTS,20,LEFT%
+    CALLFORMF T_SKILL{현재선택}("명중률")
+    PRINTFORML 명중률　　　 : {RESULT,10,LEFT}％
+    CALLFORMF T_SKILL{현재선택}("쿨타임")
+    PRINTFORML 쿨타임　　　 : {RESULT,10,LEFT}턴
+    CALLFORMF T_SKILL{현재선택}("공격력")
+    PRINTFORML 예상　피해량 : {RESULT,20,LEFT}
+    CALLFORMF T_SKILL{현재선택}("HP코스트")
+    PRINTFORM ＨＰ소모량　 : {RESULT,20,LEFT}
+    CALLFORMF T_SKILL{현재선택}("TSP코스트")
+    PRINTFORML ＴＳＰ소모량 : {RESULT,20,LEFT}
+    CALLFORMF T_SKILL{현재선택}_STR("계수")
+    IF RESULTS:0 != "없음" && RESULTS:0 != ""
+        PRINTFORM 계수　　　　 : 
+        FOR LOCAL:1,0,4
+            IF RESULTS:(LOCAL:1) != "없음" && RESULTS:(LOCAL:1) != ""
+                IF LOCAL:1 != 0
+                    PRINTFORM  + 
+                ENDIF
+                PRINTFORM %RESULTS:(LOCAL:1)%
+            ENDIF
+        NEXT
+        PRINTFORM  / 타입 :
+        CALLFORMF T_SKILL{현재선택}_RANGE("조준속성")
+        SELECTCASE RESULT
+            CASE T_근거리
+                PRINT  근거리
+            CASE T_고정탄
+                PRINT  고정탄
+            CASE T_조준탄
+                PRINT  조준탄
+            CASE T_유도탄
+                PRINT  유도탄
+            CASE T_즉발탄
+                PRINT  즉발
+            CASE T_버프기
+                PRINT  버프기
+        ENDSELECT
+    ENDIF
+    PRINTL
+    DRAWLINE
+    FONTSTYLE 2
+    CALLFORM HELP_T_SKILL{현재선택}
+    FONTSTYLE 0
+    DRAWLINE
+    LOCAL:3 = 1
+ENDIF
 PRINTFORML
 PRINTFORM 어떤 스킬을 메모라이즈 할까? (현재 메모라이즈 수 : {NUM_MEMORIZED()}/50)   
-PRINTBUTTON "[스킬 설명]" , 69745882
 PRINT 　　
 PRINTBUTTON "[프리셋]" , 893893893
 PRINT 　　
@@ -49,100 +101,52 @@ ELSE
     PRINTBUTTON "[통상모드]" , 514514
 ENDIF
 PRINT 　　
-PRINTBUTTON "[미획득생략]" , 12345678
+IF !미획득생략
+    PRINTBUTTON "[미획득생략]" , 12345678
+ELSE
+    PRINTBUTTON "[미획득생략해제]" , 12345678
+ENDIF
 PRINTFORML
 DRAWLINE
 카운터 = 1
 LOCAL:1 = 0
 LOCAL:2 = 0
-SELECTCASE 출력형태 
-    CASE 0
-        IF 미획득생략
-            REPEAT 25
-                $LOOP3
-                IF 카운터 >= T_스킬한계값
-                    CALL T_SPELL_LIST_PRINT(카운터,0,0)
-                    카운터++
-                    LOCAL:2 = 1
-                ELSEIF TALENTNAME:(500+카운터) == ""
-                    카운터++
-                    GOTO LOOP3
-                ELSE
-                    IF 페이지 > 0
-                        IF LOCAL:1 < 페이지*25
-                            LOCAL:1++
-                            카운터++
-                            GOTO LOOP3
-                        ENDIF
-                    ENDIF
-                    IF HAVE_T_SKILL(MASTER,카운터)
-                        CALL T_SPELL_LIST_PRINT(카운터,1,IS_MEMORIZED(카운터))
-                    ELSE
-                        카운터++
-                        GOTO LOOP3
-                    ENDIF
-                    카운터++
-                ENDIF
-            REND
-        ELSE
-            REPEAT 25
-                $LOOP
-                IF 카운터 >= T_스킬한계값
-                    CALL T_SPELL_LIST_PRINT(카운터,0,0)
-                    카운터++
-                    LOCAL:2 = 1
-                ELSEIF TALENTNAME:(500+카운터) == ""
-                    카운터++
-                    GOTO LOOP
-                ELSE
-                    IF 페이지 > 0
-                        IF LOCAL:1 < 페이지*25
-                            LOCAL:1++
-                            카운터++
-                            GOTO LOOP
-                        ENDIF
-                    ENDIF
-                    IF HAVE_T_SKILL(MASTER,카운터)
-                        CALL T_SPELL_LIST_PRINT(카운터,1,IS_MEMORIZED(카운터))
-                    ELSE
-                        CALL T_SPELL_LIST_PRINT(카운터,0,0)
-                    ENDIF
-                    카운터++
-                ENDIF
-            REND
-        ENDIF
-    CASE 1
-        REPEAT 25
-            $LOOP2
-            IF 카운터 >= T_스킬한계값
-                CALL T_SPELL_LIST_PRINT(카운터,0,0)
+REPEAT 50
+    $LOOP
+    IF 카운터 >= T_스킬한계값
+        CALL T_SPELL_LIST_PRINT(카운터,0,0)
+        카운터++
+        LOCAL:2 = 1
+    ELSEIF TALENTNAME:(500+카운터) == ""
+        카운터++
+        GOTO LOOP
+    ELSEIF STRFIND(TALENTNAME:(500+카운터), 검색문구) == -1 && 출력형태 == 1
+        카운터++
+        GOTO LOOP
+    ELSE
+        IF 페이지 > 0
+            IF LOCAL:1 < 페이지*25
+                LOCAL:1++
                 카운터++
-                LOCAL:2 = 1
-            ELSEIF TALENTNAME:(500+카운터) == ""
-                카운터++
-                GOTO LOOP2
-            ELSEIF STRFIND(TALENTNAME:(500+카운터), 검색문구) == -1
-                카운터++
-                GOTO LOOP2
-            ELSE
-                IF 페이지 > 0
-                    IF LOCAL:1 < 페이지*25
-                        LOCAL:1++
-                        카운터++
-                        GOTO LOOP2
-                    ENDIF
-                ENDIF
-                IF HAVE_T_SKILL(MASTER,카운터)
-                    CALL T_SPELL_LIST_PRINT(카운터,1,IS_MEMORIZED(카운터))
-                ELSE
-                    CALL T_SPELL_LIST_PRINT(카운터,0,0)
-                ENDIF
-                카운터++
+                GOTO LOOP
             ENDIF
-        REND
-    CASE 2
-
-ENDSELECT
+        ENDIF
+        IF HAVE_T_SKILL(MASTER,카운터)
+            CALL T_SPELL_LIST_PRINT(카운터,1,IS_MEMORIZED(카운터))
+            SIF 카운터 % 2 == 0&&카운터 != 0
+                PRINTL
+        ELSE
+            IF 미획득생략
+                카운터++
+                GOTO LOOP
+            ELSE
+                CALL T_SPELL_LIST_PRINT(카운터,0,0)
+            ENDIF
+        ENDIF
+        카운터++
+    ENDIF
+REND
+PRINTL
 DRAWLINE
 IF 페이지 == 0
     SETCOLOR 0x808080
@@ -173,8 +177,6 @@ ELSEIF 입력 == 9999&&LOCAL:2 == 0
     페이지++
 ELSEIF 입력 == 12345678
     미획득생략 = !미획득생략
-ELSEIF 입력 == 69745882
-    CALL T_HELP
 ELSEIF 입력 == 893893893
     CALL 스킬프리셋생성
 ELSEIF 입력 == 514514
@@ -208,12 +210,20 @@ ELSE
     ELSEIF HAVE_T_SKILL(MASTER,입력)
         IF IS_MEMORIZED(입력)
             CALL UNMEMORIZESPELL(입력)
+            현재선택 = 0
+            IF LOCAL:3
+                CLEARLINE 17
+            ENDIF
         ELSE
             CALL MEMORIZESPELL(입력)
+            현재선택 = 입력
         ENDIF
     ENDIF
 ENDIF
-CLEARLINE 32
+IF 현재선택 && LOCAL:3
+    CLEARLINE 17
+ENDIF
+CLEARLINE 33
 GOTO 메모라이즈초기루프
 
 @스펠이름(ARG)
