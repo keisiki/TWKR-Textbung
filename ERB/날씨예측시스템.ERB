@@ -1304,3 +1304,290 @@ ELSE
 	FLAG:이상기상 = 0
 ENDIF
 
+;-------------------------------------------------
+;時刻・天候に応じて背景色を変更
+;2022/11/23改造
+;	・設定すべき背景色と現在背景色を比較し、同じ色なら変更を飛ばす処理(@SET_MAP_WEATHER_BGCOLOR_NEW)
+;	・背景色変更処理の前にREDRAW 0をセットし、関数終了後に戻す処理
+;	・USE_NEWに0をセットすることで旧処理に戻せる
+;-------------------------------------------------
+@SET_MAP_WEATHER_BGCOLOR
+#DIM CURRED       ;CURRENT REDRAW。CURRENTREDRAWを保存
+#DIM USE_NEW = 1  ;0にすると旧来の関数で実行する
+#DIM SECOND , 2   ;時間計測用
+#DIMS TEMPS       ;デバッグ表示用
+CURRED = CURRENTREDRAW()
+;#;TEMPS = @SET_MAP_WEATHER_BGCOLOR_%\@USE_NEW == 1 ? NEW # OLD \@%시작 시 REDRAW＝{CURRED}、
+
+;#;SECOND:0 = GETMILLISECOND()
+REDRAW 0
+
+;#;TEMPS += @"실행 시 REDRAW＝{CURRENTREDRAW()}、"
+
+IF USE_NEW
+	CALL SET_MAP_WEATHER_BGCOLOR_NEW
+ELSE
+	CALL SET_MAP_WEATHER_BGCOLOR_OLD
+ENDIF
+
+REDRAW CURRED
+;#;SECOND:1 = GETMILLISECOND()
+
+;#;PRINTFORML %TEMPS%에 걸리는 묘화 소요 시간{SECOND:1 - SECOND:0}
+
+@SET_MAP_WEATHER_BGCOLOR_NEW
+#DIMS 低気圧位置
+#DIMS 積乱雲位置
+#DIM NEXTCOLOR
+SIF FLAG:시간정지 || !FLAG:배경색추이
+	RETURN
+
+低気圧位置 = %GET_LOCATION_LOW()%
+積乱雲位置 = %GET_LOCATION_CUMULUS()%
+
+SELECTCASE TIME:0
+	;AM4~6　早朝
+	CASE 240 TO 359
+		SELECTCASE TIME:5
+			CASE 6, 7, 11
+				NEXTCOLOR = C_MAP_霧_夜
+			CASE 8, 9, 10, 12
+				NEXTCOLOR = C_MAP_雪_夜
+			CASEELSE
+				NEXTCOLOR = C_MAP_晴れ_早朝
+		ENDSELECT
+	
+	;AM6~8　正午前
+	CASE 360 TO 479
+		SELECTCASE TIME:5
+			CASE IS <= 3
+				IF 低気圧位置 == "台風勢力圏"
+					NEXTCOLOR = C_MAP_夕焼け_台風
+				ELSEIF 低気圧位置 == "寒冷渦接近" || IS_COLD_LOW || 低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "日本海低気圧接近" || 低気圧位置 == "南岸低気圧接近" || 低気圧位置 == "温暖前線接近"
+					NEXTCOLOR = C_MAP_夕焼け_低気圧
+				ELSE
+					NEXTCOLOR = C_MAP_晴れ_朝
+				ENDIF
+			CASE 6, 7, 11
+				NEXTCOLOR = C_MAP_霧_昼
+			CASE 4, 5, 13, 14, 15
+				NEXTCOLOR = C_MAP_雨_昼
+			CASE 8, 9, 10, 12
+				NEXTCOLOR = C_MAP_雪_昼
+			CASEELSE
+				NEXTCOLOR = C_MAP_晴れ_朝
+		ENDSELECT
+	
+	;AM8~12　正午前
+	CASE 480 TO 719
+		SELECTCASE TIME:5
+			CASE 0, 1, 2
+				NEXTCOLOR = C_MAP_晴れ_朝
+			CASE 3
+				NEXTCOLOR = C_MAP_曇り_昼
+			CASE 6, 7, 11
+				NEXTCOLOR = C_MAP_霧_昼
+			CASE 4, 5, 13, 14, 15
+				NEXTCOLOR = C_MAP_雨_昼
+			CASE 8, 9, 10, 12
+				NEXTCOLOR = C_MAP_雪_昼
+			CASEELSE
+				NEXTCOLOR = C_MAP_晴れ_朝
+		ENDSELECT
+	
+	;PM12~6　昼
+	CASE 720 TO 1079
+		SELECTCASE 積乱雲位置
+			CASE "積乱雲接近", "積乱雲直下"
+				SELECTCASE CAN_CUMULUS:0
+				CASE 3, 4, 5
+					NEXTCOLOR = C_MAP_積乱雲_昼
+				CASEELSE
+					NEXTCOLOR = C_MAP_曇り_昼
+				ENDSELECT
+			CASEELSE
+				SELECTCASE TIME:5
+					CASE 0, 1
+						NEXTCOLOR = C_MAP_晴れ_昼
+					CASE 2
+						NEXTCOLOR = C_MAP_薄曇_昼
+					CASE 3
+						NEXTCOLOR = C_MAP_曇り_昼
+					CASE 6, 7, 11
+						NEXTCOLOR = C_MAP_霧_昼
+					CASE 4, 5, 13, 14, 15
+						NEXTCOLOR = C_MAP_雨_昼
+					CASE 8, 9, 10, 12
+						NEXTCOLOR = C_MAP_雪_昼
+					CASEELSE
+						NEXTCOLOR = C_MAP_晴れ_昼
+				ENDSELECT
+		ENDSELECT
+	
+	;PM6~8　夕
+	CASE 1080 TO 1199
+		SELECTCASE TIME:5
+			CASE IS <= 3
+				IF 低気圧位置 == "台風勢力圏"
+					NEXTCOLOR = C_MAP_夕焼け_台風
+				ELSEIF 低気圧位置 == "寒冷渦接近" || IS_COLD_LOW || 低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "日本海低気圧接近" || 低気圧位置 == "南岸低気圧接近" || 低気圧位置 == "温暖前線接近"
+					NEXTCOLOR = C_MAP_夕焼け_低気圧
+				ELSE
+					NEXTCOLOR = C_MAP_夕焼け_通常
+				ENDIF
+			CASE 6, 7, 11
+				NEXTCOLOR = C_MAP_霧_昼
+			CASE 4, 5, 13, 14, 15
+				NEXTCOLOR = C_MAP_雨_昼
+			CASE 8, 9, 10, 12
+				NEXTCOLOR = C_MAP_雪_昼
+			CASEELSE
+				NEXTCOLOR = C_MAP_夕焼け_通常
+		ENDSELECT
+	
+	;PM8~AM4　夜・深夜
+	CASE 0 TO 239, IS >= 1200
+		SELECTCASE TIME:5
+			CASE 0, 1, 2
+				NEXTCOLOR = C_MAP_晴れ_夜
+			CASE 6, 7, 11
+				NEXTCOLOR = C_MAP_霧_夜
+			CASE 3, 4, 5, 13, 14, 15
+				NEXTCOLOR = C_MAP_曇り_夜
+			CASE 8, 9, 10, 12
+				NEXTCOLOR = C_MAP_雪_夜
+			CASEELSE
+				NEXTCOLOR = C_MAP_晴れ_夜
+		ENDSELECT
+ENDSELECT
+
+IF NEXTCOLOR != GETBGCOLOR()
+	SETBGCOLOR NEXTCOLOR
+	;#;PRINTL （배경색을 변경）
+ENDIF
+
+@SET_MAP_WEATHER_BGCOLOR_OLD
+#DIMS 低気圧位置
+#DIMS 積乱雲位置
+
+SIF FLAG:시간정지 || !FLAG:배경색추이
+	RETURN
+
+低気圧位置 = %GET_LOCATION_LOW()%
+積乱雲位置 = %GET_LOCATION_CUMULUS()%
+
+SELECTCASE TIME:0
+	;AM4~6　早朝
+	CASE 240 TO 359
+		SELECTCASE TIME:5
+			CASE 6, 7, 11
+				SETBGCOLOR C_MAP_霧_夜
+			CASE 8, 9, 10, 12
+				SETBGCOLOR C_MAP_雪_夜
+			CASEELSE
+				SETBGCOLOR C_MAP_晴れ_早朝
+		ENDSELECT
+	
+	;AM6~8　正午前
+	CASE 360 TO 479
+		SELECTCASE TIME:5
+			CASE IS <= 3
+				IF 低気圧位置 == "台風勢力圏"
+					SETBGCOLOR C_MAP_夕焼け_台風
+				ELSEIF 低気圧位置 == "寒冷渦接近" || IS_COLD_LOW || 低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "日本海低気圧接近" || 低気圧位置 == "南岸低気圧接近" || 低気圧位置 == "温暖前線接近"
+					SETBGCOLOR C_MAP_夕焼け_低気圧
+				ELSE
+					SETBGCOLOR C_MAP_晴れ_朝
+				ENDIF
+			CASE 6, 7, 11
+				SETBGCOLOR C_MAP_霧_昼
+			CASE 4, 5, 13, 14, 15
+				SETBGCOLOR C_MAP_雨_昼
+			CASE 8, 9, 10, 12
+				SETBGCOLOR C_MAP_雪_昼
+			CASEELSE
+				SETBGCOLOR C_MAP_晴れ_朝
+		ENDSELECT
+	
+	;AM8~12　正午前
+	CASE 480 TO 719
+		SELECTCASE TIME:5
+			CASE 0, 1, 2
+				SETBGCOLOR C_MAP_晴れ_朝
+			CASE 3
+				SETBGCOLOR C_MAP_曇り_昼
+			CASE 6, 7, 11
+				SETBGCOLOR C_MAP_霧_昼
+			CASE 4, 5, 13, 14, 15
+				SETBGCOLOR C_MAP_雨_昼
+			CASE 8, 9, 10, 12
+				SETBGCOLOR C_MAP_雪_昼
+			CASEELSE
+				SETBGCOLOR C_MAP_晴れ_朝
+		ENDSELECT
+	
+	;PM12~6　昼
+	CASE 720 TO 1079
+		SELECTCASE 積乱雲位置
+			CASE "積乱雲接近", "積乱雲直下"
+				SELECTCASE CAN_CUMULUS:0
+				CASE 3, 4, 5
+					SETBGCOLOR C_MAP_積乱雲_昼
+				CASEELSE
+					SETBGCOLOR C_MAP_曇り_昼
+				ENDSELECT
+			CASEELSE
+				SELECTCASE TIME:5
+					CASE 0, 1
+						SETBGCOLOR C_MAP_晴れ_昼
+					CASE 2
+						SETBGCOLOR C_MAP_薄曇_昼
+					CASE 3
+						SETBGCOLOR C_MAP_曇り_昼
+					CASE 6, 7, 11
+						SETBGCOLOR C_MAP_霧_昼
+					CASE 4, 5, 13, 14, 15
+						SETBGCOLOR C_MAP_雨_昼
+					CASE 8, 9, 10, 12
+						SETBGCOLOR C_MAP_雪_昼
+					CASEELSE
+						SETBGCOLOR C_MAP_晴れ_昼
+				ENDSELECT
+		ENDSELECT
+	
+	;PM6~8　夕
+	CASE 1080 TO 1199
+		SELECTCASE TIME:5
+			CASE IS <= 3
+				IF 低気圧位置 == "台風勢力圏"
+					SETBGCOLOR C_MAP_夕焼け_台風
+				ELSEIF 低気圧位置 == "寒冷渦接近" || IS_COLD_LOW || 低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "日本海低気圧接近" || 低気圧位置 == "南岸低気圧接近" || 低気圧位置 == "温暖前線接近"
+					SETBGCOLOR C_MAP_夕焼け_低気圧
+				ELSE
+					SETBGCOLOR C_MAP_夕焼け_通常
+				ENDIF
+			CASE 6, 7, 11
+				SETBGCOLOR C_MAP_霧_昼
+			CASE 4, 5, 13, 14, 15
+				SETBGCOLOR C_MAP_雨_昼
+			CASE 8, 9, 10, 12
+				SETBGCOLOR C_MAP_雪_昼
+			CASEELSE
+				SETBGCOLOR C_MAP_夕焼け_通常
+		ENDSELECT
+	
+	;PM8~AM4　夜・深夜
+	CASE 0 TO 239, IS >= 1200
+		SELECTCASE TIME:5
+			CASE 0, 1, 2
+				SETBGCOLOR C_MAP_晴れ_夜
+			CASE 6, 7, 11
+				SETBGCOLOR C_MAP_霧_夜
+			CASE 3, 4, 5, 13, 14, 15
+				SETBGCOLOR C_MAP_曇り_夜
+			CASE 8, 9, 10, 12
+				SETBGCOLOR C_MAP_雪_夜
+			CASEELSE
+				SETBGCOLOR C_MAP_晴れ_夜
+		ENDSELECT
+ENDSELECT

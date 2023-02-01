@@ -121,3 +121,154 @@ CALL 재료설정("짐승고기", "새고기", "구리꿩")
 DISH_TASTE = 고기 요리/짐승고기/새고기/짠/푸짐/농후/따뜻한/야취/야취/야취/호쾌/강정/
 DISH_COMMENT = 사냥한 고기를 이용한 사냥꾼의 요리。[강정]이 붙는다。
 RETURN 1
+
+;IMAGE_I63_特殊表情(CHARA)--------------------------------------------------------------------
+;キャラクター特有の表情表示条件
+;時間停止中でも維持する表情はこちら
+;使用時注意点:
+;	RESULTS:0に表情を格納
+;	RESULTS:1にマウスオーバー時の表情を格納すること
+;	"通常","笑顔","怒り","発情","睡眠"は本編で実装済み
+;-------------------------------------------------------------------------------------------
+@IMAGE_I63_特殊表情(CHARA)
+#DIM CHARA
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF FLAG:스탠딩종류
+		;顔絵
+		IF MARK:CHARA:반발각인 >= 1
+			RESULTS:1 = ガチギレ
+		ELSEIF TALENT:CHARA:연모 && !MARK:CHARA:반발각인 && TALENT:CHARA:기분 >= 0
+			IF CFLAG:CHARA:우후후
+				RESULTS:0 = デレデレ
+				RESULTS:1 = デレデレ
+				IF CFLAG:CHARA:욕구불만도 > 500
+					IF CFLAG:CHARA:우후후 == 2
+						RESULTS:0 = 発情3
+						RESULTS:1 = 発情3
+					ELSE
+						RESULTS:0 = 誘惑
+						RESULTS:1 = 誘惑
+					ENDIF
+				ENDIF
+				IF GETPALAMLV(PALAM:CHARA:욕정, 15) >= 8
+					RESULTS:0 = トロ笑い
+					RESULTS:1 = トロ笑い
+					SIF IS_SEXING(CHARA)
+						RESULTS:1 = キス顔
+				ENDIF
+				IF TCVAR:362 >= 5
+				;前ターンに超強絶頂
+					RESULTS:0 = 絶頂
+					RESULTS:1 = キス顔
+				ELSEIF TCVAR:362 >= 2
+	 				RESULTS:0 = トロ顔
+					RESULTS:1 = キス顔
+				ENDIF
+			ELSEIF !CFLAG:CHARA:우후후
+				SIF BASE:CHARA:무드 >= 1400
+					RESULTS:0 = デレデレ
+				;やった後は平常時でもデレ顔にする予定
+				;SIF TCVAR:CHARA:361
+				;	RESULTS:0 = デレデレ
+				IF (TCVAR:CHARA:발정 && CFLAG:CHARA:욕구불만도 > 200) || CFLAG:CHARA:욕구불만도 >= 750
+					RESULTS:1 = 発情2
+					SIF TALENT:CHARA:자기애 >= 0 && BASE:CHARA:무드 >= 500
+						RESULTS:1 = 誘惑
+				ELSE
+					RESULTS:1 = ウィンク
+				ENDIF
+				SIF CFLAG:CHARA:임신경과일수 >= 40 && !TCVAR:63:363
+					RESULTS:1 = ボテ
+			ENDIF
+		ELSE
+			;ELSEIF 
+			;ENDIF
+		ENDIF
+	ELSE
+		;立ち絵
+	ENDIF
+ELSE
+	;通常画像
+	IF FLAG:스탠딩종류
+		;顔絵
+	ELSE
+		;立ち絵
+	ENDIF
+ENDIF
+
+;IMAGE_I63_特殊エフェクトチェック(CHAR, エフェクト)--------------------------------------------
+;キャラクター特有のエフェクト判定  特殊エフェクトを直接指定したい場合に参照
+;引数 "エフェクト" に固有のエフェクトが含まれるかを判定する
+;例の通り、STRFINDを使用してください
+;-------------------------------------------------------------------------------------------
+@IMAGE_I63_特殊エフェクトチェック(CHARA, エフェクト)
+#DIM CHARA
+#DIMS エフェクト
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	SIF STRFIND(エフェクト, "ハート") != -1
+		RETURN 1
+ENDIF
+
+RETURN 0
+
+;IMAGE_I63_特殊エフェクト(CHARA)--------------------------------------------------------------------
+;キャラクター特有のエフェクト表示条件
+;使用時注意点:
+;	RESULTS配列に特殊エフェクトを格納
+;	RETURNで追加するエフェクト数を返却すること
+;-------------------------------------------------------------------------------------------
+@IMAGE_I63_特殊エフェクト(CHARA)
+#DIM CHARA
+#DIM DYNAMIC エフェクト数 = 0
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+;	IF FLAG:스탠딩종류
+;		IF TALENT:CHARA:연모 && !MARK:CHARA:반발각인 && TALENT:CHARA:機嫌 >= 0
+;			;IF PREVCOM == 300
+;			IF CFLAG:CHARA:우후후 && TCVAR:362 > 0
+;				RESULTS:エフェクト数 = ハート
+;				エフェクト数 ++
+;			ENDIF
+;		ENDIF
+;	ENDIF
+ENDIF
+
+RETURN エフェクト数
+
+;IMAGE_I63_特殊服装(CHARA)-------------------------------------------------------------------
+;キャラクター特有の服装表示条件
+;エフェクトを共有する服装差分はこちらで指定する
+;使用時注意点:
+;	RESULTSに特殊服装を格納すること
+;	書式は %服装%%特殊服装% 適宜"_"等入れること
+;-------------------------------------------------------------------------------------------
+@IMAGE_I63_特殊服装(CHARA)
+#DIM CHARA
+VARSET RESULTS
+
+IF CFLAG:CHARA:대체적용
+	;差し替え画像
+	IF CHECK_NUDE(CHARA)
+		;裸
+		IF FLAG:스탠딩종류
+			;顔絵
+		ELSE
+			;立ち絵
+		ENDIF
+	ELSE
+		;服
+		IF CFLAG:CHARA:의상일시변경 == 55 || (CFLAG:CHARA:기본복장세트 == 55 && CFLAG:CHARA:의상일시변경==0)
+			IF FLAG:스탠딩종류
+				;顔絵
+				RESULTS = _バニー
+			ENDIF
+		ELSEIF TCVAR:63:363 == 2
+			RESULTS = _冬服
+		ENDIF
+	ENDIF
+ENDIF

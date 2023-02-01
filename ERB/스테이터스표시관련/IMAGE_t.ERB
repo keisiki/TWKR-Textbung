@@ -144,6 +144,10 @@ FOR LOCAL, iPrintStart, FLAG:화상표시 + iPrintStart
 		RESULTS:0 = %GET_BASESTYLE(CHARA)%_服_通常_{CHARA}
 		RESULTS:1 =
 	ENDIF
+	;ボテ画像表示
+	IF SHOW_BOTE(CHARA) && !RAND:3
+		RESULTS:1 = ボテ_{CHARA}
+	ENDIF
     ;時間停止時はマウスオーバー画像を表示しない
 	SIF FLAG:시간정지
 		RESULTS:1 =
@@ -247,7 +251,6 @@ VARSET RESULTS
 
 SIF !iID
 	RETURN RESULT
-
 ;画像表示 ;KR판 구잔재 AA표시 의 오리지날 살리기
 IF !FLAG:화상표시 && !FLAG:AA표시
 	LOCALS = 없음
@@ -402,7 +405,7 @@ CALL 画像一斉表示(0, 0, 1, -1)
 #DIMS 乳型 = "絶壁", "貧乳", "並乳", "巨乳", "爆乳"
 #DIM CHARA_CSV_乳型
 #DIM LOOP_乳型
-
+RESULT = 0
 ;表示形式
 表示形式 = %GET_BASESTYLE(CHARA, 表示形式)%
 ;差分
@@ -425,6 +428,7 @@ IF 服装 == ""
 	CATCH
 	ENDCATCH
 ENDIF
+;-------PRINTFORML %CALLNAME:CHARA%の服装：%服装%、表情：%表情%、MO表情：%表情_マウスオーバー%、差分：%差分%を確認
 IF FLAG:거유차이표시
 	IF CFLAG:CHARA:CSV오버라이드
 		CHARA_CSV_乳型 = TALENT:CHARA:가슴사이즈
@@ -451,12 +455,13 @@ IF FLAG:거유차이표시
 			LOOP_乳型--
 		ENDIF
 	NEXT
+ELSE
+	RESULT = 0
 ENDIF
 
 IF !RESULT
 	CALL GET表情体形完整(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分)
 ENDIF
-
 RETURN RESULT
 
 @GET表情体形完整(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分, 乳量 = "")
@@ -491,11 +496,12 @@ RESULTS:0 = %表示形式%_%服装%_%RESULTS:0%_{CHARA}%差分%
 RESULTS:1 = %表示形式%_%服装%_%RESULTS:1%_{CHARA}%差分%
 
 ;リソースのチェック 見つからない場合は0を返す
-SIF !SPRITECREATED(RESULTS:0)
+IF !SPRITECREATED(RESULTS:0)
     RETURN 0
-SIF !SPRITECREATED(RESULTS:1)
+ENDIF
+IF !SPRITECREATED(RESULTS:1)
     RETURN 0
-
+ENDIF
 RETURN 1
 @GET表情体形拆分组合(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分, 乳量)
 #DIM GID
@@ -713,7 +719,7 @@ SELECTCASE SELECTCOM
 			RESULTS:1 = 愛撫
 		ENDIF
 ENDSELECT
-
+;PRINTFORML 表情チェック　%表示形式%_%服装%_%RESULTS:0%_{CHARA}%差分%
 ;表情がなければ戻す
 SIF !SPRITECREATED(@"%表示形式%_%服装%_%RESULTS:0%_{CHARA}%差分%")
 	RESULTS:0 = %TEMP:0%
@@ -889,3 +895,18 @@ SIF SPENT_TIME > 0 && CFLAG:CHARA:우후후
 SIF BASE:CHARA:체력 < MAXBASE:CHARA:체력*3/4 && BASE:CHARA:기력 < MAXBASE:CHARA:기력/4
 	RETURNF 1
 RETURNF 0
+
+@SHOW_BOTE(CHARA)
+#FUNCTION
+#DIM CHARA
+SIF CFLAG:CHARA:의상일시변경
+	RETURNF 0
+SIF CFLAG:CHARA:우후후
+	RETURNF 0
+SIF TEQUIP:CHARA:상반신착의상황 == 0 || TEQUIP:CHARA:하반신착의상황 == 0
+	RETURNF 0
+SIF CFLAG:CHARA:임신경과일수 < 40
+	RETURNF 0
+SIF !SPRITECREATED(@"ボテ_{CHARA}")
+	RETURNF 0
+RETURNF 1

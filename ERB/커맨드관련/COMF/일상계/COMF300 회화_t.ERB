@@ -6,7 +6,7 @@
 
 ;회화 누적치가 반응을 일으키는 최소의 물리량을 넘으면(자) 실패
 IF TCVAR:302 && !TALENT:연모&&!TALENT:MASTER:달변
-	PRINTFORML %CALLNAME:TARGET%에 말을 건네려고 했지만 말이 발견되지 않는다
+	PRINTFORML %CALLNAME:TARGET%에게 말을 건네려고 했지만 말을 찾지 못햇다
 	PRINTW 근처에 거북한 공기가 흘렀다…
 	TIME += 10
 	IF CHK_DATENOW(CFLAG:TARGET:데이트중)
@@ -26,26 +26,60 @@ IF MARK:반발각인 >= 3&&RAND:10 == 0
 	BASE:MASTER:기력 -= 300
 	RETURN -1
 ENDIF
+CALL REVEAL_YOUKAI(TARGET)
 
-CALL SUC_FAIL()
-;만취시는 대성공도 실패도 하지 않는다
-SIF TCVAR:만취
-	TFLAG:193 = 0
-
-SELECTCASE TFLAG:193
-	;실패
-	CASE -1
-		SIF TFLAG:192 == -2
-			RETURN 0
-		TFLAG:98 = -1
-	;대성공
-	CASE 1
-		EXP:MASTER:회화경험 ++
-		IF CHK_DATENOW(CFLAG:TARGET:데이트중)
-			CALL 붉은실발동
-			EXP:MASTER:데이트경험 ++
-			EXP:TARGET:데이트경험 ++
+SELECTCASE TFLAG:192
+	;通常
+	CASE 0
+		LOCAL = RAND:100
+		LOCAL:1 = MIN(90 + GET_SUCCESS_RATE() / 5, 99)
+		;상대가 만취시는 대성공도 실패도 하지 않는다
+		SIF TCVAR:만취
+			LOCAL = 50
+		IF LOCAL < 5
+			;5％로 대성공
+			TFLAG:193 = 1
+			TFLAG:98 = 1
+			EXP:MASTER:회화경험 ++
+			IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+				;KR판 오리지날 붉은실
+				CALL 붉은실발동
+				EXP:MASTER:데이트경험 ++
+				EXP:TARGET:데이트경험 ++
+			ENDIF
+		ELSEIF LOCAL >= LOCAL:1
+			;10～1％で失敗
+			TFLAG:193 = -1
+			TFLAG:98 = -1
+		ELSE
+			;残りは成功
+			TFLAG:193 = 0
+			TFLAG:98 = 0
 		ENDIF
+	;強制成功or大成功
+	CASE 1
+		IF RAND:100 <= 7
+			TFLAG:193 = 1
+			TFLAG:98 = 1
+			EXP:MASTER:회화경험 ++
+			IF CHK_DATENOW(CFLAG:TARGET:데이트중)
+				;KR판 오리지날 붉은실
+				CALL 붉은실발동
+				EXP:MASTER:데이트경험 ++
+				EXP:TARGET:데이트경험 ++
+			ENDIF
+		ELSE
+			TFLAG:193 = 0
+			TFLAG:98 = 0
+		ENDIF
+	;強制失敗
+	CASE -1
+		TFLAG:193 = -1
+		TFLAG:98 = -1
+	;コマンド終了
+	CASE -2
+		TFLAG:193 = -1
+		RETURN 0
 ENDSELECT
 IF STAIN:MASTER:0 && RAND:10 == 0
 	PRINTFORM %타겟은% %마스터의% 입에 묻은
@@ -160,6 +194,7 @@ ELSE
 	TIMES SOURCE:환락 , 2.00
 	TIMES SOURCE:정복 , 2.00
 	TIMES SOURCE:수동 , 2.00
+	TCVAR:301 += 50
 ENDIF
 SELECTCASE ABL:MASTER:화술기능
 	CASE 0

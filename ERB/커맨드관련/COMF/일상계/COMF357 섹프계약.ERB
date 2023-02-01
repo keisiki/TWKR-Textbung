@@ -1,0 +1,191 @@
+﻿;-------------------------------------------------
+;セフレ契約
+;日常系コマンド、レベル2
+;-------------------------------------------------
+@COM357
+#DIM 理性判定値
+#DIM 欲望判定値
+#DIM 酒酔い
+
+IF FLAG:생활능력무
+	DRAWLINE
+	PRINTFORMW %CALLNAME:MASTER%에겐 그럴 배짱이 없다
+	RETURN -1
+ENDIF
+IF GET_TARGETNUM() > 1
+	DRAWLINE
+	PRINTFORMW 남 앞에서 할 이야기는 아니다
+	RETURN -1
+ENDIF
+;告白対象確認
+PRINTFORML %CALLNAME:TARGET%에게 섹프가 되자고 말을 꺼냅니다。
+PRINTFORMW 하루 한번 가능하고, 성공시【사모】가 있으면 사라집니다。
+PRINTW 괜찮겠습니까？
+CALL ASK_YN("그만둔다","고백한다")
+IF !RESULT
+	RETURN -1
+ENDIF
+
+TRYCALLFORM KOJO_SF_CONTRACT_{TARGET}("導入")
+PRINTFORMW %CALLNAME:TARGET%의 마음
+欲望判定値 = MIN(ABL:TARGET:욕망, 10) * 50
+CALL SF_DESIRE_MOD(@"욕망{ABL:TARGET:욕망}", 欲望判定値)
+
+欲望判定値 += MIN(ABL:TARGET:순종, 10) * 20
+CALL SF_DESIRE_MOD(@"순종{ABL:TARGET:순종}", 欲望判定値)
+
+欲望判定値 += MIN(EXP:TARGET:절정경험, 5000) / 10
+CALL SF_DESIRE_MOD(@"절정경험{EXP:TARGET:절정경험}", 欲望判定値)
+
+欲望判定値 += GETPALAMLV(PALAM:TARGET:욕정,15) * (30 + TALENT:TARGET:쾌감응답 * 10)
+CALL SF_DESIRE_MOD(@"욕정보정", 欲望判定値)
+
+欲望判定値 += MAX(MARK:TARGET:쾌락각인, MARK:TARGET:시간각인) * 200
+CALL SF_DESIRE_MOD(@"각인보정", 欲望判定値)
+
+IF TCVAR:TARGET:발정 || TCVAR:TARGET:미약
+	欲望判定値 += 300
+	CALL SF_DESIRE_MOD(@"발정/미약보정", 欲望判定値)
+ENDIF
+WAIT
+
+理性判定値 = 1000 + BASE:TARGET:이성 / 2
+CALL SF_REASON_MOD(@"이성：{BASE:TARGET:이성}", 理性判定値)
+
+;酒酔い
+酒酔い = BASE:술기운 * 100 / MAXBASE:술기운
+IF 酒酔い
+	SIF 酒酔い > 70
+		酒酔い *= 2
+	理性判定値 -= 酒酔い
+	CALL SF_REASON_MOD(@"취함보정", 理性判定値)
+ENDIF
+IF !CFLAG:TARGET:기정사실 & 합의_우후후
+	理性判定値 += 300
+	CALL SF_REASON_MOD(@"【합의없음】보정", 理性判定値)
+ENDIF
+
+IF TALENT:TARGET:무지
+	理性判定値 -= 500
+	CALL SF_REASON_MOD(@"【무지】보정", 理性判定値)
+ENDIF
+IF TALENT:TARGET:자존심
+	理性判定値 += TALENT:TARGET:자존심 * 150
+	CALL SF_REASON_MOD(@"【자존심】보정", 理性判定値)
+ENDIF
+IF TALENT:TARGET:정조 > 0
+	理性判定値 += 200
+	CALL SF_REASON_MOD(@"【정조관념】보정", 理性判定値)
+ENDIF
+IF TALENT:TARGET:정조 < 0
+		理性判定値 -= 200
+	CALL SF_REASON_MOD(@"【정조무관심】보정", 理性判定値)
+ENDIF
+IF MARK:TARGET:반발각인
+		理性判定値 += MARK:TARGET:반발각인 * 100
+	CALL SF_REASON_MOD(@"【반발각인】보정", 理性判定値)
+ENDIF
+IF TALENT:TARGET:기분 < 0
+	理性判定値 += 300
+	CALL SF_REASON_MOD(@"【언짢음】보정", 理性判定値)
+ENDIF
+IF TALENT:TARGET:처녀
+	理性判定値 += 300
+	CALL SF_REASON_MOD(@"【처녀】보정", 理性判定値)
+ENDIF
+IF TALENT:TARGET:도착적
+	理性判定値 -= 200
+	CALL SF_REASON_MOD(@"【도착적】보정", 理性判定値)
+ENDIF
+IF TALENT:MASTER:수수께끼의매력
+	理性判定値 -= 150
+	CALL SF_REASON_MOD(@"%CALLNAME:MASTER%の【수수께끼의매력】보정", 理性判定値)
+ENDIF
+IF TALENT:MASTER:매력
+	理性判定値 -= 150
+	CALL SF_REASON_MOD(@"%CALLNAME:MASTER%の【매력】보정", 理性判定値)
+ENDIF
+IF TALENT:TARGET:일선을넘지않음
+	理性判定値 += 200
+	CALL SF_REASON_MOD(@"【일선을넘지않음】보정", 理性判定値)
+ENDIF
+IF OTOKOGIRAI(TARGET)
+	理性判定値 += 300
+	CALL SF_REASON_MOD(@"성 지향 보정", 理性判定値)
+ENDIF
+IF CFLAG:TARGET:몸목적
+	理性判定値 -= 400
+	CALL SF_REASON_MOD(@"애욕을 독점하는 미라다의 돌 밀레니엄이 요상하게 빛난다…！", 理性判定値)
+ENDIF
+
+RESULT = 0
+TRYCALLFORM KOJO_SF_CONTRACT_{TARGET}("보정")
+IF RESULT
+	理性判定値 = MAX(理性判定値 + RESULT, 0)
+	CALL SHOW_REASONWALL(理性判定値)
+ENDIF
+PRINTFORMW 
+IF 欲望判定値 > 理性判定値
+	TALENT:TARGET:섹프 = 1
+	TALENT:TARGET:사모 = 0
+	TRYCALLFORM KOJO_SF_CONTRACT_{TARGET}("成功")
+	CALL COLORMESSAGE(@"%TARGET은% %CALLNAME:MASTER%의 섹프가 되어버렸다……",C_PINK,1,1)
+	CALL ASK_DIARY(@"%CALLNAME:TARGET%에게 섹프 계약을 제안하고, 성공시켰다")
+ELSE
+	TRYCALLFORM KOJO_SF_CONTRACT_{TARGET}("失敗")
+	PRINTFORMW 거절당했다……
+	SOURCE:반감 += 1000
+ENDIF
+TIME +=10
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE357
+;停止中は不可
+SIF FLAG:70
+	RETURN 0
+;妄想中は不可
+SIF TFLAG:망상중 == 1
+	RETURN 0
+;セフレ契約実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(352)
+	RETURN RESULT
+;二人きりでないとだめ
+;SIF GET_TARGETNUM() > 1
+;	RETURN 0
+;馴れ合い強度2
+SIF TCVAR:MASTER:친해져 < 2
+	RETURN 0
+;既にセフレ、恋慕、愛欲はだめ
+SIF TALENT:섹프 || TALENT:애욕 || TALENT:연모
+	RETURN 0
+;恋人の場合はだめ
+SIF TALENT:연인
+	RETURN 0
+;SIF GETBIT(TFLAG:一日一回, 12)
+;	RETURN 0
+SIF TALENT:TARGET:스침
+	RETURN 0
+;睡眠中
+SIF CFLAG:수면
+	RETURN 0
+;添い寝中
+SIF CFLAG:동침중
+	RETURN 0
+;気力0
+SIF BASE:MASTER:기력 <= 0
+	RETURN 0
+RETURN 1
+
+@SF_REASON_MOD(ARGS, ARG)
+CALL COLORMESSAGE(@"%ARGS%",C_YELLOW,1,1)
+CALL SHOW_REASONWALL(ARG)
+
+@SF_DESIRE_MOD(ARGS, ARG)
+CALL COLORMESSAGE(@"%ARGS%",C_PINK,1,1)
+CALL SHOW_LOVEPOWER(ARG, 100, "육욕")

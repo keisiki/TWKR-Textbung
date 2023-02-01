@@ -136,6 +136,8 @@ SETBIT FLAG_DAILY_EV29, 0
 @DAILY_EV43_1
 #DIM PAYMENT
 #DIM C_ID
+#DIM TOUCH
+TOUCH = 0
 IF GROUPMATCH(TIME:5, 4, 5, 6)
 	CALL PRINT_FACE, [[와카사기히메]], "笑顔", "服", "", ""
 	PRINTFORMW 「오늘은 降ってるから泳いで来れたの」
@@ -183,9 +185,10 @@ ELSE
 	PRINTFORML 「またお前らか」
 ENDIF
 PRINTFORML 「ご注文は？」
-C_ID = 0
-CALL ASK_M("本日のおすすめ",1,"카게로と同じやつ",1,"와카사기히메と同じやつ",1,"この煮込み雑炊一つください",1)
-;CALL ASK_M("本日のおすすめ",1,"카게로と同じやつ",1,"와카사기히메と同じやつ",1,"この煮込み雑炊一つください",1, "パーッといく(\30000)",MONEY >= 30000)
+TOUCH = 0
+$ORDER
+CALL ASK_M("本日のおすすめ",1,"影狼と同じやつ",1,"わかさぎ姫と同じやつ",1,"この煮込み雑炊一つください",1, "影狼にボディタッチ", TOUCH >= 0)
+;CALL ASK_M("本日のおすすめ",1,"影狼と同じやつ",1,"わかさぎ姫と同じやつ",1,"この煮込み雑炊一つください",1, "パーッといく(\30000)",MONEY >= 30000)
 SELECTCASE RESULT
 	CASE 0
 		C_ID = [[반키]]
@@ -198,7 +201,7 @@ SELECTCASE RESULT
 		IF DAY:2 == 2
 			PRINTFORMW 「この暑いのに物好きなことで」
 		ELSEIF DAILY_EV29_NIKOMI >= 5 && !RAND:5
-			PRINTFORML 「%CALLNAME:MASTER%はそればっかだな」
+			PRINTFORML 「%CALLNAME:MASTER%はそればっかね」
 			PRINTFORML 「そんなに旨いの、それ」
 			CALL ASK_YN("旨い","別に")
 			IF !RESULT
@@ -207,6 +210,43 @@ SELECTCASE RESULT
 				PRINTFORML 「お前はそういうやつだよ」
 			ENDIF
 		ENDIF
+	CASE 4
+		SELECTCASE TOUCH
+			CASE 0
+				PRINTFORML 机の陰で、影狼の手に手を重ねた
+				IF !TALENT:[[카게로]]:연모 || RAND:400 > CFLAG:[[카게로]]:욕구불만도
+					PRINTFORMW 影狼は%TEXTR("一瞬、戸惑ったような視線を送ってきた/無反応を装った")%
+				ELSE
+					PRINTFORMW 影狼は%TEXTR("一瞬視線を送ってきた/重ねた手に、もう片方の手をさらに載せてきた")%
+					CFLAG:[[카게로]]:욕구불만도 += 100
+				ENDIF
+				CALL PRINT_FACE, [[반키]], "通常", "服", "", ""
+				PRINTFORML 「まだ決まらないの？」
+				TOUCH = 1
+			CASE 1
+				PRINTFORML 影狼の膝に手を置いた
+				IF !TALENT:[[카게로]]:연모
+					PRINTFORMW 手の甲に爪を立てられた…
+					TOUCH = -1
+				ELSEIF RAND:600 > CFLAG:[[카게로]]:욕구불만도
+					PRINTFORMW 払いのけられた…
+					TOUCH = -1
+				ELSE
+					CALL PRINT_FACE, [[카게로]], "通常", "服", "照れ"
+					PRINTFORMW 影狼も%CALLNAME:MASTER%の膝に手を置いてきた…
+					CFLAG:[[카게로]]:욕구불만도 += 100
+					CALL PRINT_FACE, [[반키]], "通常", "服", "", ""
+					PRINTFORML 「おい……」
+					TOUCH = 2
+				ENDIF
+			CASE 2
+				PRINTFORMW 影狼の内腿をそっと撫でる
+				CALL PRINT_FACE, [[카게로]], "発情", "服", "", ""
+				PRINTFORML 影狼はお返しとばかりに
+				CALL SPTALK, [[반키]], "怒り", 0, @"「いい加減にしろ！」", 1
+				TOUCH = -1
+		ENDSELECT
+		GOTO ORDER
 ENDSELECT
 IF C_ID
 	CALL CHANGE_CFLAG(2,C_ID,100)

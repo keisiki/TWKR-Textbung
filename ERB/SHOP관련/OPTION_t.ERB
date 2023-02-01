@@ -1,12 +1,23 @@
 ﻿;옵션 설정 처리
 @OPTION
-LOCAL:1 = 0
+#DIM L_COUNT
+#DIM L_FEED
+VARSET LOCAL
+L_FEED = 0
+TOOLTIP_SETDELAY 100
+REDRAW 0
 DRAWLINEFORM =
-FOR LOCAL, 0, 100
-	SIF OPTION_SETNAME(LOCAL) == ""
+FOR L_COUNT, 0, 91
+	CALL OPTION_SETNAME(L_COUNT)
+	SIF !RESULT
 		CONTINUE
-	PRINTFORML [{LOCAL, 2}] - %OPTION_SETNAME(LOCAL), 30, RIGHT%：%RESULTS:1%
-	LOCAL:1 ++
+	LOCAL:L_COUNT = 1
+	IF RESULTS:2 == "" 
+		PRINTFORML [{L_COUNT, 2}] - %RESULTS:0, 30, RIGHT%：%RESULTS:1%
+	ELSE
+		HTML_PRINT @"<button value='{L_COUNT}' title='%RESULTS:2%'>[{L_COUNT, 2}] - %RESULTS:0, 30, RIGHT%：%RESULTS:1%</button>"
+	ENDIF
+	L_FEED ++
 NEXT
 DRAWLINEFORM －
 PRINTFORML [93] - 입맛 설정
@@ -18,29 +29,39 @@ PRINTFORML [98] - 등장캐릭터변환
 PRINTFORML [99] - 커맨드필터
 DRAWLINE
 IF DAY > 120 || FLAG:엔딩여부 ;KR판 오리지날, 엔딩여부 체크로 강하게 뉴게임 가능
-	PRINTFORML [200] - 바이쳐 더스트
-	LOCAL:1 ++
+	HTML_PRINT @"<button value='200' title='【경고】 여기 뒤로는 읽어서는 안된다'>[200] - 바이쳐・더스트</button>"
+	L_FEED ++
 ENDIF
 PRINTFORML [999] - 설정 완료
 INPUT
-IF OPTION_SETNAME(RESULT) != ""
+SELECTCASE RESULT
+CASE 0 TO 90
+	IF !LOCAL:RESULT
+		CLEARLINE 10 + L_FEED
+		RESTART
+	ENDIF
 	CALL OPTION_SETTING(RESULT)
-	CLEARLINE 12 + LOCAL:1
-ELSEIF RESULT == 93
+	CLEARLINE 10 + L_FEED
+CASE 93
 	CALL 마스터_호불호선택
-ELSEIF RESULT == 94
+CASE 94
 	CALL OPTION_오토신음일괄설정
-ELSEIF RESULT == 95
+CASE 95
 	CALL 간이필터일괄설정
-;ELSEIF RESULT == 96
+;CASE 96
 ;	CALL SET_OPTION_COOKING
-ELSEIF RESULT == 97
+CASE 97
 	CALL OPTION_화상표시상세설정
-ELSEIF RESULT == 98
+CASE 98
 	CALL 등장캐릭터변환
-ELSEIF RESULT == 99
+CASE 99
 	CALL OPTION_COMMAND_FILTER
-ELSEIF RESULT == 200 && (DAY > 120 || FLAG:엔딩여부)
+CASE 200 
+	IF DAY <= 120 && !FLAG:엔딩여부 ;KR판 오리지날, 엔딩여부 체크로 강하게 뉴게임 가능
+		REDRAW 1
+		TOOLTIP_SETDELAY 500
+		RETURN
+	ENDIF
 	IF FLAG:채무
 		LOCAL = 0
 		LOCAL += 5000000
@@ -66,15 +87,18 @@ ELSEIF RESULT == 200 && (DAY > 120 || FLAG:엔딩여부)
 	ELSE
 ;		PRINTW 「스위치」를 누르는 건 멈추지 못했지만, 운 좋게도 옵션 선택까지밖에 돌아가지 않았다.
 	ENDIF
-ELSE
+CASEELSE
+	REDRAW 1
+	TOOLTIP_SETDELAY 500
 	RETURN
-ENDIF
+ENDSELECT
 RESTART
 
 
 @OPTION_SETNAME(ARG)
-#FUNCTIONS
-VARSET RESULTS
+;RESULT:2	ツールチップ表記内容
+VARSET RESULTS 
+RESULT = 1
 SELECTCASE ARG
 CASE 0
 	RESULTS:0 = 임신 유무
@@ -93,6 +117,8 @@ CASE 1
 	CASE 2
 		RESULTS:1 = 남자아이
 	ENDSELECT
+	SIF !FLAG:임신스위치
+		RESULT = 0
 CASE 2
 	RESULTS:0 = 자식묘사
 	IF FLAG:자식묘사
@@ -100,12 +126,15 @@ CASE 2
 	ELSE
 		RESULTS:1 = 없음
 	ENDIF
+	SIF !FLAG:임신스위치
+		RESULT = 0
 CASE 3
 	RESULTS:0 = 더부살이이벤트
 	IF FLAG:더부살이이벤트
 		RESULTS:1 = 없음
 	ELSE
 		RESULTS:1 = 있음
+		RESULTS:2 = 친한 캐릭터가 자택 지역으로 이사옵니다
 	ENDIF
 CASE 4
 	RESULTS:0 = 연회 발생
@@ -138,7 +167,7 @@ CASE 7
 CASE 8
 	RESULTS:0 = 텍스트 설정
 	IF FLAG:정경텍스트설정 == 1 && FLAG:구상텍스트설정 == 2
-		RESULTS:1 = 대사 텍스트＋정경 텍스트
+		RESULTS:1 = 구상＋정경 텍스트
 	ELSEIF FLAG:정경텍스트설정 == 1 && FLAG:구상텍스트설정 == -1
 		RESULTS:1 = 정경 텍스트만
 	ELSEIF FLAG:정경텍스트설정 == 0 && FLAG:구상텍스트설정 == -1
@@ -183,6 +212,7 @@ CASE 13
 	ELSE
 		RESULTS:1 = 단축하지 않는다
 	ENDIF
+	RESULTS:2 = ※현재 미작동※
 CASE 14
 	RESULTS:0 = 능력 표시 버튼 표기
 	IF FLAG:능력표기
@@ -190,6 +220,7 @@ CASE 14
 	ELSE
 		RESULTS:1 = 기호 표기
 	ENDIF
+	RESULTS:2 = ※현재 미작동※
 CASE 15
 	RESULTS:0 = 턴마다 나오는 ABLUP 생략
 	IF FLAG:ABLUP생략
@@ -230,6 +261,7 @@ CASE 19
 	RESULTS:0 = 소모품의 자동 구입
 	IF FLAG:소모품자동구입
 		RESULTS:1 = 한다
+		RESULTS:2 = 로션만 유효
 	ELSE
 		RESULTS:1 = 하지 않는다
 	ENDIF
@@ -256,6 +288,7 @@ CASE 21
 ;	RESULTS:0 = 경고장사용
 ;	IF FLAG:경고장사용
 ;		RESULTS:1 = 있음
+;		RESULTS:2 = 지나친 성희롱으로 발급되며 모이면 게임 오버가 됩니다
 ;	ELSE
 ;		RESULTS:1 = 없음
 ;	ENDIF
@@ -271,6 +304,7 @@ CASE 23
 	CASE 3
 		RESULTS:1 = 내방하지 않는다
 	ENDSELECT
+	RESULTS:2 = 자택 지역에 캐릭터가 방문하는 조건
 CASE 24
 	RESULTS:0 = 탈의시 명령 선택
 	SELECTCASE FLAG:탈의선택
@@ -281,6 +315,13 @@ CASE 24
 	CASE 2
 		RESULTS:1 = 반라
 	ENDSELECT
+CASE 33
+	RESULTS:0 = 시간 날씨에 따른 배경색 추이
+	IF FLAG:배경색추이
+		RESULTS:1 = 유효
+	ELSE
+		RESULTS:1 = 무효
+	ENDIF
 CASE 25
 	RESULTS:0 = 시간정지 탈의시 팬티 처리
 	SELECTCASE FLAG:팬티도둑
@@ -372,6 +413,7 @@ CASE 39
 	ELSE
 		RESULTS:1 = (발생하지 않는다)
 	ENDIF
+	RESULTS:2 = 매일 일정확률로 누군가 창관에 납치되어 사라집니다
 CASE 40
 	RESULTS:0 = 영양소 시스템
 	IF !FLAG:영양소시스템미사용
@@ -379,6 +421,7 @@ CASE 40
 	ELSE
 		RESULTS:1 = (사용하지 않는다)
 	ENDIF
+	RESULTS:2 = 골고루 식사하지 않으면 굶은 판정을 합니다
 CASE 41
 	RESULTS:0 = 토리코식 UI
 	IF !FLAG:토리코UI
@@ -386,11 +429,15 @@ CASE 41
 	ELSE
 		RESULTS:1 = (사용한다)
 	ENDIF
+	RESULTS:2 = 일부 파라메터를 숨깁니다
+CASEELSE
+	RESULT = 0
 ENDSELECT
-RETURNF RESULTS:0
+RETURN RESULT
 
 @OPTION_SETTING(ARG)
-SELECTCASE OPTION_SETNAME(ARG)
+CALL OPTION_SETNAME(ARG)
+SELECTCASE RESULTS:0
 CASE "임신 유무"
 	FLAG:임신스위치 = !FLAG:임신스위치
 CASE "텍스트 설정"
@@ -503,6 +550,8 @@ CASE "방뇨와 오줌싸개버릇의 유효화"
 	FLAG:오줌유효 = !FLAG:오줌유효
 CASE "채집시 재추첨 기능"
 	FLAG:채집재추첨 = !FLAG:채집재추첨
+CASE "시간 날씨에 따른 배경색 추이"
+	FLAG:배경색추이 = !FLAG:배경색추이
 CASE "일상 호감 신뢰 상승 배율 설정"
 	PRINTFORML 변경할 일반 호감도/신뢰 추가 획득 배율 입력 『현재 : {1 + FLAG:호감신뢰상승률}x, 최대 20』
 	INPUT
@@ -894,15 +943,15 @@ FORCEWAIT
 PRINTFORM %마스터가% 정성들여 수집한, 주옥같은 팬티 콜렉션은 치워져버렸다
 FORCEWAIT
 FLAG:700 = 0
-FOR LOCAL, 1, CHARANUM
-	FOR LOCAL:1, 0, MAXPANTS
+FOR LOCAL,1,CHARANUM
+	FOR LOCAL:1,0,MAXPANTS
 		CFLAG:LOCAL:(LOCAL:1 + 팬티관리) = 0
 	NEXT
 NEXT
 PRINT 「화면상에 표시되지 않는 숫자를 입력하는 아이의 신뢰도, 자꾸자꾸 치워버릴 거란다」
 FORCEWAIT
 PRINTFORM %CALLNAME:MASTER%에게 소녀들이 보내는 신뢰는 치워져버렸다
-FOR LOCAL, 1, CHARANUM
+FOR LOCAL,1,CHARANUM
 	CFLAG:LOCAL:신뢰도 = 0
 NEXT
 FORCEWAIT
