@@ -486,7 +486,7 @@ T_시전자반대 = T_턴반대
 $스킬표시
 PRINTL 무엇을 쓸까?
 DRAWLINE
-PRINTL ┌[번호]─[스킬명]────────────────────┬[쿨타임]┬[ＨＰ소모량]┬[ＴＳＰ소모량]─┬[최대사거리]┬[조준속성]┬[기본적중률]┐
+PRINTL ┌[번호]─[스킬명]────────────────────┬[쿨타임]┬[ＨＰ소모량]┬[ＴＳＰ]┬[사거리]┬[조준속성]┬[기본적중률]┬[행동]┐
 FOR 스킬번호,1,T_스킬한계값
     ;IF HAVE_T_SKILL(T_턴주인, 스킬번호)
     IF IS_MEMORIZED(스킬번호)
@@ -541,7 +541,7 @@ FOR 스킬번호,1,T_스킬한계값
         CALLFORMF T_SKILL{스킬번호}("TSP코스트")
         IF RESULT > 0
             SETCOLOR 0x1111FF
-            PRINTFORM {RESULT, 16, LEFT}
+            PRINTFORM {RESULT, 8, LEFT}
             RESETCOLOR
         ELSE
             PRINTFORM 　　　　　　　　
@@ -555,7 +555,7 @@ FOR 스킬번호,1,T_스킬한계값
             SETCOLOR RESULT
         ENDIF
         CALLFORMF T_SKILL{스킬번호}_RANGE("최대사거리")
-        PRINTFORM {RESULT,10,RIGHT}ｍ
+        PRINTFORM {RESULT,6,RIGHT}ｍ
         RESETCOLOR
         PRINT │
         PRINT 　
@@ -594,12 +594,27 @@ FOR 스킬번호,1,T_스킬한계값
         CALLFORMF T_SKILL{스킬번호}("명중률")
         PRINTFORM {RESULT,10,RIGHT}％
         RESETCOLOR
+        PRINT │
+        IF 시전가부 == 1
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전가능")
+            SETCOLOR RESULT
+        ELSE
+            CALLFORM T_SKILL{스킬번호}_COLOR("색깔_시전불가")
+            SETCOLOR RESULT
+        ENDIF
+        RESULT = 0
+        CALLFORMF T_SKILL{스킬번호}("행동코스트")
+        PRINTFORM {RESULT+1,2,RIGHT}／
+        RESULT = 0
+        CALLFORMF T_SKILL{스킬번호}("이동코스트")
+        PRINTFORM {RESULT,2,LEFT}
+        RESETCOLOR
         PRINTL │
     ELSE
         ;스킬 소유하고 있지 않음
     ENDIF
 NEXT
-PRINTL └────────────────────────────┴────┴──────┴────────┴──────┴─────┴──────┘
+PRINTL └────────────────────────────┴────┴──────┴────┴────┴─────┴──────┴───┘
 PRINTL
 PRINTL [9998]설명
 PRINTL [9999]돌아간다
@@ -754,7 +769,9 @@ WHILE 1
                     IF LOCAL:1 != 0
                         PRINTFORM  + 
                     ENDIF
+                    FONTSTYLE 1
                     PRINTFORM %RESULTS:(LOCAL:1)%
+                    FONTSTYLE 0
                 ENDIF
             NEXT
             PRINTFORM  / 타입 :
@@ -820,8 +837,14 @@ PRINTL
 #DIM DYNAMIC 스킬번호
 #DIM DYNAMIC 스킬타입
 CALL DO_T_SKILL(사용자, 스킬번호)
-SIF RESULT
-    CALL 행동기회소모(사용자,T_통상행동)
+IF RESULT
+    ;CALL 행동기회소모(사용자,T_통상행동)
+    CALLFORMF T_SKILL{스킬번호}("행동코스트")
+    CALL 행동기회소모(사용자,T_통상행동,RESULT + 1)
+    RESULT = 0
+    CALLFORMF T_SKILL{스킬번호}("이동코스트")
+    CALL 행동기회소모(사용자,T_이동행동,RESULT)
+ENDIF
 
 @DO_T_SKILL(사용자, 스킬번호)
 #DIM DYNAMIC 사용자
@@ -835,14 +858,7 @@ IF RESULT == 0
     RETURN 0
 ELSE
     ;시전성공
-    CALLFORMF T_SKILL{스킬번호}_STR("스킬명")
-    IF 사용자 == MASTER
-        SETCOLOR 0xFFFFFF
-    ELSE
-        SETCOLOR 0xFF4444
-    ENDIF
-    PRINTFORML %RESULTS%
-    RESETCOLOR
+    CALL PRINT_SPELLNAME(스킬번호)
     ;이 아래의 대사 작성
     CALLFORMF T_SKILL{스킬번호}("타입")
     스킬타입 = RESULT
@@ -928,7 +944,16 @@ IF HAVE_T_SKILL(사용자, 스킬번호)
             ENDIF
         ENDIF
         RESULT = 0
-
+        CALLFORMF T_SKILL{스킬번호}("행동코스트")
+        IF RESULT + 1 > T_행동기회:사용자:T_통상행동
+            RETURN 0
+        ENDIF
+        RESULT = 0
+        CALLFORMF T_SKILL{스킬번호}("이동코스트")
+        IF RESULT > T_행동기회:사용자:T_이동행동
+            RETURN 0
+        ENDIF
+        RESULT = 0
         RETURN 1
     ELSE
         ;아직 쿨타임이라 시전불가능
