@@ -1,4 +1,6 @@
 ﻿@요리프리셋
+#DIM DYNAMIC 상세보기
+$메인
 DRAWLINE
 FOR LOCAL,0,10
     IF Y_프리셋:LOCAL:0 != 0
@@ -18,6 +20,7 @@ FOR LOCAL,0,10
     ENDIF
 NEXT
 DRAWLINE
+PRINTFORML [995] 레시피 상세보기 모드
 PRINTFORML [996] 고유 요리
 PRINTFORML [997] 등록 모드
 PRINTFORML [998] 삭제 모드
@@ -26,6 +29,9 @@ $LOOP
 INPUT
 IF RESULT == 999
     RETURN
+ELSEIF RESULT == 995
+    상세보기 = !상세보기
+    GOTO 메인
 ELSEIF RESULT == 996
     CALL Y_고유요리선택()
     IF RESULT == 5
@@ -90,13 +96,18 @@ ELSEIF RESULT == 998
 ELSEIF RESULT > 10 || RESULT < 0
     GOTO LOOP
 ELSE
-    LOCAL = RESULT
-    IF !요리프리셋가능여부(LOCAL)
-        PRINTFORMW 재료가 부족합니다
-        RESTART
+    IF 상세보기
+        CALL Y_PRESET_PREVIEW(RESULT)
+        GOTO 메인
+    ELSE
+        LOCAL = RESULT
+        IF !요리프리셋가능여부(LOCAL)
+            PRINTFORMW 재료가 부족합니다
+            RESTART
+        ENDIF
+        CALL 요리프리셋호출(LOCAL)
+        RETURN
     ENDIF
-    CALL 요리프리셋호출(LOCAL)
-    RETURN
 ENDIF
 RESTART
 
@@ -183,6 +194,7 @@ IF 기본제공품사용료 <= 0
     ENDIF
 ENDIF
 기본제공품사용료 = Y_PRE_PRICE:ARG
+Y_PRESET_VER:ARG = Y_PRESET_VER_NOW
 
 @요리프리셋삭제(ARG)
 ;이것만으로도 빈칸 취급되는 그윽함
@@ -293,6 +305,7 @@ VARSET 부재료
 VARSET 부재료요리법
 VARSET 양념
 CALL 요리레시피(ARG)
+DISH_NAME = %RCP_이름%
 주재료 = RCP_주재료:0
 IF 주재료 < 100
     기본제공품사용료 += 500
@@ -310,6 +323,44 @@ FOR LOCAL,0,9
     ENDIF
 NEXT
 FOR LOCAL,0,9
-    SIF 요리프리셋빈자리(LOCAL)
+    IF 요리프리셋빈자리(LOCAL)
         CALL 요리프리셋생성(LOCAL)
+        BREAK
+    ENDIF
 NEXT
+CALL RESET_DISH
+
+
+@Y_PRESET_PREVIEW(ARG)
+PRINTFORM [주재료]
+PRINTFORM 　　　　
+PRINTL
+PRINTFORML [100] %사용된재료표시(Y_프리셋:ARG:2,Y_프리셋:ARG:1),20,LEFT%
+PRINTFORML
+PRINTFORMLC %"[부재료]", 26, LEFT%
+PRINTFORMLC %"[양　념]", 26, LEFT%
+PRINTFORMLC %"[첨가물]", 26, LEFT%
+PRINTFORML
+FOR LOCAL, 0, 10
+    ;200대 : 부재료
+    PRINTFORMLC [{200+LOCAL}] %사용된재료표시(Y_PRE_SUB:ARG:LOCAL:1,Y_PRE_SUB:ARG:LOCAL:0),20,LEFT%{Y_PRE_SUB:ARG:LOCAL:0}
+    ;300대 : 양념
+    PRINTFORMLC [{300+LOCAL}] %사용된재료표시(-1,Y_PRE_SPICE:ARG:LOCAL),20,LEFT%
+    ;400대 : 약물등의 첨가물
+    IF LOCAL == 0
+        LOCAL:1 = DISH_DRG
+        SIF LOCAL:1 <= 0
+            LOCAL:1 = DISH_DRG_2
+        PRINTFORMLC [{LOCAL+400}] %사용된재료표시(-2,LOCAL:1),20,LEFT%
+    ENDIF
+    PRINTFORML
+NEXT
+PRINTL
+DRAWLINE
+PRINTFORML [999] 돌아간다
+$LOOP
+INPUT
+IF RESULT == 999
+    RETURN
+ENDIF
+GOTO LOOP
