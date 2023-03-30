@@ -1903,3 +1903,237 @@ SELECTCASE 타입
 		ENDSELECT
 ENDSELECT
 [SKIPEND]
+
+
+
+@D_RANDMAP(MIN_X = 0,MIN_Y = 0,MAX_X = 34,MAX_Y =34)
+#DIM DYNAMIC MIN_X
+#DIM DYNAMIC MIN_Y
+#DIM DYNAMIC MAX_X
+#DIM DYNAMIC MAX_Y
+#DIM DYNAMIC RX
+#DIM DYNAMIC RY
+#DIM DYNAMIC RS
+#DIM DYNAMIC R_MAP,35,35
+#DIM CONST 보정 = 2
+#DIM DYNAMIC 출입구후보,50,2
+#DIM DYNAMIC 출입구좌표,2
+#DIM DYNAMIC 출입구목록,50,2
+#DIM DYNAMIC 방위
+#DIM DYNAMIC ROTATION
+#DIM DYNAMIC DX
+#DIM DYNAMIC DY
+#DIMS DYNAMIC ROAD,100
+
+VARSET R_MAP, 4
+MIN_X += 보정
+MIN_Y += 보정
+MAX_X -= 보정
+MAX_Y -= 보정
+
+LOCAL = RAND:6 + 3
+LOCAL:6 = 0
+LOCAL:7 = 0
+REPEAT LOCAL
+	LOCAL:2 = 0
+	LOCAL:3 = 0
+	LOCAL:4 = 0
+	LOCAL:5 = 0
+	RS = RAND:4 + 2 ; 방 크기(반지름)
+	SELECTCASE ROTATION
+		CASE 0
+			;좌상
+			RX = RAND(MIN_X,MAX_X/2) ; X점
+			RY = RAND(MIN_Y + (MAX_Y/2),MAX_Y) ; Y점
+		CASE 1
+			;우상
+			RX = RAND(MIN_X + (MAX_X/2),MAX_X) ; X점
+			RY = RAND(MIN_Y + (MAX_Y/2),MAX_Y) ; Y점	
+		CASE 2
+			;우하
+			RX = RAND(MIN_X + (MAX_X/2),MAX_X) ; X점
+			RY = RAND(MIN_Y,MAX_Y/2) ; Y점
+		CASE 3
+			;좌하
+			RX = RAND(MIN_X,MAX_X/2) ; X점
+			RY = RAND(MIN_Y,MAX_Y/2) ; Y점
+	ENDSELECT
+	
+	IF ROTATION >= 3
+		ROTATION = 0
+	ELSE
+		ROTATION++
+	ENDIF
+	FOR LOCAL:2, MAX(MIN_Y - 보정, RY - RS), MIN(MAX_Y + 보정, RY + RS)
+		FOR LOCAL:3, MAX(MIN_X - 보정, RX - RS), MIN(MAX_X + 보정, RX + RS)
+			R_MAP:(LOCAL:2):(LOCAL:3) = 0
+			IF LOCAL:3 == RX - RS || LOCAL:3 == RX + RS || LOCAL:2 == RY - RS || LOCAL:2 == RY + RS
+				IF (LOCAL:3 == RX - RS && LOCAL:2 == RY - RS) || (LOCAL:2 == RY + RS && LOCAL:3 == RX + RS) || (LOCAL:2 == RY + RS && LOCAL:3 == RX - RS) || (LOCAL:2 == RY - RS && LOCAL:3 == RX + RS)
+					;귀퉁이는 제외
+				ELSE
+					출입구후보:(LOCAL:4):0 = LOCAL:2
+					출입구후보:(LOCAL:4):1 = LOCAL:3
+				ENDIF
+				R_MAP:(LOCAL:2):(LOCAL:3) = 4 ; 외곽을 벽처리
+				LOCAL:4++
+			ENDIF
+		NEXT
+	NEXT
+	;테스트코드========================
+FOR LOCAL,0,35
+	PRINTFORM ■
+	FOR LOCAL:1,0,35
+		;PRINTFORM {R_MAP:(LOCAL):(LOCAL:1),2,RIGHT}
+		SIF R_MAP:(LOCAL):(LOCAL:1) == 0
+			PRINTFORM  .
+		SIF R_MAP:(LOCAL):(LOCAL:1) == 4
+			PRINTFORM □
+		SIF R_MAP:(LOCAL):(LOCAL:1) >= 10000
+			PRINTFORM Ｄ
+	NEXT
+	PRINTL ■
+NEXT
+PRINTL
+;===================
+	FOR LOCAL:6,0,MIN(RS+1,RAND:3 + 1)
+		LOCAL:5 = RAND:(LOCAL:4) ; 후보중 산정
+		IF 출입구후보:(LOCAL:5):0 == 0 && 출입구후보:(LOCAL:5):1 == 0
+			CONTINUE
+		ENDIF
+		출입구좌표:0 = 출입구후보:(LOCAL:5):0
+		출입구좌표:1 = 출입구후보:(LOCAL:5):1
+		출입구목록:(LOCAL:7):0 = 출입구좌표:0
+		출입구목록:(LOCAL:7):1 = 출입구좌표:1
+		R_MAP:(출입구좌표:0):(출입구좌표:1) = 10000 + COUNT * 10 + LOCAL:6 ;출입구를 10000 + 방번호로 변경
+		;LOCAL:6++
+		LOCAL:7++
+	NEXT
+REND
+FOR LOCAL,0,LOCAL:7
+	IF 출입구목록:LOCAL:0 == 0 && 출입구목록:LOCAL:1 == 0
+		BREAK
+	ELSE
+		DX = 출입구목록:(LOCAL):0
+		DY = 출입구목록:(LOCAL):1
+		LOCAL:8 = RAND:(LOCAL:7)
+		;WHILE (R_MAP:(출입구목록:(LOCAL:8):0):(출입구목록:(LOCAL:8):1) - 10000)/ 100 == (R_MAP:(DX):(DY) - 10000) / 100
+		;	LOCAL:8 = RAND:(LOCAL:7)
+		;	IF COUNT > 100
+		;		BREAK
+		;	ENDIF
+		;WEND
+		CALL D_FINDWAY(DX,DY,출입구목록:(LOCAL:8):0,출입구목록:(LOCAL:8):1)
+		PRINTFORML {DX},{DY},%RESULTS%
+		SPLIT RESULTS,"/",ROAD
+		WHILE LOCAL:1 < RESULT
+			SELECTCASE ROAD:COUNT
+				CASE "UP"
+					R_MAP:(DX):(DY + 1) = 0
+					DY ++
+				CASE "DOWN"
+					R_MAP:(DX):(DY - 1) = 0
+					DY --
+				CASE "RIGHT"
+					R_MAP:(DX + 1):(DY) = 0
+					DX ++
+				CASE "LEFT"
+					R_MAP:(DX - 1):(DY) = 0
+					DX --
+			ENDSELECT
+			LOCAL:1++
+		WEND
+	ENDIF 
+NEXT
+
+;테스트코드
+FOR LOCAL,0,35
+	PRINTFORM ■
+	FOR LOCAL:1,0,35
+		;PRINTFORM {R_MAP:(LOCAL):(LOCAL:1),2,RIGHT}
+		SIF R_MAP:(LOCAL):(LOCAL:1) == 0
+			PRINTFORM  .
+		SIF R_MAP:(LOCAL):(LOCAL:1) == 4
+			PRINTFORM □
+		SIF R_MAP:(LOCAL):(LOCAL:1) >= 10000
+			PRINTFORM Ｄ
+	NEXT
+	PRINTL ■
+NEXT
+
+
+@D_FINDWAY(AX,AY,BX,BY,MIN_X = 0,MIN_Y = 0,MAX_X = 34,MAX_Y =34)
+#DIM DYNAMIC AX
+#DIM DYNAMIC AY
+#DIM DYNAMIC BX
+#DIM DYNAMIC BY
+#DIM DYNAMIC NX
+#DIM DYNAMIC NY
+#DIM DYNAMIC MIN_X
+#DIM DYNAMIC MIN_Y
+#DIM DYNAMIC MAX_X
+#DIM DYNAMIC MAX_Y
+#DIMS DYNAMIC ROAD
+
+NX = AX
+NY = AY
+IF NY < BY
+	FOR LOCAL,0,100
+		IF !INRANGE(NY,MIN_Y,MAX_Y) || NY <= MIN_Y || NY >= MAX_Y
+			BREAK
+		ENDIF
+		IF NY != BY
+			NY++
+			ROAD += "UP/"
+			LOCAL:1++
+		ELSE
+			BREAK
+		ENDIF
+	NEXT
+ELSEIF NY == BY
+
+ELSEIF NY > BY
+	FOR LOCAL,0,100
+		IF !INRANGE(NY,MIN_Y,MAX_Y) || NY <= MIN_Y || NY >= MAX_Y
+			BREAK
+		ENDIF
+		IF NY != BY
+			NY--
+			ROAD += "DOWN/"
+			LOCAL:1++
+		ELSE
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+IF NX < BX
+	FOR LOCAL,0,100
+		IF !INRANGE(NX,MIN_X,MAX_X) || NX <= MIN_X || NX >= MAX_X
+			BREAK
+		ENDIF
+		IF NX != BX
+			NX++
+			ROAD += "RIGHT/"
+			LOCAL:1++
+		ELSE
+			BREAK
+		ENDIF
+	NEXT
+ELSEIF NX == BX
+
+ELSEIF NX > BX
+	FOR LOCAL,0,100
+		IF !INRANGE(NX,MIN_X,MAX_X) || NX <= MIN_X || NX >= MAX_X
+			BREAK
+		ENDIF
+		IF NX != BX
+			NX--
+			ROAD += "LEFT/"
+			LOCAL:1++
+		ELSE
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+RESULTS '= ROAD
+RETURN LOCAL:1
