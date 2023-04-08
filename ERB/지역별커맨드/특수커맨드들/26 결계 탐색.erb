@@ -46,12 +46,12 @@ VARSET TT_HP_DOWN
 VARSET TT_ENAMY_DISABLE
 VARSET TT_DISTORTION_DISABLE
 
-@결계탐색
+@결계탐색(ARG = 0)
 #DIM DYNAMIC TEMP_LINE
 ;세로, 가로
 CALL 결계탐색초기화
 TT_TIMEOUT = 10000
-CALL 결계_맵생성()
+CALL 결계_맵생성(ARG)
 IF TT_SPAWN
 	TT_NOW:0 = TT_SPAWN:0
 	TT_NOW:1 = TT_SPAWN:1
@@ -206,19 +206,22 @@ IF TT_TIMEOUT < 8999 && !TT_DISTORTION_DISABLE
 		ENDIF
 	ENDIF
 ENDIF
-IF TT_TIMEOUT < 9500 && !TT_ENAMY_DISABLE
+IF (TT_TIMEOUT < 9500 || D_FORCE_ENAMY) && !TT_ENAMY_DISABLE
 	;요괴 등장
 	IF !명중판정(85+왜곡보너스)
-		CALL TT_적기본세팅()
-		CALLFORM TT_MAP_{TT_NUM}("적")
-		CALL 뉴탄막전투(MASTER,TARGET,1)
-		CALLFORM TT_MAP_{TT_NUM}("적애프터", TT_ENAMY)
-		DELCHARA TARGET
-		TARGET = 0
-		경험치인터셉트 = 0
-		후처리인터셉트 = 0
+		CALL 결계_적등장
 	ENDIF
 ENDIF
+
+@결계_적등장
+CALL TT_적기본세팅()
+CALLFORM TT_MAP_{TT_NUM}("적")
+CALL 뉴탄막전투(MASTER,TARGET,1)
+CALLFORM TT_MAP_{TT_NUM}("적애프터", TT_ENAMY)
+DELCHARA TARGET
+TARGET = 0
+경험치인터셉트 = 0
+후처리인터셉트 = 0
 
 @결계맵표시
 FOR LOCAL,0,TT_맵MAX+2
@@ -1861,52 +1864,38 @@ SELECTCASE 타입
 				IF !RESULT
 					TT_GETOUT = 1
 				ENDIF
+				IF D_OBJ_SUC == 1
+					D_OBJ_SUC = 2
+				ENDIF
 			CASE 2
 			CASE 3
 			CASE 4
+				CALL RD_OBJ_INTERACTION()
 			CASE 5
 				PRINTFORMW 약간 옛스러운 동전을 주웠다!
-				LOCAL = (RAND:10 + 1) * 1000
+				LOCAL = (RAND:10 + 1) * 500
 				PRINTFORMW {LOCAL}원 얻었다
 				MONEY += LOCAL
 				TT_맵:(TT_NOW:0):(TT_NOW:1) = 0
 		ENDSELECT
 	CASE "적"
-		TT_ENAMY = 0
-		PRINTFORMW 
-		CALLNAME:TARGET = 0
-		NAME:TARGET = 0
-		BASE:TARGET:체력 = 0
-		ABL:TARGET:전투능력 =0 
-		ABL:TARGET:레벨 = 0
-		CFLAG:TARGET:힘 = 0
-		CFLAG:TARGET:지성 = 0
-		CFLAG:TARGET:속도 = 0
-		CFLAG:TARGET:인내 = 0
-		CFLAG:TARGET:운 = 0
-		CFLAG:물리내성 = 0
-		CFLAG:정신내성 = 0
-		TALENT:TARGET:정화 = 1
-		TALENT:TARGET:탄막소사 = 1
-		TALENT:TARGET:전투스타일 = 1
+		CALL RD_ENAMY(D_ENAMY)
 	CASE "적애프터"
 		SELECTCASE ARG
 			CASE 0
 				SELECTCASE ARG:1
 					CASE 0
 						;타겟 패배
-						PRINTFORML 
-						TT_TIMEOUT -= RAND:10
+						CALL RD_ENAMY(D_ENAMY, 0)
 					CASE 1
 						;무승부
-						PRINTFORML 
-						TT_TIMEOUT -= RAND:25
+						CALL RD_ENAMY(D_ENAMY, 1)
 					CASE 2
-						PRINTFORML 
-						TT_TIMEOUT -= RAND:100 + 1
+						CALL RD_ENAMY(D_ENAMY, 2)
 				ENDSELECT
+				TT_TIMEOUT += RESULT
 				PRINTW
-
+				RETURN ARG:1
 			CASE 1
 
 		ENDSELECT
@@ -2135,7 +2124,7 @@ REPEAT LOCAL
 		FOR LOCAL:3, MAX(MIN_X - 보정, RX - RS), MIN(MAX_X + 보정, RX + RS) ;X축
 			;공란
 			D방내용물 = D_공란
-			IF RAND:20 == 0
+			IF RAND:100 == 0
 				D방내용물 = D_금
 			ENDIF
 			R_MAP:(LOCAL:2):(LOCAL:3) = D방내용물

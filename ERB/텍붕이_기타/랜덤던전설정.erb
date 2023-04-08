@@ -1,6 +1,6 @@
 ﻿@RD_MAKE
-
-
+CALL RD_RESET
+CALL RD_LOCATE
 CALL RD_ENAMY(0,0,"적수")
 LOCAL = RESULT
 CALL RD_ENAMY(0,0,"보스수")
@@ -31,11 +31,122 @@ SELECTCASE RD_TYPE
         TT_DISTORTION_DISABLE = 1
 ENDSELECT
 D_MAP_SIGHT = 3 + RAND:8
-D_MAP_STABLE = 10 + RAND:90
+D_DIFFCULT += MAX(0,(10 - D_MAP_SIGHT)/3)
+D_MAP_STABLE = 5 + RAND:21
+D_DIFFCULT += MAX(0,(25 - D_MAP_STABLE)/5)
 D_ENAMY = RAND:LOCAL
 CALL RD_ENAMY(D_ENAMY,3)
 D_DIFFCULT += RESULT
 
+@RD_LOCATE
+SELECTCASE RAND:14
+    CASE 0
+        LOCAL = P25수호신의숲
+    CASE 1
+        LOCAL = P121묘지
+    CASE 2
+        LOCAL = P140지장길
+    CASE 3
+        LOCAL = P348안개의호수・바닥
+    CASE 4
+        LOCAL = P431토끼동굴
+    CASE 5
+        LOCAL = P433사각의죽림
+    CASE 6
+        LOCAL = P436무명의언덕
+    CASE 7
+        LOCAL = P506무연총
+    CASE 8
+        LOCAL = P509재고의길
+    CASE 9
+        LOCAL = P701수해도입구
+    CASE 10
+        LOCAL = P708큰두꺼비의연못
+    CASE 11
+        LOCAL = P738깊은숲속
+    CASE 12
+        LOCAL = P830현운해
+    CASE 13
+        LOCAL = P945강가
+ENDSELECT
+D_LOCATE = LOCAL
+
+@RD_RESET
+VARSET D_ENAMY
+VARSET D_BOSS
+VARSET D_OBJECT_INTERACTION
+VARSET RD_TYPE
+VARSET D_DIFFCULT
+VARSET D_OBJECT
+VARSET D_MAP_STABLE
+VARSET D_MAP_SIGHT
+VARSET D_LOCATE
+
+@RD_JOIN
+SIF D_LOCATE
+    CALL 결계탐색(10002)
+IF D_OBJ_SUC == 2
+    RETURN 1
+ENDIF
+RETURN 0
+
+@RD_OBJ_INTERACTION
+SELECTCASE D_OBJECT
+    CASE 0
+        D_OBJ_SUC = 1
+        PRINTFORMW 물건을 회수했다! 이제 나가기만 하면 된다
+    CASE 1
+        CALL TT_적기본세팅()
+        CALL RD_ENAMY(D_BOSS)
+        CALL 뉴탄막전투(MASTER,TARGET,1)
+        CALLFORM TT_MAP_{TT_NUM}("적애프터", TT_ENAMY)
+        LOCAL = RESULT
+        DELCHARA TARGET
+        TARGET = 0
+        경험치인터셉트 = 0
+        후처리인터셉트 = 0
+        SELECTCASE LOCAL
+            CASE 0
+                ;타겟 패배
+                D_OBJ_SUC = 2
+                PRINTFORMW 토벌에 성공했다!
+            CASE 1,2
+                ;무승부 혹은 패배
+                PRINTFORMW 토벌에 실패한 %마스터는% 던전 밖으로 추방되었다!
+                D_OBJ_SUC = 0
+                CALL RD_GETOUT
+        ENDSELECT
+    CASE 2
+        D_OBJ_SUC = 2
+        PRINTFORMW 적당히 주변 정보를 기록했다, 나가기만 하면 된다
+    CASE 3
+        CALL TT_적기본세팅()
+        CALL RD_ENAMY(D_BOSS)
+        CALL 뉴탄막전투(MASTER,TARGET,1)
+        CALLFORM TT_MAP_{TT_NUM}("적애프터", TT_ENAMY)
+        LOCAL = RESULT
+        DELCHARA TARGET
+        TARGET = 0
+        경험치인터셉트 = 0
+        후처리인터셉트 = 0
+        SELECTCASE LOCAL
+            CASE 0
+                ;타겟 패배
+                D_OBJ_SUC = 1
+                PRINTFORMW 토벌에 성공했다!
+            CASE 1,2
+                ;무승부 혹은 패배
+                PRINTFORMW 토벌에 실패한 %마스터는% 던전 밖으로 추방되었다!
+                D_OBJ_SUC = 0
+                CALL RD_GETOUT
+        ENDSELECT
+        PRINTFORMW 물건을 회수했다! 이제 나가기만 하면 된다
+ENDSELECT
+TT_맵:(TT_NOW:0):(TT_NOW:1) = 0
+
+@RD_GETOUT
+TT_GETOUT = 1
+D_OBJ_SUC = 0
 
 @RDSETTING_APPLY
 TT_STABLE = D_MAP_STABLE
