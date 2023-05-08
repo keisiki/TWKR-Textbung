@@ -69,6 +69,9 @@ GOTO 연성루프
 @연성가능한스킬(ARG)
 #DIM DYNAMIC 궁극기배열, 3000
 #DIM DYNAMIC 배열포인터
+#DIM DYNAMIC 모브코사용
+#DIM DYNAMIC 모브코요구량
+$LOOP
 FOR LOCAL,0,T_스킬한계값
     IF HAVE_T_SKILL(ARG,LOCAL) == 1&&HAVE_T_SKILL(MASTER,LOCAL) == 0
         RESULT = 0
@@ -82,14 +85,76 @@ FOR LOCAL,0,T_스킬한계값
         RESULT = 0
     ENDIF
 NEXT
+PRINTFORML [9998] \@모브코사용 ? 흐릿한 혼 사용 # 일반 연성\@
 PRINTFORML [9999] 돌아간다
 INPUT
 IF RESULT == 9999
     RETURN 1
+ELSEIF RESULT == 9998
+    모브코사용 = !모브코사용
+    GOTO LOOP
 ELSE
     IF RESULT < 배열포인터&&RESULT >= 0
+        IF !모브코사용
+            습득한혼:ARG --
+        ELSE
+            PRINTFORML 대량의 흐릿한 혼과 원래 영혼의 일부를 소모해 연성할 수 있습니다
+            모브코요구량 = 500
+            PRINTFORML 요구량: 약{모브코요구량,10,LEFT}　소지량: {모브코의영혼총합()}
+            IF 모브코요구량 > 모브코의영혼총합()
+                PRINTFORMW 흐릿한 혼이 부족합니다
+                GOTO LOOP
+            ELSE
+                PRINTFORML 진행합니까?
+                CALL ASK_YN
+                IF !RESULT
+                    CALL 모브코영혼소모(모브코요구량)
+                    CFLAG:ARG:호감도 = 0
+                    CFLAG:ARG:신뢰도 = 0
+                    ABL:ARG:친밀 = 0
+                    ABL:ARG:욕망 = 0
+                    ABL:ARG:전투능력 = MAX(0,ABL:ARG:전투능력 - 1)
+                    LOCAL = ABL:ARG:레벨
+                    ABL:ARG:레벨 = MAX(0,ABL:ARG:레벨 * 1 / 2 - 1)
+                    LOCAL = LOCAL - ABL:ARG:레벨
+                    $LOOP1
+                    IF LOCAL && CFLAG:ARG:인내 >= 2
+                        CFLAG:ARG:인내 -= 1
+                        LOCAL--
+                    ENDIF
+                    IF LOCAL && CFLAG:ARG:힘 >= 2
+                        CFLAG:ARG:힘 -= 1
+                        LOCAL--
+                    ENDIF
+                    IF LOCAL && CFLAG:ARG:속도 >= 2
+                        CFLAG:ARG:속도 -= 1
+                        LOCAL--
+                    ENDIF
+                    IF LOCAL && CFLAG:ARG:운 >= 2
+                        CFLAG:ARG:운 -= 1
+                        LOCAL--
+                    ENDIF
+                    IF LOCAL && CFLAG:ARG:지성 >= 2
+                        CFLAG:ARG:지성 -= 1
+                        LOCAL--
+                    ENDIF
+                    IF LOCAL > 0
+                        IF CFLAG:ARG:인내 <= 1 &&CFLAG:ARG:힘 <= 1 &&CFLAG:ARG:지성 <= 1 &&CFLAG:ARG:속도 <= 1 &&CFLAG:ARG:운 <= 1
+                            CFLAG:ARG:물리내성 -= 레벨업내성증가
+                            LOCAL--
+                        ENDIF
+                        GOTO LOOP1
+                    ENDIF
+                    IF ABL:ARG:레벨 < 10
+                        PRINTFORMW 한계까지 쥐어짜내진 %ARG의% 영혼은 그 힘을 잃고 소멸했습니다
+                        습득한혼:ARG --
+                    ENDIF
+                ELSE
+                    RETURN
+                ENDIF
+            ENDIF
+        ENDIF
         TALENT:MASTER:(500+(궁극기배열:RESULT)) = 1
-        습득한혼:ARG --
     ENDIF
 ENDIF
 @셀프부활
@@ -352,13 +417,8 @@ CALL ASK_YN()
 IF RESULT
 
 ELSE
-    FOR LOCAL,0, 150
-        IF 모브코의혼:(149 - LOCAL) > 0
-            흡령의수++
-            획득경험치 += 모브코의혼:(149 - LOCAL)
-            모브코의혼:(149 - LOCAL) = 0
-        ENDIF
-    NEXT
+    CALL 모브코영혼소모()
+    획득경험치 = RESULT
     SIF 획득경험치 > 0
         CALL 경험치처리(MASTER,획득경험치, 1)
 ENDIF
@@ -374,13 +434,20 @@ CALL ASK_YN()
 IF RESULT
 
 ELSE
-    FOR LOCAL,0, 149
-        IF 모브코의혼:(149 - LOCAL) > 0
-            흡령의수++
-            획득경험치 += 모브코의혼:(149 - LOCAL)
-            모브코의혼:(149 - LOCAL) = 0
-        ENDIF
-    NEXT
+    CALL 모브코영혼소모()
+    획득경험치 = RESULT
     획득경험치 /= 100
     조교포인트 += 획득경험치
 ENDIF
+
+@모브코영혼소모(ARG = -1)
+FOR LOCAL,0, 149
+    IF 모브코의혼:(149 - LOCAL) > 0
+        흡령의수++
+        LOCAL:1 += 모브코의혼:(149 - LOCAL)
+        모브코의혼:(149 - LOCAL) = 0
+        SIF LOCAL:1 >= ARG && ARG != -1
+            BREAK
+    ENDIF
+NEXT
+RETURN LOCAL:1
