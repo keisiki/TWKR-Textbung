@@ -147,7 +147,7 @@ ENDSELECT
 DISH_NAME = 지옥라멘(극신)
 RESULTS = 주식
 CALL 재료설정("파")
-DISH_TASTE = 중화/면류//야채/따뜻한/스파이스//스파이스//스파이스/매운/매운/매운/매운/매운/매운/
+DISH_TASTE = 중화/면류//야채/따뜻한/스파이스//스파이스/스파이스/매운/매운/매운/매운/매운/매운/
 DISH_COMMENT = 염라대왕이 중유의 길 명물로 고안한 라면。무섭게 맵다。
 RETURN 1
 
@@ -224,13 +224,15 @@ IF CFLAG:CHARA:대체적용
 			CASE 3
 				RESULTS = _下着
 			CASEELSE
-				IF (BETWEENTIME(CFLAG:CHARA:취침시간 - 60, CFLAG:CHARA:기상시간 + 30) && CFLAG:현재위치 ==  CFLAG:CHARA:초기위치) || CFLAG:CHARA:수면
+				IF (BETWEENTIME(CFLAG:CHARA:취침시간 - 90, CFLAG:CHARA:기상시간 + 30) && CFLAG:현재위치 ==  CFLAG:CHARA:초기위치) || CFLAG:CHARA:수면
 					RESULTS = _パジャマ
 					;素敵なＴシャツセットからは、おはようからおやすみまで逃げられない
 					SIF (BETWEENTIME(CFLAG:CHARA:기상시간, CFLAG:CHARA:취침시간) && CFLAG:현재위치 == CFLAG:CHARA:초기위치) && !CFLAG:CHARA:수면 && CFLAG:CHARA:의상일시변경 == 62
 						RESULTS = _変Ｔ
 				ELSEIF CFLAG:CHARA:의상일시변경 == 62
 					RESULTS = _変Ｔ
+				ELSEIF CFLAG:CHARA:의상일시변경 == 74
+					RESULTS = _セーラー
 				ELSEIF CFLAG:CHARA:의상일시변경 == 17 && DAY:3 == 28
 					RESULTS = _うさぎ
 				ENDIF
@@ -290,19 +292,29 @@ ENDIF
 
 IF CFLAG:CHARA:대체적용
 	;差し替え画像
-	SIF MARK:CHARA:3
-		RESULTS:1 = 反発
 	;朝フェラ終了、朝うふふ開始直後の表情
-	IF ((CFLAG:CHARA:우후후 == 2 && TIME:0 == TIME:3) || (TCVAR:CHARA:363 == TIME:0 && TCVAR:CHARA:363 > 0)) && !(CFLAG:CHARA:수면 || CFLAG:CHARA:동침중 || TCVAR:CHARA:만취)
+	IF ((CFLAG:CHARA:우후후 == 2 && TIME:0 == TIME:3) || (TCVAR:CHARA:363 == TIME:0 && TCVAR:CHARA:363 > 0)) && SHIRAHU(CHARA)
 		RESULTS:0 = LOVE
 		RESULTS:1 = 笑顔
 		SIF TCVAR:CHARA:363 == TIME:0 && TCVAR:CHARA:363 > 0
 			SWAP RESULTS:0, RESULTS:1
+		RETURN
 	ENDIF
-	IF SPRITECREATED("K30_ANIME_FLAG") && FLAG:시간정지
-		RESULTS:0 = 停止
-		RESULTS:1 = 停止
+	;反発刻印
+	SIF MARK:CHARA:3
+		RESULTS:1 = 反発
+	;無気力
+	IF COM_STR == "K30_無表情"
+		RESULTS:0 = 無表情
+		RESULTS:1 = 無表情
 	ENDIF
+	SIF !FLAG:스탠딩종류 || CFLAG:CHARA:의상일시변경 == 62
+		RETURN
+	SIF FLAG:시간정지 || !GETBIT(CFLAG:CHARA:1500, 2)
+		RETURN
+	;まばたき
+	RESULTS:0 = %\@ RESULTS:0 == "通常" ? アニメ # %RESULTS:0% \@%
+	RESULTS:1 = %\@ RESULTS:1 == "通常" ? アニメ # %RESULTS:1% \@%
 ELSE
 	;通常画像
 	IF FLAG:스탠딩종류
@@ -336,14 +348,18 @@ IF CFLAG:CHARA:대체적용
 			RESULTS:0 = 赤面
 		;尻を撫でる、スカートをめくる
 		CASE 310, 330
-			RESULTS:0 = 赤面
-			SIF TCVAR:CHARA:356
-				RESULTS:0 = 反発
+			RESULTS:0 = %\@ TCVAR:CHARA:356 ? 反発 # 赤面 \@%
 		;メシの顔
 		CASE 413, 414, 415
-			IF  STRFIND(COM_STR, "K30_辛味") > -1 && FLAG:스탠딩종류
+			IF  STRFIND(COM_STR, "K30_辛味") > -1
 				RESULTS:0 = お星
 				RESULTS:1 = 笑顔
+			ENDIF
+		;願掛け
+		CASE 421
+			IF COM_STR == "K30_無表情"
+				RESULTS:0 = 無表情
+				RESULTS:1 = 無表情
 			ENDIF
 	ENDSELECT
 	SIF 絶頂判定(CHARA) || 絶頂判定2(CHARA)
@@ -493,11 +509,7 @@ IF CFLAG:CHARA:대체적용
 		RETURN 1
 	SIF STRFIND(エフェクト, "精液下") != -1
 		RETURN 1
-	SIF STRFIND(エフェクト, "泣き") != -1
-		RETURN 1
-	SIF STRFIND(エフェクト, "キラ") != -1 && FLAG:스탠딩종류
-		RETURN 1
-	SIF STRFIND(エフェクト, "無表情") != -1
+	SIF STRFIND(エフェクト, "キラ") != -1
 		RETURN 1
 ELSE
 	;通常画像
@@ -526,7 +538,7 @@ IF CFLAG:CHARA:대체적용
 		RETURN エフェクト数
 	ENDIF
 	;辛いもの食べるor作るでお目々キラキラ＆星が湧く
-	IF GROUPMATCH(SELECTCOM, 413, 414, 415) && FLAG:스탠딩종류 && STRFIND(COM_STR, "K30_辛味") > -1
+	IF GROUPMATCH(SELECTCOM, 413, 414, 415) && STRFIND(COM_STR, "K30_辛味") > -1
 		RESULTS:エフェクト数 = キラ
 		エフェクト数 += 1
 		RETURN エフェクト数
@@ -551,20 +563,9 @@ IF CFLAG:CHARA:대체적용
 		RETURN エフェクト数
 	ENDIF
 	;母乳
-	IF TALENT:CHARA:모유체질 && NOWEX:CHARA:분유 && CHECK_NUDE(CHARA)
+	IF TALENT:CHARA:모유체질 && NOWEX:CHARA:분유 && NUDITYCHECK(CHARA) < 2
 		RESULTS:エフェクト数 = 母乳
 		エフェクト数 += 1
-	ENDIF
-	;泣き顔貼り付け
-	IF TCVAR:CHARA:억지로 || (TCVAR:CHARA:386 && CFLAG:CHARA:우후후) || COM_STR == "K30_泣き"
-		RESULTS:エフェクト数 = 泣き
-		エフェクト数 += 1
-	ENDIF
-	;無気力目貼り付け
-	IF (CFLAG:CHARA:1805 > 1 && !CFLAG:CHARA:수면 && !RAND:4)|| COM_STR == "K30_無表情"
-		RESULTS:エフェクト数 = 無表情
-		エフェクト数 += 1
-		RETURN エフェクト数
 	ENDIF
 	IF FLAG:스탠딩종류
 		;顔絵
@@ -578,7 +579,7 @@ IF CFLAG:CHARA:대체적용
 				エフェクト数 += 1
 			ENDIF
 		ENDIF
-		IF CFLAG:CHARA:손에정액 && !(CHECK_NUDE(CHARA) == 0 || (TALENT:CHARA:임신 && CFLAG:CHARA:임신경과일수 >= 41))
+		IF CFLAG:CHARA:손에정액 && CHECK_NUDE(CHARA) || CFLAG:CHARA:임신경과일수 < 40
 			;手コキ
 			RESULTS:エフェクト数 = 精液手
 			エフェクト数 += 1
@@ -596,7 +597,7 @@ IF CFLAG:CHARA:대체적용
 			RESULTS:エフェクト数 = 精液上
 			エフェクト数 += 1
 		ENDIF
-		IF CFLAG:CHARA:손에정액 && !(TALENT:CHARA:임신 && CFLAG:CHARA:임신경과일수 >= 41 / 2) ;KR판 수치변경, 일판은 41
+		IF CFLAG:CHARA:손에정액 && CHECK_NUDE(CHARA) && CFLAG:CHARA:임신경과일수 < 40 / 2 ;KR판 수치변경, 일판은 40
 			;手コキ
 			RESULTS:エフェクト数 = 精液手
 			エフェクト数 += 1
