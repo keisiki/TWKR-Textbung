@@ -1,31 +1,158 @@
 ﻿
 ;실제로 캐릭터를 이동시키는 함수
-@TB_캐릭이동(캐릭터,이동값)
+@TB_캐릭이동(캐릭터,이동값,방향 = 0)
 #DIM DYNAMIC 캐릭터
 #DIM DYNAMIC 이동값
+#DIM DYNAMIC 방향
+#DIMS DYNAMIC TEMP_MOVE
+#DIM DYNAMIC 좌표변동방향,3
 
-T_위치:캐릭터:0 += 이동값
-IF T_위치:캐릭터:0 >= TB_위치값한계
-    이동값 -= T_위치:캐릭터:0 - TB_위치값한계
-    T_위치:캐릭터:0 = TB_위치값한계
-ELSEIF T_위치:캐릭터:0 <= 0
-    이동값 += 0 - T_위치:캐릭터:0
-    T_위치:캐릭터:0 = 0
+IF !방향
+    T_위치:캐릭터:0 += 이동값
+    IF T_위치:캐릭터:0 >= TB_위치값한계
+        이동값 -= T_위치:캐릭터:0 - TB_위치값한계
+        T_위치:캐릭터:0 = TB_위치값한계
+    ELSEIF T_위치:캐릭터:0 <= 0
+        이동값 += 0 - T_위치:캐릭터:0
+        T_위치:캐릭터:0 = 0
+    ENDIF
+ELSE
+    DEBUGPRINTFORML 방향처리된 캐릭이동: 방향=%T_ANGLETOSTR(방향)% 이동값={이동값}
+    LOCAL = GETBIT(방향,1)
+    LOCAL = LOCAL << 1
+    LOCAL += GETBIT(방향,0)
+    좌표변동방향:2 = (LOCAL * 2 - 3) * -1 ;Z
+    SIF !GROUPMATCH(좌표변동방향:2,1,-1)
+        좌표변동방향:2 = 0
+
+    LOCAL = GETBIT(방향,3)
+    LOCAL = LOCAL << 1
+    LOCAL += GETBIT(방향,2)
+    좌표변동방향:1 = (LOCAL * 2 - 3) * -1 ;Y
+    SIF !GROUPMATCH(좌표변동방향:1,1,-1)
+        좌표변동방향:1 = 0
+
+    LOCAL = GETBIT(방향,5)
+    LOCAL = LOCAL << 1
+    LOCAL += GETBIT(방향,4)
+    좌표변동방향:0 = (LOCAL * 2 - 3) * -1 ;X
+    SIF !GROUPMATCH(좌표변동방향:0,1,-1)
+        좌표변동방향:0 = 0
+
+    FOR LOCAL,0,ABS(이동값)
+        SELECTCASE TEMP_MOVE
+            CASE "X"
+                IF 좌표변동방향:1 == 1
+                    TEMP_MOVE = Y
+                    T_위치:캐릭터:1 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:1 + 1)
+                ELSEIF 좌표변동방향:1 == -1
+                    TEMP_MOVE = Y
+                    T_위치:캐릭터:1 = MAX(0, T_위치:캐릭터:1 - 1)
+                ELSEIF 좌표변동방향:2 == 1
+                    TEMP_MOVE = Z
+                    T_위치:캐릭터:2 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:2 + 1)
+                ELSEIF 좌표변동방향:2 == -1
+                    TEMP_MOVE = Z
+                    T_위치:캐릭터:2 = MAX(0, T_위치:캐릭터:2 - 1)
+                ELSEIF 좌표변동방향:0 == 1
+                    TEMP_MOVE = X
+                    T_위치:캐릭터:0 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:0 + 1)
+                ELSEIF 좌표변동방향:0 == -1
+                    TEMP_MOVE = X
+                    T_위치:캐릭터:0 = MAX(0, T_위치:캐릭터:0 - 1)
+                ELSE
+                    BREAK
+                ENDIF
+            CASE "Y"
+                IF 좌표변동방향:2 == 1
+                    TEMP_MOVE = Z
+                    T_위치:캐릭터:2 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:2 + 1)
+                ELSEIF 좌표변동방향:2 == -1
+                    TEMP_MOVE = Z
+                    T_위치:캐릭터:2 = MAX(0, T_위치:캐릭터:2 - 1)
+                ELSEIF 좌표변동방향:0 == 1
+                    TEMP_MOVE = X
+                    T_위치:캐릭터:0 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:0 + 1)
+                ELSEIF 좌표변동방향:0 == -1
+                    TEMP_MOVE = X
+                    T_위치:캐릭터:0 = MAX(0, T_위치:캐릭터:0 - 1)
+                ELSEIF 좌표변동방향:1 == 1
+                    TEMP_MOVE = Y
+                    T_위치:캐릭터:1 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:1 + 1)
+                ELSEIF 좌표변동방향:1 == -1
+                    TEMP_MOVE = Y
+                    T_위치:캐릭터:1 = MAX(0, T_위치:캐릭터:1 - 1)
+                ELSE
+                    BREAK
+                ENDIF
+            CASE "Z"
+                IF 좌표변동방향:0 == 1
+                    TEMP_MOVE = X
+                    T_위치:캐릭터:0 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:0 + 1)
+                ELSEIF 좌표변동방향:0 == -1
+                    TEMP_MOVE = X
+                    T_위치:캐릭터:0 = MAX(0, T_위치:캐릭터:0 - 1)
+                ELSEIF 좌표변동방향:1 == 1
+                    TEMP_MOVE = Y
+                    T_위치:캐릭터:1 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:1 + 1)
+                ELSEIF 좌표변동방향:1 == -1
+                    TEMP_MOVE = Y
+                    T_위치:캐릭터:1 = MAX(0, T_위치:캐릭터:1 - 1)
+                ELSEIF 좌표변동방향:2 == 1
+                    TEMP_MOVE = Z
+                    T_위치:캐릭터:2 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:2 + 1)
+                ELSEIF 좌표변동방향:2 == -1
+                    TEMP_MOVE = Z
+                    T_위치:캐릭터:2 = MAX(0, T_위치:캐릭터:2 - 1)
+                ELSE
+                    BREAK
+                ENDIF
+            CASEELSE
+                IF 좌표변동방향:0 == 1
+                    TEMP_MOVE = X
+                    T_위치:캐릭터:0 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:0 + 1)
+                ELSEIF 좌표변동방향:0 == -1
+                    TEMP_MOVE = X
+                    T_위치:캐릭터:0 = MAX(0, T_위치:캐릭터:0 - 1)
+                ELSEIF 좌표변동방향:1 == 1
+                    TEMP_MOVE = Y
+                    T_위치:캐릭터:1 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:1 + 1)
+                ELSEIF 좌표변동방향:1 == -1
+                    TEMP_MOVE = Y
+                    T_위치:캐릭터:1 = MAX(0, T_위치:캐릭터:1 - 1)
+                ELSEIF 좌표변동방향:2 == 1
+                    TEMP_MOVE = Z
+                    T_위치:캐릭터:2 = MIN(TB_위치값한계 - 1, T_위치:캐릭터:2 + 1)
+                ELSEIF 좌표변동방향:2 == -1
+                    TEMP_MOVE = Z
+                    T_위치:캐릭터:2 = MAX(0, T_위치:캐릭터:2 - 1)
+                ELSE
+                    BREAK
+                ENDIF
+        ENDSELECT
+    NEXT
 ENDIF
 RETURN 이동값
 
 ;특정 좌표로 순간 이동 시킴
-@TB_순간이동(캐릭터,좌표)
+@TB_순간이동(캐릭터,좌표, ARG = 0)
 #DIM DYNAMIC 캐릭터
 #DIM DYNAMIC 좌표
 
-T_위치:캐릭터:0 = 좌표
-IF T_위치:캐릭터:0 >= TB_위치값한계
-    좌표 -= T_위치:캐릭터:0 - TB_위치값한계
-    T_위치:캐릭터:0 = TB_위치값한계
-ELSEIF T_위치:캐릭터:0 <= 0
-    좌표 += 0 - T_위치:캐릭터:0
-    T_위치:캐릭터:0 = 0
+IF ARG == 0
+    T_위치:캐릭터:0 = 좌표
+    IF T_위치:캐릭터:0 >= TB_위치값한계
+        좌표 -= T_위치:캐릭터:0 - TB_위치값한계
+        T_위치:캐릭터:0 = TB_위치값한계
+    ELSEIF T_위치:캐릭터:0 <= 0
+        좌표 += 0 - T_위치:캐릭터:0
+        T_위치:캐릭터:0 = 0
+    ENDIF
+ELSE
+    CALL TB_INTTOMAP(좌표)
+    T_위치:캐릭터:0 = RESULT:2
+    T_위치:캐릭터:1 = RESULT:1
+    T_위치:캐릭터:2 = RESULT:0
 ENDIF
 RETURN 좌표
 
@@ -75,6 +202,32 @@ IF 방향 == 1
 ELSE
     CALL TB_캐릭이동(캐릭터,MAX(방향*ARG능력치(캐릭터,"이동력"), 방향*거리))
     PRINTFORML %조사처리(CALLNAME:캐릭터,"가")% 왼쪽으로 {ABS(RESULT)}m움직였다!
+ENDIF
+
+@TB_MOVE(캐릭터,좌표,제한 = 0)
+#DIM DYNAMIC 캐릭터
+#DIM DYNAMIC 좌표
+#DIM DYNAMIC 방향
+#DIM DYNAMIC 거리
+#DIM DYNAMIC 제한
+CALL 행동기회소모(캐릭터,T_이동행동)
+거리 = T_INTTORANGE(TB_MAPTOINT(T_위치:캐릭터:0,T_위치:캐릭터:1,T_위치:캐릭터:2),좌표)
+IF 제한 == 1
+    거리 = 거리 / 2
+ENDIF
+IF 좌표 < 1000000 ; 좌표가 아닌 방향을 받음
+    방향 = 좌표
+    DEBUGPRINTFORML %CALLNAME:캐릭터%의 이동처리 개시:{TB_MAPTOINT(T_위치:캐릭터:0,T_위치:캐릭터:1,T_위치:캐릭터:2)}(거리:{ARG능력치(캐릭터,"이동력")/(1 + 제한)})(방향:%T_ANGLETOSTR(방향)%)
+    CALL TB_캐릭이동(캐릭터,ARG능력치(캐릭터,"이동력")/(1 + 제한), 방향)
+ELSEIF 거리 > ARG능력치(캐릭터,"이동력")
+    ;1턴에 갈 수 있는 거리가 아냐
+    방향 = T_INTTOANGLE(TB_MAPTOINT(T_위치:캐릭터:0,T_위치:캐릭터:1,T_위치:캐릭터:2),좌표)
+    DEBUGPRINTFORML %CALLNAME:캐릭터%의 이동처리 개시:{TB_MAPTOINT(T_위치:캐릭터:0,T_위치:캐릭터:1,T_위치:캐릭터:2)} -> {좌표}(거리:{거리})(방향:%T_ANGLETOSTR(방향)%)
+    CALL TB_캐릭이동(캐릭터,ARG능력치(캐릭터,"이동력"), 방향)
+ELSE
+    ;1턴 안에 갈 수 있으면 순간이동
+    DEBUGPRINTFORML %CALLNAME:캐릭터%의 이동처리 개시:{TB_MAPTOINT(T_위치:캐릭터:0,T_위치:캐릭터:1,T_위치:캐릭터:2)} -> {좌표}(거리:{거리})(근접순간이동)
+    CALL TB_순간이동(캐릭터,좌표,1)
 ENDIF
 
 ;혹여 이상하게 건드렸다가 값 꼬이지 않게 + 코드가 단정해짐
@@ -159,3 +312,411 @@ IF TB_SUM_REMAIN(시전자,TCV_봉쇄)
     RETURNF 0
 ENDIF
 RETURNF 1
+
+
+@T_LOCATE(ARG,디코이무시 = -1)
+#DIM DYNAMIC 디코이무시
+VARSET LOCAL
+IF 디코이무시 == -1 || 디코이무시 >= TB_MAX_VALUE(ARG,TCV_은신) || 0 >= TB_MAX_VALUE(ARG,TCV_은신)
+ELSE
+    LOCAL:0 = RAND:TB_MAX_VALUE(ARG,TCV_은신) * (RAND:2 * 2 - 1) ;0 > 0 > -1 / 1 > 2 > 1
+    LOCAL:1 = RAND:TB_MAX_VALUE(ARG,TCV_은신) * (RAND:2 * 2 - 1)
+    LOCAL:2 = RAND:TB_MAX_VALUE(ARG,TCV_은신) * (RAND:2 * 2 - 1)
+ENDIF
+RESULT:0 = LIMIT(T_위치:ARG:0 + LOCAL:0,0,TB_위치값한계)
+RESULT:1 = LIMIT(T_위치:ARG:1 + LOCAL:1,0,TB_위치값한계)
+RESULT:2 = LIMIT(T_위치:ARG:2 + LOCAL:2,0,TB_위치값한계)
+RETURN T_위치:ARG:0
+
+@T_RANGE(X1,Y1,Z1,X2,Y2,Z2)
+#DIM DYNAMIC X1
+#DIM DYNAMIC X2
+#DIM DYNAMIC Y1
+#DIM DYNAMIC Y2
+#DIM DYNAMIC Z1
+#DIM DYNAMIC Z2
+#FUNCTION
+    RETURNF SQRT(POWER(X2-X1,2)+POWER(Y2-Y1,2)+POWER(Z2-Z1,2))
+
+@T_INTTORANGE(ARG,ARG:1)
+#FUNCTION
+;INTTOMAP을 쓰고싶지만 FUNCTION 안에서 일반함수를 호출할 수 없으니...
+ARG -= 1000000
+LOCAL:2 = ARG / 1000000
+LOCAL:1 = (ARG % 100000) / 1000
+LOCAL:0 = ARG % 1000
+
+ARG:1 -= 1000000
+LOCAL:5 = ARG:1 / 1000000
+LOCAL:4 = (ARG:1 % 100000) / 1000
+LOCAL:3 = ARG:1 % 1000
+
+RETURNF T_RANGE(LOCAL:2,LOCAL:1,LOCAL:0,LOCAL:5,LOCAL:4,LOCAL:3)
+
+@T_ANGLE(X1,Y1,Z1,X2,Y2,Z2)
+#DIM DYNAMIC X1 ;출발
+#DIM DYNAMIC X2 ;목적
+#DIM DYNAMIC Y1 ;출발
+#DIM DYNAMIC Y2 ;목적
+#DIM DYNAMIC Z1 ;출발
+#DIM DYNAMIC Z2 ;목적
+#FUNCTION
+;27종
+;00 00 00 - X, Y, Z
+;00 = 0 - 중립 
+;01 = 1 - 증가 
+;10 = 2 - 감소 
+;11 = 3 - 중립
+[SKIPSTART]
+RESULT = 0
+IF X2 > X1
+    RESULT += 1
+ELSEIF X2 == X1
+    RESULT += 0
+ELSE
+    RESULT += 2
+ENDIF
+RESULT = RESULT << 2
+IF Y2 > Y1
+    RESULT += 1
+ELSEIF Y2 == Y1
+    RESULT += 0
+ELSE
+    RESULT += 2
+ENDIF
+RESULT = RESULT << 2
+IF Z2 > Z1
+    RESULT += 1
+ELSEIF Z2 == Z1
+    RESULT += 0
+ELSE
+    RESULT += 2
+ENDIF
+[SKIPEND]
+RESULT = T_ANGLE_TAN(X2 - X1, Z2 - Z1)
+IF RESULT == 180 || RESULT == 0
+    RESULT = 0
+ENDIF
+RESULT *= 1000
+RESULT += T_ANGLE_TAN(X2 - X1, Y2 - Y1)
+;RESULT / 1000 -> Z 각도, RESULT % 1000 -> X와 Y로 각도
+RETURNF RESULT
+
+@T_INTTOANGLE(ARG,ARG:1)
+#FUNCTION
+;INTTOMAP을 쓰고싶지만 FUNCTION 안에서 일반함수를 호출할 수 없으니...
+ARG -= 1000000
+LOCAL:2 = ARG / 1000000
+LOCAL:1 = (ARG % 1000000) / 1000
+LOCAL:0 = ARG % 1000
+
+ARG:1 -= 1000000
+LOCAL:5 = ARG:1 / 1000000
+LOCAL:4 = (ARG:1 % 1000000) / 1000
+LOCAL:3 = ARG:1 % 1000
+
+RETURNF T_ANGLE(LOCAL:2,LOCAL:1,LOCAL:0,LOCAL:5,LOCAL:4,LOCAL:3)
+
+@T_ANGLETOSTR(ARG)
+#FUNCTIONS
+#DIM DYNAMIC 증감치,3
+VARSET RESULTS
+LOCAL = GETBIT(ARG,1)
+LOCAL = LOCAL << 1
+LOCAL += GETBIT(ARG,0)
+증감치:2 = LOCAL ;Z
+SELECTCASE 증감치:2
+    CASE 0
+    CASE 1
+        증감치:2 = 1
+    CASE 2
+        증감치:2 = -1
+    CASE 3
+        증감치:2 = 0
+ENDSELECT
+
+LOCAL = GETBIT(ARG,3)
+LOCAL = LOCAL << 1
+LOCAL += GETBIT(ARG,2)
+증감치:1 = LOCAL ;Y
+SELECTCASE 증감치:1
+    CASE 0
+    CASE 1
+        증감치:1 = 1
+    CASE 2
+        증감치:1 = -1
+    CASE 3
+        증감치:1 = 0
+ENDSELECT
+
+LOCAL = GETBIT(ARG,5)
+LOCAL = LOCAL << 1
+LOCAL += GETBIT(ARG,4)
+증감치:0 = LOCAL ;X
+SELECTCASE 증감치:0
+    CASE 0
+    CASE 1
+        증감치:0 = 1
+    CASE 2
+        증감치:0 = -1
+    CASE 3
+        증감치:0 = 0
+ENDSELECT
+
+;1 -> 2 -> -1 -> 1;증가
+;2 -> 4 -> 1 -> -1;감소
+
+; 정북 - x 0 y -1
+; 북동 - x 1 y -1
+; 정동 - x 1 y 0
+; 남동 - x 1 y 1
+; 정남 - x 0 y 1
+; 남서 - x -1 y 1
+; 정서 - x -1 y 0
+; 북서 - x -1 y -1
+
+SELECTCASE 증감치:0
+    CASE -1
+        SELECTCASE 증감치:1
+            CASE -1
+                RESULTS = 북서
+            CASE 0
+                RESULTS = 서
+            CASE 1
+                RESULTS = 남서
+        ENDSELECT
+    CASE 0
+        SELECTCASE 증감치:1
+            CASE -1
+                RESULTS = 북
+            CASE 0
+                ;안움직임
+                ;RESULTS = 
+            CASE 1
+                RESULTS = 남
+        ENDSELECT
+    CASE 1
+        SELECTCASE 증감치:1
+            CASE -1
+                RESULTS = 북동
+            CASE 0
+                RESULTS = 동
+            CASE 1
+                RESULTS = 남동
+        ENDSELECT
+ENDSELECT
+SELECTCASE 증감치:2
+    CASE -1
+        RESULTS += "쪽 아래방향"
+    CASE 0
+        RESULTS += "쪽"
+    CASE 1
+        RESULTS += "쪽 윗 방향"
+ENDSELECT
+RETURNF RESULTS
+
+
+@T_ANGLE_TAN_TO_WAY(각도,이동력)
+#DIM DYNAMIC XX ;DX
+#DIM DYNAMIC YY ;DY
+#DIM DYNAMIC 각도
+#DIM DYNAMIC 이동력
+#DIM DYNAMIC TB_ANGLE_차트,21,21 ;다차원 변수에는 초기값을 못넣어
+#DIM CONST TB_ANGLE_범위 = 10
+TB_ANGLE_차트:20:0 =  135, 131, 128, 124, 120, 116, 111, 106, 101,  95, 90, 84, 78, 73, 68, 63, 59, 55, 51, 48, 45
+TB_ANGLE_차트:19:0 =  138, 135, 131, 127, 123, 119, 113, 108, 102,  96, 90, 83, 77, 71, 66, 60, 56, 52, 48, 45, 41
+TB_ANGLE_차트:18:0 =  141, 138, 135, 131, 126, 122, 116, 110, 104,  97, 90, 82, 75, 69, 63, 57, 53, 48, 45, 41, 38
+TB_ANGLE_차트:17:0 =  145, 142, 138, 135, 130, 125, 119, 113, 105,  98, 90, 81, 74, 66, 60, 54, 49, 45, 41, 37, 34
+TB_ANGLE_차트:16:0 =  149, 146, 143, 139, 135, 129, 123, 116, 108,  99, 90, 80, 71, 63, 56, 50, 45, 40, 36, 33, 30
+TB_ANGLE_차트:15:0 =  153, 150, 147, 144, 140, 135, 128, 120, 111, 101, 90, 78, 68, 59, 51, 45, 39, 35, 32, 29, 26
+TB_ANGLE_차트:14:0 =  158, 156, 153, 150, 146, 141, 135, 126, 116, 104, 90, 75, 63, 53, 45, 38, 33, 29, 26, 23, 21
+TB_ANGLE_차트:13:0 =  163, 161, 159, 156, 153, 149, 143, 135, 123, 108, 90, 71, 56, 45, 36, 30, 26, 23, 20, 18, 16
+TB_ANGLE_차트:12:0 =  168, 167, 165, 164, 161, 158, 153, 146, 135, 116, 90, 63, 45, 33, 26, 21, 18, 15, 14, 12, 11
+TB_ANGLE_차트:11:0 =  174, 173, 172, 171, 170, 168, 165, 161, 153, 135, 90, 45, 26, 18, 14, 11,  9,  8,  7,  6,  5
+TB_ANGLE_차트:10:0 =  180, 180, 180, 180, 180, 180, 180, 180, 180, 180,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+TB_ANGLE_차트:09:0 = -175,-174,-173,-172,-171,-169,-166,-162,-154,-135,-90,-45,-27,-19,-15,-12,-10, -9, -8, -7, -6
+TB_ANGLE_차트:08:0 = -169,-168,-166,-165,-162,-159,-154,-147,-135,-117,-90,-64,-45,-34,-27,-22,-19,-16,-15,-13,-12
+TB_ANGLE_차트:07:0 = -164,-162,-160,-157,-154,-150,-144,-135,-124,-109,-90,-72,-57,-45,-37,-31,-27,-24,-21,-19,-17
+TB_ANGLE_차트:06:0 = -159,-157,-154,-151,-147,-142,-135,-127,-117,-105,-90,-76,-64,-54,-45,-39,-34,-30,-27,-24,-22
+TB_ANGLE_차트:05:0 = -154,-151,-148,-145,-141,-135,-129,-121,-112,-102,-90,-79,-69,-60,-52,-45,-40,-36,-33,-30,-27
+TB_ANGLE_차트:04:0 = -150,-147,-144,-140,-135,-130,-124,-117,-109,-100,-90,-81,-72,-64,-57,-51,-45,-41,-37,-34,-31
+TB_ANGLE_차트:03:0 = -146,-143,-139,-135,-131,-126,-120,-114,-106, -99,-90,-82,-75,-67,-61,-55,-50,-45,-42,-38,-35
+TB_ANGLE_차트:02:0 = -142,-139,-135,-132,-127,-123,-117,-111,-105, -98,-90,-83,-76,-70,-64,-58,-54,-49,-45,-42,-39
+TB_ANGLE_차트:01:0 = -139,-135,-132,-128,-124,-120,-114,-109,-103, -97,-90,-84,-78,-72,-67,-61,-57,-53,-49,-45,-42
+TB_ANGLE_차트:00:0 = -135,-132,-129,-125,-121,-117,-112,-107,-102, -96,-90,-85,-79,-74,-69,-64,-60,-56,-52,-49,-45
+
+SELECTCASE 각도
+    CASE 90
+        YY += 이동력 
+        GOTO END
+    CASE 45
+        YY += 이동력
+        XX += 이동력 
+        GOTO END
+    CASE 0
+        XX += 이동력 
+        GOTO END
+    CASE -45
+        YY -= 이동력
+        XX += 이동력 
+        GOTO END
+    CASE -90
+        YY -= 이동력 
+        GOTO END
+    CASE -135
+        YY -= 이동력
+        XX -= 이동력 
+        GOTO END
+    CASE 135
+        YY += 이동력
+        XX -= 이동력 
+        GOTO END
+    CASE 180
+        XX -= 이동력
+        GOTO END
+    CASEELSE
+ENDSELECT
+FOR LOCAL,0,TB_ANGLE_범위 * 2
+    FOR LOCAL:1,0,TB_ANGLE_범위 * 2
+        IF TB_ANGLE_차트:(LOCAL):(LOCAL:1) == 각도
+            LOCAL:2 = SQRT(POWER(LOCAL - TB_ANGLE_범위,2) + POWER(LOCAL:1 - TB_ANGLE_범위,2))
+            IF LOCAL:2 > 이동력
+                ;갈 수 있는 거리보다 멀다
+                ;일단 임시 저장만
+                LOCAL:3 = LOCAL:1
+                LOCAL:4 = LOCAL:0
+                IF LOCAL > TB_ANGLE_범위
+                    ;중간값을 넘기면 Y가 커질수록 거리가 더 벌어지게 되니까 그만두어야함
+                    GOTO 처리
+                ENDIF
+            ELSEIF LOCAL:2 <= 이동력
+                YY = LOCAL - TB_ANGLE_범위
+                XX = LOCAL:1 - TB_ANGLE_범위
+                이동력 -= LOCAL:2
+                GOTO END
+            ENDIF
+        ENDIF
+    NEXT
+NEXT
+$처리
+WHILE 이동력 > 0
+    이동력--
+    SELECTCASE T_ANGLE_TAN(LOCAL:3 - TB_ANGLE_범위 + XX, LOCAL:4 - TB_ANGLE_범위 + YY)
+        CASE 0
+            ;동
+            XX++
+        CASE 1 TO 89
+            ;북동
+            XX++
+            YY++
+        CASE 90
+            ;북
+            YY++
+        CASE 91 TO 179
+            ;북서
+            XX--
+            YY++
+        CASE 180
+            ;서
+            XX--
+        CASE -180 TO -91
+            ;남서
+            XX--
+            YY--
+        CASE -90
+            ;남
+            YY--
+        CASE -79 TO -1
+            ;남동
+            XX++
+            YY--
+    ENDSELECT
+WEND
+$END
+RESULT:0 = XX
+RESULT:1 = YY
+RESULT:2 = 이동력
+
+
+@T_ANGLE_TAN(XX,YY)
+#FUNCTION
+#DIM DYNAMIC XX ;DX
+#DIM DYNAMIC YY ;DY
+#DIM DYNAMIC TB_ANGLE_차트,21,21 ;다차원 변수에는 초기값을 못넣어
+#DIM CONST TB_ANGLE_범위 = 10
+TB_ANGLE_차트:20:0 =  135, 131, 128, 124, 120, 116, 111, 106, 101,  95, 90, 84, 78, 73, 68, 63, 59, 55, 51, 48, 45
+TB_ANGLE_차트:19:0 =  138, 135, 131, 127, 123, 119, 113, 108, 102,  96, 90, 83, 77, 71, 66, 60, 56, 52, 48, 45, 41
+TB_ANGLE_차트:18:0 =  141, 138, 135, 131, 126, 122, 116, 110, 104,  97, 90, 82, 75, 69, 63, 57, 53, 48, 45, 41, 38
+TB_ANGLE_차트:17:0 =  145, 142, 138, 135, 130, 125, 119, 113, 105,  98, 90, 81, 74, 66, 60, 54, 49, 45, 41, 37, 34
+TB_ANGLE_차트:16:0 =  149, 146, 143, 139, 135, 129, 123, 116, 108,  99, 90, 80, 71, 63, 56, 50, 45, 40, 36, 33, 30
+TB_ANGLE_차트:15:0 =  153, 150, 147, 144, 140, 135, 128, 120, 111, 101, 90, 78, 68, 59, 51, 45, 39, 35, 32, 29, 26
+TB_ANGLE_차트:14:0 =  158, 156, 153, 150, 146, 141, 135, 126, 116, 104, 90, 75, 63, 53, 45, 38, 33, 29, 26, 23, 21
+TB_ANGLE_차트:13:0 =  163, 161, 159, 156, 153, 149, 143, 135, 123, 108, 90, 71, 56, 45, 36, 30, 26, 23, 20, 18, 16
+TB_ANGLE_차트:12:0 =  168, 167, 165, 164, 161, 158, 153, 146, 135, 116, 90, 63, 45, 33, 26, 21, 18, 15, 14, 12, 11
+TB_ANGLE_차트:11:0 =  174, 173, 172, 171, 170, 168, 165, 161, 153, 135, 90, 45, 26, 18, 14, 11,  9,  8,  7,  6,  5
+TB_ANGLE_차트:10:0 =  180, 180, 180, 180, 180, 180, 180, 180, 180, 180,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+TB_ANGLE_차트:09:0 = -175,-174,-173,-172,-171,-169,-166,-162,-154,-135,-90,-45,-27,-19,-15,-12,-10, -9, -8, -7, -6
+TB_ANGLE_차트:08:0 = -169,-168,-166,-165,-162,-159,-154,-147,-135,-117,-90,-64,-45,-34,-27,-22,-19,-16,-15,-13,-12
+TB_ANGLE_차트:07:0 = -164,-162,-160,-157,-154,-150,-144,-135,-124,-109,-90,-72,-57,-45,-37,-31,-27,-24,-21,-19,-17
+TB_ANGLE_차트:06:0 = -159,-157,-154,-151,-147,-142,-135,-127,-117,-105,-90,-76,-64,-54,-45,-39,-34,-30,-27,-24,-22
+TB_ANGLE_차트:05:0 = -154,-151,-148,-145,-141,-135,-129,-121,-112,-102,-90,-79,-69,-60,-52,-45,-40,-36,-33,-30,-27
+TB_ANGLE_차트:04:0 = -150,-147,-144,-140,-135,-130,-124,-117,-109,-100,-90,-81,-72,-64,-57,-51,-45,-41,-37,-34,-31
+TB_ANGLE_차트:03:0 = -146,-143,-139,-135,-131,-126,-120,-114,-106, -99,-90,-82,-75,-67,-61,-55,-50,-45,-42,-38,-35
+TB_ANGLE_차트:02:0 = -142,-139,-135,-132,-127,-123,-117,-111,-105, -98,-90,-83,-76,-70,-64,-58,-54,-49,-45,-42,-39
+TB_ANGLE_차트:01:0 = -139,-135,-132,-128,-124,-120,-114,-109,-103, -97,-90,-84,-78,-72,-67,-61,-57,-53,-49,-45,-42
+TB_ANGLE_차트:00:0 = -135,-132,-129,-125,-121,-117,-112,-107,-102, -96,-90,-85,-79,-74,-69,-64,-60,-56,-52,-49,-45
+;xy -10~10까지의 atan2 * 180/pi값
+
+IF ABS(XX) <= TB_ANGLE_범위 && ABS(YY) <= TB_ANGLE_범위
+    ;표 TB_ANGLE_범위인 -10~10이내라면 표를 그대로 사용
+ELSEIF XX == 0 || YY == 0 || (XX == YY)
+    ;8방위에 속하는 각은 미리 처리
+    IF XX == 0
+        ;-90 <-> 90
+        RETURNF 90 * SIGN(YY)
+    ELSEIF YY == 0
+        ;180 <-> 0
+        RETURNF 90 + (SIGN(XX) * -90)
+    ELSE
+        RETURNF SIGN(YY) * (90 + (SIGN(XX) * -45))
+    ENDIF
+ELSEIF ABS(XX) > TB_ANGLE_범위 || ABS(YY) > TB_ANGLE_범위
+    ;표보다 멀리 떨어짐
+    IF ABS(XX) <= 1 || ABS(YY) <= 1
+        GOTO ONLYONE
+    ENDIF
+    FOR LOCAL,0,30
+        ;동일비율로 2배 축소시키면서 본다 
+        XX /= 2
+        YY /= 2
+        IF ABS(XX) <= TB_ANGLE_범위 && ABS(YY) <= TB_ANGLE_범위
+            BREAK
+        ENDIF
+        IF ABS(XX) <= TB_ANGLE_범위 || ABS(YY) <= TB_ANGLE_범위 
+            GOTO ONLYONE
+        ENDIF
+    NEXT
+ELSEIF ABS(XX) <= TB_ANGLE_범위 || ABS(YY) <= TB_ANGLE_범위
+    ;둘중 하나만 TB_ANGLE_범위 내고 하나만 멀리 떨어진 경우라면 멀리 떨어진 부분을 10으로 고정
+    $ONLYONE
+    IF ABS(XX) <= TB_ANGLE_범위 
+        ;YY = TB_ANGLE_범위 * SIGN(YY)
+        YY /= XX
+        XX = 1
+        IF ABS(YY) > 10
+            ;아직도 높다면 어쩔수없이 10 고정
+            YY = 10
+        ENDIF
+    ELSE
+        ;XX = TB_ANGLE_범위 * SIGN(XX)
+        XX /= YY
+        YY = 1
+        IF ABS(XX) > 10
+            ;아직도 높다면 어쩔수없이 10 고정
+            XX = 10
+        ENDIF
+    ENDIF
+ELSE
+    ;예외인데 가능성이 있나?
+ENDIF
+RETURNF TB_ANGLE_차트:(YY + TB_ANGLE_범위):(XX + TB_ANGLE_범위)

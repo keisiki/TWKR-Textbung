@@ -147,6 +147,14 @@ REPEAT 2
 REND
 T_위치:T_대상1:0 = TB_위치값한계/2 - TB_위치이격값/2
 T_위치:T_대상2:0 = TB_위치값한계/2 + TB_위치이격값/2
+T_위치:T_대상1:1 = TB_위치값한계/2 - TB_위치이격값/2
+T_위치:T_대상2:1 = TB_위치값한계/2 + TB_위치이격값/2
+
+VARSET T_OBJ, -1
+
+TB_축척 = 5
+CALL 스킬리스트등록(ARG)
+CALL 스킬리스트등록(ARG:1)
 CALL 공방세팅(ARG, ARG:1)
 
 ;----
@@ -371,11 +379,9 @@ $뉴탄막루틴시작
 ;---------
 ;내(대상1) 턴
 ;---------
-DRAWLINE
 PRINTL
 PRINTW 내 턴 시작
 PRINTL
-DRAWLINE
 CALL T_턴처리(대상1, 대상2)
 ;승부처리
 ;일단 체력만 기준으로 봄
@@ -428,16 +434,26 @@ IF 턴넘김 == 1
         IF RESULT == 1
             BREAK
         ENDIF
-    ELSEIF GROUPMATCH(RESULT,TCN_좌측이동,TCN_좌측절반,TCN_우측절반,TCN_우측이동) && 행동기회여부(대상1,T_이동행동)
+    ELSEIF INRANGE(RESULT,1001,1009) && 행동기회여부(대상1,T_이동행동)
         SELECTCASE RESULT
-            CASE TCN_좌측이동
-                CALL T_COM이동한다(-2)
-            CASE TCN_좌측절반
-                CALL T_COM이동한다(-1)
-            CASE TCN_우측절반
-                CALL T_COM이동한다(1)
-            CASE TCN_우측이동
-                CALL T_COM이동한다(2)
+            CASE 1001 ; X- Y+ 10 01 00  = 36
+                CALL TB_MOVE(대상1,36,반속이동)
+            CASE 1002 ; X  Y+ 00 01 00  = 4
+                CALL TB_MOVE(대상1,4,반속이동)
+            CASE 1003 ; X+ Y+ 01 01 00  = 20
+                CALL TB_MOVE(대상1,20,반속이동)
+            CASE 1004 ; X- Y  10 00 00  = 32
+                CALL TB_MOVE(대상1,32,반속이동)
+            CASE 1006 ; X+ Y  01 00 00  = 16
+                CALL TB_MOVE(대상1,16,반속이동)
+            CASE 1007 ; X- Y- 10 10 00  = 40
+                CALL TB_MOVE(대상1,40,반속이동)
+            CASE 1008 ; X  Y- 00 10 00  = 8
+                CALL TB_MOVE(대상1,8,반속이동)
+            CASE 1009 ; X+ Y- 01 10 00  = 24
+                CALL TB_MOVE(대상1,24,반속이동)
+            CASE 1005
+                반속이동 = !반속이동
         ENDSELECT
         IF RESULT == 1
             BREAK
@@ -480,6 +496,14 @@ IF 턴넘김 == 1
 
         ELSE
             RETURN 2
+        ENDIF
+    ELSEIF RESULT >= 1000000 && 행동기회여부(대상1,T_이동행동)
+        CALL TB_MOVE(대상1,RESULT)
+    ELSEIF RESULT == 5555
+        IF TB_축척 == 5
+            TB_축척 = 1
+        ELSE
+            TB_축척 = 5
         ENDIF
     ELSE
     ENDIF
@@ -536,7 +560,6 @@ ENDIF
 ;--------
 ;적(대상2) 턴
 ;--------
-DRAWLINE
 PRINTL
 PRINTW 적턴 시작
 PRINTL
@@ -676,7 +699,6 @@ T_턴주인 = ARG
 T_턴반대 = ARG:1
 
 ;CALL 버프감소처리(ARG)
-
 CALL 공방세팅(ARG, ARG:1)
 T_행동기회:T_턴주인:T_통상행동 = 1
 SIF T_MOVEABLE(T_턴주인)
@@ -728,17 +750,26 @@ FOR LOCAL,1,T_스킬한계값
 NEXT
 T_마도서:13 = MAX(0,T_마도서:13 - 1)
 T_요마서:13 = MAX(0,T_요마서:13 - 1)
-
+FOR LOCAL,0,T_OBJ_MAX
+    IF T_OBJ:0:LOCAL != -1
+        CALL T_OBJ_MOVE(LOCAL,T_OBJ:3:LOCAL)
+        CALL T_OBJ_DECAY(LOCAL)
+        CALL T_OBJ_IS_TOUCHED(LOCAL,T_턴주인)
+        CALL T_OBJ_IS_TOUCHED(LOCAL,T_턴반대)
+    ENDIF
+NEXT
 T_TIME++
 
 @뉴탄막커맨드창
-ALIGNMENT CENTER
+;ALIGNMENT CENTER
 ;----------------
 ;LINE 1
 ;----------------
 CALL 뉴탄막커맨드창_색깔설정("이동")
-PRINTBUTTON "[<<]　　　",TCN_좌측이동
-PRINTBUTTON "[<] 　　　",TCN_좌측절반
+PRINTBUTTON @"%"[↖]",4%",1007
+PRINTBUTTON @"%"[↑]",4%",1008
+PRINTBUTTON @"%"[↗]",4%",1009
+PRINTFORM %" "*4%
 ;/////////////////////
 CALL 뉴탄막커맨드창_색깔설정("통상")
 PRINTFORM [{TCN_공격한다}] %뉴탄막커맨드창_출력(TCN_공격한다),15,RIGHT%　　　
@@ -751,14 +782,22 @@ PRINTFORM [{TCN_아이템사용}] %뉴탄막커맨드창_출력(TCN_아이템사
 RESETCOLOR
 ;/////////////////////
 CALL 뉴탄막커맨드창_색깔설정("이동")
-PRINTBUTTON "[>] 　　　",TCN_우측절반
-PRINTBUTTON "[>>]　　　",TCN_우측이동
+
 ;/////////////////////
 PRINTL
 ;----------------
 ;LINE 2
 ;----------------
-
+CALL 뉴탄막커맨드창_색깔설정("이동")
+PRINTBUTTON @"%"[←]",4%",1004
+IF 반속이동
+    PRINTBUTTON @"%"[½]",4%",1005
+ELSE
+    PRINTBUTTON @"%"[１]",4%",1005
+ENDIF
+PRINTBUTTON @"%"[→]",4%",1006
+PRINTFORM %" "*4%
+;/////////////////////
 CALL 뉴탄막커맨드창_색깔설정("통상")
 PRINTFORM [{TCN_회피에집중}] %뉴탄막커맨드창_출력(TCN_회피에집중),15,RIGHT%　　　
 ;/////////////////////
@@ -776,7 +815,13 @@ PRINTL
 ;----------------
 ;LINE 3
 ;----------------
-
+CALL 뉴탄막커맨드창_색깔설정("이동")
+PRINTBUTTON @"%"[↙]",4%",1001
+PRINTBUTTON @"%"[↓]",4%",1002
+PRINTBUTTON @"%"[↘]",4%",1003
+PRINTFORM %" "*4%
+;/////////////////////
+CALL 뉴탄막커맨드창_색깔설정("통상")
 PRINTFORM [{TCN_적용된반격기}] %뉴탄막커맨드창_출력(TCN_적용된반격기),15,RIGHT%　　　
 ;/////////////////////
 CALL 뉴탄막커맨드창_색깔설정("통상")

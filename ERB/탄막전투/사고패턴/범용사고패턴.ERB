@@ -1077,8 +1077,9 @@ VARSET SKILL_ARRAY
 배열내위치 = 0
 
 ;맨 앞 부분 스킬들만 우선적으로 쌓이기에 문제가 될 소지 존자.
-;FOR 스킬번호, 1, 2000
-FOR 스킬번호, 1, T_스킬한계값
+;FOR 스킬번호, 1, T_스킬한계값
+FOR LOCAL, 1, SKILL_LIST:ARG:0
+    스킬번호 = SKILL_LIST:ARG:LOCAL
     ;실장되지 않은 스킬은 통과
     IF TALENTNAME:(스킬번호 + 500) == ""
         CANNOT_ARRAY:스킬번호 = 1
@@ -1206,7 +1207,9 @@ RETURNF 0
 @MAKE_HAVE_T_TYPE(ARG)
 #DIM DYNAMIC 타입
 #DIM DYNAMIC 스킬번호
-FOR 스킬번호, 0, T_스킬한계값
+;FOR 스킬번호, 0, T_스킬한계값
+FOR LOCAL, 0, SKILL_LIST:ARG:0
+    스킬번호 = SKILL_LIST:ARG:LOCAL
     RESULT = 0
     CALLFORM CAN_T_SKILL(ARG, 스킬번호)
     IF RESULT == 1 ;스킬 시전 가능
@@ -1252,8 +1255,9 @@ VARSET TEMP
 배열내위치 = 0
 
 ;맨 앞 부분 스킬들만 우선적으로 쌓이기에 문제가 될 소지 존자.
-;FOR 스킬번호, 1, 2000
-FOR 스킬번호, 1, T_스킬한계값
+;FOR 스킬번호, 1, T_스킬한계값
+FOR LOCAL, 1, SKILL_LIST:ARG:0
+    스킬번호 = SKILL_LIST:ARG:LOCAL
     ;실장되지 않은 스킬은 통과
     IF TALENTNAME:(스킬번호 + 500) == ""
         CANNOT_ARRAY:스킬번호 = 1
@@ -1473,15 +1477,15 @@ ELSE
 ENDIF
 
 SELECTCASE 방향결정
-    CASE 0 ;전진
+    CASE 0 ;접근
         CALL T_MOVE(T_시전자,TB_방향(),0,0)
-    CASE 1 ;전진
+    CASE 1 ;반속 접근
         CALL T_MOVE(T_시전자,TB_방향(),0,1)
-    CASE 2 ; 정지
+    CASE 2 ;유지
         CALL T_COM턴넘김(T_시전자)
-    CASE 3 ;후진
+    CASE 3 ;반속 후퇴
         CALL T_MOVE(T_시전자,-1 * TB_방향(),0,1)
-    CASE 4 ;후진
+    CASE 4 ;후퇴
         CALL T_MOVE(T_시전자,-1 * TB_방향(),0,0)
 ENDSELECT
 
@@ -1489,7 +1493,9 @@ ENDSELECT
 @평균사거리도출(ARG)
 #DIM DYNAMIC 사거리,150
 #DIM DYNAMIC 가진스킬개수
-FOR LOCAL, 0, T_스킬한계값
+;FOR LOCAL, 0, T_스킬한계값
+FOR LOCAL:2, 1, SKILL_LIST:ARG:0
+    LOCAL = SKILL_LIST:ARG:(LOCAL:2)
     IF HAVE_T_SKILL(ARG,LOCAL)
         CALLFORMF T_SKILL{LOCAL}("타입")
         IF RESULT & 자동형 || RESULT & 버프형
@@ -1513,3 +1519,32 @@ ELSE
     LOCAL:1 /= (가진스킬개수 - 2)
 ENDIF
 RETURN LOCAL:1 * 5
+
+
+@스킬리스트등록(ARG)
+VARSET LOCAL
+FOR LOCAL, 0, T_스킬한계값
+    IF HAVE_T_SKILL(ARG,LOCAL)
+        LOCAL:1++
+        SKILL_LIST:ARG:(LOCAL:1) = LOCAL
+    ENDIF
+NEXT
+SKILL_LIST:ARG:0 = LOCAL:1 ;최종 갯수
+
+@Z_MOVEABLE(ARG)
+#DIM DYNAMIC 스킬번호
+FOR LOCAL, 1, SKILL_LIST:ARG:0
+    스킬번호 = SKILL_LIST:ARG:LOCAL
+    [SKIPSTART]
+    TRYCALLFORM CAN_T_SKILL(ARG, 스킬번호)
+    IF RESULT == 1 ;스킬 시전 가능
+        
+    ELSE
+        CANNOT_ARRAY:스킬번호 = 1
+    ENDIF
+    ;배열 수 한도 초과시 종료
+    SIF 배열내위치 >= 199
+        BREAK
+        ;RETURN 1
+        [SKIPEND]
+NEXT

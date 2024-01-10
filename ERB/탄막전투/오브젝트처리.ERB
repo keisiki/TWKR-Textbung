@@ -1,0 +1,171 @@
+﻿;ARG = OBJ NUM
+;ARG:1 = SPEED PER TURN
+@T_OBJ_MOVE(ARG,ARG:1)
+#DIM DYNAMIC 방향
+#DIM DYNAMIC DX
+#DIM DYNAMIC DY
+#DIM DYNAMIC DZ
+#DIM DYNAMIC D_DONE,3
+DEBUGPRINTFORM {ARG}오브젝트의 이동 개시:({T_OBJ:8:ARG},{T_OBJ:9:ARG},{T_OBJ:10:ARG})(목표:{T_OBJ:11:ARG}, {T_OBJ:12:ARG}, {T_OBJ:13:ARG}) 
+FOR LOCAL,0,ARG:1
+    방향 = T_ANGLE(T_OBJ:8:ARG, T_OBJ:9:ARG, T_OBJ:10:ARG, T_OBJ:11:ARG, T_OBJ:12:ARG, T_OBJ:13:ARG)
+    IF 방향 == 0
+        DEBUGPRINTFORM (도중중단)
+        BREAK
+    ENDIF
+    LOCAL:1 = GETBIT(방향,1)
+    LOCAL:1 = LOCAL:1 << 1
+    LOCAL:1 += GETBIT(방향,0)
+    IF LOCAL:1 == 2
+        LOCAL:1 = -1
+    ELSEIF LOCAL:1 == 1
+        LOCAL:1 = 1
+    ENDIF
+    DZ += LOCAL:1
+    LOCAL:1 = GETBIT(방향,3)
+    LOCAL:1 = LOCAL:1 << 1
+    LOCAL:1 += GETBIT(방향,2)
+    IF LOCAL:1 == 2
+        LOCAL:1 = -1
+    ELSEIF LOCAL:1 == 1
+        LOCAL:1 = 1
+    ENDIF
+    DY += LOCAL:1
+    LOCAL:1 = GETBIT(방향,5)
+    LOCAL:1 = LOCAL:1 << 1
+    LOCAL:1 += GETBIT(방향,4)
+    IF LOCAL:1 == 2
+        LOCAL:1 = -1
+    ELSEIF LOCAL:1 == 1
+        LOCAL:1 = 1
+    ENDIF
+    DX += LOCAL:1
+
+    IF ABS(DX) >= 10 && !D_DONE:0
+        IF ABS(DX/10) >= ABS(T_OBJ:8:ARG - T_OBJ:11:ARG)
+            DEBUGPRINTFORM (DX도중중단)
+            T_OBJ:8:ARG = T_OBJ:11:ARG
+            D_DONE:0 = 1
+        ELSE
+            T_OBJ:8:ARG += DX/10
+            DX = SIGN(DX) * (DX % 10)
+        ENDIF
+    ENDIF
+
+    IF ABS(DY) >= 10 && !D_DONE:1
+        IF ABS(DY/10) >= ABS(T_OBJ:9:ARG - T_OBJ:12:ARG)
+            DEBUGPRINTFORM (DY도중중단)
+            T_OBJ:9:ARG = T_OBJ:12:ARG
+            D_DONE:1 = 1
+        ELSE
+            T_OBJ:9:ARG += DY/10
+            DY = SIGN(DY) * (DY % 10)
+        ENDIF
+    ENDIF
+
+    IF ABS(DZ) >= 10 && !D_DONE:2
+        IF ABS(DZ/10) >= ABS(T_OBJ:10:ARG - T_OBJ:13:ARG)
+            DEBUGPRINTFORM (DZ도중중단)
+            T_OBJ:10:ARG = T_OBJ:13:ARG
+            D_DONE:2 = 1
+        ELSE
+            T_OBJ:10:ARG += DZ/10
+            DZ = SIGN(DZ) * (DZ % 10)
+        ENDIF
+    ENDIF
+NEXT
+DEBUGPRINTFORML ->({T_OBJ:8:ARG},{T_OBJ:9:ARG},{T_OBJ:10:ARG})({LOCAL},{DX})
+CALL T_OBJ_ACTIVE(ARG,"MOVED")
+
+@T_OBJ_DECAY(ARG)
+DEBUGPRINTFORML 오브젝트 {ARG} 지속시간감소
+T_OBJ:4:ARG -= 1
+SIF T_OBJ:15:ARG ;퓨즈 감소
+    T_OBJ:15:ARG--
+IF T_OBJ:5:ARG > 0
+    T_OBJ:14:ARG++
+    IF T_OBJ:5:ARG <= T_OBJ:14:ARG
+        CALLFORM T_SKILL{T_OBJ:0:ARG}_OBJ("갱신",ARG)
+    ENDIF
+ENDIF
+IF T_OBJ:4:ARG <= 0
+    DEBUGPRINTFORML 오브젝트 {ARG} 만료됨
+    CALL T_OBJ_ACTIVE(ARG,"DESTORY")
+ENDIF
+
+@T_OBJ_IS_TOUCHED(ARG,ARG:1)
+CALL T_LOCATE(ARG:1)
+DEBUGPRINTFORML 오브젝트 {ARG}과 %CALLNAME:(ARG:1)%의 거리 {T_RANGE(T_OBJ:8:ARG,T_OBJ:9:ARG,T_OBJ:10:ARG,RESULT:0,RESULT:1,RESULT:2)}, 폭파점{ T_OBJ:1:ARG}
+IF T_RANGE(T_OBJ:8:ARG,T_OBJ:9:ARG,T_OBJ:10:ARG,RESULT:0,RESULT:1,RESULT:2) <= T_OBJ:1:ARG
+    DEBUGPRINTFORML 오브젝트 {ARG}가 %CALLNAME:(ARG:1)%에 충돌
+    CALL T_OBJ_ACTIVE(ARG,"TOUCHED",ARG:1)
+ENDIF
+
+@T_OBJ_ACTIVE(ARG,ARGS,ARG:1 = 0)
+SELECTCASE ARGS
+    CASE "DESTORY"
+        ;자폭처리
+        T_OBJ:0:ARG = -1
+        DEBUGPRINTFORML 오브젝트 {ARG} 소멸
+    CASE "MOVED"
+        ;예비용
+    CASE "TOUCHED"
+        ;누군가와 충돌
+        IF T_OBJ:15:ARG > 0
+            DEBUGPRINTFORML 오브젝트 {ARG} 퓨즈에 의해 발동 무효화
+            RETURN
+        ENDIF
+        TRYCALLFORM T_SKILL{T_OBJ:0:ARG}_OBJ("접촉",ARG:1)
+        IF RESULT == 1
+            DEBUGPRINTFORML 오브젝트 {ARG} -> 스킬 {T_OBJ:0:ARG} 발동, 대상 (%CALLNAME:(ARG:1)%)
+            CALL PRINT_SPELLNAME(T_OBJ:0:ARG)
+            CALLFORM T_SKILL{T_OBJ:0:ARG}_OBJ("발동",ARG,ARG:1)
+            CALLFORM T_SKILL{T_OBJ:0:ARG}_OBJ("발동후",ARG,ARG:1)
+        ELSE
+            DEBUGPRINTFORML 오브젝트 {ARG}가 %CALLNAME:(ARG:1)%에 충돌했으나 발동내용 탐색 실패
+        ENDIF
+ENDSELECT
+
+@T_OBJ_MAKE(ARG:0,ARG:1,ARG:2,ARG:3,ARG:4,ARG:5,ARG:6,ARG:7,ARG:8,ARG:9,ARG:10,ARG:11,ARG:12,ARG:13,ARG:14,ARG:15,ARG:16)
+
+FOR LOCAL,0,T_OBJ_MAX
+    IF T_OBJ:0:LOCAL == -1
+        RESULT = LOCAL
+        ;0 - 생선한 스킬 번호
+        ;1 - 충돌범위
+        ;2 - 생성자
+        ;3 - 오브젝트 속도
+        ;4 - 남은지속시간
+        ;5 - 오브젝트 갱신주기
+        ;6 - 색상
+        ;7 - 표시범위
+        ;8 - X
+        ;9 - Y
+        ;10 - Z
+        ;11 - 오브젝트 목표 X
+        ;12 - 오브젝트 목표 Y
+        ;13 - 오브젝트 목표 Z
+        ;14 - 갱신후 경과시간
+        ;15 - 퓨즈(발동 금지 시간)
+        ;16 - 자유영역
+        T_OBJ:00:LOCAL = ARG:0
+        T_OBJ:01:LOCAL = ARG:1
+        T_OBJ:02:LOCAL = ARG:2
+        T_OBJ:03:LOCAL = ARG:3
+        T_OBJ:04:LOCAL = ARG:4
+        T_OBJ:05:LOCAL = ARG:5
+        T_OBJ:06:LOCAL = ARG:6
+        T_OBJ:07:LOCAL = ARG:7
+        T_OBJ:08:LOCAL = ARG:8 != -1? ARG:8 # T_위치:(ARG:2):0
+        T_OBJ:09:LOCAL = ARG:9 != -1 ? ARG:9 # T_위치:(ARG:2):1
+        T_OBJ:10:LOCAL = ARG:10 != -1 ? ARG:10 # T_위치:(ARG:2):2
+        T_OBJ:11:LOCAL = ARG:11
+        T_OBJ:12:LOCAL = ARG:12
+        T_OBJ:13:LOCAL = ARG:13
+        T_OBJ:14:LOCAL = ARG:14
+        T_OBJ:15:LOCAL = ARG:15
+        T_OBJ:16:LOCAL = ARG:16
+        BREAK
+    ENDIF
+NEXT
+RETURN RESULT

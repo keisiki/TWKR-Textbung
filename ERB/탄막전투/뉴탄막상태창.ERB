@@ -1,18 +1,16 @@
 ﻿
 @뉴탄막상태창
-
-DRAWLINE
-PRINTFORML {T_TIME}턴
-
-DRAWLINE
-CALL 뉴탄막상태표시(TARGET)
+SIF !TB_축척
+    TB_축척 = 5
 DRAWLINE
 ALIGNMENT CENTER
 CALL TBS거리표시
-CALL TBS위치관계표시
 ALIGNMENT LEFT
-DRAWLINE
-CALL 뉴탄막상태표시(MASTER)
+IF TB_축척 < 5
+    CALL TBS위치관계표시(T_위치:MASTER:0 - (20 * TB_축척), T_위치:MASTER:1 - (20 * TB_축척), T_위치:MASTER:0 + (20 * TB_축척), T_위치:MASTER:1 + (20 * TB_축척), TB_축척)
+ELSE
+    CALL TBS위치관계표시(0, 0, TB_위치값한계/TB_축척, TB_위치값한계/TB_축척, TB_축척) ; 축척 5 기준 200 * 200 -> 40 * 40 정도가 됨, 이거보다 크면 한 화면에 안보이니 맵 전체 볼땐 5 이하로 두면 안될것...
+ENDIF
 DRAWLINE
 
 ALIGNMENT LEFT
@@ -36,67 +34,47 @@ RETURNF 백분율
 #DIM 체력
 #DIM 최대체력
 ;ARG = 대상
-
+VARSET RESULTS
 백분율 = BASEPERCENT(ARG,"체력")
 ;색깔 선정
 SELECTCASE 백분율
 CASE IS >= 70
-    SETCOLOR 0x19FF19
+    LOCALS = 19FF19
 CASE IS >= 50
-    SETCOLOR 0xFF8000
+    LOCALS = FF8000
 CASE IS >= 30
-    SETCOLOR 0xFFFF00
+    LOCALS = FFFF00
 CASEELSE
-    SETCOLOR 0xFF0000
+    LOCALS = FF0000
 ENDSELECT
 ;체력바 출력부
-PRINTFORM [
-REPEAT 백분율
-    PRINTFORM *
-REND
-REPEAT 100 - 백분율
-    PRINTFORM .
-REND
-PRINTFORML ]
-RESETCOLOR
-PRINTFORM  ({TCVAR:ARG:T_체력}/{TCVAR:ARG:T_최대체력})
-IF TB_SUM_VALUE(ARG,TCV_보호)
-    SETCOLOR 0x46FFFF
-    PRINTFORM +({TB_SUM_VALUE(ARG,TCV_보호)})
-    RESETCOLOR
-ENDIF
-PRINTL
-RETURN 0
+백분율 /= 10
+RESULTS += @"<font color='#%LOCALS%'>[%"*" * 백분율%%"." * (10 - 백분율)%]</font>"
+RETURN 1
 
 @뉴탄막TSPBAR
 #DIM 백분율
 #DIM 체력
 #DIM 최대체력
 ;ARG = 대상
-
-백분율 = (BASE:MASTER:마력 * 10)/MAXBASE:MASTER:마력
+VARSET RESULTS
+;백분율 = (BASE:MASTER:마력 * 10)/MAXBASE:MASTER:마력
+백분율 = BASEPERCENT(MASTER,"TSP")
 ;색깔 선정
 SELECTCASE 백분율
 CASE IS >= 7
-    SETCOLOR 0x19FF19
+    LOCALS = 19FF19
 CASE IS >= 5
-    SETCOLOR 0xFF8000
+    LOCALS = FF8000
 CASE IS >= 3
-    SETCOLOR 0xFFFF00
+    LOCALS = FFFF00
 CASEELSE
-    SETCOLOR 0xFF0000
+    LOCALS = FF0000
 ENDSELECT
 ;체력바 출력부
-PRINTFORM [
-REPEAT 백분율
-    PRINTFORM *
-REND
-REPEAT 10 - 백분율
-    PRINTFORM .
-REND
-PRINTFORML ]
-RESETCOLOR
-RETURN 0
+백분율 /= 10
+RESULTS += @"<font color='#%LOCALS%'>[%"*" * 백분율%%"." * (10 - 백분율)%]</font>"
+RETURN 1
 
 @뉴탄막상태표시(ARG)
 #DIM 스테이터스, 7
@@ -109,7 +87,7 @@ IF ARG == TARGET
     IF FLAG:화상표시&&!탄막전투화상무시
         SIF !TFLAG:LOOK비표시
             PRINTL 　
-        CALL PRINT_TARGET_IMAGE(TARGET)
+        ;CALL PRINT_TARGET_IMAGE(TARGET)
     ELSEIF !FLAG:화상표시
         PRINTFORML [%CALLNAME:ARG%]
     ENDIF
@@ -126,9 +104,18 @@ PRINTFORML 통상:{T_행동기회:ARG:T_통상행동}/이동:{T_행동기회:ARG
 PRINTFORM 체력
 
 CALL 뉴탄막체력BAR(ARG)
+PRINTL
+PRINTFORM  ({TCVAR:ARG:T_체력}/{TCVAR:ARG:T_최대체력})
+IF TB_SUM_VALUE(ARG,TCV_보호)
+    SETCOLOR 0x46FFFF
+    PRINTFORM +({TB_SUM_VALUE(ARG,TCV_보호)})
+    RESETCOLOR
+ENDIF
+PRINTL
 IF ARG == MASTER
     PRINTFORM 마력
     CALL 뉴탄막TSPBAR
+    PRINTL
     PRINTFORM ({BASE:MASTER:마력}/{MAXBASE:MASTER:마력})
 ENDIF
 PRINTL
@@ -210,283 +197,1087 @@ PRINTL
 ALIGNMENT LEFT
 
 @능력치평가(ARG)
-
+RESULTS =
+;RESULTS += @"<font color='#'></font>"
 IF ARG >= 300
-    SETCOLOR 0xFF1111
-    PRINT P
-    SETCOLOR 0x1111FF
-    PRINT h
+    RESULTS += @"<font color='#FF1111'>P</font><font color='#1111FF'>h</font>"
 ELSEIF ARG >= 250
-    SETCOLOR 0xFA58F4
-    PRINT SSS
+    RESULTS += @"<font color='#FA58F4'>SSS</font>"
 ELSEIF ARG >= 225
-    SETCOLOR 0xFA58F4
-    PRINT SS+
+    RESULTS += @"<font color='#FA58F4'>SS+</font>"
 ELSEIF ARG >= 200
-    SETCOLOR 0xFA58F4
-    PRINT SS
+    RESULTS += @"<font color='#FA58F4'>SS</font>"
 ELSEIF ARG >= 180
-    SETCOLOR 0xFA58F4
-    PRINT SS-
+    RESULTS += @"<font color='#FA58F4'>SS-</font>"
 ELSEIF ARG >= 165
-    SETCOLOR 0xFA58F4
-    PRINT S+
+    RESULTS += @"<font color='#FA58F4'>S+</font>"
 ELSEIF ARG >= 150
-    SETCOLOR 0xFF00FF
-    PRINT S
+    RESULTS += @"<font color='#FF00FF'>S</font>"
 ELSEIF ARG >= 135
-    SETCOLOR 0x8A0886
-    PRINT S-
+    RESULTS += @"<font color='#8A0886'>S-</font>"
 ELSEIF ARG >= 120
-    SETCOLOR 0x0000FF
-    PRINT A
+    RESULTS += @"<font color='#0000FF'>A</font>"
 ELSEIF ARG >= 110
-    SETCOLOR 0x08088A
-    PRINT A-
+    RESULTS += @"<font color='#08088A'>A-</font>"
 ELSEIF ARG >= 100
-    SETCOLOR 0xFA5858
-    PRINT B+
+    RESULTS += @"<font color='#FA5858'>B+</font>"
 ELSEIF ARG >= 90
-    SETCOLOR 0xFF0000
-    PRINT B
+    RESULTS += @"<font color='#FF0000'>B</font>"
 ELSEIF ARG >= 83
-    SETCOLOR 0xF3F781
-    PRINT C+
+    RESULTS += @"<font color='#F3F781'>C+</font>"
 ELSEIF ARG >= 65
-    SETCOLOR 0xFFFF00
-    PRINT C
+    RESULTS += @"<font color='#FFFF00'>C</font>"
 ELSEIF ARG >= 55
-    SETCOLOR 0xAEB404
-    PRINT C-
+    RESULTS += @"<font color='#AEB404'>C-</font>"
 ELSEIF ARG >= 45
-    SETCOLOR 0x81DAF5
-    PRINT D+
+    RESULTS += @"<font color='#81DAF5'>D+</font>"
 ELSEIF ARG >= 35
-    SETCOLOR 0x00BFFF
-    PRINT D
+    RESULTS += @"<font color='#00BFFF'>D</font>"
 ELSEIF ARG >= 25
-    SETCOLOR 0x086A87
-    PRINT D-
+    RESULTS += @"<font color='#086A87'>D-</font>"
 ELSEIF ARG >= 15
-    SETCOLOR 0x00FF40
-    PRINT E
+    RESULTS += @"<font color='#00FF40'>E</font>"
 ELSEIF ARG >= 0
-    SETCOLOR 0x848484
-    PRINT F
+    RESULTS += @"<font color='#848484'>F</font>"
 ELSE
-    SETCOLOR 0x2E2E2E
-    PRINT F-
+    RESULTS += @"<font color='#2E2E2E'>F-</font>"
 ENDIF
-RESETCOLOR
+RETURN 1
 
 @상태이상표시(ARG)
+#DIM CONST 최대길이 = 30
 ;ARG = 대상
 ;일단 자리만
+VARSET LOCAL
+VARSET LOCALS
+VARSET RESULTS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_기절) > 0
-    SETCOLOR 0xFFD700
-    PRINTFORM [기절 {TB_SUM_REMAIN(ARG,TCV_기절)}턴] 
+    ; 0xFFD700
+    ; [기절 {TB_SUM_REMAIN(ARG,TCV_기절)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#FFD700'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_기절)/10}.{TB_MAX_REMAIN(ARG,TCV_기절)%10}초 동안 아무 행동도 취할 수 없습니다'>[기절]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
+RESULTS += LOCALS
 IF TB_SUM_REMAIN(ARG,TCV_집중) > 0
-    SETCOLOR 0xFFD700
-    PRINTFORM [집중 {TB_SUM_REMAIN(ARG,TCV_집중)}턴] 
+    ; 0xFFD700
+    ; [집중 {TB_SUM_REMAIN(ARG,TCV_집중)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#FFD700'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_집중)/10}.{TB_MAX_REMAIN(ARG,TCV_집중)%10}초 동안 정신을 집중해 다른 행동이 불가능합니다'>[집중]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_실명) > 0
-    SETCOLOR 0xA9A9A9
-    PRINTFORM [실명 {TB_SUM_REMAIN(ARG,TCV_실명)}턴] 
+    ; 0xA9A9A9
+    ; [실명 {TB_SUM_REMAIN(ARG,TCV_실명)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#A9A9A9'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_실명)/10}.{TB_MAX_REMAIN(ARG,TCV_실명)%10}초 동안 눈이 멀어 공격의 적중률이 떨어집니다'>[실명]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_침묵) > 0
-    SETCOLOR 0x4B0082
-    PRINTFORM [침묵 {TB_SUM_REMAIN(ARG,TCV_침묵)}턴] 
+    ; 0x4B0082
+    ; [침묵 {TB_SUM_REMAIN(ARG,TCV_침묵)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#4B0082'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_침묵)/10}.{TB_MAX_REMAIN(ARG,TCV_침묵)%10}초 동안 침묵내성 {TB_MAX_VALUE(ARG,TCV_침묵)} 이하의 스킬 시전이 불가능합니다'>[침묵]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_혼란) > 0
-    SETCOLOR 0xFFFF00
-    PRINTFORM [혼란 {TB_SUM_REMAIN(ARG,TCV_혼란)}턴] 
+    ; 0xFFFF00
+    ; [혼란 {TB_SUM_REMAIN(ARG,TCV_혼란)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#FFFF00'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_혼란)/10}.{TB_MAX_REMAIN(ARG,TCV_혼란)%10}초 동안 행동을 취하려 할 때 때때로 실패합니다'>[혼란]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_속박) > 0
-    SETCOLOR 0xFFEE00
-    PRINTFORM [속박 {TB_SUM_REMAIN(ARG,TCV_속박)}턴] 
+    ; 0xFFEE00
+    ; [속박 {TB_SUM_REMAIN(ARG,TCV_속박)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#FFEE00'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_속박)/10}.{TB_MAX_REMAIN(ARG,TCV_속박)%10}초 동안 걷는게 불가해 이동과 일부 스킬이 시전 불능이 됩니다'>[속박]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_봉쇄) > 0
-    SETCOLOR 0xFFEE00
-    PRINTFORM [봉쇄 {TB_SUM_REMAIN(ARG,TCV_봉쇄)}턴] 
+    ; 0xFFEE00
+    ; [봉쇄 {TB_SUM_REMAIN(ARG,TCV_봉쇄)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#FFEE00'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_봉쇄)/10}.{TB_MAX_REMAIN(ARG,TCV_봉쇄)%10}초 동안 일부 스킬을 이용한 이동이 봉쇄됩니다'>[봉쇄]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_취약) > 0
-    SETCOLOR 0xFF4500
-    PRINTFORM [취약 {TB_SUM_VALUE(ARG,TCV_취약)}] 
+    ; 0xFF4500
+    ; [취약 {TB_SUM_VALUE(ARG,TCV_취약)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#FF4500'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_취약)/10}.{TB_MAX_REMAIN(ARG,TCV_취약)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_취약)}％만큼 받는 피해가 증가합니다'>[취약]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_힘) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [힘 감소 {TB_SUM_VALUE(ARG,TCV_힘)}] 
+    ; 0xDC143C
+    ; [힘 감소 {TB_SUM_VALUE(ARG,TCV_힘)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_힘)/10}.{TB_MAX_REMAIN(ARG,TCV_힘)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_힘)}만큼 힘이 감소합니다'>[힘－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_지성) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [지성 감소 {TB_SUM_VALUE(ARG,TCV_지성)}] 
+    ; 0xDC143C
+    ; [지성 감소 {TB_SUM_VALUE(ARG,TCV_지성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_지성)/10}.{TB_MAX_REMAIN(ARG,TCV_지성)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_지성)}만큼 지성이 감소합니다'>[지성－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_속도) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [속도 감소 {TB_SUM_VALUE(ARG,TCV_속도)}] 
+    ; 0xDC143C
+    ; [속도 감소 {TB_SUM_VALUE(ARG,TCV_속도)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_인내)/10}.{TB_MAX_REMAIN(ARG,TCV_인내)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_인내)}만큼 인내가 감소합니다'>[인내－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_인내) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [인내 감소 {TB_SUM_VALUE(ARG,TCV_인내)}] 
+    ; 0xDC143C
+    ; [인내 감소 {TB_SUM_VALUE(ARG,TCV_인내)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_속도)/10}.{TB_MAX_REMAIN(ARG,TCV_속도)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_속도)}만큼 속도가 감소합니다'>[속도－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_운) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [운 감소 {TB_SUM_VALUE(ARG,TCV_운)}] 
+    ; 0xDC143C
+    ; [운 감소 {TB_SUM_VALUE(ARG,TCV_운)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_운)/10}.{TB_MAX_REMAIN(ARG,TCV_운)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_운)}만큼 운이 감소합니다'>[운－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_독) > 0
-    SETCOLOR 0x006400
-    PRINTFORM [독 x{TB_SUM_VALUE(ARG,TCV_독)}/{TB_SUM_REMAIN(ARG,TCV_독)}턴] 
+    ; 0x006400
+    ; [독 x{TB_SUM_VALUE(ARG,TCV_독)}/{TB_SUM_REMAIN(ARG,TCV_독)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#006400'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_독)/10}.{TB_MAX_REMAIN(ARG,TCV_독)%10}초 동안 매 초 {TB_SUM_VALUE(ARG,TCV_독) * 50}의 피해를 입습니다'>[독]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_출혈) > 0
-    SETCOLOR 0x8B0000
-    PRINTFORM [출혈 x{TB_SUM_VALUE(ARG,TCV_출혈)}/{TB_SUM_REMAIN(ARG,TCV_출혈)}턴] 
+    ; 0x8B0000
+    ; [출혈 x{TB_SUM_VALUE(ARG,TCV_출혈)}/{TB_SUM_REMAIN(ARG,TCV_출혈)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#8B0000'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_출혈)/10}.{TB_MAX_REMAIN(ARG,TCV_출혈)%10}초 동안 매 초 최대체력의 {TB_SUM_VALUE(ARG,TCV_출혈) * 125 / 10}.{TB_SUM_VALUE(ARG,TCV_출혈) * 125 % 10}％의 피해를 입습니다'>[출혈]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_저주) > 0
-    SETCOLOR 0xFF0000
-    PRINTFORM [저주 {TB_SUM_REMAIN(ARG,TCV_저주)}턴] 
+    ; 0xFF0000
+    ; [저주 {TB_SUM_REMAIN(ARG,TCV_저주)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#FF0000'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_저주)/10}.{TB_MAX_REMAIN(ARG,TCV_저주)%10}초후 죽습니다(플레이어 이외는 현재체력의 50％ 이하의 피해로 변경)'>[저주]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_화상) > 0
-    SETCOLOR 0xFB1111
-    PRINTFORM [화상 {TB_SUM_VALUE(ARG,TCV_화상)}/턴] 
+    ; 0xFB1111
+    ; [화상 {TB_SUM_VALUE(ARG,TCV_화상)}/턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#FB1111'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_화상)/10}.{TB_MAX_REMAIN(ARG,TCV_화상)%10}초 동안 매 초 {TB_SUM_VALUE(ARG,TCV_화상)}의 화염피해를 입습니다'>[화상]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_재생) > 0
-    SETCOLOR 0x00BB00
-    PRINTFORM [재생 {TB_SUM_VALUE(ARG,TCV_재생)}/턴] 
+    ; 0x00BB00
+    ; [재생 {TB_SUM_VALUE(ARG,TCV_재생)}/턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#00BB00'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_재생)/10}.{TB_MAX_REMAIN(ARG,TCV_재생)%10}초 동안 매 초 {TB_SUM_VALUE(ARG,TCV_재생)}만큼 체력을 회복합니다'>[재생]</button></font>"
 ENDIF
-RESETCOLOR
-PRINTL
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_면역) > 0
-    SETCOLOR 0x00FFFF
-    PRINTFORM [면역 {TB_SUM_REMAIN(ARG,TCV_면역)}턴] 
+    ; 0x00FFFF
+    ; [면역 {TB_SUM_REMAIN(ARG,TCV_면역)}턴] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#00FFFF'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_면역)/10}.{TB_MAX_REMAIN(ARG,TCV_면역)%10}초 동안 모든 피해를 받지 않습니다'>[면역]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_회피) > 0
-    SETCOLOR 0x005858
-    PRINTFORM [회피 {TB_SUM_VALUE(ARG,TCV_회피)}] 
+    ; 0x005858
+    ; [회피 {TB_SUM_VALUE(ARG,TCV_회피)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#005858'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_회피)/10}.{TB_MAX_REMAIN(ARG,TCV_회피)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_회피)}％만큼 받는 피해량이 감소합니다'>[회피]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_REMAIN(ARG,TCV_증폭) > 0
-    SETCOLOR 0x58FF58
-    PRINTFORM [증폭 {TB_SUM_VALUE(ARG,TCV_증폭)}] 
+    ; 0x58FF58
+    ; [증폭 {TB_SUM_VALUE(ARG,TCV_증폭)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#58FF58'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_증폭)/10}.{TB_MAX_REMAIN(ARG,TCV_증폭)%10}초 동안 가하는 피해량이 {TB_SUM_VALUE(ARG,TCV_증폭)}％ 증가합니다'>[증폭]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_힘) > 0
-    SETCOLOR 0x11FF11
-    PRINTFORM [힘 증가 {TB_SUM_VALUE(ARG,TCV_힘)}] 
+    ; 0x11FF11
+    ; [힘 증가 {TB_SUM_VALUE(ARG,TCV_힘)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#11FF11'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_힘)/10}.{TB_MAX_REMAIN(ARG,TCV_힘)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_힘)}만큼 힘이 증가합니다'>[힘＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_지성) > 0
-    SETCOLOR 0x11FF11
-    PRINTFORM [지성 증가 {TB_SUM_VALUE(ARG,TCV_지성)}] 
+    ; 0x11FF11
+    ; [지성 증가 {TB_SUM_VALUE(ARG,TCV_지성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#11FF11'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_지성)/10}.{TB_MAX_REMAIN(ARG,TCV_지성)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_지성)}만큼 지성이 증가합니다'>[지성＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_속도) > 0
-    SETCOLOR 0x11FF11
-    PRINTFORM [속도 증가 {TB_SUM_VALUE(ARG,TCV_속도)}] 
+    ; 0x11FF11
+    ; [속도 증가 {TB_SUM_VALUE(ARG,TCV_속도)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#11FF11'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_속도)/10}.{TB_MAX_REMAIN(ARG,TCV_속도)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_속도)}만큼 속도가 증가합니다'>[속도＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_인내) > 0
-    SETCOLOR 0x11FF11
-    PRINTFORM [인내 증가 {TB_SUM_VALUE(ARG,TCV_인내)}] 
+    ; 0x11FF11
+    ; [인내 증가 {TB_SUM_VALUE(ARG,TCV_인내)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#11FF11'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_인내)/10}.{TB_MAX_REMAIN(ARG,TCV_인내)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_인내)}만큼 인내가 증가합니다'>[인내＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_운) > 0
-    SETCOLOR 0x11FF11
-    PRINTFORM [운 증가 {TB_SUM_VALUE(ARG,TCV_운)}] 
+    ; 0x11FF11
+    ; [운 증가 {TB_SUM_VALUE(ARG,TCV_운)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#11FF11'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_운)/10}.{TB_MAX_REMAIN(ARG,TCV_운)%10}초 동안 {TB_SUM_VALUE(ARG,TCV_운)}만큼 운이 증가합니다'>[운＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_물리내성) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [물리내성 감소 {TB_SUM_VALUE(ARG,TCV_물리내성)}] 
+    ; 0xDC143C
+    ; [물리내성 감소 {TB_SUM_VALUE(ARG,TCV_물리내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_물리내성)/10}.{TB_MAX_REMAIN(ARG,TCV_물리내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_물리내성)}만큼 감소합니다'>[물리내성－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_화염내성) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [화염내성 감소 {TB_SUM_VALUE(ARG,TCV_화염내성)}] 
+    ; 0xDC143C
+    ; [화염내성 감소 {TB_SUM_VALUE(ARG,TCV_화염내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_화염내성)/10}.{TB_MAX_REMAIN(ARG,TCV_화염내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_화염내성)}만큼 감소합니다'>[화염내성－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_빙결내성) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [빙결내성 감소 {TB_SUM_VALUE(ARG,TCV_빙결내성)}] 
+    ; 0xDC143C
+    ; [빙결내성 감소 {TB_SUM_VALUE(ARG,TCV_빙결내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_빙결내성)/10}.{TB_MAX_REMAIN(ARG,TCV_빙결내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_빙결내성)}만큼 감소합니다'>[빙결내성－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_전격내성) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [전격내성 감소 {TB_SUM_VALUE(ARG,TCV_전격내성)}] 
+    ; 0xDC143C
+    ; [전격내성 감소 {TB_SUM_VALUE(ARG,TCV_전격내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_전격내성)/10}.{TB_MAX_REMAIN(ARG,TCV_전격내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_전격내성)}만큼 감소합니다'>[전격내성－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_질풍내성) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [질풍내성 감소 {TB_SUM_VALUE(ARG,TCV_질풍내성)}] 
+    ; 0xDC143C
+    ; [질풍내성 감소 {TB_SUM_VALUE(ARG,TCV_질풍내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_질풍내성)/10}.{TB_MAX_REMAIN(ARG,TCV_질풍내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_질풍내성)}만큼 감소합니다'>[질풍내성－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_마력내성) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [마력내성 감소 {TB_SUM_VALUE(ARG,TCV_마력내성)}] 
+    ; 0xDC143C
+    ; [마력내성 감소 {TB_SUM_VALUE(ARG,TCV_마력내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_마력내성)/10}.{TB_MAX_REMAIN(ARG,TCV_마력내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_마력내성)}만큼 감소합니다'>[마력내성－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_수격내성) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [수격내성 감소 {TB_SUM_VALUE(ARG,TCV_수격내성)}] 
+    ; 0xDC143C
+    ; [수격내성 감소 {TB_SUM_VALUE(ARG,TCV_수격내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_수격내성)/10}.{TB_MAX_REMAIN(ARG,TCV_수격내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_수격내성)}만큼 감소합니다'>[수격내성－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_정신내성) < 0
-    SETCOLOR 0xDC143C
-    PRINTFORM [정신내성 감소 {TB_SUM_VALUE(ARG,TCV_정신내성)}] 
+    ; 0xDC143C
+    ; [정신내성 감소 {TB_SUM_VALUE(ARG,TCV_정신내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#DC143C'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_정신내성)/10}.{TB_MAX_REMAIN(ARG,TCV_정신내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_정신내성)}만큼 감소합니다'>[정신내성－]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_물리내성) > 0
-    SETCOLOR 0x3232CF
-    PRINTFORM [물리내성 증가 {TB_SUM_VALUE(ARG,TCV_물리내성)}] 
+    ; 0x3232CF
+    ; [물리내성 증가 {TB_SUM_VALUE(ARG,TCV_물리내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#3232CF'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_물리내성)/10}.{TB_MAX_REMAIN(ARG,TCV_물리내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_물리내성)}만큼 증가합니다'>[물리내성＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_화염내성) > 0
-    SETCOLOR 0x3232CF
-    PRINTFORM [화염내성 증가 {TB_SUM_VALUE(ARG,TCV_화염내성)}] 
+    ; 0x3232CF
+    ; [화염내성 증가 {TB_SUM_VALUE(ARG,TCV_화염내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#3232CF'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_화염내성)/10}.{TB_MAX_REMAIN(ARG,TCV_화염내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_화염내성)}만큼 증가합니다'>[화염내성＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_빙결내성) > 0
-    SETCOLOR 0x3232CF
-    PRINTFORM [빙결내성 증가 {TB_SUM_VALUE(ARG,TCV_빙결내성)}] 
+    ; 0x3232CF
+    ; [빙결내성 증가 {TB_SUM_VALUE(ARG,TCV_빙결내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#3232CF'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_빙결내성)/10}.{TB_MAX_REMAIN(ARG,TCV_빙결내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_빙결내성)}만큼 증가합니다'>[빙결내성＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_전격내성) > 0
-    SETCOLOR 0x3232CF
-    PRINTFORM [전격내성 증가 {TB_SUM_VALUE(ARG,TCV_전격내성)}] 
+    ; 0x3232CF
+    ; [전격내성 증가 {TB_SUM_VALUE(ARG,TCV_전격내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#3232CF'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_전격내성)/10}.{TB_MAX_REMAIN(ARG,TCV_전격내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_전격내성)}만큼 증가합니다'>[전격내성＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_질풍내성) > 0
-    SETCOLOR 0x3232CF
-    PRINTFORM [질풍내성 증가 {TB_SUM_VALUE(ARG,TCV_질풍내성)}] 
+    ; 0x3232CF
+    ; [질풍내성 증가 {TB_SUM_VALUE(ARG,TCV_질풍내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#3232CF'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_질풍내성)/10}.{TB_MAX_REMAIN(ARG,TCV_질풍내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_질풍내성)}만큼 증가합니다'>[질풍내성＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_마력내성) > 0
-    SETCOLOR 0x3232CF
-    PRINTFORM [마력내성 증가 {TB_SUM_VALUE(ARG,TCV_마력내성)}] 
+    ; 0x3232CF
+    ; [마력내성 증가 {TB_SUM_VALUE(ARG,TCV_마력내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#3232CF'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_마력내성)/10}.{TB_MAX_REMAIN(ARG,TCV_마력내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_마력내성)}만큼 증가합니다'>[마력내성＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_수격내성) > 0
-    SETCOLOR 0x3232CF
-    PRINTFORM [수격내성 증가 {TB_SUM_VALUE(ARG,TCV_수격내성)}] 
+    ; 0x3232CF
+    ; [수격내성 증가 {TB_SUM_VALUE(ARG,TCV_수격내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#3232CF'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_수격내성)/10}.{TB_MAX_REMAIN(ARG,TCV_수격내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_수격내성)}만큼 증가합니다'>[수격내성＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_SUM_VALUE(ARG,TCV_정신내성) > 0
-    SETCOLOR 0x3232CF
-    PRINTFORM [정신내성 증가 {TB_SUM_VALUE(ARG,TCV_정신내성)}] 
+    ; 0x3232CF
+    ; [정신내성 증가 {TB_SUM_VALUE(ARG,TCV_정신내성)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#3232CF'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_정신내성)/10}.{TB_MAX_REMAIN(ARG,TCV_정신내성)%10}초 동안 내성이 {TB_SUM_VALUE(ARG,TCV_정신내성)}만큼 증가합니다'>[정신내성＋]</button></font>"
 ENDIF
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
 IF TB_MAX_VALUE(ARG,TCV_은신) > 0
-    SETCOLOR 0xE0E0E0
-    PRINTFORM [은신 {TB_MAX_VALUE(ARG,TCV_은신)}] 
+    ; 0xE0E0E0
+    ; [은신 {TB_MAX_VALUE(ARG,TCV_은신)}] 
+    VARSET LOCALS
+    LOCALS += @"<font color='#E0E0E0'><button value='1234' title='{TB_MAX_REMAIN(ARG,TCV_은신/10)}.{TB_MAX_REMAIN(ARG,TCV_은신)%10}초 동안 {TB_MAX_VALUE(ARG,TCV_은신)}레벨의 은신효과를 얻습니다'>[은신]</button></font>"
 ENDIF
-RESETCOLOR
+LOCAL += STRLENS(HTML_TOPLAINTEXT(LOCALS))
+IF LOCAL >= 최대길이
+    LOCAL = STRLENS(HTML_TOPLAINTEXT(LOCALS))
+    RESULTS += "<SPRIT>"
+ENDIF
+RESULTS += LOCALS
+VARSET LOCALS
+;===========
+RETURN 1
 
 ;TextbungStatus
 @TBS거리표시
-PRINTFORML [나:{ARG능력치(T_대상1,"이동력"),3}m/턴] [서로간의 거리 : {TB_거리_은신()}m] [적:{ARG능력치(T_대상2,"이동력"),3}m/턴]
+PRINTFORML [{T_위치:T_대상1:0,3},{T_위치:T_대상1:1,3},{T_위치:T_대상1:2,3}][나:{ARG능력치(T_대상1,"이동력"),3}m/턴] [거리 : {TB_거리_은신()}m] [{T_TIME/10}.{T_TIME%10}초] [고도차:{T_위치:T_대상1:2 - T_위치:T_대상2:2}m] [적:{ARG능력치(T_대상2,"이동력"),3}m/턴][{T_위치:T_대상2:0,3},{T_위치:T_대상2:1,3},{T_위치:T_대상2:2,3}]
 
-@TBS위치관계표시
+@TBS_스탯표시(ARG,ARGS)
+VARSET RESULTS
+VARSET LOCALS
+SELECTCASE ARGS
+    CASE "레벨"
+        LOCALS += @"레벨:{ABL:ARG:레벨,4,RIGHT}     "
+    CASE "힘"
+        CALL 능력치평가(TCVAR:ARG:T_힘)
+        IF TB_SUM_VALUE(ARG,TCV_힘) > 0
+            LOCALS += @"  힘:<font color='#11ff11'>{TCVAR:ARG:T_힘,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSEIF TB_SUM_VALUE(ARG,TCV_힘) < 0
+            LOCALS += @"  힘:<font color='#ff0000'>{TCVAR:ARG:T_힘,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSE
+            LOCALS += @"  힘:{TCVAR:ARG:T_힘,4,RIGHT}%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ENDIF
+    CASE "지성"
+        CALL 능력치평가(TCVAR:ARG:T_지성)
+        IF TB_SUM_VALUE(ARG,TCV_지성) > 0
+            LOCALS += @"지성:<font color='#11ff11'>{TCVAR:ARG:T_지성,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSEIF TB_SUM_VALUE(ARG,TCV_지성) < 0
+            LOCALS += @"지성:<font color='#ff0000'>{TCVAR:ARG:T_지성,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSE
+            LOCALS += @"지성:{TCVAR:ARG:T_지성,4,RIGHT}%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ENDIF
+    CASE "인내"
+        CALL 능력치평가(TCVAR:ARG:T_인내)
+        IF TB_SUM_VALUE(ARG,TCV_인내) > 0
+            LOCALS += @"인내:<font color='#11ff11'>{TCVAR:ARG:T_인내,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSEIF TB_SUM_VALUE(ARG,TCV_인내) < 0
+            LOCALS += @"인내:<font color='#ff0000'>{TCVAR:ARG:T_인내,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSE
+            LOCALS += @"인내:{TCVAR:ARG:T_인내,4,RIGHT}%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ENDIF
+    CASE "속도"
+        CALL 능력치평가(TCVAR:ARG:T_속도)
+        IF TB_SUM_VALUE(ARG,TCV_속도) > 0
+            LOCALS += @"속도:<font color='#11ff11'>{TCVAR:ARG:T_속도,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSEIF TB_SUM_VALUE(ARG,TCV_속도) < 0
+            LOCALS += @"속도:<font color='#ff0000'>{TCVAR:ARG:T_속도,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSE
+            LOCALS += @"속도:{TCVAR:ARG:T_속도,4,RIGHT}%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ENDIF
+    CASE "운"
+        CALL 능력치평가(TCVAR:ARG:T_운)
+        IF TB_SUM_VALUE(ARG,TCV_운) > 0
+            LOCALS += @"  운:<font color='#11ff11'>{TCVAR:ARG:T_운,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSEIF TB_SUM_VALUE(ARG,TCV_운) < 0
+            LOCALS += @"  운:<font color='#ff0000'>{TCVAR:ARG:T_운,4,RIGHT}</font>%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ELSE
+            LOCALS += @"  운:{TCVAR:ARG:T_운,4,RIGHT}%" " * (5 - STRLENS(HTML_TOPLAINTEXT(RESULTS)))%%RESULTS%"
+        ENDIF
+ENDSELECT
+RESULTS = %LOCALS%
+RETURN 1
+
+@TBS_전투능력배수(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+    CASE 0
+        RESULTS '= " x1.0"
+    CASE 1
+        RESULTS '= " x1.3"
+    CASE 2
+        RESULTS '= " x1.6"
+    CASE 3
+        RESULTS '= " x1.9"
+    CASE 4
+        RESULTS '= " x2.2"
+    CASE 5
+        RESULTS '= " x2.5"
+    CASE 6
+        RESULTS '= " x2.7"
+    CASE 7
+        RESULTS '= " x2.9"
+    CASE 8
+        RESULTS '= " x3.0"
+    CASE 9
+        RESULTS '= " x3.1"
+    CASE 10
+        RESULTS '= " x3.2"
+    CASE 11
+        RESULTS '= " x3.3"
+    CASE 12
+        RESULTS '= " x3.4"
+    CASE 13
+        RESULTS '= " x3.5"
+    CASE 14
+        RESULTS '= " x3.6"
+    CASE 15
+        RESULTS '= " x3.7"
+    CASE 16
+        RESULTS '= " x3.8"
+    CASE 17
+        RESULTS '= " x3.9"
+    CASE 18
+        RESULTS '= " x4.0"
+    CASE 19
+        RESULTS '= " x4.1"
+    CASEELSE
+        RESULTS '= " x4.5"
+ENDSELECT
+RETURNF RESULTS
+
+@TBS위치관계표시(X1,Y1,X2,Y2,칸당값)
+#DIM CONST 양옆공백 = 30
 #DIM DYNAMIC 칸당값
-#DIM DYNAMIC 이미표시,2
-칸당값 = TB_위치값한계 / 100
+#DIM DYNAMIC 이미표시,3
+#DIM DYNAMIC 위험지역,1000,5 ;OBJ 번호, X,Y,Z,표시범위
+#DIM DYNAMIC 위험지역카운터
+#DIMS DYNAMIC 프린터버퍼
+#DIMS DYNAMIC 투사체버퍼
+#DIM DYNAMIC 투사체개수
+#DIM DYNAMIC X1
+#DIM DYNAMIC Y1
+#DIM DYNAMIC X2
+#DIM DYNAMIC Y2
+#DIMS DYNAMIC 버프상태1,40
+#DIMS DYNAMIC 버프상태2,40
+;칸당값 = 5;TB_위치값한계 / 50
 
-PRINT [
-FOR LOCAL,0,99
-    IF INRANGE(TB_위치(T_대상1,99) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값) && INRANGE(TB_위치(T_대상2,TB_MAX_VALUE(T_대상1,TCV_은신간파)) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값)
-        SETCOLOR 0XF0F0F0
-        PRINT @
-        RESETCOLOR
-        이미표시:0 = 1
-        이미표시:1 = 1
-    ELSEIF INRANGE(TB_위치(T_대상1,99) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값) && !이미표시:0
-        SETCOLOR 0XF0F000
-        PRINT 나
-        RESETCOLOR
-        이미표시:0 = 1
-    ELSEIF INRANGE(TB_위치(T_대상2) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값) && !이미표시:1
-        SETCOLOR 0XF02222
-        PRINT 적
-        RESETCOLOR
-        이미표시:1 = 1
-    ELSE
-        PRINT .
+;PRINT [
+;FOR LOCAL,0,99
+;    IF INRANGE(TB_위치(T_대상1,99) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값) && INRANGE(TB_위치(T_대상2,TB_MAX_VALUE(T_대상1,TCV_은신간파)) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값)
+;        SETCOLOR 0XF0F0F0
+;        PRINT @
+;        RESETCOLOR
+;        이미표시:0 = 1
+;        이미표시:1 = 1
+;    ELSEIF INRANGE(TB_위치(T_대상1,99) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값) && !이미표시:0
+;        SETCOLOR 0XF0F000
+;        PRINT 나
+;        RESETCOLOR
+;        이미표시:0 = 1
+;    ELSEIF INRANGE(TB_위치(T_대상2) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값) && !이미표시:1
+;        SETCOLOR 0XF02222
+;        PRINT 적
+;        RESETCOLOR
+;        이미표시:1 = 1
+;    ELSE
+;        PRINT .
+;    ENDIF
+;NEXT
+;PRINTL ]
+VARSET 위험지역, -1
+FOR LOCAL,0,T_OBJ_MAX
+    IF T_OBJ:0:LOCAL != -1
+        위험지역:위험지역카운터:0 = LOCAL
+        위험지역:위험지역카운터:1 = T_OBJ:08:LOCAL
+        위험지역:위험지역카운터:2 = T_OBJ:09:LOCAL
+        위험지역:위험지역카운터:3 = T_OBJ:10:LOCAL
+        위험지역:위험지역카운터:4 = T_OBJ:07:LOCAL
+        위험지역카운터++
     ENDIF
 NEXT
-PRINTL ]
+VARSET 버프상태1
+VARSET 버프상태2
+VARSET RESULTS
+CALL 상태이상표시(T_대상1)
+SPLIT RESULTS, "<SPRIT>", 버프상태1
+CALL 상태이상표시(T_대상2)
+SPLIT RESULTS, "<SPRIT>", 버프상태2
+
+VARSET LOCAL
+LOCAL:4 = -1
+FOR LOCAL:1, Y1, Y2
+    ;Y축
+    VARSET 프린터버퍼
+    VARSET LOCALS
+    LOCAL:4++
+    SELECTCASE LOCAL:4
+        CASE 0
+            ;프린터버퍼 += @"%\"[\" + CALLNAME:MASTER+ \"]\",18,LEFT%"
+            LOCALS:1 = [%CALLNAME:MASTER%]
+            LOCALS += @"%LOCALS:1,18,LEFT%"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+            LOCALS =
+        CASE 1
+            LOCALS += "체："
+            CALL 뉴탄막체력BAR(MASTER)
+            LOCALS += @"%RESULTS%"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 2
+            LOCALS +=  @"({TCVAR:MASTER:T_체력}／{TCVAR:MASTER:T_최대체력})"
+            IF TB_SUM_VALUE(MASTER,TCV_보호)
+                LOCALS += @"<font color ='#46FFFF'>+({TB_SUM_VALUE(MASTER,TCV_보호),6})</font>"
+            ENDIF
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 3
+            LOCALS += "마："
+            CALL 뉴탄막TSPBAR
+            LOCALS += @"%RESULTS%"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 4
+            LOCALS += @"({BASE:MASTER:마력}／{MAXBASE:MASTER:마력})"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 5
+            CALL TBS_스탯표시(MASTER,"레벨")
+            LOCALS += @"%RESULTS%"
+            CALL TBS_스탯표시(MASTER,"힘")
+            LOCALS += @"%RESULTS%"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 6
+            CALL TBS_스탯표시(MASTER,"지성")
+            LOCALS += @"%RESULTS%"
+            CALL TBS_스탯표시(MASTER,"인내")
+            LOCALS += @"%RESULTS%"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 7
+            CALL TBS_스탯표시(MASTER,"속도")
+            LOCALS += @"%RESULTS%"
+            CALL TBS_스탯표시(MASTER,"운")
+            LOCALS += @"%RESULTS%"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 8
+            LOCALS += @"전투능력:{ABL:MASTER:전투능력,3}<i>%TBS_전투능력배수(ABL:MASTER:전투능력)%</i>"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 9
+            LOCALS += @"공격력:{TCVAR:MASTER:T_공격력,8,RIGHT}"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 10
+            LOCALS += @"방어력:{TCVAR:MASTER:T_방어력,8,RIGHT}"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 11
+            LOCALS += 버프상태1:0
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 12
+            LOCALS += 버프상태1:1
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 13
+            LOCALS += 버프상태1:2
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 14
+            LOCALS += 버프상태1:3
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE Y2 - Y1 - 1
+            LOCALS += @"<button value='{TCN_축척변경}'>[축척변경]</button> 현재 1:{TB_축척}"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASEELSE
+            ;PRINTFORM %"　" * ((GETCONFIG("ウィンドウ幅") / (GETCONFIG("フォントサイズ")/2) - 130)/2)%
+            LOCALS = %" " * 양옆공백%
+            프린터버퍼 += @"%LOCALS%"
+    ENDSELECT
+    프린터버퍼 += " │"
+    FOR LOCAL:0, X1, X2
+        ;X축
+        VARSET 투사체버퍼
+        VARSET 투사체개수
+        IF !INRANGE(LOCAL:0,0,TB_위치값한계) || !INRANGE(LOCAL:1,0,TB_위치값한계) 
+            프린터버퍼 += @"<font color='#FFFFFF'><button value='{9}' title='맵 바깥입니다'>※</button></font>"
+        ELSEIF 대상좌표(T_대상1,LOCAL:0 * 칸당값 ,LOCAL:1 * 칸당값,-1,칸당값) && 대상좌표(T_대상2,LOCAL:0 * 칸당값,LOCAL:1 * 칸당값,-1,칸당값) && 이미표시:0 != 1 && 이미표시:1 != 1
+            프린터버퍼 += @"<font color='#F0F0F0'><button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}' title='%좌표유닛확인(LOCAL:0 * 칸당값,LOCAL:1 * 칸당값,-1,5)%'>@</button></font>"
+            이미표시:0 = 1
+            이미표시:1 = 1
+        ELSEIF 대상좌표(T_대상1,LOCAL:0 * 칸당값,LOCAL:1 * 칸당값,-1,칸당값) && 이미표시:0 != 1
+            프린터버퍼 += @"<font color='#F0F000'><button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}' title='%CALLNAME:T_대상1%'>나</button></font>"
+            이미표시:0 = 1
+        ELSEIF 대상좌표(T_대상2,LOCAL:0 * 칸당값,LOCAL:1 * 칸당값,-1,칸당값) && 이미표시:1 != 1
+            프린터버퍼 += @"<font color='#F02222'><button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}' title='%CALLNAME:T_대상2%'>적</button></font>"
+            이미표시:1 = 1
+        ELSE
+            FOR LOCAL:2,0,T_OBJ_MAX
+                SIF 위험지역:(LOCAL:2):0 == -1
+                    CONTINUE
+                FOR LOCAL:3,0,칸당값
+                    IF 좌표비교((LOCAL:0 * 칸당값) + LOCAL:3, (LOCAL:1 * 칸당값) + LOCAL:3, T_위치:T_대상1:2 + LOCAL:3, 위험지역:(LOCAL:2):1, 위험지역:(LOCAL:2):2, 위험지역:(LOCAL:2):3, 위험지역:(LOCAL:2):4) && 이미표시:2 != 1
+                        DEBUGPRINTFORML 좌표: {(LOCAL:0 * 칸당값) + LOCAL:3},{(LOCAL:1 * 칸당값) + LOCAL:3},{T_위치:T_대상1:2 + LOCAL:3}이 위험구역({위험지역:(LOCAL:2):1},{위험지역:(LOCAL:2):2},{위험지역:(LOCAL:2):3},범위{위험지역:(LOCAL:2):4})에 포함되어 표기됨
+                        CALLFORMF T_SKILL{T_OBJ:0:(위험지역:(LOCAL:2):0)}_STR("스킬명")
+                        투사체버퍼 += @"%CALLNAME:(T_OBJ:2:(위험지역:(LOCAL:2):0))%의 %RESULTS%&#10;"
+                        LOCAL:9 = 위험지역:(LOCAL:2):0
+                        투사체개수++
+                        BREAK
+                    ENDIF
+                NEXT
+            NEXT
+            IF 투사체개수 == 1
+                프린터버퍼 += @"<font color='#%CONVERT(T_OBJ:6:(LOCAL:9),16)%'><button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}' title='[투사체]&#10;%투사체버퍼%'>■</button></font>"
+            ELSEIF 투사체개수 != 0
+                프린터버퍼 += @"<font color='#FFFFFF'><button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}' title='[투사체]&#10;%투사체버퍼%'>■</button></font>"
+            ENDIF
+            IF !투사체개수
+                IF T_RANGE(LOCAL:0,LOCAL:1,0,T_위치:MASTER:0,T_위치:MASTER:1,0) <= ARG능력치(T_대상1,"이동력")
+                    프린터버퍼 += @"<font color = '#1e81b0'><button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}'title='현재 이동력으로 1턴 안에 도달 가능한 지점입니다'>. </button></font>"
+                ELSE
+                    프린터버퍼 += @"<button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}'>. </button>"
+                ENDIF
+            ENDIF
+        ENDIF
+    NEXT
+    프린터버퍼 += "│ "
+    VARSET LOCALS
+    SELECTCASE LOCAL:4
+        CASE 0
+            LOCALS:1 = [%CALLNAME:TARGET%]
+            LOCALS += @"%LOCALS:1,18,LEFT%"
+            프린터버퍼 += @"%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%%LOCALS%"
+        CASE 1
+            LOCALS += "체："
+            CALL 뉴탄막체력BAR(TARGET)
+            LOCALS += @"%RESULTS%"
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 2
+            LOCALS += @"({TCVAR:TARGET:T_체력}／{TCVAR:TARGET:T_최대체력})"
+            IF TB_SUM_VALUE(TARGET,TCV_보호)
+                LOCALS += @"<font color ='#46FFFF'>+({TB_SUM_VALUE(TARGET,TCV_보호),6})</font>"
+            ENDIF
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 3
+            LOCALS = %"　" * 8%
+            프린터버퍼 += @"%LOCALS%"
+            ;PRINT 마:
+            ;CALL 뉴탄막TSPBAR
+        CASE 4
+            LOCALS = %"　" * 8%
+            프린터버퍼 += @"%LOCALS%"
+        CASE 5
+            CALL TBS_스탯표시(TARGET,"레벨")
+            LOCALS += @"%RESULTS%"
+            CALL TBS_스탯표시(TARGET,"힘")
+            LOCALS += @"%RESULTS%"
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 6
+            CALL TBS_스탯표시(TARGET,"지성")
+            LOCALS += @"%RESULTS%"
+            CALL TBS_스탯표시(TARGET,"인내")
+            LOCALS += @"%RESULTS%"
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 7
+            CALL TBS_스탯표시(TARGET,"속도")
+            LOCALS += @"%RESULTS%"
+            CALL TBS_스탯표시(TARGET,"운")
+            LOCALS += @"%RESULTS%"
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 8
+            LOCALS += @"전투능력:{ABL:TARGET:전투능력,3}<i>%TBS_전투능력배수(ABL:TARGET:전투능력)%</i>"
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 9
+            LOCALS += @"공격력:{TCVAR:TARGET:T_공격력,8,RIGHT}"
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 10
+            LOCALS += @"방어력:{TCVAR:TARGET:T_방어력,8,RIGHT}"
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 11
+            LOCALS += 버프상태2:0
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 12
+            LOCALS += 버프상태2:1
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 13
+            LOCALS += 버프상태2:2
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASE 14
+            LOCALS += 버프상태2:3
+            프린터버퍼 += @"%LOCALS%%" "*(양옆공백 - STRLENS(HTML_TOPLAINTEXT(LOCALS)))%"
+        CASEELSE
+            ;PRINTFORM %"　" * ((GETCONFIG("ウィンドウ幅") / (GETCONFIG("フォントサイズ")/2) - 130)/2)%
+            LOCALS = %" " * 양옆공백%
+            프린터버퍼 += @"%LOCALS%"
+    ENDSELECT
+    HTML_PRINT 프린터버퍼
+    ;PRINTL 
+NEXT
+
+
+;ARG:0 = X 
+;ARG:1 = Y
+;ARG:2 = Z
+;ARG:3 = 탐색범위
+@좌표유닛확인(ARG,ARG:1,ARG:2,ARG:3)
+#FUNCTIONS
+VARSET RESULTS
+FOR LOCAL,0,CHARANUM
+    IF (ABS(T_위치:LOCAL:0 - ARG ) <= ARG:3 || ARG == -1) && (ABS(T_위치:LOCAL:1 - ARG:1 ) || ARG:1 == -1) <= ARG:3 && (ABS(T_위치:LOCAL:2 - ARG:2) <= ARG:3 || ARG:2 == -1)
+        RESULTS += @"%CALLNAME:LOCAL%<br/>"
+    ENDIF
+NEXT
+RETURNF RESULTS
+
+
+;ARG:0 = 대상
+;ARG:1 = X좌표
+;ARG:2 = Y좌표
+;ARG:3 = Z좌표
+;ARG:4 = 범위
+;좌표에 -1를 넣으면 그 값은 무시
+@대상좌표(ARG,ARG:1,ARG:2,ARG:3,ARG:4)
+#FUNCTION
+IF ABS(T_위치:ARG:0 - ARG:1) <= ARG:4 || ARG:1 == -1
+    IF ABS(T_위치:ARG:1 - ARG:2) <= ARG:4 || ARG:2 == -1
+        IF ABS(T_위치:ARG:2 - ARG:3) <= ARG:4 || ARG:3 == -1
+            RETURNF 1 
+        ENDIF
+    ENDIF
+ENDIF
+RETURNF 0
+
+;ARG:0 = 1X
+;ARG:1 = 2Y
+;ARG:2 = 3Z
+;ARG:3 = 1X
+;ARG:4 = 2Y
+;ARG:5 = 3Z
+;ARG:6 = 범위
+;좌표에 -1를 넣으면 그 값은 무시
+@좌표비교(ARG:0,ARG:1,ARG:2,ARG:3,ARG:4,ARG:5,ARG:6)
+#FUNCTION
+IF (INRANGE(ARG:0,ARG:3-ARG:6,ARG:3+ARG:6) || ARG:3 == -1) && (INRANGE(ARG:1,ARG:4-ARG:6,ARG:4+ARG:6) || ARG:4 == -1) && (INRANGE(ARG:2,ARG:5-ARG:6,ARG:5+ARG:6) || ARG:5 == -1)
+    RETURNF 1
+ENDIF
+RETURNF 0
+
+@TB_MAPTOINT(ARG,ARG:1,ARG:2)
+#FUNCTION
+RETURNF 1000000 + (ARG * 1000000)+(ARG:1 *1000)+(ARG:3)
+
+@TB_INTTOMAP(ARG)
+ARG -= 1000000
+RESULT:2 = ARG / 1000000
+RESULT:1 = (ARG % 1000000) / 1000
+RESULT:0 = ARG % 1000
+RETURN RESULT:0
