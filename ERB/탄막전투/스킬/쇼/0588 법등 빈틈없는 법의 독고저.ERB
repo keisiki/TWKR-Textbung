@@ -109,6 +109,9 @@ ENDSELECT
 #DIM 남은지속시간, 200 ;캐릭터별 지속시간 저장 배열
 #DIM 남은쿨타임, 200 ;캐릭터별 지속시간 저장 배열
 #DIM DYNAMIC 피해량
+#DIM DYNAMIC 좌표1,3
+#DIM DYNAMIC 좌표2,3
+#DIM DYNAMIC 방향,3
 #DIMS DYNAMIC 속성
 피해량 = T_SKILL588("공격력")/5
 속성 '= T_SKILL588_STR("속성")
@@ -161,16 +164,13 @@ CASE "지속효과발동"
             PRINTFORML 독고저가 위압스러운 소음과 함께 %T_시전자의% 옆을 스쳐 지나갔다
         ENDIF
         LOCAL = TB_SUM_VALUE(T_시전자,TCV_자율,588)
+        CALL TB_INTTOLOCATE(T_시전자,좌표1)
+        CALL T_LOCATE(T_시전자반대,좌표2)
+        CALL T_ANGLE(좌표1,좌표2,방향)
+
         CALL TB_RESET_ID(T_시전자,TCV_자율,588)
-        IF ABS(LOCAL - TB_위치(T_시전자반대)) <= 30
-            CALL 통합버프(T_시전자,TCV_자율,588,TB_위치(T_시전자반대),2)
-        ELSE
-            IF TB_방향(LOCAL,TB_위치(T_시전자반대)) == -1
-                CALL 통합버프(T_시전자,TCV_자율,588,LOCAL - 30,2)
-            ELSE
-                CALL 통합버프(T_시전자,TCV_자율,588,LOCAL + 30,2)
-            ENDIF
-        ENDIF
+        
+        CALL 통합버프(T_시전자,TCV_자율,588,TB_POINTMOVE(좌표1,MIN(30,T_RANGE(좌표1,좌표2)),방향,100),2)
     ENDIF
 ENDSELECT
 
@@ -207,7 +207,7 @@ IF 스킬명중판정(명중률,588)
     피해량 = T_SKILL588("공격력")
     속성 '= T_SKILL588_STR("속성")
     ;CALL T_데미지(T_시전자반대, 피해량, 속성)
-    CALL 통합버프(T_시전자,TCV_자율,588,TB_위치(T_시전자),2)
+    CALL 통합버프(T_시전자,TCV_자율,588,T_INTLOCATE(T_시전자),2)
     CALL ONGOING_T_SKILL588(사용자, "지속시간설정")
     RETURN 1
 ELSE

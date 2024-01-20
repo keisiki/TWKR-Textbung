@@ -162,6 +162,9 @@ ENDSELECT
 #DIM DYNAMIC 스탯버퍼,8
 #DIM DYNAMIC 적정위치
 #DIM DYNAMIC 시전대상
+#DIM DYNAMIC 좌표1,3
+#DIM DYNAMIC 좌표2,3
+#DIM DYNAMIC 방향,3
 ;쿨타임은 미리 설정함
 CALL ONGOING_T_SKILL518(사용자, "쿨타임설정")
 
@@ -197,8 +200,9 @@ IF 스킬명중판정(명중률,518)
     스탯버퍼:4 = TCVAR:T_시전자:T_운
     스탯버퍼:5 = TCVAR:T_시전자:T_공격력
     스탯버퍼:6 = TCVAR:T_시전자:T_방어력
-    스탯버퍼:7 = TB_위치(T_시전자)
-
+    CALL T_LOCATE(T_시전자,좌표1) ;원래 좌표 저장
+    CALL T_LOCATE(T_시전자반대,좌표2) ;겸사겸사 상대 좌표도 따고
+    CALL T_ANGLE(좌표2,좌표1,방향) ;각도도 잼
     TCVAR:T_시전자:T_힘 = TCVAR:T_시전자반대:T_힘 
     TCVAR:T_시전자:T_지성 = TCVAR:T_시전자반대:T_지성
     TCVAR:T_시전자:T_속도 = TCVAR:T_시전자반대:T_속도
@@ -221,12 +225,8 @@ IF 스킬명중판정(명중률,518)
     $CAST
     CALLFORMF T_SKILL{시전대상}_RANGE("최적사거리")
     적정위치 = RESULT
-    IF TB_위치(T_시전자반대) - 적정위치 < 0
-        적정위치 = TB_위치(T_시전자반대) + 적정위치
-    ELSE
-        적정위치 = TB_위치(T_시전자반대) - 적정위치
-    ENDIF
-    CALL TB_순간이동(T_시전자,적정위치)
+    CALL TB_순간이동(T_시전자,TB_LOCATETOINT(좌표2)) ;우선 대상 위치로 날아갔다가
+    CALL TB_CHARAMOVE(T_시전자,적정위치,방향,100) ;대상에서 적정위치까지 이동
     CALLFORM AFTER_T_SKILL{시전대상}(사용자)
     TCVAR:T_시전자:T_힘 = 스탯버퍼:0
     TCVAR:T_시전자:T_지성 = 스탯버퍼:1
@@ -235,7 +235,7 @@ IF 스킬명중판정(명중률,518)
     TCVAR:T_시전자:T_운 = 스탯버퍼:4
     TCVAR:T_시전자:T_공격력 = 스탯버퍼:5
     TCVAR:T_시전자:T_방어력 = 스탯버퍼:6
-    CALL TB_순간이동(T_시전자,스탯버퍼:7)
+    CALL TB_순간이동(T_시전자,TB_LOCATETOINT(좌표1)) ;그 후 복귀하는 것
     CALL ONGOING_T_SKILL518(사용자, "지속시간설정")
     RETURN 1
 ELSE

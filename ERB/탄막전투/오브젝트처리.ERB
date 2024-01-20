@@ -1,45 +1,59 @@
 ﻿;ARG = OBJ NUM
 ;ARG:1 = SPEED PER TURN
 @T_OBJ_MOVE(ARG,ARG:1)
-#DIM DYNAMIC 방향
+#DIM DYNAMIC 좌표1,3
+#DIM DYNAMIC 좌표2,3
+#DIM DYNAMIC 방향,2
 #DIM DYNAMIC DX
 #DIM DYNAMIC DY
 #DIM DYNAMIC DZ
 #DIM DYNAMIC D_DONE,3
 DEBUGPRINTFORM {ARG}오브젝트의 이동 개시:({T_OBJ:8:ARG},{T_OBJ:9:ARG},{T_OBJ:10:ARG})(목표:{T_OBJ:11:ARG}, {T_OBJ:12:ARG}, {T_OBJ:13:ARG}) 
+좌표2:0 = T_OBJ:11:ARG
+좌표2:1 = T_OBJ:12:ARG
+좌표2:2 = T_OBJ:13:ARG
+;목표는 한번만 설정
 FOR LOCAL,0,ARG:1
-    방향 = T_ANGLE(T_OBJ:8:ARG, T_OBJ:9:ARG, T_OBJ:10:ARG, T_OBJ:11:ARG, T_OBJ:12:ARG, T_OBJ:13:ARG)
+    CALL T_OBJ_LOCATE(ARG,좌표1)
+    CALL T_ANGLE(좌표1,좌표2,방향)
     IF 방향 == 0
         DEBUGPRINTFORM (도중중단)
         BREAK
     ENDIF
-    LOCAL:1 = GETBIT(방향,1)
-    LOCAL:1 = LOCAL:1 << 1
-    LOCAL:1 += GETBIT(방향,0)
-    IF LOCAL:1 == 2
-        LOCAL:1 = -1
-    ELSEIF LOCAL:1 == 1
-        LOCAL:1 = 1
+    IF 방향:1 == 0
+        ;
+    ELSEIF 방향:1 < 0
+        DZ--
+    ELSEIF 방향:1 > 0
+        DZ++
     ENDIF
-    DZ += LOCAL:1
-    LOCAL:1 = GETBIT(방향,3)
-    LOCAL:1 = LOCAL:1 << 1
-    LOCAL:1 += GETBIT(방향,2)
-    IF LOCAL:1 == 2
-        LOCAL:1 = -1
-    ELSEIF LOCAL:1 == 1
-        LOCAL:1 = 1
-    ENDIF
-    DY += LOCAL:1
-    LOCAL:1 = GETBIT(방향,5)
-    LOCAL:1 = LOCAL:1 << 1
-    LOCAL:1 += GETBIT(방향,4)
-    IF LOCAL:1 == 2
-        LOCAL:1 = -1
-    ELSEIF LOCAL:1 == 1
-        LOCAL:1 = 1
-    ENDIF
-    DX += LOCAL:1
+    ;1m 이동하는거니 8방향으로 충분
+    SELECTCASE 방향:0
+        CASE 0
+            DX++
+            ;DY
+        CASE 1 TO 89
+            DX++
+            DY--
+        CASE 90
+            ;DX
+            DY--
+        CASE 91 TO 179
+            DX--
+            DY--
+        CASE 180
+            DX--
+            ;DY
+        CASE -1 TO -89
+            DX++
+            DY++
+        CASE -90
+            ;DX
+            DY++
+        CASE -91 TO -180
+            DX--
+            DY++
+    ENDSELECT
 
     IF ABS(DX) >= 10 && !D_DONE:0
         IF ABS(DX/10) >= ABS(T_OBJ:8:ARG - T_OBJ:11:ARG)
@@ -94,9 +108,12 @@ IF T_OBJ:4:ARG <= 0
 ENDIF
 
 @T_OBJ_IS_TOUCHED(ARG,ARG:1)
-CALL T_LOCATE(ARG:1)
-DEBUGPRINTFORML 오브젝트 {ARG}과 %CALLNAME:(ARG:1)%의 거리 {T_RANGE(T_OBJ:8:ARG,T_OBJ:9:ARG,T_OBJ:10:ARG,RESULT:0,RESULT:1,RESULT:2)}, 폭파점{ T_OBJ:1:ARG}
-IF T_RANGE(T_OBJ:8:ARG,T_OBJ:9:ARG,T_OBJ:10:ARG,RESULT:0,RESULT:1,RESULT:2) <= T_OBJ:1:ARG
+#DIM DYNAMIC 좌표,3
+#DIM DYNAMIC 오브젝트좌표,3
+CALL T_LOCATE(ARG:1,좌표)
+CALL T_OBJ_LOCATE(ARG,오브젝트좌표)
+DEBUGPRINTFORML 오브젝트 {ARG}과 %CALLNAME:(ARG:1)%의 거리 {T_RANGE(오브젝트좌표,좌표)}, 폭파점{ T_OBJ:1:ARG}
+IF T_RANGE(오브젝트좌표,좌표) <= T_OBJ:1:ARG
     DEBUGPRINTFORML 오브젝트 {ARG}가 %CALLNAME:(ARG:1)%에 충돌
     CALL T_OBJ_ACTIVE(ARG,"TOUCHED",ARG:1)
 ENDIF
@@ -169,3 +186,10 @@ FOR LOCAL,0,T_OBJ_MAX
     ENDIF
 NEXT
 RETURN RESULT
+
+@T_OBJ_LOCATE(ARG,좌표)
+#DIM REF 좌표,0
+
+좌표:0 = T_OBJ:8:ARG
+좌표:1 = T_OBJ:9:ARG
+좌표:2 = T_OBJ:10:ARG

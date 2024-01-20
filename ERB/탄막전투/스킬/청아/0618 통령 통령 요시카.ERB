@@ -109,6 +109,9 @@ ENDSELECT
 #DIM 남은지속시간, 200 ;캐릭터별 지속시간 저장 배열
 #DIM 남은쿨타임, 200 ;캐릭터별 지속시간 저장 배열
 #DIM DYNAMIC 피해량
+#DIM DYNAMIC 좌표1,3
+#DIM DYNAMIC 좌표2,3
+#DIM DYNAMIC 방향,3
 #DIMS DYNAMIC 속성
 피해량 = T_SKILL618("공격력")
 속성 '= T_SKILL618_STR("속성")
@@ -144,18 +147,25 @@ CASE "시스템체크"
 
 CASE "지속효과발동"
     ;지속적으로 효과가 발동하는 스킬의 경우, 여기에 효과를 입력
+    
     IF 남은지속시간:사용자 > 0
         LOCAL = TB_SUM_VALUE(T_시전자,TCV_자율,618)
+        CALL TB_INTTOLOCATE(LOCAL,좌표1)
+        CALL T_LOCATE(T_시전자반대,좌표2)
+        CALL T_ANGLE(좌표1,좌표2,방향)
         CALL TB_RESET_ID(T_시전자,TCV_자율,618)
-        CALL 통합버프(T_시전자,TCV_자율,618,MAX(0,MIN(199,LOCAL + (15 * TB_방향(LOCAL,T_시전자반대)))),3)
+        CALL 통합버프(T_시전자,TCV_자율,618,TB_POINTMOVE(좌표1,15,방향,100),3)
     ENDIF
     IF 남은지속시간:사용자 == 0
+        CALL T_LOCATE(T_시전자반대,좌표2)
+        CALL T_ANGLE(좌표1,좌표2,방향)
         CALL PRINT_SPELLNAME(618)
         PRINTFORML \@T_YOSHIKA_SUPPORT() ? 요시카의 # 삐걱대는 강시의 \@ 몸에서 대량의 에너지가 방출되며 주위를 초토화시킨다!
         LOCAL = TB_SUM_VALUE(T_시전자,TCV_자율,618)
+        CALL TB_INTTOLOCATE(LOCAL,좌표1)
         IF 스킬명중판정(70,618,1,LOCAL)
             PRINTFORML %T_시전자반대는% 폭발에 휩쓸려버렸다!
-            CALL T_데미지(T_시전자반대,피해량 * (TB_거리(T_시전자반대,LOCAL)) / T_SKILL618_1_RANGE("최대사거리"),속성)
+            CALL T_데미지(T_시전자반대,피해량 * (T_RANGE(좌표1,좌표2)) / T_SKILL618_1_RANGE("최대사거리"),속성)
         ELSE
             PRINTFORML 그러나 맞지 않았다...
         ENDIF 
@@ -191,7 +201,7 @@ IF 스킬명중판정(명중률,618)
     ;----------------
     ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
     ;----------------
-    CALL 통합버프(T_시전자,TCV_자율,618,TB_위치(T_시전자),3)
+    CALL 통합버프(T_시전자,TCV_자율,618,T_INTLOCATE(T_시전자),3)
     피해량 = T_SKILL618("공격력")
     속성 '= T_SKILL618_STR("속성")
     ;CALL T_데미지(T_시전자반대, 피해량, 속성)

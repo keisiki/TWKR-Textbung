@@ -859,7 +859,7 @@ RETURN 1
 
 ;TextbungStatus
 @TBS거리표시
-PRINTFORML [{T_위치:T_대상1:0,3},{T_위치:T_대상1:1,3},{T_위치:T_대상1:2,3}][나:{ARG능력치(T_대상1,"이동력"),3}m/턴] [거리 : {TB_거리_은신()}m] [{T_TIME/10}.{T_TIME%10}초] [고도차:{T_위치:T_대상1:2 - T_위치:T_대상2:2}m] [적:{ARG능력치(T_대상2,"이동력"),3}m/턴][{T_위치:T_대상2:0,3},{T_위치:T_대상2:1,3},{T_위치:T_대상2:2,3}]
+PRINTFORML [{T_위치:T_대상1:0,3},{T_위치:T_대상1:1,3},{T_위치:T_대상1:2,3}][나:{ARG능력치(T_대상1,"이동력"),3}m/s] [거리 : {TB_거리_은신()}m] [{T_TIME/10}.{T_TIME%10}초] [고도차:{T_위치:T_대상1:2 - T_위치:T_대상2:2}m] [적:{ARG능력치(T_대상2,"이동력"),3}m/s][{T_위치:T_대상2:0,3},{T_위치:T_대상2:1,3},{T_위치:T_대상2:2,3}]
 
 @TBS_스탯표시(ARG,ARGS)
 VARSET RESULTS
@@ -979,31 +979,8 @@ RETURNF RESULTS
 #DIM DYNAMIC Y2
 #DIMS DYNAMIC 버프상태1,40
 #DIMS DYNAMIC 버프상태2,40
-;칸당값 = 5;TB_위치값한계 / 50
-
-;PRINT [
-;FOR LOCAL,0,99
-;    IF INRANGE(TB_위치(T_대상1,99) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값) && INRANGE(TB_위치(T_대상2,TB_MAX_VALUE(T_대상1,TCV_은신간파)) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값)
-;        SETCOLOR 0XF0F0F0
-;        PRINT @
-;        RESETCOLOR
-;        이미표시:0 = 1
-;        이미표시:1 = 1
-;    ELSEIF INRANGE(TB_위치(T_대상1,99) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값) && !이미표시:0
-;        SETCOLOR 0XF0F000
-;        PRINT 나
-;        RESETCOLOR
-;        이미표시:0 = 1
-;    ELSEIF INRANGE(TB_위치(T_대상2) , LOCAL * 칸당값 , (LOCAL+1) * 칸당값) && !이미표시:1
-;        SETCOLOR 0XF02222
-;        PRINT 적
-;        RESETCOLOR
-;        이미표시:1 = 1
-;    ELSE
-;        PRINT .
-;    ENDIF
-;NEXT
-;PRINTL ]
+#DIM DYNAMIC 좌표1,3
+#DIM DYNAMIC 좌표2,3
 VARSET 위험지역, -1
 FOR LOCAL,0,T_OBJ_MAX
     IF T_OBJ:0:LOCAL != -1
@@ -1022,9 +999,12 @@ CALL 상태이상표시(T_대상1)
 SPLIT RESULTS, "<SPRIT>", 버프상태1
 CALL 상태이상표시(T_대상2)
 SPLIT RESULTS, "<SPRIT>", 버프상태2
-
+좌표2:0 = T_위치:MASTER:0
+좌표2:1 = T_위치:MASTER:1
+좌표2:2 = 0
 VARSET LOCAL
 LOCAL:4 = -1
+
 FOR LOCAL:1, Y1, Y2
     ;Y축
     VARSET 프린터버퍼
@@ -1141,7 +1121,11 @@ FOR LOCAL:1, Y1, Y2
                 프린터버퍼 += @"<font color='#FFFFFF'><button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}' title='[투사체]&#10;%투사체버퍼%'>■</button></font>"
             ENDIF
             IF !투사체개수
-                IF T_RANGE(LOCAL:0,LOCAL:1,0,T_위치:MASTER:0,T_위치:MASTER:1,0) <= ARG능력치(T_대상1,"이동력")
+                좌표1:0 = LOCAL:0
+                좌표1:1 = LOCAL:1
+                좌표1:2 = 0
+                
+                IF T_RANGE(좌표1,좌표2) <= ARG능력치(T_대상1,"이동력")
                     프린터버퍼 += @"<font color = '#1e81b0'><button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}'title='현재 이동력으로 1턴 안에 도달 가능한 지점입니다'>. </button></font>"
                 ELSE
                     프린터버퍼 += @"<button value='{TB_MAPTOINT(LOCAL:0*칸당값,LOCAL:1*칸당값,0)}'>. </button>"
@@ -1275,9 +1259,39 @@ RETURNF 0
 #FUNCTION
 RETURNF 1000000 + (ARG * 1000000)+(ARG:1 *1000)+(ARG:3)
 
+@TB_LOCATETOINT(좌표)
+#FUNCTION
+#DIM REF 좌표,0 
+RETURNF 1000000 + (좌표:0 * 1000000)+(좌표:1 *1000)+(좌표:2)
+
 @TB_INTTOMAP(ARG)
 ARG -= 1000000
 RESULT:2 = ARG / 1000000
 RESULT:1 = (ARG % 1000000) / 1000
 RESULT:0 = ARG % 1000
 RETURN RESULT:0
+
+@TB_INTTOLOCATE(ARG,좌표)
+#DIM REF 좌표,0
+ARG -= 1000000
+좌표:0 = TB_RETURN_X(ARG)
+좌표:1 = TB_RETURN_Y(ARG)
+좌표:2 = TB_RETURN_Z(ARG)
+RETURN 1
+
+;INT 좌표를 LOCATE 형식으로 변환해주는 함수들
+;INTTOLOCATE같은건 식중함수에서 못쓰니까...
+@TB_RETURN_X(ARG)
+#FUNCTION
+ARG -= 1000000
+RETURNF ARG / 1000000
+
+@TB_RETURN_Y(ARG)
+#FUNCTION
+ARG -= 1000000
+RETURNF (ARG % 1000000) / 1000
+
+@TB_RETURN_Z(ARG)
+#FUNCTION
+ARG -= 1000000
+RETURNF ARG % 1000
