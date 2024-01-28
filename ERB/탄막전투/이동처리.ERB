@@ -1,52 +1,52 @@
 ﻿
 ;실제로 캐릭터를 이동시키는 함수 <-OLD
-@TB_캐릭이동(캐릭터,이동값,방향 = 0,Z기동력 = -1)
-#DIM DYNAMIC 캐릭터
-#DIM DYNAMIC 이동값
-#DIM DYNAMIC 방향
-#DIMS DYNAMIC TEMP_MOVE
-#DIM DYNAMIC 좌표변동방향,3
-#DIM DYNAMIC Z기동력
-
-IF !방향
-    T_위치:캐릭터:0 += 이동값
-    IF T_위치:캐릭터:0 >= TB_위치값한계
-        이동값 -= T_위치:캐릭터:0 - TB_위치값한계
-        T_위치:캐릭터:0 = TB_위치값한계
-    ELSEIF T_위치:캐릭터:0 <= 0
-        이동값 += 0 - T_위치:캐릭터:0
-        T_위치:캐릭터:0 = 0
-    ENDIF
-ELSE
-    VARSET LOCAL
-    DEBUGPRINTFORML %CALLNAME:캐릭터%: 각도 {방향}도, 거리{이동값}
-    IF 방향 / 1000
-        SIF Z기동력 == -1
-            Z기동력 = TB_MAX_VALUE(캐릭터,TCV_비행)
-        IF !Z기동력 ;Z기동 불가시엔 Z각도를 제거
-            방향 = 방향 % 10000
-        ENDIF
-    ENDIF
-    WHILE 이동값 >= 1 && LOCAL < 100
-        LOCAL++
-        CALL T_ANGLE_TAN_TO_WAY(방향,이동값)
-        이동값 = RESULT:3
-        DEBUGPRINTFORML XYZ이동값{이동값}, XYZ{RESULT},{RESULT:1},{RESULT:2}
-        T_위치:캐릭터:0 = LIMIT(T_위치:캐릭터:0 + RESULT,0,TB_위치값한계)
-        T_위치:캐릭터:1 = LIMIT(T_위치:캐릭터:1 + RESULT:1,0,TB_위치값한계)
-        T_위치:캐릭터:2 = LIMIT(T_위치:캐릭터:2 + RESULT:2,0,TB_위치값한계)
-    WEND
-ENDIF
-RETURN 이동값
+;@TB_캐릭이동(캐릭터,이동값,방향 = 0,Z기동력 = -1)
+;#DIM DYNAMIC 캐릭터
+;#DIM DYNAMIC 이동값
+;#DIM DYNAMIC 방향
+;#DIMS DYNAMIC TEMP_MOVE
+;#DIM DYNAMIC 좌표변동방향,3
+;#DIM DYNAMIC Z기동력
+;IF !방향
+;    T_위치:캐릭터:0 += 이동값
+;    IF T_위치:캐릭터:0 >= TB_위치값한계
+;        이동값 -= T_위치:캐릭터:0 - TB_위치값한계
+;        T_위치:캐릭터:0 = TB_위치값한계
+;    ELSEIF T_위치:캐릭터:0 <= 0
+;        이동값 += 0 - T_위치:캐릭터:0
+;        T_위치:캐릭터:0 = 0
+;    ENDIF
+;ELSE
+;    VARSET LOCAL
+;    DEBUGPRINTFORML %CALLNAME:캐릭터%: 각도 {방향}도, 거리{이동값}
+;    IF 방향 / 1000
+;        SIF Z기동력 == -1
+;            Z기동력 = TB_MAX_VALUE(캐릭터,TCV_비행)
+;        IF !Z기동력 ;Z기동 불가시엔 Z각도를 제거
+;            방향 = 방향 % 10000
+;        ENDIF
+;    ENDIF
+;    WHILE 이동값 >= 1 && LOCAL < 100
+;        LOCAL++
+;        CALL T_ANGLE_TAN_TO_WAY(방향,이동값)
+;        이동값 = RESULT:3
+;        DEBUGPRINTFORML XYZ이동값{이동값}, XYZ{RESULT},{RESULT:1},{RESULT:2}
+;        T_위치:캐릭터:0 = LIMIT(T_위치:캐릭터:0 + RESULT,0,TB_위치값한계)
+;        T_위치:캐릭터:1 = LIMIT(T_위치:캐릭터:1 + RESULT:1,0,TB_위치값한계)
+;        T_위치:캐릭터:2 = LIMIT(T_위치:캐릭터:2 + RESULT:2,0,TB_위치값한계)
+;    WEND
+;ENDIF
+;RETURN 이동값
 
 ;실제로 캐릭터를 이동시키는 함수 <- NEW
-@TB_CHARAMOVE(캐릭터,이동값,방향,Z기동력 = -1)
+@TB_CHARAMOVE(캐릭터,이동값,방향,Z기동력 = -1,XY기동력 = 500)
 #DIM DYNAMIC 캐릭터
 #DIM DYNAMIC 이동값
 #DIM REF 방향,0
 #DIMS DYNAMIC TEMP_MOVE
 #DIM DYNAMIC 좌표변동방향,3
 #DIM DYNAMIC Z기동력
+#DIM DYNAMIC XY기동력
 
 VARSET LOCAL
 IF 방향:0 > 1000 ;ANGLE이 아닌 INT식으로 입력함
@@ -426,15 +426,16 @@ ENDIF
 RETURNF RESULTS
 
 ;각도를 바탕으로 이동 목적지를 도출해냄
-@T_ANGLE_TAN_TO_WAY(각도,이동력,Z각도 = 0,Z한계 = 0)
+@T_ANGLE_TAN_TO_WAY(각도,이동력,Z각도 = 0,Z한계 = 0,XY한계 = 500)
 #DIM DYNAMIC 각도
 #DIM DYNAMIC 이동력
 #DIM DYNAMIC Z각도
 #DIM DYNAMIC Z한계
+#DIM DYNAMIC XY한계
 #DIM DYNAMIC XX ;DX
 #DIM DYNAMIC YY ;DY
 #DIM DYNAMIC ZZ ;DZ
-LOCAL = T_ANGLE_TAN_TO_WAY_F(각도,이동력,Z각도,Z한계)
+LOCAL = T_ANGLE_TAN_TO_WAY_F(각도,이동력,Z각도,Z한계,XY한계)
 XX = LOCAL / 1000000000
 YY = (LOCAL % 1000000000) / 1000000
 ZZ = (LOCAL % 1000000) / 1000
@@ -446,7 +447,7 @@ RESULT:2 = ZZ
 RESULT:3 = 이동력
 RETURN RESULT:0
 
-@T_ANGLE_TAN_TO_WAY_F(각도,이동력,Z각도 = 0,Z한계 = 0)
+@T_ANGLE_TAN_TO_WAY_F(각도,이동력,Z각도 = 0,Z한계 = 0,XY한계 = 500)
 #FUNCTION
 #DIM DYNAMIC XX ;DX
 #DIM DYNAMIC YY ;DY
@@ -458,6 +459,7 @@ RETURN RESULT:0
 #DIM DYNAMIC XY각도
 #DIM DYNAMIC Z각도
 #DIM DYNAMIC Z한계
+#DIM DYNAMIC XY한계
 #DIM DYNAMIC 이동력
 #DIM DYNAMIC DONE,2
 IF Z각도 == 180 || Z각도 == 0
@@ -557,36 +559,38 @@ ENDIF
 
 WHILE 이동력 > 0
     이동력--
-    SELECTCASE T_ANGLE_TAN(X목표 - TB_ANGLE_범위 + XX, Y목표 - TB_ANGLE_범위 + YY)
-        CASE 0
-            ;동
-            XX++
-        CASE 1 TO 89
-            ;북동
-            XX++
-            YY++
-        CASE 90
-            ;북
-            YY++
-        CASE 91 TO 179
-            ;북서
-            XX--
-            YY++
-        CASE 180
-            ;서
-            XX--
-        CASE -180 TO -91
-            ;남서
-            XX--
-            YY--
-        CASE -90
-            ;남
-            YY--
-        CASE -79 TO -1
-            ;남동
-            XX++
-            YY--
-    ENDSELECT
+    IF ABS(XX) + ABS(YY) < XY한계
+        SELECTCASE T_ANGLE_TAN(X목표 - TB_ANGLE_범위 + XX, Y목표 - TB_ANGLE_범위 + YY)
+            CASE 0
+                ;동
+                XX++
+            CASE 1 TO 89
+                ;북동
+                XX++
+                YY++
+            CASE 90
+                ;북
+                YY++
+            CASE 91 TO 179
+                ;북서
+                XX--
+                YY++
+            CASE 180
+                ;서
+                XX--
+            CASE -180 TO -91
+                ;남서
+                XX--
+                YY--
+            CASE -90
+                ;남
+                YY--
+            CASE -79 TO -1
+                ;남동
+                XX++
+                YY--
+        ENDSELECT
+    ENDIF
     IF ABS(ZZ) < Z한계
         IF Z목표 - ZZ > 0
             ZZ++
