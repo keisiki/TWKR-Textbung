@@ -1,0 +1,101 @@
+﻿@T_V_SUM_VALUE(대상,방향)
+#FUNCTION
+#DIM DYNAMIC 대상
+#DIMS DYNAMIC 방향
+
+FOR LOCAL,0,T_V_최대치
+    IF T_벡터:LOCAL:0
+        SELECTCASE 방향
+            CASE "X"
+                RESULT += T_벡터:LOCAL:2
+            CASE "Y"
+                RESULT += T_벡터:LOCAL:3
+            CASE "Z"
+                RESULT += T_벡터:LOCAL:4
+        ENDSELECT
+    ENDIF
+NEXT
+RETURNF RESULT
+
+
+@T_V_SET(대상,방향,거리,지속시간,감쇄)
+#DIM DYNAMIC 대상
+#DIM REF 방향,0
+#DIM DYNAMIC 거리 ;최종 이동거리인 편이 생각하기 쉽겠지...
+#DIM DYNAMIC D_X
+#DIM DYNAMIC D_Y
+#DIM DYNAMIC D_Z
+#DIM DYNAMIC 지속시간
+#DIM DYNAMIC 감쇄
+
+CALL T_ANGLE_TAN_TO_WAY(방향:0,거리/지속시간,방향:1,500)
+D_X = RESULT:0
+D_Y = RESULT:1
+D_Z = RESULT:2
+
+FOR LOCAL,0,T_V_최대치
+    IF T_벡터:LOCAL:0 == 0
+        T_벡터:LOCAL:0 = 지속시간
+        T_벡터:LOCAL:1 = 대상
+        T_벡터:LOCAL:2 = D_X
+        T_벡터:LOCAL:3 = D_Y
+        T_벡터:LOCAL:4 = D_Z
+        T_벡터:LOCAL:5 = 감쇄
+        BREAK
+    ENDIF
+NEXT
+
+
+@T_V_PROGRESS()
+#DIM DYNAMIC 대상
+;해야할거 <- 작동하는지 테스트, 마지막 수정후 안하고 껐음
+FOR LOCAL,0,T_V_최대치
+    IF T_벡터:LOCAL:0 > 0
+        대상 = T_벡터:LOCAL:1
+        ;이동
+        T_위치:대상:0 = LIMIT(T_벡터:LOCAL:2 + T_위치:대상:0,0,TB_위치값한계)
+        T_위치:대상:1 = LIMIT(T_벡터:LOCAL:3 + T_위치:대상:1,0,TB_위치값한계)
+        T_위치:대상:2 = LIMIT(T_벡터:LOCAL:4 + T_위치:대상:2,0,TB_위치값한계)
+        ;감소
+        T_벡터:LOCAL:0--
+        IF T_벡터:LOCAL:0 == 0
+            CALL T_V_RESET(LOCAL)
+            CONTINUE
+        ENDIF
+        IF T_벡터:LOCAL:5 != 0
+            T_벡터:LOCAL:2 -= T_벡터:LOCAL:5
+            T_벡터:LOCAL:3 -= T_벡터:LOCAL:5
+            T_벡터:LOCAL:4 -= T_벡터:LOCAL:5
+        ENDIF
+    ENDIF
+NEXT
+
+@T_V_RESET(ARG)
+
+IF !ARG
+    VARSET T_벡터
+ELSE
+    T_벡터:ARG:0 = 0
+    T_벡터:ARG:1 = 0
+    T_벡터:ARG:2 = 0
+    T_벡터:ARG:3 = 0
+    T_벡터:ARG:4 = 0
+    T_벡터:ARG:5 = 0
+ENDIF
+
+@T_V_SORT()
+#DIM DYNAMIC TEMP_V,200,6
+
+FOR LOCAL,0,T_V_최대치
+    IF T_벡터:LOCAL:0 != 0
+        FOR LOCAL:2,0,T_V_요소수
+            TEMP_V:(LOCAL:1):(LOCAL:2) = T_벡터:LOCAL:(LOCAL:2)
+        NEXT
+        LOCAL:1++
+    ENDIF
+NEXT
+FOR LOCAL,0,LOCAL:1
+    FOR LOCAL:2,0,T_V_요소수
+        T_벡터:(LOCAL):(LOCAL:2) = TEMP_V:LOCAL:(LOCAL:2)
+    NEXT
+NEXT
