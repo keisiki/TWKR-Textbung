@@ -145,10 +145,6 @@ FOR LOCAL, iPrintStart, FLAG:화상표시 + iPrintStart
 		RESULTS:0 = %GET_BASESTYLE(CHARA)%_服_通常_{CHARA}
 		RESULTS:1 =
 	ENDIF
-	;ボテ画像表示
-	IF SHOW_BOTE(CHARA) && !RAND:3
-		RESULTS:1 = ボテ_{CHARA}
-	ENDIF
     ;時間停止時はマウスオーバー画像を表示しない
 	SIF FLAG:시간정지
 		RESULTS:1 =
@@ -218,7 +214,7 @@ IF FLAG:화상표시설정 ;1041
 	sPrint_Text += @"이펙트[\@FLAG:追加エフェクト?ON#OFF\@]</button>"
 	IF CFLAG:TARGET:별도얼굴있음 || CFLAG:TARGET:별도스탠딩있음
 		sPrint_Text += @"　<button value='3110' title='현재: \@CFLAG:TARGET:대체적용?ON#OFF\@'>"
-		sPrint_Text += @"대체화상[\@CFLAG:TARGET:대체적용?ON#OFF\@]</button>"
+		sPrint_Text += @"대체화상[{CFLAG:TARGET:대체적용}]</button>"
 	ENDIF
 	sPrint_Text += "<br>"
 	;-----------------
@@ -773,6 +769,8 @@ RETURNF 0
 #DIMS DYNAMIC リソース, 100
 #DIMS DYNAMIC エフェクト名
 
+;PRINTFORML 이펙트가 달리고 있어
+
 SIF !FLAG:追加エフェクト
 	RETURN 0
 VARSET RESULTS
@@ -842,6 +840,15 @@ IF RESULT || エフェクト == ""
 		ENDIF
 	NEXT
 ENDIF
+;PRINTFORML 汎用エフェクトチェックが走ってるよ
+IF CSTR:CHARA:범용이펙트 != ""
+	;PRINTFORML エフェクト「汎用エフェクト_%CSTR:CHARA:汎用エフェクト%」を確認
+	IF SPRITECREATED(@"汎用エフェクト_%CSTR:CHARA:범용이펙트%")
+		;PRINTFORML あったよ
+		リソース:(エフェクト数) = 汎用エフェクト_%CSTR:CHARA:범용이펙트%
+		エフェクト数 += 1
+	ENDIF
+ENDIF
 
 ARRAYCOPY "リソース", "RESULTS"
 RETURN エフェクト数
@@ -908,18 +915,3 @@ SIF SPENT_TIME > 0 && CFLAG:CHARA:우후후
 SIF BASE:CHARA:체력 < MAXBASE:CHARA:체력*3/4 && BASE:CHARA:기력 < MAXBASE:CHARA:기력/4
 	RETURNF 1
 RETURNF 0
-
-@SHOW_BOTE(CHARA)
-#FUNCTION
-#DIM CHARA
-SIF CFLAG:CHARA:의상일시변경
-	RETURNF 0
-SIF CFLAG:CHARA:우후후
-	RETURNF 0
-SIF TEQUIP:CHARA:상반신착의상황 == 0 || TEQUIP:CHARA:하반신착의상황 == 0
-	RETURNF 0
-SIF CFLAG:CHARA:임신경과일수 < 40
-	RETURNF 0
-SIF !SPRITECREATED(@"ボテ_{CHARA}")
-	RETURNF 0
-RETURNF 1

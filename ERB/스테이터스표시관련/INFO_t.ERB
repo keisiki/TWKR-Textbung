@@ -122,6 +122,8 @@ CALL INFO_TIME_WATCH
 ;날씨와 월령의 표시
 SIF !날씨비표시
 	CALL INFO_SHOW_WEATHER
+;현재 기온 표시
+CALL INFO_現在の気温
 
 PRINTPLAIN
 ;시간정지 상태나 MASTER의 졸음 등
@@ -932,6 +934,7 @@ FOR LOCAL, 1, CHARANUM
 		CFLAG:LOCAL:동실 = 0
 	ENDIF
 NEXT
+CFLAG:MASTER:당신앞턴위치 = CFLAG:MASTER:현재위치
 
 ;친해져 강도 결정
 ;TARGET측
@@ -1068,12 +1071,25 @@ ENDIF
 
 ;일시와 축일의 표시(개행 없음)
 @INFO_TIME_WATCH
-PRINTFORM %GET_MONTH()% {DAY:3}일째(%GET_DAY()%)
+;PRINTFORM %GET_MONTH()% {DAY:3}일째(%GET_DAY()%)
+PRINTFORM %GET_MONTH()% {DAY:3}일째(
+CALL COLOR_YOUBI
+PRINTFORM )
 SETCOLOR C_RED
 PRINTFORM %FESTIVAL()% 
 RESETCOLOR
 PRINTFORM %시각표시(TIME)% 
 PRINTFORM (%CLASSICAL_TIME(TIME, 1, 2)%)
+
+;色付きの曜日表示
+@COLOR_YOUBI
+IF GET_DAY() == "일"
+	SETCOLOR C_FLAME
+ELSEIF GET_DAY() == "토"
+	SETCOLOR C_ROYAL_BLUE
+ENDIF
+PRINTFORM %GET_DAY()%
+RESETCOLOR
 
 ;-------------------------------------------------
 ;	時計画像を表示
@@ -1216,20 +1232,20 @@ CALL INFO_MOON
 SELECTCASE WIND_VELOCITY
 	CASE 1
 		PRINT 　
-		SETCOLOR C_YELLOW
+		SETCOLOR C_気象_注意報
 		PRINT  강풍
 	CASE 2
 		PRINT 　
-		SETCOLOR C_YELLOW
+		SETCOLOR C_気象_注意報
 		PRINTFORM %UNICODE(0x26A0)%
-		SETCOLOR C_RED
-		PRINT  폭풍
+		SETCOLOR C_気象_警報
+		PRINT 폭풍
 	CASE 3
 		PRINT 　
-		SETCOLOR C_YELLOW
+		SETCOLOR C_気象_注意報
 		PRINTFORM %UNICODE(0x26A0)%
-		SETCOLOR C_P_PURPLE
-		PRINT  구풍
+		SETCOLOR C_気象_土砂災害警戒情報
+		PRINT 구풍
 
 ENDSELECT
 RESETCOLOR
@@ -1244,6 +1260,53 @@ SETCOLOR 0xFFFF40
 PRINTFORM %NAME_MOON(DAY:3)%
 RESETCOLOR
 
+;(天候パッチ)気温
+@INFO_現在の気温
+#DIM 現在気温
+現在気温 = GET_現在気温()
+SELECTCASE 現在気温
+	CASE IS <= -50
+		PRINT  
+		SETCOLOR C_気温_酷寒
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+	CASE IS < 0
+		PRINT  
+		SETCOLOR C_気温_冬
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+	CASE IS < 50
+		PRINT  
+		SETCOLOR C_気温_寒
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+	CASE IS < 100
+		PRINT  
+		SETCOLOR C_気温_冷
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+	CASE IS < 150
+		PRINT  
+		SETCOLOR C_気温_涼
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+	CASE IS < 200
+		PRINT  
+		SETCOLOR C_気温_温
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+	CASE IS < 250
+		PRINT  
+		SETCOLOR C_気温_暖
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+	CASE IS < 300
+		PRINT  
+		SETCOLOR C_気温_夏
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+	CASE IS < 350
+		PRINT  
+		SETCOLOR C_気温_真夏
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+	CASE IS >= 350
+		PRINT  
+		SETCOLOR C_気温_猛暑
+		PRINTFORM 기온{現在気温/10}.{ABS(現在気温%10)}℃
+ENDSELECT
+RESETCOLOR
 
 ;시간정지관련
 ;TSPバーとコマンドの位置はどちらが良い？

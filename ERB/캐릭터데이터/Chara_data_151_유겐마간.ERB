@@ -1,0 +1,118 @@
+﻿@CHARAMOVE_DATA_151(ARG, ARG:2)
+LOCAL = 151
+SELECTCASE ARG
+	;連動設定（RETURN=依存するキャラ, RESULT:1～3=対等に連動するキャラ）
+	CASE 1
+	;特殊生活時間設定（CFLAG:LOCAL:生活時間補正を設定する）
+	CASE 3
+	;移動傾向（±～10=行きやすい/行きにくい, -100=行かない）
+	CASE 4
+		SELECTCASE ARG:2
+			;地霊殿には行かない
+			CASE P901지령전앞 TO P930옛혈지지옥
+				RETURN -100
+			;酒場と오니의溜まり場に行きやすい
+			CASE P933술집, P938오니소굴
+				RETURN 5
+		ENDSELECT
+	;出現場所
+	CASE 7
+		SELECTCASE ARG:2
+			;Lots of occult tomes in the library and Suzunaan
+			CASE 대도서관, 상가거리
+				RETURN 1
+			;Looks for magic artifacts at Kourindou
+			CASE 향림당
+				RETURN 1
+			;Her friend Sariel visits these places sometimes
+			CASE 지옥의깊은길, 옛지옥가도
+				RETURN 1
+			;spooky places
+			CASE 묘지, 무명의언덕, 재고의길, 무연총
+				RETURN 1
+			;Sightseeing before "the things that devour and dissolve" consume Gensokyo
+			CASE 삼도천, 몽환유적, 현무의늪, 홍룡동, 고요의바다
+				RETURN 1
+		ENDSELECT
+	;引力設定（CFLAG:LOCAL:인력점を設定する）
+	CASE 8
+		;夜はよく酒場
+		SIF CFLAG:LOCAL:오늘의운세 % 4 == 0 && INRANGE(TIME, 1200, 1440)
+			TCVAR:LOCAL:인력점 = P933술집
+ENDSELECT
+
+@EXIST_캐릭터데이터151
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+@캐릭터데이터151(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "통칭"
+	CALLF MAKE_STR(V_NAME, "마간")
+;こっから衣装設定
+CASE "오늘의 파자마"
+	CALLF MAKE_STR(V_NAME, "파자마（원피스）세트")
+
+CASE "평상복：기모노"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("기모노", "기모노"))
+CASE "평상복：치마"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("치마", "치마"))	
+CASE "평상복：액세서리"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("액세서리", "소매"))
+CASE "평상복：그외1"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("그외1", "리본"))
+
+CASE "고유 속옷 형용사"
+	CALLF MAKE_STR(V_NAME, "electrified")
+CASE "고유 하반신속옷명"
+	CALLF MAKE_STR(V_NAME, "conductive panties")
+CASE "고유 상반신속옷"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "고유 상반신속옷명"
+	CALLF MAKE_STR(V_NAME, "conductive bra")
+CASE "고유 속옷 착용 조건"
+	SIF !RAND:(3 - (2 * 승부속옷판정([[마간]])))
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "고유 속옷 비쳐보이는(앞)"
+	CALLF MAKE_INT(V_NAME, 0)
+CASE "고유 속옷 비쳐보이는(뒤)"
+	CALLF MAKE_INT(V_NAME, 0)
+CASE "고유 속옷 옷감 두께"
+	CALLF MAKE_INT(V_NAME, 3)
+
+;料理関連
+CASE "요리：좋아하는 맛"
+	CALLF MAKE_STR(V_NAME, "/")
+CASE "요리：싫어하는 맛"
+	CALLF MAKE_STR(V_NAME, "/")
+CASE "요리：조수 효과"
+	CALLF MAKE_STR(V_NAME, "마계풍/")
+;贈り物関連
+CASE "감성：좋아함"
+	CALLF MAKE_STR(V_NAME, "/")
+CASE "감성：싫어함"
+	CALLF MAKE_STR(V_NAME, "/")
+ENDSELECT
+
+;-------------------------------------------------
+;固有料理設定
+;DISH_NAME          料理名
+;RESULTS            料이치의種類（軽食/主食/デザート）
+;CALL 재료설정("")  材料の指定。"汎用"を入れると自動で汎用食材になる
+;DISH_TASTE         味の設定
+;DISH_COMMENT       （任意）一行コメント
+;DISH_TIME          （任意）調理にかかる時間
+;DISH_MAXLIMIT      （任意）料이치의持続時間
+;-------------------------------------------------
+@SPECIAL_MENU_151
+DISH_NAME = Fried Evil Eyes
+RESULTS = 경식
+CALL 재료설정("범용")
+DISH_TASTE = "그로테스크/사각사각/튀겨짐/짠/뭉근뭉근/길한물건/고기 요리/"
+DISH_COMMENT '= @"Evil eyes put in batter and then cooked with electricity. Crunchy outside yet gooey inside." 
+RETURN 1

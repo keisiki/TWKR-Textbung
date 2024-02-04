@@ -28,7 +28,6 @@ ENDIF
 
 @EVENT_COUNTER(ARG,ARG:1)
 #DIM 후보, CCOM_MAXNUM
-#DIM 실행중커맨드,510
 #DIM 기본치
 VARSET LOCAL
 VARSET 후보
@@ -68,34 +67,13 @@ IF CFLAG:ARG:우후후 == 1
 	RETURN 0
 ENDIF
 DEBUGPRINTFORML %CALLNAME:ARG%로부터 카운터액션 발생중
-;약점
-;요점 조정 ENDURE와 RAND로 차를 흐린다
-IF ARG:1 == 1 && CFLAG:ARG:우후후 == 2 && CFLAG:ARG:약점잡음 && (ENDURE(ARG) < (400 + RAND:400) && !RAND:3) && !TCVAR:ARG:마음대로해
-	SIF CFLAG:ARG:약점잡음 > 0
-		CALL EVENT_COUNTER_PUNISHMENT(ARG,ARG:1)
-	FOR LOCAL,0, CHARANUM
-		CFLAG:LOCAL:우후후 = 0
-		TFLAG:MASTER의P삽입중 = 0
-		;우후후시 계 장비 리셋
-		FOR LOCAL:1, 10, 150
-			TEQUIP:LOCAL:(LOCAL:1) = 0
-		NEXT
-		TEQUIP:LOCAL:50 = -1
-		TEQUIP:LOCAL:51 = -1
-		;사정 관계 리셋
-		IF TFLAG:102 < 2
-			BASE:LOCAL:사정 = 0
-			TCVAR:LOCAL:이기초 = 0
-		ENDIF
-		IF LOCK:(CFLAG:LOCAL:초기위치) && AT_HOME(LOCAL)
-			CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_파자마")
-			CFLAG:LOCAL:파자마 = 1
-		ELSE
-			CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_평상복")
-			CFLAG:LOCAL:파자마 = 0
-		ENDIF
-		CALL CLOTHES_SETTING_TRAIN(LOCAL)
-	NEXT
+;약점잡기의 제재
+;요조정 ENDURE와 RAND로 차를 흐리다
+;2023/01/10 옵션선택제로 이행, 종료처리를 ENDUFU_ALL에 일임
+
+IF ARG:1 == 1 && DECIDE_PUNISHMENT(ARG)
+	CALL EVENT_COUNTER_PUNISHMENT(ARG,ARG:1)
+	CALL ENDUFUFU_ALL
 	TFLAG:102 = 1
 	RETURN 0
 ENDIF
@@ -110,10 +88,15 @@ ENDIF
 
 ;------------------------------------------
 ;2019/08/09 신규판정실장
+;2023/01/10 간이 필터 구현
 ;각 번호대에 있어서의 처리를, 현행의 커맨드 처리에 따르게 카운터 커맨드로서 분리.
 ;자세한 사항은 각 명령(CCOM) 파일 내에 집약。
 ;------------------------------------------
 FOR LOCAL, 1, CCOM_MAXNUM
+[IF_DEBUG]
+	SIF CCOM_FILTER:LOCAL
+		CONTINUE
+[ENDIF]
 	;각 명령어 수행여부 확인
 	TRYCALLFORM CCOM_ABLE{LOCAL}(ARG)
 	IF RESULT
@@ -130,9 +113,8 @@ NEXT
 ;실행 판정 등록
 ;------------------------------------------
 LOCAL:4 = ARRAY_HIT(후보, CCOM_MAXNUM)
-IF TCVAR:ARG:차회카운터 && 후보:(TCVAR:ARG:차회카운터) > 0
+SIF TCVAR:ARG:차회카운터 && 후보:(TCVAR:ARG:차회카운터) > 0
 	LOCAL:4 = TCVAR:ARG:차회카운터
-ENDIF
 TCVAR:ARG:차회카운터 = 0
 ; 결정
 IF LOCAL:4 > 0
