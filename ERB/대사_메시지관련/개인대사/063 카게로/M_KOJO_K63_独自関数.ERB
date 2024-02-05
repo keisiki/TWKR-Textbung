@@ -200,7 +200,7 @@ CASEELSE
 			CASEELSE
 				PRINTFORMW 「아 %CALLNAME:MASTER%, 일어났구나!」
 				PRINTFORMW 「완전히 밤이 깊어졌네」
-				PRINTFORMW 「지금부터는 요괴 시간이니까 %조사처리(CALLNAME:MASTER, "는")% 너무 돌아다니지 않는 게 좋을 것 같아」
+				PRINTFORMW 「지금부터는 요괴의 시간이니까 %조사처리(CALLNAME:MASTER, "는")% 너무 돌아다니지 않는 게 좋을 것 같아」
 			ENDSELECT
 		ENDSELECT
 	ENDSELECT
@@ -761,6 +761,14 @@ TCVAR:351 = 1
 ;挨拶
 ;━━━━━━━━━━━━━━━━━━━━━━━━━
 @K63_GREETING
+IF TCVAR:363 == 1
+	{
+	PRINTFORMW 「%TEXTR("싫어... 복장 정도는 맘대로 하게 해줬으면 좋겠어.../
+	늑대가 왜 이렇게 입고 다녀야 하는 걸까.../보름달에서 먼 날일수록 좋네...")%」
+	}
+	RETURN 1
+ENDIF
+
 IF FLAG:더부살이캐릭터 == 63
 	SELECTCASE TIME:2
 	;朝は寝てるんで死に分岐ですが
@@ -919,6 +927,18 @@ IF TALENT:[[카게로]]:연모
 			PRINTFORML 「냄새도 똑같아！」
 		CASE "개맘마"
 			PRINTFORML 「보기엔 조잡하지만, 든든해 보이네」
+		{
+		CASE "쇼트케이크" , "초콜릿케이크", "핫케이크" , "파운드케이크" ,
+		"파이" , "타르트" , "크레이프" , "슈크림",
+		"파르페" , "푸딩" , "젤리" , "요구르트" , "아이스크림"
+		}
+			PRINTFORML 「그냥 양과자가 아니야! 팔지도 않고 재료도 희귀해서, 나 같은 평범한 요괴들은 쉽게 먹을 수 없어」
+			IF TALENT:연모 && !RAND:4
+				PRINTFORML 「그래서 홍마관에서 이벤트가 있을 때, 거기서 일하는 요정 메이드들과 얘기를 나누고...」
+				PRINTFORMW 꽤 건방져 보이는 것 같다
+			ELSE
+				PRINTFORMW 「이걸 공개하면 유명인이 될 수 있지 않을까?」
+			ENDIF
 		;お魚系、天麩羅は唯一、魚料理がつかないので先に分岐
 		;まー、TASTEにはついてないが内実は想像にまかせるということで
 		CASE "덴푸라"
@@ -1007,6 +1027,11 @@ IF TALENT:[[카게로]]:연모
 					PRINTFORMW 「아, 그래도 이건 괜찮겠네」
 				ENDIF
 			ELSEIF STRCOUNT(DISH_TASTE, ESCAPE("경식/"))
+			;	PRINTFORML 「嫌いじゃないけど…なんていうのこういうの？カテイテキ？」
+			;	PRINTFORML 「カテイって家族のことでしょ？家族だと食べるものが変わるの？」
+			;	PRINTFORML 「一人暮らしだとこれ食べないの？そういうわけでもない？」
+			;	PRINTFORMW 「……まったく、人間ってよくわからない生き物ね」
+			;ELSEIF STRCOUNT(DISH_TASTE, ESCAPE("軽食/"))
 			ENDIF
 		ENDSELECT
 	PRINTL
@@ -1909,6 +1934,15 @@ RETURNF 1
 ;━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @K63_DEVOUR
+#DIMS 子供の名前
+#DIM CHILDNUM
+CHILDNUM = TALENT:[[影狼]]:육아중
+IF TALENT:[[影狼]]:육아중 && CFLAG:[[影狼]]:출산경과일 > CHILD_語彙
+	子供の名前 = %CHILDNAME:[[影狼]]:CHILDNUM%
+	PRINTFORML 「여기, 더 먹으렴」
+	PRINTFORMW 카게로는 본인과 %CALLNAME:MASTER%의 접시에서 %子供の名前%의 접시로 고기를 옮겨닮고 있다.
+	RETURN
+ENDIF
 PRINTFORMW ……
 IF !RAND:2
 	PRINTFORML 「덥썩! 덥썩! 덥썩! 덥썩!」
@@ -2038,6 +2072,18 @@ IF TRAP_DURABILITY:RETRIEVE == 0 || TRAP_CAPTURE:RETRIEVE == 11
 	CALL TRAP_V_RESET(RETRIEVE)
 	RETURN 0
 ENDIF
+;東南アジアで実在する狩猟法 (카게로가 지어주는 모든 새의 이름은 야키토리 부위의 명칭과 같음)
+IF TRAP_CAPTURE:RETRIEVE == 50 && K63_CHICKENNAME == ""
+	PRINTFORMW 「수컷 새면 풀어주지 말라고 했는데, 어디에 사용하려는 거야? 알람?」
+	PRINTFORMW 「...헤에 다른 수컷이 영역을 지키려고 다가오는거구나! 인간은 정말 다양한 생각을 하네」
+	PRINTFORMW 「그럼 이거, 나한테 줄래? %CALLNAME:MASTER%의 함정 사냥보다 내가 더 효과적으로 활용할 수 있을 것 같아」
+	PRINTFORMW 「괜찮아 괜찮아! 먹지 않을 테니까!」
+	K63_CHICKENNAME '= @"%TEXTR("스나기모/하츠/카시와/세세리/추우릿푸/본지리/야갱/오타후쿠/후리소데")%"
+	PRINTFORML 「그렇네, 이름은... %K63_CHICKENNAME% 어떨까?」
+	PRINTFORMW 조금 불안한 네이밍이네...
+	CALL TRAP_V_RESET(RETRIEVE)
+	RETURN 0
+ENDIF
 IF TRAP_CAPTURE:RETRIEVE == 0 && TRAP_DURABILITY:RETRIEVE
 	PRINTFORML 「\@ TRAP_DURABILITY:RETRIEVE < 11? 꽤나 # 조금\@ 파손되어 있었어」
 	PRINTFORML 「회수해 두는 게 좋을 지도」
@@ -2051,8 +2097,14 @@ SELECTCASE CritterMeat_Value
 	CASE IS >= 10
 		PRINTFORML 「굉장한 게 걸려 있었어」
 		PRINTFORML 「봐봐, 고기도 이렇게！」
+		K63_KNACKER += 3
+		SIF ABL:[[影狼]]:요리기능 >= 2
+			K63_KNACKER ++
 	CASE IS >= 5
 		PRINTFORML 「거물이 걸려 있었어」
+		K63_KNACKER += 1
+		SIF ABL:[[影狼]]:요리기능 >= 2
+			K63_KNACKER ++
 	CASEELSE
 		PRINTFORML 「조무래기가 걸려 있었어」
 ENDSELECT
@@ -2097,3 +2149,86 @@ CALL BUFF_BASE(MASTER,BASE_기력, 100)
 K63_EYEBROW = DAY + 30
 SIF TALENT:[[카게로]]:연모
 	K63_EYEBROW = DAY + 15
+
+@KAGEROU_LIFE
+SIF ABL:[[影狼]]:친밀 < 5
+	RETURN 0
+;IF CFLAG:[[影狼]]:다음날내방 && TALENT:[[影狼]]:연모
+IF !RAND:3 && TALENT:[[影狼]]:연모
+	SELECTCASE RAND:3
+		CASE 0
+			PRINTFORML 카게로는 매니큐어를 다시 바르고 있다
+			PRINTFORML 「%TEXTR(@"그냥은 너무 붉은데.../음, 괜찮은 느낌/%플레이어는% 알아줄까~")%」
+		CASE 1
+			PRINTFORML 카게로는 시트 위에 향수를 뿌려 뒹굴고 있다
+			PRINTFORML 「응, 좋은 냄새」
+		CASE 2
+			PRINTFORML 「푸우ㅡ, 좋은 목욕이였어!」
+			IF !RAND:2
+				PRINTFORML 「보습 보습...」
+				PRINTFORML 수제 화장수를 얼굴에 바르고 있다
+			ELSE
+				PRINTFORML 트리트먼트한 자랑스러운 롱 헤어를 확인하고 있다.
+				PRINTFORML 「후후후, 머리 끝까지 큐티클도 완벽해!」
+			ENDIF
+	ENDSELECT
+	RETURN
+ENDIF
+
+SELECTCASE RAND:5
+	CASE 0
+	;顔に似合わぬワイルドな夜食
+		PRINTFORMW 「이제 어느 정도 식었으려나」
+		PRINTFORML 카게로는 구워 둔 당근 정도 크기의 뼈를 가져와 가볍게 탄 것을 벗긴 후,
+		PRINTFORMW 가장자리를 바싹 깨물고 골수를 빨기 시작했다
+		PRINTFORML 「음음~~~♪」
+		PRINTFORML 「%TEXTR("이게 제일이지/공주들도 이 맛을 알게 되면 좋을텐데/정말, 뼈를 버리다니 믿을 수 없어!")%」
+	CASE 1
+		PRINTFORML 影狼は%TEXTR("양치용 나뭇가지를 묵묵히 갉아먹고 있다/양초를 만들고 있다/인테리어를 정리하고 있다/마루의 털을 쓸고 있다")%
+	CASE 2
+		PRINTFORML 카게로는 불필요한 털을 다듬고 있다
+		PRINTFORML 「%TEXTR("빠르게 자라서 싫어.../좋아, 꺠끗해졌어/전혀 허리가 아프지 않아!")%」
+	CASE 3
+		PRINTFORML 카게로는 수제 화장품을 만들고 있다
+		IF !RAND:7
+			PRINTFORML 「영원정의 공주님은 화장품을 마음껏 쓰는 걸까나」
+			PRINTFORML 「그런게 없더라도 괜찮을텐데」
+			PRINTFORML 「...랄까」
+		ELSEIF !RAND:4
+			PRINTFORML 「식물성 기름이 줄어들어가네」
+			PRINTFORML 「저기 해바라기를 쓸 수 있다면 좋을텐데」
+		ELSE
+			PRINTFORML 「%TEXTR("허브 냄새가 너무 강해/굽, 굽은 어딨지/반키의 것도 부족할 것 같네/식초 식초...")%」
+		ENDIF
+		EXP:[[影狼]]:조제경험 ++
+	CASE 4
+		IF ABL:[[影狼]]:요리기능 < 2
+			PRINTFORML 카게로는 보관해둔 고기의 맛을 보고 있다
+			PRINTFORML 「%TEXTR("음, 괜찮은 것 같네/아직 괜찮을 거야/...일단 빨리 사용하는게 좋겠지/우와, 이미 상했네... 아깝다")%」
+		ELSEIF !RAND:2
+			PRINTFORML 카게로는 말린 고기의 상태를 보고 있다
+			PRINTFORMW 「%TEXTR("좀 더 비축해야할까/여유도 있으니까, 누군가에게 줄까/으음, 그냥 괜찮네")%」
+		ELSE
+			PRINTFORML 카게로는 고기를 요리하고 있다
+			EXP:[[影狼]]:요리경험 ++
+			{
+			PRINTFORML 「%TEXTR("남은 육즙은 빵에 찍어서... 음 완벽해/좀 더 소금이 필요하겠지/콩피는 정말 편하다니까/역시 날것보다 소화가 잘되는구나/
+			요즘엔 별로 생으로 먹지 않았네... 영향 받고 있을지도~")%」
+			}
+		ENDIF
+		
+ENDSELECT
+
+@K63_WEAR_SAILOR(ARG)
+#FUNCTION
+;恋慕限定
+SIF !TALENT:63:연모
+	RETURNF -1
+;満月近くは着ない
+SIF INRANGE(DAY:3, 13, 17)
+	RETURNF -1
+;春夏のみ
+SIF DAY:2 == 3 || DAY:2 == 4
+	RETURNF -1
+RETURNF 1
+
