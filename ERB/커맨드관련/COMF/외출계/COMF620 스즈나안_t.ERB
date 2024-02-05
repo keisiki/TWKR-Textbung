@@ -25,7 +25,7 @@ FOR LOCAL,1, BookTitles + 1
 		;---- EDIT START ---------------------------------
 		SETCOLOR C_AQUA
 		;---- EDIT END -----------------------------------
-		PRINTFORML (%마스터가% \@ITEM:ItemId == 2 ? 가지고 # 빌리고\@ 있다)
+		PRINTFORML (%마스터가% \@ITEM:ItemId == 2 ? 가지고 # 빌리고\@ 있다) 반환까지 앞으로 {FLAG:대본반환기한-1}일)
 		;---- EDIT START ---------------------------------
 		RESETCOLOR
 		SIF ITEM:ItemId == 1
@@ -52,14 +52,15 @@ INPUT
 
 IF RESULT == 100
 	IF !CHARISMA
-		PRINTFORMW 「카리스마로 지불해???」
-		PRINTFORMW 「그러니까……그럼 {C_책값 / 300} 카리스마? 로 괜찮아……」
+		LOCALS = 「카리스마로 지불해???」/「그러니까……그럼 10 카리스마? 로 괜찮아요……」
+		CALL BOOK_RENTAL_SALESTALK(LOCALS)
 		IF MONEY:2 < C_책값 / 300
 			PRINTFORMW 카리스마가 부족하다
 			GOTO C_LOOP
 		ENDIF
 	ELSE
-		PRINTFORMW 「아, 돈으로 지불하는거구나」
+		LOCALS = 「아, 돈으로 지불하는거네요」
+		CALL BOOK_RENTAL_SALESTALK(LOCALS)
 	ENDIF
 	PRINTFORML 
 	CHARISMA = !CHARISMA
@@ -78,51 +79,45 @@ ELSE
 		PRINTW 이미 산 책이다
 		RETURN -1
 	ENDIF
+	;KR판 추가수정, 책 반납기능 추가
 	IF INRANGE(RESULT, 1, BookTitles)
-		;KR판 추가수정, 책 반납기능 추가
-		;---- EDIT START ---------------------------------
-		IF Borrow
-			IF INRANGE(RESULT, 1, BookTitles)
-				IF ITEM:(100 + RESULT) != 2
-					LOCALS = 2권 이상은 대출할 수 없어/아니면 반납할꺼야? 반납해도 대출비는 반환되지 않아
-					IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
-						CALL SPTALK, [[코스즈]], "通常", 0, @"%LOCALS%", 1
-						SIF TARGET != [[코스즈]]
-							RESETCOLOR
-					ELSE
-						CALL SPTALK, 0, "通常", 12, @"%LOCALS%", 1
-					ENDIF
-					RESETCOLOR
-					PRINTFORML [1] 반납한다
-					PRINTFORML [2] 반납하지 않는다
-					INPUT
-
-					IF RESULT == 1
-						FLAG:대본반환기한 = 0
-						FOR LOCAL,1,BookTitles + 1
-							IF ITEM:(100 + LOCAL) == 1
-								ITEM:(100 + LOCAL) = 0
-								CLEARBIT FLAG:1011,LOCAL
-							ENDIF
-						NEXT
-						PRINTW 빌리고 있던 책을 돌려주었습니다
-						Borrow = 0
-						GOTO C_LOOP
-					ELSEIF RESULT == 2
-						GOTO C_LOOP
-					ENDIF
+		RESULT:1 = RESULT
+		IF GETBIT (FLAG:1011,RESULT:1)
+			ItemId = RESULT:1 + 100
+			IF ITEM:ItemId
+				IF FLAG:대본반환기한 == 8
+					LOCALS = 「그 책은 오늘 %마스터가% 빌린 책인데요……？」
+					CALL BOOK_RENTAL_SALESTALK(LOCALS)
+					RETURN -1
 				ENDIF
-			ENDIF
-		;---- EDIT END -----------------------------------
-		ELSEIF 0 && GETBIT (FLAG:1011,RESULT)
-			LOCALS = 「대출중입니다」
-			IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
-				CALL SPTALK, [[코스즈]], "通常", 0, @"%LOCALS%", 1
-				SIF TARGET != [[코스즈]]
-					RESETCOLOR
+
+				LOCALS = 「그 책은 지금 %마스터가% 빌리고 있는데요……」/「아니면 임대료를 내고 대출 기간을 1주일로 연장하실건가요?」
+				CALL BOOK_RENTAL_SALESTALK(LOCALS)
+				CALL ASK_YN
+				IF !RESULT
+					IF !CHARISMA
+						MONEY -= C_책값
+					ELSE
+						MONEY:2 -= C_책값/300
+					ENDIF
+					FLAG:대본반환기한 = 8
+					PRINTFORML %ITEMNAME:(100 + RESULT:1)%의 대출기한을 1주일로 연장했다
+					LOCALS = 「감사합니다」/「그 책이 꽤나 마음에 드셨나 보네요」
+					CALL BOOK_RENTAL_SALESTALK(LOCALS)
+				ELSE
+					RETURN -1
+				ENDIF
 			ELSE
-				CALL SPTALK, 0, "通常", 12, @"%LOCALS%", 1
+				LOCALS = 「대출중입니다」
+				CALL BOOK_RENTAL_SALESTALK(LOCALS)
+				;KR판 추가수정, 대출중인 책을 선택시는 다시 처음으로
+				;---- EDIT START ---------------------------------
+				WAIT
+				RESETCOLOR
+				GOTO C_LOOP
+				;---- EDIT END -----------------------------------
 			ENDIF
+			RETURN -1
 		ELSE
 			IF 사본구매
 				IF !CHARISMA
@@ -141,24 +136,32 @@ ELSE
 					CALL SPTALK, 0, "笑顔", 12, @"%LOCALS%", 1
 				ENDIF
 			ELSE
+				FOR LOCAL,1, BookTitles + 1
+					ItemId = LOCAL + 100
+					IF ITEM:ItemId
+						LOCALS = 「두 권 이상 대충은 안돼요」/「다시 임대료를 받겠지만 지금 빌린 책을 반납하고 그 책을 빌릴건가요?」
+						CALL BOOK_RENTAL_SALESTALK(LOCALS)
+						CALL ASK_YN
+						IF !RESULT
+							ITEM:ItemId = 0
+							CLEARBIT FLAG:1011,LOCAL
+						ELSE
+							RETURN -1
+						ENDIF
+					ENDIF
+				NEXT
 				SETBIT FLAG:1011,RESULT
 				IF !CHARISMA
 					MONEY -= C_책값
 				ELSE
 					MONEY:2 -= C_책값/300
 				ENDIF
-				ITEM:(100 + RESULT) = 1
+				ITEM:(100 + RESULT:1) = 1
 				FLAG:대본반환기한 = 8
 				TFLAG:193 = 1
-				PRINTFORML %조사처리(ITEMNAME:(100 + RESULT),"를")% 빌렸다
+				PRINTFORML %조사처리(ITEMNAME:(100 + RESULT:1),"를")% 빌렸다
 				LOCALS = 「감사합니다」/「대출 기간은 일주일간입니다」 
-				IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
-					CALL SPTALK, [[코스즈]], "笑顔", 0, @"%LOCALS%", 1
-					SIF TARGET != [[코스즈]]
-						RESETCOLOR
-				ELSE
-					CALL SPTALK, 0, "笑顔", 12, @"%LOCALS%", 1
-				ENDIF
+				CALL BOOK_RENTAL_SALESTALK(LOCALS)
 			ENDIF
 			RETURN 1
 		ENDIF
@@ -214,4 +217,13 @@ IF FLAG:대본반환기한 == 1
 			ITEM:(100 + LOCAL) = 0
 	NEXT
 	PRINTL 반환 기한이 왔으므로, 빌리고 있던 책을 돌려주었습니다.
+ENDIF
+
+@BOOK_RENTAL_SALESTALK(ARGS)
+IF CFLAG:[[코스즈]]:현재위치 == CFLAG:PLAYER:현재위치
+	CALL SPTALK, [[코스즈]], "笑顔", 0, @"%ARGS%", 1
+	SIF TARGET != [[코스즈]]
+		RESETCOLOR
+ELSE
+	CALL SPTALK, 0, "笑顔", 12, @"%ARGS%", 1
 ENDIF

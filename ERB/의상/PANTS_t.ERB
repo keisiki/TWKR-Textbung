@@ -69,7 +69,14 @@ IF ITEM:콜렉션의스키마 && !FLAG:SHOP처리중
 		CALL PANTS_SUKIMA(ARG, 종류)
 		스키마보내성공여부 = RESULT
 	ELSEIF FLAG:팬티수송 == 0
-		PRINTFORML 콜렉션의 스키마를 사용하겠습니까? (남은 수：{ITEM:콜렉션의스키마})
+		IF CFLAG:MASTER:현재위치 != CFLAG:MASTER:초기위치
+			PRINTFORM 콜렉션의 스키마를 사용해서(나머지：{ITEM:콜렉션의스키마})
+		ENDIF
+		SIF CFLAG:ARG:(종류 + 팬티관리) == 0
+			SETCOLOR C_PINK
+		PRINTFORM %CALLNAME:ARG%의 %조사처리(PANTSNAME(종류, ARG),"를")% 
+		RESETCOLOR
+		PRINTFORML 컬렉션에 추가하시겠습니까?
 		CALL ASK_YN
 		IF !RESULT
 			CALL PANTS_SUKIMA(ARG, 종류)
@@ -88,8 +95,12 @@ RETURN 스키마보내성공여부
 IF PANTS_TEMP:ARG:종류
 	CFLAG:ARG:(종류 + 팬티관리) += PANTS_TEMP:ARG:종류 
 	PANTS_TEMP:ARG:종류 = 0
-	PRINTFORMW %마스터는% 콜렉션의 스키마를 열어 %CALLNAME:ARG%의 %PANTSNAME(종류, ARG)%를 던져넣었다
-	ITEM:콜렉션의스키마 -= 1
+	IF CFLAG:MASTER:현재위치 != CFLAG:MASTER:초기위치
+		ITEM:콜렉션의스키마 -= 1
+		PRINTFORMW %마스터는% 콜렉션의 스키마를 열어 %CALLNAME:ARG%의 %조사처리(PANTSNAME(종류, ARG),"를")% 던져넣었다
+	ELSE
+		PRINTFORMW %CALLNAME:ARG%의 %조사처리(PANTSNAME(종류, ARG),"를")% 콜렉션에 추가했다.
+	ENDIF
 	스키마보내성공여부 = 1
 	;스키마 팬티 대응용. KR판에만 있음
 	SIF CFLAG:ARG:(종류 + 팬티관리)
@@ -98,15 +109,18 @@ ENDIF
 RETURN 스키마보내성공여부
 
 @SHOW_HAVE_COLLECTION
-IF ITEM:콜렉션의스키마 == 0
+IF ITEM:콜렉션의스키마 == 0 && CFLAG:MASTER:현재위치 != CFLAG:MASTER:초기위치
 	CALL DISPLAY_ALL_COLLECTION(1,0)
 	PRINTW 
 ELSE
-	PRINTFORMW 콜렉션의 스키마를 사용하겠습니까? (남은 수：{ITEM:콜렉션의스키마})
+	IF CFLAG:MASTER:현재위치 != CFLAG:MASTER:초기위치
+		PRINTFORM 콜렉션의 스키마를 사용해서(나머지：{ITEM:콜렉션의스키마})
+	ENDIF
+	PRINTFORMW 콜렉션에 추가하시겠습니까?
 	DRAWLINE
 	CALL DISPLAY_ALL_COLLECTION(1,1)
 	DRAWLINE
-	PRINTFORML [0] 사용하지 않는다
+	PRINTFORML [0] 추가하지 않는다
 	INPUT
 	LOCAL = RESULT
 	CALL PANTS_SUKIMA(LOCAL / 100, LOCAL % 100)
@@ -164,3 +178,9 @@ IF EQUIP:ARG:하반신속옷2
 	NEXT
 ENDIF
 RETURNF 0
+
+@CLEAR_HAVE_COLLECTION
+FOR LOCAL,1,CHARANUM
+	VARSET PANTS_TEMP:LOCAL:0
+NEXT
+FLAG:팬티수송 = 0

@@ -555,6 +555,11 @@ ATMOSPHERIC_INSTABILITY = RAND:(8 - POWER_WARM_AIR) + (7 - POWER_WARM_AIR - POWE
 SIF DAY:2 == 2 && (IS_COLD_LOW || GET_LOCATION_LOW() == "台風勢力圏")
 	ATMOSPHERIC_INSTABILITY -= 6
 
+;(날씨패치) 날씨 안정도가 낮을 경우 선상강수대가 발생할 수 있음
+IF ATMOSPHERIC_INSTABILITY <= -2 && IS_LINER_RAINBAND:0 == 0 && RAND:(13+ATMOSPHERIC_INSTABILITY) == 0 && DAY:2 != 4
+	CALL GENERATE_LINER_RAINBAND(DAY:2, DAY:3, RAND:1320)
+ENDIF
+
 ;積雲/積乱雲の発生判定
 IF DAY:2 == 2 && POWER_WARM_AIR >= 2 && !IS_COLD_LOW && (GET_LOCATION_LOW() == "台風遠方" || GET_LOCATION_LOW() == "台風一過" || GET_LOCATION_LOW() == "低気圧未発生")
 	SELECTCASE ATMOSPHERIC_INSTABILITY
@@ -602,16 +607,16 @@ IF CAN_CUMULUS:1 == 1
 	TIME_ENTER_TERRITORY_CUMULUS = 840 + RAND:120
 	
 	;積雲/積乱雲の最接近時刻
-	TIME_CLOSEST_CUMULUS = TIME_ENTER_TERRITORY_CUMULUS + 15 + RAND:15
+	TIME_CLOSEST_CUMULUS = TIME_ENTER_TERRITORY_CUMULUS + 30 + RAND:15
 	
 	;積雲/積乱雲の勢力圏通過時刻
 	SELECTCASE CAN_CUMULUS:0
 		CASE IS <= 3
-			TIME_PASSAGE_CUMULUS = TIME_CLOSEST_CUMULUS + 30 + RAND:15
+			TIME_PASSAGE_CUMULUS = TIME_CLOSEST_CUMULUS + 60 + RAND:15
 		CASE 4
-			TIME_PASSAGE_CUMULUS = TIME_CLOSEST_CUMULUS + 60  + (RAND:2 * 60) + RAND:30
+			TIME_PASSAGE_CUMULUS = TIME_CLOSEST_CUMULUS + 90  + (RAND:2 * 60) + RAND:30
 		CASE 5
-			TIME_PASSAGE_CUMULUS = TIME_CLOSEST_CUMULUS + 60  + (RAND:3 * 60) + RAND:30
+			TIME_PASSAGE_CUMULUS = TIME_CLOSEST_CUMULUS + 120  + (RAND:3 * 60) + RAND:30
 	ENDSELECT
 ENDIF
 
@@ -886,14 +891,14 @@ SIF 発生日時 == -1
 IS_LINER_RAINBAND:0 = 1
 IF RAND:5 == 0
 	IS_LINER_RAINBAND:1 = 2
-	継続時間 = 420 +  RAND:180
+	継続時間 = 420 +  RAND:300
 ELSE
 	IS_LINER_RAINBAND:1 = 1
-	継続時間 = 180 + RAND:120
+	継続時間 = 180 + RAND:180
 ENDIF
 
 ;線状降水帯の勢力圏突入時刻
-到達時間 = RAND:1800
+到達時間 = RAND:60
 CALL CALCULATE_ADD_TIME(発生季節, 発生日時, 発生時間, 到達時間)
 TIME_ENTER_TERRITORY_LINER_RAINBAND:0 = RESULT:0
 TIME_ENTER_TERRITORY_LINER_RAINBAND:1 = RESULT:1
@@ -1292,14 +1297,6 @@ IF GET_LOCATION_AREA_TYPHOON() == 1
 	FLAG:이상기상 = 9
 ELSEIF TIME:5 >= 8 && TIME:5 <= 13 && GET_HEAT_THUNDERSTORM() == 0 && GET_FRONTAL_THUNDERSTORM() == 0 && WIND_VELOCITY >= 2
 	FLAG:이상기상 = 10
-ELSEIF RAND:35 == 0
-	IF RAND:2 == 0 && FLAG:이상기상 != 11
-		FLAG:이상기상 = 11
-	ELSEIF FLAG:이상기상 != 12
-		FLAG:이상기상 = 12
-	ENDIF
-ELSEIF RAND:35 == 0 && GROUPMATCH(TIME:5,0,1,2,3,7)
-	FLAG:이상기상 = 13
 ELSE
 	FLAG:이상기상 = 0
 ENDIF
@@ -1310,41 +1307,22 @@ ENDIF
 ;	・設定すべき背景色と現在背景色を比較し、同じ色なら変更を飛ばす処理(@SET_MAP_WEATHER_BGCOLOR_NEW)
 ;	・背景色変更処理の前にREDRAW 0をセットし、関数終了後に戻す処理
 ;	・USE_NEWに0をセットすることで旧処理に戻せる
+;2023/01/01改変
+;	・旧関数の互換処理を削除、描画制御と背景色比較処理のみに変更
 ;-------------------------------------------------
 @SET_MAP_WEATHER_BGCOLOR
-#DIM CURRED       ;CURRENT REDRAW。CURRENTREDRAWを保存
-#DIM USE_NEW = 1  ;0にすると旧来の関数で実行する
-#DIM SECOND , 2   ;時間計測用
-#DIMS TEMPS       ;デバッグ表示用
-CURRED = CURRENTREDRAW()
-;#;TEMPS = @SET_MAP_WEATHER_BGCOLOR_%\@USE_NEW == 1 ? NEW # OLD \@%시작 시 REDRAW＝{CURRED}、
-
-;#;SECOND:0 = GETMILLISECOND()
-REDRAW 0
-
-;#;TEMPS += @"실행 시 REDRAW＝{CURRENTREDRAW()}、"
-
-IF USE_NEW
-	CALL SET_MAP_WEATHER_BGCOLOR_NEW
-ELSE
-	CALL SET_MAP_WEATHER_BGCOLOR_OLD
-ENDIF
-
-REDRAW CURRED
-;#;SECOND:1 = GETMILLISECOND()
-
-;#;PRINTFORML %TEMPS%에 걸리는 묘화 소요 시간{SECOND:1 - SECOND:0}
-
-@SET_MAP_WEATHER_BGCOLOR_NEW
+#DIM CURRED		;CURRENT REDRAW。CURRENTREDRAWを保存
+#DIM NEXTCOLOR
 #DIMS 低気圧位置
 #DIMS 積乱雲位置
-#DIM NEXTCOLOR
+
 SIF FLAG:시간정지 || !FLAG:배경색추이
 	RETURN
+CURRED = CURRENTREDRAW()
+REDRAW 0
 
 低気圧位置 = %GET_LOCATION_LOW()%
 積乱雲位置 = %GET_LOCATION_CUMULUS()%
-
 SELECTCASE TIME:0
 	;AM4~6　早朝
 	CASE 240 TO 359
@@ -1363,7 +1341,7 @@ SELECTCASE TIME:0
 			CASE IS <= 3
 				IF 低気圧位置 == "台風勢力圏"
 					NEXTCOLOR = C_MAP_夕焼け_台風
-				ELSEIF 低気圧位置 == "寒冷渦接近" || IS_COLD_LOW || 低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "日本海低気圧接近" || 低気圧位置 == "南岸低気圧接近" || 低気圧位置 == "温暖前線接近"
+				ELSEIF (低気圧位置 == "寒冷渦接近" && DAY:2 != 2) || (IS_COLD_LOW && DAY:2 == 2) || 低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "日本海低気圧接近" || 低気圧位置 == "南岸低気圧接近" || 低気圧位置 == "温暖前線接近"
 					NEXTCOLOR = C_MAP_夕焼け_低気圧
 				ELSE
 					NEXTCOLOR = C_MAP_晴れ_朝
@@ -1461,133 +1439,1510 @@ SELECTCASE TIME:0
 		ENDSELECT
 ENDSELECT
 
-IF NEXTCOLOR != GETBGCOLOR()
+SIF NEXTCOLOR != GETBGCOLOR()
 	SETBGCOLOR NEXTCOLOR
-	;#;PRINTL （배경색을 변경）
-ENDIF
 
-@SET_MAP_WEATHER_BGCOLOR_OLD
-#DIMS 低気圧位置
-#DIMS 積乱雲位置
+REDRAW CURRED
 
-SIF FLAG:시간정지 || !FLAG:배경색추이
-	RETURN
+;-------------------------------------------------
+;現在の気温
+;基礎気温に天候傾向・寒気・暖気・場所に応じた補正を加えて現在の気温を算定する
+;-------------------------------------------------
+@GET_現在気温
+#FUNCTION
+#DIM 基礎気温
+#DIM HOUR
+#DIM 現在マップ
+#DIM 現在お出かけマップ
+#DIM 高度補正
+#DIM 気流補正
+#DIM 建造物補正
+#DIM 日射補正
+#DIM 現在場所
+#DIM 補正温度
 
-低気圧位置 = %GET_LOCATION_LOW()%
-積乱雲位置 = %GET_LOCATION_CUMULUS()%
+HOUR = TIME:0 / 60
 
-SELECTCASE TIME:0
-	;AM4~6　早朝
-	CASE 240 TO 359
-		SELECTCASE TIME:5
-			CASE 6, 7, 11
-				SETBGCOLOR C_MAP_霧_夜
-			CASE 8, 9, 10, 12
-				SETBGCOLOR C_MAP_雪_夜
-			CASEELSE
-				SETBGCOLOR C_MAP_晴れ_早朝
-		ENDSELECT
-	
-	;AM6~8　正午前
-	CASE 360 TO 479
-		SELECTCASE TIME:5
-			CASE IS <= 3
-				IF 低気圧位置 == "台風勢力圏"
-					SETBGCOLOR C_MAP_夕焼け_台風
-				ELSEIF 低気圧位置 == "寒冷渦接近" || IS_COLD_LOW || 低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "日本海低気圧接近" || 低気圧位置 == "南岸低気圧接近" || 低気圧位置 == "温暖前線接近"
-					SETBGCOLOR C_MAP_夕焼け_低気圧
-				ELSE
-					SETBGCOLOR C_MAP_晴れ_朝
-				ENDIF
-			CASE 6, 7, 11
-				SETBGCOLOR C_MAP_霧_昼
-			CASE 4, 5, 13, 14, 15
-				SETBGCOLOR C_MAP_雨_昼
-			CASE 8, 9, 10, 12
-				SETBGCOLOR C_MAP_雪_昼
-			CASEELSE
-				SETBGCOLOR C_MAP_晴れ_朝
-		ENDSELECT
-	
-	;AM8~12　正午前
-	CASE 480 TO 719
-		SELECTCASE TIME:5
-			CASE 0, 1, 2
-				SETBGCOLOR C_MAP_晴れ_朝
-			CASE 3
-				SETBGCOLOR C_MAP_曇り_昼
-			CASE 6, 7, 11
-				SETBGCOLOR C_MAP_霧_昼
-			CASE 4, 5, 13, 14, 15
-				SETBGCOLOR C_MAP_雨_昼
-			CASE 8, 9, 10, 12
-				SETBGCOLOR C_MAP_雪_昼
-			CASEELSE
-				SETBGCOLOR C_MAP_晴れ_朝
-		ENDSELECT
-	
-	;PM12~6　昼
-	CASE 720 TO 1079
-		SELECTCASE 積乱雲位置
-			CASE "積乱雲接近", "積乱雲直下"
-				SELECTCASE CAN_CUMULUS:0
-				CASE 3, 4, 5
-					SETBGCOLOR C_MAP_積乱雲_昼
-				CASEELSE
-					SETBGCOLOR C_MAP_曇り_昼
-				ENDSELECT
-			CASEELSE
-				SELECTCASE TIME:5
-					CASE 0, 1
-						SETBGCOLOR C_MAP_晴れ_昼
+;現在の基礎気温を取得
+SELECTCASE DAY:2
+	CASE 1
+		SELECTCASE NOW_TERM
+			CASE 1
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_春_1T_0時
+					CASE 1
+						基礎気温 = 気温_春_1T_1時
 					CASE 2
-						SETBGCOLOR C_MAP_薄曇_昼
+						基礎気温 = 気温_春_1T_2時
 					CASE 3
-						SETBGCOLOR C_MAP_曇り_昼
-					CASE 6, 7, 11
-						SETBGCOLOR C_MAP_霧_昼
-					CASE 4, 5, 13, 14, 15
-						SETBGCOLOR C_MAP_雨_昼
-					CASE 8, 9, 10, 12
-						SETBGCOLOR C_MAP_雪_昼
-					CASEELSE
-						SETBGCOLOR C_MAP_晴れ_昼
+						基礎気温 = 気温_春_1T_3時
+					CASE 4
+						基礎気温 = 気温_春_1T_4時
+					CASE 5
+						基礎気温 = 気温_春_1T_5時
+					CASE 6
+						基礎気温 = 気温_春_1T_6時
+					CASE 7
+						基礎気温 = 気温_春_1T_7時
+					CASE 8
+						基礎気温 = 気温_春_1T_8時
+					CASE 9
+						基礎気温 = 気温_春_1T_9時
+					CASE 10
+						基礎気温 = 気温_春_1T_10時
+					CASE 11
+						基礎気温 = 気温_春_1T_11時
+					CASE 12
+						基礎気温 = 気温_春_1T_12時
+					CASE 13
+						基礎気温 = 気温_春_1T_13時
+					CASE 14
+						基礎気温 = 気温_春_1T_14時
+					CASE 15
+						基礎気温 = 気温_春_1T_15時
+					CASE 16
+						基礎気温 = 気温_春_1T_16時
+					CASE 17
+						基礎気温 = 気温_春_1T_17時
+					CASE 18
+						基礎気温 = 気温_春_1T_18時
+					CASE 19
+						基礎気温 = 気温_春_1T_19時
+					CASE 20
+						基礎気温 = 気温_春_1T_20時
+					CASE 21
+						基礎気温 = 気温_春_1T_21時
+					CASE 22
+						基礎気温 = 気温_春_1T_22時
+					CASE 23
+						基礎気温 = 気温_春_1T_23時
+				ENDSELECT
+			CASE 2
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_春_2T_0時
+					CASE 1
+						基礎気温 = 気温_春_2T_1時
+					CASE 2
+						基礎気温 = 気温_春_2T_2時
+					CASE 3
+						基礎気温 = 気温_春_2T_3時
+					CASE 4
+						基礎気温 = 気温_春_2T_4時
+					CASE 5
+						基礎気温 = 気温_春_2T_5時
+					CASE 6
+						基礎気温 = 気温_春_2T_6時
+					CASE 7
+						基礎気温 = 気温_春_2T_7時
+					CASE 8
+						基礎気温 = 気温_春_2T_8時
+					CASE 9
+						基礎気温 = 気温_春_2T_9時
+					CASE 10
+						基礎気温 = 気温_春_2T_10時
+					CASE 11
+						基礎気温 = 気温_春_2T_11時
+					CASE 12
+						基礎気温 = 気温_春_2T_12時
+					CASE 13
+						基礎気温 = 気温_春_2T_13時
+					CASE 14
+						基礎気温 = 気温_春_2T_14時
+					CASE 15
+						基礎気温 = 気温_春_2T_15時
+					CASE 16
+						基礎気温 = 気温_春_2T_16時
+					CASE 17
+						基礎気温 = 気温_春_2T_17時
+					CASE 18
+						基礎気温 = 気温_春_2T_18時
+					CASE 19
+						基礎気温 = 気温_春_2T_19時
+					CASE 20
+						基礎気温 = 気温_春_2T_20時
+					CASE 21
+						基礎気温 = 気温_春_2T_21時
+					CASE 22
+						基礎気温 = 気温_春_2T_22時
+					CASE 23
+						基礎気温 = 気温_春_2T_23時
+				ENDSELECT
+			CASE 3
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_春_3T_0時
+					CASE 1
+						基礎気温 = 気温_春_3T_1時
+					CASE 2
+						基礎気温 = 気温_春_3T_2時
+					CASE 3
+						基礎気温 = 気温_春_3T_3時
+					CASE 4
+						基礎気温 = 気温_春_3T_4時
+					CASE 5
+						基礎気温 = 気温_春_3T_5時
+					CASE 6
+						基礎気温 = 気温_春_3T_6時
+					CASE 7
+						基礎気温 = 気温_春_3T_7時
+					CASE 8
+						基礎気温 = 気温_春_3T_8時
+					CASE 9
+						基礎気温 = 気温_春_3T_9時
+					CASE 10
+						基礎気温 = 気温_春_3T_10時
+					CASE 11
+						基礎気温 = 気温_春_3T_11時
+					CASE 12
+						基礎気温 = 気温_春_3T_12時
+					CASE 13
+						基礎気温 = 気温_春_3T_13時
+					CASE 14
+						基礎気温 = 気温_春_3T_14時
+					CASE 15
+						基礎気温 = 気温_春_3T_15時
+					CASE 16
+						基礎気温 = 気温_春_3T_16時
+					CASE 17
+						基礎気温 = 気温_春_3T_17時
+					CASE 18
+						基礎気温 = 気温_春_3T_18時
+					CASE 19
+						基礎気温 = 気温_春_3T_19時
+					CASE 20
+						基礎気温 = 気温_春_3T_20時
+					CASE 21
+						基礎気温 = 気温_春_3T_21時
+					CASE 22
+						基礎気温 = 気温_春_3T_22時
+					CASE 23
+						基礎気温 = 気温_春_3T_23時
+				ENDSELECT
+			CASE 4
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_春_4T_0時
+					CASE 1
+						基礎気温 = 気温_春_4T_1時
+					CASE 2
+						基礎気温 = 気温_春_4T_2時
+					CASE 3
+						基礎気温 = 気温_春_4T_3時
+					CASE 4
+						基礎気温 = 気温_春_4T_4時
+					CASE 5
+						基礎気温 = 気温_春_4T_5時
+					CASE 6
+						基礎気温 = 気温_春_4T_6時
+					CASE 7
+						基礎気温 = 気温_春_4T_7時
+					CASE 8
+						基礎気温 = 気温_春_4T_8時
+					CASE 9
+						基礎気温 = 気温_春_4T_9時
+					CASE 10
+						基礎気温 = 気温_春_4T_10時
+					CASE 11
+						基礎気温 = 気温_春_4T_11時
+					CASE 12
+						基礎気温 = 気温_春_4T_12時
+					CASE 13
+						基礎気温 = 気温_春_4T_13時
+					CASE 14
+						基礎気温 = 気温_春_4T_14時
+					CASE 15
+						基礎気温 = 気温_春_4T_15時
+					CASE 16
+						基礎気温 = 気温_春_4T_16時
+					CASE 17
+						基礎気温 = 気温_春_4T_17時
+					CASE 18
+						基礎気温 = 気温_春_4T_18時
+					CASE 19
+						基礎気温 = 気温_春_4T_19時
+					CASE 20
+						基礎気温 = 気温_春_4T_20時
+					CASE 21
+						基礎気温 = 気温_春_4T_21時
+					CASE 22
+						基礎気温 = 気温_春_4T_22時
+					CASE 23
+						基礎気温 = 気温_春_4T_23時
+				ENDSELECT
+			CASE 5
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_春_5T_0時
+					CASE 1
+						基礎気温 = 気温_春_5T_1時
+					CASE 2
+						基礎気温 = 気温_春_5T_2時
+					CASE 3
+						基礎気温 = 気温_春_5T_3時
+					CASE 4
+						基礎気温 = 気温_春_5T_4時
+					CASE 5
+						基礎気温 = 気温_春_5T_5時
+					CASE 6
+						基礎気温 = 気温_春_5T_6時
+					CASE 7
+						基礎気温 = 気温_春_5T_7時
+					CASE 8
+						基礎気温 = 気温_春_5T_8時
+					CASE 9
+						基礎気温 = 気温_春_5T_9時
+					CASE 10
+						基礎気温 = 気温_春_5T_10時
+					CASE 11
+						基礎気温 = 気温_春_5T_11時
+					CASE 12
+						基礎気温 = 気温_春_5T_12時
+					CASE 13
+						基礎気温 = 気温_春_5T_13時
+					CASE 14
+						基礎気温 = 気温_春_5T_14時
+					CASE 15
+						基礎気温 = 気温_春_5T_15時
+					CASE 16
+						基礎気温 = 気温_春_5T_16時
+					CASE 17
+						基礎気温 = 気温_春_5T_17時
+					CASE 18
+						基礎気温 = 気温_春_5T_18時
+					CASE 19
+						基礎気温 = 気温_春_5T_19時
+					CASE 20
+						基礎気温 = 気温_春_5T_20時
+					CASE 21
+						基礎気温 = 気温_春_5T_21時
+					CASE 22
+						基礎気温 = 気温_春_5T_22時
+					CASE 23
+						基礎気温 = 気温_春_5T_23時
+				ENDSELECT
+			CASE 6
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_春_6T_0時
+					CASE 1
+						基礎気温 = 気温_春_6T_1時
+					CASE 2
+						基礎気温 = 気温_春_6T_2時
+					CASE 3
+						基礎気温 = 気温_春_6T_3時
+					CASE 4
+						基礎気温 = 気温_春_6T_4時
+					CASE 5
+						基礎気温 = 気温_春_6T_5時
+					CASE 6
+						基礎気温 = 気温_春_6T_6時
+					CASE 7
+						基礎気温 = 気温_春_6T_7時
+					CASE 8
+						基礎気温 = 気温_春_6T_8時
+					CASE 9
+						基礎気温 = 気温_春_6T_9時
+					CASE 10
+						基礎気温 = 気温_春_6T_10時
+					CASE 11
+						基礎気温 = 気温_春_6T_11時
+					CASE 12
+						基礎気温 = 気温_春_6T_12時
+					CASE 13
+						基礎気温 = 気温_春_6T_13時
+					CASE 14
+						基礎気温 = 気温_春_6T_14時
+					CASE 15
+						基礎気温 = 気温_春_6T_15時
+					CASE 16
+						基礎気温 = 気温_春_6T_16時
+					CASE 17
+						基礎気温 = 気温_春_6T_17時
+					CASE 18
+						基礎気温 = 気温_春_6T_18時
+					CASE 19
+						基礎気温 = 気温_春_6T_19時
+					CASE 20
+						基礎気温 = 気温_春_6T_20時
+					CASE 21
+						基礎気温 = 気温_春_6T_21時
+					CASE 22
+						基礎気温 = 気温_春_6T_22時
+					CASE 23
+						基礎気温 = 気温_春_6T_23時
 				ENDSELECT
 		ENDSELECT
-	
-	;PM6~8　夕
-	CASE 1080 TO 1199
-		SELECTCASE TIME:5
-			CASE IS <= 3
-				IF 低気圧位置 == "台風勢力圏"
-					SETBGCOLOR C_MAP_夕焼け_台風
-				ELSEIF 低気圧位置 == "寒冷渦接近" || IS_COLD_LOW || 低気圧位置 == "二つ玉低気圧接近" || 低気圧位置 == "日本海低気圧接近" || 低気圧位置 == "南岸低気圧接近" || 低気圧位置 == "温暖前線接近"
-					SETBGCOLOR C_MAP_夕焼け_低気圧
-				ELSE
-					SETBGCOLOR C_MAP_夕焼け_通常
-				ENDIF
-			CASE 6, 7, 11
-				SETBGCOLOR C_MAP_霧_昼
-			CASE 4, 5, 13, 14, 15
-				SETBGCOLOR C_MAP_雨_昼
-			CASE 8, 9, 10, 12
-				SETBGCOLOR C_MAP_雪_昼
-			CASEELSE
-				SETBGCOLOR C_MAP_夕焼け_通常
+	CASE 2
+		SELECTCASE NOW_TERM
+			CASE 1
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_夏_1T_0時
+					CASE 1
+						基礎気温 = 気温_夏_1T_1時
+					CASE 2
+						基礎気温 = 気温_夏_1T_2時
+					CASE 3
+						基礎気温 = 気温_夏_1T_3時
+					CASE 4
+						基礎気温 = 気温_夏_1T_4時
+					CASE 5
+						基礎気温 = 気温_夏_1T_5時
+					CASE 6
+						基礎気温 = 気温_夏_1T_6時
+					CASE 7
+						基礎気温 = 気温_夏_1T_7時
+					CASE 8
+						基礎気温 = 気温_夏_1T_8時
+					CASE 9
+						基礎気温 = 気温_夏_1T_9時
+					CASE 10
+						基礎気温 = 気温_夏_1T_10時
+					CASE 11
+						基礎気温 = 気温_夏_1T_11時
+					CASE 12
+						基礎気温 = 気温_夏_1T_12時
+					CASE 13
+						基礎気温 = 気温_夏_1T_13時
+					CASE 14
+						基礎気温 = 気温_夏_1T_14時
+					CASE 15
+						基礎気温 = 気温_夏_1T_15時
+					CASE 16
+						基礎気温 = 気温_夏_1T_16時
+					CASE 17
+						基礎気温 = 気温_夏_1T_17時
+					CASE 18
+						基礎気温 = 気温_夏_1T_18時
+					CASE 19
+						基礎気温 = 気温_夏_1T_19時
+					CASE 20
+						基礎気温 = 気温_夏_1T_20時
+					CASE 21
+						基礎気温 = 気温_夏_1T_21時
+					CASE 22
+						基礎気温 = 気温_夏_1T_22時
+					CASE 23
+						基礎気温 = 気温_夏_1T_23時
+				ENDSELECT
+			CASE 2
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_夏_2T_0時
+					CASE 1
+						基礎気温 = 気温_夏_2T_1時
+					CASE 2
+						基礎気温 = 気温_夏_2T_2時
+					CASE 3
+						基礎気温 = 気温_夏_2T_3時
+					CASE 4
+						基礎気温 = 気温_夏_2T_4時
+					CASE 5
+						基礎気温 = 気温_夏_2T_5時
+					CASE 6
+						基礎気温 = 気温_夏_2T_6時
+					CASE 7
+						基礎気温 = 気温_夏_2T_7時
+					CASE 8
+						基礎気温 = 気温_夏_2T_8時
+					CASE 9
+						基礎気温 = 気温_夏_2T_9時
+					CASE 10
+						基礎気温 = 気温_夏_2T_10時
+					CASE 11
+						基礎気温 = 気温_夏_2T_11時
+					CASE 12
+						基礎気温 = 気温_夏_2T_12時
+					CASE 13
+						基礎気温 = 気温_夏_2T_13時
+					CASE 14
+						基礎気温 = 気温_夏_2T_14時
+					CASE 15
+						基礎気温 = 気温_夏_2T_15時
+					CASE 16
+						基礎気温 = 気温_夏_2T_16時
+					CASE 17
+						基礎気温 = 気温_夏_2T_17時
+					CASE 18
+						基礎気温 = 気温_夏_2T_18時
+					CASE 19
+						基礎気温 = 気温_夏_2T_19時
+					CASE 20
+						基礎気温 = 気温_夏_2T_20時
+					CASE 21
+						基礎気温 = 気温_夏_2T_21時
+					CASE 22
+						基礎気温 = 気温_夏_2T_22時
+					CASE 23
+						基礎気温 = 気温_夏_2T_23時
+				ENDSELECT
+			CASE 3
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_夏_3T_0時
+					CASE 1
+						基礎気温 = 気温_夏_3T_1時
+					CASE 2
+						基礎気温 = 気温_夏_3T_2時
+					CASE 3
+						基礎気温 = 気温_夏_3T_3時
+					CASE 4
+						基礎気温 = 気温_夏_3T_4時
+					CASE 5
+						基礎気温 = 気温_夏_3T_5時
+					CASE 6
+						基礎気温 = 気温_夏_3T_6時
+					CASE 7
+						基礎気温 = 気温_夏_3T_7時
+					CASE 8
+						基礎気温 = 気温_夏_3T_8時
+					CASE 9
+						基礎気温 = 気温_夏_3T_9時
+					CASE 10
+						基礎気温 = 気温_夏_3T_10時
+					CASE 11
+						基礎気温 = 気温_夏_3T_11時
+					CASE 12
+						基礎気温 = 気温_夏_3T_12時
+					CASE 13
+						基礎気温 = 気温_夏_3T_13時
+					CASE 14
+						基礎気温 = 気温_夏_3T_14時
+					CASE 15
+						基礎気温 = 気温_夏_3T_15時
+					CASE 16
+						基礎気温 = 気温_夏_3T_16時
+					CASE 17
+						基礎気温 = 気温_夏_3T_17時
+					CASE 18
+						基礎気温 = 気温_夏_3T_18時
+					CASE 19
+						基礎気温 = 気温_夏_3T_19時
+					CASE 20
+						基礎気温 = 気温_夏_3T_20時
+					CASE 21
+						基礎気温 = 気温_夏_3T_21時
+					CASE 22
+						基礎気温 = 気温_夏_3T_22時
+					CASE 23
+						基礎気温 = 気温_夏_3T_23時
+				ENDSELECT
+			CASE 4
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_夏_4T_0時
+					CASE 1
+						基礎気温 = 気温_夏_4T_1時
+					CASE 2
+						基礎気温 = 気温_夏_4T_2時
+					CASE 3
+						基礎気温 = 気温_夏_4T_3時
+					CASE 4
+						基礎気温 = 気温_夏_4T_4時
+					CASE 5
+						基礎気温 = 気温_夏_4T_5時
+					CASE 6
+						基礎気温 = 気温_夏_4T_6時
+					CASE 7
+						基礎気温 = 気温_夏_4T_7時
+					CASE 8
+						基礎気温 = 気温_夏_4T_8時
+					CASE 9
+						基礎気温 = 気温_夏_4T_9時
+					CASE 10
+						基礎気温 = 気温_夏_4T_10時
+					CASE 11
+						基礎気温 = 気温_夏_4T_11時
+					CASE 12
+						基礎気温 = 気温_夏_4T_12時
+					CASE 13
+						基礎気温 = 気温_夏_4T_13時
+					CASE 14
+						基礎気温 = 気温_夏_4T_14時
+					CASE 15
+						基礎気温 = 気温_夏_4T_15時
+					CASE 16
+						基礎気温 = 気温_夏_4T_16時
+					CASE 17
+						基礎気温 = 気温_夏_4T_17時
+					CASE 18
+						基礎気温 = 気温_夏_4T_18時
+					CASE 19
+						基礎気温 = 気温_夏_4T_19時
+					CASE 20
+						基礎気温 = 気温_夏_4T_20時
+					CASE 21
+						基礎気温 = 気温_夏_4T_21時
+					CASE 22
+						基礎気温 = 気温_夏_4T_22時
+					CASE 23
+						基礎気温 = 気温_夏_4T_23時
+				ENDSELECT
+			CASE 5
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_夏_5T_0時
+					CASE 1
+						基礎気温 = 気温_夏_5T_1時
+					CASE 2
+						基礎気温 = 気温_夏_5T_2時
+					CASE 3
+						基礎気温 = 気温_夏_5T_3時
+					CASE 4
+						基礎気温 = 気温_夏_5T_4時
+					CASE 5
+						基礎気温 = 気温_夏_5T_5時
+					CASE 6
+						基礎気温 = 気温_夏_5T_6時
+					CASE 7
+						基礎気温 = 気温_夏_5T_7時
+					CASE 8
+						基礎気温 = 気温_夏_5T_8時
+					CASE 9
+						基礎気温 = 気温_夏_5T_9時
+					CASE 10
+						基礎気温 = 気温_夏_5T_10時
+					CASE 11
+						基礎気温 = 気温_夏_5T_11時
+					CASE 12
+						基礎気温 = 気温_夏_5T_12時
+					CASE 13
+						基礎気温 = 気温_夏_5T_13時
+					CASE 14
+						基礎気温 = 気温_夏_5T_14時
+					CASE 15
+						基礎気温 = 気温_夏_5T_15時
+					CASE 16
+						基礎気温 = 気温_夏_5T_16時
+					CASE 17
+						基礎気温 = 気温_夏_5T_17時
+					CASE 18
+						基礎気温 = 気温_夏_5T_18時
+					CASE 19
+						基礎気温 = 気温_夏_5T_19時
+					CASE 20
+						基礎気温 = 気温_夏_5T_20時
+					CASE 21
+						基礎気温 = 気温_夏_5T_21時
+					CASE 22
+						基礎気温 = 気温_夏_5T_22時
+					CASE 23
+						基礎気温 = 気温_夏_5T_23時
+				ENDSELECT
+			CASE 6
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_夏_6T_0時
+					CASE 1
+						基礎気温 = 気温_夏_6T_1時
+					CASE 2
+						基礎気温 = 気温_夏_6T_2時
+					CASE 3
+						基礎気温 = 気温_夏_6T_3時
+					CASE 4
+						基礎気温 = 気温_夏_6T_4時
+					CASE 5
+						基礎気温 = 気温_夏_6T_5時
+					CASE 6
+						基礎気温 = 気温_夏_6T_6時
+					CASE 7
+						基礎気温 = 気温_夏_6T_7時
+					CASE 8
+						基礎気温 = 気温_夏_6T_8時
+					CASE 9
+						基礎気温 = 気温_夏_6T_9時
+					CASE 10
+						基礎気温 = 気温_夏_6T_10時
+					CASE 11
+						基礎気温 = 気温_夏_6T_11時
+					CASE 12
+						基礎気温 = 気温_夏_6T_12時
+					CASE 13
+						基礎気温 = 気温_夏_6T_13時
+					CASE 14
+						基礎気温 = 気温_夏_6T_14時
+					CASE 15
+						基礎気温 = 気温_夏_6T_15時
+					CASE 16
+						基礎気温 = 気温_夏_6T_16時
+					CASE 17
+						基礎気温 = 気温_夏_6T_17時
+					CASE 18
+						基礎気温 = 気温_夏_6T_18時
+					CASE 19
+						基礎気温 = 気温_夏_6T_19時
+					CASE 20
+						基礎気温 = 気温_夏_6T_20時
+					CASE 21
+						基礎気温 = 気温_夏_6T_21時
+					CASE 22
+						基礎気温 = 気温_夏_6T_22時
+					CASE 23
+						基礎気温 = 気温_夏_6T_23時
+				ENDSELECT
 		ENDSELECT
-	
-	;PM8~AM4　夜・深夜
-	CASE 0 TO 239, IS >= 1200
-		SELECTCASE TIME:5
-			CASE 0, 1, 2
-				SETBGCOLOR C_MAP_晴れ_夜
-			CASE 6, 7, 11
-				SETBGCOLOR C_MAP_霧_夜
-			CASE 3, 4, 5, 13, 14, 15
-				SETBGCOLOR C_MAP_曇り_夜
-			CASE 8, 9, 10, 12
-				SETBGCOLOR C_MAP_雪_夜
-			CASEELSE
-				SETBGCOLOR C_MAP_晴れ_夜
+	CASE 3
+		SELECTCASE NOW_TERM
+			CASE 1
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_秋_1T_0時
+					CASE 1
+						基礎気温 = 気温_秋_1T_1時
+					CASE 2
+						基礎気温 = 気温_秋_1T_2時
+					CASE 3
+						基礎気温 = 気温_秋_1T_3時
+					CASE 4
+						基礎気温 = 気温_秋_1T_4時
+					CASE 5
+						基礎気温 = 気温_秋_1T_5時
+					CASE 6
+						基礎気温 = 気温_秋_1T_6時
+					CASE 7
+						基礎気温 = 気温_秋_1T_7時
+					CASE 8
+						基礎気温 = 気温_秋_1T_8時
+					CASE 9
+						基礎気温 = 気温_秋_1T_9時
+					CASE 10
+						基礎気温 = 気温_秋_1T_10時
+					CASE 11
+						基礎気温 = 気温_秋_1T_11時
+					CASE 12
+						基礎気温 = 気温_秋_1T_12時
+					CASE 13
+						基礎気温 = 気温_秋_1T_13時
+					CASE 14
+						基礎気温 = 気温_秋_1T_14時
+					CASE 15
+						基礎気温 = 気温_秋_1T_15時
+					CASE 16
+						基礎気温 = 気温_秋_1T_16時
+					CASE 17
+						基礎気温 = 気温_秋_1T_17時
+					CASE 18
+						基礎気温 = 気温_秋_1T_18時
+					CASE 19
+						基礎気温 = 気温_秋_1T_19時
+					CASE 20
+						基礎気温 = 気温_秋_1T_20時
+					CASE 21
+						基礎気温 = 気温_秋_1T_21時
+					CASE 22
+						基礎気温 = 気温_秋_1T_22時
+					CASE 23
+						基礎気温 = 気温_秋_1T_23時
+				ENDSELECT
+			CASE 2
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_秋_2T_0時
+					CASE 1
+						基礎気温 = 気温_秋_2T_1時
+					CASE 2
+						基礎気温 = 気温_秋_2T_2時
+					CASE 3
+						基礎気温 = 気温_秋_2T_3時
+					CASE 4
+						基礎気温 = 気温_秋_2T_4時
+					CASE 5
+						基礎気温 = 気温_秋_2T_5時
+					CASE 6
+						基礎気温 = 気温_秋_2T_6時
+					CASE 7
+						基礎気温 = 気温_秋_2T_7時
+					CASE 8
+						基礎気温 = 気温_秋_2T_8時
+					CASE 9
+						基礎気温 = 気温_秋_2T_9時
+					CASE 10
+						基礎気温 = 気温_秋_2T_10時
+					CASE 11
+						基礎気温 = 気温_秋_2T_11時
+					CASE 12
+						基礎気温 = 気温_秋_2T_12時
+					CASE 13
+						基礎気温 = 気温_秋_2T_13時
+					CASE 14
+						基礎気温 = 気温_秋_2T_14時
+					CASE 15
+						基礎気温 = 気温_秋_2T_15時
+					CASE 16
+						基礎気温 = 気温_秋_2T_16時
+					CASE 17
+						基礎気温 = 気温_秋_2T_17時
+					CASE 18
+						基礎気温 = 気温_秋_2T_18時
+					CASE 19
+						基礎気温 = 気温_秋_2T_19時
+					CASE 20
+						基礎気温 = 気温_秋_2T_20時
+					CASE 21
+						基礎気温 = 気温_秋_2T_21時
+					CASE 22
+						基礎気温 = 気温_秋_2T_22時
+					CASE 23
+						基礎気温 = 気温_秋_2T_23時
+				ENDSELECT
+			CASE 3
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_秋_3T_0時
+					CASE 1
+						基礎気温 = 気温_秋_3T_1時
+					CASE 2
+						基礎気温 = 気温_秋_3T_2時
+					CASE 3
+						基礎気温 = 気温_秋_3T_3時
+					CASE 4
+						基礎気温 = 気温_秋_3T_4時
+					CASE 5
+						基礎気温 = 気温_秋_3T_5時
+					CASE 6
+						基礎気温 = 気温_秋_3T_6時
+					CASE 7
+						基礎気温 = 気温_秋_3T_7時
+					CASE 8
+						基礎気温 = 気温_秋_3T_8時
+					CASE 9
+						基礎気温 = 気温_秋_3T_9時
+					CASE 10
+						基礎気温 = 気温_秋_3T_10時
+					CASE 11
+						基礎気温 = 気温_秋_3T_11時
+					CASE 12
+						基礎気温 = 気温_秋_3T_12時
+					CASE 13
+						基礎気温 = 気温_秋_3T_13時
+					CASE 14
+						基礎気温 = 気温_秋_3T_14時
+					CASE 15
+						基礎気温 = 気温_秋_3T_15時
+					CASE 16
+						基礎気温 = 気温_秋_3T_16時
+					CASE 17
+						基礎気温 = 気温_秋_3T_17時
+					CASE 18
+						基礎気温 = 気温_秋_3T_18時
+					CASE 19
+						基礎気温 = 気温_秋_3T_19時
+					CASE 20
+						基礎気温 = 気温_秋_3T_20時
+					CASE 21
+						基礎気温 = 気温_秋_3T_21時
+					CASE 22
+						基礎気温 = 気温_秋_3T_22時
+					CASE 23
+						基礎気温 = 気温_秋_3T_23時
+				ENDSELECT
+			CASE 4
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_秋_4T_0時
+					CASE 1
+						基礎気温 = 気温_秋_4T_1時
+					CASE 2
+						基礎気温 = 気温_秋_4T_2時
+					CASE 3
+						基礎気温 = 気温_秋_4T_3時
+					CASE 4
+						基礎気温 = 気温_秋_4T_4時
+					CASE 5
+						基礎気温 = 気温_秋_4T_5時
+					CASE 6
+						基礎気温 = 気温_秋_4T_6時
+					CASE 7
+						基礎気温 = 気温_秋_4T_7時
+					CASE 8
+						基礎気温 = 気温_秋_4T_8時
+					CASE 9
+						基礎気温 = 気温_秋_4T_9時
+					CASE 10
+						基礎気温 = 気温_秋_4T_10時
+					CASE 11
+						基礎気温 = 気温_秋_4T_11時
+					CASE 12
+						基礎気温 = 気温_秋_4T_12時
+					CASE 13
+						基礎気温 = 気温_秋_4T_13時
+					CASE 14
+						基礎気温 = 気温_秋_4T_14時
+					CASE 15
+						基礎気温 = 気温_秋_4T_15時
+					CASE 16
+						基礎気温 = 気温_秋_4T_16時
+					CASE 17
+						基礎気温 = 気温_秋_4T_17時
+					CASE 18
+						基礎気温 = 気温_秋_4T_18時
+					CASE 19
+						基礎気温 = 気温_秋_4T_19時
+					CASE 20
+						基礎気温 = 気温_秋_4T_20時
+					CASE 21
+						基礎気温 = 気温_秋_4T_21時
+					CASE 22
+						基礎気温 = 気温_秋_4T_22時
+					CASE 23
+						基礎気温 = 気温_秋_4T_23時
+				ENDSELECT
+			CASE 5
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_秋_5T_0時
+					CASE 1
+						基礎気温 = 気温_秋_5T_1時
+					CASE 2
+						基礎気温 = 気温_秋_5T_2時
+					CASE 3
+						基礎気温 = 気温_秋_5T_3時
+					CASE 4
+						基礎気温 = 気温_秋_5T_4時
+					CASE 5
+						基礎気温 = 気温_秋_5T_5時
+					CASE 6
+						基礎気温 = 気温_秋_5T_6時
+					CASE 7
+						基礎気温 = 気温_秋_5T_7時
+					CASE 8
+						基礎気温 = 気温_秋_5T_8時
+					CASE 9
+						基礎気温 = 気温_秋_5T_9時
+					CASE 10
+						基礎気温 = 気温_秋_5T_10時
+					CASE 11
+						基礎気温 = 気温_秋_5T_11時
+					CASE 12
+						基礎気温 = 気温_秋_5T_12時
+					CASE 13
+						基礎気温 = 気温_秋_5T_13時
+					CASE 14
+						基礎気温 = 気温_秋_5T_14時
+					CASE 15
+						基礎気温 = 気温_秋_5T_15時
+					CASE 16
+						基礎気温 = 気温_秋_5T_16時
+					CASE 17
+						基礎気温 = 気温_秋_5T_17時
+					CASE 18
+						基礎気温 = 気温_秋_5T_18時
+					CASE 19
+						基礎気温 = 気温_秋_5T_19時
+					CASE 20
+						基礎気温 = 気温_秋_5T_20時
+					CASE 21
+						基礎気温 = 気温_秋_5T_21時
+					CASE 22
+						基礎気温 = 気温_秋_5T_22時
+					CASE 23
+						基礎気温 = 気温_秋_5T_23時
+				ENDSELECT
+			CASE 6
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_秋_6T_0時
+					CASE 1
+						基礎気温 = 気温_秋_6T_1時
+					CASE 2
+						基礎気温 = 気温_秋_6T_2時
+					CASE 3
+						基礎気温 = 気温_秋_6T_3時
+					CASE 4
+						基礎気温 = 気温_秋_6T_4時
+					CASE 5
+						基礎気温 = 気温_秋_6T_5時
+					CASE 6
+						基礎気温 = 気温_秋_6T_6時
+					CASE 7
+						基礎気温 = 気温_秋_6T_7時
+					CASE 8
+						基礎気温 = 気温_秋_6T_8時
+					CASE 9
+						基礎気温 = 気温_秋_6T_9時
+					CASE 10
+						基礎気温 = 気温_秋_6T_10時
+					CASE 11
+						基礎気温 = 気温_秋_6T_11時
+					CASE 12
+						基礎気温 = 気温_秋_6T_12時
+					CASE 13
+						基礎気温 = 気温_秋_6T_13時
+					CASE 14
+						基礎気温 = 気温_秋_6T_14時
+					CASE 15
+						基礎気温 = 気温_秋_6T_15時
+					CASE 16
+						基礎気温 = 気温_秋_6T_16時
+					CASE 17
+						基礎気温 = 気温_秋_6T_17時
+					CASE 18
+						基礎気温 = 気温_秋_6T_18時
+					CASE 19
+						基礎気温 = 気温_秋_6T_19時
+					CASE 20
+						基礎気温 = 気温_秋_6T_20時
+					CASE 21
+						基礎気温 = 気温_秋_6T_21時
+					CASE 22
+						基礎気温 = 気温_秋_6T_22時
+					CASE 23
+						基礎気温 = 気温_秋_6T_23時
+				ENDSELECT
+		ENDSELECT
+	CASE 4
+		SELECTCASE NOW_TERM
+			CASE 1
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_冬_1T_0時
+					CASE 1
+						基礎気温 = 気温_冬_1T_1時
+					CASE 2
+						基礎気温 = 気温_冬_1T_2時
+					CASE 3
+						基礎気温 = 気温_冬_1T_3時
+					CASE 4
+						基礎気温 = 気温_冬_1T_4時
+					CASE 5
+						基礎気温 = 気温_冬_1T_5時
+					CASE 6
+						基礎気温 = 気温_冬_1T_6時
+					CASE 7
+						基礎気温 = 気温_冬_1T_7時
+					CASE 8
+						基礎気温 = 気温_冬_1T_8時
+					CASE 9
+						基礎気温 = 気温_冬_1T_9時
+					CASE 10
+						基礎気温 = 気温_冬_1T_10時
+					CASE 11
+						基礎気温 = 気温_冬_1T_11時
+					CASE 12
+						基礎気温 = 気温_冬_1T_12時
+					CASE 13
+						基礎気温 = 気温_冬_1T_13時
+					CASE 14
+						基礎気温 = 気温_冬_1T_14時
+					CASE 15
+						基礎気温 = 気温_冬_1T_15時
+					CASE 16
+						基礎気温 = 気温_冬_1T_16時
+					CASE 17
+						基礎気温 = 気温_冬_1T_17時
+					CASE 18
+						基礎気温 = 気温_冬_1T_18時
+					CASE 19
+						基礎気温 = 気温_冬_1T_19時
+					CASE 20
+						基礎気温 = 気温_冬_1T_20時
+					CASE 21
+						基礎気温 = 気温_冬_1T_21時
+					CASE 22
+						基礎気温 = 気温_冬_1T_22時
+					CASE 23
+						基礎気温 = 気温_冬_1T_23時
+				ENDSELECT
+			CASE 2
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_冬_2T_0時
+					CASE 1
+						基礎気温 = 気温_冬_2T_1時
+					CASE 2
+						基礎気温 = 気温_冬_2T_2時
+					CASE 3
+						基礎気温 = 気温_冬_2T_3時
+					CASE 4
+						基礎気温 = 気温_冬_2T_4時
+					CASE 5
+						基礎気温 = 気温_冬_2T_5時
+					CASE 6
+						基礎気温 = 気温_冬_2T_6時
+					CASE 7
+						基礎気温 = 気温_冬_2T_7時
+					CASE 8
+						基礎気温 = 気温_冬_2T_8時
+					CASE 9
+						基礎気温 = 気温_冬_2T_9時
+					CASE 10
+						基礎気温 = 気温_冬_2T_10時
+					CASE 11
+						基礎気温 = 気温_冬_2T_11時
+					CASE 12
+						基礎気温 = 気温_冬_2T_12時
+					CASE 13
+						基礎気温 = 気温_冬_2T_13時
+					CASE 14
+						基礎気温 = 気温_冬_2T_14時
+					CASE 15
+						基礎気温 = 気温_冬_2T_15時
+					CASE 16
+						基礎気温 = 気温_冬_2T_16時
+					CASE 17
+						基礎気温 = 気温_冬_2T_17時
+					CASE 18
+						基礎気温 = 気温_冬_2T_18時
+					CASE 19
+						基礎気温 = 気温_冬_2T_19時
+					CASE 20
+						基礎気温 = 気温_冬_2T_20時
+					CASE 21
+						基礎気温 = 気温_冬_2T_21時
+					CASE 22
+						基礎気温 = 気温_冬_2T_22時
+					CASE 23
+						基礎気温 = 気温_冬_2T_23時
+				ENDSELECT
+			CASE 3
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_冬_3T_0時
+					CASE 1
+						基礎気温 = 気温_冬_3T_1時
+					CASE 2
+						基礎気温 = 気温_冬_3T_2時
+					CASE 3
+						基礎気温 = 気温_冬_3T_3時
+					CASE 4
+						基礎気温 = 気温_冬_3T_4時
+					CASE 5
+						基礎気温 = 気温_冬_3T_5時
+					CASE 6
+						基礎気温 = 気温_冬_3T_6時
+					CASE 7
+						基礎気温 = 気温_冬_3T_7時
+					CASE 8
+						基礎気温 = 気温_冬_3T_8時
+					CASE 9
+						基礎気温 = 気温_冬_3T_9時
+					CASE 10
+						基礎気温 = 気温_冬_3T_10時
+					CASE 11
+						基礎気温 = 気温_冬_3T_11時
+					CASE 12
+						基礎気温 = 気温_冬_3T_12時
+					CASE 13
+						基礎気温 = 気温_冬_3T_13時
+					CASE 14
+						基礎気温 = 気温_冬_3T_14時
+					CASE 15
+						基礎気温 = 気温_冬_3T_15時
+					CASE 16
+						基礎気温 = 気温_冬_3T_16時
+					CASE 17
+						基礎気温 = 気温_冬_3T_17時
+					CASE 18
+						基礎気温 = 気温_冬_3T_18時
+					CASE 19
+						基礎気温 = 気温_冬_3T_19時
+					CASE 20
+						基礎気温 = 気温_冬_3T_20時
+					CASE 21
+						基礎気温 = 気温_冬_3T_21時
+					CASE 22
+						基礎気温 = 気温_冬_3T_22時
+					CASE 23
+						基礎気温 = 気温_冬_3T_23時
+				ENDSELECT
+			CASE 4
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_冬_4T_0時
+					CASE 1
+						基礎気温 = 気温_冬_4T_1時
+					CASE 2
+						基礎気温 = 気温_冬_4T_2時
+					CASE 3
+						基礎気温 = 気温_冬_4T_3時
+					CASE 4
+						基礎気温 = 気温_冬_4T_4時
+					CASE 5
+						基礎気温 = 気温_冬_4T_5時
+					CASE 6
+						基礎気温 = 気温_冬_4T_6時
+					CASE 7
+						基礎気温 = 気温_冬_4T_7時
+					CASE 8
+						基礎気温 = 気温_冬_4T_8時
+					CASE 9
+						基礎気温 = 気温_冬_4T_9時
+					CASE 10
+						基礎気温 = 気温_冬_4T_10時
+					CASE 11
+						基礎気温 = 気温_冬_4T_11時
+					CASE 12
+						基礎気温 = 気温_冬_4T_12時
+					CASE 13
+						基礎気温 = 気温_冬_4T_13時
+					CASE 14
+						基礎気温 = 気温_冬_4T_14時
+					CASE 15
+						基礎気温 = 気温_冬_4T_15時
+					CASE 16
+						基礎気温 = 気温_冬_4T_16時
+					CASE 17
+						基礎気温 = 気温_冬_4T_17時
+					CASE 18
+						基礎気温 = 気温_冬_4T_18時
+					CASE 19
+						基礎気温 = 気温_冬_4T_19時
+					CASE 20
+						基礎気温 = 気温_冬_4T_20時
+					CASE 21
+						基礎気温 = 気温_冬_4T_21時
+					CASE 22
+						基礎気温 = 気温_冬_4T_22時
+					CASE 23
+						基礎気温 = 気温_冬_4T_23時
+				ENDSELECT
+			CASE 5
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_冬_5T_0時
+					CASE 1
+						基礎気温 = 気温_冬_5T_1時
+					CASE 2
+						基礎気温 = 気温_冬_5T_2時
+					CASE 3
+						基礎気温 = 気温_冬_5T_3時
+					CASE 4
+						基礎気温 = 気温_冬_5T_4時
+					CASE 5
+						基礎気温 = 気温_冬_5T_5時
+					CASE 6
+						基礎気温 = 気温_冬_5T_6時
+					CASE 7
+						基礎気温 = 気温_冬_5T_7時
+					CASE 8
+						基礎気温 = 気温_冬_5T_8時
+					CASE 9
+						基礎気温 = 気温_冬_5T_9時
+					CASE 10
+						基礎気温 = 気温_冬_5T_10時
+					CASE 11
+						基礎気温 = 気温_冬_5T_11時
+					CASE 12
+						基礎気温 = 気温_冬_5T_12時
+					CASE 13
+						基礎気温 = 気温_冬_5T_13時
+					CASE 14
+						基礎気温 = 気温_冬_5T_14時
+					CASE 15
+						基礎気温 = 気温_冬_5T_15時
+					CASE 16
+						基礎気温 = 気温_冬_5T_16時
+					CASE 17
+						基礎気温 = 気温_冬_5T_17時
+					CASE 18
+						基礎気温 = 気温_冬_5T_18時
+					CASE 19
+						基礎気温 = 気温_冬_5T_19時
+					CASE 20
+						基礎気温 = 気温_冬_5T_20時
+					CASE 21
+						基礎気温 = 気温_冬_5T_21時
+					CASE 22
+						基礎気温 = 気温_冬_5T_22時
+					CASE 23
+						基礎気温 = 気温_冬_5T_23時
+				ENDSELECT
+			CASE 6
+				SELECTCASE HOUR
+					CASE 0
+						基礎気温 = 気温_冬_6T_0時
+					CASE 1
+						基礎気温 = 気温_冬_6T_1時
+					CASE 2
+						基礎気温 = 気温_冬_6T_2時
+					CASE 3
+						基礎気温 = 気温_冬_6T_3時
+					CASE 4
+						基礎気温 = 気温_冬_6T_4時
+					CASE 5
+						基礎気温 = 気温_冬_6T_5時
+					CASE 6
+						基礎気温 = 気温_冬_6T_6時
+					CASE 7
+						基礎気温 = 気温_冬_6T_7時
+					CASE 8
+						基礎気温 = 気温_冬_6T_8時
+					CASE 9
+						基礎気温 = 気温_冬_6T_9時
+					CASE 10
+						基礎気温 = 気温_冬_6T_10時
+					CASE 11
+						基礎気温 = 気温_冬_6T_11時
+					CASE 12
+						基礎気温 = 気温_冬_6T_12時
+					CASE 13
+						基礎気温 = 気温_冬_6T_13時
+					CASE 14
+						基礎気温 = 気温_冬_6T_14時
+					CASE 15
+						基礎気温 = 気温_冬_6T_15時
+					CASE 16
+						基礎気温 = 気温_冬_6T_16時
+					CASE 17
+						基礎気温 = 気温_冬_6T_17時
+					CASE 18
+						基礎気温 = 気温_冬_6T_18時
+					CASE 19
+						基礎気温 = 気温_冬_6T_19時
+					CASE 20
+						基礎気温 = 気温_冬_6T_20時
+					CASE 21
+						基礎気温 = 気温_冬_6T_21時
+					CASE 22
+						基礎気温 = 気温_冬_6T_22時
+					CASE 23
+						基礎気温 = 気温_冬_6T_23時
+				ENDSELECT
 		ENDSELECT
 ENDSELECT
+
+;天候傾向によって寒気・暖気による補正方法が変化する
+SELECTCASE NOW_WEATHER_CONTROL
+	;1 春・秋の天気(基本)
+	CASE 1
+		気流補正 = (POWER_WARM_AIR - POWER_COLD_AIR) * 2
+	;2 春・秋の天気(温暖前線接近時)
+	CASE 2
+		気流補正 = (POWER_WARM_AIR - POWER_COLD_AIR) * 2
+	;3 春・秋の天気(暖域時)
+	CASE 3
+		気流補正 = POWER_WARM_AIR * 2
+	;4 春・秋の天気(寒冷前線通過時)
+	CASE 4
+		気流補正 = (0 - POWER_COLD_AIR) * 2
+	;5 春・秋の天気(寒冷渦接近時)
+	CASE 5
+		気流補正 = (0 - POWER_COLD_AIR) * 2
+	;6 夏の天気(基本)
+	CASE 6
+		気流補正 = (POWER_WARM_AIR - 3) * 3
+	;7 夏の天気(夕立接近時)
+	CASE 7
+		SELECTCASE CAN_CUMULUS:0
+			CASE 1,2,3
+				気流補正 = (POWER_WARM_AIR - 3) * 3 - (POWER_COLD_AIR / 2)
+			CASE 4,5
+				気流補正 = 0 - POWER_COLD_AIR
+		ENDSELECT
+	;8 夏の天気(夕立通過後)
+	CASE 8
+		SELECTCASE CAN_CUMULUS:0
+			CASE 1,2,3
+				気流補正 = (POWER_WARM_AIR - 3) * 3 - POWER_COLD_AIR
+			CASE 4,5
+				気流補正 = (0 - POWER_COLD_AIR) * 2
+		ENDSELECT
+	;9 冬の天気(基本)
+	CASE 9
+		気流補正 = (POWER_WARM_AIR - POWER_COLD_AIR) * 2
+	;10 冬の天気(日本海低気圧接近時)
+	CASE 10
+		気流補正 = POWER_WARM_AIR * 2
+	;11 冬の天気(日本海低気圧通過時)
+	CASE 11
+		気流補正 = (0 - POWER_COLD_AIR) * 2
+	;12 冬の天気(南岸低気圧接近時)
+	CASE 12
+		気流補正 = (0 - POWER_COLD_AIR) * 2
+	;13 冬の天気(寒冷渦接近時)
+	CASE 13
+		気流補正 = (0 - POWER_COLD_AIR) * 2
+	;14 梅雨・秋雨の天気(基本)
+	CASE 14
+		IF POWER_WARM_AIR >= POWER_COLD_AIR
+			気流補正 = POWER_WARM_AIR
+		ELSE
+			気流補正 = 0 - POWER_COLD_AIR
+		ENDIF
+	;15 梅雨・秋雨(梅雨末期・秋雨+台風接近)・先駆降雨帯発生時の天気
+	CASE 15
+		気流補正 = POWER_WARM_AIR * 2
+	;16 台風接近時の天気(強風域)
+	CASE 16
+		SELECTCASE DAY:2
+			CASE 2
+				気流補正 = (POWER_WARM_AIR - 3) * 3 + IS_TYPHOON:1
+			CASEELSE
+				気流補正 = (POWER_WARM_AIR - POWER_COLD_AIR) * 2 + IS_TYPHOON:1
+		ENDSELECT
+	;21 台風接近時の天気(暴風域・最接近)
+	CASE 21
+		SELECTCASE DAY:2
+			CASE 2
+				気流補正 = (POWER_WARM_AIR - 3) * 3 + IS_TYPHOON:1
+			CASEELSE
+				気流補正 = (POWER_WARM_AIR - POWER_COLD_AIR) * 2 + IS_TYPHOON:1
+		ENDSELECT
+	;17 台風接近時の天気(台風の目)
+	CASE 17
+		SELECTCASE DAY:2
+			CASE 2
+				気流補正 = (POWER_WARM_AIR - 3) * 3 + IS_TYPHOON:1
+			CASEELSE
+				気流補正 = (POWER_WARM_AIR - POWER_COLD_AIR) * 2 + IS_TYPHOON:1
+		ENDSELECT
+	;18 霧の天気
+	CASE 18
+		SELECTCASE DAY:2
+			CASE 2
+				気流補正 = (POWER_WARM_AIR - 3) * 3
+			CASEELSE
+				気流補正 = (POWER_WARM_AIR - POWER_COLD_AIR) * 2
+		ENDSELECT
+	;19 疑似好天
+	CASE 19
+		気流補正 = (0 - POWER_COLD_AIR) * 15 / 10
+	;20 集中豪雨時の天気
+	CASE 20
+		気流補正 = (POWER_WARM_AIR - POWER_COLD_AIR) * 2
+ENDSELECT
+
+現在マップ = GET_MAPID(CFLAG:MASTER:현재위치)
+高度補正 = 0
+現在お出かけマップ = GET_MAP_REPLACEMENT(CFLAG:MASTER:현재위치)
+
+;マップごとに高度による気温低下の補正値を決定
+SELECTCASE 現在マップ
+	CASE 0
+		高度補正 = 0
+		
+		補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+	CASE 1
+		高度補正 = 3
+		
+		補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+	CASE 2
+		高度補正 = 0
+		
+		補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+	CASE 3
+		高度補正 = 0
+		
+		補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+	CASE 4
+		高度補正 = 0
+		
+		補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+	CASE 5
+		高度補正 = 0
+		
+		補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+	CASE 6
+		高度補正 = 10
+		
+		補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+	CASE 7
+		高度補正 = 6
+		
+		補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+	CASE 8
+		IF (MAIN_MAP == 現在マップ && 現在お出かけマップ == 天界) || (MAIN_MAP != 現在マップ && CFLAG:MASTER:현재위치 == 天界)
+			高度補正 = 20
+			
+			補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+		ELSE
+			高度補正 = 12
+			
+			補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+		ENDIF
+	;灼熱地獄跡は40℃,その他地底は20℃
+	CASE 9
+		IF (MAIN_MAP == 現在マップ && 現在お出かけマップ == 灼熱地獄跡) || (MAIN_MAP != 現在マップ && CFLAG:MASTER:현재위치 == 灼熱地獄跡)
+			補正温度 = 400
+		ELSE
+			補正温度 = 200
+		ENDIF
+	CASE 10
+		高度補正 = 0
+		
+		補正温度 = 基礎気温 + 気流補正 * 10 - 高度補正 * 10
+ENDSELECT
+
+;屋内では20℃に近づくように気温が上下する
+;屋外では日射がある場合、気温上昇
+日射補正 = 0
+IF OUTROOF(CFLAG:MASTER:현재위치)
+	SELECTCASE TIME:5
+		CASE 0,1
+			SELECTCASE TIME:0
+				CASE 360 TO 599, 960 TO 1079
+					日射補正 += 15
+				CASE 600 TO 959
+					日射補正 += 20
+			ENDSELECT
+			
+			SELECTCASE DAY:2
+				CASE 1,3
+					日射補正 += 10
+				CASE 2
+					日射補正 += 15
+				CASE 4
+					日射補正 += 10
+			ENDSELECT
+		CASE 2
+			日射補正 += 5
+	ENDSELECT
+	補正温度 += 日射補正
+ELSE
+	SELECTCASE 補正温度
+		CASE IS <= 250
+			建造物補正 = 50
+			
+			補正温度 = MIN(200, 補正温度 + 建造物補正)
+		CASEELSE
+			建造物補正 = -40
+			
+			補正温度 = MAX(250, 補正温度 + 建造物補正)
+	ENDSELECT
+ENDIF
+
+;チルノがいると気温低下
+IF CFLAG:MASTER:현재위치 == CFLAG:14:현재위치
+	補正温度 -= 100
+ENDIF
+
+;風呂では30℃に近づくように気温が上昇する
+IF BATHCHECK(CFLAG:MASTER:현재위치) && 補正温度 < 300
+	建造物補正 = 100
+	
+	補正温度 = MIN(300, 補正温度 + 建造物補正)
+ENDIF
+
+;炬燵では25℃に近づくように気温が上昇する
+;炬燵は気温10℃未満で出す
+IF 코타츠가있는장소(CFLAG:MASTER:현재위치) && 補正温度 < 100
+	建造物補正 = 100
+	
+	補正温度 = MIN(250, 補正温度 + 建造物補正)
+ENDIF
+
+RETURNF 補正温度
+
+;-------------------------------------------------
+;現在の体感気温
+;現在の気温に天気・風力・場所に応じた補正を加えて現在の体感気温を算定する
+;-------------------------------------------------
+@GET_体感気温
+#FUNCTION
+#DIM 現在の気温
+#DIM 体感気温
+#DIM 降水フラグ
+
+現在の気温 = GET_現在気温()
+降水フラグ = 0
+
+IF !OUTROOF(CFLAG:MASTER:현재위치)
+	RETURNF 現在の気温
+ENDIF
+
+体感気温 = 現在の気温
+
+RETURNF 体感気温
+

@@ -1,0 +1,106 @@
+﻿@CHARAMOVE_DATA_152(ARG, ARG:2)
+LOCAL = 152
+SELECTCASE ARG
+	;連動設定（RETURN=依存するキャラ, RESULT:1～3=対等に連動するキャラ）
+	CASE 1
+	;特殊生活時間設定（CFLAG:LOCAL:生活時間補正を設定する）
+	CASE 3
+	;移動傾向（±～10=行きやすい/行きにくい, -100=行かない）
+	CASE 4
+		SELECTCASE ARG:2
+			;地霊殿には行かない、勇儀の家には行かない
+			CASE P901지령전앞 TO P930옛혈지지옥, P936유기의집
+				RETURN -100
+			;自室、뒷길、酒場に行きやすい
+			CASE P942키스메의집, P932뒷길, P933술집
+				RETURN 5
+		ENDSELECT
+	;出現場所
+	CASE 7
+		SELECTCASE ARG:2
+			CASE 환상풍혈, 지옥의깊은길, 옛지옥가도
+			CASE 지옥, 피안, 중유의길, 삼도천
+				RETURN 1
+			CASE 작열지옥터, 옛지옥가도, 지옥의깊은길
+				RETURN 1
+			CASE 신사경내, 신사툇마루, 신사본당
+				RETURN 1
+			CASE 명련사경내, 명련사방장
+				RETURN 1
+		ENDSELECT
+	;引力設定
+	CASE 8
+		;夜はたまに酒場
+		SIF CFLAG:LOCAL:오늘의운세 % 8 == 0 && INRANGE(TIME, 1200, 1440)
+			TCVAR:LOCAL:인력점 = P933술집
+ENDSELECT
+
+@EXIST_캐릭터데이터152
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+@캐릭터데이터152(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "통칭"
+	CALLF MAKE_STR(V_NAME, "키쿠리")
+;こっから衣装設定
+CASE "오늘의 파자마"
+	CALLF MAKE_STR(V_NAME, "파자마（원피스）세트")
+
+CASE "평상복：상반신윗도리1"
+	CALLF MAKE_INT(V_NAME, CLOTHES_ID("상반신윗도리1", "블라우스"))
+CASE "고유 속옷 형용사"
+	CALLF MAKE_STR(V_NAME, "solid metal")
+CASE "고유 하반신속옷명"
+	CALLF MAKE_STR(V_NAME, "copper panties")
+CASE "고유 상반신속옷"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "고유 상반신속옷명"
+	CALLF MAKE_STR(V_NAME, "copper bra")
+CASE "고유 속옷 착용 조건"
+	SIF !RAND:(3 - (2 * 승부속옷판정([[키쿠리]])))
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "고유 속옷 비쳐보이는(앞)"
+	CALLF MAKE_INT(V_NAME, 0)
+CASE "고유 속옷 비쳐보이는(뒤)"
+	CALLF MAKE_INT(V_NAME, 0)
+CASE "고유 속옷 옷감 두께"
+	CALLF MAKE_INT(V_NAME, 3)
+
+;料理関連
+CASE "요리：좋아하는 맛"
+	CALLF MAKE_STR(V_NAME, "/")
+CASE "요리：싫어하는 맛"
+	CALLF MAKE_STR(V_NAME, "/")
+CASE "요리：조수 효과"
+	CALLF MAKE_STR(V_NAME, "/")
+;贈り物関連
+CASE "감성：좋아함"
+	CALLF MAKE_STR(V_NAME, "/")
+CASE "감성：싫어함"
+	CALLF MAKE_STR(V_NAME, "/")
+ENDSELECT
+
+;-------------------------------------------------
+;固有料理設定
+;DISH_NAME          料理名
+;RESULTS            料이치의種類（軽食/主食/デザート）
+;CALL 재료설정("")  材料の指定。"汎用"を入れると自動で汎用食材になる
+;DISH_TASTE         味の設定
+;DISH_COMMENT       （任意）一行コメント
+;DISH_TIME          （任意）調理にかかる時間
+;DISH_MAXLIMIT      （任意）料이치의持続時間
+;-------------------------------------------------
+@SPECIAL_MENU_152
+DISH_NAME = Spring Chrysanthemum
+RESULTS = 경식
+CALL 재료설정("산나물")
+;kr 메모 : さっぱり -> 산뜻한 으로 번역함
+DISH_TASTE = 일식/야채/산뜻한/이파리/콩/
+DISH_COMMENT = Chrysanthemum greens drizzled with soy sauce and sesame seeds.
+RETURN 1

@@ -103,10 +103,11 @@ RESULTS = %MAP_VIEWING_NAME(ARG)%
 ;ARG   두자리 버튼 수치（장소ID의 뒷자리 두자리）
 ;ARGS  "ODEKAKE"=외출맵
 ;------------------------------------------
-@GETMAP(ARG, ARGS)
+@GETMAP(ARG, ARGS, IS_GET_HTML_STR)
 #DIM P_ID
 #DIM Q_ID
-
+#DIM IS_GET_HTML_STR
+#DIMS LOCAL_TITLE
 ;외출맵
 IF ARGS == "ODEKAKE"
 	P_ID = (ARG * 10) + (CFLAG:MASTER:데이트중 * 100)
@@ -165,14 +166,77 @@ IF CFLAG:MASTER:수면 || (DAY == 1 && TIME == 0)
 	SIF P_ID == Default초기위치 || CMATCH(CFLAG:집주인후보, P_ID, 1, CHARANUM)
 		SETCOLOR C_ORANGE
 ENDIF
-
+;팝업 표시 및 애니메이션과 배타적으로 할 경우 코멘트 아웃 제거
+;IF ANIMATERECOLOREDMAPS && !FLAG:70
+	LOCAL_TITLE = 
+	IF TALENT:MASTER:오방짐작
+		SELECTCASE YOGORE:P_ID
+			CASE IS < 1000
+				LOCAL_TITLE = 청결도:고
+			CASE IS < 2000
+				LOCAL_TITLE = 청결도:중
+			CASE IS < 5000
+				LOCAL_TITLE = 청결도:저
+			CASEELSE
+				LOCAL_TITLE = 청결도:쓰레기산
+		ENDSELECT
+	ENDIF
+	IF TALENT:MASTER:오방짐작
+		FOR LOCAL, 1, CHARANUM
+			KEHAI = 0
+			;内部構造判定,第三引数は第二と同じにする
+			IF ARGS != "ODEKAKE" && GETMAP_BUILDING(MAIN_MAP, P_ID, P_ID)
+				;内部にあたる場所をすべてチェック
+				FOR Q_ID, MINROOM(), MAXROOM
+					IF GETMAP_BUILDING(MAIN_MAP, P_ID, Q_ID) && CFLAG:LOCAL:현재위치 == Q_ID
+						KEHAI = CHECK_HEHAI(LOCAL)
+						BREAK
+					ENDIF
+				NEXT
+			;通常の地点
+			ELSEIF CFLAG:LOCAL:현재위치 == P_ID
+				KEHAI = CHECK_HEHAI(LOCAL)
+			ENDIF
+			;行動内容
+			IF KEHAI > 0
+				SIF LOCAL_TITLE != ""
+					LOCAL_TITLE += UNICODE(0x000D)
+				LOCAL_TITLE += @"%CALLNAME:LOCAL, 20, LEFT%"
+				SELECTCASE KEHAI
+					CASE 1
+						LOCAL_TITLE += "아무것도안함"
+					CASE 2
+						LOCAL_TITLE += "일하는중"
+					CASE 3
+						LOCAL_TITLE += "수면중"
+					CASE 4
+						LOCAL_TITLE += "자유행동중"
+				ENDSELECT
+			ENDIF
+		NEXT
+		SIF LOCAL_TITLE == ""
+			LOCAL_TITLE = 아무도 없다
+	ENDIF
+;ENDIF
 IF ARGS == "ODEKAKE" && ARG >= 10
 	;特殊ワープ用
 	SETCOLOR C_P_PURPLE
-	PRINTBUTTON "◇", ARG
+	IF IS_GET_HTML_STR
+		RESULTS = ◇
+	ELSE
+		PRINTBUTTON "◇", ARG
+	ENDIF
 ELSE
-	PRINTBUTTON (ARG > 9 ? TOSTR(ARG) # TOFULL(TOSTR(ARG))), ARG
+	IF IS_GET_HTML_STR
+		RESULTS = {ARG}
+		SIF ARG < 10
+			RESULTS '= TOFULL(RESULTS)
+	ELSE
+		PRINTBUTTON (ARG > 9 ? TOSTR(ARG) # TOFULL(TOSTR(ARG))), ARG
+	ENDIF
 ENDIF
+SIF IS_GET_HTML_STR
+	RESULTS = <font color = '#%TOSTR(GETCOLOR(), "X6")%'><button value = '{ARG}' title = '%LOCAL_TITLE%'>%RESULTS%</font></button>
 RESETCOLOR
 
 ;------------------------------------------

@@ -13,7 +13,7 @@ SIF !GETBIT(FLAG:1000, 2) && FLAG:지주
 SIF !GETBIT(FLAG:1000, 5)
 	CALL TWKR_VARFIX
 SETBIT FLAG:1000, 5
-SIF !GETBIT(FLAG:1000, 6)
+SIF !GETBIT(FLAG:1000, 6) || !GETBIT(FLAG:1000, 10)
 	CALL TWKR_ITEMFIX
 SETBIT FLAG:1000, 6
 SIF !GETBIT(FLAG:1000, 7)
@@ -25,9 +25,14 @@ SETBIT FLAG:1000, 8
 SIF !GETBIT(FLAG:1000, 9)
 	CALL TWKR_SHOWAA_WIFE_FIX
 SETBIT FLAG:1000, 9
-SIF !GETBIT(FLAG:1000, 10)
-	CALL TWKR_ITEMFIX_2
-SETBIT FLAG:1000, 10
+
+;KR판 개인패치
+CALL VERSION_UP_KR
+
+;구상 자동 업데이트
+FOR LOCAL, 0, CHARANUM
+    CALL KOJO_MESSAGE_SEND("KOJO_VERSION", 0, LOCAL)
+NEXT
 
 @KAISYONASI
 SETBIT FLAG:1000, 1
@@ -93,6 +98,12 @@ PRINTFORMW 리셋했습니다.
 ;===============================================
 @TWKR_VARFIX
 #DIM CLOTH, 5
+
+;22.02.10 문따기기능 69 > 1000 이관
+IF !GETBIT(FLAG:1000, 10)
+	LOCAL = ITEM:28
+	ITEM:69 = 0
+ENDIF
 VARSET LOCAL ;1: 천적곤신
 PRINTFORMW KR판의 CSV 내 변수 위치 조정에 따른 변수값 초기화 및 조정을 실시합니다.
 ;FLAG.CSV
@@ -151,8 +162,8 @@ PRINTFORMW 초기화 및 이관을 완료했습니다.
 
 ;문따기기능 28 > 69 이관
 LOCAL = ITEM:28
-ITEM:【문따기기능】 = LOCAL
 ITEM:28 = 0
+ITEM:【문따기기능】 = LOCAL
 PRINTL 문따기기능을 이관했습니다.
 
 ;--------------------------------------------------------
@@ -220,14 +231,17 @@ FLAG:58 = 0
 FLAG:158 = 0
 
 PRINTL AA표시/잠복 관련 문제와 아내플래그 FLAG 의존성을 제거했습니다.
-;--------------------------------------------------------
-;2020.08.07
-;문따기 기능 재 이동용
-;--------------------------------------------------------
-@TWKR_ITEMFIX_2
 
-;문따기기능 69 > 1000 이관
-LOCAL = ITEM:69
-ITEM:【문따기기능】 = LOCAL
-ITEM:69 = 0
-PRINTL 문따기기능을 69 > 2000으로 이관했습니다.
+;변수의 개서등을 따르는 버전업, 일판의 버전업 함수의 오염을 피한 한판용
+@VERSION_UP_KR
+SIF !GETBIT(UPDATE_KR, 1)
+	CALL ResetBookFLAG
+SETBIT UPDATE_KR, 1
+
+@ResetBookFLAG
+#DIM DYNAMIC LCOUNT
+PRINTL 책의 대출중 처리 FLAG:1011을 리셋합니다
+FOR LCOUNT,1,BookTitles + 1
+	SIF !ITEM:(100 + LCOUNT)
+		CLEARBIT FLAG:1011,LCOUNT
+NEXT

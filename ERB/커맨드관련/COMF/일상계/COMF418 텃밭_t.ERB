@@ -65,57 +65,17 @@ ELSEIF 행동번호 == 1
 		행동코스트 += 5
 	ENDIF
 ELSEIF 행동번호 == 2
-	;채소가게에서 구매할 수 있게 되었기에 수확조건의 엄격화
-	IF 수확가능(ARG) == 0
-		PRINTL 수확할 형편이 못된다
-		RETURN 0
-	ENDIF
-	SIF PLANT_DAYS:ARG > 9
-		PLANT_GROW:ARG += 2
-	SIF PLANT_FOOD:ARG
-		PLANT_GROW:ARG ++
-	SIF FLAG:천적곤신 && RAND:2 == 1
-		PLANT_GROW:ARG += 2
-	;大豊作…天滴と거름補正でないと到達不能
-	IF PLANT_GROW:ARG > 12
-		PRINTL 대풍작이다!
-		IF PLANT_FOOD:ARG
-			LOCAL = 20 + RAND:6 + RAND:4
-		ELSE
-			LOCAL = 20
-		ENDIF
-	ELSEIF PLANT_GROW:ARG > 10
-		PRINTL 풍작이다!
-		IF PLANT_FOOD:ARG
-			LOCAL = 14 + RAND:4 + RAND:3
-		ELSE
-			LOCAL = 14
-		ENDIF
-	ELSEIF PLANT_GROW:ARG > 7
-		IF PLANT_FOOD:ARG
-			LOCAL = 7 + RAND:3 + RAND:2
-		ELSE
-			LOCAL = 7
-		ENDIF
-	ELSE
-		LOCAL = 5
-	ENDIF
-	SIF TCVAR:MASTER:풍요
-		LOCAL += LOCAL / 5
-	;ローター一強を崩すため収穫量ダウン
-	IF 모종대응작물번호취득(PLANT_TYPE:ARG) == 0
-		LOCAL /= 2
-	ENDIF
-	
-	PRINTFORML {LOCAL}개의 %조사처리(LOCALS,"를")% 수확했다
-	ITEM:(모종대응작물번호취득(PLANT_TYPE:ARG)) += LOCAL
-	PLANT_TYPE:ARG = 0
-	PLANT_DAYS:ARG = 0
-	PLANT_GROW:ARG = 0
-	PLANT_DRY:ARG = 0
-	HATAKE_NAME:ARG =
-	PLANT_FOOD:ARG = 0
-	행동코스트 += 20
+	;収穫処理を関数化
+	행동코스트 = HERVEST(ARG, LOCALS)
+
+;全収穫追加
+ELSEIF 행동번호 == 6
+	;PRINTFORML 全ての畝を収穫します
+	밭사이즈 = GETUNELENGTH418()
+	FOR LOCAL,0,밭사이즈
+		LOCALS = %HATAKE_NAME:LOCAL%
+		행동코스트 += HERVEST(LOCAL, LOCALS)
+	NEXT
 ELSEIF 행동번호 == 3
 	IF PLANT_DRY:ARG <= 4 && PLANT_GROW:ARG <= 10
 		PRINTFORML %조사처리(LOCALS,"를")% 뽑아냅니까?
@@ -257,6 +217,18 @@ IF PLANT_TYPE:ARG > 0
 	ELSE
 		PRINTLC 　
 	ENDIF
+	;全収穫追加
+	;全て収穫
+	IF 수확가능(ARG)
+		LOCAL = ARG * 100 + 6
+		LOCALS = [%TOSTR(LOCAL, "000")%] - 모두 수확한다
+		SIF PLANT_GROW:ARG == 10
+			SETCOLOR 0xFF0000
+		PRINTBUTTONLC LOCALS, LOCAL
+		RESETCOLOR
+	ELSE
+		PRINTLC  
+	ENDIF
 	;정지
 	LOCAL = ARG * 100 + 3
 	LOCALS = [%TOSTR(LOCAL, "000")%] - 뽑아낸다
@@ -349,3 +321,66 @@ ELSE
 	밭사이즈 = 1
 ENDIF
 RETURNF 밭사이즈
+;全収穫追加
+;----------------------------------
+;畝一つの収穫処理
+;ARG:苗インデックス, ARGS:苗の名称
+;-----------------------------------
+@HERVEST(ARG, ARGS)
+#FUNCTION
+#DIM 행동코스트
+
+	행동코스트 = 0
+
+	;八百屋で購入できるようになったため収穫条件の厳格化
+	IF 수확가능(ARG) == 0
+		;PRINTL 収穫できる状態ではない
+		RETURNF 행동코스트
+	ENDIF
+	SIF PLANT_DAYS:ARG > 9
+		PLANT_GROW:ARG += 2
+	SIF PLANT_FOOD:ARG
+		PLANT_GROW:ARG ++
+	SIF FLAG:천적곤신 && RAND:2 == 1
+		PLANT_GROW:ARG += 2
+	;大豊作…天滴とこやし補正でないと到達不能
+	IF PLANT_GROW:ARG > 12
+		PRINTL 대풍작이다!
+		IF PLANT_FOOD:ARG
+			LOCAL = 20 + RAND:6 + RAND:4
+		ELSE
+			LOCAL = 20
+		ENDIF
+	ELSEIF PLANT_GROW:ARG > 10
+		PRINTL 풍작이다!
+		IF PLANT_FOOD:ARG
+			LOCAL = 14 + RAND:4 + RAND:3
+		ELSE
+			LOCAL = 14
+		ENDIF
+	ELSEIF PLANT_GROW:ARG > 7
+		IF PLANT_FOOD:ARG
+			LOCAL = 7 + RAND:3 + RAND:2
+		ELSE
+			LOCAL = 7
+		ENDIF
+	ELSE
+		LOCAL = 5
+	ENDIF
+	SIF TCVAR:MASTER:풍요
+		LOCAL += LOCAL / 5
+	;ローター一強を崩すため収穫量ダウン
+	IF 모종대응작물번호취득(PLANT_TYPE:ARG) == 0
+		LOCAL /= 2
+	ENDIF
+
+	PRINTFORML {LOCAL}개의 %조사처리(ARGS,"를")% 수확했다
+	ITEM:(모종대응작물번호취득(PLANT_TYPE:ARG)) += LOCAL
+	PLANT_TYPE:ARG = 0
+	PLANT_DAYS:ARG = 0
+	PLANT_GROW:ARG = 0
+	PLANT_DRY:ARG = 0
+	HATAKE_NAME:ARG =
+	PLANT_FOOD:ARG = 0
+	행동코스트 += 20	
+RETURNF 행동코스트

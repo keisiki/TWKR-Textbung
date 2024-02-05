@@ -2,9 +2,11 @@
 @OPTION
 #DIM L_COUNT
 #DIM L_FEED
+#DIM TEMP
 VARSET LOCAL
-L_FEED = 0
+L_FEED = LINECOUNT
 TOOLTIP_SETDELAY 100
+TEMP = CURRENTREDRAW()
 REDRAW 0
 DRAWLINEFORM =
 FOR L_COUNT, 0, 91
@@ -20,46 +22,51 @@ FOR L_COUNT, 0, 91
 	L_FEED ++
 NEXT
 DRAWLINEFORM －
-PRINTFORML [93] - 입맛 설정
-PRINTFORML [94] - 오토신음일괄설정
-PRINTFORML [95] - 간이 필터의 일괄 설정
-;PRINTFORML [96] - 요리의 옵션 설정
-PRINTFORML [97] - 그림 상세 설정
-PRINTFORML [98] - 등장캐릭터변환
-PRINTFORML [99] - 커맨드필터
+PRINTFORML [91] - 오토신음일괄설정
+PRINTFORML [92] - 간이 필터의 일괄 설정
+PRINTFORML [93] - 그림 상세 설정
+PRINTFORML [94] - 등장캐릭터변환
+PRINTFORML [95] - 커맨드필터
+
+
+PRINTFORML [99] - 입맛 설정
+;#;PRINTFORML [96] - 카운터 행동 필터（디버그용）
+;PRINTFORML [97] - 요리의 옵션 설정
+
 DRAWLINE
-IF DAY > 120 || FLAG:엔딩여부 ;KR판 오리지날, 엔딩여부 체크로 강하게 뉴게임 가능
+SIF DAY > 120 || FLAG:엔딩여부 ;KR판 오리지날, 엔딩여부 체크로 강하게 뉴게임 가능
 	HTML_PRINT @"<button value='200' title='【경고】 여기 뒤로는 읽어서는 안된다'>[200] - 바이쳐・더스트</button>"
-	L_FEED ++
-ENDIF
+
 PRINTFORML [999] - 설정 완료
 INPUT
 SELECTCASE RESULT
 CASE 0 TO 90
-	IF !LOCAL:RESULT
-		CLEARLINE 10 + L_FEED
-		RESTART
-	ENDIF
-	CALL OPTION_SETTING(RESULT)
-	CLEARLINE 10 + L_FEED
-CASE 93
-	CALL 마스터_호불호선택
-CASE 94
+	SIF LOCAL:RESULT
+		CALL OPTION_SETTING(RESULT)
+	CLEARLINE LINECOUNT - L_FEED
+CASE 91
 	CALL OPTION_오토신음일괄설정
-CASE 95
+CASE 92
 	CALL 간이필터일괄설정
-;CASE 96
-;	CALL SET_OPTION_COOKING
-CASE 97
+CASE 93
 	CALL OPTION_화상표시상세설정
-CASE 98
+CASE 94
 	CALL 등장캐릭터변환
-CASE 99
+CASE 95
 	CALL OPTION_COMMAND_FILTER
+[IF_DEBUG]
+CASE 96
+	CALL OPTION_COUNTER_FILTER
+[ENDIF]
+;CASE 97
+;	CALL SET_OPTION_COOKING
+
+CASE 99
+	CALL 마스터_호불호선택
 CASE 200 
-	IF DAY <= 120 && !FLAG:엔딩여부 ;KR판 오리지날, 엔딩여부 체크로 강하게 뉴게임 가능
-		REDRAW 1
-		TOOLTIP_SETDELAY 500
+	TOOLTIP_SETDELAY 500
+	IF DAY <= 124 && !FLAG:엔딩여부 ;KR판 오리지날, 엔딩여부 체크로 강하게 뉴게임 가능
+		REDRAW TEMP
 		RETURN
 	ENDIF
 	IF FLAG:채무
@@ -88,7 +95,7 @@ CASE 200
 ;		PRINTW 「스위치」를 누르는 건 멈추지 못했지만, 운 좋게도 옵션 선택까지밖에 돌아가지 않았다.
 	ENDIF
 CASEELSE
-	REDRAW 1
+	REDRAW TEMP
 	TOOLTIP_SETDELAY 500
 	RETURN
 ENDSELECT
@@ -205,22 +212,22 @@ CASE 12
 	ELSEIF FLAG:Look표시용유방 == 0 && FLAG:Look표시용유두 == 0
 		RESULTS:1 = 가슴 관련 랜덤 묘사
 	ENDIF
-CASE 13
-	RESULTS:0 = 호의/이성의 벽 단축표시
-	IF FLAG:호의이성단축
-		RESULTS:1 = 단축한다
-	ELSE
-		RESULTS:1 = 단축하지 않는다
-	ENDIF
-	RESULTS:2 = ※현재 미작동※
-CASE 14
-	RESULTS:0 = 능력 표시 버튼 표기
-	IF FLAG:능력표기
-		RESULTS:1 = 숫자 표기
-	ELSE
-		RESULTS:1 = 기호 표기
-	ENDIF
-	RESULTS:2 = ※현재 미작동※
+;CASE 13
+;	RESULTS:0 = 호의/이성의 벽 단축표시
+;	IF FLAG:호의이성단축
+;		RESULTS:1 = 단축한다
+;	ELSE
+;		RESULTS:1 = 단축하지 않는다
+;	ENDIF
+;	RESULTS:2 = ※현재 미작동※
+;CASE 14
+;	RESULTS:0 = 능력 표시 버튼 표기
+;	IF FLAG:능력표기
+;		RESULTS:1 = 숫자 표기
+;	ELSE
+;		RESULTS:1 = 기호 표기
+;	ENDIF
+;	RESULTS:2 = ※현재 미작동※
 CASE 15
 	RESULTS:0 = 턴마다 나오는 ABLUP 생략
 	IF FLAG:ABLUP생략
@@ -261,7 +268,7 @@ CASE 19
 	RESULTS:0 = 소모품의 자동 구입
 	IF FLAG:소모품자동구입
 		RESULTS:1 = 한다
-		RESULTS:2 = 로션만 유효
+		RESULTS:2 = 로션만 구매한다
 	ELSE
 		RESULTS:1 = 하지 않는다
 	ENDIF
@@ -288,7 +295,7 @@ CASE 21
 ;	RESULTS:0 = 경고장사용
 ;	IF FLAG:경고장사용
 ;		RESULTS:1 = 있음
-;		RESULTS:2 = 지나친 성희롱으로 발급되며 모이면 게임 오버가 됩니다
+;		RESULTS:2 = 지나친 성희롱 등으로 발급되며 모이면 게임 오버가 됩니다
 ;	ELSE
 ;		RESULTS:1 = 없음
 ;	ENDIF
@@ -385,28 +392,55 @@ CASE 32
 	ELSE
 		RESULTS:1 = 무효
 	ENDIF
-CASE 36 ;KR판 오리지날
+CASE 34
+	RESULTS:0 = 카운터 중의 체벌
+	SELECTCASE FLAG:카운터제재
+	CASE 0
+		RESULTS:1 = 있음
+		RESULTS:2 = 약점을 잡히면 드물게 발생해 우후후가 중단됩니다
+	CASE 1
+		RESULTS:1 = 과격한 체벌은 금지
+		RESULTS:2 = 도구를 이용한 체벌을 금지합니다
+	CASE 2
+		RESULTS:1 = 없음
+	ENDSELECT
+CASE 35
+	RESULTS:0 = 아나타의 애널 개발 허가
+	IF FLAG:애널개발무효
+		RESULTS:1 = 금지
+		RESULTS:2 = 아나타에 대한 쾌A 소스가 발생되는 카운터 행동이 금지됩니다
+	ELSE
+		RESULTS:1 = 허가
+	ENDIF
+CASE 36
+	RESULTS:0 = 일상 행동중의 바람치라 발생
+	IF FLAG:바람치라발생
+		RESULTS:1 = 유효
+	ELSE
+		RESULTS:1 = 무효
+	ENDIF
+CASE 37 ;KR판 오리지날
 	RESULTS:0 = 일상 호감 신뢰 상승 배율 설정
 	IF FLAG:호감신뢰상승률
 		RESULTS:1 = (현재 {1+FLAG:호감신뢰상승률}배)
 	ELSE
 		RESULTS:1 = 디폴트
 	ENDIF
-CASE 37 ;KR판 오리지날
+CASE 38 ;KR판 오리지날
 	RESULTS:0 = 의뢰 호감 신뢰 상승 배율 설정
 	IF FLAG:의뢰호감신뢰상승률
 		RESULTS:1 = (현재 {1+FLAG:의뢰호감신뢰상승률}배)
 	ELSE
 		RESULTS:1 = 디폴트
 	ENDIF
-CASE 38
+CASE 39
 	RESULTS:0 = 창녀의 경과 묘사 생략
 	IF FLAG:창녀묘사간소화
 		RESULTS:1 = (생략한다)
 	ELSE
 		RESULTS:1 = (생략하지 않는다)
 	ENDIF
-CASE 39
+CASE 40
 	RESULTS:0 = 창관 납치 이벤트
 	IF FLAG:NTR이벤트
 		RESULTS:1 = (발생한다)
@@ -414,7 +448,7 @@ CASE 39
 		RESULTS:1 = (발생하지 않는다)
 	ENDIF
 	RESULTS:2 = 매일 일정확률로 누군가 창관에 납치되어 사라집니다
-CASE 40
+CASE 41
 	RESULTS:0 = 영양소 시스템
 	IF !FLAG:영양소시스템미사용
 		RESULTS:1 = (사용한다)
@@ -422,7 +456,7 @@ CASE 40
 		RESULTS:1 = (사용하지 않는다)
 	ENDIF
 	RESULTS:2 = 골고루 식사하지 않으면 굶은 판정을 합니다
-CASE 41
+CASE 42
 	RESULTS:0 = 토리코식 UI
 	IF !FLAG:토리코UI
 		RESULTS:1 = (사용하지 않는다)
@@ -552,6 +586,12 @@ CASE "채집시 재추첨 기능"
 	FLAG:채집재추첨 = !FLAG:채집재추첨
 CASE "시간 날씨에 따른 배경색 추이"
 	FLAG:배경색추이 = !FLAG:배경색추이
+CASE "카운터 중의 체벌"
+	CALL 옵션바꿔치기("카운터제재", 2)
+CASE "아나타의 애널 개발 허가"
+	FLAG:애널개발무효 = !FLAG:애널개발무효
+CASE "일상 행동 중에 바람치라 발생"
+	FLAG:바람치라발생 = !FLAG:바람치라발생
 CASE "일상 호감 신뢰 상승 배율 설정"
 	PRINTFORML 변경할 일반 호감도/신뢰 추가 획득 배율 입력 『현재 : {1 + FLAG:호감신뢰상승률}x, 최대 20』
 	INPUT
@@ -896,6 +936,43 @@ ELSEIF RESULT == 16
 ENDIF
 RESTART
 
+;카운터 행동 필터
+@OPTION_COUNTER_FILTER
+#DIM CCOM_ID
+#DIM L_FEED
+#DIM TEMP
+TEMP = CURRENTREDRAW()
+REDRAW 0
+LOADGLOBAL
+CALL COLORMESSAGE, "※ 필터의 남용은 고장의 원인이 될 수 있습니다 ※", C_YELLOW, 2
+DRAWLINE
+DO
+	L_FEED = LINECOUNT
+	FOR CCOM_ID, 0, CCOM_MAXNUM
+		SIF STR:(4000 + CCOM_ID) == ""
+			CONTINUE
+		CALL PRINTBUTTON_EXC(@"%STR:(4000 + CCOM_ID)%[{CCOM_ID,3}]", CCOM_ID, CCOM_FILTER:CCOM_ID)
+	NEXT
+	PRINTL 
+	DRAWLINE
+	PRINTL [500] - 전부 무효
+	PRINTL [501] - 리셋
+	PRINTL 
+	PRINTL [999] - 결정
+	INPUT
+	SELECTCASE RESULT
+	CASE 0 TO CCOM_MAXNUM
+		SIF STR:(4000 + RESULT) != ""
+			CCOM_FILTER:RESULT = !(CCOM_FILTER:RESULT)
+	CASE 500, 501
+		VARSET CCOM_FILTER, (RESULT == 500)
+	CASE 999
+		SAVEGLOBAL
+		REDRAW TEMP
+		RETURN
+	ENDSELECT
+	CLEARLINE LINECOUNT - L_FEED
+LOOP 1
 
 
 

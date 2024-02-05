@@ -401,6 +401,61 @@ VARSET 전회의팬티
 #DIM DYNAMIC 구상카운트
 #DIM DYNAMIC 구상수
 #DIM DYNAMIC 구상실장수
+#DIMS DYNAMIC kojoNamesList, 4
+#DIM DYNAMIC kojoIdList, 4
+#DIM DYNAMIC vernier
+;同キャラ口上複数確認 and record the name of kojo
+FOR 구상카운트,0,5
+	RESULT = 0
+	RESULTS:1 =
+	;-KR- 구상명 군더더기 버그 수정
+	IF 구상카운트
+		TRYCALLFORM M_KOJO_K{C_ID}_{구상카운트}
+	ELSE
+		TRYCALLFORM M_KOJO_K{C_ID}
+	ENDIF
+	IF RESULT
+		SIF RESULTS:1 == ""
+			RESULTS:1 = 초기
+		kojoNamesList:vernier = %CALLNAME:C_ID%%RESULTS:1%구상
+		kojoIdList:vernier = 구상카운트
+		vernier ++
+		IF !GETBIT(CFLAG:C_ID:구상실장상황,구상카운트)
+			구상수 += 1
+			구상실장수 += 1
+			SETBIT CFLAG:C_ID:구상실장상황,구상카운트
+		ELSEIF GETBIT(CFLAG:C_ID:구상실장상황,구상카운트)
+			구상실장수 += 1
+		ENDIF
+	ENDIF
+NEXT
+IF !구상수
+	SIF 구상실장수
+		RETURN 1
+RETURN 0
+ENDIF
+IF 구상실장수 > 1
+	PRINTFORML %CALLNAME:C_ID%에게는 복수의 구상이 존재합니다
+	PRINTFORML 변경하시겠습니까?
+	CALL ASK_YN
+	;口上選択
+	IF !RESULT
+		LOCALS:0 = 어떤 구상을 사용할까요?
+		CALL CHOICE("어떤 구상을 사용할까요?", kojoNamesList:0, kojoNamesList:1, kojoNamesList:2, kojoNamesList:3)
+		CFLAG:C_ID:구상셀렉터 = kojoIdList:RESULT
+		RETURN 2
+	ELSE
+		PRINTFORML 변경하지 않았습니다
+		RETURN 1
+	ENDIF
+ELSE
+	RETURN 2
+ENDIF
+[SKIPSTART]
+#DIM C_ID
+#DIM DYNAMIC 구상카운트
+#DIM DYNAMIC 구상수
+#DIM DYNAMIC 구상실장수
 VARSET LOCALS
 ;동일 캐릭터 구상 둘 이상 확인
 FOR 구상카운트,0,5
@@ -475,7 +530,7 @@ ENDIF
 SIF 구상실장수
 	RETURN 1
 RETURN 0
-
+[SKIPEND]
 ;-----------------------------------------------------------
 ;사용자 정의 광역 변수 클리어
 ;-----------------------------------------------------------

@@ -15,6 +15,9 @@
 	#DIM EFFECT_SEED
 	#DIM EFFECT_SEEDA
 	#DIM PREV_REDRAW
+	#DIMS TEMP_LINE
+	#DIMS TEMP_TILE
+	#DIMS TEMP_TILE_COLOR
 	;SETFONT "ＭＳ ゴシック" 한판 임의수정, 한판은 굴림체이므로 누락
 	VARSET MAP, "NULL"
 	VARSET COLOR, "0"
@@ -48,7 +51,7 @@
 	FOR ROW, 0, 42
 		SIF MAP:ROW == "NULL"
 			BREAK
-
+		VARSET TEMP_LINE
 		;Remove zero width space
 		COLUMN_STR = %REPLACE(MAP:ROW,"​","")%
 		COLUMN_LENGTH = STRLENSU(COLUMN_STR)
@@ -59,12 +62,16 @@
 				BREAK
 
 			;Apply the character's color
-			IF COLORCOLUMNS:COLUMN != ""
+			IF COLORCOLUMNS:COLUMN == "def"
+				TEMP_TILE_COLOR = #%CONVERT(GETDEFCOLOR() , 16)%
+			ELSEIF COLORCOLUMNS:COLUMN != ""
 				IF ISNUMERIC(COLORCOLUMNS:COLUMN)
 					TYPE = NULL
 					IF COLORCOLUMNS:COLUMN == "0"
 						RESETCOLOR
+						TEMP_TILE_COLOR '= "#" + TOSTR(GETDEFCOLOR(), "X6")
 					ELSE
+						TEMP_TILE_COLOR '= "#" + TOSTR(APPLYCOLOR_F(TOINT(COLORCOLUMNS:COLUMN)), "X6")
 						CALL APPLYCOLOR(TOINT(COLORCOLUMNS:COLUMN))
 					ENDIF
 				ELSE
@@ -74,6 +81,7 @@
 						SIF (RESULT:1 != -1)
 							CALL CREATETRANSITION(RESULT:0, RESULT:1)
 						CALL APPLYCOLOR(RESULT)
+						TEMP_TILE_COLOR '= "#" + TOSTR(APPLYCOLOR_F(RESULT), "X6")
 					ENDIF
 				ENDIF
 			ENDIF
@@ -85,21 +93,30 @@
 				CURRENT_STR = %SUBSTRINGU(COLUMN_STR, COLUMN, 1)%
 				LOCATION += TOINT(CURRENT_STR)
 				IF ARGS == "ODEKAKE"
-					CALL GETMAP(LOCATION, ARGS)
+					CALL GETMAP(LOCATION, ARGS, 1)
+					TEMP_TILE '= RESULTS
 				ELSEIF ARGS == "GLOBAL"
-					CALL MAPBUTTON(((LOCATION > 9)? TOSTR(LOCATION) # TOFULL(TOSTR(LOCATION))),LOCATION)
+					;CALL MAPBUTTON(((LOCATION > 9)? TOSTR(LOCATION) # TOFULL(TOSTR(LOCATION))),LOCATION)
+					TEMP_TILE '= MAPBUTTON_HTML_F(((LOCATION > 9)? TOSTR(LOCATION) # TOFULL(TOSTR(LOCATION))),LOCATION)
 				ELSE
-					CALL GETMAP(LOCATION)
+					CALL GETMAP(LOCATION, , 1)
+					TEMP_TILE '= RESULTS
 				ENDIF
 			ELSE
 				IF TYPE == "NULL"
-					PRINTS CURRENT_STR
+					TEMP_TILE '= HTML_ESCAPE(CURRENT_STR)
+					;PRINTS CURRENT_STR
 				ELSE
-					CALL GETANIMATIONCHARACTER(ANIMATION_SEED, TYPE, CURRENT_STR, EFFECT_SEEDA)
+					CALL GETANIMATIONCHARACTER(ANIMATION_SEED, TYPE, CURRENT_STR, EFFECT_SEEDA, 1)
+					TEMP_TILE '= RESULTS
 				ENDIF
 			ENDIF
+			SIF !STRCOUNT(TEMP_TILE, "<font color")
+				TEMP_TILE = <font color = '%TEMP_TILE_COLOR%'>%TEMP_TILE%</font>
+			TEMP_LINE += TEMP_TILE
 		NEXT
-		PRINTL
+		HTML_PRINT TEMP_LINE
+		;PRINTL
 	NEXT
 	RESETCOLOR
 	REDRAW PREV_REDRAW
@@ -112,7 +129,7 @@
 ; Formula is: (ANIMATION_SEED % (# of characters involved in animation) + starting animation character).
 ; The result from the formula is a character with its matching color.
 ;===============================================
-@GETANIMATIONCHARACTER(ANIMATION_SEED, TYPE, DEFAULT, EFFECT_SEED)
+@GETANIMATIONCHARACTER(ANIMATION_SEED, TYPE, DEFAULT, EFFECT_SEED, IS_GET_HTML_STR)
 	{
 		#DIM CONST ANIMATIONCOLORS =
 			0x555555, 0x777777, 0,
@@ -154,7 +171,7 @@
 	}
 	#DIMS TYPE
 	#DIMS DEFAULT
-
+	#DIM IS_GET_HTML_STR
 	COLOR = -1					;This excludes 'bamboo', 'flora', and 'sakura'
 	INCREMENTANIMATION = 1		;Should the animation be played?
 	IF ANIMATERECOLOREDMAPS
@@ -216,7 +233,7 @@
 				ELSE
 					CHARACTER = ((ANIMATION_SEED % 6) + 43)
 				ENDIF
-				
+
 				IF GETEFFECTCOND(EFFECT_SEED)
 					DEFAULT = %ANIMATIONCHARACTERS:CHARACTER%
 					IF DAY:2 == 2 || MAIN_MAP == 6
@@ -275,7 +292,7 @@
 			COLOR = 0xCCCCCC
 		ENDIF
 	ENDIF
-	
+
 	SIF TYPE == "def"
 		RESETCOLOR
 	SELECTCASE TYPE
@@ -288,19 +305,32 @@
 		CASE "framed"
 			COLOR = 0x1e1e00
 	ENDSELECT
-	SIF COLOR > -1
-		CALL APPLYCOLOR(COLOR)
-	PRINTS DEFAULT
+	IF IS_GET_HTML_STR
+		SIF COLOR > -1
+			DEFAULT = <font color = '#%TOSTR(COLOR, "X6")%'>%HTML_ESCAPE(DEFAULT)%</font>
+		RESULTS '= DEFAULT
+	ELSE
+		SIF COLOR > -1
+			CALL APPLYCOLOR(COLOR)
+		PRINTS DEFAULT
+	ENDIF
 ;===============================================
 ; Applies the color with respect to timestop.
 ;===============================================
 @APPLYCOLOR(COLOR)
 	#DIM COLOR
+	RETURN APPLYCOLOR_F(COLOR)
 
+;===============================================
+; Applies the color with respect to timestop.
+;===============================================
+@APPLYCOLOR_F(COLOR)
+	#FUNCTION
+	#DIM COLOR
 	;If timestop, invert the color except the white color family
 	SIF FLAG:70 && (COLOR < 0xE3DAC9)
 		COLOR = COLOR ^ 0xFFFFFF
-	SETCOLOR COLOR
+	RETURNF COLOR
 
 ;===============================================
 ; Determine if effect should be applied.
@@ -322,7 +352,7 @@
 	ELSE
 		RETURNF 0
 	ENDIF
-	
+
 ;===============================================
 ; Used by the color codes: 'bamboo', 'flora', and 'sakura'.
 ; DAY:2 starts with Spring (1), Summer (2), Autumn (3), then Winter (4)
@@ -356,7 +386,7 @@
 	#DIM OFFSET
 	#DIM REF EFFECT_SEED
 	#DIMS TYPE
-	
+
 	OFFSET = -1
 	SELECTCASE TYPE
 		CASE "bambood"
@@ -384,7 +414,7 @@
 		CASE "sakuras"
 			OFFSET = 44
 	ENDSELECT
-	
+
 	;Snow Effect
 	IF (DAY:2 == 4)
 		IF GETEFFECTCOND(EFFECT_SEED)
@@ -400,7 +430,7 @@
 			ENDSELECT
 		ENDIF
 	ENDIF
-	
+
 	;Day 10, the next season is the current DAY:2
 	;Day 22, the next season is DAY:2 + 1
 	IF OFFSET > -1
@@ -457,4 +487,3 @@
 	ELSE
 		RETURN START
 	ENDIF
-	
