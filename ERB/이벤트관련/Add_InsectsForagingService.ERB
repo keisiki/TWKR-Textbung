@@ -1,0 +1,192 @@
+﻿@UNIQUE_COM_벌레수집서비스
+#DIM PRICE
+;CALL M_KOJO_COLOR_K27
+IF FLAG:벌레수집서비스
+    ;PRINTFORMW 「Do you wanna change your foraging location?」
+    ;CALL ASK_M("Yeah",1,"Nah",1)
+    PRINTFORMW 「수집 위치를 변경하시겠습니까?」
+    CALL ASK_M("예", 1, "아니오", 1)
+    SIF RESULT
+        RETURN 1
+    CALL SELECT_A_REGION(0)
+ELSE
+    IF FIRSTTIME("ForagingService")
+        ;PRINTFORMW 「So here's how this works. You pay me a small fee...」
+        ;PRINTFORMW 「And in return, once a day for a month, my bug friends will search an area of your choice and bring back anything they find.」
+        ;PRINTFORMW 「They'll have it waiting for you first thing in the morning.」
+        ;PRINTFORMW 「Sometimes they wont find anything, though. If that happens, you get a refund for that day.」
+        PRINTFORMW 「우선 어떤 방식인지 설명해줄게. 우선 네가 적은 돈을 지불하고...」
+        PRINTFORMW 「그러면 한 달 동안 나의 벌레 친구들이 네가 원하는 지역을 하루에 한 번씩 찾아와서 찾은 물건을 가져다줄거야.」
+        PRINTFORMW 「아침에 일어나면 기다리고 있을거야.」
+        PRINTFORMW 「가끔 아무것도 찾지 못할 수도 있어. 그럴 때는 그 날에 대해 환불해줄게.」
+        IF TALENT:[[리글]]:연인
+            ;PRINTFORMW 「But you get the %PRINT_MALE("boy", MASTER)%friend discount of... 100\% off.」
+            PRINTFORMW 「하지만 %마스터는% 연인 할인으로… 100\% 할인 받을 수 있어.」
+            PRINTFORMW 「물론, 다른 방법으로 감사의 표시를 하고 싶다면 막진 않을게...」
+            ;PRINTFORMDW %CALLNAME:[[리글]]% purses %HIS_HER(TARGET)% lips and winks.
+            PRINTFORMDW %조사처리(CALLNAME:[[리글]], "은")% 입술을 살짝 모으고 윙크했다.
+        ENDIF
+    ENDIF
+    PRICE = CALCULATE_IFS_PRICE()
+    IF TALENT:[[리글]]:연인
+        ;PRINTFORMW 「So do you wanna sign up?」
+        PRINTFORMW 「그럼 계약할래?」
+    ELSE
+        PRINTFORMW 「계약할래? 가격은 \\{PRICE}야.」
+    ENDIF
+    CALL ASK_M("계약한다",MONEY >= PRICE,"그만둔다",1)
+    SELECTCASE RESULT
+        CASE 0
+            CALL SELECT_A_REGION(PRICE)
+        CASE 1
+            ;PRINTFORMW 「Aww man...」
+            ;PRINTFORMW 「Come back if you change your mind.」
+            PRINTFORMW 「어쩔 수 없지...」
+            PRINTFORMW 「생각이 바뀌면 다시 와줘.」
+            RETURN 1
+    ENDSELECT
+ENDIF
+RETURN 1
+
+@SELECT_A_REGION(PRICE)
+#DIM PRICE
+#DIM REGION
+;PRINTFORMW 「All right, so where do you want my friends to look?」
+PRINTFORMW 「좋아, 그럼 내 친구들이 어디를 찾아봤으면 좋겠어?」
+FOR LOCAL, 0, 11
+;Skip the Human Village because there aren't any gathering points in it
+	SIF LOCAL == 2
+		CONTINUE
+    PRINTFORMDL [{LOCAL}] - %GET_MAPNAME(LOCAL)%
+NEXT
+PRINTFORMDL [100] - 돌아가기
+
+DO
+    INPUT
+    SELECTCASE RESULT
+        CASE 0 TO 10
+            REGION = RESULT
+            ;PRINTFORMW 「%GET_MAPNAME(REGION)%, huh?」
+            PRINTFORMW 「%GET_MAPNAME(REGION)%, 맞지？」
+            ;PRINTFORMW 「Got it. Now just sit tight while they get to work.」
+            PRINTFORMW 「좋아, 내 친구들이 일하는 동안 잠시 앉아서 기다려줘.」
+            PRINTFORMDL %조사처리(CALLNAME:[[리글]], "이")% 손끝을 튕기자, 공중에서 벌레 날갯짓 소리가 울린다.
+            IF FIRSTTIME("InsectGatheringScene")
+                ;PRINTFORMDW A massive swarm is gathering. You can't even hear yourself think over the noise.
+                PRINTFORMDW 대규모의 벌레 떼가 모여있다. 소음에 머릿속 생각마저 들리지 않는다.
+                ;PRINTFORMDW Flying insects, crawling insects, worms... 
+                PRINTFORMDW 날아다니는 벌레들... 기어다니는 벌레들... 마치 벌레 태풍의 눈에 있는 것 같다.
+               ;PRINTFORMDW At least theyre polite enough to keep their distance from you.
+                PRINTFORMDW 어느 정도 예의는 갖춘 것 같다. %마스터와% 거리를 유지하고 있다.
+                PRINTFORMDW %조사처리(CALLNAME:[[리글]], "이")% 가리키자 벌레 떼는 날아갔다.
+            ELSE
+                ;PRINTFORMDW The swarm gathers and flies off just like they did before.
+                PRINTFORMDW 저번과 마찬가지로 벌레 떼가 날아갔다.
+            ENDIF
+            ;PRINTFORMW 「Hehe, look at 'em go... aren't they cute?」
+            PRINTFORMW 「헤헤, 가버렸네... 귀엽지 않아?」
+            ;PRINTFORMDW You decide to not to answer %HIM_HER([[리글]])%.
+            PRINTFORMDW %마스터는% 대답하지 않기로 했다.
+            IF !TALENT:[[리글]]:연인 && PRICE > 0
+                ;PRINTFORMW 「Okay, pay up.」
+                PRINTFORMW 「그럼 대금을 받아갈게」
+                ;PRINTFORMDL You hand over some cash, and %CALLNAME:[[리글]]% counts it.
+                PRINTFORMDL %플레이어가% 건넨 돈을 %조사처리(CALLNAME:[[리글]], "이")% 받아 확인하고 있다.
+                ;PRINTFORMDW When %HE_SHE([[리글]])%'s sure that it's all there, %HE_SHE([[리글]])% grins at you.
+                PRINTFORMDW 확인이 끝나자 %CALLNAME:[[리글]]% 미소를 지었다.
+                ;PRINTFORMW 「Pleasure doing business with you.」
+                PRINTFORMW 「좋은 거래였어」
+                CALL PAY_MONEY_YEN(PRICE, 2)
+            ENDIF
+            FLAG:벌레수집서비스 = REGION + 1
+            RETURN 1
+        CASE 100
+            RETURN 1
+
+        CASEELSE
+            ;PRINTFORMW 「Uhh... I don't know where that is.」
+            PRINTFORMW 「음... 그건 어딘지 모르겠어」
+            CONTINUE
+    ENDSELECT
+LOOP 1
+
+;Modified from ShowGatheringSpots
+@IFS_GATHER()
+#DIM cStart
+#DIM cEnd
+#DIM SpotID
+#DIM pCount
+#DIM SelectedSubmap
+#DIM GatheringSpots, 10
+#DIM ItemFound
+#DIM QuantityFound
+
+PRINTFORMDL
+;PRINTFORMDW There's a package from the Insects' Foraging Service outside your front door.
+PRINTFORMDW 문 앞에 벌레 수집 서비스에서 온 소포가 있다.
+;PRINTFORMDW You open it...
+PRINTFORMDW 열어보면...
+
+cStart = 1 + (FLAG:벌레수집서비스 - 1) * 100
+cEnd = 99 + (FLAG:벌레수집서비스 - 1) * 100
+A = 0
+FOR LOCAL, cStart, cEND
+    SpotID = GATHERING_SPOT(LOCAL, 1)
+    IF SpotID
+        GatheringSpots:A = SpotID
+        A++
+    ENDIF
+NEXT
+
+DO
+    SelectedSubmap = GatheringSpots:(RAND:10)
+    SIF SelectedSubmap
+        BREAK
+LOOP 1
+
+CALL Gathering_Drawing(SelectedSubmap, (10 + TALENT:[[리글]]:채집Lv * 10 + ABL:[[리글]]:교양 * 5 + TFLAG:행운보정 * 10))
+ItemFound = RESULT:0
+QuantityFound = RESULT:1
+IF !QuantityFound
+    ;PRINTFORMDW There was a \\{1000} bill and a note inside.
+    PRINTFORMDW ¥\\{1000}과 메모가 들어있었습니다.
+    IF ABL:MASTER:교양 >= 2
+        ;PRINTFORMDL It reads:
+        ;CALL M_KOJO_COLOR_K27
+        ;PRINTFORML Sorre. We cudn't find nething.
+        PRINTFORML 미안. 암것도 못 찾았어.
+        ;PRINTFORML Heres some muny.
+        PRINTFORML 돈은 여기에 두고 갈게.
+        ;PRINTFORMW -Rigle
+        PRINTFORML - 리글
+        RESETCOLOR
+        PRINTFORMDW ――라고 적혀있습니다.
+    ELSE
+        ;PRINTFORMDL You try to read the note, but the handwriting is too messy.
+        PRINTFORMDL 메모를 읽어보려 했지만 글씨가 너무 지저분해서 읽을 수 없었다...
+        ;PRINTFORMDW It probably says that they couldn't find anything and that they're offering some compensation.
+        PRINTFORMDW 아마, 아무것도 찾지 못했고 그 대신 돈을 넣어놓은 것 같다.
+    ENDIF
+    PRINTFORMDL
+    CALL GET_MONEY_YEN(1000, 2)
+ELSE
+    LOCALS = %ITEMNAME:(ItemFound)%
+    ;PRINTFORMDW There were some materials inside!
+    PRINTFORMDW 소재가 몇 개 들어있었다!
+    PRINTFORMDL
+    CALL GET_ITEM(LOCALS, QuantityFound, 2)
+ENDIF
+PRINTFORMDL
+
+@CALCULATE_IFS_PRICE
+#FUNCTION
+IF TALENT:[[리글]]:연인
+    RETURNF 0
+ELSEIF MARK:[[리글]]:반발각인 > 0
+    RETURNF 15000 * MARK:[[리글]]:반발각인 + 1
+;ELSEIF IS_FALLEN([[리글]])
+ELSEIF TALENT:[[리글]]:연모 || TALENT:[[리글]]:섹프
+    RETURNF 7500
+ELSE
+    RETURNF 15000
+ENDIF

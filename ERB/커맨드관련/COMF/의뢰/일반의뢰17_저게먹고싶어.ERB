@@ -1,0 +1,440 @@
+﻿;存否関数
+;F関数はTRYCALL系が使えないので通常関数で存否配列を作っちゃう
+@EXIST_일반의뢰17
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+;ここでARGで渡されるのはCLIENT_IDです
+@일반의뢰17(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "의뢰명"
+	;「名前忘れたけどこんな感じの料理あったよね」とは別に「こんな料理があったら食べてみたいね」みたいな形式もアリなのかな
+	;やっぱり同じ依頼の名前が複数あるの好ましくないかな？
+	;IF RAND:2
+		CALLF MAKE_STR(V_NAME, "그거 먹고 싶어! …이름이 뭐였더라?")
+	;ELSE
+	;	CALLF MAKE_STR(V_NAME, "이런 요리 있었으면 좋겠네")
+	;ENDIF
+CASE "의뢰내용 표시"
+	CALLF MAKE_STR(V_NAME, @"어렴풋한 기억에 의지해 요리를 만들어 배달한다.")
+CASE "의뢰 보수 표시"
+	CALLF MAKE_STR(V_NAME, @"\\2500＋덤")
+CASE "의뢰실행 커맨드 이름"
+	;何か問題があったら変えてください
+	CALLF MAKE_STR(V_NAME, "배달의 민족")
+CASE "의뢰내용"
+	CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "그 외"))
+CASE "의뢰 서브"
+	;これは乱数シード
+	CALLF MAKE_INT(V_NAME, RAND:1000000)
+CASE "의뢰기한"
+;発生時ではなく受託時に確定します
+	CALLF MAKE_INT(V_NAME, 3)
+CASE "의뢰 발생율"
+	CALLF MAKE_INT(V_NAME, 5)
+CASE "의뢰 발생 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰 수탁 가능 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰실행 가능 조건"
+	SIF DISH_NAME != "" && TARGET == ARG
+		CALLF MAKE_INT(V_NAME, 1)
+;成功/失敗処理はCARRYOUTで直接書く
+;SOURCEやITEM入手、消費が煩雑になるので
+CASE "의뢰 소멸 조건"
+	SIF RAND:100 < 30
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰인 데리고 나가 가능"
+ENDSELECT
+
+
+@IRAI_일반17(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+#DIM 기초평가 					;요리 자체의 평가
+#DIM 태그평가 					;의뢰인이 내놓은 요리의 특징과 얼마나 일치하는지 평가한다.
+#DIMS 맛요구  					;클라이언트가 요구한 맛을 넣어두는 매개변수
+#DIM 덤   						;대성공 시 보너스. 성공/대성공 판정이 나온 후 보상을 받기까지 다른 의뢰 기능의 실행이 끼어드는 경우는 없지 않나요?
+#DIM CONST 평가기준 = 50 , 75 	;평가기준: 0점 미만이면 실패, 평가기준: 0점 이상이면 성공, 평가기준: 1점 이상이면 대성공
+#DIM CONST 태그일치가점 = 10  	;태그 일치 시마다 받을 수 있는 점수
+#DIM CONST 기초보정 = 50      	;요리 자체의 평가에 대한 보정값. 백분율. 태그 일치에 의한 가점이 있기 때문에 요리 자체의 평가는 낮게 보정한다.
+#DIM  CHK_SLOT
+#DIM SAVECLR  ;색상 저장용
+
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+CHK_SLOT  = SEARCH_IRAI_SLOT(IRAI_ID)
+
+;任意の文字列を保存しておく方法が分からなかったので力業
+DUMPRAND
+RANDOMIZE IRAI_SUB:CHK_SLOT
+맛요구 = %IRAI_일반17_맛설정(CHARA)%
+INITRAND
+
+SELECTCASE SCENE
+CASE "의뢰 조건 표시"
+	;何か専用の表示情報を設けたい時用
+	;受託済みの依頼表示で使用されます
+	;
+	;PRINT系だけでSOURCEとかは入れちゃダメ、WAITも無しで
+	;ここ以外の表示項目は
+	;PRINTFORML 　　　　　：
+	;となっているのでスペースを揃えたほうが見栄えが良いです
+	PRINTFORML 요구하는맛：%맛요구%
+CASE "의뢰실행시"
+	;このCASEに限り、RESULTが意味を持ちます
+	;依頼実行時のRESULTにはIRAI_CONST_RESULT()を使用してください
+	;可能な引数は"キャンセル", "실행해 성공", "実行して失敗", "実行して未解決"です
+	;独自処理を仕込みたい時は"実行して未解決"で先延ばしするなりしてください
+	VARSET 덤
+	PRINTFORML 「주문하신 %DISH_NAME%입니다」
+	PRINTFORMW %마스터는% %CALLNAME:CHARA%에게 <%DISH_NAME%>%조사만처리(DISH_NAME,"를")% 전달했다.
+	CALL REVIEW_DISH(CHARA , DISH_TASTE)
+	DISH_NAME = 
+
+	;#;PRINTFORML 요구하는것＝%맛요구%
+	;#;PRINTFORML 요리의맛　＝%DISH_TASTE%
+
+	;料理が美味しいかどうか、要求した物に近いかどうかの両方を吟味
+	;料理自体の味は評価点を低く補正
+	기초평가 = TCVAR:CHARA:요리평가치 * 기초보정 / 100 / 10
+	태그평가 = IRAI_일반17_장르평가(DISH_TASTE , 맛요구) * 태그일치가점
+
+	;きれいに★を並べるために雑に補正
+	;#;PRINTFORML 보정 전 기초평가：{기초평가}    태그평가：{태그평가}
+	IF 기초평가 % 10 < 5
+		태그평가 += 기초평가 % 10
+		기초평가 -= 기초평가 % 10
+	ELSE
+		태그평가 -= 10 - 기초평가 % 10
+		기초평가 += 10 - 기초평가 % 10
+	ENDIF
+	;#;PRINTFORML 보정 후 기초평가：{기초평가}    태그평가：{태그평가}
+
+	SAVECLR = GETCOLOR()
+	PRINTL 
+	SETCOLORBYNAME YELLOW
+	PRINTFORM %"★" * (기초평가 / 10)%
+	SETCOLORBYNAME RED
+	PRINTFORM %"★" * (태그평가 / 10)%
+	PRINTL 
+	SETCOLOR SAVECLR
+
+	SELECTCASE 기초평가 + 태그평가
+		CASE IS < 평가기준:0
+			;失敗
+			PRINT <--
+			SETCOLORBYNAME RED
+			PRINT BAD
+			SETCOLOR SAVECLR
+			PRINTL -->
+			IF 기초평가 < (기초평가 + 태그평가) / 2
+				;성적이 나쁨
+				PRINTFORML %조사처리(CALLNAME:CHARA,"은")% 굉장히 껄끄러운 표정을 짓고 있다.
+			ELSE
+				;생각과 다르다
+				PRINTFORML %조사처리(CALLNAME:CHARA,"은")% 생각과 전혀 다른 요리를 앞에 두고 당황하고 있다.
+			ENDIF
+			PRINTFORMW 요구에 부응하지 못했다……
+			PRINTL 
+			RETURN IRAI_CONST_RESULT("실행해 실패")
+		CASE IS < 평가기준:1
+			;成功
+			PRINT <--
+			SETCOLORBYNAME PINK
+			PRINT GOOD!
+			SETCOLOR SAVECLR
+			PRINTL -->
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"은")% 그럭저럭 납득해 주었다.
+			PRINTL 
+			SOURCE:CHARA:환락 += 500
+			RETURN IRAI_CONST_RESULT("실행해 성공")
+		CASEELSE
+			;大成功
+			PRINT <--
+			SETCOLORBYNAME GOLD
+			PRINT EXCELLENT!!
+			SETCOLOR SAVECLR
+			PRINTL -->
+			PRINTFORMW %조사처리(CALLNAME:CHARA,"은")% 주문한 대로 음식이 도착해 만족하고 있다!
+			PRINTL 
+			SOURCE:CHARA:환락 += 2000
+			덤 = 1
+			RETURN IRAI_CONST_RESULT("실행해 성공")
+	ENDSELECT
+CASE "의뢰 성공시"
+;성공 보고시의 보수 등
+	CALL CHANGE_CFLAG(2, CHARA, 25)
+	CALL CHANGE_CFLAG(4, CHARA, 25)
+	CALL GET_MONEY_YEN(2500, 2)
+	IF 덤
+		PRINTFORML %조사처리(CALLNAME:CHARA,"은")% 더 많은 보너스를 주었다!
+		CALL CHANGE_CFLAG(2, CHARA, 15)
+		CALL CHANGE_CFLAG(4, CHARA, 15)
+		CALL GET_MONEY_YEN(1000, 2)
+	ENDIF
+CASE "의뢰 실패시"
+;실패 보고시의 처리
+	CALL CHANGE_CFLAG(2, CHARA, -5)
+	CALL CHANGE_CFLAG(4, CHARA, -5)
+ENDSELECT
+
+
+;MINTAG, MAXTAG는 TASTETAG_ORI의 중간 추첨에만 영향을 미침
+;TASTE 태그 자체의 추첨 횟수는 MAXTAG보다 더 많은 경향
+@IRAI_일반17_맛설정(CHR = -1 , MINTAG = 5 , MAXTAG = 9)
+#FUNCTIONS
+#DIM CNT
+#DIM MAXCNT
+#DIM MINTAG  ;선택 가능한 최소 맛 태그 개수
+#DIM MAXTAG  ;선택할 수 있는 최대 맛 태그 수
+#DIM TAGNUMBER
+#DIM CHR
+#DIMS TASTE
+#DIMS TASTETAG , 100
+#DIMS TASTETAG_ORI
+
+VARSET TASTE
+
+;50%で和洋中が付く。排他
+IF RAND:2
+	SELECTCASE RAND:3
+		CASE 0
+			TASTE = 일식/
+		CASE 1
+			TASTE = 양식/
+		CASE 2
+			TASTE = 중화/
+	ENDSELECT
+ENDIF
+
+;50%で料理のジャンルが付く
+;これらを併せ持つ料理もあるけど大まかな分類ってことで排他に
+IF RAND:2
+	SELECTCASE RAND:11
+		CASE 0
+			TASTE += "고기 요리/"
+		CASE 1
+			TASTE += "생선 요리/"
+		CASE 2
+			TASTE += "면류/"
+		CASE 3
+			TASTE += "나베/"
+		CASE 4
+			TASTE += "국물/"
+		CASE 5
+			TASTE += "케이크/"
+		CASE 6
+			TASTE += "파이/"
+		CASE 7
+			TASTE += "안주/"
+		CASE 8
+			TASTE += "튀겨짐/"
+		CASE 9
+			TASTE += "조림/"
+		CASE 10
+			TASTE += "수수께끼 요리/"
+	ENDSELECT
+ENDIF
+
+;雑多なタグから3～7個選んで付与。DISHDATA眺めながらピックアップしたけど数え落としや重複あったらごめんね
+;キャラごとの固有タグっぽいのは勘案しない
+;矛盾するタグを消去することも考えたが、「なんだそりゃ？」みたいな注文も生成された方が面白いんじゃないか
+{
+TASTETAG_ORI = 
+단/
+짠/
+매운/
+시큼한/
+담백/
+푸짐/
+건강한/
+정키/
+농후/
+담백/
+
+차가운/
+따뜻한/
+중립온도/
+
+호화/
+품위있는/
+호쾌/
+가정적/
+기능적/
+약효/
+
+쌀/
+콩/
+야채/
+이파리/
+빵/
+치즈/
+알/
+맛있는물고기/
+과일/
+벌레고기/
+새고기/
+짐승고기/
+개구리/
+고추냉이/
+우유/
+스파이스/
+
+감미재/
+
+양배추/
+딸기/
+순무/
+오이/
+토마토/
+양파/
+수박/
+가지/
+고구마/
+호박/
+배추/
+당근/
+파/
+
+선도/
+나무딸기/
+머루/
+
+푹신푹신/
+말랑말랑/
+사각사각/
+뭉근뭉근/
+쫄깃한/
+
+선명한/
+예술적/
+그로테스크/
+검소/
+야취/
+
+봄철/
+여름철/
+가을철/
+겨울철/
+
+정력/
+인챈트/
+긴기/
+}
+;로터 / 없이
+
+;맛있는 생선은 2/3가 물고기로 변한다.
+IF STRCOUNT(TASTETAG_ORI , "맛있는물고기/") && RAND:3
+	TASTETAG_ORI = %REPLACE(TASTETAG_ORI , "맛있는물고기/" , "물고기/")%
+ENDIF
+
+;연결 표기를 사용하면 줄 바꿈이 반각 공백으로 대체되어 제거됨
+;REPLACE TASTETAG_ORI , " " , ""
+TASTETAG_ORI = %REPLACE(TASTETAG_ORI , " " , "")%
+
+; ******캐릭터별 요소 처리 ******
+; 싫어함 Lv10 수준의 싫어함이 아니라면 강제 삭제는 하지 않도록 했다(코토히메의 매운 Lv8은 제거하지 않았다).
+; 별다른 이유는 없으므로 필요하면 자유롭게 수정해 주세요.
+
+;쿠타카와 미스티아는 새고기와 알을 제거한다.
+; -KR- [토키코]도 새잖아? 
+IF GROUPMATCH(CHR, [[미스티아]] , [[쿠타카]], [[토키코]] )
+	TASTETAG_ORI = %REPLACE(TASTETAG_ORI , "새고기/" , "")%
+	TASTETAG_ORI = %REPLACE(TASTETAG_ORI , "알/" , "")%
+ENDIF
+
+;리글, 라바는 벌레고기 제거
+IF GROUPMATCH(CHR, [[리글]] , [[라바]])
+	TASTETAG_ORI = %REPLACE(TASTETAG_ORI , "벌레고기/" , "")%
+ENDIF
+
+;스와코는 개구리 제거
+IF GROUPMATCH(CHR, [[스와코]])
+	TASTETAG_ORI = %REPLACE(TASTETAG_ORI , "개구리/" , "")%
+ENDIF
+
+;와카사기히메는 물고기, 맛있는물고기 제거
+IF GROUPMATCH(CHR, [[와카사기히메]])
+	TASTETAG_ORI = %REPLACE(TASTETAG_ORI , "물고기/" , "")%
+	TASTETAG_ORI = %REPLACE(TASTETAG_ORI , "맛있는물고기/" , "")%
+ENDIF
+; 토끼 세력, 여우 세력, 고양이 세력, 너구리 등은 짐승 고기를 없애야 하는 것일까? 짐승고기라는 게 참 거칠지 않나?
+; 고민했지만 하지 않는다
+; ******************************
+
+;태그 목록에서 태그를 지정 개수만큼 추출하는 작업입니다.
+VARSET TASTETAG
+SPLIT TASTETAG_ORI, "/", TASTETAG
+
+;실수로 맛 태그의 최소 개수 이하의 태그만 주어졌을 경우 오류(무한루프일 경우 탈락까지 시간이 걸림)
+SIF RESULT < MINTAG
+	THROW 文字列が不正
+
+MAXCNT = RAND(MINTAG , MAXTAG + 1)
+DO
+	TAGNUMBER = RAND:VARSIZE("TASTETAG")
+	SIF TASTETAG:TAGNUMBER == ""
+		CONTINUE
+	TASTE = %TASTE%%TASTETAG:TAGNUMBER%/
+	MAXCNT--
+	;태그의 중복을 제거하기 위해 선택한 태그를 삭제한다. 중복을 허용하는 경우 다음 처리를 삭제한다.
+	TASTETAG:TAGNUMBER = 
+LOOP MAXCNT != 0
+
+;드물게 제철 음식. 갑자기 제철이 아닌 음식이 먹고 싶어질 때가 있잖아!
+IF RAND:10 == 0
+	IF RAND:3
+		TASTE += "길한물건/"
+	ELSE
+		TASTE += "제철/"
+	ENDIF
+ENDIF
+
+;@IRAI_일반17_장르평가에서 처리불량이 발생하여 맨 뒤의 "/" 제거
+SIF SUBSTRINGU(TASTE , STRLENSU(TASTE) - 1 , 1) == "/"
+	TASTE = %SUBSTRINGU(TASTE , 0 , STRLENSU(TASTE) - 1)%
+
+RETURNF TASTE
+
+
+;料理味=甘い/甘い/しょっぱい、要求味=甘い/甘い/冷たいの場合に2を返す式中関数
+;料理味=甘い/しょっぱい/辛い、要求味=甘い/甘い/サクサクの場合は1
+;TWの@STR_MULTI_COUNTだと前者は4、後者は2を返す(はず)
+@IRAI_일반17_장르평가(요리맛 = "" , 요구맛 = "")
+#FUNCTION
+#DIMS 요리맛
+#DIMS 요구맛
+#DIMS 요리맛구분 , 20
+#DIMS 요구맛구분 , 20
+#DIM SCORE
+#DIM CNT
+#DIM MAXCNT
+
+VARSET SCORE
+VARSET 요리맛구분
+VARSET 요구맛구분
+
+SPLIT 요리맛 , "/" , 요리맛구분
+SPLIT 요구맛 , "/" , 요구맛구분
+MAXCNT = RESULT
+
+;DEBUGPRINTFORM 料理味=%料理味%  要求味=%要求味%  MAXCNT={MAXCNT}
+FOR CNT , 0 , MAXCNT
+	FINDELEMENT 요리맛구분 , 요구맛구분:CNT
+	IF RESULT >= 0
+		;DEBUGPRINTFORM 요리맛구분=<%요리맛구분:RESULT%>  맛요구分割=<%요구맛구분:CNT%>  CNT={CNT}
+		요리맛구분:RESULT = 
+		SCORE++
+	ENDIF
+NEXT
+;DEBUGPRINTFORML 　　SCORE={SCORE}
+
+RETURNF SCORE

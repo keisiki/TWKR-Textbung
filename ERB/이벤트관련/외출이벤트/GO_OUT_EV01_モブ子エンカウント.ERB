@@ -12,11 +12,15 @@ RETURN RESULT
 @GO_OUT_EV1
 #DIM ENEMY
 #DIMS ENEMY_RACE
-#DIM 勝敗
+#DIM 모브잔기
 #DIM LOOT
 #DIM LOOT_CANDIDATE, 17 = 51, 52, 53, 55, 56, 58, 59, 81, 82, 83, 84, 121, 131, 500, 501, 502, 510
 #DIM CONST CANDIDATE_N = 17
 #DIM REWARD
+#DIM 발정플래그
+#DIM 만월버프효과
+발정플래그 = 0
+만월버프효과 = 0
 ;상대가 변한다든지 하고 싶다
 SELECTCASE CFLAG:MASTER:데이트중
 	;湖
@@ -31,7 +35,7 @@ SELECTCASE CFLAG:MASTER:데이트중
 		ENDIF
 	;魔法の森
 	CASE 5
-		ENEMY_RACE '= TEXTR("둔갑너구리/茨たぬき")
+		ENEMY_RACE '= TEXTR("둔갑너구리/이바라타누키")
 	;三途の川
 	CASE 6
 		ENEMY_RACE '= TEXTR("둔갑여우/둔갑고양이")
@@ -53,18 +57,51 @@ ENDSELECT
 
 PRINTFORMW 도중, 느닷없이 %조사처리(ENEMY_RACE,"가")% 덤벼들었다！
 SETBIT TFLAG:일일일회, 9
+;분홍색 바람에 의한 영향
+IF (FLAG:이상기상 == 8 && TCVAR:RANDOM_CHARANUM:발정) || TCVAR:RANDOM_CHARANUM:발원분홍바람
+	발정플래그 = 1
+ENDIF
 CALL MAKE_YUKIZURI(RANDOM_CHARANUM, ENEMY_RACE, 1)
+ENEMY = RANDOM_CHARANUM
+
+;満月時
+IF TALENT:ENEMY:동물귀 && MOON_WATCH(DAY:3) == 9
+	발정플래그 = 2
+	CALL COLORMESSAGE(@"보름달의 빛이 %CALLNAME:ENEMY%의 본능을 깨운다…!",C_YELLOW,1)
+	CALL COLORMESSAGE(@"%CALLNAME:ENEMY%의 전투력 업!",C_YELLOW,1)
+	만월버프효과 = 1 + RAND:(MAX(2, ABL:MASTER:전투능력 - ABL:ENEMY:전투능력))
+	ABL:ENEMY:전투능력 += 만월버프효과
+ENDIF
+IF 발정플래그
+	TCVAR:ENEMY:발정 = 1
+	CFLAG:ENEMY:욕구불만도 += LIMIT((10 + RAND:20 + RAND:20 + RAND:20) * ABL:ENEMY:욕망,200,1000)
+	
+	IF 발정플래그 == 2
+		;만월시는 위험일 확정
+		CFLAG:ENEMY:900 = 7
+	ELSE
+		SELECTCASE FLAG:포부
+			CASE 6
+				;포부가 자손번영으로 미달될 경우 위험일 확정
+				CFLAG:ENEMY:900 = 7
+			CASE 9
+				;자손 번영 달성 완료, 안전일의 경우 재설정
+				SIF ESTRUS_CYCLE(ENEMY) <= 15
+					CFLAG:ENEMY:900 = RAND:10
+		ENDSELECT
+	ENDIF
+ENDIF
 HANDICAP_FIXED = RAND:(ABL:ENEMY:전투능력 * 5 + 1) + 10
 HANDICAP_RAND = 0
 
-CALL KOJO_MESSAGE_SEND("DANMAKU", 0, RANDOM_CHARANUM, 1, -1, "戦闘前")
-TEQUIP:RANDOM_CHARANUM:상반신착의상황 = 1
+CALL KOJO_MESSAGE_SEND("DANMAKU", 0, ENEMY, 1, -1, "戦闘前")
+TEQUIP:ENEMY:상반신착의상황 = 1
 
-CALL CHARA_STATE(RANDOM_CHARANUM)
+CALL CHARA_STATE(ENEMY)
 	DRAWLINE
-	CALL COLORMESSAGE(@"처녀상실이력：%CSTR:RANDOM_CHARANUM:처녀상실이력%",C_PINK,1)
+	CALL COLORMESSAGE(@"처녀상실이력：%CSTR:ENEMY:처녀상실이력%",C_PINK,1)
 	PRINTFORML 
-CALL DANMAKU_OPPONENT_STATUS(RANDOM_CHARANUM)
+CALL DANMAKU_OPPONENT_STATUS(ENEMY)
 IF HANDICAP_FIXED
 	CALL COLORMESSAGE(@"지형효과：%CALLNAME:MASTER%의 주사위값이 {HANDICAP_FIXED}저하",C_YELLOW,1)
 	;【세방울의천수】の効果
@@ -77,9 +114,17 @@ $LOOP
 CALL ASK_M("원수를 갚아준다",1,"도망친다",1,"규칙 설명",1)
 SELECTCASE RESULT
 	CASE 0
-		IF BASE:MASTER:기력 < 500 || BASE:MASTER:체력 < 500
-			PRINTFORML 지금은 너무 피곤하다
-			GOTO LOOP
+		IF BASE:MASTER:기력 < 1000 || BASE:MASTER:체력 < 1000
+			PRINTFORML 지금은 피곤해서 전력을 낼 수 없습니다만 그럼에도 싸우시겠습니까?
+			CALL ASK_YN()
+			IF RESULT == 0
+				HANDICAP_FIXED += MAX(0, 1000 - BASE:MASTER:기력)
+				HANDICAP_FIXED += MAX(0, 1000 - BASE:MASTER:체력)
+				CALL COLORMESSAGE(@"피로로 인해 %CALLNAME:MASTER%의 다이스 값이 {HANDICAP_FIXED}저하",C_YELLOW,1)
+			ELSE
+				PRINTFORML %마스터는% 부리나케 도망쳤다
+				RETURN 1
+			ENDIF
 		ENDIF
 	CASE 1
 		PRINTFORML %마스터는% 부리나케 도망쳤다
@@ -88,7 +133,6 @@ SELECTCASE RESULT
 		CALL SHOW_DANMAKU_RULE
 		GOTO LOOP
 ENDSELECT
-ENEMY = RANDOM_CHARANUM
 TARGET = ENEMY
 REWARD = MAX(ABL:ENEMY:전투능력 * 10 + RAND:5, 1)
 ;米とか酒とか
@@ -100,27 +144,34 @@ PRINTFORMW 승부 개시!!
 후처리인터셉트 = 1
 CALL DANMAKU_BATTLE(TARGET)
 
-勝敗 = RESULT
+모브잔기 = RESULT
 CALL RECOVER(MASTER, -500, "체력")
 CALL RECOVER(MASTER, -500, "기력")
-CALL KOJO_MESSAGE_SEND("DANMAKU", 勝敗, TARGET, 1, -1, "戦闘後")
+CALL KOJO_MESSAGE_SEND("DANMAKU", 모브잔기, TARGET, 1, -1, "戦闘後")
+
 IF 도망감
 	PRINTFORMW %조사처리(CALLNAME:ENEMY,"는")% %마스터를% 비웃고 있다...
 	RETURN 1
 ENDIF
-SIF 勝敗 == 0
+SIF 모브잔기 == 0
 	EXP:MASTER:전투경험 += ABL:ENEMY:전투능력 * 3
-SIF 勝敗 == 1
+SIF 모브잔기 == 1
 	EXP:MASTER:전투경험 += ABL:ENEMY:전투능력
-IF 勝敗 == 2
-	;CALL KOJO_MESSAGE_SEND("DANMAKU", 勝敗, TARGET, 1, -1, "逆レ開始")
+IF 모브잔기 == 2
+	;모브무스메 승리(MASTER 패전) 처리
+	;CALL KOJO_MESSAGE_SEND("DANMAKU", 모브잔기, TARGET, 1, -1, "逆レ開始")
 	SETCOLOR C_RED
 	IF TCVAR:ENEMY:발정 && HAS_PENIS(MASTER)
 		PRINTFORML %조사처리(CALLNAME:ENEMY,"는")% 움직일 수 없게 된 %마스터를% 깔고 앉았다
 		PRINTFORML %CALLNAME:MASTER%의 숨통을 미지근한 한숨이 불어 지나갔다…
 		PRINTFORML 이젠 여기까지라고 생각한 다음 순간, 성기가 뜨거운 감촉에 휩싸였다
 		PRINTFORML 조심조심 아랫배를 내려다보니, 히죽히죽 미소를 짓는 %CALLNAME:ENEMY%의 균열에 %CALLNAME:MASTER%의 페니스가 뿌리까지 들어가 있다
-		PRINTFORML 만월의 밤에 발정기를 맞이한 %조사처리(CALLNAME:ENEMY,"는")% 짐승같은 갈증을 풀기 위해, %마스터를% 엉망으로 범하며, 괴롭히며, 유린해 갔다…
+		IF 발정플래그 == 1
+			PRINTFORM 분홍색의 바람을 맞은
+		ELSEIF 발정플래그 == 2
+			PRINTFORM 만월의 밤에 발정기를 맞이한
+		ENDIF
+		PRINTFORML %조사처리(CALLNAME:ENEMY,"는")% 짐승같은 갈증을 풀기 위해, %마스터를% 엉망으로 범하며, 괴롭히며, 유린해 갔다…
 		PRINTFORMW ………
 		PRINTFORMW ……
 		PRINTFORMW …
@@ -176,9 +227,18 @@ SELECTCASE RESULT
 		;ADDCHARA RANDOM_CHARANUM
 		RETURN 1
 	CASE 2
-		MARK:ENEMY:반발각인 = 1
 		PRINTFORML PRINTFORML %CALLNAME:ENEMY%에게, 무녀에게 끌려가고 싶지 않으면 오늘 하루 %마스터와% 함께하도록 명령했다.
-		CALL COLORMESSAGE(@"%CALLNAME:ENEMY%에게 반발각인이 붙었지만, 남 앞이 아니라면 언제든지 밀어 넘어뜨릴 수 있게 되었다",C_YELLOW,1)
+		IF TALENT:ENEMY:마조
+			PRINTFORM %조사처리(CALLNAME:ENEMY,"는")% 이후에 이루어질 %TEXTR("보복/징벌/벌/괴롭힘")%을 
+			PRINTFORM %TEXTR("예상/상상/예감/기대")%해
+			PRINTFORML %TEXTR("가슴이 뛰고/흥분하고/애를 태우고/두근거리고")% 있는 것 같다.
+			PALAM:ENEMY:욕정 = PALAMLV:3
+			ABL:ENEMY:욕망 = MAX(3, ABL:ENEMY:욕망)
+			CALL COLORMESSAGE(@"%조사처리(CALLNAME:ENEMY,"를")% 사람들 앞이 아니라면 언제든지 범할 수 있게 되었다",C_YELLOW,1)
+		ELSE
+			MARK:ENEMY:반발각인 = 1
+			CALL COLORMESSAGE(@"%CALLNAME:ENEMY%에 반발각인이 붙었지만, 사람들 앞이 아니라면 언제든지 범할 수 있게 되었다",C_YELLOW,1)
+		ENDIF
 		PRINTFORMW %마스터는%%조사처리(CALLNAME:ENEMY,"를")% 데리고 의기양양하게 귀로에 올랐다
 	CASE 3
 		PRINTFORML 매섭게 째려보는 %조사처리(CALLNAME:ENEMY,"를")% 되돌아보면서, %마스터는% 미라다의돌을 움켜쥐었다
@@ -198,16 +258,38 @@ FLAG:데이트상대 = TARGET
 CFLAG:TARGET:동행 = 180
 CFLAG:MASTER:동행 = 180
 CFLAG:ENEMY:졸음쫒기강도 = 600
-CFLAG:거점내방 = 1
+CFLAG:ENEMY:거점내방 = 1
+CFLAG:ENEMY:내방시간 = 0
+CFLAG:ENEMY:귀가시간 = 1440 + CFLAG:ENEMY:졸음쫒기강도
+CFLAG:ENEMY:취침시간 = 1440 + CFLAG:ENEMY:졸음쫒기강도
+CFLAG:ENEMY:기상시간 = 0
 CSTR:ENEMY:모브코프로필1 = 꼴사납게도 원수를 갚으려다 도리어 당해 이제는 얌전하다
 
 RETURN 1
 
 @LOST_GYAKURE(ARG)
+#DIM 性交回数
+#DIM 射精回数
+性交回数 = MAX(1, CFLAG:ARG:욕구불만도 / 100)
+射精回数 = MAX(1, BASE:MASTER:정력 / 100)
 BASE:MASTER:체력 = 0
 BASE:MASTER:기력 = 0
-BASE:MASTER:정력 = -500
+;BASE:MASTER:정력 = 0
+;射精処理
+CALL ADD_SAMEN_V(ARG, BASE:MASTER:정력)
+EXP:ARG:정액경험 += 射精回数
+EXP:ARG:질내사정경험 += 射精回数
+EXP:ARG:V성교경험 += 性交回数
+EXP:ARG:V경험 += 性交回数
+EXP:MASTER:절정경험 += 射精回数
+EXP:MASTER:사정경험 += 射精回数
+EXP:MASTER:삽입경험 += 性交回数
 CFLAG:ARG:욕구불만도 = 0
+IF TALENT:ARG:처녀
+	CSTR:ARG:처녀상실이력 = 발정중에 %마스터를% 습격해 버린
+	TALENT:ARG:처녀 = 0
+ENDIF
+CSTR:ARG:모브코프로필2 = %마스터를% 탐닉한 적이 있다
 CALL SET_SLEEP(1,MASTER,0)
 CFLAG:MASTER:취침시간 = DAY * 1440 + TIME + 120 + RAND:120
 TFLAG:106 = 0
@@ -217,3 +299,32 @@ BEGIN AFTERTRAIN
 ;	CALL COLORMESSAGE(@"만월의 빛이 %CALLNAME:TARGET%의 본능을 불러 일으킨다…！",C_YELLOW,1)
 ;	CALL COLORMESSAGE(@"%CALLNAME:TARGET%의 전투력이 업！",C_YELLOW,1)
 ;ENDIF
+;モブ娘エンカウント率上昇
+@MOB_BATTLE_ENCOUNT
+#FUNCTION
+#DIM 月の状態
+IF FLAG:이상기상 == 8 && TCVAR:RANDOM_CHARANUM:발정
+	RETURNF 1
+ELSEIF  TCVAR:RANDOM_CHARANUM:발원분홍바람
+	RETURNF 1
+ELSE
+	月の状態 = MOON_WATCH(DAY:3)
+	;満月
+	IF 月の状態 == 9
+		SELECTCASE FLAG:포부
+			CASE 6
+				;抱負が子孫繁栄
+				RETURNF 1
+			CASE 9
+				;子孫繁栄達成済み
+				SIF RAND:5 == 0
+					RETURNF 1
+		ENDSELECT
+		SIF RAND:10 == 0
+			RETURNF 1
+	;新月
+	ELSEIF 月の状態 == 1 && RAND:3 == 0
+		RETURNF 1
+	ENDIF
+ENDIF
+RETURNF 0

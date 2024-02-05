@@ -14,11 +14,10 @@
 ;RESULTS에 의한 범용화에 관해서는 사양을 읽을 수 없기 때문에 우선 진부 이식
 ;====================================================================
 @KOJO_MESSAGE_SEND(ARGS, ARG:1, ARG:2, ARG:3, ARG:4, ARGS:1, ARGS:2, ARG:5, ARG:6)
-#DIMS 리소스명
 IF ARG:2 == MASTER && ARGS == "MUSHI_BATTLE"
 	RESULTS = 
 	RETURN -1
-ELSEIF ARG:2 == MASTER && ARGS != "COMMAND"
+ELSEIF ARG:2 == MASTER && !GROUPMATCH(ARGS, "COMMAND", "COM")
 	RETURN -1
 ENDIF
 RESULTS =
@@ -159,18 +158,18 @@ SELECTCASE ARGS
 			;정경 텍스트 출력
 			SIF FLAG:6 > 0
 				CALL TRAIN_MESSAGE
-			CALL DISPLAY_COM_IMAGE(리소스명, SELECTCOM)
+			CALL DISPLAY_COM_IMAGE(SELECTCOM)
 			RETURN 0
 		ENDIF
 		;볼개그 때
 		IF TEQUIP:(ARG:2):20 && SELECTCOM != 107
 			SIF FLAG:6 > 0
 				CALL TRAIN_MESSAGE
-			CALL DISPLAY_COM_IMAGE(리소스명, SELECTCOM)
+			CALL DISPLAY_COM_IMAGE(SELECTCOM)
 		ELSEIF (FLAG:70 && !CFLAG:(ARG:2):시간정지구상있음) || (CFLAG:(ARG:2):장난 >= 1 && !CFLAG:(ARG:2):면간구상있음) || (FLAG:역극 && !CFLAG:(ARG:2):역극구상있음)
 			SIF FLAG:6 > 0
 				CALL TRAIN_MESSAGE
-			CALL DISPLAY_COM_IMAGE(리소스명, SELECTCOM)
+			CALL DISPLAY_COM_IMAGE(SELECTCOM)
 		ELSE
 			RESULT = 0
 			RESULTS =
@@ -185,7 +184,7 @@ SELECTCASE ARGS
 					CALL TRAIN_MESSAGE
 				SIF CFLAG:(NO:TARGET):오토신음
 					CALL AUTO_AEGI(NO:TARGET)
-				CALL DISPLAY_COM_IMAGE(리소스명, SELECTCOM)
+				CALL DISPLAY_COM_IMAGE(SELECTCOM)
 				RETURN 0
 			ENDIF
 			;SIF FLAG:구상색
@@ -494,7 +493,10 @@ SELECTCASE ARGS
 				LOCAL = SELECTCOM
 				LOCALS = COM
 			ENDIF
-			TRYCALLFORM M_KOJO%RESULTS%_EXTRASOURCE_%LOCALS%_K{NO:TARGET}_{LOCAL}
+			TRYCCALLFORM M_KOJO%RESULTS%_EXTRASOURCE_%LOCALS%_K{NO:TARGET}_{LOCAL}
+			CATCH
+				TRYCALLFORM M_KOJO%RESULTS%_EXTRASOURCE_%LOCALS%_K{NO:TARGET}_GENERAL
+			ENDCATCH
 		ENDIF
 	;기본 플래그 설정
 	CASE "FLAGSETTING"
@@ -590,7 +592,10 @@ SELECTCASE ARGS
 		ENDIF
 		TRYCCALLFORM M_KOJO%RESULTS%_SUCCESS_%LOCALS%_K{NO:TARGET}_{LOCAL}
 		CATCH
-			TFLAG:192 = 0
+			TRYCCALLFORM M_KOJO%RESULTS%_SUCCESS_K{NO:TARGET}_GENERAL
+			CATCH
+				TFLAG:192 = 0
+			ENDCATCH
 		ENDCATCH
 	;넘어트리기 성공 여부 구강 제어, 파과 취소 구강 제어
 	CASE "PERMISSION", "LOST_VIRGIN_STOP"
@@ -907,6 +912,33 @@ SELECTCASE ARGS
 			RESETCOLOR
 		ENDIF
 		TARGET = LOCAL
+	;風チラ
+	CASE "PANCHIRA", "REV_PANCHIRA"
+		LOCAL = TARGET
+		TARGET = ARG:2
+		RESULT = 0
+		;口上表示
+		IF FLAG:구상텍스트설정 > 0
+			IF CFLAG:TARGET:구상셀렉터
+				TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:TARGET:구상셀렉터}
+			ELSE
+				TRYCALLFORM M_KOJO_K{NO:TARGET}
+			ENDIF
+			;TARGET口上出力
+			SIF FLAG:구상색
+				TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:TARGET}
+			SELECTCASE ARGS
+			CASE "PANCHIRA"
+				PRINTL 
+				TRYCALLFORM M_KOJO%RESULTS%_EVENT_K{NO:TARGET}_PANCHIRA
+			CASE "REV_PANCHIRA"
+				PRINTL 
+				TRYCALLFORM M_KOJO%RESULTS%_EVENT_K{NO:TARGET}_REV_PANCHIRA
+			ENDSELECT
+			RESETCOLOR
+		ENDIF
+		TARGET = LOCAL
+		RETURN RESULT
 		
 	;언젠가 오는 마지막을 위해
 	CASE "ENDING"
@@ -919,6 +951,96 @@ SELECTCASE ARGS
 			TRYCALLFORM M_KOJO_COLOR_K{NO:TARGET}
 		TRYCALLFORM M_KOJO_MESSAGE_ENDING_K{NO:TARGET}
 		RESETCOLOR
+		;custom shop button appear condition
+	CASE "SHOP_BUTOON_CONDITION"
+		RESULTS =
+		;TARGET退让
+		OriginTarget = TARGET
+		TARGET = ARG:2
+		IF CFLAG:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		TRYCCALLFORM KOJO%RESULTS%_CUSTOM_BUTTON_CONDITION_K{NO:TARGET}_{ARG:1}
+			TARGET = OriginTarget
+			RETURN RESULT
+		CATCH
+			TARGET = OriginTarget
+			RETURN 0
+		ENDCATCH
+
+	;execute custon shop button 
+	CASE "SHOP_BUTOON"
+		RESULTS =
+		;TARGET退让
+		OriginTarget = TARGET
+		TARGET = ARG:2
+		IF CFLAG:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		TRYCALLFORM KOJO%RESULTS%_CUSTOM_BUTTON_K{NO:TARGET}_{ARG:1}
+		TARGET = OriginTarget
+
+	;kojo update
+	;copy from ckr
+	CASE "KOJO_VERSION"
+		OriginTarget = TARGET
+		TARGET = ARG:2
+		IF CFLAG:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		;get the version of this kojo
+		;if there is no such function, remain to 0
+		TRYCCALLFORM KOJO%RESULTS%_VERSION_K{NO:TARGET}
+			IF CFLAG:kojo_version < RESULT
+				TRYCCALLFORM KOJO%RESULTS%_VERSION_UPDATE_K{NO:TARGET}
+					CFLAG:kojo_version = RESULT
+				CATCH
+				ENDCATCH
+			ENDIF
+		CATCH
+			CFLAG:kojo_version = 0
+		ENDCATCH
+		TARGET = OriginTarget
+;------------------------------------------------------------
+;kojo custom button
+;------------------------------------------------------------
+	CASE "COM"
+		SIF TARGET < 0 || TARGET >= CHARANUM
+			RETURN 0
+		IF CFLAG:구상셀렉터
+			TRYCALLFORM M_KOJO_K{NO:TARGET}_{CFLAG:구상셀렉터}
+		ELSE
+			TRYCALLFORM M_KOJO_K{NO:TARGET}
+		ENDIF
+		SELECTCASE ARG:1
+		;==== COM info ===========
+			CASE 0
+				TRYCALLFORM KOJO%RESULTS%_COM_NAME_K{NO:TARGET}_{ARG:3}
+		;==== COM_ABLE ===========
+			CASE 1
+				TRYCJUMPFORM KOJO%RESULTS%_COM_ABLE_K{NO:TARGET}_{ARG:3}
+				CATCH
+					RETURN 0
+				ENDCATCH
+		;==== COM body ===========
+			CASE 2
+				TRYCJUMPFORM KOJO%RESULTS%_COM_K{NO:TARGET}_{ARG:3}
+				CATCH
+					THROW [KOJO COM ERROR] can't find "KOJO%RESULTS%_COM_K{NO:TARGET}_{ARG:3}"
+				ENDCATCH
+		;==== CAN_COM ============
+			CASE 3
+				TRYCJUMPFORM KOJO%RESULTS%_CAN_COM_K{NO:TARGET}_{ARG:3}(ARG:4)
+				CATCH
+					RETURN -1
+				ENDCATCH
+		ENDSELECT
 ENDSELECT
 
 ;-------------------------------------------------
@@ -1148,3 +1270,159 @@ RETURN 0
 ;시간정지중에는 말하지 않는 캐릭터를 지정
 SIF GROUPMATCH(ARG,39,41,54,86,87,88)
 	RETURNF 1
+
+;show custom talent
+@showKojoCustomTalent(chara)
+	#DIM chara
+	#DIM index
+	#DIM DYNAMIC length = 1
+	#DIM DYNAMIC titlePrint
+	FOR index, 0, MAX_CUSTOM_TALENT
+		IF custom_talent:chara:index
+			;初个
+			IF !titlePrint
+				PRINT   구상  ：
+				titlePrint = 1
+			ENDIF
+			IF length > 60
+				length = 1
+				PRINTL
+				PRINT       
+			ENDIF
+			;打印
+			SIF custom_talent_color:chara:index
+				SETCOLOR custom_talent_color:chara:index
+			PRINTFORM [%custom_talent_name:chara:index%]
+			RESETCOLOR
+			length += 2
+			length += STRLENS(custom_talent_name:chara:index)
+		ENDIF
+	NEXT
+	PRINTL
+
+;create the list of who have custon shop button kojo
+@createKojoShopButtonTargetList
+	#DIM chara
+	#DIM index
+	VARSET ShopButtonTargetList, 0
+	ShopButtonTargetNum = 0
+	FOR chara, 0, CHARANUM
+		;judge the chara if have custom shop button kojo
+		FOR index, 0, 10
+			CALL KOJO_MESSAGE_SEND("SHOP_BUTOON_CONDITION", index, chara)
+			IF RESULT == 1
+				ShopButtonTargetList:ShopButtonTargetNum = chara
+				ShopButtonTargetNum ++
+				BREAK
+			ENDIF
+		NEXT
+	NEXT
+	;don't have
+	SIF ShopButtonTargetNum == 0
+		RETURN
+	ShopButtonTargetId = FINDELEMENT(ShopButtonTargetList, ShopButtonTarget)
+	;defaul the first chara
+	IF ShopButtonTargetId == -1 || ShopButtonTargetId >= ShopButtonTargetNum
+		ShopButtonTargetId = 0
+		ShopButtonTarget = ShopButtonTargetList:ShopButtonTargetId
+	ENDIF
+
+;show the ui of kojo button
+@showKojoShopButton
+	#DIM index
+	#DIMS DYNAMIC buttonList, 10
+	#DIM DYNAMIC buttonIndex
+	#DIM DYNAMIC printNum
+	;no
+	SIF ShopButtonTargetNum == 0
+		RETURN
+	PRINTL
+	SETCOLOR 103,228,126
+	PRINT 【구상메뉴】
+	IF ShopButtonTargetId <= 0
+		SETCOLOR 0x747474
+		PRINTPLAIN 【＜】
+		RESETCOLOR
+	ELSE
+		SETCOLOR 103,228,126
+		PRINTBUTTON "【＜】", 798
+	ENDIF
+	SETCOLOR 103,228,126
+	PRINTBUTTON @"【%CALLNAME:ShopButtonTarget%】", 797
+	RESETCOLOR
+	IF ShopButtonTargetId + 1 >= ShopButtonTargetNum
+		SETCOLOR 0x747474
+		PRINTPLAIN 【＞】
+	ELSE
+		SETCOLOR 103,228,126
+		PRINTBUTTON "【＞】", 799
+	ENDIF
+	RESETCOLOR
+	;统计可用的button
+	FOR index, 0, 10
+		CALL KOJO_MESSAGE_SEND("SHOP_BUTOON_CONDITION", index, ShopButtonTarget)
+		IF RESULT
+			SIF printNum % 3 == 0
+				PRINTL
+			PRINTFORMLC [{800 + index}] %custom_button_name:ShopButtonTarget:index%
+			printNum ++
+		ENDIF
+	NEXT
+	PRINTL
+
+;use custon kojo button
+@useKojoShopButton, comId
+	#DIM comId
+	;PRINTFORML comid {comId} ShopButtonTarget{ShopButtonTarget}
+	CALL KOJO_MESSAGE_SEND("SHOP_BUTOON_CONDITION", comId, ShopButtonTarget)
+	SIF RESULT
+		CALL KOJO_MESSAGE_SEND("SHOP_BUTOON", comId, ShopButtonTarget)
+	WAIT
+;check the chara who have the custon button
+@choiceButtonTarget
+	#DIM line
+	#DIM DYNAMIC page
+	#DIM DYNAMIC maxPage
+	#DIM index
+	maxPage = ShopButtonTargetNum / 20
+	SIF ShopButtonTargetNum % 20
+		maxPage ++
+	line = LINECOUNT
+	WHILE 1
+		DRAWLINE
+		;need to translate
+		;PRINTFORML the chara whose kojo have custom shop button＜page.{page + 1}/{maxPage}＞
+		PRINTFORML 커스텀 SHOP버튼이 존재하는 캐릭터 구상 ＜page.{page + 1}/{maxPage}＞
+		DRAWLINE
+		FOR index, page * 20, MIN(page * 20 + 20, ShopButtonTargetNum)
+			CALL CHARA_BUTTON(index, ShopButtonTargetList:index)
+		NEXT
+		DRAWLINE
+		IF page > 0
+			PRINTLC [4444] 다음캐릭터
+		ELSE
+			PRINTLC  
+		ENDIF
+		PRINTLC [5555] 돌아가기
+		IF page + 1 < maxPage
+			PRINTLC [6666] 이전캐릭터
+		ELSE
+			PRINTLC  
+		ENDIF
+		INPUT
+		SELECTCASE RESULT
+			CASE page * 20 TO MIN(page * 20 + 20, ShopButtonTargetNum)
+				ShopButtonTargetId = RESULT
+				ShopButtonTarget = ShopButtonTargetList:ShopButtonTargetId
+				RETURN
+			CASE 4444
+				SIF page > 0
+					page --
+			CASE 6666
+				SIF page + 1 < maxPage
+					page ++
+			CASE 5555
+				RETURN
+		ENDSELECT
+		CLEARLINE LINECOUNT - line
+	WEND

@@ -1,0 +1,279 @@
+﻿;存否関数
+;F関数はTRYCALL系が使えないので通常関数で存否配列を作っちゃう
+@EXIST_일반의뢰18
+#LOCALSIZE 1
+#LOCALSSIZE 1
+
+;オブジェクト本体
+;ここでARGで渡されるのはCLIENT_IDです
+@일반의뢰18(ARG, O_DATA, V_NAME)
+#FUNCTION
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS O_DATA
+#DIMS V_NAME
+SELECTCASE O_DATA
+CASE "의뢰명"
+	CALLF MAKE_STR(V_NAME, "누가 만들어 주실래요~!")
+CASE "의뢰내용 표시"
+	CALLF MAKE_STR(V_NAME, @"주문한 요리를 만들어서 배달한다")
+CASE "의뢰 보수 표시"
+	CALLF MAKE_STR(V_NAME, @"\\2000＋덤")
+CASE "의뢰실행 커맨드 이름"
+	;何か問題があったら変えてください
+	CALLF MAKE_STR(V_NAME, "배달의 민족")
+CASE "의뢰내용"
+	CALLF MAKE_INT(V_NAME, MAKE_IRAI_DATA(0, "그 외"))
+CASE "의뢰 서브"
+	;これは乱数シード
+	CALLF MAKE_INT(V_NAME, RAND:1000000)
+CASE "의뢰기한"
+;発生時ではなく受託時に確定します
+	CALLF MAKE_INT(V_NAME, 3)
+CASE "의뢰 발생율"
+	CALLF MAKE_INT(V_NAME, 5)
+CASE "의뢰 발생 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰 수탁 가능 조건"
+	CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰실행 가능 조건"
+	SIF DISH_NAME != "" && TARGET == ARG
+		CALLF MAKE_INT(V_NAME, 1)
+;成功/失敗処理はCARRYOUTで直接書く
+;SOURCEやITEM入手、消費が煩雑になるので
+CASE "의뢰 소멸 조건"
+	SIF RAND:100 < 30
+		CALLF MAKE_INT(V_NAME, 1)
+CASE "의뢰인 데리고 나가 가능"
+ENDSELECT
+
+
+@IRAI_일반18(CHARA, IRAI_ID, SCENE)
+#DIM  CHARA
+#DIM  IRAI_ID
+#DIMS SCENE
+#DIM  CLIENT_ID
+#DIM 기초평가 	;요리 자체의 평가
+#DIM 일치평가 	;일치된 요리를 내놓았느냐에 따른 보너스
+#DIMS 맛요구  	;의뢰자가 요구한 맛을 두는 변수
+#DIM 덤   		;대성공시 보너스。成功/大成功判定が出てから報酬受け取りまでに他の依頼関数の実行が挟まるケースないよね？
+#DIM CHK_SLOT
+#DIM SAVECLR  	;색상 저장용
+#DIM CNT
+#DIM RANDOM
+#DIMS TYPE
+#DIMS NAMETEMP  ;TEMP계는 변수 대기용
+#DIMS TASTETEMP
+#DIMS TYPETEMP
+#DIMS COMMENTTEMP
+#DIMS TEMPS , 2
+#DIM TIMETEMP
+#DIM MAXLIMITTEMP
+#DIMS DISH_REQUEST 				;의뢰인이 주문한 요리를 저장
+#DIMS DISH_DELIVER 				;플레이어가 배달한 요리의 이름
+#DIM CONST 평가점수보정 = 75    ;요리 자체 점수 보정. 백분율
+#DIM CONST 평가기준 = 50 , 75 	;평가기준: 0점 미만이면 실패, 평가기준: 0점 이상이면 성공, 평가기준: 1점 이상이면 대성공
+#DIM CONST 일치보너스 = 30  	;주문한 대로 물건을 배달한 보너스
+#DIM CONST 유니크임계치 = 5   	;캐릭터가 유니크한 요리를 주문하기 시작하는 친밀도
+#DIMS CONST SPLITTER = "/"   	;요리 이름과 요리 ID의 구분에 사용하는 문자
+
+CLIENT_ID = IRAI_ID_TO_CLIENT(IRAI_ID)
+CHK_SLOT  = SEARCH_IRAI_SLOT(IRAI_ID)
+
+
+
+;**********依頼料理生成部**********
+IF REQUEST_DISHNAME:CHARA:0 == ""
+	;料理の定義関数が通常関数で@일반의뢰18から呼べないので乱数シードを固定して同じ料理名を出す
+	;ユニーク料理の売り込み機能を捨てればERHとこの煩雑な実装を除去できる(受託後、期限内に連れ出し可能になると結果が変わってしまうため変数に入れる必要がある)
+	;DISH_NAMEなどを破壊するので待避。力業にしたって汚すぎる…
+	NAMETEMP = %DISH_NAME%
+	TASTETEMP = %DISH_TASTE%
+	TYPETEMP = %DISH_TYPE%
+	COMMENTTEMP = %DISH_COMMENT%
+	TIMETEMP = DISH_TIME
+	MAXLIMITTEMP = DISH_MAXLIMIT
+
+	; 100위권=간식, 200위권=주식, 300위권=디저트, 400위권=각 캐릭터의 고유 요리
+	; 친밀하면 자신의 독특한 요리를 은근슬쩍 홍보하는 경우가 있다.
+	IF ABL:TARGET:친밀 >= 유니크임계치 && COM_351_CONDITION(CHARA) && RAND:4 == 0
+		;仲がいい、かつ連れだし可能なら25%の確率でユニーク料理確定
+		RANDOM = 400 + CHARA
+	ELSE
+		RANDOM = RAND:3 * 100 + 100
+	ENDIF
+
+	DUMPRAND
+	RANDOMIZE IRAI_SUB:CHK_SLOT
+	;注文される料理を抽選。ローター系はなしで
+	DO
+		IF RANDOM >= 400
+			;キャラのユニーク料理が抽選された
+			CALL DISHDATA(RANDOM , TYPE , 1)
+		ELSE
+			;汎用の料理が抽選された
+			CALL DISHDATA(RAND(RANDOM , RANDOM + 101) , TYPE , 1)
+		ENDIF
+
+		; ******캐릭터별 요소 처리 ******
+		; 싫어함 Lv10 수준의 싫어함이 아니라면 강제 삭제는 하지 않도록 했다(코토히메의 매운 Lv8은 제거하지 않았다).
+		; 별다른 이유는 없으므로 필요하면 자유롭게 수정해 주세요.
+		;어디까지나 요리의 기본 요소로 추가된 것들만. 플레이어가 나중에 추가할 수 있는 것은 제거 불가
+
+		; 쿠타카와 미스티아는 새고기와 알을 제거한다.
+		; -KR- [토키코]도 새잖아? 
+		IF GROUPMATCH(CHARA, [[미스티아]], [[쿠타카]], [[토키코]])
+			SIF STR_MULTI_COUNT(DISH_TASTE , "새고기/알")
+				DISH_NAME = 
+		ENDIF
+
+		;리글, 라바는 벌레고기 제거
+		IF GROUPMATCH(CHARA, [[리글]] , [[라바]])
+			SIF STR_MULTI_COUNT(DISH_TASTE , "벌레고기")
+				DISH_NAME = 
+		ENDIF
+
+		;스와코는 개구리 제거
+		IF GROUPMATCH(CHARA, [[스와코]])
+			SIF STR_MULTI_COUNT(DISH_TASTE , "개구리")
+				DISH_NAME = 
+		ENDIF
+
+		;와카사기히메는 물고기, 맛있는물고기 제거
+		IF GROUPMATCH(CHARA, [[와카사기히메]])
+			SIF STR_MULTI_COUNT(DISH_TASTE , "물고기/맛있는물고기")
+				DISH_NAME = 
+		ENDIF
+		;************************
+	LOOP DISH_NAME == "" || STRCOUNT(DISH_NAME , "로터") > 0
+
+	REQUEST_DISHNAME:CHARA:0 = %DISH_NAME%%SPLITTER%{RANDOM}
+
+	DISH_NAME = %NAMETEMP%
+	DISH_TASTE = %TASTETEMP%
+	DISH_TYPE = %TYPETEMP%
+	DISH_COMMENT = %COMMENTTEMP%
+	DISH_TIME = TIMETEMP
+	DISH_MAXLIMIT = MAXLIMITTEMP
+	INITRAND
+ENDIF
+;**********************************
+
+SPLIT REQUEST_DISHNAME:CHARA:0 , SPLITTER , TEMPS
+DISH_REQUEST = %TEMPS:0%
+RANDOM = TOINT(TEMPS:1)
+
+SELECTCASE SCENE
+CASE "의뢰 조건 표시"
+	;何か専用の表示情報を設けたい時用
+	;受託済みの依頼表示で使用されます
+	;
+	;PRINT系だけでSOURCEとかは入れちゃダメ、WAITも無しで
+	;ここ以外の表示項目は
+	;PRINTFORML 　　　　　：
+	;となっているのでスペースを揃えたほうが見栄えが良いです
+	PRINTFORM 원하는요리：%DISH_REQUEST%
+	IF RANDOM >= 400
+		PRINTFORML ……%CALLNAME:CHARA%の得意料理じゃないか？
+	ELSE
+		PRINTL 
+	ENDIF
+CASE "의뢰실행시"
+	;このCASEに限り、RESULTが意味を持ちます
+	;依頼実行時のRESULTにはIRAI_CONST_RESULT()を使用してください
+	;可能な引数は"キャンセル", "実行して成功", "実行して失敗", "実行して未解決"です
+	;独自処理を仕込みたい時は"実行して未解決"で先延ばしするなりしてください
+	VARSET 덤
+	PRINTFORML 「주문하신 %DISH_NAME%입니다」
+	PRINTFORMW %마스터는% %CALLNAME:CHARA%에게 <%DISH_NAME%>%조사만처리(DISH_NAME,"를")% 전달했다.
+
+	;ローカル変数にグローバル変数をコピーしたのち消去する
+	DISH_DELIVER = %DISH_NAME%
+	DISH_NAME = 
+	REQUEST_DISHNAME:CHARA:0 = 
+	;#;PRINTFORML 依頼したもの＝%DISH_REQUEST%
+	;#;PRINTFORML 届けた料理　＝%DISH_DELIVER%
+
+	CALL REVIEW_DISH(CHARA , DISH_TASTE)
+
+	;料理が美味しいかどうか、要求した物かどうか吟味
+	;料理自体の味は評価点を低く補正(補正値は定数の평가점수보정)
+	기초평가 = TCVAR:CHARA:요리평가치 * 평가점수보정 / 100 / 10
+	일치평가 = STRCOUNT(DISH_DELIVER , DISH_REQUEST) > 0 ? 일치보너스 # 0
+
+	;#;PRINTFORML 기초평가：{기초평가}    일치평가：{일치평가}
+	SAVECLR = GETCOLOR()
+	PRINTL 
+	SETCOLORBYNAME YELLOW
+	PRINTFORM %"★" * (기초평가 / 10)%
+	SETCOLORBYNAME RED
+	PRINTFORM %"★" * (일치평가 / 10)%
+	PRINTL 
+	SETCOLOR SAVECLR
+
+	SELECTCASE 기초평가 + 일치평가
+		CASE IS < 평가기준:0
+			;失敗
+			PRINT <--
+			SETCOLORBYNAME RED
+			PRINT BAD
+			SETCOLOR SAVECLR
+			PRINTL -->
+			IF 일치평가 == 0
+				;注文違い
+				PRINTFORML %조사처리(CALLNAME:CHARA,"은")% 주문과 전혀 다른 요리를 앞에 두고 당황하고 있다.
+			ELSE
+				;ここに来ると言うことは料理の出来がよほど悪い
+				PRINTFORML 요리의 모습을 본 %조사처리(CALLNAME:CHARA,"은")% 침울한 표정을 짓고 있다.
+			ENDIF
+			PRINTFORMW 요구에 부응하지 못했다……
+			PRINTL 
+			RETURN IRAI_CONST_RESULT("실행해 실패")
+		CASE IS < 평가기준:1
+			;成功
+			PRINT <--
+			SETCOLORBYNAME PINK
+			PRINT GOOD!
+			SETCOLOR SAVECLR
+			PRINTL -->
+			IF 일치평가 == 0
+				PRINTFORMW 의뢰한 요리와 다르지만 %조사처리(CALLNAME:CHARA,"은")% 그럭저럭 납득해 주었다.
+			ELSE
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"은")% 의뢰한 요리가 도착해 기뻐했다.
+			ENDIF
+			PRINTL 
+			SOURCE:CHARA:환락 += 300
+			RETURN IRAI_CONST_RESULT("실행해 성공")
+		CASEELSE
+			;大成功
+			PRINT <--
+			SETCOLORBYNAME GOLD
+			PRINT EXCELLENT!!
+			SETCOLOR SAVECLR
+			PRINTL -->
+			IF 일치평가 == 0
+				PRINTFORMW %CALLNAME:CHARA%의 주문과 달랐지만, 이 정도면 괜찮은 것 같다!
+			ELSE
+				PRINTFORMW %조사처리(CALLNAME:CHARA,"은")% 주문한 대로 맜있어 보이는 음식이 도착해 기뻐하고 있다!
+			ENDIF
+			PRINTL 
+			SOURCE:CHARA:환락 += 1000
+			덤 = 1
+			RETURN IRAI_CONST_RESULT("실행해 성공")
+	ENDSELECT
+CASE "의뢰 성공시"
+;成功報告時の報酬など
+	CALL CHANGE_CFLAG(2, CHARA, 20)
+	CALL CHANGE_CFLAG(4, CHARA, 20)
+	CALL GET_MONEY_YEN(2000, 2)
+	IF 덤
+		PRINTFORML %조사처리(CALLNAME:CHARA,"은")% 더 많은 보너스를 주었다!
+		CALL CHANGE_CFLAG(2, CHARA, 20)
+		CALL CHANGE_CFLAG(4, CHARA, 20)
+		CALL GET_MONEY_YEN(1000, 2)
+	ENDIF
+CASE "의뢰 실패시"
+;失敗報告時の処理
+	CALL CHANGE_CFLAG(2, CHARA, -5)
+	CALL CHANGE_CFLAG(4, CHARA, -5)
+ENDSELECT
