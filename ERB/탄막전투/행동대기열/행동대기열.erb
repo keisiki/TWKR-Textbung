@@ -1,0 +1,101 @@
+﻿;행동대기열 등록 함수
+@T_ACTQUEUE_SET(대상,턴,행동,행동내용1 = -1,행동내용2 = -1,행동내용3 = -1,행동내용4 = -1)
+#DIM DYNAMIC 턴         ;현재턴으로부터 몇 턴(0.1초) 후에 실행될 내용인지?
+#DIM DYNAMIC 대상       ;
+#DIM DYNAMIC 행동       ;
+#DIM DYNAMIC 행동내용1  ;
+#DIM DYNAMIC 행동내용2  ;
+#DIM DYNAMIC 행동내용3  ;
+#DIM DYNAMIC 행동내용4  ;
+;T_ACTQUEUE
+;0 - 실행까지 남은 시간(0.1초=1턴단위)
+;1 - 대상자
+;2 - 실행할 행동코드
+;3 - 세부사항1
+;4 - 세부사항2
+;5 - 세부사항3
+;6 - 세부사항4
+
+LOCAL = T_ACTQUEUE_FIND_EMPTY()
+T_ACTQUEUE:LOCAL:0 = 턴 + T_TIME
+T_ACTQUEUE:LOCAL:1 = 대상
+T_ACTQUEUE:LOCAL:2 = 행동
+T_ACTQUEUE:LOCAL:3 = 행동내용1
+T_ACTQUEUE:LOCAL:4 = 행동내용2
+T_ACTQUEUE:LOCAL:5 = 행동내용3
+T_ACTQUEUE:LOCAL:6 = 행동내용4
+SIF LOCAL > T_ACTQUEUE_LAST
+    T_ACTQUEUE_LAST = LOCAL ;최후미를 기억
+
+;빈칸 여부 검사 함수
+@T_ACTQUEUE_EMPTY(ARG)
+#FUNCTION
+IF T_ACTQUEUE:ARG:2 == 0 ;실행할 행동이 비어있으면 빈 것으로 판정
+    RETURNF 1
+ENDIF
+RETURNF 0
+
+;빈칸 찾기 함수
+@T_ACTQUEUE_FIND_EMPTY()
+#FUNCTION
+
+FOR LOCAL,0,T_ACTQUEUEMAX
+    IF T_ACTQUEUE_EMPTY(LOCAL)
+        RETURNF LOCAL
+    ENDIF
+NEXT
+
+;탐색 가속용 정리 함수
+@T_ACTQUEUE_SORT
+#DIM T_ACTQUEUE_TEMP,7,1000
+;빈칸을 제외하고 임시 변수에 이관
+FOR LOCAL,0,T_ACTQUEUE_LAST
+    IF !T_ACTQUEUE_EMPTY(LOCAL)
+        FOR LOCAL:2,0,7
+            T_ACTQUEUE_TEMP:(LOCAL:1):(LOCAL:2) = T_ACTQUEUE:LOCAL:(LOCAL:2)
+        NEXT
+        LOCAL:1 ++
+    ENDIF
+NEXT
+;원본 배열은 초기화
+VARSET T_ACTQUEUE
+VARSET T_ACTQUEUE_LAST
+;다시 복원
+FOR LOCAL,0,LOCAL:1
+    FOR LOCAL:2,0,7
+        T_ACTQUEUE:LOCAL:(LOCAL:2) = T_ACTQUEUE_TEMP:LOCAL:(LOCAL:2)
+    NEXT
+    T_ACTQUEUE_LAST++
+NEXT
+
+;매 턴 실행할 행동대기열을 불러오는 함수
+@T_ACTQUEUE_EXECUTE
+FOR LOCAL,0,T_ACTQUEUE_LAST
+    IF !T_ACTQUEUE_EMPTY(LOCAL) && T_TIME == T_ACTQUEUE:LOCAL:0;실행할 시간임
+        CALL T_ACTQUEUE_DO(T_ACTQUEUE:LOCAL:1,T_ACTQUEUE:LOCAL:2,T_ACTQUEUE:LOCAL:3,T_ACTQUEUE:LOCAL:4,T_ACTQUEUE:LOCAL:5,T_ACTQUEUE:LOCAL:6)
+        T_ACTQUEUE:LOCAL:2 = 0 ;실행완료후 행동칸을 비워줌, 이로써 빈칸으로 간주되게 함
+    ENDIF
+NEXT
+CALL T_ACTQUEUE_SORT ;실행후 정리를 통해 T_ACTQUEUE_LAST를 낮게 유지함, 높으면 렉걸릴테니...
+
+;실제 행동을 실행하도록 연결하는 함수
+@T_ACTQUEUE_DO(대상,행동,상세1,상세2,상세3,상세4)
+#DIM DYNAMIC 대상
+#DIM DYNAMIC 행동
+#DIM DYNAMIC 상세1
+#DIM DYNAMIC 상세2
+#DIM DYNAMIC 상세3
+#DIM DYNAMIC 상세4
+
+CALLFORM T_ACTQUEUE_COM{행동}(대상,상세1,상세2,상세3,상세4)
+
+
+;스킬재환류
+@T_ACTQUEUE_COM999(대상,상세1,상세2,상세3,상세4)
+#DIM DYNAMIC 대상
+#DIM DYNAMIC 상세1
+#DIM DYNAMIC 상세2
+#DIM DYNAMIC 상세3
+#DIM DYNAMIC 상세4
+
+CALLFORM T_SKILL{상세1}_QUEUE{상세2}(대상,상세3,상세4)
