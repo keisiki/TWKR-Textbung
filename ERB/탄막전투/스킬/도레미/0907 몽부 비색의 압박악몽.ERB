@@ -28,10 +28,10 @@
 ;성능 입력
 ;쿨타임 0 = 한 턴에 몇 번이라도, 쿨타임 1 = 한 턴에 한번, 쿨타임 2= 두 턴에 한번
 ;-------------------
-쿨타임 = 5;스킬의 쿨타임을 넣으세요
+쿨타임 = 50;스킬의 쿨타임을 넣으세요
 지속시간 = 0;스킬의 효과가 지속되는 시간을 넣으세요
-명중률 = 68; 몇% 확률로 명중하는지 쓰세요
-피해량 = 30 * ARG능력치(T_시전자,"지성") + 1000;얼마만큼의 데미지를 주는지 쓰세요, 스텟을 참고해도 좋습니다
+명중률 = 78; 몇% 확률로 명중하는지 쓰세요
+피해량 = 10 * ARG능력치(T_시전자,"지성") + 100;얼마만큼의 데미지를 주는지 쓰세요, 스텟을 참고해도 좋습니다
 타입 = 공격형 + 상태이상형;공격형/방어형/회복형/상태이상형/버프형/해주형/자동형 ;ERH 변수입니다.
 HP코스트 = 0;시전시 소모하는 체력의 양입니다
 마력코스트 = TSP_PERCENT(1) + 50;시전시 소모하는 TSP의 양입니다, 아나타가 아니면 소모하지 않습니다
@@ -81,9 +81,9 @@ RETURNF RESULT
 스킬명 = 몽부 「비색의 압박악몽」
 속성 = 정신
 ;계수는 없다면 없음, 아니라면 그냥 평문
-계수:0 = 30 * 지성
+계수:0 = 10 * 지성
 계수:1 = 1000
-계수:2 = 분신 1개당 5 * 지성
+계수:2 = 없음
 계수:3 = 없음
 계수:4 = 없음
 ;-------------------
@@ -185,22 +185,24 @@ ENDIF
 RESULT = 0
 SIF T_SKILL907("HP코스트") > 0
     TCVAR:T_시전자:T_체력 -= T_SKILL907("HP코스트")
-SIF T_SKILL907("마력코스트") > 0&&T_시전자 == MASTER
-    BASE:T_시전자:마력 -= T_SKILL907("마력코스트")
+SIF T_SKILL907("마력코스트") > 0
+    CALL T_MP_BURN(T_시전자,T_SKILL907("마력코스트"))
 IF 스킬명중판정(명중률,907)
     ;명중!
     ;----------------
     ;대사는 이쪽
     ;----------------
-    PRINTFORML 끝없이 달라붙는 악몽의 덩어리가 %T_시전자반대를% 침식한다!
+    PRINTFORML 끝없이 달라붙는 악몽의 덩어리가 %T_시전자반대를% 향해 날아든다!
     ;----------------
     ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
     ;----------------
 
     피해량 = T_SKILL907("공격력")
     속성 '= T_SKILL907_STR("속성")
-    CALL T_데미지(T_시전자반대, 피해량, 속성)
-    CALL 통합버프(T_시전자반대,TCV_속도,907,-25 - (TB_SUM_VALUE(T_시전자,TCV_자율,906) * 5),2)
+    CALL T_SKILL907_OBJ("생성",T_시전자) ;기본 1발
+    FOR LOCAL,0,TB_SUM_VALUE(T_시전자,TCV_자율,906)
+        CALL T_SKILL907_OBJ("생성",T_시전자) ;몽혼당 1발씩 추가
+    NEXT
     CALL ONGOING_T_SKILL907(사용자, "지속시간설정")
     RETURN 1
 ELSE
@@ -226,7 +228,7 @@ PRINTFORML
 PRINTFORML 끝없이 달라붙는 악몽의 몽혼으로 적을 묶어버린다
 PRINTFORML 적은 약간의 정신피해를 입고 잠시동안 이동속도가 조금 감소한다
 PRINTFORML 
-PRINTFORML 몽혼으로 만든 분신이 많을 수록 피해량이 증가한다
+PRINTFORML 몽혼으로 만든 분신들이 이 스킬을 같이 시전해 탄막의 수가 배가된다
 PRINTFORML
 PRINTFORML
 
@@ -294,3 +296,140 @@ CASE "유도력"
     RESULT = 유도력
 ENDSELECT
 RETURNF RESULT
+
+@T_SKILL907_1_RANGE(ARGS)
+#FUNCTION
+#DIM DYNAMIC 최대사거리
+#DIM DYNAMIC 최적사거리
+#DIM DYNAMIC 범위변동단위
+#DIM DYNAMIC 조준속성
+#DIM DYNAMIC 유도력
+;-------------------
+;성능 입력
+;-------------------
+최대사거리 = 10; 스킬이 닿는 최대 거리
+최적사거리 = 5; 명중률 +10% 가 붙는 거리
+범위변동단위 = 5; 몇 m마다 명중률이 1단위 변할지, 최적사거리에 이 값이 5번 더해질때 최악의 보정값(-20)이 된다
+조준속성 = T_근거리;T_근거리/T_고정탄/T_조준탄/T_유도탄/T_즉발탄/T_버프기
+유도력 = 0;유도 타입 스킬이 적과의 속도차이를 무시하는 정도, '유도'타입이 아니면 무시해도 됨
+SELECTCASE ARGS
+CASE "최대사거리"
+    RESULT = 최대사거리
+CASE "최적사거리"
+    RESULT = 최적사거리
+CASE "범위변동단위"
+    RESULT = 범위변동단위
+CASE "조준속성"
+    RESULT = 조준속성
+CASE "유도력"
+    RESULT = 유도력
+ENDSELECT
+RETURNF RESULT
+
+@T_SKILL907_OBJ(ARGS,ARG:0 = 0, ARG:1 = 0, ARG:2 = 0)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 명중률
+#DIM DYNAMIC 피해량
+#DIMS DYNAMIC 속성
+#DIM DYNAMIC 대상,3 ;추적 및 발동대상
+#DIM DYNAMIC 속도 ;1초 = 10턴 당 이동 범위(미터)
+#DIM DYNAMIC 충돌범위 ;오브젝트가 충돌판정을 검사할 거리
+#DIM DYNAMIC 표시범위 ;맵 상에 표시되는 크기
+#DIM DYNAMIC 갱신주기 ;"갱신"단락을 실행하는 주기, 0이면 실행안함
+#DIM DYNAMIC 색상; 오브젝트의 표기 색상
+#DIM DYNAMIC 수명 ;오브젝트의 최대 수명
+#DIM DYNAMIC 생성좌표,3 ;오브젝트가 생성될 좌표, X,Y,Z순, -1이면 시전자의 것을 사용
+#DIM DYNAMIC 좌표,3 ; 현재좌표
+
+;오브젝트 속성
+대상:0 = T_시전자반대
+속도 = 50
+충돌범위 = 5
+표시범위 = 5
+갱신주기 = 0
+색상 = 0XA91101
+수명 = 7
+생성좌표:0 = -1
+생성좌표:1 = -1
+생성좌표:2 = -1
+;발동 속성
+IF TB_SUM_REMAIN(사용자,TCV_실명)&&RAND:2 == 0
+    명중률 = T_SKILL907("명중률") / 2
+ELSE
+    명중률 = T_SKILL907("명중률")
+ENDIF
+피해량 = T_SKILL907("공격력")
+속성 '= T_SKILL907_STR("속성")
+
+;실행구문
+SELECTCASE ARGS
+CASE "생성"
+    ;ARG = 사용자번호
+    CALL T_LOCATE(대상:0,좌표)
+    CALL T_LOCATE(ARG,생성좌표)
+    사용자 = ARG
+    CALL T_OBJ_RANDOMIZER(좌표:0,7)
+    CALL T_OBJ_RANDOMIZER(좌표:1,7) ;목표물 X, Y에 대해 +-7 범위의 변동 적용
+    CALL T_OBJ_RANDOMIZER(생성좌표:0,10) 
+    CALL T_OBJ_RANDOMIZER(생성좌표:1,10)
+    CALL T_OBJ_RANDOMIZER(생성좌표:2,10) ;생성에는 X, Y, Z에 대해 +-10 범위의 변동 적용
+    CALL T_OBJ_MAKE(907,충돌범위,사용자,속도,수명,갱신주기,색상,표시범위,생성좌표:0,생성좌표:1,생성좌표:2,좌표:0,좌표:1,좌표:2,0,1,0)
+    ;CALL T_OBJ_MOVE(RESULT,충돌범위) ; 퓨즈 미설정시 사용, 피아 미식별 오브젝트가 생성 즉시 자신에게 닿아 폭발할 가능성이 있을때 활성화
+CASE "목표변경"
+    ;ARG:0 = OBJ 번호
+    CALL T_LOCATE(대상:0,좌표)
+    T_OBJ:11:ARG = 좌표:0
+    T_OBJ:12:ARG = 좌표:1
+    T_OBJ:13:ARG = 좌표:2    
+CASE "접촉"
+    ;ARG:0 = 접촉자 번호
+    IF ARG == 대상:0
+        RETURN 1
+    ELSE
+        RETURN 0
+    ENDIF
+CASE "갱신"
+    ;ARG:0 = OBJ 번호
+
+CASE "발동"
+    ;ARG:0 = OBJ 번호
+    ;ARG:1 = 발동대상
+    
+    IF 스킬명중판정(100,907,1,T_OBJ:8:ARG,  T_위치:(ARG:1):0,   0)
+        ;명중!
+        ;----------------
+        ;대사는 이쪽
+        ;----------------
+        PRINTFORML 악몽의 구체가 달라붙어 %T_오브젝반대의% 정신을 갉아먹는다!
+        ;----------------
+        ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+        ;----------------
+        CALL T_데미지(T_오브젝반대, 피해량, 속성)
+        CALL 통합버프(T_오브젝반대,TCV_속도,907,-12,20)
+        CALL ONGOING_T_SKILL907(T_OBJ:2:ARG, "지속시간설정")
+        RETURN 1
+    ELSE
+        ;!감나빗!
+        SETCOLOR 0xFF4444
+        PRINTFORML 빗나감!
+        RESETCOLOR
+        ;----------------
+        ;대사는 이쪽
+        ;----------------
+        PRINTFORML 그저 스쳐지나갈 뿐이었다
+        ;----------------
+        ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+        ;----------------
+        RETURN 0
+    ENDIF
+CASE "발동후"
+    CALL T_OBJ_ACTIVE(ARG,"DESTORY") ; 발동후 소멸되지 않고 지속되려면 제거
+ENDSELECT
+
+[SKIPSTART]
+;행동대기열 재환류 시전의 경우, 대기열이 지원하는 행동보다 자세하게 하려면 이걸 써야함
+@T_SKILL907_QUEUE1(사용자,상세1,상세2)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 상세1
+#DIM DYNAMIC 상세2
+[SKIPEND]
