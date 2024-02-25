@@ -190,11 +190,12 @@ IF 1
     ;CALL T_데미지(T_시전자반대, 피해량, 속성)
     VARSET LOCAL
     LOCAL:0 = T_I_ANGLE_F(T_INTLOCATE(T_시전자),T_INTLOCATE(T_시전자반대))
-    CALL TB_CHARAMOVE(T_시전자,1000,LOCAL,0)
-    IF 스킬명중판정(명중률,835,1)
-        PRINTFORML 벽에 부딪히는 거대한 소리가 주위를 파괴한다!
-        CALL T_데미지(T_시전자반대,피해량,속성)
-    ENDIF
+    CALL T_INTTOANGLE(T_INTLOCATE(T_시전자),T_INTLOCATE(T_시전자반대),LOCAL)
+    CALL T_V_SET(T_시전자,LOCAL,1000,20,1)
+    CALL TB_집중(T_시전자,20)
+    CALL T_ACTQUEUE_SET(T_시전자,20,999)
+    ;CALL TB_CHARAMOVE(T_시전자,1000,LOCAL,0)
+    
     CALL ONGOING_T_SKILL835(사용자, "지속시간설정")
     RETURN 1
 ELSE
@@ -317,3 +318,36 @@ CASE "유도력"
     RESULT = 유도력
 ENDSELECT
 RETURNF RESULT
+
+;행동대기열 재환류 시전의 경우, 대기열이 지원하는 행동보다 자세하게 하려면 이걸 써야함
+@T_SKILL835_QUEUE1(사용자,상세1,상세2)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 상세1
+#DIM DYNAMIC 상세2
+#DIM DYNAMIC 명중률
+#DIM DYNAMIC 피해량
+#DIMS DYNAMIC 속성
+IF TB_SUM_REMAIN(사용자,TCV_실명)&&RAND:2 == 0
+    명중률 = T_SKILL835("명중률") / 2
+ELSE
+    명중률 = T_SKILL835("명중률")
+ENDIF
+CALL PRINT_SPELLNAME(835)
+피해량 = T_SKILL835("공격력")
+속성 '= T_SKILL835_STR("속성")
+IF 스킬명중판정(명중률,835,1)
+    PRINTFORML 벽에 부딪히는 거대한 소리가 주위를 파괴한다!
+    CALL T_데미지(T_시전자반대,피해량,속성)
+ELSE
+    ;!감나빗!
+    SETCOLOR 0xFF4444
+    PRINTFORML 빗나감!
+    RESETCOLOR
+    ;----------------
+    ;대사는 이쪽
+    ;----------------
+    PRINTFORML 벽을 울리는 굉음이 들릴 뿐이었다
+    ;----------------
+    ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+    ;----------------
+ENDIF
