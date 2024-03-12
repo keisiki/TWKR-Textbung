@@ -6,6 +6,7 @@
 ;T_SKILL134_COLOR : 상황에 따른 출력문 색깔 처리
 ;ONGOING_T_SKILL134 : 스킬 사용 이후 처리 (쿨타임 감소, 지속효과 등)
 ;AFTER_T_SKILL134 : 스킬 사용 직후 처리
+;T_SKILL134_RANGE : 스킬 사거리관련 반환값만 모아둔 처리
 ;
 ;시전자 = T_턴주인, 상대방 = T_턴상대
 ;========================================================================
@@ -13,24 +14,30 @@
 #FUNCTION
 ;ARGS = 인자
 
-#DIM 쿨타임
-#DIM 지속시간
-#DIM 명중률
-#DIM 피해량
-#DIM 타입
-#DIM HP코스트
-#DIM 마력코스트
+#DIM DYNAMIC 쿨타임
+#DIM DYNAMIC 지속시간
+#DIM DYNAMIC 명중률
+#DIM DYNAMIC 피해량
+#DIM DYNAMIC 타입
+#DIM DYNAMIC HP코스트
+#DIM DYNAMIC 마력코스트
+#DIM DYNAMIC 초기쿨타임
+#DIM DYNAMIC 행동코스트
+#DIM DYNAMIC 이동코스트
 ;-------------------
 ;성능 입력
 ;쿨타임 0 = 한 턴에 몇 번이라도, 쿨타임 1 = 한 턴에 한번, 쿨타임 2= 두 턴에 한번
 ;-------------------
-쿨타임 = 4;스킬의 쿨타임을 넣으세요
+쿨타임 = 40;스킬의 쿨타임을 넣으세요
 지속시간 = 0;스킬의 효과가 지속되는 시간을 넣으세요
-명중률 = 60; 몇% 확률로 명중하는지 쓰세요
-피해량 = 50 * ARG능력치(T_시전자,"힘") ;얼마만큼의 데미지를 주는지 쓰세요, 스텟을 참고해도 좋습니다
-타입 = 공격형 ;공격형/방어형/회복형/상태이상형/버프형/해주형/자동형 ;ERH 변수입니다.
+명중률 = 70; 몇% 확률로 명중하는지 쓰세요
+피해량 = 50 * ARG능력치(T_시전자,"힘") + 500;얼마만큼의 데미지를 주는지 쓰세요, 스텟을 참고해도 좋습니다
+타입 = 공격형;공격형/방어형/회복형/상태이상형/버프형/해주형/자동형 ;ERH 변수입니다.
 HP코스트 = 0;시전시 소모하는 체력의 양입니다
-마력코스트 = 0;시전시 소모하는 TSP의 양입니다, 아나타가 아니면 소모하지 않습니다
+마력코스트 = TSP_PERCENT(1) + 50;시전시 소모하는 TSP의 양입니다, 아나타가 아니면 소모하지 않습니다
+초기쿨타임 = 0;승부 시작후 몇턴간 사용 불가능할지 쓰세요, 필요없으면 0으로
+행동코스트 = 0;통상행동기회를 추가로 얼마나 소모하는지, 0이면 1을 사용하고, -1이면 소비하지 않습니다
+이동코스트 = 0;이동기회를 추가로 얼마나 소모하는지, 행동코스트와 달리 1이면 1을 사용하고, 0이면 소비하지 않습니다
 ;여러 타입을 한꺼번에 입력하고자 하는 경우:
 ;타입 = 공격형 + 버프형
 ;과 같이 + 를 포함해 입력하시면 됩니다.
@@ -53,6 +60,12 @@ CASE "HP코스트"
     RESULT = HP코스트
 CASE "마력코스트"
     RESULT = 마력코스트
+CASE "초기쿨타임"
+    RESULT = 초기쿨타임
+CASE "행동코스트"
+    RESULT = 행동코스트
+CASE "이동코스트"
+    RESULT = 이동코스트
 ENDSELECT
 RETURNF RESULT
 
@@ -104,13 +117,19 @@ CASE "색깔_시전불가"
 ENDSELECT
 
 @ONGOING_T_SKILL134(사용자, ARGS, ARG = 0)
-#DIM 사용자
+#DIM DYNAMIC 사용자
 #DIM 남은지속시간, 200 ;캐릭터별 지속시간 저장 배열
 #DIM 남은쿨타임, 200 ;캐릭터별 지속시간 저장 배열
-#DIM 피해량
-#DIMS 속성
+#DIM DYNAMIC 피해량
+#DIM DYNAMIC 명중률
+#DIMS DYNAMIC 속성
 피해량 = T_SKILL134("공격력")
 속성 '= T_SKILL134_STR("속성")
+IF TB_SUM_REMAIN(사용자,TCV_실명)&&RAND:2 == 0
+    명중률 = T_SKILL134("명중률") / 2
+ELSE
+    명중률 = T_SKILL134("명중률")
+ENDIF
 SELECTCASE ARGS
 ;스킬 발동시 남은 지속시간/쿨타임 처리 부분
 CASE "임의쿨타임설정"
@@ -143,16 +162,16 @@ CASE "시스템체크"
 
 CASE "지속효과발동"
     ;지속적으로 효과가 발동하는 스킬의 경우, 여기에 효과를 입력
-    IF 남은지속시간 > 0
+    IF 남은지속시간:사용자 > 0
 
     ENDIF
 ENDSELECT
 
 @AFTER_T_SKILL134(사용자)
-#DIM 사용자
-#DIM 명중률
-#DIM 피해량
-#DIMS 속성
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 명중률
+#DIM DYNAMIC 피해량
+#DIMS DYNAMIC 속성
 
 ;쿨타임은 미리 설정함
 CALL ONGOING_T_SKILL134(사용자, "쿨타임설정")
@@ -164,12 +183,10 @@ ELSE
     명중률 = T_SKILL134("명중률")
 ENDIF
 RESULT = 0
-CALLF T_SKILL134("HP코스트")
-SIF RESULT > 0
-    TCVAR:T_시전자:T_체력 -= RESULT
-CALLF T_SKILL134("마력코스트")
-SIF RESULT > 0&&T_시전자 == MASTER
-    BASE:T_시전자:마력 -= RESULT
+SIF T_SKILL134("HP코스트") > 0
+    TCVAR:T_시전자:T_체력 -= T_SKILL134("HP코스트")
+SIF T_SKILL134("마력코스트") > 0
+    CALL T_MP_BURN(T_시전자,T_SKILL134("마력코스트"))
 IF 스킬명중판정(명중률,134)
     ;명중!
     ;----------------
@@ -182,8 +199,8 @@ IF 스킬명중판정(명중률,134)
 
     피해량 = T_SKILL134("공격력")
     속성 '= T_SKILL134_STR("속성")
-    CALL T_데미지(T_시전자반대, 피해량, 속성)
-
+    ;CALL T_데미지(T_시전자반대, 피해량, 속성)
+    CALL T_SKILL134_OBJ("생성",T_시전자)
     CALL ONGOING_T_SKILL134(사용자, "지속시간설정")
     RETURN 1
 ELSE
@@ -194,7 +211,7 @@ ELSE
     ;----------------
     ;대사는 이쪽
     ;----------------
-    PRINTFORML 나이프 몇 개가 바닥으로 떨어진다... 
+    PRINTFORML 무언가 힘을 집중한것 같지만 아무런 일도 없었다
     ;----------------
     ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
     ;----------------
@@ -216,6 +233,37 @@ PRINTFORML
 @IS_UTIMATE134
 ;TRYCALLFORM으로 호출되어 이 스킬의 습득을 억제하는 함수
 ;FUCTION으로 고치면 안됨, 1인경우 습득 억제, 0인 경우 습득 허가
+RETURN 0
+
+@DENY_SILENCE134
+;TRYCALLFORM으로 호출되어 이 스킬이 침묵에 영향을 받지 않게 하는 함수
+;FUCTION으로 고치면 안됨, 2이상 인경우 침묵 무시, 0-1인 경우 영향없음, 숫자가 높을 수록 강한 침묵기에도 저항 가능
+RETURN 1
+
+@SKILLTYPE_MOVE134
+;TRYCALLFORM으로 호출되어 이 스킬이 이동기임을 나타내는 함수
+;FUCTION으로 고치면 안됨, 2인경우 통상이동기, 3일경우 순간이동, 0인 경우 이동기 아님
+RETURN 0
+
+@RV_CONDITION_T_SKILL134(사용자,피해량,원래피해량,속성)
+#DIMS DYNAMIC 속성
+#DIM DYNAMIC 원래피해량
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 피해량
+;반격기의 실행 조건, 2을 리턴하면 시전가능, 아니면 시전 불가능
+;반격기가 아니면 0으로
+RETURN 0
+
+@RV_AFTER_T_SKILL134(사용자,받은피해량,받은원래피해량,받은속성)
+#DIMS DYNAMIC 받은속성
+#DIM DYNAMIC 받은원래피해량
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 피해량
+#DIM DYNAMIC 받은피해량
+#DIMS 속성
+피해량 = T_SKILL134("공격력")
+속성 '= T_SKILL134_STR("속성")
+;반격기의 내용
 RETURN 0
 
 @T_SKILL134_RANGE(ARGS)
@@ -246,3 +294,112 @@ CASE "유도력"
     RESULT = 유도력
 ENDSELECT
 RETURNF RESULT
+
+@T_SKILL134_OBJ(ARGS,ARG:0 = 0, ARG:1 = 0, ARG:2 = 0)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 명중률
+#DIM DYNAMIC 피해량
+#DIMS DYNAMIC 속성
+#DIM DYNAMIC 대상,3 ;추적 및 발동대상
+#DIM DYNAMIC 속도 ;1초 = 10턴 당 이동 범위(미터)
+#DIM DYNAMIC 충돌범위 ;오브젝트가 충돌판정을 검사할 거리
+#DIM DYNAMIC 표시범위 ;맵 상에 표시되는 크기
+#DIM DYNAMIC 갱신주기 ;"갱신"단락을 실행하는 주기, 0이면 실행안함
+#DIM DYNAMIC 색상; 오브젝트의 표기 색상
+#DIM DYNAMIC 수명 ;오브젝트의 최대 수명
+#DIM DYNAMIC 생성좌표,3 ;오브젝트가 생성될 좌표, X,Y,Z순, -1이면 시전자의 것을 사용
+#DIM DYNAMIC 좌표,3 ; 현재좌표
+
+;오브젝트 속성
+대상:0 = 사용자반대(ARG)
+속도 = 50
+충돌범위 = 1
+표시범위 = 1
+갱신주기 = 0
+색상 = 0XAAAAAA
+수명 = 8
+생성좌표:0 = -1
+생성좌표:1 = -1
+생성좌표:2 = -1
+;발동 속성
+피해량 = T_SKILL134("공격력")/10
+속성 '= T_SKILL134_STR("속성")
+
+;실행구문
+SELECTCASE ARGS
+CASE "생성"
+    ;ARG = 사용자번호
+    사용자 = ARG
+    대상:0 = 사용자반대(사용자)
+    CALL T_LOCATE(대상:0,좌표)
+    CALL T_LOCATE(사용자,생성좌표) ; 사용자위치 생성을 대체하려면 이것을 삭제
+    FOR LOCAL,0,10
+        CALL T_OBJ_MAKE(134,충돌범위,사용자,속도,수명,갱신주기,색상,표시범위,생성좌표:0,생성좌표:1,생성좌표:2,좌표:0 - (60 * (RAND:3 - 1)),좌표:1 - (60 * (RAND:3 - 1)),좌표:2,0,1,0)
+    NEXT
+    ;CALL T_OBJ_MOVE(RESULT,충돌범위) ; 퓨즈 미설정시 사용, 피아 미식별 오브젝트가 생성 즉시 자신에게 닿아 폭발할 가능성이 있을때 활성화
+CASE "목표변경"
+    ;ARG:0 = OBJ 번호
+    CALL T_LOCATE(대상:0,좌표)
+    T_OBJ:11:ARG = 좌표:0
+    T_OBJ:12:ARG = 좌표:1
+    T_OBJ:13:ARG = 좌표:2    
+CASE "접촉"
+    ;ARG:0 = 접촉자 번호
+    IF ARG == 대상:0
+        RETURN 1
+    ELSE
+        RETURN 0
+    ENDIF
+CASE "갱신"
+    ;ARG:0 = OBJ 번호
+
+CASE "발동"
+    ;ARG:0 = OBJ 번호
+    ;ARG:1 = 발동대상
+    사용자 = T_OBJ:2:ARG
+    IF TB_SUM_REMAIN(사용자,TCV_실명)&&RAND:2 == 0
+        명중률 = T_SKILL134("명중률") / 2
+    ELSE
+        명중률 = T_SKILL134("명중률")
+    ENDIF
+    IF 스킬명중판정(명중률,134,0,TB_MAPTOINT(T_OBJ:8:ARG,T_OBJ:9:ARG,T_OBJ:10:ARG), TB_MAPTOINT(T_위치:(ARG:1):0,T_위치:(ARG:1):1,T_위치:(ARG:1):2),   0)
+        ;명중!
+        ;----------------
+        ;대사는 이쪽
+        ;----------------
+        PRINTFORML 나이프가 %T_오브젝대상을% 찢어발긴다!
+        ;----------------
+        ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+        ;----------------
+        CALL T_데미지(ARG:1, 피해량, 속성)
+        CALL ONGOING_T_SKILL134(T_OBJ:2:ARG, "지속시간설정")
+        RETURN 1
+    ELSE
+        ;!감나빗!
+        SETCOLOR 0xFF4444
+        PRINTFORML 빗나감!
+        RESETCOLOR
+        ;----------------
+        ;대사는 이쪽
+        ;----------------
+        PRINTFORML 그저 스쳐지나갈 뿐이었다
+        ;----------------
+        ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+        ;----------------
+        RETURN 0
+    ENDIF
+CASE "발동후"
+    ;ARG:0 = OBJ 번호
+    CALL T_OBJ_ACTIVE(ARG,"DESTORY") ; 발동후 소멸되지 않고 지속되려면 제거
+CASE "만료"
+    ;충돌하지 않고 수명을 다함
+    ;ARG:0 = OBJ 번호
+ENDSELECT
+
+[SKIPSTART]
+;행동대기열 재환류 시전의 경우, 대기열이 지원하는 행동보다 자세하게 하려면 이걸 써야함
+@T_SKILL134_QUEUE1(사용자,상세1,상세2)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 상세1
+#DIM DYNAMIC 상세2
+[SKIPEND]
