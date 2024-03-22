@@ -24,7 +24,7 @@
 ;성능 입력
 ;쿨타임 0 = 한 턴에 몇 번이라도, 쿨타임 1 = 한 턴에 한번, 쿨타임 2= 두 턴에 한번
 ;-------------------
-쿨타임 = 7;스킬의 쿨타임을 넣으세요
+쿨타임 = 70;스킬의 쿨타임을 넣으세요
 지속시간 = 0;스킬의 효과가 지속되는 시간을 넣으세요
 명중률 = 90; 몇% 확률로 명중하는지 쓰세요
 피해량 = 40 * ARG능력치(T_시전자,"속도") + 150;얼마만큼의 데미지를 주는지 쓰세요, 스텟을 참고해도 좋습니다
@@ -175,38 +175,14 @@ SIF RESULT > 0
 CALLF T_SKILL382("마력코스트")
 SIF RESULT > 0&&T_시전자 == MASTER
     BASE:T_시전자:마력 -= RESULT
-PRINTFORML 순간적으로 뒤로 몸을 피한 %T_시전자가% 그 반동으로 %T_시전자반대에게% 날아든다!
-CALL TB_돌진(T_시전자,T_시전자반대,-5,T_SKILL382_RANGE("최대사거리"))
-CALL 통합버프(T_시전자,TCV_회피,382,45,1)
-IF 스킬명중판정(명중률,382) && TB_거리_은신(T_시전자반대) <= T_SKILL382_RANGE("최대사거리")
-    ;명중!
-    ;----------------
-    ;대사는 이쪽
-    ;----------------
-    PRINTFORML 미처 피하지 못한 %T_시전자반대는% 그대로 충돌해 버렸다!
-    ;----------------
-    ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
-    ;----------------
+PRINTFORML 순간적으로 뒤로 몸을 피했다!
+;CALL TB_돌진(T_시전자,T_시전자반대,-5,T_SKILL382_RANGE("최대사거리"))
+CALL T_INTTOANGLE(T_INTLOCATE(T_시전자),T_INTLOCATE(T_시전자반대,TB_MAX_VALUE(T_시전자,TCV_은신간파)),LOCAL)
+LOCAL = TB_INVERSE_ANGLE(LOCAL:0)
+CALL T_V_SET(T_시전자,LOCAL,10,5,0)
+CALL 통합버프(T_시전자,TCV_회피,382,45,5)
+CALL T_ACTQUEUE_SET(T_시전자,5,999,382,1)
 
-    피해량 = T_SKILL382("공격력")
-    속성 '= T_SKILL382_STR("속성")
-    CALL T_데미지스택(T_시전자반대, 피해량, 속성)
-    CALL ONGOING_T_SKILL382(사용자, "지속시간설정")
-    RETURN 1
-ELSE
-    ;!감나빗!
-    SETCOLOR 0xFF4444
-    PRINTFORML 빗나감!
-    RESETCOLOR
-    ;----------------
-    ;대사는 이쪽
-    ;----------------
-    PRINTFORML 그러나 맞추지는 못했다...
-    ;----------------
-    ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
-    ;----------------
-    RETURN 0
-ENDIF
 
 @HELP_T_SKILL382
 ;스킬의 설명을 출력하는 함수
@@ -292,3 +268,98 @@ CASE "유도력"
     RESULT = 유도력
 ENDSELECT
 RETURNF RESULT
+
+@T_SKILL382_1_RANGE(ARGS)
+#FUNCTION
+#DIM DYNAMIC 최대사거리
+#DIM DYNAMIC 최적사거리
+#DIM DYNAMIC 범위변동단위
+#DIM DYNAMIC 조준속성
+#DIM DYNAMIC 유도력
+;-------------------
+;성능 입력
+;-------------------
+최대사거리 = 5; 스킬이 닿는 최대 거리
+최적사거리 = 1; 명중률 +10% 가 붙는 거리
+범위변동단위 = 1; 몇 m마다 명중률이 1단위 변할지, 최적사거리에 이 값이 5번 더해질때 최악의 보정값(-20)이 된다
+조준속성 = T_근거리;T_근거리/T_고정탄/T_조준탄/T_유도탄/T_즉발탄/T_버프기
+유도력 = 0;유도 타입 스킬이 적과의 속도차이를 무시하는 정도, '유도'타입이 아니면 무시해도 됨
+SELECTCASE ARGS
+CASE "최대사거리"
+    RESULT = 최대사거리
+CASE "최적사거리"
+    RESULT = 최적사거리
+CASE "범위변동단위"
+    RESULT = 범위변동단위
+CASE "조준속성"
+    RESULT = 조준속성
+CASE "유도력"
+    RESULT = 유도력
+ENDSELECT
+RETURNF RESULT
+
+;행동대기열 재환류 시전의 경우, 대기열이 지원하는 행동보다 자세하게 하려면 이걸 써야함
+@T_SKILL382_QUEUE1(사용자,상세1,상세2)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 상세1
+#DIM DYNAMIC 상세2
+#DIM 명중률
+#DIM 피해량
+#DIMS 속성
+
+;명중 대응, 특정상황에서 명중률을 변동하고 싶으면 사용
+IF TB_SUM_REMAIN(사용자,TCV_실명)&&RAND:2 == 0
+    명중률 = T_SKILL382("명중률") / 2
+ELSE
+    명중률 = T_SKILL382("명중률")
+ENDIF
+CALL T_SET_TEMP_CASTER(사용자)
+PRINTFORML 다시 도약해 %T_시전자반대를% 노리고 날아든다!
+CALL T_INTTOANGLE(T_INTLOCATE(T_시전자),T_INTLOCATE(T_시전자반대,TB_MAX_VALUE(T_시전자,TCV_은신간파)),LOCAL)
+CALL T_V_SET(T_시전자,LOCAL,MIN(50,TB_거리()),MIN(50,TB_거리())/5,0)
+CALL T_ACTQUEUE_SET(T_시전자,5,999,382,MIN(50,TB_거리())/5)
+CALL T_SET_TEMP_CASTER()
+
+@T_SKILL382_QUEUE2(사용자,상세1,상세2)
+#DIM DYNAMIC 사용자
+#DIM DYNAMIC 상세1
+#DIM DYNAMIC 상세2
+#DIM 명중률
+#DIM 피해량
+#DIMS 속성
+IF TB_SUM_REMAIN(사용자,TCV_실명)&&RAND:2 == 0
+    명중률 = T_SKILL382("명중률") / 2
+ELSE
+    명중률 = T_SKILL382("명중률")
+ENDIF
+IF 스킬명중판정(명중률,382,1)
+    ;명중!
+    ;----------------
+    ;대사는 이쪽
+    ;----------------
+    PRINTFORML 미처 피하지 못한 %T_시전자반대는% 그대로 충돌해 버렸다!
+    ;----------------
+    ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+    ;----------------
+
+    피해량 = T_SKILL382("공격력")
+    속성 '= T_SKILL382_STR("속성")
+    CALL T_데미지스택(T_시전자반대, 피해량, 속성)
+    CALL ONGOING_T_SKILL382(사용자, "지속시간설정")
+    CALL T_SET_TEMP_CASTER()
+    RETURN 1
+ELSE
+    ;!감나빗!
+    SETCOLOR 0xFF4444
+    PRINTFORML 빗나감!
+    RESETCOLOR
+    ;----------------
+    ;대사는 이쪽
+    ;----------------
+    PRINTFORML 그러나 맞추지는 못했다...
+    ;----------------
+    ;처리는 이쪽, 무언가 효과를 넣으려면 여기에 작성
+    ;----------------
+    CALL T_SET_TEMP_CASTER()
+    RETURN 0
+ENDIF
