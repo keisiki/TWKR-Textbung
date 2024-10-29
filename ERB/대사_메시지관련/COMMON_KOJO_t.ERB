@@ -7,3 +7,48 @@ SIF ARG:1 < 0 || ARG:1 >= CHARANUM
 ARG:1 = ARG:1 ?  ARG:1 # TARGET
 SIF CFLAG:ARG:현재위치 == CFLAG:(ARG:1):현재위치
 	RETURNF 1
+
+;calls the appropriate M_KOJO_K function for ARG
+@KOJO_ACTIVE_INFO(ARG)
+RESULT = 0
+RESULTS =
+IF CFLAG:ARG:구상셀렉터
+    TRYCALLFORM M_KOJO_K{NO:ARG}_{CFLAG:ARG:구상셀렉터}
+ELSE
+    TRYCALLFORM M_KOJO_K{NO:ARG}
+ENDIF
+RETURN RESULT
+
+;searches for currently used dialogue and sets the character's color
+@SET_KOJO_COLOR(ARG = -1)
+RESETCOLOR
+SIF !FLAG:구상색
+	RETURN
+SIF ARG == -1
+	ARG = TARGET
+	
+IF ARG == RANDOM_CHARANUM
+	SETCOLOR CFLAG:ARG:1000
+ELSE
+	CALL KOJO_ACTIVE_INFO(TARGET)
+	TRYCALLFORM M_KOJO%RESULTS%_COLOR_K{NO:ARG}
+ENDIF
+
+;handles the calls to the KOJO message for secondary characters for commands involving multiple people
+;the exact number of participants is to be determined by the individual commands
+;to prevent a message being sent to secondary characters (such as when a dialogue provides text for all participants), TFLAG:SKIPASSIKOJO can be set, which will skip this
+@SEND_ASSISTANT_KOJO
+IF TFLAG:50
+	LOCAL = TFLAG:50
+	LOCALS = SCOM
+ELSE
+	LOCAL = SELECTCOM
+	LOCALS = COM
+ENDIF
+
+TRYCALLFORM ASSISTANT_KOJO_%LOCALS%{LOCAL}
+
+@KOJO_CHECK(CHARA, ARGS, ARGS:1, ARG, ARG:1)
+#DIM CHARA
+CALL KOJO_MESSAGE_SEND("CHECK", 0, CHARA, ARG, ARG:1, ARGS, ARGS:1)
+RETURN RESULT
