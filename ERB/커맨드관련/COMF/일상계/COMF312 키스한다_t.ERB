@@ -11,12 +11,20 @@ IF FLAG:70 == 1
 		EXP:PLAYER:(50 + HETEROSEX(TARGET,PLAYER)) += 2
 	ENDIF
 ELSE
-	TFLAG:이성깎기 = 1
-	IF FLAG:생활능력무 && !GETBIT(CFLAG:기정사실 ,0)
-		DRAWLINE
-		PRINTFORMW %CALLNAME:MASTER%에게 그런 담력은 없다
-		RETURN -1
+	;甲斐性無しの場合、その場にいる全員が関係を公認してないと勇気がでない
+	IF FLAG:생활능력무
+		FOR LOCAL, 1, GET_TARGETNUM() + 1
+			SIF TARGET:LOCAL == TARGET:0
+				CONTINUE
+			IF GET_UWAKI_HISTORY(TARGET:LOCAL, TARGET:0) < 2
+				DRAWLINE
+				PRINTFORML %마스터는% %타겟에게% 입맞춤을 하려고 했으나
+				PRINTFORMW 시야 끝에 %CALLNAME:(TARGET:LOCAL)%의 모습이 보이자 저도모르게 얼굴을 돌려버리고 말았다
+				RETURN -1
+			ENDIF
+		NEXT
 	ENDIF
+	TFLAG:이성깎기 = 1
 	;거절 판정
 	IF REJECT_CHECK(SELECTCOM) && !CFLAG:수면
 		TFLAG:193 = 99
@@ -284,6 +292,9 @@ SIF GLOBAL_COMABLE(312)
 IF !FLAG:70
 	;친해져 강도 1
 	SIF (TCVAR:MASTER:친해져 < 1) && !CFLAG:수면
+		RETURN 0
+	;甲斐性なしはもう少し馴れ合い強度と既成事実が必要
+	SIF FLAG:생활능력무 && ((TCVAR:MASTER:친해져 < 2 && !CFLAG:수면) || !GETBIT(CFLAG:기정사실, 0))
 		RETURN 0
 	;수면중
 	SIF CFLAG:수면 && !CFLAG:장난 && !CFLAG:동침중

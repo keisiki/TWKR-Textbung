@@ -42,8 +42,8 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 2
 		CALL SPTALK, 0, "通常", 14, @"%台詞%",1
 		DRAWLINE
 		SIF MAIN_MAP == 2
-			PRINTL [2] \50000 내고 전세낸다
-		PRINTL [1] \2000 내고 입욕한다
+			PRINTFORML [2] %금액표시(50000)% 내고 전세낸다
+		PRINTFORML [1] %금액표시(2000)% 내고 입욕한다
 		PRINTL [0] 그만둔다
 		$LOOP_hitozato
 		INPUT
@@ -57,7 +57,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 2
 				CALL SPTALK, 0, "通常", 14, @"%台詞%",1
 				RETURN -1
 			ELSE
-				MONEY -= 50000
+				CALL PAY_SENTO, 50000
 				{
 				台詞 = 「……어, 전세내고 싶다고?」
 						/「흐-음……뭐 어디에 쓸 건지는 대충 상상이 가지만……」
@@ -92,7 +92,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 2
 				ENDIF
 				RETURN -1
 			ELSE
-				MONEY -= 2000
+				CALL PAY_SENTO, 2000
 				台詞 = 「……응, 편히 쉬다 나와요」
 				SIF TARGET > 0 && CFLAG:TARGET:6 > 0 && !CFLAG:TARGET:수면 
 					台詞 = 「……아, 말해두겠는데 내가 지켜보고 있으니 이상한 짓 하지 마」
@@ -174,8 +174,21 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 				PRINTL 
 				PRINTL 「ほれっ、ほれっ！　みゃよってにゃーで、しゃっしゃと入るぎゃ！」
 				PRINTFORMW 番台の妖怪は、げっへっへと厭らしい笑みを浮かべ、%CALLNAME:PLAYER%を急き立ててくる……
+				SETBIT SENTO_FLAG:9, 旧地獄温泉_BIT_ニュープラン_完成
 				GOTO SKIP
 			ENDIF
+		;にゅーぷらん開放から初めて来た
+		ELSEIF !GETBIT(SENTO_FLAG:9, 旧地獄温泉_BIT_ニュープラン_完成) && 旧地獄温泉_ニュープラン_完成日 && DAY >= 旧地獄温泉_ニュープラン_完成日
+			PRINTL 「いらっしゃいましぇだぎゃー！」
+			PRINTL 「あんしゃん…ぐっーどてゃーみんぐぎゃ！」
+			PRINTL 「きょーはぎゃーが考ギャーた『にゅーぷらん』とーとーお披露目の日なんだぎゃ！」
+			PRINTL 「きれーどころのメスっこをてゃーくしゃん揃えて」
+			PRINTW 「お客しゃまぎゃ、てゃーっぷり金を落っことすの、お待ちしとったぎゃ！」
+			PRINTL 
+			PRINTL 「ほれっ、ほれっ！ みゃよってにゃーで、しゃっしゃと入るぎゃ！」
+			PRINTFORMW 番台の妖怪は、げっへっへと厭らしい笑みを浮かべ、%CALLNAME:PLAYER%を急き立ててくる……
+			SETBIT SENTO_FLAG:9, 旧地獄温泉_BIT_ニュープラン_完成
+			GOTO SKIP
 		;돈 부족했다 이벤트를 보고 있다
 		ELSEIF TFLAG:211 == 3
 			PRINTL 「돈 없는 놈은 상대하기 싫타. 돈을 두둑히 얹으면 손님 나리로 대해야쥐!」
@@ -210,7 +223,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 		PRINTL [1] \5000 내고 입욕한다
 		;옛지옥온천입탕회수가 통산 15회가 되었을 때 출현
 		;뉴 플랜 선택사항
-		SIF FLAG:주회수
+		SIF CHECK_NEWPLAN()
 			PRINTFORML [2] \\10000払って%\@ STRCOUNT(CSTR:0:0,"거품목욕") ? お風呂を借りる # 『にゅーぷらん』を試してみる \@%
 		PRINTL [0] 그만둔다
 		$LOOP_titei
@@ -245,7 +258,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 					ENDIF
 					RETURN -1
 				ELSE
-					MONEY -= 5000
+					CALL PAY_SENTO, 5000
 					PRINTW  접수대의 요괴는 열심히 금액이 맞는지 아닌지 세면서 확인하고 있다……
 					PRINTL 「읍쌰, 편히 들어갔다 나온나―!」
 					IF TARGET > 0 && CFLAG:TARGET:6 > 0 && !CFLAG:TARGET:수면 && TALENT:TARGET:성별 != 2
@@ -302,7 +315,7 @@ ELSEIF PLACE_SENTO(CFLAG:MASTER:현재위치) == 9
 					RETURN 1
 				ENDIF
 			CASE 2
-				SIF !FLAG:주회수
+				SIF !CHECK_NEWPLAN()
 					GOTO LOOP_titei
 				IF FLAG:생활능력무
 					PRINTL 「おみゃーしゃん…手足も声も震えとるぎゃ」
@@ -387,6 +400,24 @@ ELSEIF ARG == GET_MAP_REPLACEMENT(934)
 ELSE
 	RETURNF 0
 ENDIF
+
+@PAY_SENTO, ARG
+#DIM PLACE, 1
+
+MONEY -= ARG
+PLACE = PLACE_SENTO(CFLAG:MASTER:현재위치)
+SIF !PLACE
+	RETURN 0
+
+SENTO_CONSUMPTION:PLACE += ARG
+SELECTCASE PLACE
+	CASE 9
+		;2万以上消費した場合、ニュープランが選択できるようになる
+		IF SENTO_CONSUMPTION:9 >= 旧地獄温泉_ニュープラン_必要額
+			旧地獄温泉_ニュープラン_完成日 = DAY + 旧地獄温泉_ニュープラン_工期
+		ENDIF
+ENDSELECT
+RETURN 1
 
 @ODEKAKE_OFURO(ARG,ARG:1)
 ;ARG=1 마을　ARG=2 지저 =3풀장
