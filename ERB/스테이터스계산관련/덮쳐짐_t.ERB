@@ -122,7 +122,36 @@ IF 1 ; !CHK_DATENOW(CFLAG:TARGET:데이트중)
 						PRINTFORML 눈동자로 바라봤다
 					;딜레이 중에는 덮치지 않는다
 					ELSEIF CFLAG:TARGET:데일리 > 0
-
+					;甲斐性無しモードの時、まれに押し倒させてくる
+					ELSEIF FLAG:생활능력무 && REVERSE_MIRADA(TARGET)
+						PRINTL
+						PRINTFORML 갑자기 %CALLNAME:TARGET%에게 안겨졌다!
+						PRINTFORML %타겟은% 주머니에서 돌멩이를 꺼내, %CALLNAME:MASTER%에게 보여왔다
+						PRINTL
+						CALL COLORMESSAGE(@"%타겟이% 손에 힘을 주자 돌멩이가 신비하게 빛나기 시작한다…", C_PINK, 2, 1)
+						PRINTL  ・
+						PRINTL  ・
+						PRINTL  ・
+						PRINTFORMW 정신을 차리고 보니 %마스터는 %\@ 복수밀어넘어뜨려지고() == 1 ? %CALLNAME:TARGET%네를 #%타겟을% \@밀어 넘어뜨리고 있었다！
+						IF !UFUFU_START_TIME
+							UFUFU_START_TIME = TIME
+							UFUFU_START_DAY = DAY
+						ENDIF
+						;本体に取り込まれて、このタイミングで口上を差し込みたい人が現れるまで封印
+						;CALL KOJO_MESSAGE_SEND("EVENT",10,TARGET,5,0)
+						FOR LOCAL, 1, GET_TARGETNUM() + 1
+							C_ID = TARGET:LOCAL
+							CFLAG:C_ID:우후후 = 1
+							IF !TCVAR:C_ID:발정 && !TCVAR:C_ID:미약 && !GETBIT (CFLAG:C_ID:기정사실 , 1)
+								SETBIT CFLAG:C_ID:기정사실 , 1
+								CALL COLORMESSAGE(@"%CALLNAME:C_ID%의 합의를 얻었다",C_YELLOW,2)
+							ELSE
+								CFLAG:C_ID:대주고말았다 = 1
+							ENDIF
+						NEXT
+						CFLAG:MASTER:우후후 = 1
+						TFLAG:102 = 2
+						TFLAG:껴안기모드 = 0
 					ELSE
 						PRINTL
 						PRINTFORMW %마스터는% 밀어 넘어뜨려졌다!
@@ -272,8 +301,12 @@ RETURNF 0
 LOCAL = CFLAG:ARG:합의판정
 LOCAL += (EX:ARG:C절정직전 + EX:ARG:V절정직전 + EX:ARG:A절정직전 + EX:ARG:B절정직전 + EX:ARG:M절정직전) * 20
 ;껴안으면 밀어 넘어뜨려지는 확률 상승
-SIF SELECTCOM == 311
+IF SELECTCOM == 311
 	LOCAL += 30
+	;小心者の勇気には応えてくれやすい
+	SIF FLAG:생활능력무
+		LOCAL += 100
+ENDIF
 LOCAL += TALENT:ARG:성적흥미 * 20
 SIF TALENT:ARG:처녀
 	LOCAL -= 50
@@ -397,8 +430,12 @@ SIF TALENT:ARG:연모
 SIF CFLAG:ARG:억지로질내사정
 	LOCAL -= 100
 ;껴안으면 껴안아짐 판정 상승
-SIF SELECTCOM == 311
+IF SELECTCOM == 311
 	LOCAL += 30
+	;小心者の勇気には応えてくれやすい
+	SIF FLAG:생활능력무
+		LOCAL += 100
+ENDIF
 SIF TALENT:ARG:담력 < 0 || TALENT:ARG:응답 < 0 || TALENT:ARG:무관심 || TALENT:ARG:수치심 > 0
 	LOCAL = LOCAL - 30
 SIF TALENT:ARG:성적흥미 > 0 || TALENT:ARG:수치심 < 0
@@ -464,6 +501,40 @@ ENDSELECT
 SIF FLAG:생활능력무
 	LOCAL = LOCAL * 2
 RETURNF LOCAL
+
+;==============================================================
+;ミラダ逆使用判定
+;この前にも押し倒し判定があるため、素質などはそこまで詳しく見ない
+;RANDを含むため実行するたびに結果が変わる
+;C_ID	キャラNO
+;RETURN	0=使用しない, 1=使用する
+;==============================================================
+@REVERSE_MIRADA(C_ID)
+#FUNCTION
+#DIM C_ID
+
+;使用率の基準値
+;普段の度胸の無さへの信頼が高いほど、石に頼りたくなる
+LOCAL:0 = SQRT(LIMIT(CFLAG:C_ID:신뢰도, 0, 20000) * 2)
+;欲望ボーナス1
+LOCAL:0 += 5 * MIN(ABL:C_ID:욕망, 10)
+;陥落素質ボーナス
+IF TALENT:C_ID:연모 && ABL:C_ID:욕망 > 10 && GROUPMATCH(TALENT:C_ID:처녀, 1, -1)
+	LOCAL:0 *= 2
+ELSEIF TALENT:C_ID:애욕
+	LOCAL:0 += 200
+ELSEIF TALENT:C_ID:섹프 == 2
+	LOCAL:0 += 100
+ELSEIF TALENT:C_ID:섹프
+	LOCAL:0 += 50
+ELSEIF TALENT:C_ID:사모
+	LOCAL:0 /= 3
+ENDIF
+
+;DEBUGPRINTFORM ミラダ逆使用率:{LOCAL:0 + 1}/1000
+SIF RAND(1000) <= LOCAL:0
+	RETURNF 1
+RETURNF 0
 
 @HITOKE(동실체크)
 ;MASTER 위치로 보아 다른 방에 누가 있는지
