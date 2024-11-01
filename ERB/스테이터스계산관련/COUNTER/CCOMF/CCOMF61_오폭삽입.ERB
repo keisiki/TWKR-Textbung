@@ -1,14 +1,13 @@
 ﻿;*********************************************************************************************
-;カウンターコマンド：Ａ挿入させる
+;カウンターコマンド：誤爆挿入
 ;ARG = 対象のキャラ番号
 ;*********************************************************************************************
-@CCOMF87(ARG)
-
-	;몸의자세の変更
+@CCOMF61(ARG)
+	;体勢の変更
 	;=============================
 	SIF MASTER_POSE(0,SET_V) == ARG || MASTER_POSE(0,SET_A) == ARG
 		CALL TOUCH_RESET_T(ARG)
-	CALL TOUCH_SET(SET_FROM_A,1,ARG)
+	CALL TOUCH_SET(SET_FROM_V,1,ARG)
 	TFLAG:MASTER의P삽입중 = 1
 	TFLAG:MASTER의C사용중 ++
 	
@@ -16,116 +15,109 @@
 	;=============================
 	SIF TEQUIP:PLAYER:0
 		CALL DATUI_BOTTOM(ARG,0)
-	CALL DATUI_FOR_INSERT(ARG)
-	TCVAR:ARG:A상실발생 = 1
+	IF BEDROOM(CFLAG:MASTER:현재위치)
+		SIF TEQUIP:ARG:0
+			CALL DATUI_BOTTOM_T(ARG,0)
+	ELSE
+		SIF TEQUIP:ARG:0 & 14
+			CALL DATUI_BOTTOM_T(ARG,1)
+	ENDIF
 	TCVAR:PLAYER:동정상실 = 1
-	SOURCE:ARG:액체 += 100
+	TCVAR:ARG:오폭삽입플래그 = 1
 	DOWNBASE:ARG:체력 += 60
-	DOWNBASE:ARG:기력 += 150
-	SOURCE:ARG:쾌A = 500
+	DOWNBASE:ARG:기력 += 240
+	SOURCE:ARG:쾌V = 300
 	SOURCE:ARG:사랑 = 150
 	SOURCE:ARG:성행동 = 500
-	SOURCE:ARG:달성 = 300
-	SOURCE:ARG:고통 = 400
+	SOURCE:ARG:고통 = 250
 	SOURCE:ARG:노출 = 60
-	SOURCE:ARG:정복 += 700
-	SOURCE:ARG:강요 += 200
-	SOURCE:ARG:가학 += 300
 	TCVAR:116 = PLAYER
-	CALL PAIN_CHECK_A(ARG)
-	CALL LOST_VIRGIN(ARG)
-	;사정장소（1=질내 2=애널 3=수음 4=口淫 5=파이즈리 6=스마타 7=풋잡 8=体表 9=애널봉사 10=道具 11=触手 12=Ａ고문 13=Ｖ고문）
-	CALL 사정대상등록(PLAYER, ARG, 2)
+	CALL PAIN_CHECK_V(ARG)
+	;射精箇所（1=膣内 2=アナル 3=手淫 4=口淫 5=パイズリ 6=素股 7=足コキ 8=体表 9=アナル奉仕 10=道具 11=触手 12=Ａ責め 13=Ｖ責め）
+	CALL 사정대상등록(PLAYER, ARG, 1)
 	TEQUIP:ARG:체위 = 3
 	;強度
 	TCVAR:PLAYER:4 = 1000
-	STAIN:ARG:7 |= STAIN:PLAYER:2
-	STAIN:PLAYER:2 |= STAIN:ARG:7
-	EXP:ARG:A성교경험 ++
+	CALL STAIN_질내P삽입
+	EXP:ARG:V성교경험 ++
 	EXP:PLAYER:삽입경험 ++
+	CALL LOST_VIRGIN(ARG)
 	EXP:ARG:애정경험 += TALENT:ARG:연모
-	TEQUIP:ARG:51 = MASTER
-	;봉사플래그
-	TCVAR:ARG:108 = 1
-	TCVAR:ARG:기학플래그 = 1
-
+	TEQUIP:ARG:50 = MASTER
 	;マスターカウンター制御
-	;(ビット立ちで不可 0=엉덩이를 쓰다듬는다 1=껴안는다 2=키스한다 3=가슴애무 4=애널애무 5=클리애무 6=指挿入れ 7=치마를 넘긴다)
+	;(ビット立ちで不可 0=尻を撫でる 1=抱き付く 2=キスする 3=胸愛撫 4=アナル愛撫 5=クリ愛撫 6=指挿入れ 7=スカートめくり)
 	;=============================
-	;CALL 카운터삽입됨지속처리(ARG)
-	SETBIT TCVAR:ARG:26 ,4
+	;CALL カウンター挿入され継続中処理(ARG)
+	SETBIT TCVAR:ARG:26 ,6
 	SETBIT TCVAR:ARG:26 ,7
-
 RETURN 1
-
 ;*********************************************************************************************
 ;カウンター実行可否出力関数
 ;ARG = 対象のキャラ番号
 ;*********************************************************************************************
-@CCOM_ABLE87(ARG)
-
-	SIF GETBIT(FLAG:애널개발무효, 1)
+@CCOM_ABLE61(ARG)
+	SIF FLAG:오폭무효
+		RETURN 0
+	;素股の後のみ発生
+	SIF FIND_PREVCCOM_CHARA(ARG) != 52
 		RETURN 0
 	;毒人形だと性器がついてないのでダメ
-	SIF TALENT:ARG:인형 == 99
+	SIF TALENT:ARG:196 == 99
 		RETURN 0
 	;体格差がある場合は経験がないとダメ
-	SIF 삽입불가(ARG) == 1 && EXP:ARG:A경험 < 50 && !TALENT:MASTER:금단의지식
+	SIF 삽입불가(ARG) == 1 && EXP:ARG:V경험 < 50 && !TALENT:ARG:금단의지식
 		RETURN 0
 	;さらに体格差があると禁断の知識が必要
-	SIF 삽입불가(ARG) == 2 && (EXP:ARG:A경험 < 50 || !TALENT:MASTER:금단의지식)
+	SIF 삽입불가(ARG) == 2 && (EXP:ARG:V경험 < 50 || !TALENT:ARG:금단의지식)
 		RETURN 0
 	SIF 삽입불가(ARG) == 3
 		RETURN 0
 	SIF !(TALENT:ARG:2 & 1)
 		RETURN 0
-	SIF !(TALENT:PLAYER:2 & 2)
-		RETURN 0
-	SIF BASE:MASTER:발기 < 1000
-		RETURN 0
 	SIF TALENT:ARG:임신 && (CFLAG:ARG:903 <= 30 || CFLAG:ARG:903 >= 71)
 		RETURN 0
 	SIF CFLAG:ARG:육아인원수 >= 1 && CFLAG:ARG:육아인원수 <= 30
 		RETURN 0
-	SIF ABL:2 < 3
+	SIF !(TALENT:PLAYER:2 & 2)
+		RETURN 0
+	SIF BASE:MASTER:발기 < 1000
 		RETURN 0
 	SIF TFLAG:63
 		RETURN 0
 	SIF TEQUIP:50 >= 0 || TEQUIP:51 >= 0
 		RETURN 0
-	SIF TEQUIP:MASTER:50 >= 0 || TEQUIP:MASTER:51 >= 0
-		RETURN 0
 	SIF TEQUIP:ARG:체위
 		RETURN 0
-	SIF PALAM:ARG:윤활 < PALAMLV:3
-		RETURN 0
-	SIF TEQUIP:ARG:애널바이브
-		RETURN 0
 	SIF TEQUIP:MASTER:50 >= 0 || TEQUIP:MASTER:51 >= 0
 		RETURN 0
-
+	;通常の挿入よりさらに潤滑が必要
+	SIF PALAM:ARG:윤활 < PALAMLV:4
+		RETURN 0
+	SIF TEQUIP:ARG:바이브
+		RETURN 0
+	;貞操帯、触手下着、バイブパンツ、二穴バイブパンツをはいてるとダメ
+	SIF EQUIP:하반신속옷2 == 27 || EQUIP:하반신속옷2 == 28 || EQUIP:하반신속옷2 == 29 || EQUIP:하반신속옷2 == 30
+		RETURN 0
 RETURN 1
-
 ;*********************************************************************************************
 ;カウンター実行判定値算出関数
 ;ARG = 対象のキャラ番号
 ;*********************************************************************************************
-@CCOM_ORDER87(커맨드번호, ARG, 기본치)
+@CCOM_ORDER61(커맨드번호, ARG, 기본치)
 #DIM 커맨드번호
 #DIM 기본치
 #DIMS 카운터타입
-
-	;카운터타입設定
+	;カウンタータイプ設定
+	;誤爆なので、実行者的には脱衣愛撫のつもりだった
 	;=============================
-	카운터타입 = 성교
-
+	카운터타입 = 탈의애무
 	;実行判定値算出式
 	;=============================
-	LOCAL = 기본치 + ABL:ARG:A감각 * 3+ EX:ARG:A절정직전 * 10
-
-	;카운터타입別計算処理 実質実行判定処理を含む
+	LOCAL = 기본치 + 10 * (GETPALAMLV(PALAM:ARG:윤활, 15) - 4 - 2 * ABL:ARG:허리) + BASE:MASTER:발기 / 500
+	SIF LOCAL <= 0
+		RETURN 0
+	;カウンタータイプ別計算処理 実質実行判定処理を含む
+	;誤爆なので、実行者の指向は無視する
 	;=============================
-	LOCAL = MAX(LOCAL + COUNTER_SIKOU:ARG:커맨드번호, 1)
 	LOCAL *= COUNTER_TYPE(카운터타입, ARG)
-
 RETURN LOCAL
