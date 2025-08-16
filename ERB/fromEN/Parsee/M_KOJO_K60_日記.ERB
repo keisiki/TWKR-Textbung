@@ -1,0 +1,901 @@
+﻿;日記口上
+
+;一日の終了時の流れ
+;@DIARY_TEXT_K60（日記本文）→@DIARY_AFTER_CHECK_K60（フラグの処理）
+
+
+;◆日記の仕様◆
+;※１@DIARY_BEFORE_CHECK_K60で日記のフラグが立つ。
+;→未読フラグ(2)が立っていると一日の終わりにデイリーイベントとして日記が読まれる（既読になる）。
+;→※２未読フラグ(3)が立っていると[日記を読む]で読む事ができる。読むと既読(1)になる。
+;※１各所イベント口上やコマンド口上でフラグを立たせても良いです。
+;※２基本的には未読(2)推奨です。既読(1)、未読(3)はワンステップ必要。
+
+;[日記を読む]には、持ち主が[연모]なら自由に読むことができ、
+;そうでない場合は恋慕でない人物がその場に居ない時、もしくは時間停止することで盗み読みできる。
+;拠点住民でないキャラは恋慕であれば自宅（초대방）で読むことができる。
+
+;MAX_DIARY_PAGE:[[파르시]]:0　キャラ番号XXの日記の最大ページ数　限度は101（1～100）
+;DIARY:[[파르시]]:YY　　　　　キャラ番号XXの日記番号YYの情報
+;　　 3=未読　　　　　デイリーイベントで読まれない。[日記を読む]で読むと既読になる。
+;　　 2=未読　　　　　デイリーイベントで読まれる。読まれるまでは[日記を読む]では読めない。読まれると既読になる。
+;　　 1=既読　　　　　デイリーイベントで読まれない。[日記を読む]で読める。
+;　　 0=読めない　　　未解禁。
+;PAGESET:[[파르시]]:YY　　　　キャラ番号XXの実際に書かれたYYページ目の日記番号。
+;=============================
+@DIARY_K60_EXIST
+;Existence check
+;0 means that the diary is not written.
+;存在判定
+;0だと日記は書かれません。
+;=============================
+RETURN 1
+
+;=============================
+@DIARY_AFTER_CHECK_K60
+;デイリーイベントで日記が読まれた際の後処理。
+;フラグの管理等自由に扱って良い。
+
+;条件フラグのリセットや判定追加もここに 
+;たとえば：今日構ったフラグ
+;今日構った日記が表示した後、構ったフラグをリセット。
+; CFLAG:[[파르시]]:今日構ったフラグ = 0
+;あるいは何かの状態が続くことがフラグの場合
+;例：好感度がほぼ変わらない日が続くと
+;「당신」の態度が冷たいな～みたいな日記を書く
+; SIF CFLAG:[[파르시]]:호감도 <= LAST_LP+3
+;   NOTOUCH_DAY ++
+;=============================
+
+
+;=============================
+@DIARY_BEFORE_CHECK_K60
+;常時チェックされる日記の状態情報。
+;ここでDIARY:[[파르시]]:YYの更新を行う。
+;※DIARY:[[파르시]]:0番は使えません。
+
+;ここで汎用発生条件を記入する
+;コマンド別の発生条件はM_KOJOの各ファイル中で追加してください。
+
+;基本的に発生条件には"DIARY:[[파르시]]:YY == 0"を入れること。
+;そうしないと同じ日記が書かれたりしてしまう。
+
+;DIARY:[[파르시]]:YY　　　　キャラ番号XXの日記番号YYの情報
+;　　 3=未読　　　　デイリーイベントで読まれない。[日記を読む]で読むと既読になる。
+;　　 2=未読　　　　デイリーイベントで読まれる。読まれるまでは[日記を読む]では読めない。読まれると既読になる。
+;　　 1=既読　　　　デイリーイベントで読まれない。[日記を読む]で読める。
+;　　 0=読めない　　未解禁。
+
+;○未読(2)にする場合（基本）
+;未読(2)にするとデイリーイベントとして発生し、一日の終わりに１つだけ読まれる。
+;複数のページが未読(2)になっている場合は番号が小さいものが読まれ、それ以外はリセット(0)される。
+;その為、複数同時に発生すると、発生したのに読まれずリセットされる場合もある。
+;未読(2)にするには単純にフラグに2を入れるだけで良い。
+
+;例１)初対面
+;SIF DIARY:[[파르시]]:YY == 0 && CFLAG:[[파르시]]:안면
+;	DIARY:[[파르시]]:YY = 2
+
+;○未読(3)にする場合（応用）
+;未読(3)にするとデイリーイベントとして読まれず、書かれた時点で[日記を読む]によって読めるようになる。
+;プレイヤーが自主的に読まない限り読まれず、一日に複数ページ加筆される場合もある。
+;未読(3)にするにはフラグに3を入れた上で、CALL CHARA_DIARY_PAGESETTING([[파르시]], YY)をする必要がある。
+
+;例２）好感度100以上
+;IF DIARY:[[파르시]]:YY == 0 && CFLAG:[[파르시]]:호감도 >= 100
+;	DIARY:[[파르시]]:YY = 3
+;	CALL CHARA_DIARY_PAGESETTING([[파르시]], YY)
+;ENDIF
+
+;例３）例２の日記が読まれた上で好感度1000以上
+;これをするとYYを読んだ直後にZZが書き込まれることも起こる。
+;IF DIARY:[[파르시]]:ZZ == 0 && DIARY:[[파르시]]:YY == 1 && CFLAG:[[파르시]]:호감도 >= 1000
+;	DIARY:[[파르시]]:ZZ = 3
+;	CALL CHARA_DIARY_PAGESETTING([[파르시]], ZZ)
+;ENDIF
+
+;▽おせっかいな注釈
+;ファーストキスは基本的に全員[키스미경험]を所持しているので、"!TALENT:[[파르시]]:키스미경험"で判定できます。
+;デート帰りのキスで分岐したいならデート帰りのキス口上でフラグを立てます。
+;その場合、通常のファーストキス喪失と重複しないように気をつけましょう。
+;処女喪失は初期設定で処女喪失している場合もあるので、処女喪失口上の方でフラグを立てた方が良いです。
+;その他告白・陥落等のイベントは各種イベント口上でフラグを立てます。初対面はそっちでも大丈夫です。
+;日付を正確に測るには別途フラグが必要です。例えば初めて会った日とか。
+;=============================
+SIF CHARANUM <= [[파르시]] + 1
+	RETURN
+;MAXPAGEはここで記入する
+MAX_DIARY_PAGE:[[파르시]]:0 = 100
+
+;Before she meets the player
+CALL M_KOJO_DIARYSETTING_K60(1)
+SIF CFLAG:K60EN_PARSEE_STARTING_VIRGINITY
+	CALL M_KOJO_DIARYSETTING_K60(2)
+CALL M_KOJO_DIARYSETTING_K60(3)
+CALL M_KOJO_DIARYSETTING_K60(4)
+CALL M_KOJO_DIARYSETTING_K60(5)
+CALL M_KOJO_DIARYSETTING_K60(20)
+
+;"Sometimes I wonder who I really am" (Req: 100+ Favor)
+SIF CFLAG:[[파르시]]:호감도 >= 100
+	CALL M_KOJO_DIARYSETTING_K60(6)
+
+;"I don't know what I believe anymore" (Req: 200+ Favor)
+SIF CFLAG:[[파르시]]:호감도 >= 200
+	CALL M_KOJO_DIARYSETTING_K60(7)
+
+;Parsee doesn't like her paintings (Req: 300+ Favor)
+SIF CFLAG:[[파르시]]:호감도 >= 300
+	CALL M_KOJO_DIARYSETTING_K60(16)
+
+;Parsee still doesn't like her paintings (Req: 300+ Favor + Intimacy >= 10)
+SIF CFLAG:[[파르시]]:호감도 >= 300 && ABL:[[파르시]]:친밀 >= 10
+	CALL M_KOJO_DIARYSETTING_K60(18)
+
+;Parsee befriends the player (Req: 500+ Favor)
+SIF CFLAG:[[파르시]]:호감도 >= 500
+	CALL M_KOJO_DIARYSETTING_K60(8)
+
+;Parsee can't think of anything to write about (Req: 750+ Favor)
+SIF CFLAG:[[파르시]]:호감도 >= 750
+	CALL M_KOJO_DIARYSETTING_K60(19)
+
+;Parsee is jealous of the player (Req: 1000+ Favor)
+SIF CFLAG:[[파르시]]:호감도 >= 1000
+	CALL M_KOJO_DIARYSETTING_K60(9)
+
+;Parsee has a crush on the player (Req: Parsee has Yearning)
+SIF TALENT:사모
+	CALL M_KOJO_DIARYSETTING_K60(10)
+
+;Parsee can't drive the player away (Req: 2000+ Favor)
+SIF CFLAG:[[파르시]]:호감도 >= 2000
+	CALL M_KOJO_DIARYSETTING_K60(11)
+
+;Parsee STILL can't drive the player away (Req: 2500+ Favor)
+SIF CFLAG:[[파르시]]:호감도 >= 2500
+	CALL M_KOJO_DIARYSETTING_K60(12)
+
+;Player saw Parsee crying in the tavern
+SIF CFLAG:[[파르시]]:K60EN_PARSEE_CRYING_AT_THE_TAVERN > 0
+	CALL M_KOJO_DIARYSETTING_K60(13)
+
+;Parsee hates herself for melting down at you (Req: seeing Parsee's meltdown scene after you tried to push her down)
+SIF !FIRSTTIME("ParseeTooJealousForSex", 1)
+	CALL M_KOJO_DIARYSETTING_K60(17)
+
+;Parsee lost her virginity to the player
+SIF CFLAG:K60EN_PARSEE_STARTING_VIRGINITY && !THINKS_IS_VIRGIN([[파르시]])
+	CALL M_KOJO_DIARYSETTING_K60(14)
+
+;Parsee wants to do kinky shit with the player (Req: Parsee is in the Loving or Horny attitude and the player has had sex with her at least once)
+SIF GROUPMATCH(K60_ATTITUDE(), 0, 1) && (CFLAG:[[파르시]]:기정사실 & 합의_우후후)
+	CALL M_KOJO_DIARYSETTING_K60(15)
+
+; Ideas, stolen from Seija's diary
+; ;汎用
+; ;6:@First meeting
+; SIF CFLAG:[[세이자]]:1302 ;caught you on panty stealing
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 7)
+; ;8:@First panty stolen
+; ;9:@Time stop molested
+; SIF Mark:[[세이자]]:5 == 3 && CFLAG:[[세이자]]:1302 == 1 ;time stop rape maxed + panty thief flag (req for partner route)
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 10)
+; ;11:@Hate mark
+; ;12:@Date
+; SIF !FIRSTTIME("SeijaFirstKiss", 1, [[세이자]])
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 13)
+; ;14:@Caught masturbating
+; ;15:@Futa
+
+; ;イベント系
+; SIF TALENT:[[세이자]]:섹프
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 25)
+; SIF TALENT:[[세이자]]:사모
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 27)
+; IF TALENT:[[세이자]]:연모
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 28)
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 29)
+; ENDIF
+; ;31:@Cheating
+; SIF !FIRSTTIME("SeijaRejected", 1, [[세이자]])
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 32)
+
+; IF TALENT:[[세이자]]:연인
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 40)
+; 	CALL CHARA_DIARY_PAGESETTING([[파르시]], 41)
+; ENDIF
+; ;45:@Moved in
+; ;46:@First sex
+; ;47:@Player's cherry pop
+; ;48:@Sex enjoyment (non virgin initial)
+; ;49:@Sex enjoyment (virgin initial)
+
+;Other ideas:
+;- Parsee has let you read her diary ("I'm not going to self-censor. I need to be honest with %CALLNAME:MASTER%.")
+
+;=============================
+@DIARY_TEXT_K60, PAGENUM, MODE, PAGECOUNT
+;日記の内容
+;PAGENUM   = 日記番号（日記のパターン）
+;MODE      = "デイリー":一日終了時のデイリーイベントでの読み上げ
+;          = "コマンド":[日記を読む]コマンドでの読み上げ
+;PAGECOUNT = 何ページ目に書かれているか
+;=============================
+#DIM PAGENUM
+#DIMS MODE
+#DIM PAGECOUNT
+
+DEBUGPRINTFORML PAGENUM is {PAGENUM}
+DEBUGPRINTFORML MODE is %MODE%
+DEBUGPRINTFORML PAGECOUNT is {PAGECOUNT}
+
+;口上色指定あるならコメントアウトを外す
+CALL M_KOJO_COLOR_K60
+
+;グループマッチに日記のIDを入れて、表示させたい顔絵を表示する
+;表情・服装・特殊画像をオプション指定で表示（省略可）
+;書式は\resources\顔.CSVと下の例を参照
+
+;以下はサンプル
+IF MODE == "デイリー"
+	IF PAGENUM == 15
+		CALL PRINT_FACE, 60, "발정"
+	ELSEIF PAGENUM == 14
+		CALL PRINT_FACE, 60, "笑顔", "服1"
+	ELSEIF GROUPMATCH(PAGENUM, 3, 4, 8, 9, 10, 12, 17)
+		CALL PRINT_FACE, 60, "분노"
+	ELSE
+		CALL PRINT_FACE, 60
+	ENDIF
+ENDIF
+PRINTFORML
+
+;Structure stolen from Seija's diary
+IF CFLAG:[[파르시]]:K60EN_PARSEE_DIARY_WARNING == 0
+	PRINTFORMDW You reach for Parsee's diary, and then pause.
+	PRINTFORMDW Parsee wrote this. Angry, bitter, hateful, miserable Parsee.
+	PRINTFORMDW And she was willing to be all of those things in front of other people. How much worse must her diary be?
+	SIF MARK:TARGET:시간각인 || CFLAG:TARGET:수면간 || CFLAG:TARGET:만취간
+		PRINTFORMDW Not to mention... you raped %HIM_HER(TARGET)%. That must have taken a toll on her psyche.
+	PRINTFORMDW Something tells you that reading it will probably depress you and ruin your day.
+	PRINTFORMDW Maybe you shouldn't read it...
+	PRINTFORML
+	CFLAG:[[파르시]]:K60EN_PARSEE_DIARY_WARNING = 1
+ENDIF
+
+IF FIRSTTIME("ParseeDiaryRead",, [[파르시]])
+	PRINTFORMDW (Un)fortunately, %HIS_HER(TARGET)% diary isn't in Japanese.
+	IF ABL:MASTER:교양 < 1
+		PRINTFORMDW You don't even recognize the script, let alone the language.
+		PRINTFORMDL Maybe if you were more knowledgeable...
+		RETURN
+	ELSEIF ABL:MASTER:교양 == 1
+		PRINTFORMDW It's in Persian. You can't read it.
+		PRINTFORMDW Maybe if you were more knowledgeable...
+		RETURN
+	ELSEIF ABL:MASTER:교양 == 2
+		PRINTFORMDW It's in Persian. While you can read the Persian alphabet, you can't understand the language.
+		PRINTFORMDW Maybe if you were more knowledgeable...
+		RETURN
+	ELSEIF CFLAG:[[파르시]]:K60EN_PARSEE_DIARY_WARNING < 2
+		PRINTFORMDW It's in Persian. And it turns out that you're knowledgeable enough to know Persian.
+		CFLAG:[[파르시]]:K60EN_PARSEE_DIARY_WARNING = 2
+	ENDIF
+ELSE
+	IF ABL:MASTER:교양 < 2
+		PRINTFORMDL You flip through Parsee's diary, hoping that she slipped up and wrote an entry or two in Japanese, but she didn't.
+		PRINTFORMDW Maybe you could read her diary if you were more knowledgeable...
+		RETURN
+	ELSEIF ABL:MASTER:교양 == 2
+		PRINTFORMDL You flip through Parsee's diary.
+		PRINTFORMDL While you can read a transliterated word here and there, you don't know Persian well enough to understand anything more.
+		PRINTFORMDW Maybe you could read her diary if you were more knowledgeable...
+		RETURN
+	ELSEIF CFLAG:[[파르시]]:K60EN_PARSEE_DIARY_WARNING < 2
+		PRINTFORMDW Now that you've learned Persian, you can read Parsee's diary.
+		CFLAG:[[파르시]]:K60EN_PARSEE_DIARY_WARNING = 2
+	ENDIF
+ENDIF
+
+PRINTFORMDL - The Journal of %NAME:60%  Pg.{PAGECOUNT}--------------------------------------------------------------------------------------
+PRINTL
+
+;※PAGENUM:0は使えません
+SELECTCASE PAGENUM
+	CASE 1
+		PRINTFORML Well, I finally did it. I bought myself a diary.
+		PRINTFORML Although I suppose it's more like a journal. What would I even write in a normal diary?
+		PRINTFORML 「Nothing much happened on the bridge today. Went out drinking with Yuugi.\@ CFLAG:[[파르시]]:K60ENC_SETTING_YUUPARU_CRUSH == 1 ?  Wanted to confess to her but didn't.#\@」
+		PRINTFORML 「Saw a bunch of people I was jealous of. Went home and seethed for a while. Paruparuparuparu.」
+		PRINTFORML 「I hate myself.」
+		PRINTFORML It would just be the same things over and over. No, I'm going to use this to blow off steam.
+		PRINTFORML My anger, my jealousy, my self-hatred... I'm going to write about it here. Maybe it'll make me feel better.
+		PRINTFORML At least I won't be burdening anyone else with my insufferable whining.
+
+	CASE 2
+		PRINTFORML I want sex, and yet... I don't.
+		PRINTFORML On the one hand, of course I want sex. Who doesn't? I certainly have an active enough libido.
+		PRINTFORML More importantly, I want sex because it's one less thing to be jealous of.
+		PRINTFORML Kisume, Yamame, Yuugi... even Satori. They're attractive, they're charming, they're hundreds of years old...
+		PRINTFORML I'd be very surprised if any of them are virgins.
+		PRINTFORML In fact, I'd be very surprised if any youkai (other than myself, the fairies, and other childish youkai like Rumia) are virgins.
+		PRINTFORML Rumia and the fairies probably don't even know what sex is. I'm fairly certain Rumia thinks kissing can make you pregnant.
+		PRINTFORML But the rest of us?
+		PRINTFORML Never mind hundreds of years old, Lady Yakumo is older than Gensokyo itself. There's no way she hasn't slept with someone at least once.
+		PRINTFORML I have excuses, of course.
+		PRINTFORML First I was too busy with my job for romance, and then nobody came across my bridge for me to flirt with...
+		PRINTFORML But I can't lie to myself forever. I could have looked for love in the Old Capital. \@ CFLAG:[[파르시]]:K60ENC_SETTING_YUUPARU_CRUSH == 1 ? Maybe I could've even grown a spine and confessed to Yuugi. #\@
+		PRINTFORML I could have. But I didn't even try. I was too afraid of rejection.
+		PRINTFORML Just thinking about someone trying to touch me makes me freeze up.
+		PRINTFORML What if they hate it? What if they recoil in disgust as soon as they touch my skin?
+		PRINTFORML What if I'm too tense, or too inexperienced, and they abandon me and find some other, normal %PRINT_MALE("guy", TARGET)% instead?
+		PRINTFORML There are just too many things that could go wrong. And I'm so incompetent that I'm sure they would go wrong.
+		PRINTFORML I can deal with being ignored, but I can't deal with being mocked.
+		PRINTFORML And even if I somehow did manage to lose my virginity without that happening, it wouldn't actually make me feel any better about myself.
+		PRINTFORML For one, I would still feel jealous of all the people who lost their virginities sooner.
+		PRINTFORML But most importantly... it's not really sex I want so much as intimacy.
+		PRINTFORML Someone wanting my body is all well and good, but it's not enough. I want to know that they like me as a person.
+		PRINTFORML And that's absurd. I don't even like myself. Why would anyone else?
+		PRINTFORML So that's why I don't want sex or romance. I can pretend that it's not that I can't get it, it's that I don't desire it at all.
+		PRINTFORML In fact, I can pretend that it's a point of pride. Other youkai give in to their animal lusts, but not me. I can control myself.
+		PRINTFORML I don't need anyone else. I can be happy by myself. Pure, untouched Parsee Mizuhashi, who's just so much better than the rest of you.
+		PRINTFORML I can pretend, but only for so long. Sooner or later, reality creeps back in.
+
+	CASE 3
+		PRINTFORML What's wrong with me?
+		PRINTFORML I was tossing and turning all night because I couldn't stop thinking about how jealous I was of Satori.
+		PRINTFORML And once I finally drifted off, I woke up four hours later and immediately started brooding about how jealous of her I am again.
+		PRINTFORML Now I'm sitting at my desk at eight in the morning writing in my journal because I hope that getting this off my chest will allow me to sleep.
+		PRINTFORML Why? Why won't she get out of my head?
+		PRINTFORML Why can't I just get over her and how nobody can beat her at anything? Why can't I stop obsessing over this?!
+		PRINTFORML I just want it to stop. I just want my mind to leave me alone.
+
+	CASE 4
+		PRINTFORML I hate this. I hate living like this.
+		PRINTFORML I hate the surge of anger I feel whenever I look at another person, because how dare they have something, anything, that I don't?
+		PRINTFORML I hate knowing how irrational it is, and how they don't deserve my anger.
+		PRINTFORML I hate feeling angry anyway.
+		PRINTFORML I hate how it feels to be jealous.
+		PRINTFORML I hate feeling that pressure in my temples and at the back of my head, like my head is locked in a vise and someone is slowly tightening it.
+		PRINTFORML I hate the cold, clammy feeling that sweeps over me, like my insides have turned to ice and they're starting to melt.
+		PRINTFORML I hate how I feel the urge to run away just to make it stop, and I hate knowing that your feelings aren't things you can run away from.
+		PRINTFORML I hate how humiliated people make me feel just by being better than me.
+		PRINTFORML I hate the feeling of disgust and despair that sweeps over me when I see them.
+		PRINTFORML I hate how I feel like I have no reason to exist when they're so much better at everything than I am.
+		PRINTFORML I hate how sometimes I get so enraged that it feels like I'm not even myself anymore. Like I'm someone else, watching myself get angry.
+		PRINTFORML I hate how I keep obsessively brooding about whatever they did to make me jealous.
+		PRINTFORML I hate how it keeps popping back into my mind even when I don't want it to.
+		PRINTFORML I hate remembering how every day for years and years and years has been like this, and every day of the rest of my life will be like this too.
+		PRINTFORML I hate remembering that I wasn't always like this.
+		PRINTFORML And most of all, I hate knowing that my misery is my own damn fault.
+
+	CASE 5
+		PRINTFORML I don't know why I bother writing in this stupid thing.
+		PRINTFORML It helps to blow off steam for a little while, but then something else happens to ruin my day and I have to write about it, too.
+		PRINTFORML At this rate, I'm going to spend the rest of my life writing diary entries.
+		PRINTFORML And that's assuming that writer's block doesn't get to me. I only write about the same things over and over.
+		PRINTFORML 「I hate myself. I hate everyone. Everyone hates me. I'm sad. I'm jealous. I'm walking garbage. Whine whine whine.」
+		PRINTFORML There's only so much I can whine about before I start repeating myself.
+		PRINTFORML Maybe I should just burn this. I don't plan on rereading my old entries, and nobody else is ever going to read them.
+
+	CASE 6
+		PRINTFORML Sometimes I wonder who I really am.
+		PRINTFORML There are at least two Parsee Mizuhashis. There's the Parsee I pretend to be, around my victims.
+		PRINTFORML Cheerful, friendly, outgoing. Normal. But everything %HE_SHE(TARGET)% says is always a put-down or a backhanded compliment.
+		PRINTFORML Every word carefully chosen to spark jealousy in my victim so I can feed on them like the parasite I am.
+		PRINTFORML Then there's the Parsee I really am. Bitter, self-pitying, cruel, full of rage...
+		PRINTFORML %HE_SHE(TARGET,1)% resents everyone and everything, %HIM_HER(TARGET)%self most of all.
+		CALL PRINT_STRL, @"「And %HE_SHE(TARGET)%'s consumed by jealousy. That's @ITALIC@why@ I resent everyone.」"
+		PRINTFORML They're all so much better than I am, and constantly being reminded of that hurts.
+		PRINTFORML But sometimes I think about that strange thing that Satori told me.
+		PRINTFORML "You're too hard on yourself, Parsee\@ IS_MALE([[파르시]]) ? -kun # -chan\@.
+		PRINTFORML Deep down, you value and respect the people you're jealous of."
+		PRINTFORML At the time I assumed she was just trying to flatter me so I didn't go on a rampage or something...
+		PRINTFORML But I wasn't always a hashihime. I used to be a guardian spirit, long ago.
+		CALL PRINT_STRL, @"So long ago I can't even remember when I @ITALIC@stopped@ being one."
+		PRINTFORML What was I like, back then? Who was the third Parsee Mizuhashi?
+		PRINTFORML Was she the real me? If so, am I doomed to be some kind of fake Parsee for the rest of my life?
+		PRINTFORML I don't know. I don't want to think about those days. I don't want to think about what I've lost.
+		PRINTFORML I'm already jealous of everyone and everything. I don't think I could handle being jealous of myself.
+
+	CASE 7
+		PRINTFORML I don't know what I believe anymore.
+		PRINTFORML I recite a creed five times a day that says I'm a Zoroastrian and a worshipper of Lord Ohrmazd... but am I really?
+		PRINTFORML I don't remember the last time he spoke to me. Did he ever speak to me at all?
+		PRINTFORML Ever since I came to this land, I've seen plenty of "gods", and even a Christian angel, but no izad-ha.
+		PRINTFORML I suppose that might be a good thing. Gensokyo is a refuge for those that have been forgotten.
+		PRINTFORML And how could the true god and his angels ever be forgotten?
+		PRINTFORML I know this, but I can't help but doubt.
+		PRINTFORML The main thing that keeps me going is stubbornness, really.
+		PRINTFORML Becoming a Taoist or a Shinto practitioner would be an admission that I've been living a lie for centuries.
+		PRINTFORML And it would be an act of betrayal.
+		PRINTFORML The Parsis fled to India from Persia to escape persecution, even though they could have just abandoned their faith.
+		PRINTFORML How can I abandon mine?
+		PRINTFORML I wish there was a dastet I could talk to about these things, but I'm the only Zoroastrian in Gensokyo.
+		PRINTFORML The only way I would ever be able to speak to one is to bribe the gap hag to take me to the Outside World and back again...
+		PRINTFORML And I don't have anything to bribe her with. Only mediocre paintings and empty sake bottles.
+
+	CASE 8
+		PRINTFORML Damn it, it happened again.
+		PRINTFORML That's the fourth time now. Someone starts hanging around me, I somehow fail to drive them off with my rotten personality...
+		PRINTFORML And before I know it, I realize I'm starting to enjoy having them around.
+		PRINTFORML It happened with Yamame, with Kisume, with Yuugi... and now with %CALLNAME:MASTER%.
+		CALL PRINT_STRL, @"Well, it's too late to drive %HIM_HER(MASTER)% off @ITALIC@now@."
+		PRINTFORML Anyone foolish enough to befriend a hashihime isn't going to listen if I tell them "go away you idiot, I'm only going to hurt you".
+		PRINTFORML And besides... I like %HIM_HER(MASTER)%. I know it's selfish, but I do.
+		PRINTFORML I like talking with %HIM_HER(MASTER)%. I like fishing with %HIM_HER(MASTER)%. I like going out for drinks with %HIM_HER(MASTER)%.
+		PRINTFORML And somehow, %CALLNAME:MASTER% likes doing these things with me.
+		PRINTFORML Or maybe %HE_SHE(MASTER)% just pities me, and %HE_SHE(MASTER)%'s a very talented actor? I don't know.
+		PRINTFORML ...I'm so jealous of people who can actually treat their friends right.
+
+	CASE 9
+		PRINTFORML I hate %CALLNAME:MASTER%.
+		PRINTFORML I hate that I can't stop obsessing over %HIM_HER(MASTER)%.
+		PRINTFORML I've been jealous of hundreds, if not thousands of other people before, and none of them have gotten under my skin like this.
+		PRINTFORML （And that's another thing that I'm jealous of. That %HE_SHE(MASTER)%, of all people, is capable of affecting me like this without even trying.）
+		PRINTFORML It's not just that %HE_SHE(MASTER)%'s so good at so many things, from playing an instrument to fishing to cooking to gathering herbs.
+		PRINTFORML It's not just %HIS_HER(MASTER)% romantic success, although that's certainly a major part of it.
+		PRINTFORML （I'm hundreds of years old \@ CFLAG:K60EN_PARSEE_STARTING_VIRGINITY ? , nobody has ever been attracted to me, and I haven't slept with anyone since before %HE_SHE(MASTER)% was born # and nobody has ever been attracted to me\@...
+		PRINTFORML And yet this \@ IS_NONHUMAN(MASTER) ? youkai # human\@ a fraction of my age has every girl in Gensokyo swooning over %HIM_HER(MASTER)%?!）
+		PRINTFORML It's not just the fact that %HE_SHE(MASTER)%'s somehow become the most important person in Gensokyo when I wasn't looking...
+		PRINTFORML Although that's a major part of it too. A year ago none of us had any idea who %HE_SHE(MASTER)% was...
+		PRINTFORML And now %HE_SHE(MASTER)%'s all anyone can talk about.
+		PRINTFORML "%CALLNAME:MASTER% helped train me in Danmaku. %CALLNAME:MASTER% went on a date with me. I saw %CALLNAME:MASTER% fishing the other day."
+		PRINTFORML "%CALLNAME:MASTER% this, %CALLNAME:MASTER% that, %CALLNAME:MASTER% %CALLNAME:MASTER% %CALLNAME:MASTER% %CALLNAME:MASTER%... "
+		PRINTFORML Who is %HE_SHE(MASTER)%, anyway?! Why is Gensokyo %HIS_HER(MASTER)% personal playground now?!
+		PRINTFORML No, it's the fact that %HE_SHE(MASTER)% didn't have any of these things when %HE_SHE(MASTER)% came to Gensokyo.
+		PRINTFORML They weren't given to %HIM_HER(MASTER)%, like my long lifespan or my physical strength or my hashihime powers.
+		PRINTFORML %HE_SHE(MASTER,1)% earned them. %HE_SHE(MASTER,1)% worked %HIS_HER(MASTER)% fingers to the bone and %HIS_HER(MASTER)% hard work paid off.
+		PRINTFORML %HE_SHE(MASTER,1)% started out from nothing and worked to improve %HIM_HER(MASTER)%self.
+		PRINTFORML I started from nothing, and now I'm a bitter, lonely bridgekeeper who everyone hates. Hardly an improvement.
+		PRINTFORML %HE_SHE(MASTER,1)% is a living, breathing reminder that my problems are all my own fault.
+		PRINTFORML Everyone I know reminds me of how inferior I am, and nobody does it better than %CALLNAME:MASTER%.
+		PRINTFORML And that's the worst part. %HE_SHE(MASTER,1)% isn't doing this on purpose.
+		PRINTFORML %BREAKENG(@"It's not as though %HE_SHE(MASTER)% sat down one day and said \"I think I'm going to master the violin and go on date after date just to stick it to that bitch Parsee\".")%
+		PRINTFORML No. %HE_SHE(MASTER,1)%'s just living %HIS_HER(MASTER)% life. %HE_SHE(MASTER,1)%'s been nothing but polite and friendly to me.
+		PRINTFORML And that makes it so much worse. Not only do I have an obsessive hatred for %HIM_HER(MASTER)%, but it's completely unjustified.
+		PRINTFORML That's the irony of this whole situation. I've seen this kind of obsessive jealous hatred before. Nurtured it. Fed on it.
+		PRINTFORML And now I'm on the receiving end. That's the thing I hate the most... that all of this is just me getting what I deserve.
+
+	CASE 10
+		PRINTFORML I don't believe this. I can't believe this!
+		PRINTFORML I think I have a crush on %CALLNAME:MASTER%.
+		SIF CFLAG:[[파르시]]:K60ENC_SETTING_YUUPARU_CRUSH == 1
+			PRINTFORML I've felt this before. It's how I feel whenever I look at Yuugi.
+		PRINTFORML %HE_SHE(MASTER,1)% cute, yes, but I'm not just interested in %HIS_HER(MASTER)% body.
+		PRINTFORML Every time %HE_SHE(MASTER)% smiles at me, or asks me how my day is going, or helps me guard the bridge...
+		PRINTFORML I can't help but smile, too. And I feel all warm inside, and giddy like I've been drinking some really good sake, and...
+		PRINTFORML I'm not jealous. Whenever I'm with %HIM_HER(MASTER)%, I'm not jealous. Just happy.
+		CALL PRINT_STRL, @"That's insane. I'm a hashihime. I eat, sleep, and breathe jealousy. In fact, I @ITALIC@literally@ eat jealousy."
+		PRINTFORML Not feeling jealousy is like... I don't know, a human not feeling the need to breathe.
+		PRINTFORML Then again, the stories say that hashihime are born from jealous women who've had their hearts broken. Maybe falling in love makes us... better?
+		PRINTFORML But no. I can't be with %HIM_HER(MASTER)%.
+		PRINTFORML I've been too toxic for too long. I don't know how to interact with people without trying to make them miserable.
+		PRINTFORML I know how this is going to go.
+		PRINTFORML Sooner or later, %HE_SHE(MASTER)%'s going to get sick of me (and who could blame %HIM_HER(MASTER)%?).
+		PRINTFORML %HE_SHE(MASTER,1)%'s going to break up with me and find someone better (not that that's hard).
+		PRINTFORML No, there's no point in putting %HIM_HER(MASTER)% through that. %HE_SHE(MASTER,1)% deserves to be with someone who can treat %HIM_HER(MASTER)% right.
+		PRINTFORML That's what I tell myself. I know, intellectually, that I am too toxic to be in a relationship with %CALLNAME:MASTER%.
+		PRINTFORML But every time %HE_SHE(MASTER)% comes by and offers me tea, or helps me guard the bridge, or just talks to me...
+		PRINTFORML I want to reach out and hold %HIS_HER(MASTER)% hand.
+		PRINTFORML
+		PRINTFORML Incredible. I've traded jealousy for selfishness. I really cannot stop hurting people, can I?
+
+	CASE 11
+		PRINTFORML I just don't get it. Why won't %CALLNAME:MASTER% leave me alone?
+		PRINTFORML %BREAKENG(@"At first I tried to be nice. I couldn't help talking about %HIM_HER(MASTER)% behind %HIS_HER(MASTER)% back, of course, but I figured I would only see %HIM_HER(MASTER)% when %HE_SHE(MASTER)% crosses my bridge.")%
+		PRINTFORML But %HE_SHE(MASTER)% just keep coming back! %HE_SHE(MASTER,1)% actually seeks out my company! Is %HE_SHE(MASTER)% insane?
+		PRINTFORML Why would you want to spend time with someone as toxic as me unless you absolutely can't avoid it?!
+		PRINTFORML So then I tried going from passive-aggressive to outright aggressive. That should've gotten %HIM_HER(MASTER)% to take a hint.
+		CALL PRINT_STRL, @"But no. %HE_SHE(MASTER,1)% @ITALIC@still@ keeps hanging around! Why won't %HE_SHE(MASTER)% just go away?!"
+		CALL PRINT_STRL, @"And the fact that %HE_SHE(MASTER)%'s so goddamn @ITALIC@nice@ only makes it worse!"
+		PRINTFORML No matter how cold I am, no matter how much I insult %HIM_HER(MASTER)%...
+		PRINTFORML %HE_SHE(MASTER,1)% just smiles and takes it.
+		PRINTFORML And when I run out of insults, %HE_SHE(MASTER)%'s offering me tea or helping me forage or offering me food or...
+		PRINTFORML I hate it! Why are you wasting your time on me?! Are you stupid or something?!
+		PRINTFORML There are plenty of other girls in Gensokyo. Prettier ones. Nicer ones. More talented ones.
+		CALL PRINT_STRL, @"I can't think of a single one who @ITALIC@doesn't@ have more to offer than me."
+		PRINTFORML
+		PRINTFORML So why? What does %CALLNAME:MASTER% see in me?
+		PRINTFORML Is %HE_SHE(MASTER)% a masochist? Did %HE_SHE(MASTER)% make a bet with someone? Is %HE_SHE(MASTER)% trying to protect everyone else from me?
+		PRINTFORML Or does %HE_SHE(MASTER)% just feel sorry for poor little Parsee seething by %HIM_HER(TARGET)%self on %HIS_HER(TARGET)% bridge?
+		PRINTFORML I don't know. But I can't get away from %HIM_HER(MASTER)%.
+		PRINTFORML And worst of all... I don't want to, even though I know I should.
+		PRINTFORML How ironic. I specialize in destroying relationships for my own selfish gain...
+		CALL PRINT_STRL, @"And yet I can't bring myself to destroy the one relationship that I actually @ITALIC@should@ destroy."
+
+	CASE 12
+		CALL PRINT_STRL, @"%CALLNAME:MASTER% just @ITALIC@will not go away@. No matter how cold I am."
+		PRINTFORML And every time, it becomes harder and harder to hide how I really feel.
+		PRINTFORML One of these days, I'm going to slip up and go "I- it's not like I like you or anything!", like I'm some kind of comic character.
+		PRINTFORML Maybe I should pretend I've been hit on the head and can't remember how to speak Japanese anymore?
+		PRINTFORML I would have to cut off Kisume, Yamame, and Yuugi, but that would be for the best. They're better off that way.
+		PRINTFORML ...no, if I did that, I wouldn't be able to guard the bridge. And then people might get hurt trying to cross it.
+		PRINTFORML I wouldn't be able to arrange a replacement without speaking Japanese.
+		PRINTFORML
+		PRINTFORML （The next line is crossed out）
+		PRINTFORML But if I destroyed the brid
+		PRINTFORML
+		PRINTFORML Never mind. I'm going to bed.
+		PRINTFORML I need to stop writing in my journal when I'm drunk.
+
+	CASE 13
+		PRINTFORML %CALLNAME:MASTER% walked in on me crying in the tavern today.
+		PRINTFORML Normally I'm better at keeping my emotions bottled up, but sometimes, especially when I've been drinking...
+		PRINTFORML The loneliness and the jealousy and the self-hatred just get to be too much.
+		IF CFLAG:[[파르시]]:K60EN_PARSEE_CRYING_AT_THE_TAVERN != 3
+			PRINTFORML I was expecting %HIM_HER(MASTER)% to laugh at me or insult me, but %HE_SHE(MASTER)% actually asked me what was wrong.
+			PRINTFORML I refused to tell %HIM_HER(MASTER)%, of course. What was I going to say?
+			PRINTFORML I'm tired of being jealous of everyone I meet? I'm tired of self-sabotaging over and over and over?
+			PRINTFORML I'm tired of manipulating people just to fill my belly?
+			PRINTFORML I'm tired of living in constant fear of losing the few people who tolerate me?
+			PRINTFORML I'm tired of knowing I'm going to drive them away sooner or later? I'm tired of knowing they're better off without me in their lives?
+			PRINTFORML I'm tired of being afraid to get close to people because I'm too afraid of getting hurt?
+			PRINTFORML I'm tired of being Parsee fucking Mizuhashi?
+			PRINTFORML I haven't told anyone any of this. Why would I tell someone I barely know and trust about as far as I can throw them?
+			IF CFLAG:[[파르시]]:K60EN_PARSEE_CRYING_AT_THE_TAVERN == 2
+				PRINTFORML Then %HE_SHE(MASTER)% got sick of me and left.
+				CALL PRINT_STRL, @"「How ironic. One of the things I drink to cope with happened @ITALIC@because of@ my drinking.」"
+				CALL PRINT_STRL, @"「And then I ended up coping with @ITALIC@that@ by drinking even more...」"
+			ENDIF
+		ELSE
+			PRINTFORML %HE_SHE(MASTER,1)% took one look at me and left. I can't blame %HIM_HER(MASTER)%.
+			PRINTFORML I'm hard enough to deal with sober. What kind of idiot would want to talk to me when I'm having a drunken meltdown?
+		ENDIF
+		PRINTFORML Going forward, I'm just going to drink in the privacy of my own home. At least there I won't humiliate myself in front of anyone.
+
+	CASE 14
+	;TODO: is there a way to make sure the sex actually was gentle? Probably not
+		PRINTFORML Well, it happened. It finally happened.
+		PRINTFORML I lost my virginity to %CALLNAME:MASTER%. Only a few centuries later than average.
+		SIF HAS_VAGINA([[파르시]])
+			PRINTFORML I was expecting it to hurt, but it didn't, not really.
+		PRINTFORML %CALLNAME:MASTER% took it slow, and was very gentle.
+		PRINTFORML %HE_SHE(MASTER,1)% didn't laugh at me for being a centuries-old virgin or insult me for not knowing what to do in bed.
+		PRINTFORML %CALLNAME:MASTER% was kind, and affectionate, and sweet...
+		PRINTFORML （The line below this is stained with some kind of liquid）
+		PRINTFORML %HE_SHE(MASTER,1)% made me feel loved.
+
+	CASE 15
+		;Reworked from Parsee's "Masochist Under Her Clothes" event from K, but with her as the dom(me)
+		;Also more gentle, especially if she's at Love, since TW is A Lighthearted Game
+		;todo make it rougher if lust
+		PRINTFORML I've had this fantasy for the longest time. One I've been too ashamed to tell anyone, even if I could find a lover.
+		PRINTFORML But now that %CALLNAME:MASTER% and I are sleeping together... I wonder.
+		IF ABL:MASTER:마조끼 >= 2
+			PRINTFORML %HE_SHE(MASTER, 1)% is pretty submissive... just the way I like it.
+		ELSE
+			PRINTFORML Probably not. You'd have to be pretty damn submissive to go for something like this.
+		ENDIF
+		PRINTFORML And we wouldn't be able to do it outside the Underworld.
+		PRINTFORML Gensokyo is a pretty sexually open place, but I don't think we'd be able to get away with public sex anywhere else.
+		PRINTFORML But just thinking about it makes me \@ HAS_PENIS(TARGET) ? rock hard # soaking wet \@...
+		PRINTFORML Me, leading %CALLNAME:MASTER% around on a leash. No underwear, just bondage ropes under %HIS_HER(MASTER)% clothes.
+		PRINTFORMDL （The handwriting starts to get shaky around here...）
+		FONTITALIC
+		PRINTFORML I lead %HIM_HER(MASTER)% around the Old Capital, where everyone can see.
+		CALL HPH_PRINT, @"So everyone will know %HE_SHE(MASTER)%'s mine. My %CALLNAME:MASTER%HPH...", "L"
+		PRINTFORML Then we stop in the main street, and I tug on %HIS_HER(MASTER)% leash.
+		PRINTFORML %HE_SHE(MASTER, 1)% knows what to do. %HE_SHE(MASTER, 1)% pulls my skirt and underwear down and starts \@ HAS_PENIS(TARGET) ? fellating me # licking me\@.
+		PRINTFORML （The next line appears to have been stained with some kind of liquid, and the handwriting goes back to normal mid-sentence.）
+		PRINTFORM I stroke %HIS_HER(MASTER)% hair and call %HIM_HER(MASTER)% a good %PRINT_MALE("boy", MASTER)%, as %HE_SHE(MASTER)% services me wit
+		FONTREGULAR
+		PRINTFORML h everything %HE_SHE(MASTER)%'s got...
+		PRINTFORML Once I climax, I put my clothes back on and start walking %HIM_HER(MASTER)% again.
+		PRINTFORML Everyone stares at us. They're the ones jealous for a change. Jealous that %CALLNAME:MASTER% is mine.
+		PRINTFORML %BREAKENG(@"When %HE_SHE(MASTER)%'s so aroused that %HE_SHE(MASTER)% can't stand it anymore, so aroused that %HE_SHE(MASTER)%'s practically begging to climax...")%
+		PRINTFORM I finally lead %HIM_HER(MASTER)% into an alley and 
+		IF HAS_PENIS(TARGET)
+			PRINTFORML fuck %HIS_HER(MASTER)% brains out.
+		ELSE
+			IF HAS_PENIS(MASTER)
+				PRINTFORM rub %HIS_HER(MASTER)% member 
+			ELSE
+				PRINTFORM finger %HIM_HER(MASTER)% 
+			ENDIF
+			PRINTFORML until %HE_SHE(MASTER)%'s a panting, drooling mess.
+		ENDIF
+		PRINTFORML
+		PRINTFORML I've already had to take a break to pleasure myself while writing this, and now I'm \@ HAS_PENIS(TARGET) ? hard # wet \@ again.
+		CALL HPH_PRINT, @"Ah, %CALLNAME:MASTER%HPH...", "L"
+		PRINTFORML Hm. Even if it would be too embarrassing to ask %HIM_HER(MASTER)% to do this...
+		PRINTFORML I wonder if %HE_SHE(MASTER)% would be all right with calling me "\@ IS_MALE(TARGET) ? daddy # mommy\@"?
+
+	CASE 16
+		PRINTFORML Why can I never get my miniatures to come out right?
+		PRINTFORML I have so many ideas, but whenever I try to transition them to a canvas, they never look as good as I want them to.
+		PRINTFORML And when I look at them and compare them to other people's paintings... they're so stilted and lifeless in comparison.
+		PRINTFORML Other people's paintings make their viewers feel something. The only thing my paintings can make people feel is contempt.
+		PRINTFORML It's pathetic. I've been doing this for decades now and I still can't paint worth a damn.
+		PRINTFORML My miniatures are better than they were when I started, but they still aren't good enough. They'll never be good enough.
+		PRINTFORML Just once. Just once I want to look at a miniature I painted and feel pride instead of disgust at my own lack of talent.
+
+	CASE 17
+		RESETCOLOR
+		PRINTFORML （This entry is written in such shaky handwriting that it's almost illegible. It's also stained with some kind of liquid.）
+		PRINTFORML
+		CALL M_KOJO_COLOR_K60
+		PRINTFORML wHY
+		PRINTFORML WHY????
+		PRINTFORML %HE_SHE(MASTER)%'s cute
+		PRINTFORML %HE_SHE(MASTER)%'s nice
+		PRINTFORML %HE_SHE(MASTER)% WAMTED(sic) TO FUCK ME
+		PRINTFORML COULD HAVE \@ CFLAG:K60EN_PARSEE_STARTING_VIRGINITY ? LOST MY VIRGinity # brokEN My DRY SPELL\@
+		PRINTFORML BROKEN MY SECOND CURSE
+		PRINTFORML but no
+		PRINTFORML i had to get jealous
+		PRINTFORML i had to melt down at %HIM_HER(MASTER)%
+		PRINTFORML i had to fuck it up
+		PRINTFORML JUST LIKE I FUCK EVERYTHING UP
+		PRINTFORML I HATE THIS
+		PRINTFORML I HATE MYSELF
+		PRINTFORML I HATE %TOUPPER(@"%CALLNAME:MASTER%")%
+		PRINTFORML I HOPE %TOUPPER(HE_SHE(MASTER))% DIES
+		PRINTFORML I HOPE WE BOTH D
+
+	CASE 18
+		PRINTFORML I know %K60_MASTER(MASTER,1)% has said that %HE_SHE(MASTER)% likes my paintings.
+		PRINTFORML I even worked up the courage to submit one of them to an amateur art show the other day...
+		PRINTFORML And I got mostly praise, so I suppose they can't be that bad.
+		PRINTFORML But still, deep down, I worry that one day, someone will come along and show off a painting that blows mine out of the water.
+		PRINTFORML The people who praised my work will go back, reexamine it, and see all the many, many flaws.
+		PRINTFORML If I'm lucky, people will look back at it and say "well, it was decent for its time, but it hasn't aged well."
+		PRINTFORML More likely, it'll become one of those laughingstocks that nobody will be willing to admit they liked.
+		PRINTFORML And I'll be stuck, churning out mediocre work, too jealous and not talented enough to improve.
+
+	CASE 19
+		PRINTFORML Pathetic. Absolutely pathetic.
+		PRINTFORML The only thing worse than feeling empty inside is when you can't even find a way to let it out.
+		PRINTFORML I would paint, but I can't think of anything I haven't already painted.
+		PRINTFORML I would write, but these are the only words I can find.
+		PRINTFORML The only good thing about being an emotionally unstable mess is that sometimes I can channel my pain into my art.
+		PRINTFORML And sometimes, if I'm really lucky, I can look back at what I painted a few weeks later and think to myself:
+		PRINTFORML "This is pretty good. Maybe I'm not completely talentless after all."
+		PRINTFORML But now I don't even have that to turn to.
+		PRINTFORML At least there's alcohol. Lord Ohrmazd abandoned me, the Parsis abandoned me, the Ministry abandoned me...
+		PRINTFORML But the bottle will never abandon me. No matter how bad my life gets, I can always take solace in her arms.
+
+	CASE 20
+		PRINTFORML %CALLNAME:84% got mad at me today.
+		PRINTFORML We were just chatting, and %HE_SHE(84)% mentioned some repairs %HE_SHE(84)% was doing on the Moriya Shrine.
+		PRINTFORML I made some disparaging remark about div-ha, and %HE_SHE(84)% responded with "Do you have to talk about how Zoroastrian you are all the time?!"
+		PRINTFORML %HE_SHE(84,1)% apologized, and we changed the subject, but %HE_SHE(84)% had a point.
+		PRINTFORML Why do I talk about Zoroastrianism and Persian and Gujarati culture all the time?
+		PRINTFORML Well... part of it is because it annoys people.
+		PRINTFORML I want people to stay away from me. I don't like people because I'm always jealous of them, and they shouldn't like me because...
+		PRINTFORML Where do I begin? Everyone's better off leaving me alone.
+		PRINTFORML But that's not the only reason. I do it as a way of asserting my identity.
+		PRINTFORML I'm the only Zoroastrian in Gensokyo. I'm the only Persian in Gensokyo. And I'm the only former yazata in Gensokyo.
+		PRINTFORML I've lost everything I used to have. My bridge, my old home... even my species. All of it has been stripped from me over the years.
+		PRINTFORML My faith and my culture are the only remnants of my old life. If I lose them... I won't know who I am any longer.
+		PRINTFORML Even worse, it'll mean I've accepted who I am now. A bitter, broken hashihime with no purpose and no future.
+		PRINTFORML And that's why I cling to them, no matter how much it annoys the people around me or how pretentious I come off.
+		PRINTFORML I'd rather be pretentious than be nothing.
+ENDSELECT
+
+SIF MODE == "コマンド"
+	CALL M_KOJO_DIARIST_REACTION_K60(PAGENUM)
+
+RESETCOLOR
+
+;=============================
+@M_KOJO_MESSAGE_COM_K60_406
+;=============================
+CALL M_KOJO_MESSAGE_COM_K60_406_1
+RETURN RESULT
+
+;=============================
+@M_KOJO_MESSAGE_COM_K60_406_1
+;Command dialogue.
+;TFLAG:194 (whose diary you are reading)
+;Note that if;TFLAG:194 is not XX, it is someone else's diary.
+;PAGE is the number of pages written.
+;SHIRAHU(XX) is whether the status of character XX is normal or not.
+;(Note: this gets printed after you finish reading the diary. I'm not sure if this is supposed to happen or not.)
+;コマンド口上
+;TFLAG:194（誰の日記を読んでいるか）
+;TFLAG:194がXXでない場合は他人の日記なので注意。
+;PAGEは書かれてあるページ数。
+;SHIRAHU(XX)はキャラXXの状態が正常かどうか。
+;=============================
+CALL M_KOJO_COLOR_K60
+IF SHIRAHU(60) && TFLAG:194 == 60
+	IF FIRSTTIME("ParseeDiaryReadReact",, [[파르시]])
+		SELECTCASE K60_ATTITUDE()
+			;Loving
+			CASE 0, 3
+				PRINTFORMW 「You want to read my journal?」
+				PRINTFORMDW Parsee looks a little uncertain.
+				IF ABL:MASTER:교양 < 3
+					PRINTFORMW 「It's in Persian, so I don't know if you'll be able to read it. But if you can, well...」
+				ELSE
+					PRINTFORMW 「Well...」
+				ENDIF
+				IF TALENT:[[파르시]]:연인
+					PRINTFORML 「We made an agreement that if you have any doubts about being together with me, we would break up.」
+					PRINTFORMW 「And my journal entries show the kind of person I really am. But...」
+					PRINTFORMDW She bites her lip.
+					PRINTFORML 「Even if you don't want to be with me after reading them... please don't hate me.」
+					PRINTFORMW 「I'm not a good person, but I'm better than I was when I wrote them.」
+				ELSE
+					PRINTFORMW 「I suppose. Maybe if you see what kind of person I really am, it'll be enough to convince you to stay away from me.」
+				ENDIF
+			;Nice, horny
+			CASE 1
+				PRINTFORMW 「You want to read my journal?」
+				PRINTFORMDW Parsee looks a little uncertain.
+				PRINTFORMW 「I suppose... I've already bared my body to you. I might as well bare my soul.」
+				SIF ABL:MASTER:교양 < 3
+					PRINTFORMW 「Although it's in Persian, so I don't know if you'll be able to read it.」
+				PRINTFORML 「But, well... some of the early entries, before we became intimate...」
+				PRINTFORMW 「They're... how do I put this? I wasn't in a very good place when I wrote them.」
+				PRINTFORMW 「So promise you won't laugh at me, all right?」
+		ENDSELECT
+	ELSE
+		;Characters will only let you read their diary if they're at Love
+		PRINTFORML 「You want to read it again?」
+		PRINTFORMW 「Well, you didn't \@ TALENT:TARGET:연인 ? break up with # recoil in horror from \@ me after reading it the first time. I suppose it's all right.」
+	ENDIF
+ENDIF
+
+;=============================
+@M_KOJO_DIARYSETTING_K60(ARG, ARG:1 = 0)
+;日記発生処理の一括管理関数
+;=============================
+SIF DIARY:[[파르시]]:ARG != 0
+	RETURN
+IF ARG:1 == 0 && CFLAG:[[파르시]]:K60EN_PARSEE_DIARY_WARNING == 2 && ABL:MASTER:교양 > 2
+	DIARY:[[파르시]]:ARG = 2
+ELSE
+	DIARY:[[파르시]]:ARG = 3
+	CALL CHARA_DIARY_PAGESETTING([[파르시]], ARG)
+ENDIF
+
+
+;=============================
+@M_KOJO_DIARIST_REACTION_K60(ARG)
+;=============================
+#DIMS 表情
+#DIMS 台詞
+#DIMS 服装
+SELECTCASE ARG
+	CASE 1
+		表情 = blush
+		台詞 = 「I never expected anyone else to read my journal.」/「Especially not \@ TALENT:[[파르시]]:연인 ? my %PRINT_MALE("boy", MASTER)%friend # you\@...」
+
+	CASE 2
+		表情 = blush
+		台詞 = 「Ah, I can't believe I wrote this... how embarrassing.」/「Look at me, whining about being celibate like some kind of frustrated hormonal teenager.」
+		IF !THINKS_IS_VIRGIN([[파르시]])
+			台詞 = %台詞%/「That being said, though... I'm glad you took my virginity.」/「I can't think of anyone I'd rather lose it to than you.」
+		ELSE
+			台詞 = %台詞%/「That being said, though... I wouldn't mind if you took my virginity.」/「I can't think of anyone I'd rather lose it to than you.」
+		ENDIF
+
+	CASE 3
+		表情 = ""
+		台詞 = 「I often have trouble sleeping.」/「I'll just be lying in bed, trying to drift off, when someone I'm jealous of pops into my head... 」/「And I spend hours thinking about how inferior I am to them and hating myself for it.」
+		SIF TALENT:[[파르시]]:연인
+			台詞 = %台詞%/「Although these days, I just try to let the thoughts go and think of you instead.」/「And more often than not, it works.」
+
+	CASE 4
+		表情 = ""
+				;Inspired by Satori is in This Short Story
+		台詞 = 「...」/「What can I say? There is no end to the pain of being a hashihime.」/「But my curse is both my own fault and irreversible. I can only try to cope with it as best as I can.」
+		SIF TALENT:[[파르시]]:연인
+			台詞 = %台詞%/「And I've never had a better coping mechanism than my love for you.」/「My wonderful %PRINT_MALE("boy", MASTER)%friend... sometimes I still can't believe it really happened.」
+
+	CASE 5
+		IF TALENT:[[파르시]]:연인
+			表情 = blush
+		ELSE
+			表情 = ""
+		ENDIF
+		IF TALENT:[[파르시]]:연인
+			台詞 = 「I'm glad I didn't burn it.」/「I'll never run out of things to say about how much I love you...」
+		ELSE
+			台詞 = 「Sometimes I wonder if I should've just burned it.」/「I hope you don't hate me after reading all of this...」
+		ENDIF
+
+	CASE 6
+		表情 = ""
+		台詞 = 「I've changed so much since I was created. And even since I came to Gensokyo.」/「It's hard to remember who I used to be...」/「And pretending to be someone you're not takes a toll on your mental health.」/「Let alone needing to figure out who you need to be to harvest the most jealousy from your victims...」
+		IF TALENT:[[파르시]]:연인
+			台詞 = %台詞%/「I'm glad I don't do that anymore.」/「I can ground myself in you. Although who knows how long that'll la-」/「...Never mind.」
+		ELSE
+			台詞 = %台詞%/「It's terrible. I'm terrible.」/「I don't blame you if you hate me now...」
+		ENDIF
+
+	CASE 7
+		表情 = ""
+		台詞 = 「Even now, I struggle to hold on to my faith.」/「I wish Ohrmazd-sama would speak to me again, just once.」/「Even if it were to tell me I'm a monster bound for Duzakh.」/「At least then I'd know he cared enough to tell me that much...」
+
+	CASE 8
+		表情 = blush
+		IF TALENT:[[파르시]]:연인
+			台詞 = 「Every day, I regret being so cruel to you.」/「I wish I could turn back time and just accept the feelings I had for you...」/「But I can't change the past. I can only try to make amends now by being the best %PRINT_MALE("boy", [[파르시]])%friend I can be.」
+		ELSE
+			台詞 = 「Every day, I regret being so cruel to you.」/「I wish I could turn back time...」/「But I can't change the past. I can only try to make amends now.」
+		ENDIF
+
+	CASE 9
+		表情 = blush
+		IF TALENT:[[파르시]]:연인
+			台詞 = 「...」/「...」/「...Sometimes I feel that I'm not worthy of your love.」/「I wish I were a better person...」
+		ELSE
+			台詞 = 「...」/「...」/「I wish I were a better person...」
+		ENDIF
+
+	CASE 10, 11, 12
+		表情 = blush
+		IF TALENT:[[파르시]]:연인
+			台詞 = 「I wish I'd had the courage to accept my feelings for you back when I realized I had them.」/「I hurt you so much, all in the name of keeping you safe from being hurt...」/「Was that why you stuck around, no matter how cruel I was?」/「Even back then, you realized you had feelings for me, too?」
+		ELSE
+			台詞 = 「...」/「...」/「Well, now you know. That's why I was so cruel to you for so long.」/「I knew I couldn't be with you, so I tried to drive you away to keep you safe.」/「I shouldn't have done it. It was wrong. And I'll live with the guilt every day of my miserable life.」
+		ENDIF
+
+	CASE 12
+		表情 = blush
+		台詞 = 「...What an idiotic plan that was.」/「I came up with other, even stupider ones... but thankfully I never wrote them down here.」/「Ah, this is so embarrassing... but I suppose I deserve it, given the way I've treated you.」
+
+	CASE 13
+		表情 = blush
+		IF CFLAG:[[파르시]]:K60EN_PARSEE_CRYING_AT_THE_TAVERN != 1
+			IF TALENT:[[파르시]]:연인
+				台詞 = 「I'm not angry at you for leaving me when I was crying that day.」/「I'm well aware that I'm difficult enough to deal with when I'm sober.」/「When I'm really drunk, my mood swings and my difficulties keeping my emotions under control get even worse.」/「It's a difficult balancing act.」/「If I'm not drunk enough, my jealousy is still eating away at me.」/「If I'm too drunk, I end up... well, like that.」/「I'm glad that I'm starting to get my drinking under control now that I've got healthier coping mechanisms...」
+			ELSE
+				台詞 = 「I'm not angry at you for leaving me when I was crying that day.」/「I'm well aware that I'm difficult enough to deal with when I'm sober.」/「When I'm really drunk, my mood swings and my difficulties keeping my emotions under control get even worse.」/「It's a difficult balancing act.」/「If I'm not drunk enough, my jealousy is still eating away at me.」/「If I'm too drunk, I end up... well, like that.」/「Such is the life of a hashihime...」
+			ENDIF
+		ELSE
+			台詞 = 「Thank you for staying with me back then. Even though I was melting down and lashing out at you...」/「No wonder you're so popular in Gensokyo, even though you only came here recently.」/「No matter who it is, from the lowliest fairy to the highest so-called goddess...」/「From people like me to people like that Moriya Shrine maiden...」/「You're always kind. You listen to our problems, you provide us with wood and fish, you answer any questions we might have...」/「I wish I were more like you.」
+		ENDIF
+
+	CASE 14
+		表情 = blush
+		台詞 = 「I spent nearly an hour trying to figure out how to express the way you made me feel.」/「In the end, I decided that you made me feel loved.」/「I've always thought of myself as ugly and unloveable, even before I became a hashihime.」/「Knowing that you liked me and found me attractive enough to want to take my virginity... that meant a lot to me.」/「And it still does. Thank you, %K60_MASTER()%.」
+		SIF TALENT:[[파르시]]:연인
+			台詞 = %台詞%/「And on the day we became lovers... ah, I thought I was going to die of happiness then and there.」/「You loved me! You didn't think I was too ugly, or too unstable, or too needy, or too poor, or anything.」/「You loved me, flaws and all.」/「Oh, %K60_MASTER()%... meeting you was the best thing that ever happened to me. I love you more than words can express...」
+
+	CASE 15
+		表情 = blush
+		台詞 = 「Oh no. Oh no...」/「I forgot that I wrote this degenerate fantasy about us.」/「Just... forget that you ever saw it, all right?」
+		IF TALENT:[[파르시]]:연인
+			台詞 = %台詞%/「Unless, of course... you want to try it out. Ehehe...」
+		ELSE
+			台詞 = %台詞%/「I don't want to give you yet another reason to hate me.」
+		ENDIF
+
+	CASE 16
+		表情 = ""
+		台詞 = 「Honestly, I use my paintings as a way of venting negative emotions more than anything.」/「I have a lot of paintings with rather... morbid themes that I've never shown anyone else.」/「But still... I wish I could make paintings as good as the artists I admire.」
+
+	CASE 17
+		表情 = ""
+		台詞 = 「...」/「...」/「I wish I knew why I did things like that.」/「Maybe I self-sabotage because I feel that I don't deserve to be happy?」/「Or because I'm so used to things going badly for me that I subconsciously decide to get it over with and reject others before they can reject me?」/「I wish I could get help for my behavior... but I don't even understand why I act the way I do.」/「And if nobody can understand what's gone wrong in my head to make me act the way I do, how can they hope to cure it?」
+
+	CASE 18
+		表情 = ""
+		台詞 = 「If people simply hated my paintings, I could understand that. They just aren't good, end of story.」/「But if people think my paintings are good, then decide they were never good somewhere down the line...」/「It means I lied to myself when I thought I could make people happy with my art.」/「Being a bad artist is humiliating enough. Being a bad artist and a fraud? You might as well just give up and never paint again.」
+
+	CASE 19
+		表情 = ""
+		IF TALENT:[[파르시]]:연인
+			台詞 = 「I used to suffer from recurring feelings of emptiness.」/「It came hand in hand with the jealousy. When I got jealous of someone...」/「I thought to myself about how I'll never have what they have.」/「How I'll never be good enough to have it.」/「And I felt like I'd been hollowed out.」/「I don't feel that way anymore, though.」/「Your love has filled that void...」
+		ELSE
+			台詞 = 「I've suffered from recurring feelings of emptiness as long as I can remember.」/「It comes hand in hand with the jealousy. When I get jealous of someone...」/「I think to myself about how I'll never have what they have.」/「How I'll never be good enough to have it.」/「And I feel like I've been hollowed out.」/「I suppose it reminds me of just how many things there are that I wish I could have.」
+		ENDIF
+
+ENDSELECT
+IF SHIRAHU(60) && CFLAG:60:현재위치 == CFLAG:MASTER:현재위치
+	;一時的に拡張顔絵に変更
+	VARSET LOCAL
+	LOCAL = FLAG:스탠딩종류
+	FLAG:스탠딩종류 = 1
+	; LOCAL:1 = CFLAG:60:대체적용
+	; CFLAG:60:대체적용 = 1
+	PRINTFORML 
+	CALL PARSEESPEAK, 台詞, 表情
+	FLAG:스탠딩종류 = LOCAL
+	; CFLAG:60:대체적용 = LOCAL:1
+ENDIF

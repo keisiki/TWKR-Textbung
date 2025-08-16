@@ -1,0 +1,552 @@
+﻿;==================================================
+;탄막승부
+;==================================================
+@M_KOJO_MESSAGE_COM_K60_DANMAKU(ARGS, 相手残機)
+#DIM 相手残機
+;全体の流れ
+;①【戦闘前】→②ダイスロールとプレイヤー選択肢、ハンデをつけた場合は【ハンデ口上】→③対応スキルが発動した場合【スキル口上】→④被弾判定、キャラが被弾したなら【被弾口上】→
+;どちらかの残機が0になっていなければ②に戻る→⑤【戦闘後口上】
+
+;--------------------------------------------------
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------
+IF LOCAL
+    SIF FLAG:구상색
+        TRYCALLFORM M_KOJO_COLOR_K{NO:TARGET}
+	;-------------------------------------------------
+	;小分岐
+	;-------------------------------------------------
+	;The larger the handicap, the more of a disadvantage the player is at
+	;Negative numbers mean the player has an advantage
+	;戦闘前
+	;HANDICAP_FIXED = 0
+	;HANDICAP_RAND = 0
+	;ハンデをつけることができ、数値が大きいほどあなたが不利になる　数値が負ならあなたが有利に
+	;キャラの能力に関わらずクッソ強くしたり弱くしたりできる
+	;記入チェック（=0, 非表示、1, 表示）
+    LOCAL:1 = 1
+	;-------------------------------------------------
+	;TODO: balance this
+	;Parsee gets stronger based on her jealousy, or if she's stronger than you, the jealousy produced from the difference between your and her combat skill
+    IF LOCAL:1 && ARGS == "戦闘前"
+        HANDICAP_FIXED = 0
+        HANDICAP_RAND = 0
+        LOCAL:10 = ABL:MASTER:전투능력 - ABL:TARGET:전투능력
+        IF LOCAL:10 < 0
+            LOCAL:10 *= -2
+        ELSE
+            LOCAL:10 = K60_JEALOUSY()
+            SELECTCASE K60_ATTITUDE()
+                CASE 0
+                    LOCAL:10 /= 2
+                CASE 1
+                    SIF TALENT:TARGET:연인
+                        LOCAL:10 /= 2
+                CASE 2,3
+                    LOCAL:10 *= 2
+            ENDSELECT
+        ENDIF
+        HANDICAP_FIXED = LOCAL:10
+        HANDICAP_RAND = 100
+
+        IF MARK:TARGET:반발각인 > 0
+            SELECTCASE K60_ATTITUDE()
+                CASE 0, 1
+                    PRINTFORMW 「A Danmaku battle? Sure, I'd love to.」
+                    PRINTFORMDW Parsee smiles stiffly.
+                    PRINTFORM 「I'm still 
+                    SELECTCASE MARK:TARGET:반발각인
+                        CASE 1
+                            PRINTFORM a little cross with 
+                        CASE 2
+                            PRINTFORM mad at 
+                        CASE 3
+                            PRINTFORM extremely angry at 
+                    ENDSELECT
+                    PRINTFORMW you.」
+                    PRINTFORMW 「Let's just settle this with bullets and let bygones be bygones.」
+                    HANDICAP_FIXED = HANDICAP_FIXED * (2 * MARK:TARGET:반발각인)
+                CASE 2, 3
+                    PRINTFORMW 「A Danmaku battle? Sure, I'd love to give you a good beating after what you did to me.」
+                    PRINTFORMW 「But be warned... I'm not going to hold anything back.」
+                    PRINTFORMDW Parsee smiles coldly.
+                    PRINTFORMW 「The wind blows in my favor now, little %PRINT_MALE("man", MASTER)%.」
+                    SIF MARK:TARGET:반발각인 == 3
+                        PRINTFORMW 「You will not be walking away from this one.」
+                        ;*War Season intensifies*
+                    HANDICAP_FIXED = HANDICAP_FIXED * (3 * MARK:TARGET:반발각인)
+            ENDSELECT
+        ELSE
+            SELECTCASE K60_ATTITUDE()
+			;Loving
+                CASE 0
+                    PRINTFORML 「A Danmaku battle? Sure, that sounds like fun.」
+                    PRINTFORMW 「But don't expect me to go easy on you just because I like you!」
+			;Nice, horny
+                CASE 1
+                    PRINTFORML 「A Danmaku battle? Fine by me.」
+                    PRINTFORML 「But fights are always so much more fun with a wager, don't you think?」
+				;yes, this is a joke about eraTohoReverse
+                    PRINTFORML 「Let's see... if I win, you have to lick my feet, and if y-」
+                    PRINTFORMW 「What? Really now, is licking feet that repulsive to you? You're no fun...」
+			;Grumpy tsundere
+                CASE 2
+                    IF ABL:MASTER:전투능력 > ABL:TARGET:전투능력
+                        $PARSEE_DANMAKU_CHALLENGE_MASTER_IS_STRONGER
+                        CALL M_KOJO_COLOR_K60_JEALOUS
+                        PRINTFORMW 「Danmaku? Do you take pleasure in fighting those weaker than you?」
+                        PRINTFORMDW Parsee smirks at %PARSE("you")%.
+                        PRINTFORMW 「Well, you might be in for a surprise...」
+                        CALL M_KOJO_COLOR_K60
+                    ELSEIF ABL:MASTER:전투능력 < ABL:TARGET:전투능력
+                        PRINTFORMW 「Danmaku? But you're weaker than I am.」
+                        PRINTFORMDW Parsee scowls at %PARSE("you")%.
+                        CALL M_KOJO_COLOR_K60_JEALOUS
+                        PRINTFORMW 「And yet, you challenge me anyway... I envy your courage.」
+                        CALL M_KOJO_COLOR_K60
+                    ELSE
+                        PRINTFORMW 「Danmaku? I accept.」
+                        PRINTFORMW 「Hm... we seem to be evenly matched.」
+                        PRINTFORMW 「May the best person win, then!」
+                        PRINTFORMDW Parsee scowls at %PARSE("you")%.
+                        CALL M_KOJO_COLOR_K60_JEALOUS
+                        PRINTFORMW 「That'll probably be you... do me a favor and don't gloat when you win, all right?」
+                        CALL M_KOJO_COLOR_K60
+                    ENDIF
+			;Fake nice
+                CASE 3
+                    IF ABL:MASTER:전투능력 > ABL:TARGET:전투능력
+                        GOTO PARSEE_DANMAKU_CHALLENGE_MASTER_IS_STRONGER
+                    ELSEIF ABL:MASTER:전투능력 < ABL:TARGET:전투능력
+                        PRINTFORMW 「Danmaku? But you're weaker than I am.」
+                        PRINTFORMDW Parsee smiles at %PARSE("you")%.
+                        CALL M_KOJO_COLOR_K60_JEALOUS
+                        PRINTFORMW 「And yet, you challenge me anyway... I envy your courage.」
+                        CALL M_KOJO_COLOR_K60
+                    ELSE
+                        PRINTFORMW 「Danmaku? I accept.」
+                        PRINTFORMW 「Hm... we seem to be evenly matched.」
+                        PRINTFORMW 「May the best person win, then!」
+                    ENDIF
+            ENDSELECT
+        ENDIF
+        PRINTFORMW
+        PRINTFORMDL Parsee hovers in the air as %HIS_HER(TARGET)% eyes shine greener than ever...
+        PRINTFORML
+        PRINTDATAW
+            DATAFORM 「Let me show you my cursed power!」
+            DATAFORM 「Experience the power of a youkai of fear!」
+            DATAFORM 「I may not be the boss of a dungeon, but I can still put up a fight!」
+            DATAFORM 「You'd better make this interesting!」
+			;From LostWord
+            DATAFORM 「I don't recommend letting this hit you!」
+        ENDDATA
+        PRINTFORML
+        RETURN 0
+    ENDIF
+	;-------------------------------------------------
+	;Handicap (doesn't apply if the character's handicap is 0)
+	;ハンデ
+	;記入チェック（=0, 非表示、1, 表示）
+    LOCAL:1 = 1
+	;-------------------------------------------------
+    IF LOCAL:1 && ARGS == "ハンデ"
+		;ハンデつけなかったら表示されないので無記入でよい
+        PRINTFORML
+        IF ABL:MASTER:전투능력 - ABL:TARGET:전투능력 > 0
+            SELECTCASE K60_ATTITUDE()
+                CASE 0, 1
+                    PRINTFORMDL Parsee stares into %PARSE("your")% eyes, a slight smile on %HIS_HER(TARGET)% face.
+                    PRINTFORMDW %HE_SHE(TARGET,1)% looks a little jealous of %PARSE("your")% Danmaku skills...
+                CASE 2
+                    PRINTFORMDL Parsee locks eyes with %PARSE("you")% and glares at %PARSE("you")%.
+                    PRINTFORMDW %HE_SHE(TARGET,1)% looks jealous of %PARSE("your")% Danmaku skills...
+                CASE 3
+                    PRINTFORMDL Parsee stares into %PARSE("your")% eyes, a cold smile on %HIS_HER(TARGET)% face.
+                    PRINTFORMDW %HE_SHE(TARGET,1)% looks jealous of %PARSE("your")% Danmaku skills...
+            ENDSELECT
+        ELSE
+            SELECTCASE K60_ATTITUDE()
+                CASE 0, 1
+                    PRINTFORMDL Parsee stares into %PARSE("your")% eyes, a slight smile on %HIS_HER(TARGET)% face.
+                CASE 2
+                    PRINTFORMDL Parsee locks eyes with %PARSE("you")% and glares at %PARSE("you")%.
+                CASE 3
+                    PRINTFORMDL Parsee stares into %PARSE("your")% eyes, a cold smile on %HIS_HER(TARGET)% face.
+            ENDSELECT
+            PRINTFORMDW %PARSE("You feel")% a little jealous of %HIS_HER(TARGET)% Danmaku skills...
+        ENDIF
+        PRINTFORML
+        RETURN 0
+    ENDIF
+	;-------------------------------------------------
+	;戦闘中TARGET被弾時口上
+	;記入チェック（=0, 非表示、1, 表示）
+    LOCAL:1 = 1
+	;-------------------------------------------------
+    IF LOCAL:1 && ARGS == "被弾" 
+		;別に一律で「やられたー」だけでもいいよ
+        SELECTCASE 相手残機
+			;残り残機3が表示されるのは【洽覧深識】持ちのみ
+            CASE 2
+                PRINTFORML 「Hm... not bad.」
+                SELECTCASE K60_ATTITUDE()
+                    CASE 2, 3
+                        CALL M_KOJO_COLOR_K60_JEALOUS
+                        PRINTFORML 「I envy your strength...」
+                        CALL M_KOJO_COLOR_K60
+                ENDSELECT
+                PRINTFORMW 「How about this, then?!」
+                IF CFLAG:[[파르시]]:K60EN_SEEN_GEM == 0
+                    PRINTFORMDW ――Jealousy Sign 「Green-Eyed Monster」!!!
+                    CFLAG:[[파르시]]:K60EN_SEEN_GEM = 1
+                ELSEIF CFLAG:[[파르시]]:K60EN_SEEN_TCS == 0
+                    PRINTFORMDW ――Tongue-Cut Sparrow "Hate for the Humble and Rich"!!!
+                    CFLAG:[[파르시]]:K60EN_SEEN_TCS = 1
+                ELSE
+                    PRINTDATADW
+                        DATAFORM ――Jealousy Sign 「Green-Eyed Monster」!!!
+                        DATAFORM ――Grandpa Hanasaka 「Jealousy of the Kind and Lovely」!!!
+                        DATAFORM ――Tongue-Cut Sparrow 「Hate for the Humble and Rich」!!!
+                        DATAFORM ――Malice Sign 「Shrine Visit in the Dead of Night」!!!
+                        DATAFORM ――Jealousy 「Jealousy Bomber」!!!
+                        DATAFORM ――Resentment Art 「Grudge Returning」!!!
+						;from The Outsider Who Loved Gensokyo
+                        DATAFORM ――「Spiteful Swipe」!!!
+                        DATAFORM ――「Crushing Resentment」!!!
+                    ENDDATA
+                ENDIF
+            CASE 1
+                SELECTCASE K60_ATTITUDE()
+                    CASE 0, 1
+                        PRINTFORMDW Parsee looks at %PARSE("you")% enviously, but only for a moment.
+                        PRINTFORMW 「All right... time to give it my all!」
+                    CASE 2
+                        PRINTFORMDW Parsee grits %HIS_HER(TARGET)% teeth.
+                        CALL M_KOJO_COLOR_K60_JEALOUS
+                        PRINTDATADW
+                            DATAFORM 「No... I won't lose! Not to you!」
+							;From LostWord
+                            DATAFORM 「I have too many regrets! I can't fall like this!」
+                        ENDDATA
+                        CALL M_KOJO_COLOR_K60
+                    CASE 3
+                        PRINTFORMDW Parsee looks at %PARSE("you")% enviously.
+                        CALL M_KOJO_COLOR_K60_JEALOUS
+                        PRINTFORMW 「All right... time to give it my all!」
+                        CALL M_KOJO_COLOR_K60
+                ENDSELECT
+                PRINTFORMW 「How about this, then?!」
+                IF CFLAG:[[파르시]]:K60EN_SEEN_GEM == 0
+                    PRINTFORMDW ――Envy 「Green-Eyed Invisible Monster」!!!
+                    CFLAG:[[파르시]]:K60EN_SEEN_GEM = 1
+                ELSEIF CFLAG:[[파르시]]:K60EN_SEEN_TCS == 0
+                    PRINTFORMDW ――Tongue-Cut Sparrow "Large Box and Small Box"!!!
+                    CFLAG:[[파르시]]:K60EN_SEEN_TCS = 1
+                ELSE
+                    PRINTDATADW
+                        DATAFORM ――Envy 「Green-Eyed Invisible Monster」!!!
+                        DATAFORM ――Grandpa Hanasaka 「Shiro's Ashes」!!!
+                        DATAFORM ――Tongue-Cut Sparrow 「Large Box and Small Box」!!!
+                        DATAFORM ――Malice Sign 「Day 7 of the Shrine Visits in the Dead of Night」!!!
+                        DATAFORM ――Jealousy 「Jealousy Bomber」!!!
+                        DATAFORM ――Resentment Art 「Grudge Returning」!!!
+						;from Touhou LostWord
+                        DATAFORM ――Hideki to Onigiri 「Higekiri Slash」!!!
+						;from The Outsider Who Loved Gensokyo
+                        DATAFORM ――「Hollow Anathema」!!!
+                        DATAFORM ――「Spite」!!!
+						;from Fantasy Maiden Wars
+                        DATAFORM ――「Intense Jealous Princess」!!!
+                    ENDDATA
+                ENDIF
+            CASE 0
+                SELECTCASE K60_ATTITUDE()
+                    CASE 0, 1
+                        PRINTFORMW 「So it seems you're as skilled at Danmaku as you are at winning the hearts of hashihime...」
+                    CASE 2
+                        CALL M_KOJO_COLOR_K60_VERY_JEALOUS
+                        PRINTFORMW 「I really should have seen this coming...」
+                        PRINTFORMDW Parsee's eyes are burning with envy now.
+                        CALL M_KOJO_COLOR_K60
+                    CASE 3
+                        CALL M_KOJO_COLOR_K60_JEALOUS
+                        PRINTFORMW 「It seems that you've won...」
+                        CALL M_KOJO_COLOR_K60
+                        PRINTFORMDW Parsee looks at %PARSE("you")% enviously.
+                ENDSELECT
+        ENDSELECT
+    ENDIF
+
+	;-------------------------------------------------
+	;After the fight
+	;The case statement is for the number of lives the character has remaining
+	;戦闘後
+	;記入チェック（=0, 非表示、1, 表示）
+    LOCAL:1 = 1
+	;-------------------------------------------------
+    IF LOCAL:1 && ARGS == "戦闘後"
+        PRINTFORML
+		;Case 4 only applies to 2hus with【Deep Knowledge Of Life】, which Parsee doesn't have
+		;Cases 3-1 are for when you lose, Case 0 is for when you win
+		;残り残機4が表示されうるのは【洽覧深識】持ちのみ
+		;残機が1以上ならあなたの負け、0の場合はあなたの勝利
+
+
+        IF MARK:TARGET:반발각인 > 0
+            IF 相手残機 > 0
+                SELECTCASE K60_ATTITUDE()
+                    CASE 0, 1
+                        PRINTFORMW 「All right, we're even now.」
+                        PRINTFORMDW Parsee smiles and shakes your hand.
+                        CALL K60_LOSE_HATE_MARKS(1)
+                    CASE 2, 3
+                        PRINTFORMW 「Ah... that felt good. We're even now.」
+                        PRINTFORMDW Parsee smiles and shakes your hand.
+                        CALL K60_LOSE_HATE_MARKS(0)
+                ENDSELECT
+            ELSE
+                CALL M_KOJO_COLOR_K60_VERY_JEALOUS
+                PRINTFORMW 「I couldn't beat you even when going all out...」
+                CALL M_KOJO_COLOR_K60
+                PRINTFORMDW Parsee glares at you.
+                PRINTFORMW 「This isn't over, %CALLNAME:MASTER%. If anything, I'm even more annoyed at you.」
+                CALL K60_GET_ANGRY(MARK:TARGET:반발각인 + 1)
+            ENDIF
+        ELSE
+		;Player is stronger or equally strong
+            IF ABL:MASTER:전투능력 >= ABL:TARGET:전투능력
+                SELECTCASE 相手残機
+                    CASE 3
+                        SELECTCASE K60_ATTITUDE()
+                            CASE 0
+                                PRINTFORMW 「Not even a scratch... come on, %K60_MASTER()%! I told you not to go easy on me!」
+                            CASE 1
+                                PRINTFORMW 「Not even a scratch... were you just too worn out from our last tryst?」
+                            CASE 2
+                                PRINTFORML 「Not even a scratch... were you trying to suck up to me by throwing the fight?」
+                                PRINTFORMW 「It's not going to work.」
+                            CASE 3
+                                PRINTFORML 「Not even a scratch... were you distracted, perhaps?」
+                                PRINTFORMW 「Or simply unlucky? Well, these things happen.」
+                        ENDSELECT
+                    CASE 2
+                        SELECTCASE K60_ATTITUDE()
+						;Loving
+                            CASE 0
+                                PRINTFORMW 「You managed to hit me once... I hope you weren't going easy on me.」
+						;Nice, horny
+                            CASE 1
+                                PRINTFORML 「You managed to me once... were you distracted by my charms, maybe?」
+                                PRINTFORMW 「I know I had trouble focusing on your bullets and not your body...」
+						;Grumpy tsundere
+                            CASE 2
+                                PRINTFORML 「Did you hit me once to make me think you didn't throw the fight?」
+                                PRINTFORMW 「I'm not an idiot, %K60_MASTER()%... but it seems that you are.」
+						;Fake nice
+                            CASE 3
+                                PRINTFORMW 「I'm surprised that I actually won that one. I got lucky, I suppose.」
+                                PRINTFORMDW Parsee bows to %PARSE("you")%.
+                        ENDSELECT
+                    CASE 1
+                        SELECTCASE K60_ATTITUDE()
+                            CASE 0, 1
+                                PRINTFORML 「I... won?」
+                                PRINTFORMW 「It was probably just a fluke... but a win is a win, especially against someone as strong as you.」
+                                PRINTFORMDW Parsee bows to %PARSE("you")%, joy on %HIS_HER(TARGET)% face.
+						;Grumpy tsundere
+                            CASE 2
+                                PRINTFORMW 「Let me guess, you forgot you were planning to throw the fight and panicked?」
+                                PRINTFORMDW Parsee gives %PARSE("you")% a slight bow, glaring at %PARSE("you", 1)%.
+						;Fake nice
+                            CASE 3
+                                PRINTFORMW 「Well fought. I probably would have lost if I hadn't gotten lucky.」
+                                PRINTFORMDW Parsee bows to %PARSE("you")%, a slight smile on %HIS_HER(TARGET)% face.
+                        ENDSELECT
+                    CASE 0
+                        SELECTCASE K60_ATTITUDE()
+						;Loving
+                            CASE 0
+                                PRINTFORMDW Parsee bows to %PARSE("you")%, but %PARSE("you", 1)% can see a little resentment on %HIS_HER(TARGET)% face.
+                                CALL M_KOJO_COLOR_K60_JEALOUS
+                                PRINTFORMW 「Can you train with me tomorrow, %K60_MASTER()%? I want to be as strong as you are...」
+                                CALL M_KOJO_COLOR_K60
+						;Nice, horny
+                            CASE 1
+                                PRINTFORMDW Parsee bows to %PARSE("you")%, but %PARSE("you", 1)% can see a little resentment on %HIS_HER(TARGET)% face.
+                                CALL M_KOJO_COLOR_K60_JEALOUS
+                                PRINTFORMW 「I may have lost, but it was good exercise at least.」
+                                PRINTFORMW 「I need to stay in shape if I want to be as \@ IS_MALE(MASTER) ? handsome # beautiful\@ as you...」
+                                CALL M_KOJO_COLOR_K60
+						;Grumpy tsundere
+                            CASE 2
+                                PRINTFORMDW Parsee gives %PARSE("you")% a slight bow.
+                                CALL M_KOJO_COLOR_K60_VERY_JEALOUS
+                                PRINTFORMW 「Do you want to humiliate me further after crushing me like that? Should I lick your feet, perhaps?」
+                                CALL M_KOJO_COLOR_K60
+						;Fake nice
+                            CASE 3
+                                CALL M_KOJO_COLOR_K60_VERY_JEALOUS
+                                PRINTFORMW 「Ah well, I wasn't expecting to win this one anyway. Well fought.」
+                                CALL M_KOJO_COLOR_K60
+                                PRINTFORMDW Parsee bows to %PARSE("you")%, but %PARSE("you")% can see resentment on %HIS_HER(TARGET)% face.
+                        ENDSELECT
+                ENDSELECT
+            ELSE
+                SELECTCASE 相手残機
+                    CASE 3
+                        SELECTCASE K60_ATTITUDE()
+						;Loving
+                            CASE 0
+                                PRINTFORMDW Parsee bows to %PARSE("you")%.
+                                PRINTFORMW 「Don't feel bad. Not everyone can be good at everything. I know that all too well...」
+                                $PARSEE_TRAINING_OFFER
+                                PRINTFORMW 「If you'd like, we can train in Danmaku tomorrow.」
+						;Nice, horny
+                            CASE 1
+                                PRINTFORMDW Parsee bows to %PARSE("you")%.
+                                PRINTFORMW 「Don't feel bad. Not everyone can be good at everything. I know that all too well...」
+                                $PARSEE_BETTER_AT_SEX_REMINDER
+                                PRINTFORMW 「Besides, you're far better than me in bed. Take pride in it!」
+                            CASE 2
+                                PRINTFORMDL Parsee is smiling coldly at you.
+                                PRINTFORMDW You grit your teeth.
+                                PRINTFORMDW %BREAKENG(@"%PARSE("You")% knew %HE_SHE(TARGET)% was stronger than %PARSE("you")%, but %PARSE("you weren't")% expecting Parsee to crush %PARSE("you")% without breaking a sweat.")%
+                                IF IS_NONHUMAN(MASTER)
+                                    PRINTFORMDL What %PARSE("were you")% thinking, going up against %HIM_HER(TARGET)% in a Danmaku fight?
+                                    PRINTFORMDW %PARSE("You barely know")% anything about Danmaku battles.
+                                ELSE
+                                    PRINTFORMDL What %PARSE("were you")% thinking, going up against a youkai in a Danmaku fight?
+                                    PRINTFORMDW %PARSE("You didn't")% even know how to summon Danmaku before %PARSE("you came")% to Gensokyo.
+                                ENDIF
+                                PRINTFORMDW As %PARSE("you stare")% into those cold green eyes, %PARSE("you feel")% envy well up in %PARSE("your")% heart.
+                                PRINTFORMDW %PARSE("You're")% jealous of %HIS_HER(TARGET)% strength. %PARSE("You're")% jealous of %HIS_HER(TARGET)% cunning.
+                                PRINTFORMDW You're jealous of %HIS_HER(TARGET)% magical prowess. You're jealous of-
+                                PRINTFORML
+                                PRINTFORMW 「Delectable.」
+                                PRINTFORMDW Parsee's smile widens and %HE_SHE(TARGET)% licks %HIS_HER(TARGET)% lips.
+                                PRINTFORMW 「Can you muster up some more? I could go for a second helping.」
+                                PRINTFORMDW Damn her...
+                                PRINTFORMDW Of course, %HE_SHE(TARGET)% doesn't know %PARSE("you")% can stop time. %PARSE("You'll")% have the last laugh in the end...
+                            CASE 3
+                                PRINTFORMDL Parsee bows to %PARSE("you")%.
+                                PRINTFORML 「Don't feel bad. Not everyone can be good at everything. I know that all too well...」
+                                PRINTFORMDL Despite %HIS_HER(TARGET)% kind words, %PARSE("you feel")% jealousy welling up inside y-
+                                PRINTFORMDW Wait, what? Suddenly, %PARSE("you don't")% feel jealous anymore.
+                                PRINTFORML 「So delicious...」
+                                PRINTFORMDW Parsee is gazing at %PARSE("you")% with rapture on %HIS_HER(TARGET)% face.
+                        ENDSELECT
+
+                    CASE 2
+                        SELECTCASE K60_ATTITUDE()
+				;Loving
+                            CASE 0
+                                PRINTFORMDW Parsee bows to %PARSE("you")%.
+                                IF IS_NONHUMAN(MASTER)
+                                    PRINTFORMW 「You managed to hit me once! That's pretty good for someone without much Danmaku experience.」
+                                ELSE
+                                    PRINTFORMW 「You managed to hit me once! That's more than most outsiders could do.」
+                                ENDIF
+                                GOTO PARSEE_TRAINING_OFFER
+				;Nice, horny
+                            CASE 1
+                                PRINTFORMDW Parsee bows to you.
+                                IF IS_NONHUMAN(MASTER)
+                                    PRINTFORMW 「You managed to hit me once! That's pretty good for someone without much Danmaku experience.」
+                                ELSE
+                                    PRINTFORMW 「You managed to hit me once! That's more than most outsiders could do.」
+                                ENDIF
+                                GOTO PARSEE_BETTER_AT_SEX_REMINDER
+				;Grumpy tsundere
+                            CASE 2
+                                PRINTFORML 「Hm... you managed to hit me once.」
+                                PRINTFORMW 「Quite impressive... for a human.」
+                                SIF IS_NONHUMAN(MASTER)
+                                    PRINTFORMW 「For someone like you, not so much.」
+                                PRINTFORMDW Damn %HIM_HER(TARGET)%...
+                                PRINTFORMDW And knowing that your jealousy is providing a meal for her only makes you angrier.
+				;Fake nice
+                            CASE 3
+                                PRINTFORML 「Hm... you managed to hit me once.」
+                                IF IS_NONHUMAN(MASTER)
+                                    PRINTFORMW 「That's pretty good for someone without much Danmaku experience.」
+                                ELSE
+                                    PRINTFORMW 「That's more than most outsiders could do.」
+                                ENDIF
+                        ENDSELECT
+                    CASE 1
+                        SELECTCASE K60_ATTITUDE()
+                            CASE 0, 1
+                                PRINTFORML 「I wasn't expecting you to make me struggle like that. You're just full of surprises, aren't you?」
+                                PRINTFORMW 「It only makes you even more \@ IS_MALE(MASTER) ? handsome # beautiful\@...」
+				;Grumpy tsundere
+                            CASE 2
+                                CALL M_KOJO_COLOR_K60_VERY_JEALOUS
+                                PRINTFORML 「Hmph... you almost beat me.」
+                                PRINTFORMW 「Any other youkai would have crushed you in five seconds flat. I'm so jealous...」
+                                CALL M_KOJO_COLOR_K60
+				;Fake nice
+                            CASE 3
+                                PRINTFORML 「You really made me work for that victory.」
+                                PRINTFORMW 「Why not challenge me to a rematch? Perhaps you'll get lucky.」
+                        ENDSELECT
+                    CASE 0
+                        SELECTCASE K60_ATTITUDE()
+						;Loving
+						;Chamrosh is the king of birds in Persian mythology: https://en.wikipedia.org/wiki/Chamrosh
+                            CASE 0
+                                CALL M_KOJO_COLOR_K60_JEALOUS
+                                PRINTFORMW 「Well fought! I wasn't expecting you to dodge so many of my attacks.」
+                                PRINTFORMW 「You move almost as fast as Chamrosh-sama... I'm a little jealous.」
+                                PRINTFORMDW Parsee reaches out and pulls %PARSE("you")% into a hug.
+                                CALL M_KOJO_COLOR_K60
+                                PRINTFORMW 「Would you like to practice Danmaku with me tomorrow? I don't want any of those tanuki steali- I mean, hurting you.」
+						;Nice, horny
+                            CASE 1
+                                CALL M_KOJO_COLOR_K60_JEALOUS
+                                PRINTFORMW 「Well fought! I wasn't expecting you to dodge so many of my attacks.」
+                                PRINTFORMW 「You move almost as fast as Chamrosh-sama... I'm a little jealous.」
+                                PRINTFORMDW Parsee reaches out and pulls %PARSE("you")% into a kiss.
+                                CALL M_KOJO_COLOR_K60
+                                CALL MUTUAL_KISS
+                                PRINTFORMW 「Mmm... I wonder, if you're the underdog and you triumphed over me in Danmaku...」
+                                PRINTFORMW 「Does that mean I'll triumph over you in bed tonight?」
+                                PRINTFORMW 「Maybe not. But I wouldn't mind finding out...」
+						;Grumpy tsundere
+                            CASE 2
+                                CALL M_KOJO_COLOR_K60_VERY_JEALOUS
+                                PRINTFORML 「And so the \@ IS_MALE(MASTER) ? dashingly handsome # strikingly beautiful\@ underdog triumphs.」
+                                PRINTFORMW 「Were you channeling your envy of me into your attacks, perhaps?」
+                                CALL M_KOJO_COLOR_K60
+						;Fake nice
+                            CASE 3
+                                CALL M_KOJO_COLOR_K60_JEALOUS
+                                PRINTFORML 「Don't get too cocky. I'm nowhere near the strongest youkai in the Underworld, let alone Gensokyo.」
+                                PRINTFORMW 「Still, you managed to triumph over me, despite being weaker. I'm so jealous...」
+                                CALL M_KOJO_COLOR_K60
+                        ENDSELECT
+                ENDSELECT
+            ENDIF
+        ENDIF
+
+		;Unlock the mischief option if you saw her use GEM
+        IF CFLAG:[[파르시]]:K60EN_SEEN_GEM == 1
+            PRINTFORML
+            PRINTFORMDW During the fight, %PARSE("you saw")% Parsee summon an invisible monster.
+            PRINTFORMDW There's a lot of mischief you could get up to if %PARSE("you could")% turn invisible...
+            CFLAG:[[파르시]]:K60EN_SEEN_GEM = 2
+        ENDIF
+
+		;Unlock the clonecest option if you saw her use TCS
+        IF CFLAG:[[파르시]]:K60EN_SEEN_TCS == 1
+            PRINTFORML
+            PRINTFORMDW During the fight, %PARSE("you saw")% Parsee summon a clone of %HIM_HER(TARGET)%self.
+            PRINTFORMDW You wonder if %HE_SHE(TARGET)% can use that ability for... other things...
+            CFLAG:[[파르시]]:K60EN_SEEN_TCS = 2
+        ENDIF
+
+    ENDIF
+    RESETCOLOR
+ENDIF
+RETURN 1

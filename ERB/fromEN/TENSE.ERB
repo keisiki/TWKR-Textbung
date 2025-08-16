@@ -1,0 +1,173 @@
+﻿;Accepts a string and parses it to third person if that flag is activated
+;ARG is a flag, 1 means "prevents CALLNAME:MASTER", 2 means "special behavior"
+;ARG:1 disables it, used for cleaning and other things where one or more people can do stuff
+;ATW: ARG:2 dictates who's doing the action. This allows support for characters other than the player
+;ATW: All %CALLNAME:MASTER% calls are replaced with %CALLNAME:(ARG:2)% for NPC support. Easier on the programmers eyes than \@ ARG == MASTER ? %PARSE("You")% # %HE_SHE(ARG)% \@
+@PARSE(ARGS,ARG = 0,ARG:1 = 0, ARG:2 = -1)
+#DIMS OUTPUT
+#DIM WORD_COUNT
+#DIM STORED_RESULT
+#FUNCTIONS
+VARSET OUTPUT
+STORED_RESULT = RESULT
+;ATW: if ARG:2 is null, assume it's MASTER
+SIF ARG:2 == -1
+	ARG:2 = MASTER
+
+;If it's second person, just return the stirng
+;ATW: Also check if it's you in the parse check.
+SIF ARG:2 == MASTER && (!THIRD_PERSON || ARG:1) 
+	RETURNF ARGS
+IF 0 == 1
+	$DONE
+	RESULT = STORED_RESULT
+	RETURNF OUTPUT
+ENDIF
+
+IF ARG > 1
+	;Special cases
+	IF ARG == 2 && STRCOUNT(ARGS, "^(?i)your$")
+		OUTPUT '= STRCOUNT(ARGS,"Y")?"Their"#"their"
+		GOTO DONE
+	ELSEIF ARG == 2 && STRCOUNT(ARGS, "^(?i)you$")
+		OUTPUT '= STRCOUNT(ARGS,"Y")?"They"#"they"
+		GOTO DONE
+	ELSEIF ARG == 3 && STRCOUNT(ARGS, "^(?i)you$")
+		OUTPUT '= STRCOUNT(ARGS,"Y")?"The"#"the"
+		GOTO DONE
+	ELSEIF ARG == 2 && STRCOUNT(ARGS, "^(?i)you're$")
+		OUTPUT '= STRCOUNT(ARGS,"Y")?"They're"#"they're"
+		GOTO DONE
+	ELSEIF ARG == 4 && STRCOUNT(ARGS, "^(?i)you$")
+		OUTPUT '= STRCOUNT(ARGS,"Y")?"Them"#"them"
+		GOTO DONE
+	ENDIF
+ENDIF
+;Really lazy, just _assume_ you have one space for each word
+WORD_COUNT = STRCOUNT(ARGS, " ") + 1
+IF WORD_COUNT == 1
+	;Just you/your/you're/yours/yourself or a verb
+	IF STRCOUNT(ARGS, "(?i)you're")
+		ARGS '= REPLACE(ARGS, "(?i)you're", @"%ARG==0?@"%CALLNAME:(ARG:2)%'s"#@"%HE_SHE((ARG:2),STRCOUNT(ARGS,"Y"))%'s"%")
+	ELSEIF STRCOUNT(ARGS, "(?i)you've")
+		ARGS '= REPLACE(ARGS, "(?i)you've", @"%ARG==0?@"%CALLNAME:(ARG:2)% has"#@"%HE_SHE((ARG:2),STRCOUNT(ARGS,"Y"))% has"%")
+	ELSEIF STRCOUNT(ARGS, "(?i)yourself")
+		ARGS '= REPLACE(ARGS, "(?i)yourself", @"%ARG==0?@"%HIM_HER((ARG:2),STRCOUNT(ARGS,"Y"))%self"#@"%HIM_HER((ARG:2),STRCOUNT(ARGS,"Y"))%self"%")
+	ELSEIF STRCOUNT(ARGS, "(?i)yours")
+		ARGS '= REPLACE(ARGS, "(?i)yours", @"%ARG==0?@"%CALLNAME:(ARG:2)%'s"#@"%HIS_HERS((ARG:2),STRCOUNT(ARGS,"Y"))%"%")
+	ELSEIF STRCOUNT(ARGS, "(?i)your")
+		ARGS '= REPLACE(ARGS, "(?i)your", @"%ARG==0?@"%CALLNAME:(ARG:2)%'s"#@"%HIS_HER((ARG:2),STRCOUNT(ARGS,"Y"))%"%")
+	ELSEIF STRCOUNT(ARGS, "(?i)you")
+		;ATW: a way to do HIM_HER with (You)
+		IF ARG == 6
+		ARGS '= REPLACE(ARGS, "(?i)you", @"%ARG==0?@"%CALLNAME:(ARG:2)%"#@"%HIM_HER((ARG:2),STRCOUNT(ARGS,"Y"))%"%")
+		ELSE
+		;====================================================================
+		ARGS '= REPLACE(ARGS, "(?i)you", @"%ARG==0?@"%CALLNAME:(ARG:2)%"#@"%HE_SHE((ARG:2),STRCOUNT(ARGS,"Y"))%"%")
+		ENDIF
+	ELSE
+		IF SPECIAL_VERBS(ARGS) != ""
+			ARGS '= @"%SPECIAL_VERBS(ARGS)%"
+		ELSE
+			ARGS '= @"%CONJUGATOR(@"%ARGS%:s",1)%"
+		ENDIF
+	ENDIF
+ELSEIF WORD_COUNT == 2
+	;"you [second person verb]", or "[third person verb] you, or "do you"
+	IF STRCOUNT(ARGS, "^(?i)You") ;Begins with "you"
+		ARGS '= REPLACE(ARGS, "^(?i)You", @"%ARG==0?@"%CALLNAME:(ARG:2)%"#@"%HE_SHE((ARG:2),STRCOUNT(ARGS,"Y"))%"%")
+		SPLIT ARGS, " ", LOCALS 
+		ARGS '= @"%LOCALS:0%"
+		IF SPECIAL_VERBS(LOCALS:1) != ""
+			LOCALS:1 '= @" %SPECIAL_VERBS(LOCALS:1)%"
+		ELSE
+			;ARGS += @" %REPLACE(LOCALS:1, "(.*)$", @"%CONJUGATOR("$1:s")%")%"
+			LOCALS:1 '= @" %CONJUGATOR(@"%LOCALS:1%:s",1)%"
+		ENDIF
+		ARGS += @"%LOCALS:1%"
+	ELSEIF STRCOUNT(ARGS, "^(?i)Do") ;Do you, NOTE - do not write "Do you want to save?" as "Does master want to save?" is weird
+		ARGS '= REPLACE(ARGS, "^(?i)(Do)", "$1es")
+		ARGS '= REPLACE(ARGS, "(?i)You$", @"%ARG==0?@"%CALLNAME:(ARG:2)%"#@"%HE_SHE((ARG:2),STRCOUNT(ARGS,"Y"))%"%")
+	ELSEIF STRCOUNT(ARGS, "(?i)You$") ;Begins with third person verb, meaning it's "gives Anon" or "gives him"
+		ARGS '= REPLACE(ARGS, "(?i)You$", @"%ARG==0?@"%CALLNAME:(ARG:2)%"#@"%HIM_HER((ARG:2),STRCOUNT(ARGS,"Y"))%"%")
+	ELSEIF STRCOUNT(ARGS, "(?i)Your$") ;Begins with third person verb, meaning it's "gives his" or "give your"
+		SPLIT ARGS, " ", LOCALS 
+		ARGS '= @"%LOCALS:0%"
+		IF SPECIAL_VERBS(LOCALS:1) != ""
+			LOCALS:0 '= @"%SPECIAL_VERBS(LOCALS:0)%"
+		ELSE
+			;ARGS += @" %REPLACE(LOCALS:1, "(.*)$", @"%CONJUGATOR("$1:s")%")%"
+			LOCALS:0 '= @"%CONJUGATOR(@"%LOCALS:0%:s",1)%"
+		ENDIF
+		ARGS '= REPLACE(ARGS, "(?i)Your$", @"%ARG==0?@"%CALLNAME:(ARG:2)%'s"#@"%HIS_HER((ARG:2),STRCOUNT(ARGS,"Y"))%"%")
+		ARGS = %LOCALS:0% %ARGS%
+	ENDIF
+ELSEIF WORD_COUNT == 3
+	;You verb your etc.
+	SIF STRCOUNT(ARGS, "^(?i)You") ;Begins with "you"
+		ARGS '= REPLACE(ARGS, "^(?i)You", @"%ARG==0||ARG:1?@"%CALLNAME:(ARG:2)%"#@"%HE_SHE((ARG:2),STRCOUNT(ARGS,"Y"))%"%")
+	SPLIT ARGS, " ", LOCALS 
+	IF SPECIAL_VERBS(LOCALS:1) != ""
+		LOCALS:1 '= @"%SPECIAL_VERBS(LOCALS:1)%"
+	ELSE
+		;ARGS += @" %REPLACE(LOCALS:1, "(.*)$", @"%CONJUGATOR("$1:s")%")%"
+		LOCALS:1 '= @"%CONJUGATOR(@"%LOCALS:1%:s",1)%"
+	ENDIF
+	LOCALS:2 '= REPLACE(LOCALS:2, "(?i)your$", @"%PARSE("your",1,,ARG:2)%")
+	ARGS '= @"%LOCALS:0% %LOCALS:1% %LOCALS:2%"
+ELSE ;This will be a lot more complex, since it has to go like "Don't make verbs out of things that aren't verbs"
+	IF WORD_COUNT == 4 ;You verb and verb
+		;ARGS '= REPLACE(ARGS, "^(?i)You", @"%ARG==0||ARG:1?@"%CALLNAME:MASTER%"#@"%HE_SHE(MASTER,STRCOUNT(ARGS,"Y"))%"%")
+		SPLIT ARGS, " ", LOCALS 
+		ARGS = 
+		FOR LOCAL, 1, WORD_COUNT+1
+			IF !IS_NOT_VERB(LOCALS:(LOCAL-1))
+				IF STRCOUNT(LOCALS:(LOCAL-1), "^(?i)You")
+					LOCALS:(LOCAL-1) '= REPLACE(LOCALS:(LOCAL-1), "^(?i)You", @"%ARG==0||ARG:1?@"%CALLNAME:(ARG:2)%"#@"%HE_SHE((ARG:2),STRCOUNT(LOCALS:(LOCAL-1),"Y"))%"%")
+				ELSE
+					LOCALS:(LOCAL-1) '= @"%CONJUGATOR(@"%LOCALS:(LOCAL-1)%:s",1)%"
+				ENDIF
+				;LOCALS:(LOCAL-1) += " "
+				SIF LOCAL < WORD_COUNT
+					LOCALS:(LOCAL-1) += " "
+			ELSE
+				LOCALS:(LOCAL-1) += " "
+			ENDIF
+			ARGS += @"%LOCALS:(LOCAL-1)%"
+		NEXT
+
+		;ARGS '= REPLACE(ARGS, " ([^ ]*)", @" %CONJUGATOR("$1:s")%")
+	ENDIF
+ENDIF
+;LOCALS '= REPLACE(LOCALS, "(、)(?!.*、)", ", and")
+;STRCOUNT(ARGS, "(?<!(you)+)([YOUyou])")
+RESULT = STORED_RESULT
+RETURNF ARGS
+
+;Returns true if the word is not in a list of strings contained below
+@IS_NOT_VERB(ARGS)
+#FUNCTION
+SIF STRCOUNT(ARGS, "^(?i)and$")
+	RETURNF 1
+RETURNF 0
+
+@SPECIAL_VERBS(ARGS)
+#FUNCTIONS
+SELECTCASE ARGS
+	CASE "have"
+		RETURNF "has"
+	CASE "haven't"
+		RETURNF "hasn't"
+	CASE "are"
+		RETURNF "is"
+	CASE "aren't"
+		RETURNF "isn't"
+	CASE "were"
+		RETURNF "was"
+	CASE "weren't"
+		RETURNF "wasn't"
+	CASE "don't"
+		RETURNF "doesn't"
+	CASEELSE
+		RETURNF ""
+ENDSELECT

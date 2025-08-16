@@ -1,0 +1,806 @@
+﻿;※※※※※※※※※※※※※※※※※※※※※※※※※※
+;Settings for all characters
+;This is a universal update menu that allows you to update things easily
+;※※※※※※※※※※※※※※※※※※※※※※※※※※
+
+;==========================================================
+;NAS_KOJO_CONFIGURE
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Initialize the new update menu
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;ARGS: Pages, divide with /, must be all upper cased, use _ for spaces (IE: Hypnosis Filter -> HYPNOSIS_FILTER)
+;ARGS:1: Update menu title
+;ARGS:2: Update menu description, can be a little blurb.
+;ARG:1: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;----------------------------------------------------------
+;Example (From Wriggle):
+;----------------------------------------------------------
+; {
+; CALL NAS_KOJO_CONFIGURE(
+; 	[[리글]],
+; 	"PHYSICAL/MENTAL",
+; 	"",
+; 	@" 「Buzz... Buzzzzzzzzz...」\n
+; 	「Helloooo, these are the bugs, we're speaking directly to your unconscious right now～」\n
+; 	「We're letting you change things about our friend %CALLNAME:27%...」\n
+; 	「I'll save your choices when you're done so you don't have to do it for subsequent playthroughs.」",
+; 	-1,
+; 	 )
+; }
+;============================================
+@NAS_KOJO_CONFIGURE(ARG, ARGS = "PHYSICAL", ARGS:1 = "", ARGS:2 = "" , ARG:1 = -1)
+#DIM nLineCnt_Head
+LOADGLOBAL
+nLineCnt_Head = LINECOUNT
+REDRAW 0
+DO
+	SIF LINECOUNT - nLineCnt_Head > 0
+		CLEARLINE LINECOUNT - nLineCnt_Head
+
+	CALL NAS_KOJO_CONFIGURE_STATE(ARG, ARGS, ARGS:1, ARGS:2, ARG:1)
+	SELECTCASE RESULT
+		CASE 9999
+			;copy to savedata version
+			FOR LOCAL,0,VARSIZE("nCharaUpdate",2)
+				nCharaSaveUp:ARG:(CFLAG:ARG:구상셀렉터):LOCAL = nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):LOCAL
+			NEXT
+			RESULTS =
+			;口上の存在判定 and RESULTSに文字列代入
+			IF CFLAG:ARG:구상셀렉터
+				TRYCALLFORM M_KOJO_K{ARG}_{CFLAG:ARG:구상셀렉터}
+			ELSE
+				TRYCALLFORM M_KOJO_K{ARG}
+			ENDIF
+			;IE: K55_BOOBAJOKE_SETTING_SUBMIT
+			TRYCALLFORM K{ARG}%RESULTS%_SETTING_SUBMIT
+			SAVEGLOBAL
+			WAIT
+			RETURN
+	CASEELSE
+	ENDSELECT
+LOOP 1
+
+;============================================
+;Navigation Menu which displays the menu commands
+;============================================
+@NAS_KOJO_CONFIGURE_STATE(ARG, categorySTR = "PHYSICAL", nUpdateTitle = "", nUpdateHead = "" , nUpdateVoice = -1)
+#DIM     PAGE       ;表示中のページ
+;
+#DIMS categorySTR
+#DIMS nUpdateTitle
+#DIM CREDRAW
+#DIM FIRST_LINE
+#DIM nLoop
+#DIMS nUpdateHead
+#DIM nUpdateVoice
+
+;disp names
+DT_CREATE @"NAS_KOJO_CONFIGURE_K{ARG}"
+DT_COLUMN_ADD @"NAS_KOJO_CONFIGURE_K{ARG}", "type"
+
+FOR nLoop,0,30
+	LOCALS '= SPLIT_SINGLE(categorySTR, nLoop, "/")
+	SIF !STRLENS(categorySTR)
+		BREAK
+	DT_ROW_ADD @"NAS_KOJO_CONFIGURE_K{ARG}", "type", LOCALS
+NEXT
+
+;default values
+SIF nUpdateTitle == ""
+	nUpdateTitle '= @"%CALLNAME:ARG% Update Form"
+
+FIRST_LINE = LINECOUNT
+$REPRINT
+CLEARLINE LINECOUNT - FIRST_LINE
+CREDRAW = CURRENTREDRAW()
+REDRAW 0
+;Initialize defaults when configuring.
+IF !nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):19
+	nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):19 = 1
+	TRYCALLFORMF K{ARG}_Defaults
+ENDIF
+
+FONTITALIC
+FONTBOLD
+PRINTFORMDL %nUpdateTitle%
+FONTREGULAR
+PRINTL
+IF STRLENS(nUpdateHead)
+SIF nUpdateVoice > -1
+	CALL SET_KOJO_COLOR(nUpdateVoice)
+PRINTFORML %nUpdateHead%
+RESETCOLOR
+PRINTL
+ENDIF
+DRAWLINE
+RESULTS =
+;口上の存在判定 and RESULTSに文字列代入
+IF CFLAG:ARG:구상셀렉터
+	TRYCALLFORM M_KOJO_K{ARG}_{CFLAG:ARG:구상셀렉터}
+ELSE
+	TRYCALLFORM M_KOJO_K{ARG}
+ENDIF
+;IE: K55_BOOBAJOKE_SETTING_BEWBS
+TRYCALLFORM K{ARG}%RESULTS%_SETTING_%DT_CELL_GETS(@"NAS_KOJO_CONFIGURE_K{ARG}", PAGE, "type")%
+DRAWLINE
+RESETCOLOR
+FOR LOCAL, 0, DT_ROW_LENGTH(@"NAS_KOJO_CONFIGURE_K{ARG}")
+	SIF PAGE == LOCAL
+		SETCOLOR 0x00FFFF
+	PRINTBUTTON CAP_PROCESS(TOLOWER(REPLACE(DT_CELL_GETS(@"NAS_KOJO_CONFIGURE_K{ARG}", LOCAL, "type"),"_"," ")),5), LOCAL + 8002
+	RESETCOLOR
+	PRINTFORM 　　
+NEXT
+PRINTFORML 
+PRINTBUTTON "[999] Submit ", 999
+PRINTBUTTON "[998] Defaults", 998
+DO
+	INPUT
+	SELECTCASE RESULT
+	CASE 8002 TO DT_ROW_LENGTH(@"NAS_KOJO_CONFIGURE_K{ARG}")+8002
+		PAGE = RESULT-8002
+	CASE 998
+		TRYCALLFORMF K{ARG}_Defaults
+	CASE 999 ;custom code
+		DT_RELEASE @"NAS_KOJO_CONFIGURE_K{ARG}"
+		RETURN 9999
+	CASEELSE
+		$RETRY
+		LOCAL:1 = RESULT/100
+		LOCAL:2 = RESULT % 100
+		nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):(LOCAL:1) = LOCAL:2
+	ENDSELECT
+	BREAK
+LOOP 1
+GOTO REPRINT
+
+;@NAS_KOJO_SETTING_PHYSICAL(ARG)
+
+;==========================================================
+;NAS_KOJO_SETTING_PURITY
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Pre-set sexual purity commands
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;nSlotTake: Slot in the nCharaUpdate array
+;nDesc: Description
+;nUpdateVoice: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;----------------------------------------------------------
+;Example (From Wriggle):
+;----------------------------------------------------------
+; {
+; 	CALL NAS_KOJO_SETTING_Purity(
+; 	[[리글]], 0,
+; 	@"「How much sexual experience, if any, do you want %CALLNAME:[[리글]]% to have?」",
+; 	"Wriggle Defaultbug",
+; 	"Wriggle Sexbug",
+; 	"Wriggle Schlickbug",
+; 	"Wriggle Slutbug",
+; 	"Wriggle Virginbug",
+; 	)
+; }
+;============================================
+@NAS_KOJO_SETTING_PURITY(ARG, nSlotTake, nDesc = "", nUpdateVoice = -1, nSlotDesc = "", nSlotDesc:1 = "", nSlotDesc:2 = "", nSlotDesc:3 = "", nSlotDesc:4 = "")
+#DIM DYNAMIC nSlotTake
+#DIMS DYNAMIC nSlotDesc, 20
+#DIMS DYNAMIC nDesc
+#DIM DYNAMIC nUpdateVoice
+{
+	CALL NAS_KOJO_SETTING(
+		ARG, nSlotTake, "Purity",
+		@"\@ STRLENS(nDesc) ? %nDesc% # Affects initial sexual experience of %CALLNAME:ARG% \@", nUpdateVoice,
+		@"%@"\@ STRLENS(nSlotDesc:0) ? %nSlotDesc:0% # Default \@",60,LEFT% %"※Default Sex Settings",25,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:1) ? %nSlotDesc:1% # Some sexual experience \@",60,LEFT% %"※Not a virgin",25,LEFT% %"100 Ｖ Experience",20,LEFT% 1 Ｖ Sensitivity",
+		@"%@"\@ STRLENS(nSlotDesc:2) ? %nSlotDesc:2% # Masturbatory addict \@",60,LEFT% %"※Virgin",25,LEFT% %"200 Ｖ Experience",20,LEFT% 3 Ｖ Sensitivity  200 Masturbation Exp  3 Masturbation Addiction  Indif. to Pleasure  Reserved & Control Removed",
+		@"%@"\@ STRLENS(nSlotDesc:3) ? %nSlotDesc:3% # Slut \@",60,LEFT% %"※Lost all virginities",25,LEFT% %@"400 ＣＶＡＢＭ\@ STRLENS(ABLNAME:5) ? Ｕ #\@ Exp, 5 Sensitivity and Technique",20,LEFT%  Slut  Hypersensitive  Enjoys Pleasure  Reserved & Control Removed",
+		@"%@"\@ STRLENS(nSlotDesc:4) ? %nSlotDesc:4% # Complete virgin \@",60,LEFT% %"※Virgin",25,LEFT% %"  0 Ｖ Experience",20,LEFT% 0 Ｖ Sensitivity",
+	)
+}
+
+;=========================================================
+;NAS_KOJO_SETTING_SEX
+;
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Pre-set sex edit function.
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;nSlotTake: Slot in the nCharaUpdate array
+;nDesc: Description
+;nUpdateVoice: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;----------------------------------------------------------
+;Example (From Wriggle)
+;----------------------------------------------------------
+; 	{
+; 		CALL NAS_KOJO_SETTING_SEX(
+; 		[[리글]], 1,
+; 		@"「Even though %CALLNAME:27% looks like a little boy, %HES_SHES(27)% actually a...」", ,
+; 		)
+; }
+;==========================================================
+@NAS_KOJO_SETTING_SEX(ARG, nSlotTake, nDesc = "", nUpdateVoice = -1)
+#DIM DYNAMIC nSlotTake
+#DIMS DYNAMIC nSlotDesc, 20
+#DIMS DYNAMIC nDesc
+#DIM DYNAMIC nUpdateVoice
+{
+	CALL NAS_KOJO_SETTING(
+		ARG, nSlotTake, "Sex",
+		@"\@ STRLENS(nDesc) ? %nDesc% # Affects the genitals that %CALLNAME:ARG% has. \@", nUpdateVoice,
+		@"%TOSTR_GENDER(0)%",
+		@"%TOSTR_GENDER(1)%",
+		@"%TOSTR_GENDER(2)%",
+		@"%TOSTR_GENDER(3)%",
+		"",
+		"",
+		"",
+		@"%TOSTR_GENDER(7)%",
+		"",
+		@"%TOSTR_GENDER(9)%",
+		@"%TOSTR_GENDER(10)%",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		@"%TOSTR_GENDER(19)%"
+
+	)
+}
+
+;=========================================================
+;NAS_KOJO_SETTING_SIZE
+;
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Pre-set size edit function.
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;nSlotTake: Slot in the nCharaUpdate array
+;nDesc: Description
+;nUpdateVoice: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;----------------------------------------------------------
+;Example (From Wriggle)
+;----------------------------------------------------------
+; {
+; 	CALL NAS_KOJO_SETTING_SIZE(
+; 		[[리글]], 2, "How big is Wriggle, anyway?", -1,
+; 		"The size of a large bug",
+; 		"Short enough that people think she's a little boy",
+; 		"Short, but not that short (default)",
+; 		"Average height",
+; 		"Tall and imposing",
+; 		"Towering hive queen!",
+; 		"Colossal! Straight out of a monster movie!",
+; 		)
+; }
+;==========================================================
+@NAS_KOJO_SETTING_SIZE(ARG, nSlotTake, nDesc = "", nUpdateVoice = -1, nSlotDesc = "", nSlotDesc:1 = "", nSlotDesc:2 = "", nSlotDesc:3 = "", nSlotDesc:4 = "", nSlotDesc:5 = "", nSlotDesc:6 = "", nSlotDesc:7 = "")
+#DIM DYNAMIC nSlotTake
+#DIMS DYNAMIC nSlotDesc, 20
+#DIMS DYNAMIC nDesc
+#DIM DYNAMIC nUpdateVoice
+
+;ATW Compatibility: No name for normal size
+IF STRLENS(GET_TALENTNAME(100,0))
+LOCALS = %GET_TALENTNAME(100,0)%
+ELSE
+LOCALS = Normal Size
+ENDIF
+IF STRLENS(GET_TALENTNAME(100,TALENT:ARG:100))
+LOCALS:1 = %GET_TALENTNAME(100,TALENT:ARG:100)%
+ELSE
+LOCALS:1 = Normal Size
+ENDIF
+
+
+{
+	CALL NAS_KOJO_SETTING(
+		ARG, nSlotTake, "Size",
+		@"\@ STRLENS(nDesc) ? %nDesc% # Affects physical size of %CALLNAME:ARG% \@", nUpdateVoice,
+		@"%@"\@ STRLENS(nSlotDesc:0) ? %nSlotDesc:0% # %GET_TALENTNAME(100,-5)% \@",60,LEFT% %"※Inchling",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:1) ? %nSlotDesc:1% # %GET_TALENTNAME(100,-2)% \@",60,LEFT% %"※Child-Sized",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:2) ? %nSlotDesc:2% # %GET_TALENTNAME(100,-1)% \@",60,LEFT% %"※Petite",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:3) ? %nSlotDesc:3% # %LOCALS% \@",60,LEFT% %"※Normal",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:4) ? %nSlotDesc:4% # %GET_TALENTNAME(100,1)% \@",60,LEFT% %"※Tall",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:5) ? %nSlotDesc:5% # %GET_TALENTNAME(100,2)% \@",60,LEFT% %"※Huge",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:6) ? %nSlotDesc:6% # %GET_TALENTNAME(100,5)% \@",60,LEFT% %"※Giant",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:7) ? %nSlotDesc:7% # Leave %CALLNAME:ARG%'s size alone \@",60,LEFT% %@"※%LOCALS:1%",20,LEFT%",
+	)
+}
+
+;=========================================================
+;NAS_KOJO_SETTING_BREASTS
+;
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Pre-set breast size edit function.
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;nSlotTake: Slot in the nCharaUpdate array
+;nDesc: Description
+;nUpdateVoice: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;1 is blank since it corresponds to Tiny Breasts in NAS
+;----------------------------------------------------------
+;Example (From Wriggle)
+;----------------------------------------------------------
+	; {
+	; 	CALL NAS_KOJO_SETTING_BREASTS(
+	; 		[[리글]], 3, "", -1,
+	; 		@"%HE_SHE([[리글]],1)% should be flat, just like most Touhou characters",
+	; 		"Mosquito bites",
+	; 		@"%HIS_HER([[리글]],1)% breasts are small, but they're there (default)",
+	; 		"About a handful, not too big or too small",
+	; 		"Wriggle Nicebust",
+	; 		"Huge-breasted bug!",
+	; 		"Tits fit for a hive queen!",
+	; 		@"Give %HIM_HER([[리글]])% breasts bigger than the rest of %HIS_HER([[리글]])% body"
+	; 		)
+	; }
+;==========================================================
+@NAS_KOJO_SETTING_BREASTS(ARG, nSlotTake, nDesc = "", nUpdateVoice = -1, nSlotDesc = "", nSlotDesc:1 = "", nSlotDesc:2 = "", nSlotDesc:3 = "", nSlotDesc:4 = "", nSlotDesc:5 = "", nSlotDesc:6 = "", nSlotDesc:7 = "")
+#DIM DYNAMIC nSlotTake
+#DIMS DYNAMIC nSlotDesc, 20
+#DIMS DYNAMIC nDesc
+#DIM DYNAMIC nUpdateVoice
+;Vanilla
+{
+	CALL NAS_KOJO_SETTING(
+		ARG, nSlotTake, "Breast Size",
+		@"\@ STRLENS(nDesc) ? %nDesc% # %CALLNAME:ARG%'s bust size can be changed.\nChange it?\@", nUpdateVoice,
+		@"%@"\@ STRLENS(nSlotDesc:0) ? %nSlotDesc:0% # Give her a flat chest \@",60,LEFT% %@"※%GET_TALENTNAME(105,-2)%",20,LEFT%",
+		@"",
+		@"%@"\@ STRLENS(nSlotDesc:2) ? %nSlotDesc:2% # Give her small breasts \@",60,LEFT% %@"※%GET_TALENTNAME(105,-1)%",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:3) ? %nSlotDesc:3% # Give her normal breasts \@",60,LEFT% %@"※%GET_TALENTNAME(105,0)%",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:4) ? %nSlotDesc:4% # Give her big breasts \@",60,LEFT% %@"※%GET_TALENTNAME(105,1)%",20,LEFT%",
+		@"%@"\@ STRLENS(nSlotDesc:5) ? %nSlotDesc:5% # Give her huge breasts \@",60,LEFT% %@"※%GET_TALENTNAME(105,2)%",20,LEFT%",
+	)
+}
+
+
+;=========================================================
+;NAS_KOJO_SETTING
+;
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;For all other options that you want to add
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;nSlotTake: Slot in the nCharaUpdate array
+;nTitle: Title of the setting
+;nDesc: Description
+;nUpdateVoice: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;nSlotDesc:(0 to 19): Description of each option
+;----------------------------------------------------------
+;Example
+;----------------------------------------------------------
+; {
+; 	CALL NAS_KOJO_SETTING(
+; 		[[당신]], 5, "Extra Options",
+; 		@"This is a custom extra option that can toggle certain features of the dialogue on or off.",,
+; 		@"%@"Custom options are cool!",60,LEFT%",
+; 		@"%@"They aren't for me",60,LEFT%"
+; 	)
+; }
+;==========================================================
+@NAS_KOJO_SETTING(ARG, nSlotTake, nTitle = "", nDesc = "", nUpdateVoice = -1, nSlotDesc = "", nSlotDesc:1 = "", nSlotDesc:2 = "", nSlotDesc:3 = "", nSlotDesc:4 = "", nSlotDesc:5 = "", nSlotDesc:6 = "", nSlotDesc:7 = "", nSlotDesc:8 = "", nSlotDesc:9 = "", nSlotDesc:10 = "", nSlotDesc:11 = "", nSlotDesc:12 = "", nSlotDesc:13 = "", nSlotDesc:14 = "", nSlotDesc:15 = "", nSlotDesc:16 = "", nSlotDesc:17 = "", nSlotDesc:18 = "", nSlotDesc:19 = "")
+#DIM DYNAMIC nSlotTake
+#DIMS DYNAMIC nSlotDesc, 20
+#DIMS DYNAMIC nDesc
+#DIMS DYNAMIC nTitle
+#DIM DYNAMIC nUpdateHead
+#DIM DYNAMIC nUpdateVoice
+IF nTitle != ""
+FONTBOLD
+PRINTFORMDL %nTitle%:
+FONTREGULAR
+ENDIF
+SIF nUpdateVoice > -1
+	CALL SET_KOJO_COLOR(nUpdateVoice)
+PRINTFORML %nDesc%
+RESETCOLOR
+PRINTL
+FOR LOCAL,0, 20
+	SIF nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake == LOCAL
+		SETCOLOR C_AQUA
+	SIF STRLENS(nSlotDesc:LOCAL)
+		PRINTFORML [{(nSlotTake*100)+LOCAL}] %@"%nSlotDesc:LOCAL%",60,LEFT%
+	RESETCOLOR
+NEXT
+PRINTL
+
+;==========================================================
+;TOSTR_GENDER
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Grab from talent 2 except it gives females a label
+;==========================================================
+@TOSTR_GENDER(ARG:0)
+#FUNCTIONS
+;vanilla TW
+SELECTCASE ARG
+CASE 1
+	RETURNF "Female"
+CASEELSE
+	RETURNF GET_TALENTNAME(2,ARG:0)
+ENDSELECT
+
+
+;==================================================================================================================================================================================================================================================================================================
+;NAS_KOJO_SUBMIT
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Generic effect applying functions
+;==================================================================================================================================================================================================================================================================================================
+
+;=========================================================
+;NAS_KOJO_SUBMIT_PURITY
+;
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Apply's edits to Touhou's sexual experience
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;nSlotTake: Slot in the nCharaUpdate array
+;nUpdateVoice: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;nSlotDesc:(0 to 19): Description of each option if picked
+;----------------------------------------------------------
+;Example (From Wriggle)
+;----------------------------------------------------------
+; {
+; 	CALL NAS_KOJO_SUBMIT_PURITY(
+; 		[[리글]], 0, -1,
+; 		@"「%CALLNAME:[[리글]]%'s sexual experience has been left alone」",
+; 		@"「%CALLNAME:[[리글]]% already has some sexual experience under her belt.」",
+; 		@"「%CALLNAME:[[리글]]% is a prodigy, a virgin slut.」",
+; 		@"「%CALLNAME:[[리글]]% is a sentient sex doll, ready to relieve you of sexual tension.」",
+;		@"「%CALLNAME:[[리글]]% is a completely pure bug, void of any sexual filth.」"
+; 	)
+; }
+;==========================================================
+;Regex
+; SIF (.+):ARG:(.+) < (\d+)
+; .+:ARG:.+ = .+
+
+@NAS_KOJO_SUBMIT_PURITY(ARG, nSlotTake, nUpdateVoice = -1, nSlotDesc = "", nSlotDesc:1 = "", nSlotDesc:2 = "", nSlotDesc:3 = "", nSlotDesc:4 = "", nSlotDesc:5 = "", nSlotDesc:6 = "", nSlotDesc:7 = "", nSlotDesc:8 = "", nSlotDesc:9 = "", nSlotDesc:10 = "", nSlotDesc:11 = "", nSlotDesc:12 = "", nSlotDesc:13 = "", nSlotDesc:14 = "", nSlotDesc:15 = "", nSlotDesc:16 = "", nSlotDesc:17 = "", nSlotDesc:18 = "", nSlotDesc:19 = "")
+#DIM DYNAMIC nSlotTake
+#DIMS DYNAMIC nSlotDesc, 20
+#DIM DYNAMIC nUpdateVoice
+SELECTCASE nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake
+CASE 0
+CASE 1
+	EXP:ARG:V경험 = MAX(EXP:ARG:V경험,100) ; 100 V Exp
+	ABL:ARG:V감각 = MAX(ABL:ARG:V감각,2) ; 2 V Sens
+	TALENT:ARG:0 = 0 ; Not Virgin
+CASE 2
+	;Wipe virginity data and make Touhou into a virgin
+	TALENT:ARG:0 = 1
+	CSTR:ARG:처녀상실이력 =
+	CFLAG:ARG:처녀상실기념일 = 0
+	EXP:ARG:V경험 = MAX(EXP:ARG:V경험,EXP:ARG:V경험,200) ;V Exp
+	EXP:ARG:자위경험 = MAX(EXP:ARG:자위경험,EXP:ARG:자위경험,200) ;Masturbation Exp
+	ABL:ARG:V감각 = MAX(ABL:ARG:V감각,2) ; V Sens
+	ABL:ARG:자위중독 = MAX(ABL:ARG:자위중독,1) ; Masturb Addiction
+	TALENT:ARG:V감도 = 1
+	;Masturbator Talent
+	TALENT:ARG:60 = 1
+	;Remove Reserved
+	TALENT:ARG:25 = 0
+	;Remove Control
+	TALENT:ARG:20 = 0
+	;Indifferent to pleasure
+	TALENT:ARG:70 = MAX(TALENT:ARG:70,0)
+CASE 3
+	TALENT:ARG:걸레 = 1 ; Slut Fall State
+	EXP:ARG:C경험 = MAX(EXP:ARG:C경험,400) ;C Exp
+	ABL:ARG:C감각 = MAX(ABL:ARG:C감각,5) ;C Sens
+	EXP:ARG:V경험 = MAX(EXP:ARG:V경험,400) ;V Exp
+	ABL:ARG:V감각 = MAX(ABL:ARG:V감각,5) ;V Sens
+	EXP:ARG:A경험 = MAX(EXP:ARG:A경험,400) ;A Exp
+	ABL:ARG:A감각 = MAX(ABL:ARG:A감각,5) ;A Sens
+	EXP:ARG:B경험 = MAX(EXP:ARG:B경험,400) ;B Exp
+	ABL:ARG:B감각 = MAX(ABL:ARG:B감각,5) ;B Sens
+	EXP:ARG:M경험 = MAX(EXP:ARG:M경험,400) ;M Exp
+	ABL:ARG:M감각 = MAX(ABL:ARG:M감각,5) ;M Sens
+	;Remove Virginity
+	TALENT:ARG:0 = 0
+	;Sensitivity Talents
+	TALENT:ARG:C감도 = 1
+	TALENT:ARG:V감도 = 1
+	TALENT:ARG:A감도 = 1
+	TALENT:ARG:B감도 = 1
+	TALENT:ARG:M감도 = 2
+	;Remove Reserved
+	TALENT:ARG:25 = 0
+	;Remove Control
+	TALENT:ARG:20 = 0
+	;Enjoys pleasure
+	TALENT:ARG:70 = MAX(TALENT:ARG:70,1)
+CASE 4
+	;Wipe virginity data and make Touhou into a virgin
+	TALENT:ARG:0 = 1
+	CSTR:ARG:처녀상실이력 =
+	CFLAG:ARG:처녀상실기념일 = 0
+ENDSELECT
+CALL NAS_KOJO_SUBMIT_FEEDBACK_MESSAGE(nUpdateVoice,nSlotDesc:(nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake))
+
+
+;=========================================================
+;NAS_KOJO_SUBMIT_SEX
+;
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Apply's edits to Touhou's sex
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;nSlotTake: Slot in the nCharaUpdate array
+;nUpdateVoice: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;nSlotDesc:(0 to 19): Description of each option if picked
+;----------------------------------------------------------
+;Example (From Wriggle)
+;----------------------------------------------------------
+;CALL NAS_KOJO_SUBMIT_SEX([[리글]], 1)
+;==========================================================
+;Regex
+; SIF (.+):ARG:(.+) < (\d+)
+; .+:ARG:.+ = .+
+
+@NAS_KOJO_SUBMIT_SEX(ARG, nSlotTake, nUpdateVoice = -1, nSlotDesc = "", nSlotDesc:1 = "", nSlotDesc:2 = "", nSlotDesc:3 = "", nSlotDesc:4 = "", nSlotDesc:5 = "", nSlotDesc:6 = "", nSlotDesc:7 = "", nSlotDesc:8 = "", nSlotDesc:9 = "", nSlotDesc:10 = "", nSlotDesc:11 = "", nSlotDesc:12 = "", nSlotDesc:13 = "", nSlotDesc:14 = "", nSlotDesc:15 = "", nSlotDesc:16 = "", nSlotDesc:17 = "", nSlotDesc:18 = "", nSlotDesc:19 = "")
+#DIM DYNAMIC nSlotTake
+#DIMS DYNAMIC nSlotDesc, 20
+#DIM DYNAMIC nUpdateVoice
+TALENT:ARG:2 = nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake
+
+CALL NAS_KOJO_SUBMIT_FEEDBACK_MESSAGE(nUpdateVoice,nSlotDesc:(nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake))
+
+
+;=========================================================
+;NAS_KOJO_SUBMIT_SIZE
+;
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Apply's edits to Touhou's sex
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;nSlotTake: Slot in the nCharaUpdate array
+;nUpdateVoice: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;nSlotDesc:(0 to 19): Description of each option if picked
+;----------------------------------------------------------
+;Example (From Wriggle)
+;----------------------------------------------------------
+; {
+; 	CALL NAS_KOJO_SUBMIT_SIZE(
+; 		[[리글]], 2, -1,
+; 		@"The perfect size to interact with her bug friends.",
+; 		@"Remember, %CALLNAME:[[리글]]% is a GROWN WOMAN!",
+; 		@"Time for %CALLNAME:[[리글]]% to start wearing platform shoes. (Not that she'd remember to wear them.)",
+; 		@"%CALLNAME:[[리글]]% is now of average height. Too bad she's still flat.",
+; 		@"%CALLNAME:[[리글]]% is now tall enough to look down on anyone who calls her a boy.",
+; 		@"%CALLNAME:[[리글]]% can now check trees for new bug friends just by standing on her tiptoes.",
+; 		@"%CALLNAME:[[리글]]% now towers above the trees of the Forest of Magic.",
+; 		@"%CALLNAME:[[리글]]%'s size was left alone.",
+; 	)
+; }
+;==========================================================
+
+@NAS_KOJO_SUBMIT_SIZE(ARG, nSlotTake, nUpdateVoice = -1, nSlotDesc = "", nSlotDesc:1 = "", nSlotDesc:2 = "", nSlotDesc:3 = "", nSlotDesc:4 = "", nSlotDesc:5 = "", nSlotDesc:6 = "", nSlotDesc:7 = "", nSlotDesc:8 = "", nSlotDesc:9 = "", nSlotDesc:10 = "", nSlotDesc:11 = "", nSlotDesc:12 = "", nSlotDesc:13 = "", nSlotDesc:14 = "", nSlotDesc:15 = "", nSlotDesc:16 = "", nSlotDesc:17 = "", nSlotDesc:18 = "", nSlotDesc:19 = "")
+#DIM DYNAMIC nSlotTake
+#DIMS DYNAMIC nSlotDesc, 20
+#DIM DYNAMIC nUpdateVoice
+
+SELECTCASE nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake
+CASE 0
+	TALENT:ARG:100 = -5
+CASE 1
+	TALENT:ARG:100 = -2
+CASE 2
+	TALENT:ARG:100 = -1
+CASE 3
+	TALENT:ARG:100 = 0
+CASE 4
+	TALENT:ARG:100 = 1
+CASE 5
+	TALENT:ARG:100 = 2
+CASE 6
+	TALENT:ARG:100 = 5
+CASE 7
+ENDSELECT
+
+CALL NAS_KOJO_SUBMIT_FEEDBACK_MESSAGE(nUpdateVoice,nSlotDesc:(nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake))
+
+;=========================================================
+;NAS_KOJO_SUBMIT_BREASTS
+;
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Apply's edits to Touhou's sex
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;ARG: Character (Required)
+;nSlotTake: Slot in the nCharaUpdate array
+;nUpdateVoice: Voice of the updater (Kojo Color), can be used for third-person update menus. -1 (default) ensures no kojo color
+;nSlotDesc:(0 to 19): Description of each option if picked
+;----------------------------------------------------------
+;Example (From Wriggle)
+;----------------------------------------------------------
+; {
+; 	CALL NAS_KOJO_SUBMIT_BREASTS(
+; 		[[리글]], 3, -1,
+; 		@"%CALLNAME:[[리글]]% is now flat as a board.",
+; 		@"%CALLNAME:[[리글]]% has [tiny breasts]. Poor girl got even flatter...",
+; 		@"%CALLNAME:[[리글]]% has [small breasts].",
+; 		@"%CALLNAME:[[리글]]% has [normal breasts]. Maybe people won't think she's a boy anymore.",
+; 		@"A terrible pun fits %HIM_HER([[리글]])%, doesn't it?",
+; 		@"You really like them big, huh?",
+; 		@"You really like them cartoonishly huge, huh?",
+; 		@" Really? Good thing this is Gensokyo and %HE_SHE([[리글]])% can just use magic to move around.",
+; 	)
+; }
+; CALL NAS_KOJO_SUBMIT_BREASTS([[리글]], 3)
+;==========================================================
+
+@NAS_KOJO_SUBMIT_BREASTS(ARG, nSlotTake, nUpdateVoice = -1, nSlotDesc = "", nSlotDesc:1 = "", nSlotDesc:2 = "", nSlotDesc:3 = "", nSlotDesc:4 = "", nSlotDesc:5 = "", nSlotDesc:6 = "", nSlotDesc:7 = "", nSlotDesc:8 = "", nSlotDesc:9 = "", nSlotDesc:10 = "", nSlotDesc:11 = "", nSlotDesc:12 = "", nSlotDesc:13 = "", nSlotDesc:14 = "", nSlotDesc:15 = "", nSlotDesc:16 = "", nSlotDesc:17 = "", nSlotDesc:18 = "", nSlotDesc:19 = "")
+#DIM DYNAMIC nSlotTake
+#DIMS DYNAMIC nSlotDesc, 20
+#DIM DYNAMIC nUpdateVoice
+;Vanilla
+IF nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake == 0
+	TALENT:ARG:105 = nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake-2
+	CALL NAS_KOJO_SUBMIT_FEEDBACK_MESSAGE(nUpdateVoice,nSlotDesc:(nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake))
+ELSE
+	TALENT:ARG:105 = nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake-3
+	CALL NAS_KOJO_SUBMIT_FEEDBACK_MESSAGE(nUpdateVoice,nSlotDesc:(nCharaUpdate:ARG:(CFLAG:ARG:구상셀렉터):nSlotTake-1))
+ENDIF
+
+;=========================================================
+;NAS_KOJO_SUBMIT_FEEDBACK_MESSAGE
+;
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;Prints out a feedback message on what was changed if there's any
+;----------------------------------------------------------
+;Parameters
+;----------------------------------------------------------
+;nTalker: Speaker of the update menu
+;ARGS: String to print out
+@NAS_KOJO_SUBMIT_FEEDBACK_MESSAGE(nTalker = -1, ARGS)
+#DIM DYNAMIC nTalker
+
+C = GETCOLOR()
+SIF nTalker > -1
+	CALL SET_KOJO_COLOR(nTalker)
+SIF STRLENS(ARGS)
+	PRINTFORML %ARGS%
+SETCOLOR C
+
+;==================================================================================================================================================================================================================================================================================================
+;NAS_KOJO_UPDATE_DEMO
+;----------------------------------------------------------
+;Description
+;----------------------------------------------------------
+;An interactive demo function showcasing the update menu.
+;==================================================================================================================================================================================================================================================================================================
+
+@NAS_KOJO_UPDATE_DEMO
+;set character update version
+nCharaSaveUp:0:0:21 = RETURN_VAR_VALUE_IF_EXISTS("K0_VER")
+
+;config menu
+{
+CALL NAS_KOJO_CONFIGURE(
+	[[당신]],
+	"PHYSICAL/CHANGES_WITH_VERSION/EXTRA",
+	"",
+	@" Welcome to the new interactive and modular update menu!\n
+	This allows dialogue writers to easily add custom update options in a sleek and easy to navigate menu\n
+	It's primarily made for NAS, with some adaptations made for ATW.\n
+	All settings are also global instead of being save dependent",,
+	 )
+}
+
+@K0_SETTING_PHYSICAL
+;Default strings
+IF !nCharaSaveUp:0:0:20
+CALL NAS_KOJO_SETTING_Purity([[당신]], 0)
+CALL NAS_KOJO_SETTING_SEX([[당신]], 1)
+CALL NAS_KOJO_SETTING_SIZE([[당신]], 2)
+ENDIF
+
+@K0_SETTING_CHANGES_WITH_VERSION
+PRINTFORML These settings change with the branch that you're playing.
+;Default strings
+IF !nCharaSaveUp:0:0:20
+CALL NAS_KOJO_SETTING_BREASTS([[당신]], 3)
+ENDIF
+
+@K0_SETTING_EXTRA
+{
+	CALL NAS_KOJO_SETTING(
+		[[당신]], 5, "Extra Options",
+		@"This is a custom extra option that can toggle certain features of the dialogue on or off.",,
+		@"%@"Custom options are cool!",60,LEFT%",
+		@"%@"They aren't for me",60,LEFT%"
+	)
+}
+
+{
+	CALL NAS_KOJO_SETTING(
+		[[당신]], 8, "Label Changing Showcase",
+		@" 「%CALLNAME:26% is currently speaking to you telling you that you can change the title, the description, as well as the options」\n
+		「It even supports multi line strings!」", 26,
+		@"You can also use custom names for the labels",
+		"Like this",
+		"Or this",
+		"Maybe even this",
+	)
+}
+
+
+@K0_Defaults
+#FUNCTION
+#DIM C_ID
+#DIM D_ID
+REGEXPMATCH  GETDOINGFUNCTION(), @"K(\\d+)_", RESULT, RESULTS
+C_ID = TOINT(RESULTS:1)
+D_ID = CFLAG:C_ID:구상셀렉터
+
+nCharaUpdate:C_ID:D_ID:0 = 1
+nCharaUpdate:C_ID:D_ID:1 = 3
+nCharaUpdate:C_ID:D_ID:2 = 2
+nCharaUpdate:C_ID:D_ID:3 = 2
+nCharaUpdate:C_ID:D_ID:4 = 3
+nCharaUpdate:C_ID:D_ID:5 = 0
+nCharaUpdate:C_ID:D_ID:8 = 0
+
+@K0_SETTING_SUBMIT
+PRINTFORML Thank you for viewing this new update menu demonstration
+CALL NAS_KOJO_SUBMIT_PURITY([[당신]], 0)
+CALL NAS_KOJO_SUBMIT_SEX([[당신]],1)
+CALL NAS_KOJO_SUBMIT_SIZE([[당신]], 2)
+CALL NAS_KOJO_SUBMIT_BREASTS([[당신]], 3)
+
+SELECTCASE nCharaUpdate:[[당신]]:0:5
+CASE 0
+	PRINTFORML 「Custom choices are cool too」
+CASE 1
+	PRINTFORML 「It's okay, you don't have to use custom choices.」
+ENDSELECT
+RESETCOLOR

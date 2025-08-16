@@ -1,0 +1,685 @@
+﻿;-------------------------------------------------
+;パルスィ用
+;Hashihime services
+;-------------------------------------------------
+@K60_HASHIHIME_SERVICES
+#DIM UnwantedLover
+#DIM DYNAMIC LOVERPEP
+CALL M_KOJO_COLOR_K60
+SELECTCASE K60_ATTITUDE()
+	CASE 0, 1, 3
+;        PRINTFORMDW Parsee smiles at you.
+;        PRINTFORMW 「What do you need from me?」
+        PRINTFORMDW パルスィはあなたに微笑んだ。
+        PRINTFORMW 「なにかして欲しいことある？」
+
+    CASE 2
+;        PRINTFORMDW Parsee glares at you.
+;        PRINTFORMW 「What do you want?」
+        PRINTFORMDW パルスィはあなたを睨んだ。
+        PRINTFORMW 「なにか用でもあんの？」
+ENDSELECT
+
+
+DO
+    RESETCOLOR
+    DRAWLINE
+
+    CALL K60_HashihimeServices_CalculateLOVERPEP()
+    LOVERPEP = RESULT:0
+    UnwantedLover = RESULT:1
+    IF LOVERPEP > 1
+        ;PRINTFORML [  1] - Help me break up with one of my lovers
+        PRINTFORML [  1] - 恋人と別れさせて
+    ELSEIF UnwantedLover == 60
+        ;PRINTFORML [  1] - I want to break up with you
+        PRINTFORML [  1] - パルスィと別れたい
+    ELSEIF LOVERPEP == 1
+        ;PRINTFORML [  1] - Help me break up with %CALLNAME:UnwantedLover%
+        PRINTFORML [  1] - %CALLNAME:UnwantedLover%と別れたい
+    ELSE
+        SETCOLOR C_L_GRAY
+        ;PRINTFORML [  1] - ????? (Acquire a lover)
+        PRINTFORML [  1] - ？？？(恋人が必要)
+        RESETCOLOR
+    ENDIF
+
+    IF ABL:[[파르시]]:친밀 >= 5
+        ;PRINTFORML [  2] - Tell me about...
+        PRINTFORML [  2] - 聞きたいことがある
+    ELSE
+        SETCOLOR C_L_GRAY
+        ;PRINTFORML [  2] - ????? (Befriend Parsee)
+        PRINTFORML [  2] - ？？？（パルスィと仲良くなろう）
+        RESETCOLOR
+    ENDIF
+    IF (K60_FUCKED_PARSEE())
+        ;PRINTFORML [  3] - I want you to style your pubic hair
+        PRINTFORML [  3] - アソコの毛を変更する
+    ELSE
+        SETCOLOR C_L_GRAY
+        ;PRINTFORML [  3] - ????? (Get pushed down by Parsee or get Parsee's consent)
+        PRINTFORML [  3] - ？？？（パルスィに押し倒されるか合意を得よう）
+        RESETCOLOR
+    ENDIF
+
+    IF K60_YOU_ARE_CHEATING_ON_ONE_OF_PARSEES_FRIENDS()
+        SETCOLOR C_L_GRAY
+        IF !CFLAG:[[파르시]]:생해금
+            ;PRINTFORML [  4] - ????? (Enable More Lovers or break up with Parsee's friends)
+            PRINTFORML [  4] - ？？？（【폴리아모리】を取得するかパルスィの友人と別れよう）
+        ELSE
+            PRINTFORML [  4] - Parsee will not consent to raw sex unless you enable More Lovers or break up with her friends
+            PRINTFORML [  4] - 【폴리아모리】を取得するかパルスィの友人と別れないと、ナマは許してくれません
+        ENDIF
+        RESETCOLOR
+    ELSEIF CFLAG:[[파르시]]:생해금 == 2
+        SETCOLOR C_L_GRAY
+        ;PRINTFORML [  4] - Parsee is already willing to have children with you
+        PRINTFORML [  4] - もう子作りしていいと思っています
+        RESETCOLOR
+    ELSEIF (TALENT:[[파르시]]:연인 && CFLAG:[[파르시]]:생해금 == 1) && ESTRUS_CYCLE([[파르시]]) == 150
+        ;PRINTFORML [  4] - I want to have a child with you
+        PRINTFORML [  4] - パルスィと子供を作りたい
+    ELSEIF CFLAG:[[파르시]]:생해금 == 1
+        SETCOLOR C_L_GRAY
+        ;PRINTFORML [  4] - ????? (Become Parsee's lover, get consent for raw non-dangerous day sex, and wait until it's her dangerous day)
+        PRINTFORML [  4] - ？？？ (恋人になって危険日以外のナマ許可を得、危険日に話しかけよう)
+        RESETCOLOR
+    ELSEIF !CFLAG:[[파르시]]:생해금 && (TALENT:[[파르시]]:연인 || TALENT:[[파르시]]:애욕 || TALENT:[[파르시]]:섹프)
+        ;PRINTFORML [  4] - I want to do it raw on non-dangerous days
+        PRINTFORML [  4] - ナマでしたい
+    ELSE
+        SETCOLOR C_L_GRAY
+        ;PRINTFORML [  4] - ????? (Become Parsee's lover or Fuck Buddy, and wait until it's a non-dangerous day)
+        PRINTFORML [  4] - ？？？ (恋人かセフレになって危険日以外に話しかけよう)
+        RESETCOLOR
+    ENDIF
+    ;PRINTFORML [999] - Never mind
+    PRINTFORML [999] - なんでもない
+    INPUT
+    SELECTCASE RESULT
+        CASE 999
+            CALL M_KOJO_COLOR_K60
+            RETURN 1
+        CASE 1
+            IF !TALENT:MASTER:연인
+                CONTINUE
+            ELSE
+                CALL K60_HashihimeServices_Breakup(LOVERPEP, UnwantedLover)
+                SIF RESULT == -2
+                    RETURN -1
+            ENDIF
+        CASE 2
+            IF ABL:[[파르시]]:친밀 < 5
+                CONTINUE
+            ELSE
+                CALL K60_HashihimeServices_ParseeChanDoesNotShutUp()
+            ENDIF
+        CASE 3
+            IF !K60_FUCKED_PARSEE()
+                CONTINUE
+            ELSE
+                CALL M_KOJO_COLOR_K60
+                CALL K60_STYLE_PUBIC_HAIR()
+                TIME += 5
+                RESETCOLOR
+            ENDIF
+        CASE 4
+            IF K60_YOU_ARE_CHEATING_ON_ONE_OF_PARSEES_FRIENDS()
+                CONTINUE
+            ELSEIF CFLAG:[[파르시]]:생해금 == 2
+                CONTINUE
+            ELSEIF (TALENT:[[파르시]]:연인 && CFLAG:[[파르시]]:생해금 == 1) && ESTRUS_CYCLE([[파르시]]) == 150
+                CALL OGAMITAOSHI([[파르시]])
+            ELSEIF CFLAG:[[파르시]]:생해금 == 1
+                CONTINUE
+            ELSEIF !CFLAG:[[파르시]]:생해금 && (TALENT:[[파르시]]:연인 || TALENT:[[파르시]]:애욕 || TALENT:[[파르시]]:섹프)
+                CALL OGAMITAOSHI([[파르시]])
+            ELSE
+                CONTINUE
+            ENDIF
+    ENDSELECT
+LOOP 1
+
+@K60_HashihimeServices_CalculateLOVERPEP()
+#DIM UnwantedLover
+#DIM TMP
+#DIM DYNAMIC LOVERPEP
+;Copied from MORELOVER.ERB
+;TODO: Refactor that file to split its functionality into separate functions and call them instead
+
+FOR TMP,1,CHARANUM
+    IF TALENT:TMP:7 > 0
+        LOVERPEP ++
+        UnwantedLover = TMP
+    ENDIF
+NEXT
+DEBUGPRINTFORML LOVERPEP is {LOVERPEP}
+RETURN LOVERPEP, UnwantedLover, TMP
+
+@K60_HashihimeServices_Breakup(LOVERPEP, UnwantedLover)
+#DIM BreakupPrice
+#DIM UnwantedLover
+#DIM TMP
+#DIM DYNAMIC LOVERPEP
+#DIM nLineCnt_Head
+CALL M_KOJO_COLOR_K60
+IF FIRSTTIME("ParseeBreakup")
+    nParseeLoversBrokenUpWith ++
+    IF UnwantedLover == 60
+        GOTO BreakParseesHeart
+    ELSEIF GROUPMATCH(UnwantedLover, 83, 84, 64)
+        GOTO FriendBreakup
+    ENDIF
+    SELECTCASE K60_ATTITUDE()
+        CASE 0, 1
+            ;PRINTFORMW 「I know this is going to sound odd, coming from a hashihime...」
+            ;PRINTFORMW 「But you've changed me.」
+            ;PRINTFORMW 「Are you sure you want to do this? Can't you talk it out with %HIM_HER(UnwantedLover)%?」
+            ;PRINTFORMW 「...no? You're sure there's no way the two of you can make this relationship work?」
+            ;PRINTFORMDW Parsee sighs.
+            ;PRINTFORMW 「Very well. I suppose it's better than the two of you being trapped in a relationship that neither of you want.」
+            ;PRINTFORMW 「But I'm still going to charge you for it.」
+            PRINTFORMW 「これを橋姫の口から言うのも変だとは思うけど...」
+            PRINTFORMW 「あなたのおかげで変わったから。」
+            PRINTFORMW 「本当に別れたいのね？%CALLNAME:UnwantedLover%と話し合えない？」
+            PRINTFORMW 「...駄目？ どうしてもあなたたちがやり直すのは無理なの？」
+            PRINTFORMDW 嘆息して続ける。
+            PRINTFORMW 「わかったわ。二人とも望んでいない関係に囚われ続けるよりはマシね。」
+            PRINTFORMW 「でも、お代は頂くわよ。」
+            BreakupPrice = 5000
+        CASE 2
+            ;PRINTFORMW 「Too cowardly to tell %HIM_HER(UnwantedLover)% to %HIS_HER(UnwantedLover)% face, hm?」
+            ;PRINTFORMDW Parsee smirks.
+            ;PRINTFORMW 「Very well. But I won't do it for free.」
+            PRINTFORMW 「%CALLNAME:UnwantedLover%に面と向かって言う度胸はないようねえ？」
+            PRINTFORMDW ニタリと笑う。
+            PRINTFORMW 「いいでしょ。タダじゃないけどね。」
+            BreakupPrice = 20000
+        CASE 3
+            ;PRINTFORMW 「So it seems the two of you weren't meant to be... what a shame.」
+            ;PRINTFORMDW Parsee shakes her head.
+            ;PRINTFORMW 「Well, I can fix that... for a price.」
+            PRINTFORMW 「あなた達ふたりはもう... 残念だわ。」
+            PRINTFORMDW パルスィはかぶりを振る。
+            PRINTFORMW 「いいわ、どうにかしてあげる…お代さえ頂ければね。」
+            BreakupPrice = 10000
+    ENDSELECT
+ELSE
+    SIF TALENT:TARGET:연인 && !RETURN_VAR_VALUE_IF_EXISTS("MORELOVER")
+        GOTO BreakParseesHeart
+    SELECTCASE K60_ATTITUDE()
+        CASE 0, 1
+            BreakupPrice = nParseeLoversBrokenUpWith * 5000
+        CASE 2
+            BreakupPrice = nParseeLoversBrokenUpWith * 20000
+        CASE 3
+            BreakupPrice = nParseeLoversBrokenUpWith * 10000
+    ENDSELECT
+ENDIF
+
+$BREAKUP_SELECT
+SIF LOVERPEP <= 1
+    GOTO BREAKUP
+;PRINTFORML 「Who do you want to break up with?」
+PRINTFORML 「誰と別れたいの？」
+RESETCOLOR
+DRAWLINE
+nLineCnt_Head = LINECOUNT
+REDRAW 0
+FOR TMP,1,CHARANUM
+    IF TALENT:TMP:연인 > 0
+        PRINTFORMLC [{TMP, 3}] %CALLNAME:TMP%
+    ENDIF
+NEXT
+PRINTFORML
+;PRINTFORML [-1] Cancel
+PRINTFORML [-1] キャンセル
+INPUT
+UnwantedLover = RESULT
+CALL M_KOJO_COLOR_K60
+$BREAKUP
+IF UnwantedLover == -1
+    ;PRINTFORMW 「Did you get cold feet all of a sudden?」
+    PRINTFORMW 「怖気づいた？」
+    RESETCOLOR
+    RETURN -1
+ELSEIF UnwantedLover < 0 || UnwantedLover >= CHARANUM
+    ;PRINTFORMW 「Who are you even talking about?」
+    PRINTFORMW 「誰のことよ？」
+    GOTO BREAKUP_SELECT
+ELSEIF !TALENT:UnwantedLover:연인
+    ;PRINTFORMW 「What are you playing at? You're not in a relationship with %HIM_HER(UnwantedLover)%.」
+    PRINTFORMW 「何の冗談？%CALLNAME:UnwantedLover%とは恋人じゃないでしょ。」
+    GOTO BREAKUP_SELECT
+ELSEIF UnwantedLover == 0
+    ;PRINTFORMW 「What are you playing at? You can't break up with yourself.」
+    PRINTFORMW 「何の冗談？%CALLNAME:UnwantedLover%とは恋人じゃないでしょ。」
+    GOTO BREAKUP_SELECT
+;ELSEIF TALENT:UnwantedLover:妻
+;    IF TALENT:UnwantedLover:妻 == 1
+;        PRINTFORMW 「You're already gotten engaged to %HIM_HER(UnwantedLover)%. I'm not going to mess with this.」
+;    ELSEIF TALENT:UnwantedLover:妻 == 2
+;        PRINTFORMW 「I don't do divorces. Work things out yourself.」
+;    ENDIF
+;    RESETCOLOR
+;    RETURN -1
+ELSEIF GROUPMATCH(UnwantedLover, 83, 84, 64)
+    $FriendBreakup
+    IF UnwantedLover != 64
+        ;PRINTFORMDW Parsee folds her arms and glares at you.
+        PRINTFORMDW 腕組みをして睨みつけてきた。
+    ELSE
+        ;PRINTFORMDW Parsee looks conflicted for a moment... then she folds her arms and glares at you.
+        PRINTFORMDW ひと時逡巡したかのようだったが…腕組みをして睨みつけてきた。
+    ENDIF
+    ;PRINTFORML 「You are aware that you're trying to break up with one of my friends, aren't you?」
+    ;PRINTFORMW 「If you want me to do that, I'm charging extra.」
+    PRINTFORML 「別れようとしてる相手は私の友達だって、わかってるわよね？」
+    ;PRINTFORMW 「If you want me to do that, I'm charging extra.」
+    PRINTFORMW 「それをやらせようってんなら、追加料金を貰うわよ。」
+    BreakupPrice *= 2
+ELSEIF UnwantedLover == 60
+    $BreakParseesHeart
+    ;CALL PRINT_STRL, @"「@ITALIC@WHAT?!@」"
+     CALL PRINT_STRL, @"「@ITALIC@は？！@」"
+    IF !CFLAG:[[파르시]]:K60EN_PARSEE_TIMES_BROKEN_UP_WITH
+        ;PRINTFORMDW Parsee looks horrified.
+        ;PRINTFORMW 「You... you don't really...?」
+        PRINTFORMDW Parsee looks horrified.
+        PRINTFORMW 「本気じゃない、わよね…？」
+        CALL ASK_YN("本気だ", "本気じゃない")
+        IF RESULT
+            PRINTFORMDW Parsee sighs in relief.
+            CALL PRINT_STRW, @"「@ITALIC@Âkheysh.@ I don't know what I'd do if I knew you'd grown to hate me.」"
+            PRINTFORMDW パルスィは安堵のため息をつく。
+            CALL PRINT_STRW, @"「@ITALIC@Âkheysh.@あなたに嫌われたら何をしでかすかわからないわ。」"
+            RESETCOLOR
+            RETURN -1
+        ELSE
+            ;PRINTFORMDW Parsee stares at you for a moment. She seems to be desperately hoping that it's all just a nightmare.
+            ;PRINTFORMDW When it becomes clear that you really want to break up with her, she takes a deep, shuddering breath and speaks.
+            ;PRINTFORMW 「...I understand. I don't want you to be trapped in a relationship with me if you don't love me any longer.」
+            ;PRINTFORMW 「I won't charge you for this.」
+            PRINTFORMDW パルスィは縋るような目で見つめてきた。ただの悪い夢だと願うかのように。
+            PRINTFORMDW やがてあなたが本気で別れを望んでいることを否定できなくなると、深く、重い息を吐いて口を開いた。
+            PRINTFORMW 「...わかったわ。もう愛していないなら、私との関係に縛られて欲しくない。」
+            PRINTFORMW 「お代はいらないわ。」
+            BreakupPrice = 0
+            GOTO BreakupRitual
+        ENDIF
+    ELSE
+        PRINTFORMDW Parsee glares at you.
+        CALL PRINT_STRW, @"「You get together with me, break up with me, get @ITALIC@back@ together with me, and now you want to break up again?!」"
+        PRINTFORMDW She looks like she's on the verge of hurling a wave of Danmaku at you.
+        PRINTFORMW 「Is this some kind of joke?! Because if it is, I'm not amused.」
+        CALL ASK_YN("It isn't.", "It is.")
+        PRINTFORMDW Parsee grins.
+        IF RESULT
+            PRINTFORMW 「Too bad. We're through. I'm tired of you, and I'm tired of your shit.」
+        ELSE
+            PRINTFORMW 「Good. Because we're through. I'm tired of you, and I'm tired of your shit.」
+        ENDIF
+        FONTITALIC
+        SETCOLOR C_RED
+        CALL KEYTYPING(@"「Fuck off and die.」", "W", 200)
+        FONTREGULAR
+        CALL M_KOJO_COLOR_K60
+        PRINTFORMDW Parsee hovers in the air and holds up a Spell Card.
+        PRINTFORMDW You flee for your life as she fires wave after wave of Danmaku at you, accompanied by venomous insults.
+        LOCAL = CFLAG:[[파르시]]:2
+        PRINTFORMDW Favor -{LOCAL} (Parsee)
+        CFLAG:[[파르시]]:2 = 0
+        LOCAL = CFLAG:[[파르시]]:4
+        PRINTFORMDW Trust -{LOCAL} (Parsee)
+        CFLAG:[[파르시]]:4 = 0
+        ABL:[[파르시]]:순종 = 0
+        ABL:[[파르시]]:친밀 = 0
+        JUEL:[[파르시]]:10 = 0
+        JUEL:[[파르시]]:16 = 0
+        JUEL:[[파르시]]:12 = 0
+        JUEL:[[파르시]]:20 = 0
+        PRINTFORMDW Obedience decreased to LV0...
+        PRINTFORMDW Intimacy decreased to LV0...
+        TALENT:[[파르시]]:연인 = 0
+        TALENT:[[파르시]]:연모 = 0
+        TALENT:[[파르시]]:섹프 = 0
+        TALENT:[[파르시]]:애욕 = 0
+        TALENT:[[파르시]]:사모 = 0
+        CALL K60_GET_ANGRY(3)
+        IF CFLAG:TARGET:동행
+            CFLAG:TARGET:동행 = 0
+            CFLAG:MASTER:동행 = 0
+        ENDIF
+        CALL RUNOFF(60, 0)
+        CFLAG:[[파르시]]:K60EN_PARSEE_TIMES_BROKEN_UP_WITH ++
+        RESETCOLOR
+        RETURN -2
+    ENDIF
+ELSEIF INRANGE(RELATION:[[파르시]]:UnwantedLover, 1, 99)
+    SELECTCASE K60_ATTITUDE()
+        CASE 0, 1
+            ;PRINTFORMW 「I see...」
+            ;PRINTFORMDW Parsee tries to hide how relieved she looks.
+            PRINTFORMW 「わかったわ...」
+            PRINTFORMDW パルスィは安堵を隠す。.
+        CASE 2, 3
+            PRINTFORMW 「Good. I'm honestly not sure what you saw in %HIM_HER(UnwantedLover)% to begin with.」
+    ENDSELECT
+    BreakupPrice *= ((100 - RELATION:[[파르시]]:UnwantedLover) / 100)
+ENDIF
+;PRINTFORML 「My fee is %금액표시(BreakupPrice)%.」
+PRINTFORML 「%금액표시(BreakupPrice)%よ。」
+IF MONEY < BreakupPrice
+    ;PRINTFORML 「...and it seems that you can't afford it.」
+    ;PRINTFORMW 「Come back later when you can.」
+    PRINTFORML 「...足りないようね。」
+    PRINTFORMW 「払えるようになってから出直してきて。」
+    RESETCOLOR
+    RETURN -1
+ENDIF
+;CALL ASK_M("I changed my mind", 1, @"Break up with %CALLNAME:UnwantedLover%", 1)
+CALL ASK_M("気が変わった", 1, @"%CALLNAME:UnwantedLover%と別れる", 1)
+SELECTCASE RESULT
+    CASE 0
+        IF GROUPMATCH(UnwantedLover, 83, 84, 64)
+            PRINTFORMDW Parsee scowls at you.
+            PRINTFORMW 「You'd better have.」
+        ELSE
+            SELECTCASE K60_ATTITUDE()
+                ;CASE 0, 1
+                ;    PRINTFORMW 「That's probably for the best.」
+                ;CASE 2
+                ;    PRINTFORMW 「Then what did you waste my time for?」
+                ;CASE 3
+                ;    PRINTFORMW 「I see.」
+                ;    PRINTFORMDW Parsee looks a little disappointed.
+                CASE 0, 1
+                    PRINTFORMW 「それが一番よ。」
+                CASE 2
+                    PRINTFORMW 「無駄手間かけさせてくれたわね。」
+                CASE 3
+                    PRINTFORMW 「そう。」
+                    PRINTFORMDW ちょっとがっかりしたようだ。
+            ENDSELECT
+        ENDIF
+        RESETCOLOR
+        RETURN -1
+    CASE 1
+        $BreakupRitual
+        IF FIRSTTIME("RitualCutscene")
+            ;PRINTFORMDW Parsee reaches into her pocket and pulls out a pair of wicked-looking scissors.
+            ;PRINTFORMDW They're made of a strange silvery metal you've never seen before.
+            ;PRINTFORMW 「For this ritual to succeed, you need to hold your soon-to-be-ex-lover's image in your mind's eye.」
+            ;PRINTFORMW 「Thinking about the bad times you've had makes it easier.」
+            PRINTFORMDW パルスィはポケットから不吉な感じのするハサミを取り出した。
+            PRINTFORMDW 見たこともない奇妙な銀色の金属でできている。
+            PRINTFORMW 「儀式に必要だから、これから元恋人になる子のことをしっかり思い浮かべて。」
+            PRINTFORMW 「イヤな思い出を振り返ってくれるとなおいいわ。」
+            IF UnwantedLover == 60
+                ;PRINTFORMDW Parsee laughs bitterly.
+                ;PRINTFORMW 「That shouldn't be a problem. After all, it's me we're talking about.」
+                PRINTFORMDW 痛々しい笑みを浮かべる。
+                PRINTFORMW 「そこは問題じゃないわね。私のことだもの。」
+            ENDIF
+            PRINTFORMW 「目を閉じて。」
+            ;PRINTFORMDW You close your eyes and think about the bad times you had with %CALLNAME:UnwantedLover%.
+            ;PRINTFORMDW The fights, the times she got on your nerves, all her annoying little habits that you can't stand...
+            PRINTFORMDW 目を閉じて、%CALLNAME:UnwantedLover%との嫌な思い出を振り返る。
+            PRINTFORMDW 喧嘩、カンに触ったこと、ちょっとした不愉快な仕草...
+            IF IS_MALE(TARGET)
+                LOCALS:0 = 小指
+            ELSE
+                LOCALS:0 = 親指
+            ENDIF
+            IF IS_MALE(MASTER)
+                LOCALS:1 = 小指
+            ELSE
+                LOCALS:1 = 親指
+            ENDIF
+            ;PRINTFORMDW You feel something tightening around your %LOCALS%, and open your eyes in shock.
+            ;PRINTFORMDW %BREAKENG(@"There's a blue thread tied around it. \@ UnwantedLover == 60 ? It stretches over to Parsee, and the other end is tied around her %LOCALS%. It vanishes as you look at it. # It stretches off into the distance and vanishes as you look at it.\@")%
+            ;PRINTFORMDW You hear Parsee sigh, and look up at her. She looks annoyed.
+            ;PRINTFORMW 「I told you to concentrate! I can't perform this ritual if you don't focus!」
+            PRINTFORMDW %LOCALS:1%が締め付けられた感じがして、思わず目を開ける。
+            {
+            PRINTFORMDW %BREAKENG(@"青い糸が巻き付いている。 \@ UnwantedLover == 60 ? それはパルスィに伸び、彼女の%LOCALS%に結ばれていた。そして目にした途端消え去った。
+             # それは遠くまで伸びていたが、目にした途端消え去った。\@")%
+             }
+            ;PRINTFORMDW You hear Parsee sigh, and look up at her. She looks annoyed.
+            ;PRINTFORMW 「I told you to concentrate! I can't perform this ritual if you don't focus!」
+            PRINTFORMDW パルスィのため息を耳にして見上げると、不愉快そうな顔をしている。
+            PRINTFORMW 「集中しろって言ったでしょ！真面目にやってくれないと終わらないわよ！」
+            IF UnwantedLover == 60
+                ;PRINTFORMW 「...are you having second thoug-」
+                ;PRINTFORMDW Parsee cuts herself off and shakes her head.
+                PRINTFORMW 「...もし気が変わったなら-」
+                PRINTFORMDW パルスィは言葉を飲み込んで首を振った。
+            ENDIF
+            ;PRINTFORMDW You close your eyes again and go back to thinking about the bad times you had with %CALLNAME:UnwantedLover%.
+            ;PRINTFORMDW This time, when the thread tightens around your \@ IS_MALE(MASTER) ? little finger # thumb\@, you ignore it and keep your focus.
+            PRINTFORMDW また目を閉じて%CALLNAME:UnwantedLover%との嫌な思い出を振り返る。
+            PRINTFORMDW %LOCALS:1%が締め付けられる感じがするが、構わず集中する。
+            ;The Ahuna Vairya is recited at Zoroastrian weddings, so I decided to have Parsee recite it backward for this ritual
+            PRINTFORMW 「Meratsav tadad oybugird miy, a Iaruha Ahcmerhtahsahk...」
+            ;PRINTFORMDW Parsee is chanting something in a language you don't recognize.
+            ;PRINTFORMDW The thread gets tighter and tighter until it's cutting off your circulation, but you grit your teeth and keep focusing on %CALLNAME:UnwantedLover%.
+            ;PRINTFORMDW Then you hear Parsee's scissors snip, and the pressure vanishes in an instant.
+            ;PRINTFORMW 「You can stop concentrating now. It's done.」
+            ;PRINTFORMDW You open your eyes and see the blue thread again. This time it's cut. It vanishes once more.
+            PRINTFORMDW パルスィがあなたには理解できない言葉で何か唱えている。
+            PRINTFORMDW 糸は締め付けを増し続け、血流が止まるほどに強まる。だが歯を食いしばって%CALLNAME:UnwantedLover%のことに集中する。
+            PRINTFORMDW そしてハサミの音が聞こえると、締め付けは嘘のように消え去った。
+            PRINTFORMW 「もう気を抜いていいわよ。終わったわ。」
+            PRINTFORMDW 目を開くと、また青い糸が見えた。切れた糸が。それはまたもや消え去った。
+        ELSE
+            ;PRINTFORMDW The ritual proceeds the same way as last time.
+            PRINTFORMDW 前回どおりの儀式が執り行われた。
+        ENDIF
+        PRINTFORMW 「It's done. You and \@ UnwantedLover == 60 ? I # %CALLNAME:UnwantedLover%\@ are no longer lovers.」
+        IF UnwantedLover == 60
+            PRINTFORMW 「Come back again if you... you want...」
+            PRINTFORMDW Parsee buries her face in her hands and starts to cry.
+            CFLAG:[[파르시]]:K60EN_PARSEE_TIMES_BROKEN_UP_WITH ++
+            CALL K60_PARSEE_GOT_HER_HEART_BROKEN
+        ELSE
+            ;PRINTFORMW 「Come back again if you want to break up with someone else.」
+            PRINTFORMW 「別れたい子ができたらまた来て。」
+            CALL PAY_MONEY_YEN(BreakupPrice, 2)
+        ENDIF
+        LOVERPEP --
+        IF LOVERPEP == 0
+            CLEARBIT CFLAG:MASTER:기정사실, 2
+            TALENT:MASTER:7 = 0
+        ENDIF
+        TALENT:UnwantedLover:7 = 0
+        IF GROUPMATCH(UnwantedLover, 83, 84, 64)
+            CFLAG:[[파르시]]:덮침금지 = CFLAG:[[파르시]]:K60EN_PARSEE_OLD_NO_PUSHDOWN_VALUE
+            CFLAG:[[파르시]]:기정사실 = CFLAG:[[파르시]]:K60EN_PARSEE_OLD_CONSENT_VALUE
+            CFLAG:[[파르시]]:대주고말았다 = CFLAG:[[파르시]]:K60EN_PARSEE_OLD_BEEN_PUSHED_DOWN_VALUE
+            CFLAG:[[파르시]]:K60EN_PARSEE_OLD_NO_PUSHDOWN_VALUE = 0
+            CFLAG:[[파르시]]:K60EN_PARSEE_OLD_CONSENT_VALUE = 0
+            CFLAG:[[파르시]]:K60EN_PARSEE_OLD_BEEN_PUSHED_DOWN_VALUE = 0
+        ENDIF
+        TCVAR:[[파르시]]:K60ENC_TCVAR_DATE_REACTION = 0
+        UnwantedLover = 0
+        nParseeLoversBrokenUpWith ++
+        TIME += 30
+        RESETCOLOR
+        RETURN 1
+ENDSELECT
+
+;Parsee's longer conversations go here
+@K60_HashihimeServices_ParseeChanDoesNotShutUp()
+IF K60_ATTITUDE() == 2 || MARK:[[파르시]]:반발각인 == 3 || CFLAG:[[파르시]]:빡침 == 1
+    ;PRINTFORMDW Parsee folds her arms and glares at you.
+    PRINTFORMDW パルスィは腕組みをして睨んでくる。
+    PRINTFORMW 今は\@ K60_ATTITUDE() == 2? 話すほど素直になれない# ご立腹\@のようだ……
+    ;PRINTFORMD It looks like she's too 
+    ;IF K60_ATTITUDE() == 2
+    ;    PRINTFORMD tsundere 
+    ;ELSE
+    ;    PRINTFORMD angry 
+    ;ENDIF
+    ;PRINTFORMDW to open up to you right now...
+    TIME += 5
+    RETURN 1
+ELSE
+    DO
+        RESETCOLOR
+        DRAWLINE
+        SIF !FIRSTTIME("ParseeYamameConvo", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  0]Yamame
+
+        RESETCOLOR
+        SIF !FIRSTTIME("ParseeKisumeConvo", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  1]Kisume
+
+        RESETCOLOR
+        SIF !FIRSTTIME("ParseeYuugiBackstory", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  2]How you met Yuugi
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeSatoriPartialBackstory", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  3]Satori
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeKoishiConvo", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  4]Koishi
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeOkuuBackstory", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  5]Okuu
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeJoonConvo", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  6]Joon
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeSeijaConvo", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  7]Seija
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeEikiBackstory", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  8]Eiki
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeSatoriBackstory", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [  9]How you came to the Underworld
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeAlternateWorldsConvo", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [ 10]Something deep
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeBeingAZoroastrianConvo", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [ 11]Being a Zoroastrian
+        RESETCOLOR
+
+        SIF !FIRSTTIME("ParseeThoughtsOnHumansConvo", 1)
+            SETCOLOR C_L_GRAY
+        PRINTL [ 12]Your thoughts on humans
+        RESETCOLOR
+    ; PRINTL []How you met Yuugi [todo convo about yuugi that isn't backstory-related]
+			;-Rin
+			;-Suika
+			;-Kanako
+			;-Yuuma
+			;-Nue
+			;-Hatate and Aya (they met in Double Spoiler)
+			;-Noroiko
+			;-Eiki
+			;-Sunny, if Sunny's at Lust (her fall dialogue mentions her running into Parsee while looking for you)
+        PRINTL [999]Never mind
+        INPUT
+        LOCAL = RESULT
+        CALL M_KOJO_COLOR_K60
+        SELECTCASE LOCAL
+            CASE 0
+                CALL K60_YAMAME_BACKSTORY()
+                TIME += 5
+                RESETCOLOR
+            CASE 1
+                CALL K60_KISUME_CONVO()
+                TIME += 5
+                RESETCOLOR
+            CASE 2
+                IF TALENT:[[파르시]]:연인
+                    CALL K60_YUUGI_BACKSTORY
+                    TIME += 5
+                ELSE
+                    $NOT_CLOSE_ENOUGH
+                    PRINTFORMW 「...I'd rather not talk about that.」
+                    PRINTFORMDW It looks like you'll need to get closer to Parsee before she'll tell you about that...
+                ENDIF
+                RESETCOLOR
+            CASE 3
+                CALL K60_SATORI_PARTIAL_BACKSTORY()
+                TIME += 5
+                RESETCOLOR
+            CASE 4
+                CALL K60_KOISHI_CONVO()
+                TIME += 5
+                RESETCOLOR
+            CASE 5
+                CALL K60_OKUU_CONVO()
+                TIME += 5
+                RESETCOLOR
+            CASE 6
+                CALL K60_JOON_CONVO()
+                TIME += 5
+                RESETCOLOR
+            CASE 7
+                CALL K60_SEIJA_CONVO()
+                TIME += 5
+                RESETCOLOR
+            CASE 8
+                IF TALENT:[[파르시]]:연인
+                    CALL K60_EIKI_BACKSTORY
+                    TIME += 10
+                ELSE
+                    GOTO NOT_CLOSE_ENOUGH
+                ENDIF
+                RESETCOLOR
+            CASE 9
+                IF TALENT:[[파르시]]:연인
+                    CALL K60_SATORI_BACKSTORY()
+                    TIME += 10
+                ELSE
+                    GOTO NOT_CLOSE_ENOUGH
+                ENDIF
+                RESETCOLOR
+            CASE 10
+                CALL K60_ALTERNATE_WORLDS_CONVO()
+                TIME += 10
+                RESETCOLOR
+            CASE 11
+                CALL K60_BEING_A_ZOROASTRIAN()
+                TIME += 5
+                RESETCOLOR
+            CASE 12
+                CALL K60_THOUGHTS_ON_HUMANS()
+                TIME += 5
+                RESETCOLOR
+            CASE 999
+                RESETCOLOR
+                TIME += 5
+                RETURN
+        ENDSELECT
+    LOOP 1
+ENDIF
+
+

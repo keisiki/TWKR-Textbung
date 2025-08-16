@@ -487,97 +487,104 @@ ENDIF
 
 PRINTFORML 
 
-;虫リストを参考に
 @SHOW_ALLCHILDLIST
-#DIM CHILDNUM
-#DIM START,10
-#DIM ページ
-#DIM 最後のページ
-#DIM P調整
-#DIM L調整
-#DIM LASTNUM
-#DIM CONST MAXLINE = 20
-;各ページの頭番を設定する
-IF !START
-	P調整 = 0
-	L調整 = 0
-	LASTNUM = 0
-	FOR LOCAL, 1, CHARANUM
-		SIF !CFLAG:LOCAL:아이인원수
-			CONTINUE
-		L調整 ++
-		IF L調整 > MAXLINE
-			P調整 ++
-			START:P調整 = LOCAL
-			L調整 = 1
-		ENDIF
-		LASTNUM = LOCAL
-	NEXT
-	START = 1
-	ページ = 1
-	;最後のページと最後のページの頭番を設定
-	最後のページ = P調整 + 1
-	START:最後のページ = LASTNUM + 1
-ENDIF
+#DIM list_chara_has_child, 캐릭터수상한
+#DIM chara_has_child_num
+#DIM 対象
+#DIM printing_page
+#DIM printing_chara
+;キャラ数が増えた場合に変更する
+#DIM CONST NEXT_PAGE = 999
+#DIM CONST PREV_PAGE = 998
+#DIM CONST MAX_LINE = 20
+#DIM leave_line_count_last
 
-VARSET LOCAL
-PRINTFORML ◆아이리스트 PAGE.{ページ} 총계{CFLAG:MASTER:아이인원수}인
-DRAWLINE
-FOR LOCAL, START, START:ページ
-	SIF !CFLAG:LOCAL:아이인원수
-		CONTINUE
-	PRINTFORM [{LOCAL, 3}] %CALLNAME:LOCAL, 16, LEFT%
-	CALL SHOW_CHILDDATA(LOCAL, "ICON")
-	LOCAL:1 ++
+;消さずに残す最後の行
+;このあと CLEARLINE LINECOUNT - leave_line_count_last でこの時記録した行よりも後の行を全てCLEARする
+leave_line_count_last = LINECOUNT
+
+;子供がいるキャラのリストを作成する
+VARSET list_chara_has_child
+VARSET chara_has_child_num
+FOR 対象, 1, CHARANUM
+	SIF !CFLAG:対象:아이인원수
+			CONTINUE
+		list_chara_has_child:chara_has_child_num = 対象
+	chara_has_child_num ++
 NEXT
-WHILE LOCAL:1 < MAXLINE
-	PRINTL 
-	LOCAL:1 ++
+printing_page = 1
+
+WHILE 1
+	CLEARLINE LINECOUNT - leave_line_count_last
+	DRAWLINE
+	PRINTFORML ◆아이리스트 PAGE.{printing_page} 총계{CFLAG:MASTER:아이인원수}인
+	STRLENFORM {PREV_PAGE}
+	PRINTFORML %" " * (RESULT + 5)%부모캐릭터%" " * 4%아이인원수・성별
+	DRAWLINE
+
+	FOR printing_chara, (printing_page - 1)*MAX_LINE, MAX_LINE + (printing_page - 1)*MAX_LINE
+		IF printing_chara >= chara_has_child_num
+			PRINTL
+			CONTINUE
+		ENDIF
+		PRINTFORM [{list_chara_has_child:printing_chara, 3}] %CALLNAME:(list_chara_has_child:printing_chara), 16, LEFT%
+		CALL SHOW_CHILDDATA(list_chara_has_child:printing_chara, "ICON")
+
+	NEXT
+	DRAWLINE
+	PRINTFORML [{PREV_PAGE}] 이전페이지
+	PRINTFORML [{NEXT_PAGE}] 다음페이지
+	PRINTL [  0] 돌아간다
+
+	WHILE 1
+		INPUT
+		;ページが1枚しかない場合はページ移動を要求されてもなにも処理しない
+		;子供が居ないとこの関数は呼ばれないのでchara_has_child_numは常に正であることに注意すると
+		;(chara_has_child_num - 1) / MAX_LINE + 1 は最後のページを表す
+		IF (chara_has_child_num - 1) / MAX_LINE + 1 == 1 && (RESULT == NEXT_PAGE || RESULT == PREV_PAGE)
+			CLEARLINE 1
+			CONTINUE
+		ENDIF
+		BREAK
+	WEND
+	SELECTCASE RESULT
+		CASE 0
+			;クリアするべき？
+			;CLEARLINE LINECOUNT - leave_line_count_last
+			RETURN 0
+		;ページ移動は循環するようにする 例えば1ページ目で前のページを要求されたら最後のページを表示する
+		CASE PREV_PAGE
+			SELECTCASE printing_page
+				CASE 1
+					printing_page = (chara_has_child_num - 1) / MAX_LINE + 1
+				CASEELSE
+					printing_page --
+			ENDSELECT
+		CASE NEXT_PAGE
+			SELECTCASE printing_page
+				CASE (chara_has_child_num - 1) / MAX_LINE + 1
+					printing_page = 1
+				CASEELSE
+					printing_page ++
+			ENDSELECT
+		CASEELSE
+			SIF INRANGE(RESULT, 1, CHARANUM) && CFLAG:RESULT:아이인원수
+				CALL SHOW_ALLCHILDLIST_CHARA(RESULT)
+	ENDSELECT
 WEND
-DRAWLINE
-PRINTL [999] 다음페이지
-PRINTL [998] 이전페이지
-PRINTL [  0] 돌아간다
-INPUT
-;戻る
-IF !RESULT
-	VARSET START
-	RETURN
-;次のページ
-ELSEIF RESULT == 999
-	ページ ++
-	IF ページ > 最後のページ
-		ページ = 1
-		START = 1
-	ELSE
-		START = START:(ページ - 1)
-	ENDIF
-;前のページ
-ELSEIF RESULT == 998
-	ページ --
-	IF ページ < 1
-		ページ = 最後のページ
-		START = START:(最後のページ - 1)
-	ELSEIF ページ == 1
-		START = 1
-	ELSE
-		START = START:(ページ - 1)
-	ENDIF
-;閲覧
-ELSEIF INRANGE(RESULT, 1, CHARANUM) && CFLAG:RESULT:아이인원수
+
+@SHOW_ALLCHILDLIST_CHARA(chara_id)
+#DIM chara_id
+#DIM leave_line_count_last
+leave_line_count_last = LINECOUNT
+
 	PRINTFORML %"━" * 50%
 	PRINTFORML 　%CALLNAME:RESULT%의 아이 일람
 	PRINTFORML %"━" * 50%
-	PRINTFORML 
-	CALL SHOW_CHILDDATA(RESULT)
-	LOCAL:2 = RESULT
-	DRAWLINE
-	PRINTL [  0] 돌아간다
-	INPUT
-	CLEARLINE (MAXLINE + LOCAL:2 + 4)
-ENDIF
-CLEARLINE (MAXLINE + 7)
-RESTART
+	CALL SHOW_CHILDDATA(chara_id)
+PRINTW
+CLEARLINE LINECOUNT - leave_line_count_last
+RETURN 0
 
 ;虫リストを参考に
 @SHOW_SP_DISH_LIST
