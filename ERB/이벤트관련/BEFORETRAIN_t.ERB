@@ -49,7 +49,6 @@ FLAG:일일이벤트 = RAND:1000
 FLAG:70 = 0
 ;(天候パッチ)時刻・天候に応じて背景色を変更
 CALL SET_MAP_WEATHER_BGCOLOR
-RESETBGCOLOR
 CFLAG:MASTER:동침중 = 0
 IF (IN_HOME(CFLAG:MASTER:초기위치) == 0 || CFLAG:MASTER:초기위치 <= 0) && !FLAG:노숙
 	PRINTW 초기위치가 부정합니다. Default의 위치에 되돌립니다.
@@ -132,7 +131,7 @@ NEXT
 ;=================================
 FOR LOCAL,0,CHARANUM
 	;키스경험이 0이라면[키스미경험]을 취득(미설정캐릭터에게로의 대책이라고 생각된다)
-	SIF EXP:LOCAL:키스경험 == 0 && TALENT:LOCAL:키스미경험 == 0
+	SIF EXP:LOCAL:키스경험 == 0 && TALENT:LOCAL:키스미경험 == 0 && CFLAG:LOCAL:첫키스상실대상 != 1
 		 TALENT:LOCAL:키스미경험 = 1
 	;여성기 부재(성별의 bit0가 0) 혹은[애같음][유치]로[초경]미취득 이라면 주기를 설정하지 않는다
 	IF ((TALENT:LOCAL:150 || TALENT:LOCAL:151) && !TALENT:LOCAL:초경) || !GETBIT(TALENT:LOCAL:성별, 0)
@@ -214,9 +213,15 @@ WHILE LOCAL
 	ENDIF
 WEND
 CFLAG:MASTER:당신앞턴위치 = CFLAG:MASTER:초기위치
+CALL CHANGE_TIMEZONE()
 
-;눈을 뜨고 공통 메시지 표시
+;目覚め共通メッセージ表示
 CALL GOODMORNING
+
+VARSET nChildrenPresent
+VARSET CHILD_PRINT_DESCRIPTION
+VARSET CHILD_HUNGER
+nChildrenPresentCount = 0
 
 FOR LOCAL,1,CHARANUM
 	;초기위치는 99로 통일(53은 낡은 데이터용)
@@ -263,8 +268,15 @@ FOR LOCAL,1,CHARANUM
 		;그 날은 연속해서 묵을 수 없게
 		TCVAR:LOCAL:연속숙박금지 = 1
 		;육아중なら子供の行動を判定
-		SIF FLAG:자식묘사 && TALENT:LOCAL:육아중
-			CALL CHILD_MOVEMENT(LOCAL, TALENT:LOCAL:육아중)
+		IF FLAG:자식묘사 && TALENT:LOCAL:육아중 ;check all children
+			FOR LOCAL:11, 1, MAXCHILD + 1
+			SIF CHILDNAME:LOCAL:(LOCAL:11) == ""
+				CONTINUE
+			SIF CHILD_INDEPENDENT:LOCAL:(LOCAL:11)
+				CONTINUE
+			CALL CHILD_MOVEMENT(LOCAL, LOCAL:11)
+			NEXT
+		ENDIF
 		;自立した子供がいるなら子供の行動を判定
 		SIF FLAG:자식묘사 && CFLAG:LOCAL:아이인원수 - CFLAG:LOCAL:육아인원수 > 0
 			CALL CHILD_MOVEMENT_2(LOCAL)
@@ -318,6 +330,14 @@ BASE:MASTER:정력 = MIN(MAXBASE:MASTER:정력, BASE:MASTER:정력)
 BASE:MASTER:발기 = MIN(1000 * BASE:MASTER:체력 / MAXBASE:MASTER:체력, 1000)
 ;DEBUGPRINTFORM 기력{MAXBASE:MASTER:기력 * 수면시간 / 2 / (480 -120 * TALENT:MASTER:회복속도)}회복
 CFLAG:MASTER:철야 = 0
+;process DOWNBASE from morning events
+FOR LOCAL, 0, CHARANUM
+	FOR LOCAL:1, 0, 100
+		BASE:LOCAL:(LOCAL:1) -= DOWNBASE:MASTER:(LOCAL:1)
+	NEXT
+	VARSET DOWNBASE:LOCAL:0
+NEXT
+
 IF 0 > BASE:MASTER:정력
 	BASE:MASTER:기력 += BASE:MASTER:정력 * 5
 	IF 0 > BASE:MASTER:기력
@@ -377,16 +397,19 @@ IF TALENT:MASTER:형상 == 4 && ABL:MASTER:전투능력 >= 5 && ITEM:폭발성�
 	ITEM:폭발성정액++
 	PRINTFORMW 고환에 뜨거운 정액이 차오르고 있다
 ENDIF
-;소작인 또한 월초(첫날 제외하다)라면 연공이 내세우고
-;외박 해 도망 다니는 일도 할 수 없지는 않다
+;IF !ITEM:ミラダの石 && (FLAG:ミラダ支給 < NOW_PERIOD())
+;	CALL COLORMESSAGE(@"愛欲を独占するミラダの石ミレニアムは知ってる？", C_D_PINK,2)
+;	PRINTFORMW ☆愛欲を独占するミラダの石ミレニアムが支給された
+;	ITEM:ミラダの石 ++
+;	FLAG:ミラダ支給 = NOW_PERIOD()
+;ENDIF
+;小作人かつ月初め（初日除く）なら年貢のとりたて
+;外泊して逃げまわることもできなくはない
 SIF FLAG:지주 && FLAG:연공 && (TARGET == FLAG:지주 || CFLAG:MASTER:현재위치 != OMANEKIBEYA()) && !FLAG:감방남은일수
 	CALL NENGU_NOUMIN
 CALL KODUCHI
 CALL CHARA_MOVEMENT
 
-;벌레 수집 서비스
-SIF FLAG:벌레수집서비스
-	CALL IFS_GATHER
 
 ;기상시에 머리맡에의 선물 판정을 실시한다
 ;CALL GET_GIFT
@@ -411,15 +434,16 @@ FOR LOCAL, 0, CHARANUM
 	;의상 설정
 	;행동중에 입는 옷을 설정해 갈아 입을 옷 한다
 	IF LOCAL == MASTER || !수면시간(LOCAL)
+		CFLAG:LOCAL:파자마 = 0 ;disable pajama mode before setting clothes
 		CALL SELECT_CLOTHES(LOCAL, "오늘의 의상")
 		CALL SELECT_CLOTHES(LOCAL, "오늘의 파자마")
 		CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_평상복")
 		SETBIT CFLAG:LOCAL:갈아입음실행, 0
 	ELSE
+		CFLAG:LOCAL:파자마 = 1
 		CALL SELECT_CLOTHES(LOCAL, "내일의 의상")
 		CALL SELECT_CLOTHES(LOCAL, "오늘의 파자마")
 		CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_파자마")
-		CFLAG:LOCAL:파자마 = 1
 		SETBIT CFLAG:LOCAL:갈아입음실행, 1
 	ENDIF
 	IF SPECIAL_OUTFIT(LOCAL)
@@ -591,20 +615,20 @@ IF FLAG:이상기상
 ELSE
 	SELECTCASE TIME:5
 		CASE 0,1
-			PRINTL 좋은 날씨다.
+			CALL COLORMESSAGE(@"좋은 날씨다.",C_P_GREEN,1)
 		CASE IS & 4
-			PRINTL 비가 내리고 있다.
+			CALL COLORMESSAGE(@"비가 내리고 있다.",C_AQUA,1)
 		CASE IS & 8
-			PRINTL 눈이 내리고 있다.
+			CALL COLORMESSAGE(@"눈이 내리고 있다.",C_CREAM,1)
 	ENDSELECT
 ENDIF
-;대폭풍예보일의 판정
+;폭풍우예보일의 판정
 IF STRCOUNT(GET_WEATHER_WARNING_HEAVY_RAIN(), "警報") || STRCOUNT(GET_WEATHER_WARNING_HEAVY_SNOWFALL(), "警報")
-	TFLAG:대폭풍예보일 = 1
+	TFLAG:폭풍우예보일 = 1
 ELSEIF STRCOUNT(GET_WEATHER_WARNING_STORM(), "警報") || IS_TYPHOON:0
-	TFLAG:대폭풍예보일 = 1
+	TFLAG:폭풍우예보일 = 1
 ELSE
-	TFLAG:대폭풍예보일 = 0
+	TFLAG:폭풍우예보일 = 0
 ENDIF
 IF FESTIVAL() != ""
 	PRINTFORML 오늘은 %조사처리(FESTIVAL(),"다")%.
@@ -654,6 +678,8 @@ IF CFLAG:MASTER:요술망치 > 0
 	IF CFLAG:MASTER:요술망치 == 8
 			PRINTFORMW 신묘마루의 몸은 원래대로 돌아갔다
 		TALENT:71:체형 = -5
+		SIF CFLAG:71:변이전형상 != 0
+			TALENT:71:체형 = CFLAG:71:변이전형상
 		IF CFLAG:71:초기위치 == 54 || CFLAG:71:현재위치 == 9
 			CFLAG:71:현재위치 = 54
 			CFLAG:71:초기위치 = 54
@@ -702,6 +728,8 @@ ENDIF
 @MESSAGE_GOODMONING(기상상황,기상장소)
 #DIM 기상상황
 #DIM 기상장소
+LOCAL:9 = GETCOLOR()
+RESETCOLOR
 PRINTFORML
 IF !FLAG:감방남은일수
 	SELECTCASE 기상상황
@@ -750,6 +778,7 @@ IF !FLAG:감방남은일수
 	ENDSELECT
 	PRINTFORML
 ENDIF
+SETCOLOR LOCAL:9
 RETURN 1
 
 ;----------------------------------------------
@@ -823,11 +852,11 @@ ENDIF
 IF ITEM:오동나무침대
 	SELECTCASE ITEM:오동나무침대
 		CASE 1
-			安眠補正 += RAND:20 + RAND:20
+			安眠補正 += 10 + RAND:11 + RAND:21
 		CASE 2
-			安眠補正 += RAND:30 + RAND:30
+			安眠補正 += 15 + RAND:16 + RAND:31
 		CASE 3
-			安眠補正 += RAND:40 + RAND:40
+			安眠補正 += 20 + RAND:21 + RAND:41
 	ENDSELECT
 ENDIF
 

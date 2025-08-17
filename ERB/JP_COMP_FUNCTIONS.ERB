@@ -1,0 +1,119 @@
+﻿;==============================================================
+;Filename : JP_COMP_FUNCTIONS
+;DATE : 2020.07.01
+;COMMENT : 파편화되어있는 일판 호환용 함수를 정리한 파일
+;원래 해당 함수의 파일 위치를 꼭 적어주시기 바랍니다.
+;호환용 함수 발견시 이쪽으로 옮겨주시면 감사하겠습니다.
+;이 파일의 내용물은 함부로 번역하지 말아주세요.
+;==============================================================
+;스테이터스표시관련\LOOK_t.ERB
+@充填率(캐릭터등록번호, 몸부위)
+#FUNCTION
+#DIM 캐릭터등록번호
+#DIM 몸부위
+RETURNF 충전율(캐릭터등록번호, 몸부위)
+
+;COMMON.ERB
+@陥落状態(ARG)
+#FUNCTION
+RETURNF 함락상태(ARG)
+
+;커맨드관련/COMF/일상계/COMF413 요리만든다_t.ERB
+@食事(ARG)
+CALL 식사(ARG)
+
+@満腹度上昇(ARG, ARGS)
+CALL 만복도상승(ARG, ARGS)
+
+;스테이터스표시관련/모브코표시.ERB
+@モブ子生成(캐릭터번호, 스탠딩종류)
+#DIM 캐릭터번호
+#DIM 스탠딩종류
+CALL 모브코생성(캐릭터번호, 스탠딩종류)
+
+;이벤트관련/임신관련/HININSHITE_t.ERB
+@妊娠可否(ARG)
+#FUNCTION
+RETURNF 임신가부(ARG)
+
+;-------------------------------------------
+;-KR- KR판 구잔재. 일판에선 현재 사토리 커맨드자동신음 안에 있음
+;함락상태의 지정
+;ARG를 입력하지 않으면, TARGET 입력
+;-------------------------------------------
+@함락상태(ARG)
+#FUNCTION
+SIF !ARG
+	ARG = TARGET
+IF TALENT:ARG:연인
+	;사토리 응석모드 or 사쿠야 소녀 연인 모드
+	IF CFLAG:깨끗한교제 && ((ARG == 49 && (GETBIT (CFLAG:ARG:1490,6))) || (ARG == 15 && CFLAG:ARG:구상셀렉터 == 1 && !CFLAG:ARG:1151) || (ARG != 49 && (ARG != 15 || (ARG == 15 && CFLAG:ARG:구상셀렉터 != 1))))
+		RETURNF 5
+	;통상연인
+	ELSE
+		RETURNF 4
+	ENDIF
+;연모 or 섹프 or 애인 or 사쿠야시간들킴＋사모
+ELSEIF TALENT:ARG:연모 || TALENT:ARG:184 || TALENT:ARG:185 || (ARG == 15 && CFLAG:ARG:구상셀렉터 == 1 && GETBIT(CFLAG:ARG:1151,0) && TALENT:ARG:사모)
+	RETURNF 3
+;모코우합의 or 사토리가족시간
+ELSEIF (ARG == 49 && GETBIT (CFLAG:ARG:1490,0)) || (ARG == 61 && GETBIT (CFLAG:ARG:1 ,0))
+	RETURNF 2
+;통상사모 or 모코우이외합의 or 사쿠야시간들킴 or 사토리사모&시간없음
+ELSEIF ((GETBIT (CFLAG:ARG:1 ,0) && ARG != 61) || (ARG == 15 && CFLAG:ARG:구상셀렉터 == 1 && GETBIT(CFLAG:ARG:1151,0)) || TALENT:ARG:사모) && ((!GETBIT (CFLAG:ARG:1490,1) && ARG == 49) || ARG != 49)
+	RETURNF 1
+ENDIF
+
+;-------------------------------------------------------------------------------
+;	-KR- 이하 메디슨 구상에서 이식
+;-------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------
+;	カラーバーのRECT対応版
+;-------------------------------------------------------------------------------
+;	例  %LAYER_CBAR(BASE:0,MAXBASE:0,10,UNICODE(0x2584),UNICODE(0x2584),GETCOLOR(),0x404040)%
+;===============================================================================
+;	引数は頭三つはBARとほぼ一緒 + ARGSで描写文字の変更が可能(指定しない場合はBARと同じ仕様)
+;	ただし、前後の[]は省かれます
+;	ARG:3 = バーの色(0xFFFFFF形式で指定)  ARG:4 = バーの背景色(0xFFFFFF形式で指定)
+;-------------------------------------------------------------------------------
+@LAYER_RECTBAR(ARG, ARG:1, MAX_LENGTH, COLOR = 0xC0C0C0, COLOR:1 = 0x404040, BCOLOR = -1, BCOLOR:1 = -1, HEIGHT = 100, L_X = 0, L_Y = -1)
+#FUNCTIONS
+#LOCALSIZE 3
+#LOCALSSIZE 2
+#DIM CONST FONT_SIZE = 16
+#DIM MAX_LENGTH
+#DIM COLOR, 2
+#DIM BCOLOR, 2
+#DIMS COLORS, 2
+#DIMS BCOLORS, 2
+#DIM LENGTH, 2
+#DIM L_X
+#DIM L_Y
+#DIM HEIGHT
+SIF BCOLOR == -1
+	BCOLOR = GETBGCOLOR()
+SIF BCOLOR:1 == -1
+	BCOLOR:1 = GETBGCOLOR()
+;中央に揃える
+SIF L_Y == -1
+	L_Y = (100 - HEIGHT) / 2
+COLORS '= "#" + CONVERT(COLOR,16)
+COLORS:1 '= "#" + CONVERT(COLOR:1, 16)
+BCOLORS '= "#" + CONVERT(BCOLOR, 16)
+BCOLORS:1 '= "#" + CONVERT(BCOLOR:1, 16)
+VARSET LOCAL
+VARSET LOCALS
+MAX_LENGTH *= 100
+LENGTH = ARG * MAX_LENGTH / ARG:1 + (ARG * MAX_LENGTH % ARG:1 > 0)
+LENGTH:1 = MAX_LENGTH - LENGTH
+IF LENGTH
+	LOCALS =<shape type='rect' param = '{L_X}, {L_Y}, {LENGTH}, {HEIGHT}' color= '%COLORS%' bcolor= '%BCOLORS%'>
+ELSE
+	LOCALS = 
+ENDIF
+IF LENGTH:1
+	LOCALS:1 = <shape type='rect' param = '{L_X}, {L_Y}, {LENGTH:1}, {HEIGHT}' color= '%COLORS:1%' bcolor= '%BCOLORS:1%'>
+ELSE
+	LOCALS:1 = 
+ENDIF
+RETURNF LOCALS + LOCALS:1

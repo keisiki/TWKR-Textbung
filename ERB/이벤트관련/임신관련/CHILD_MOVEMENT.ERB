@@ -6,8 +6,24 @@
 #DIM CHILDNUM
 #DIMS 아이의이름
 #DIM 자립후의아이들
+
+#DIM nCurrentChildCareCount
+#DIM nCurrentCareChild
+#DIM nCurrentChildHunger
+#DIM LAST_CHECK = -1
+#DIM LAST_LOCATION = -1
 SIF !FLAG:자식묘사
 	RETURN
+
+SIF LAST_CHECK == TIME && LAST_LOCATION == CFLAG:MASTER:현재위치 ;only trigger if time passes
+    RETURN
+LAST_CHECK = TIME
+LAST_LOCATION = CFLAG:MASTER:현재위치
+
+VARSET nChildrenPresent
+VARSET CHILD_PRINT_DESCRIPTION
+nChildrenPresentCount = 0
+nChildrenAwake = 0
 
 TFLAG:묘사중인아이 = 0
 FOR LOCAL, 1, CHARANUM
@@ -35,14 +51,41 @@ FOR LOCAL, 1, CHARANUM
 	SIF !TALENT:LOCAL:육아중
 		CONTINUE
 	;欲求不満の抑制
-	SIF CFLAG:LOCAL:욕구불만도 > 300
-		CFLAG:LOCAL:욕구불만도 = 300
+	nCurrentChildCareCount = CFLAG:LOCAL:출산경과일 ;store current value
+	nCurrentCareChild = TALENT:LOCAL:육아중 ;store current value
+	nCurrentChildHunger = TCVAR:LOCAL:아이공복도 ;store current value
+
+	FOR CHILDNUM, 1, MAXCHILD + 1 ;check all children
+	SIF CHILDNAME:LOCAL:CHILDNUM == ""
+		CONTINUE
+	SIF CHILD_INDEPENDENT:LOCAL:CHILDNUM
+		CONTINUE
+
+	TALENT:LOCAL:육아중 = CHILDNUM ;current child
+	CFLAG:LOCAL:출산경과일 = (DAY-CHILD_BIRTHDAY:LOCAL:CHILDNUM)+1 ;current age
+	TCVAR:LOCAL:아이공복도 = CHILD_HUNGER:LOCAL:CHILDNUM ;current hunger
 	;子供の行動はここで決定
 	CALL CHILD_MOVEMENT(LOCAL, TALENT:LOCAL:육아중)
+	;bug fix - cap horniness only when the child is around, according to the hint
+    ;added check to see if they're sleeping 
+	IF RESULT:1 ;present
+        IF CHILD_ACT:LOCAL:CHILDNUM != "睡眠"
+            nChildrenAwake++
+            IF CFLAG:LOCAL:욕구불만도 > 300
+                ;store lost frustration until child goes to sleep, but only the highest value lost to prevent it from accumulating indefinitely
+                TCVAR:LOCAL:PENT_UP_FRUSTRATION = MAX(CFLAG:LOCAL:욕구불만도 - 300, TCVAR:LOCAL:PENT_UP_FRUSTRATION)
+                CFLAG:LOCAL:욕구불만도 = 300
+            ENDIF
+        ENDIF
+    ENDIF
+    ;restore the lost frustration if no children are around
+    IF !nChildrenAwake && (!RESULT:1 || CHILD_ACT:LOCAL:CHILDNUM == "睡眠")
+        CFLAG:LOCAL:욕구불만도 = MIN(TCVAR:LOCAL:PENT_UP_FRUSTRATION + CFLAG:LOCAL:욕구불만도, 1000)
+        TCVAR:LOCAL:PENT_UP_FRUSTRATION = 0
+    ENDIF
 	;描写しない場合はRESULT=0
 	SIF !RESULT
-		CONTINUE
-	CHILDNUM = TALENT:LOCAL:육아중
+		GOTO CHILDLOOPEND
 	아이의이름 = %CHILDNAME:LOCAL:CHILDNUM%
 	;유아기（0日～45日）
 	IF CFLAG:LOCAL:출산경과일 < CHILD_어휘
@@ -138,6 +181,11 @@ FOR LOCAL, 1, CHARANUM
 ;				SIF !RAND:3
 				CALL KOJO_MESSAGE_SEND("EVENT", 0, LOCAL, 0, 0, "CHILD_RAISING_OTHER", LOCALS)
 	ENDSELECT
+	$CHILDLOOPEND
+	CFLAG:LOCAL:출산경과일 = nCurrentChildCareCount ;restore value
+	TALENT:LOCAL:육아중 = nCurrentCareChild ;restore value
+	TCVAR:LOCAL:아이공복도 = nCurrentChildHunger ;restore value
+	NEXT
 NEXT
 RESETCOLOR
 
@@ -158,8 +206,15 @@ VARSET RESULT
 LOCALS = %CHILD_ACT:CHARA:CHILDNUM%
 
 ;TIME_PROGRESSが使えないので無理矢理算出
-SIF TIMESTAMP_DAY != DAY
-	TIMESTAMP = 1440 * DAY + TIME
+IF TIMESTAMP_DAY != DAY
+	FOR LOCAL, 1, CHARANUM-1
+		FOR LOCAL:1, 0, MAXCHILD + 1
+			CHILD_TIMESTAMP:LOCAL:(LOCAL:1) = 1440 * DAY + TIME
+		NEXT
+	NEXT
+ENDIF
+TIMESTAMP = CHILD_TIMESTAMP:CHARA:CHILDNUM
+
 経過時間 = 1440 * DAY + TIME - TIMESTAMP
 
 ;10分以上経過してたらダイスを振る
@@ -174,7 +229,7 @@ SIF !GO_SCHOOL(CHARA) && GROUPMATCH(CHILD_ACT:CHARA:CHILDNUM, "授業", "支度"
 IF CFLAG:CHARA:출산경과일 < CHILD_어휘
 	;睡眠中,お腹が空いたらランダムで起きる
 	IF CHILD_ACT:CHARA:CHILDNUM == "睡眠"
-		SIF TCVAR:CHARA:아이공복도 >= 180 && LOCAL % 6 == 0
+		SIF CHILD_HUNGER:CHARA:CHILDNUM >= 180 && LOCAL % 6 == 0
 			CHILD_ACT:CHARA:CHILDNUM = 起床
 	;起きてる時
 	ELSEIF CHILD_ACT:CHARA:CHILDNUM != "睡眠"
@@ -184,12 +239,12 @@ IF CFLAG:CHARA:출산경과일 < CHILD_어휘
 		;식사中
 		ELSEIF CHILD_ACT:CHARA:CHILDNUM == "식사"
 			;満たされたら終了
-			SIF TCVAR:CHARA:아이공복도 <= 90
+			SIF CHILD_HUNGER:CHARA:CHILDNUM <= 90
 				CHILD_ACT:CHARA:CHILDNUM = 
 			;20分で満たされる計算
-			TCVAR:CHARA:아이공복도 -= 経過時間 * 9
+			CHILD_HUNGER:CHARA:CHILDNUM -= 経過時間 * 9
 		;식사,離乳後は식사系コマンド実行時も発生
-		ELSEIF TCVAR:CHARA:아이공복도 >= 180 || (CFLAG:CHARA:출산경과일 >= CHILD_젖떼기 && GROUPMATCH(SELECTCOM, 414, 415, 610, 615, 617))
+		ELSEIF CHILD_HUNGER:CHARA:CHILDNUM >= 180 || (CFLAG:CHARA:출산경과일 >= CHILD_젖떼기 && GROUPMATCH(SELECTCOM, 414, 415, 610, 615, 617))
 			;수유
 			SIF CFLAG:CHARA:출산경과일 < CHILD_젖떼기
 				EXP:CHARA:분유경험 ++
@@ -202,7 +257,7 @@ IF CFLAG:CHARA:출산경과일 < CHILD_어휘
 		ELSEIF CFLAG:CHARA:출산경과일 >= CHILD_玩具 && LOCAL % 6 == 0
 			CHILD_ACT:CHARA:CHILDNUM = 玩具
 		;睡眠
-		ELSEIF TCVAR:CHARA:아이공복도 < 180 && LOCAL < 5
+		ELSEIF CHILD_HUNGER:CHARA:CHILDNUM < 180 && LOCAL < 5
 			CHILD_ACT:CHARA:CHILDNUM = 睡眠
 		;お風呂から出る
 		ELSEIF CHILD_ACT:CHARA:CHILDNUM == "入浴" && !BATHROOM(CFLAG:CHARA:현재위치)
@@ -299,12 +354,12 @@ ELSEIF CFLAG:CHARA:출산경과일 < CHILD_자립전
 	;식사中
 	ELSEIF CHILD_ACT:CHARA:CHILDNUM == "식사"
 		;満たされたら終了
-		SIF TCVAR:CHARA:아이공복도 <= 120
+		SIF CHILD_HUNGER:CHARA:CHILDNUM <= 120
 			CHILD_ACT:CHARA:CHILDNUM = 
 		;30分で満たされる計算
-		TCVAR:CHARA:아이공복도 -= 経過時間 * 12
+		CHILD_HUNGER:CHARA:CHILDNUM -= 経過時間 * 12
 	;식사,キャラ同室中は식사系コマンド実行時も発生
-	ELSEIF TCVAR:CHARA:아이공복도 >= 360 || (CFLAG:MASTER:현재위치 == CFLAG:CHARA:현재위치 && GROUPMATCH(SELECTCOM, 414, 415, 610, 615, 617))
+	ELSEIF CHILD_HUNGER:CHARA:CHILDNUM >= 360 || (CFLAG:MASTER:현재위치 == CFLAG:CHARA:현재위치 && GROUPMATCH(SELECTCOM, 414, 415, 610, 615, 617))
 		CHILD_ACT:CHARA:CHILDNUM = 식사
 	;行動の終了
 	ELSEIF GROUPMATCH(CHILD_ACT:CHARA:CHILDNUM, "玩具", "お絵かき")
@@ -353,12 +408,12 @@ ELSE
 	;식사中
 	ELSEIF CHILD_ACT:CHARA:CHILDNUM == "식사"
 		;満たされたら終了
-		SIF TCVAR:CHARA:아이공복도 <= 0
+		SIF CHILD_HUNGER:CHARA:CHILDNUM <= 0
 			CHILD_ACT:CHARA:CHILDNUM = 
 		;30分で満たされる計算
-		TCVAR:CHARA:아이공복도 -= 経過時間 * 12
+		CHILD_HUNGER:CHARA:CHILDNUM -= 経過時間 * 12
 	;식사,キャラ同室中は식사系コマンド実行時も発生
-	ELSEIF TCVAR:CHARA:아이공복도 >= 360 || (CFLAG:MASTER:현재위치 == CFLAG:CHARA:현재위치 && GROUPMATCH(SELECTCOM, 414, 415, 610, 615, 617))
+	ELSEIF CHILD_HUNGER:CHARA:CHILDNUM >= 360 || (CFLAG:MASTER:현재위치 == CFLAG:CHARA:현재위치 && GROUPMATCH(SELECTCOM, 414, 415, 610, 615, 617))
 		CHILD_ACT:CHARA:CHILDNUM = 식사
 	;玩具終了
 	ELSEIF CHILD_ACT:CHARA:CHILDNUM == "玩具"
@@ -437,11 +492,11 @@ ENDIF
 
 ;식사以外ならお腹が減る
 SIF CHILD_ACT:CHARA:CHILDNUM != "식사"
-	TCVAR:CHARA:아이공복도 += 経過時間
+	CHILD_HUNGER:CHARA:CHILDNUM += 経過時間
 IF CFLAG:CHARA:출산경과일 < CHILD_어휘
-	TCVAR:CHARA:아이공복도 = MIN(TCVAR:CHARA:아이공복도, 180)
+	CHILD_HUNGER:CHARA:CHILDNUM = MIN(CHILD_HUNGER:CHARA:CHILDNUM, 180)
 ELSE
-	TCVAR:CHARA:아이공복도 = MIN(TCVAR:CHARA:아이공복도, 480)
+	CHILD_HUNGER:CHARA:CHILDNUM = MIN(CHILD_HUNGER:CHARA:CHILDNUM, 480)
 ENDIF
 
 TIMESTAMP = 1440 * DAY + TIME
@@ -453,13 +508,18 @@ SIF FLAG:시간정지
 SIF CFLAG:MASTER:우후후
 	RESULT = 0
 ;この時点でRESULT=1なら情景描写はする
-SIF RESULT
+;enable multiple
+IF RESULT
 	TFLAG:묘사중인아이 = CHARA
+	SIF nChildrenPresentCount < 100
+		nChildrenPresent:(nChildrenPresentCount++) = CHILDNUM * 1000 + CHARA
+ENDIF
+LOCAL:10 = RESULT ;is present and awake
 ;行動が継続していたら移行描写はしない
 SIF CHILD_ACT:CHARA:CHILDNUM == LOCALS
 	RESULT = 0
 
-RETURN RESULT
+RETURN RESULT, LOCAL:10
 
 ;-------------------------------------------------
 ;子供の描写を判定する際の自室と自宅の判定
@@ -493,12 +553,17 @@ RETURNF 0
 #DIM CHARA
 #DIM CHILDNUM
 #DIM 묘사수
+#DIM PREVIOUS_CHILD_COUNT
+PREVIOUS_CHILD_COUNT = nChildrenPresentCount
 VARSET RESULT
 묘사수 = MIN(10, CFLAG:CHARA:아이인원수 - CFLAG:CHARA:육아인원수) + 1
-FOR LOCAL, 1,  묘사수
+FOR LOCAL, 1, MAXCHILD + 1
+	VARSET RESULT
 	CHILDNUM = LOCAL
 	SIF CHILDNAME:CHARA:CHILDNUM == ""
 		BREAK
+	SIF !CHILD_INDEPENDENT:CHARA:CHILDNUM ;only handle adult children here
+		CONTINUE
 	;親の睡眠時間を受け継ぐ
 	IF !BETWEENTIME(CFLAG:CHARA:기상시간, CFLAG:CHARA:취침시간)
 		CHILD_ACT:CHARA:CHILDNUM = 睡眠
@@ -531,7 +596,10 @@ FOR LOCAL, 1,  묘사수
 	SIF CFLAG:MASTER:우후후
 		RESULT = 0
 	;この時点でRESULT=1なら描写する,自立後用の処理
-	SIF RESULT
+	IF RESULT ;handle multiple children
 		TFLAG:묘사중인아이 = CHILDNUM * 1000 + CHARA
+		SIF nChildrenPresentCount < 100
+			nChildrenPresent:(nChildrenPresentCount++) = CHILDNUM * 1000 + CHARA
+	ENDIF
 NEXT
-RETURN RESULT
+RETURN PREVIOUS_CHILD_COUNT != nChildrenPresentCount ;new children added

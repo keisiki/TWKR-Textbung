@@ -1,0 +1,99 @@
+﻿@Update_ImageSets
+;uses more resources to achieve very little, but since we have a bunch of custom images this is necessary evil
+;0.took image check out of the update process
+;1.removed the redundant question about which set to replace the current set with
+;2.right-click skippable
+;3.shows a bit more info, I guess
+
+;Img_Detected detects how many characters have new alts and doubles as CharaNum's real size (how many slots actually hold values)
+#DIM C_ID
+#DIM Img_Detected
+#DIM Img_CharaNum, 200
+
+VARSET Img_CharaNum
+VARSET Img_Detected
+
+;差し替え画像の有無を確認
+FOR C_ID, 1, CHARANUM
+	SIF CFLAG:C_ID:출금
+		CONTINUE
+	IF CFLAG:C_ID:별도얼굴있음 != CSVCFLAG(C_ID, 562) || CFLAG:C_ID:별도스탠딩있음 != CSVCFLAG(C_ID, 563)
+		Img_CharaNum:Img_Detected = C_ID
+		Img_Detected ++
+	ENDIF
+NEXT
+IF Img_Detected
+	PRINTL 
+	PRINTFORMW 新しい差し替え画像セットがこれらのキャラクターに対して検出されました：
+ELSE
+	RETURN
+ENDIF
+FOR LOCAL, 0, Img_Detected
+	CALL SET_KOJO_COLOR(Img_CharaNum:LOCAL)
+	PRINTFORML %CALLNAME:(Img_CharaNum:LOCAL)%
+	RESETCOLOR
+	
+	;get the state prior so we can handle header better
+	LOCAL:98 = CFLAG:((Img_CharaNum:LOCAL)):별도얼굴있음 < CSVCFLAG((Img_CharaNum:LOCAL), 562)
+	LOCAL:99 = CFLAG:((Img_CharaNum:LOCAL)):별도스탠딩있음 < CSVCFLAG((Img_CharaNum:LOCAL), 563)
+
+	IF LOCAL:98
+		SIF GROUPMATCH((Img_CharaNum:LOCAL), [[카게로]], [[에이키]])
+			TRYCALLFORM COMPOSE_SPRITE_{(Img_CharaNum:LOCAL)}
+        PRINTFORM [%CENTER("初期", 24)%]
+		CALL 画像セット(@"顔絵_服_通常_{(Img_CharaNum:LOCAL)}", 0, 0, 100, 0, 0, "", "デフォルト顔絵")
+		FOR LOCAL:1, 1, CSVCFLAG((Img_CharaNum:LOCAL), 562) + 1
+			LOCALS '= @"\@LOCAL:1 >= 2?別顔{LOCAL:1}#別顔\@_服_通常_{(Img_CharaNum:LOCAL)}"
+            PRINTFORM [%CENTER(@"差し替え #{LOCAL:1}",24)%]
+			IF SPRITECREATED(LOCALS)
+				CALL 画像セット(LOCALS, 0, 0, 100, 0, 0, "", "差し替え顔絵")
+			ELSE
+				CALL 画像セット("ダミー", 0, 0, 100, 0, 0, "", "差し替え立ち絵")
+			ENDIF
+		NEXT
+		CALL 画像一斉表示("左", 0, 1)
+	ENDIF
+	IF LOCAL:99
+		IF LOCAL:98
+			PRINTL
+		ELSE
+			PRINTFORM [%CENTER("初期", 24)%]
+		ENDIF
+		SIF GROUPMATCH((Img_CharaNum:LOCAL), [[뱌쿠렌]], [[카구야]], [[에이키]])
+			TRYCALLFORM COMPOSE_SPRITE_{(Img_CharaNum:LOCAL)}
+		CALL 画像セット(@"立ち絵_服_通常_{(Img_CharaNum:LOCAL)}", 0, 0, 100, 0, 0, "", "デフォルト立ち絵")
+		LOCAL:1 = 1
+		LOCAL:2 = 0
+		WHILE LOCAL:2 != CSVCFLAG((Img_CharaNum:LOCAL), 563) + 1
+			LOCALS '= @"\@LOCAL:1 >= 2?別立ち{LOCAL:1}#別立ち\@_服_通常_{(Img_CharaNum:LOCAL)}"
+			SIF !LOCAL:98
+				PRINTFORM [%CENTER(@"差し替え #{LOCAL:1}",24)%]
+			IF SPRITECREATED(LOCALS)
+				CALL 画像セット(LOCALS, 0, 0, 100, 0, 0, "", "差し替え立ち絵")
+				LOCAL:2++
+			ELSE
+				CALL 画像セット("ダミー", 0, 0, 100, 0, 0, "", "差し替え立ち絵")
+			ENDIF
+			LOCAL:1++
+			SIF LOCAL:1 > 10 ; failsafe in case the images aren't configured correctly
+				BREAK
+		WEND
+		CALL 画像一斉表示("左", 0, 1)
+	ENDIF
+	CFLAG:((Img_CharaNum:LOCAL)):별도얼굴있음 = CSVCFLAG((Img_CharaNum:LOCAL), 562)
+	CFLAG:((Img_CharaNum:LOCAL)):별도스탠딩있음 = CSVCFLAG((Img_CharaNum:LOCAL), 563)
+	PRINTL
+	WAIT
+NEXT
+SIF Img_Detected
+	PRINTFORMW 画像更新が完了しました。
+CUSTOMDRAWLINE -
+CALL PRINTBUTTON_EX(@"[終了]",0, , , ,)
+$LOOP
+INPUT
+SELECTCASE RESULT
+	CASE 0
+		RETURN
+	CASEELSE
+		GOTO LOOP
+ENDSELECT

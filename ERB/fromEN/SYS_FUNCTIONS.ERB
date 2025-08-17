@@ -1,0 +1,1021 @@
+﻿;/*************************************************************
+;System functions
+;/*************************************************************
+
+;-------------------------------------------------
+;最大幅の定義関数
+;-------------------------------------------------
+@MAXWIDTH
+#FUNCTION
+RETURNF STRLENS(DRAWLINESTR)
+
+;-------------------------------------------------
+;Make a start of a section (non-button)
+;-------------------------------------------------
+@PRINTLINE, ARGS, ARGS:1 = "-"
+PRINTFORML □ %ARGS:0% □%ARGS:1*(138-STRLENS(ARGS))%
+
+@PALAM_NUM(ARG, ARG:1)
+#FUNCTIONS
+;999999を超えたらkMGTP
+;Emueraではペタ程度（64ビット）まで扱えるとのこと
+VARSET LOCALS
+FOR LOCAL, 0, 5
+	SIF ARG < 1000000
+		BREAK
+	SELECTCASE LOCAL
+	CASE 0
+		LOCALS = k
+	CASE 1
+		LOCALS = M
+	CASE 2
+		LOCALS = G
+	CASE 3
+		LOCALS = T
+	CASE 4
+		LOCALS = P
+	ENDSELECT
+	ARG /= 1000
+NEXT
+;数値の桁数に応じて間隔を調整
+IF STRLENS(LOCALS)
+	LOCALS = {ARG, ARG:1 ? 0 # 5}%LOCALS%
+ELSE
+	LOCALS = {ARG, ARG:1 ? 0 # 6}
+ENDIF
+
+RETURNF LOCALS
+
+;-------------------------------------------------
+;Shortcut for usual way of handling paging with infinite scroll
+;-------------------------------------------------
+@PAGE_HANDLE(nCode, nBackPageCode, nCurPage, nFirstPage, nLastPage)
+#FUNCTION
+#DIM nCode
+#DIM nBackPageCode
+#DIM nCurPage
+#DIM nFirstPage
+#DIM nLastPage
+
+RETURNF nCode == nBackPageCode ? ROUND_DECREMENT(nCurPage, nFirstPage, nLastPage) # ROUND_INCREMENT(nCurPage, nFirstPage, nLastPage)
+
+;-------------------------------------------------
+;指定範囲内で数値をインクリメントさせる関数
+;-------------------------------------------------
+@ROUND_INCREMENT(OPERAND, MINVAL, MAXVAL)
+#FUNCTION
+#DIM OPERAND
+#DIM MINVAL
+#DIM MAXVAL
+OPERAND ++
+SIF OPERAND > MAXVAL
+	OPERAND = MINVAL
+
+RETURNF OPERAND
+
+;-------------------------------------------------
+;指定範囲内で数値をインクリメントさせる関数
+;-------------------------------------------------
+@ROUND_DECREMENT(OPERAND, MINVAL, MAXVAL)
+#FUNCTION
+#DIM OPERAND
+#DIM MINVAL
+#DIM MAXVAL
+OPERAND --
+SIF OPERAND < MINVAL
+	OPERAND = MAXVAL
+
+RETURNF OPERAND
+
+;----------------------------------------------------------
+;ARG行になるまでラインを追加
+;----------------------------------------------------------
+@EQUATE_LINE, ARG
+WHILE LINECOUNT < ARG
+	PRINTL 
+WEND
+
+;-------------------------------------------------
+;ARGを(ARG:1 / 100)倍する
+;A = MULTIPLY(A, 150)　は　TIMES A, 1.50　と等しい。
+;A = MULTIPLY(A, B)　でB <= 0ならば計算結果はマイナスでなくA*1/100とする。
+;-------------------------------------------------
+@MULTIPLY(ARG, ARG:1)
+#FUNCTION
+;0以下の数をかけたときには ARG:1 = 1 とする
+SIF ARG:1 <= 0
+	ARG:1 = 1
+LOCAL = ARG * ARG:1 / 100
+RETURNF LOCAL
+
+;-------------------------------------------------
+;ARGを(100/ARG:1)倍する
+;A = DIVIDE(A, 150)　は　TIMES A, 0.66　と大体等しく、A = A * 100 / 150　と等しい
+;A = DIVIDE(A, B)　でB <= 0ならば計算結果は無限やマイナスでなくAのままとなる。
+;-------------------------------------------------
+@DIVIDE(ARG, ARG:1)
+#FUNCTION
+;0以下の数では割れない
+SIF ARG:1 <= 0
+	RETURNF ARG
+LOCAL = ARG * 100 / ARG:1
+RETURNF LOCAL
+
+;---------------------------------------------------------
+;10* larger than usable to simulate decimal
+;---------------------------------------------------------
+;This is to compensate for the engine's tendency to round numbers toward zero.
+@ROUND_NEAREST(ARG:0 = 0, ARG:1 = 0)
+#FUNCTION
+IF ARG:0 == 0
+	RETURNF ARG:0
+ELSEIF ARG:1 == 1 || ARG:1 == 0
+	RETURNF ARG:0
+ELSEIF ARG:0 > 0
+	RETURNF (ARG:0 + (ARG:1 / 2)) / ARG:1
+ELSE
+	RETURNF (ARG:0 - (ARG:1 / 2)) / ARG:1
+ENDIF
+
+;-------------------------------------------------
+;確率判定関数@PERCENT
+;式中で使用する関数です。引数％の確率判定を行います。通れば1を返します
+;常用する関数ですが、なぜ本体にこれ無いんだろ…。
+;-------------------------------------------------
+@PERCENT(ARG)
+#FUNCTION
+RETURNF (ARG - RAND:100) > 0
+
+;-------------------------------------------------
+;範囲判定関数@RANGE
+;	引数0：対象の数字
+;	引数1～2：範囲の上限・下限（逆順可）
+;引数0が引数1と引数2の間に収まっていれば1を返します。ともに同値を許容します
+;こいつも本体にあっていいと思う。
+;-------------------------------------------------
+@RANGE(ARG:0, ARG:1, ARG:2)
+#FUNCTION
+RETURNF INRANGE(ARG:0, MIN(ARG:1, ARG:2), MAX(ARG:1, ARG:2))
+
+;-------------------------------------------------
+;dynamically set the padding for text
+;-------------------------------------------------
+@STRPAD(strIn)
+#FUNCTION
+#DIMS REF strIn
+#DIM DYNAMIC nTextPad
+;determine text padding by checking the pending item to show
+FOR LOCAL, 0, VARSIZE("strIn")
+	SIF STRLENS(strIn:LOCAL) > nTextPad
+		nTextPad = STRLENS(strIn:LOCAL)
+NEXT
+RETURNF nTextPad
+
+;-------------------------------------------------------
+;get percent from GvT
+;-------------------------------------------------------
+@GETPERCENT, ARG:0, ARG:1, ARG:2
+#FUNCTION
+SIF ARG:0 == 0 || ARG:1 == 0
+	RETURNF 0 
+SIF ARG:2
+	RETURNF ROUND_NEAREST(ARG:0*100, ARG:1)
+LOCAL = ARG:0*100 / ARG:1
+RETURNF LOCAL
+
+@RESET_PARTS(ARG)
+FOR LOCAL, 0, VARSIZE("EXPNAME")
+	EXP:ARG:LOCAL = CSVEXP(ARG, LOCAL)
+NEXT
+FOR LOCAL, 0, VARSIZE("ABLNAME")
+	ABL:ARG:LOCAL = CSVABL(ARG, LOCAL)
+NEXT
+FOR LOCAL, 0, VARSIZE("EXPNAME")
+	EXP:ARG:LOCAL = CSVEXP(ARG, LOCAL)
+NEXT
+TALENT:ARG:걸레 = CSVTALENT(ARG,142)
+TALENT:ARG:정조 = CSVTALENT(ARG,30)
+TALENT:ARG:성별기호 = CSVTALENT(ARG,81)
+TALENT:ARG:무지 = CSVTALENT(ARG,27)
+
+;-------------------------------------------------
+;半角でARG:1文字以上ARG文字以下の文字列入力をさせて、RESULTSでかえす
+;-------------------------------------------------
+@INPUTS_SELECT, ARG, ARG:1
+INPUTS
+SELECTCASE STRLENS(RESULTS)
+CASE IS < ARG:1
+	IF STRLENS(RESULTS) == 0
+		PRINTL You have to input something.
+	ELSE
+		PRINTFORML %RESULTS% is too short. You have to input at least {ARG:1} symbols, up to {ARG}.
+	ENDIF
+	RESTART
+CASE IS > ARG
+	PRINTFORML %RESULTS% is too long {STRLENS(RESULTS)}/{ARG}.
+	RESTART
+CASEELSE
+
+ENDSELECT
+
+;----------------------------------------------------------------------
+;Create a list in a string, e.g: "X, Y and Z"
+;Pass a string with the list here and it will do it for you
+;Stuff in string should be listed with comma like %", "%
+;Modded to it uses full-width commas, i.e. "、"
+;Added option to adjust the last connector, enabling the use of " or" instead of " and" 
+;----------------------------------------------------------------------
+@LIST_IN_STRING(ARGS, strSplit = "、", strLast = " and")
+#FUNCTIONS
+#DIMS strSplit
+#DIMS strLast
+;add spaces
+ARGS '= REPLACE(ARGS, strSplit, strSplit + " ")
+;clear off the last part
+ARGS '= REPLACE(ARGS, strSplit + " $", "")
+;use negative lookahead to replace comma before the last item with "AND"
+ARGS '= REPLACE(ARGS, "(" + strSplit + ")(?!.*" + strSplit + ")", strLast)
+;finally place commas in case splitter wasn't a comma
+ARGS '= REPLACE(ARGS, strSplit, ",")
+
+RETURNF ARGS
+
+
+@SPLIT_G(ARGS, ARGS:1 = ":")
+#FUNCTIONS
+#LOCALSSIZE 200
+
+VARSET LOCALS
+
+LOCAL = RESULT
+
+SPLIT ARGS, ARGS:1, LOCALS
+
+LOCAL:1 = RESULT
+RESULT = LOCAL
+
+RETURNF LOCALS:(RAND:(LOCAL:1))
+
+;--------------------------------------------------------
+;choose only unique non-repeating strings per multiple splits
+;in case you want to cram things like "hot and soft", "soft and warm" into one split
+;how it works -
+;specify the string in the first argument, a string to pad them with in the second argument,
+;and amount of times it needs to be output in the third
+;for example - SPLIT_M("Fuah:Haah:Fah:Kh:Mmm:Nn:Ah", "...: ", 3) would output
+;"Kh... Ah... Fah..." without repeating once, which is equivalent to doing SPLIT_R() three times, except this doesn't repeat
+;specify empty space as a split to separate strPad character with spaces
+;additionally strPad can be specified with noed command as a split to remove the pad string at the end
+;example - SPLIT_M("warm:soft:hot:fuzzy", " and :noed", 2) - "soft and warm", removing " and " at the end
+;one thing to watch out for - nCount should never be greater than the split amount, or it will not work due to unique string check
+;--------------------------------------------------------
+@SPLIT_M(strIn, strPad, nCount)
+#FUNCTIONS
+#DIM nLoop
+#DIM nLoop1
+#DIMS strIn
+#DIMS DYNAMIC strPad
+#DIMS DYNAMIC strTemp, 100
+#DIMS DYNAMIC strPrevName, 100
+#DIMS DYNAMIC strOutput
+#DIM DYNAMIC nCount
+
+SIF STRCOUNT(strIn, ":") + 1 < nCount
+	RETURNF "@SPLIT_M has less splits than the amount to output, which will result in an infinite loop (String - " + strIn + "; Amount - " + TOSTR(nCount)
+
+FOR nLoop, 0, nCount
+	DO
+		;prepare do loop in case of duplicate
+		LOCAL = 0
+		;generate top part of the name
+		strTemp:nLoop '= SPLIT_G(strIn)
+		;this thing kinda supposed to make all names unique, ie do not repeat twice within one roll
+		FOR nLoop1, 0, nCount
+			IF strTemp:nLoop == strPrevName:nLoop1
+				LOCAL++
+				BREAK
+			ENDIF
+		NEXT
+	LOOP LOCAL
+	
+	strPrevName:nLoop '= strTemp:nLoop
+	
+	strOutput = %strOutput%%strTemp:nLoop%%SPLIT_SINGLE(strPad)%\@ SPLIT_CHECK(strPad, " ") && nLoop != nCount-1 ? %BL(1)% # \@
+NEXT
+;remove the pad symbol at the end if specified
+SIF SPLIT_CHECK(strPad, "noed")
+	strOutput '= REPLACE(strOutput, SPLIT_SINGLE(strPad) + "$", "")
+
+RETURNF strOutput
+
+;--------------------------------------------------------
+;searches and returns a specified part of a split string if any part matches (greedy)
+;--------------------------------------------------------
+@MATCH_SPLIT(ARGS:0, ARGS:1, ARGS:2 = ":")
+#FUNCTIONS
+#DIMS DYNAMIC strSplit, 30
+
+SPLIT ARGS:0, ARGS:2, strSplit
+
+FOR LOCAL, 0, RESULT
+	SIF STRCOUNT(strSplit:(LOCAL), ARGS:1)
+		RETURNF strSplit:(LOCAL)
+NEXT
+
+;In order to avoid having to write stuff like \@(local:1) == 2?%" "%and the others#\@
+@COND_STR(ARGS, CONDITION)
+#FUNCTIONS
+#DIM CONDITION
+IF CONDITION
+	RETURNF @"%ARGS%"
+ENDIF
+
+@TWENTY_FOUR_TIME(ARG)
+#FUNCTIONS
+#DIMS HOURS
+#DIMS MINUTES
+HOURS '= @"{ARG / 60}"
+SIF ARG / 60 < 10
+	HOURS '= @"0%HOURS%"
+MINUTES '= @"{ARG % 60}"
+IF ARG % 60 == 0
+	MINUTES = 00
+ELSEIF ARG % 60 < 10
+	MINUTES '= @"0%MINUTES%"
+ENDIF
+RETURNF @"%HOURS%:%MINUTES%"
+
+@VAR_OR_DEFAULT(ARGS, ARG:1 = 0)
+#FUNCTION
+LOCAL = STRFIND(ARGS, ":")
+IF LOCAL >= 0
+	LOCALS '= SUBSTRING(ARGS, 0, LOCAL)
+	SIF !GETBIT(EXISTVAR(LOCALS), 0)
+		RETURNF ARG:1
+	LOCAL:1 = LOCAL + 1
+	LOCAL:2 = LOCAL:1
+	WHILE LOCAL:2 >= 0
+		LOCAL:2 = STRFIND(ARGS, ":", LOCAL:1)
+		SIF LOCAL:2 >= 0
+			LOCAL:1 = LOCAL:2 + 1
+	WEND
+	LOCALS:1 '= SUBSTRING(ARGS, LOCAL:1) ;last segment
+	IF ISNUMERIC(LOCALS:1)
+		RETURNF GETVAR(ARGS)
+	ELSE
+		LOCAL = 0
+		SELECTCASE LOCALS
+			CASE "ABL"
+				LOCAL = GETNUM(ABL, LOCALS:1)
+			CASE "BASE"
+				LOCAL = GETNUM(BASE, LOCALS:1)
+			CASE "CFLAG"
+				LOCAL = GETNUM(CFLAG, LOCALS:1)
+			CASE "DAY"
+				LOCAL = GETNUM(DAY, LOCALS:1)
+			CASE "EQUIP"
+				LOCAL = GETNUM(EQUIP, LOCALS:1)
+			CASE "EX"
+				LOCAL = GETNUM(EX, LOCALS:1)
+			CASE "EXP"
+				LOCAL = GETNUM(EXP, LOCALS:1)
+			CASE "FLAG"
+				LOCAL = GETNUM(FLAG, LOCALS:1)
+			CASE "ITEM"
+				LOCAL = GETNUM(ITEM, LOCALS:1)
+			CASE "JUEL"
+				LOCAL = GETNUM(JUEL, LOCALS:1)
+			CASE "MARK"
+				LOCAL = GETNUM(MARK, LOCALS:1)
+			CASE "PALAM"
+				LOCAL = GETNUM(PALAM, LOCALS:1)
+			CASE "SOURCE"
+				LOCAL = GETNUM(SOURCE, LOCALS:1)
+			CASE "STAIN"
+				LOCAL = GETNUM(STAIN, LOCALS:1)
+			CASE "TALENT"
+				LOCAL = GETNUM(TALENT, LOCALS:1)
+			CASE "TCVAR"
+				LOCAL = GETNUM(TCVAR, LOCALS:1)
+			CASE "TEQUIP"
+				LOCAL = GETNUM(TEQUIP, LOCALS:1)
+			CASE "TFLAG"
+				LOCAL = GETNUM(TFLAG, LOCALS:1)
+			CASEELSE
+				LOCAL = GETBIT(EXISTVAR(LOCALS), 0) ;may crash, but non-standard variables should not be called by name
+		ENDSELECT
+		SIF LOCAL >= 0
+			RETURNF GETVAR(ARGS)
+	ENDIF
+ELSE
+	SIF GETBIT(EXISTVAR(ARGS), 0)
+		RETURNF GETVAR(ARGS)
+ENDIF
+RETURNF ARG:1
+
+@VARS_OR_DEFAULT(ARGS, ARGS:1 = "")
+#FUNCTIONS
+LOCAL = STRFIND(ARGS, ":")
+IF LOCAL >= 0
+	LOCALS '= SUBSTRING(ARGS, 0, LOCAL)
+	SIF !GETBIT(EXISTVAR(LOCALS), 1)
+		RETURNF ARGS:1
+	LOCAL:1 = LOCAL + 1
+	LOCAL:2 = LOCAL:1
+	WHILE LOCAL:2 >= 0
+		LOCAL:2 = STRFIND(ARGS, ":", LOCAL:1)
+		SIF LOCAL:2 >= 0
+			LOCAL:1 = LOCAL:2 + 1
+	WEND
+	LOCALS:1 '= SUBSTRING(ARGS, LOCAL:1) ;last segment
+	IF ISNUMERIC(LOCALS:1)
+		RETURNF GETVARS(ARGS)
+	ELSE
+		LOCAL = 0
+		SELECTCASE LOCALS
+			CASE "CSTR"
+				LOCAL = GETNUM(CSTR, LOCALS:1)
+			CASE "STR"
+				LOCAL = GETNUM(STR, LOCALS:1)
+			CASEELSE
+				LOCAL = 1 ;may crash, but non-standard variables should not be called by name
+		ENDSELECT
+		SIF LOCAL >= 0
+			RETURNF GETVARS(ARGS)
+	ENDIF
+ELSE
+	SIF GETBIT(EXISTVAR(ARGS), 1)
+		RETURNF GETVARS(ARGS)
+ENDIF
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;/*************************************************************
+;Game related functions
+;/*************************************************************
+
+
+
+
+
+@MUTUAL_KISS(ARG = -1, ARG:1 = 1, ARG:2 = 1)
+SIF ARG == -1
+	ARG = TARGET
+CALL ADD_KISS(ARG, ARG:1, ARG:2)
+
+;==================================================================
+;Return 1 if the target is under the effect of an aphrodisiac or in heat
+;Borrowed from Kaguya's dialogue
+;==================================================================
+@IN_HEAT(ARG = -1)
+#FUNCTION
+SIF ARG == -1
+	ARG = TARGET
+RETURNF (TCVAR:TARGET:미약 || TCVAR:TARGET:발정)
+
+;==========================================================================
+;Returns 1 if the character has any of Yearning, Love, Fuck Buddy, or Lust
+;==========================================================================
+@IS_FALLEN(ARG = -1)
+#FUNCTION
+SIF ARG == -1
+	ARG = TARGET
+RETURNF TALENT:ARG:사모 || TALENT:ARG:연모 || TALENT:ARG:섹프 || TALENT:ARG:애욕
+
+;==========================================================================
+;Returns 1 if the character has a hate mark or is angry
+;==========================================================================
+@IS_ANGERY(ARG = -1)
+#FUNCTION
+SIF ARG == -1
+	ARG = TARGET
+RETURNF MARK:ARG:반발각인 || CFLAG:ARG:빡침
+
+;==========================================================================
+;Checks if character is erect
+;Returns 0 if character has no penis or is completely flaccid
+;Returns 1 if character has no penis or is soft
+;Returns 2 if character has penis and is at least Hard
+;Returns 3 if character has penis and is ERECT!!
+;==========================================================================
+@IS_ERECT(ARG)
+#FUNCTION
+SIF !HAS_PENIS(ARG) ;Doesn't have a penis
+	RETURNF 0
+IF BASE:ARG:발기 >= 1500 ;Current erection value is equal to default max erection value
+	RETURNF 3
+ELSEIF BASE:ARG:발기 >= 1000 ;Erection value is equal or bigger than 1000 (Hard)
+	RETURNF 2
+ELSEIF BASE:ARG:발기 >= 500 ;(Soft)
+	RETURNF 1
+ELSE ;(Flaccid)
+	RETURNF 0
+ENDIF
+
+;Copy-pasted from ALCOHOL_FACE_TR
+;Returns 0 if the character is sober, 1 if the character is Tipsy, 2 if the character is Drunk, and 3 if the character is Wasted
+@IS_DRUNK(CHARA)
+#FUNCTION
+#DIM CHARA
+SIF BASE:CHARA:술기운 <= 2
+	RETURNF 0
+SELECTCASE BASE:CHARA:술기운
+	CASE IS > (MAXBASE:CHARA:술기운 / 10) * 8
+		RETURNF 3
+	CASE IS > (MAXBASE:CHARA:술기운 / 10) * 5
+		RETURNF 2
+	CASE IS <= (MAXBASE:CHARA:술기운 / 10) * 5
+		RETURNF 1
+ENDSELECT
+
+;returns true if all passed characters are in the same location as MASTER
+@IS_HERE(ARG, ARG:1=-1, ARG:2=-1, ARG:3=-1, ARG:4=-1, ARG:5=-1, ARG:6=-1, ARG:7=-1, ARG:8=-1, ARG:9=-1)
+#FUNCTION
+LOCAL:1 = FINDELEMENT(ARG, -1)
+SIF LOCAL:1 == -1
+    LOCAL:1 = 10
+FOR LOCAL, 0, LOCAL:1
+    SIF CFLAG:MASTER:현재위치 != CFLAG:(ARG:LOCAL):현재위치
+        RETURNF 0
+NEXT
+RETURNF 1
+
+;returns true if all passed characters have been met
+@IS_MET(ARG, ARG:1=-1, ARG:2=-1, ARG:3=-1, ARG:4=-1, ARG:5=-1, ARG:6=-1, ARG:7=-1, ARG:8=-1, ARG:9=-1)
+#FUNCTION
+LOCAL:1 = FINDELEMENT(ARG, -1)
+SIF LOCAL:1 == -1
+    LOCAL:1 = 10
+FOR LOCAL, 0, LOCAL:1
+    SIF !CFLAG:(ARG:LOCAL):안면
+        RETURNF 0
+NEXT
+RETURNF 1
+
+;returns true if all passed characters are not disabled
+@IS_ENABLED(ARG, ARG:1=-1, ARG:2=-1, ARG:3=-1, ARG:4=-1, ARG:5=-1, ARG:6=-1, ARG:7=-1, ARG:8=-1, ARG:9=-1)
+#FUNCTION
+LOCAL:1 = FINDELEMENT(ARG, -1)
+SIF LOCAL:1 == -1
+    LOCAL:1 = 10
+FOR LOCAL, 0, LOCAL:1
+    SIF CFLAG:(ARG:LOCAL):출금
+        RETURNF 0
+NEXT
+RETURNF 1
+
+;returns true if all passed characters have been met and are not disabled
+@IS_MET_ENABLED(ARG, ARG:1=-1, ARG:2=-1, ARG:3=-1, ARG:4=-1, ARG:5=-1, ARG:6=-1, ARG:7=-1, ARG:8=-1, ARG:9=-1)
+#FUNCTION
+LOCAL:1 = FINDELEMENT(ARG, -1)
+SIF LOCAL:1 == -1
+    LOCAL:1 = 10
+FOR LOCAL, 0, LOCAL:1
+    SIF !CFLAG:(ARG:LOCAL):안면 || CFLAG:(ARG:LOCAL):출금
+        RETURNF 0
+NEXT
+RETURNF 1
+
+;returns true if MASTER is any of the passed characters
+@IS_MASTER(ARG, ARG:1=-1, ARG:2=-1, ARG:3=-1, ARG:4=-1, ARG:5=-1, ARG:6=-1, ARG:7=-1, ARG:8=-1, ARG:9=-1)
+#FUNCTION
+LOCAL:1 = FINDELEMENT(ARG, -1)
+SIF LOCAL:1 == -1
+    LOCAL:1 = 10
+FOR LOCAL, 0, LOCAL:1
+    SIF FLAG:역극 == ARG:LOCAL || ARG:LOCAL == 0
+        RETURNF 1
+NEXT
+RETURNF 0
+
+;returns true if the weather is bad for being outside
+@IS_BAD_WEATHER
+#FUNCTION
+SIF GROUPMATCH(TIME:5,4,5,6,9,12,13,14,15) || GROUPMATCH(FLAG:이상기상,9,10)
+	RETURNF 1
+RETURNF 0
+
+;returns true if there's a storm happening
+@IS_STORM
+#FUNCTION
+SIF GROUPMATCH(TIME:5,9,13,14,15) || GROUPMATCH(FLAG:이상기상,9,10)
+	RETURNF 1
+RETURNF 0
+
+;Determines if a character can visit your home map
+;Made this a function to avoid code reduplication
+@CAN_VISIT(ARG)
+#FUNCTION
+IF FLAG:교류내방모드 == 1 && CFLAG:ARG:호감도 <= 50
+	RETURNF 0
+ELSEIF FLAG:교류내방모드 == 2 && !TALENT:ARG:사모 && !IS_LOVER(ARG) && !TALENT:ARG:연인 && !TALENT:ARG:섹프
+	RETURNF 0
+ELSEIF FLAG:교류내방모드 == 3
+	RETURNF 0
+ELSE
+	RETURNF 1
+ENDIF
+
+;==================================================
+;number of people in location
+;does not include player
+;From /egg/ Sakuya's dialogue
+;==================================================
+@NUMBER_OF_PEOPLE(ARG)
+#FUNCTION
+#DIM iNumOfPeople
+
+iNumOfPeople = 0
+FOR LOCAL,1,CHARANUM
+	SIF CFLAG:LOCAL:동실
+		iNumOfPeople ++
+NEXT
+RETURNF iNumOfPeople
+
+;==========================================================================
+;Returns 1 if the character can impregnate others and/or get pregnant
+;==========================================================================
+@CAN_REPRODUCE(ARG)
+#FUNCTION
+IF !IS_CHILD(ARG)
+	RETURNF 1
+ELSE
+	IF HAS_VAGINA(ARG) && TALENT:ARG:초경 ;First Menstruation
+		RETURNF 1
+	ELSEIF HAS_PENIS(ARG) && IS_SPERMARCHE(ARG)
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ENDIF
+
+;==================================================
+;Copied from MORELOVER.ERB
+;Counts the number of lovers the player has
+;==================================================
+@LOVER_COUNT()
+#FUNCTION
+#DIM DYNAMIC LOVERCOUNT
+FOR LOCAL,1,CHARANUM
+	IF TALENT:LOCAL:연인
+		LOVERCOUNT ++
+	ENDIF
+NEXT
+RETURNF LOVERCOUNT
+
+;==================================================
+;Returns 3 if the character is a doll
+;Returns 2 if the character is a non-youkai nonhuman
+;Returns 1 if the character is a youkai
+;Returns 0 if the character is a human
+;==================================================
+@IS_NONHUMAN(ARG = -1)
+#FUNCTION
+SIF ARG == -1
+	ARG = MASTER
+
+;Human and not Were-Hakutaku
+IF TALENT:ARG:인간 && !TALENT:ARG:반백택
+	SELECTCASE TALENT:ARG:인간
+		;Human = Human
+		CASE 1
+			RETURNF 0
+		;Celestial, Lunarian = non-youkai non-human
+		CASE 3, 4
+			RETURNF 2
+		CASE 5 ;Makai Resident = youkai
+			RETURNF 1
+		;Hermits and Outsiders can be humans, youkai, or neither so we keep checking
+	ENDSELECT
+ENDIF
+
+;hack to ensure Narumi is treated as a youkai
+;Jizo and Magician = youkai
+IF TALENT:ARG:인형 == 3 && TALENT:ARG:추가종족 == 2
+	RETURNF 1
+;Doll
+ELSEIF TALENT:ARG:인형
+	RETURNF 3
+;Jiang-Shi or Yuki-Onna = Youkai
+ELSEIF TALENT:ARG:인형 == 5 || TALENT:ARG:빙정 == 2
+	RETURNF 1
+;Ice Fairy, Fairy, Divine Spirit, Phantom, Doll = non-youkai non-human
+ELSEIF TALENT:ARG:빙정 || TALENT:ARG:요정 || TALENT:ARG:신령 || TALENT:ARG:유령
+	RETURNF 2
+;Kitsune, Youkai, Youkai, Tsukumogami, Were-Hakutaku, Magician, Animal Ears = youkai
+ELSEIF TALENT:ARG:여우 || TALENT:ARG:요호 || TALENT:ARG:요괴 || TALENT:ARG:츠쿠모가미 || TALENT:ARG:반백택 || TALENT:ARG:추가종족 == 2 || TALENT:ARG:동물귀
+	RETURNF 1
+ENDIF
+;Anything else is human
+RETURNF 0
+
+;generic version of K30_FIND_LOVER
+;Return values:
+;-1: Lover is ARG
+; 0: MASTER has no lover
+; 1: Lover is not here
+; 2: Lover is present
+@FIND_LOVER(ARG = - 1)
+#FUNCTION
+SIF ARG == -1
+	ARG = TARGET
+SIF TALENT:MASTER:연인 == 0
+	RETURNF 0
+SIF TALENT:ARG:연인
+	RETURNF -1
+SIF GET_TARGETNUM() < 2
+	RETURNF 1
+FOR LOCAL, 1, GET_TARGETNUM() + 1
+	SIF TALENT:(TARGET:LOCAL):연인
+		RETURNF 2
+NEXT
+RETURNF 1
+
+@CHECK_CLO(ARGS, ARG = -1)
+#FUNCTION
+
+SIF ARG == -1
+	ARG = TARGET
+
+SELECTCASE ARGS
+    CASE "belly_visible"
+    {
+        RETURNF !EQUIP:ARG:상반신윗도리2 && !EQUIP:ARG:상반신윗도리1 && !EQUIP:ARG:외투
+            && !EQUIP:ARG:기모노 && !EQUIP:ARG:원피스 && !EQUIP:ARG:레오타드 && !EQUIP:ARG:보디슈트
+    }
+    CASE "bra_visible"
+    {
+        RETURNF !EQUIP:ARG:상반신윗도리2 && !EQUIP:ARG:상반신윗도리1 && !EQUIP:ARG:외투
+            && !EQUIP:ARG:기모노 && !EQUIP:ARG:원피스 && !EQUIP:ARG:레오타드 && !EQUIP:ARG:보디슈트
+            && (EQUIP:ARG:상반신속옷1 || EQUIP:ARG:상반신속옷2)
+    }
+ENDSELECT
+RETURNF 0
+
+@CHECK_PANTIES(ARGS, ARG = -1)
+#FUNCTION
+SIF ARG == -1
+	ARG = TARGET
+
+SELECTCASE ARGS
+    CASE "can_pilfer"
+        RETURNF EQUIP:ARG:0 && ARG && EQUIP:ARG:하반신속옷2 != 0 && GET_INT(ARG, "하반신속옷_비켜놓기가능", EQUIP:ARG:하반신속옷2, "콜렉션 표시 가능")
+    CASE "can_shift_aside"
+        RETURNF EQUIP:ARG:0 && ARG && EQUIP:ARG:하반신속옷2 != 0 && GET_INT(ARG, "하반신속옷_비켜놓기가능", EQUIP:ARG:하반신속옷2, "콜렉션 표시 가능")
+ENDSELECT
+
+;==================================================
+;Determines if a character believes they still have all their applicable non-anal virginities
+;==================================================
+@THINKS_IS_VIRGIN(ARG = -1)
+#FUNCTION
+SIF ARG == -1
+	ARG = TARGET
+;SIF HAS_VAGINA(ARG) && !HAS_PENIS(ARG) && (VAGINAL_VIRGINITY_LOSS_WAS_UNAWARE(ARG) || TALENT:ARG:처녀 == 1)
+SIF HAS_VAGINA(ARG) && !HAS_PENIS(ARG) && TALENT:ARG:처녀 == 1
+	RETURNF 1
+;SIF !HAS_VAGINA(ARG) && HAS_PENIS(ARG) && (PENILE_VIRGINITY_LOSS_WAS_UNAWARE(ARG) || IS_DOUTEI(ARG))
+SIF !HAS_VAGINA(ARG) && HAS_PENIS(ARG) && IS_DOUTEI(ARG)
+	RETURNF 1
+;SIF HAS_VAGINA(ARG) && HAS_PENIS(ARG) && (PENILE_VIRGINITY_LOSS_WAS_UNAWARE(ARG) || IS_DOUTEI(ARG)) && (VAGINAL_VIRGINITY_LOSS_WAS_UNAWARE(ARG) || TALENT:ARG:처녀 == 1)
+SIF HAS_VAGINA(ARG) && HAS_PENIS(ARG) && (IS_DOUTEI(ARG)) && (VAGINAL_VIRGINITY_LOSS_WAS_UNAWARE(ARG) || TALENT:ARG:처녀 == 1)
+	RETURNF 1
+RETURNF 0
+
+@VAGINAL_VIRGINITY_LOSS_WAS_UNAWARE(ARG = -1)
+#FUNCTION
+SIF ARG == -1
+	ARG = TARGET
+RETURNF STRCOUNT( TOLOWER(CSTR:ARG:처녀상실이력), "stolen")
+
+@PENILE_VIRGINITY_LOSS_WAS_UNAWARE(ARG = -1)
+;#FUNCTION
+;SIF ARG == -1
+;	ARG = TARGET
+;RETURNF STRCOUNT( TOLOWER(CSTR:ARG:童貞喪失履歴), "stolen")
+
+;==================================================
+;Determines if the player has all their applicable non-anal virginities (vaginal if female, penile if male, vaginal
+;and penile if futa)
+;==================================================
+@MASTER_IS_VIRGIN()
+#FUNCTION
+RETURNF (IS_FEMALE(MASTER) && IS_VIRGIN(MASTER)) || (IS_MALE(MASTER) && IS_DOUTEI(MASTER)) || (IS_FUTA(MASTER) && IS_DOUTEI(MASTER) && IS_VIRGIN(MASTER))
+
+
+
+;note to self: DOUBLE CHECK!!! DOUBLE CHECK!!! DOUBLE CHECK!!! DOUBLE CHECK!!!
+
+[SKIPSTART]
+;warning for the faulty cflag value
+@EVENTLOAD
+#LATER
+
+LOCALS '= ""
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;don't bother if the value is not tampered with
+	SIF !CFLAG:LOCAL:구상셀렉터
+		CONTINUE
+	;check if the main dialogue still works with it
+	TRYCCALLFORM M_KOJO_K{LOCAL}_{CFLAG:LOCAL:구상셀렉터}
+		IF !RESULT
+			LOCAL:1 ++
+			LOCALS += CALLNAME:LOCAL + "、"
+		ENDIF
+	CATCH
+		LOCAL:1 ++
+		LOCALS += CALLNAME:LOCAL + "、"
+	ENDCATCH
+NEXT
+IF LOCAL:1
+	CALL COLORMESSAGE("Warning! Abnormal value for the dialogue selector detected!",C_RED,2,1)
+	PRINTFORML Number of characters: {LOCAL:1}
+	PRINTFORML Affected characters: %LIST_IN_STRING(LOCALS)%
+	CALL COLORMESSAGE("Make sure to run [500] Update option from the main menu first!",C_RED,2,1)
+ENDIF
+
+;fix unset dick size tweak and etc
+@EVENTLOAD
+#LATER
+FOR LOCAL, 0, CHARANUM
+	SIF !HAS_PENIS(LOCAL)
+		CONTINUE
+	IF TALENT:LOCAL:형상 <= 0 || MAXBASE:LOCAL:정력 <= 0 || MAXBASE:LOCAL:발기 <= 0
+		CALL COLORMESSAGE(@"Fixing incorrect penis properties for %CALLNAME:LOCAL%...",C_YELLOW,1,1)
+		SIF TALENT:LOCAL:형상 <= 0 
+			TALENT:LOCAL:형상 = 3
+		SIF MAXBASE:LOCAL:발기 <= 0
+			MAXBASE:LOCAL:발기 = 1500
+		SIF MAXBASE:LOCAL:정력 <= 0
+			MAXBASE:LOCAL:정력 = 1000
+	ENDIF
+	IF TALENT:LOCAL:절륜 && MAXBASE:LOCAL:발기 == 1500 ;addition custom code
+		CALL COLORMESSAGE(@"Fixing incorrect max erection for %CALLNAME:LOCAL%...",C_YELLOW,1,1)
+		MAXBASE:LOCAL:발기 *= 2
+	ENDIF
+	IF LOCAL == MASTER && MAXBASE:LOCAL:정력 == 1000 ;give back bonus vig the game owes you if you're at base VIG
+		CALL Pc_Vig_Recover(MASTER) ;custom code
+	ENDIF
+NEXT
+
+;garbage collection from enter's emuera, wip possibly
+;@EVENTLOAD
+;#PRI
+;CALL MEM_CLEAN
+
+@EVENTEND
+#LATER
+CALL MEM_CLEAN
+
+@MEM_CLEAN
+;#; PRINTFORMW MemUse: {GETMEMORYUSAGE()/1024/1024}MB
+LOCAL = CLEARMEMORY()
+;#; PRINTFORMW Cleared: {LOCAL/1024/1024}MB MemUse: {GETMEMORYUSAGE()/1024/1024}MB
+;/*************************************************************
+;Convenient checking functions
+;/*************************************************************
+[SKIPEND]
+
+
+
+
+
+;-------------------------------------------------
+;ARG:0番のキャラにＶがあるかどうかを返す関数
+;reminder: getbit TALENT:ARG:성별, 0 <- has vagina (futa, female), 1 <- has penis (male, futa)
+;again shithead (me): 성별 = 1 - female, 성별 = 2 - male, 성별 = 3 - futa
+;-------------------------------------------------
+@HAS_VAGINA(ARG:0)
+#FUNCTION
+RETURNF GETBIT(TALENT:ARG:성별, 0)
+
+@IS_VIRGIN(ARG:0)
+#FUNCTION
+RETURNF TALENT:(ARG:0):처녀
+
+;-------------------------------------------------
+;ARG:0番のキャラがベースとして男扱いなら1を返す関数
+;-------------------------------------------------
+@IS_MALE(ARG:0)
+#FUNCTION
+RETURNF TALENT:ARG:성별 == 2
+
+@IS_DOUTEI(ARG:0)
+#FUNCTION
+RETURNF !TALENT:ARG:비동정 && HAS_PENIS(ARG)
+
+;-------------------------------------------------
+;ARG:0番のキャラがベースとして女扱いなら1を返す関数
+;-------------------------------------------------
+@IS_FEMALE(ARG:0)
+#FUNCTION
+RETURNF !IS_MALE(ARG:0)
+
+@IS_FUTA(ARG:0)
+#FUNCTION
+RETURNF TALENT:ARG:성별 == 3
+
+;-------------------------------------------------
+;ARG:0番のキャラとARG:1番のキャラが同性かどうかを返す関数
+;-------------------------------------------------
+@IS_SAMESEX(ARG:0, ARG:1)
+#FUNCTION
+RETURNF IS_MALE(ARG:0) == IS_MALE(ARG:1)
+
+;-------------------------------------------------
+;キャラARG:0のバストサイズを数値に変換する
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@GET_BUSTSIZE(ARG:0)
+#FUNCTION
+SIF IS_MALE(ARG:0)
+	RETURNF -2
+
+RETURNF TALENT:ARG:가슴사이즈
+
+;checks if all values exist within an array
+@ARRAY_EXISTS_ALL(ARRAY, START, END, ARG:0, ARG:1, ARG:2 = -1, ARG:3 = -1, ARG:4 = -1, ARG:5 = -1, ARG:6 = -1, ARG:7 = -1, ARG:8 = -1, ARG:9 = -1)
+#FUNCTION
+#DIM REF ARRAY
+#DIM START
+#DIM END
+
+FOR LOCAL, 0, 10
+	SIF ARG:LOCAL < 0
+		RETURNF 1
+	SIF FINDELEMENT(ARRAY, ARG:LOCAL, START, END) < 0
+		RETURNF 0
+NEXT
+
+RETURNF 1
+
+;-------------------------------------------------
+;末尾に空行ひとつだけを残した状態にする関数
+;Function to leave only one blank line at the end
+;-------------------------------------------------
+@SINGLE_EMPTY_LINE()
+WHILE 1
+	IF HTML_GETPRINTEDSTR(0) != "<p align='left'><nobr> </nobr></p>"
+		PRINTL
+		BREAK
+	ELSEIF HTML_GETPRINTEDSTR(1) == "<p align='left'><nobr> </nobr></p>"
+		CLEARLINE 1
+	ELSE
+		BREAK
+	ENDIF
+WEND
+
+;-------------------------------------------------
+;Get Train command num by its name (original japanese name)
+;-------------------------------------------------
+@TNUM(ARGS)
+#FUNCTION
+SIF GETNUM(TRAINNAME, ARGS) < 0
+	THROW @"Unrecognized TRAINNAME is being specified for TNUM (%ARGS%)"
+
+RETURNF GETNUM(TRAINNAME, ARGS)
+
+;-------------------------------------------------
+;Confirm if ARGS equals currently selected Train command (multiple can be specified with / split)
+;-------------------------------------------------
+@IS_SELECTCOM(ARGS, ARG = 0)
+#FUNCTION
+#DIM nLoop
+
+SPLIT ARGS, "/", LOCALS, LOCAL
+FOR nLoop, 0, LOCAL
+	SIF SELECTCOM:ARG == TNUM(LOCALS:nLoop)
+		RETURNF SELECTCOM:ARG == TNUM(LOCALS:nLoop)
+NEXT
+
+;-------------------------------------------------
+;Same as above but for previous command
+;-------------------------------------------------
+@IS_PREVCOM(ARGS, ARG = 0)
+#FUNCTION
+#DIM nLoop
+
+SPLIT ARGS, "/", LOCALS, LOCAL
+FOR nLoop, 0, LOCAL
+	SIF PREVCOM:ARG == TNUM(LOCALS:nLoop)
+		RETURNF PREVCOM:ARG == TNUM(LOCALS:nLoop)
+NEXT

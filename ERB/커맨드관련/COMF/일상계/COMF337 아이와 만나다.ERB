@@ -5,14 +5,32 @@
 #DIM CHARA
 #DIM CHILDNUM
 
+IF QOL_INTERACTABLE_CHILDREN() > 1
+	CALL QOL_SELECT_CHILD
+	SIF RESULT == -1
+		RETURN -1
+	TFLAG:묘사중인아이 = RESULT
+ELSE
+	TFLAG:묘사중인아이 = nChildrenPresent:0
+ENDIF
+
 ;自立後
 IF TFLAG:묘사중인아이 > 1000
 	CHARA = TFLAG:묘사중인아이 % 1000
 	CHILDNUM = TFLAG:묘사중인아이 / 1000
-;육아중
+	SIF !CHILD_INDEPENDENT:CHARA:CHILDNUM
+		GOTO QOL_CHILD_SOURCE_BONUSES
+;育児中
 ELSE
 	CHARA = TFLAG:묘사중인아이
 	CHILDNUM = TALENT:CHARA:육아중
+	$QOL_CHILD_SOURCE_BONUSES
+	LOCAL:10 = 0
+	IF TARGET != CHARA && FINDELEMENT(TARGET, CHARA) >= 0
+		LOCAL:10 = TARGET
+		TARGET = CHARA
+	ENDIF
+
 	;同室の場合のみソースを獲得する
 	IF TARGET == CHARA
 		;ソースの量はかなり適当
@@ -32,6 +50,8 @@ ELSE
 			SOURCE:사랑 = 1000 + (ABL:친밀 * 60)
 		ENDIF
 	ENDIF
+	SIF LOCAL:10
+		TARGET = LOCAL:10
 ENDIF
 IF CHILD_LOVE:CHARA:CHILDNUM < 0
 	TFLAG:193 = -1
@@ -55,7 +75,7 @@ TFLAG:194 = CHILDNUM
 SELECTCASE CHILD_ACT:CHARA:CHILDNUM
 CASE "식사"
 	;같이 식사
-	IF CFLAG:CHARA:출산경과일 >= CHILD_젖떼기
+	IF (DAY - CHILD_BIRTHDAY:CHARA:CHILDNUM + 1) >= CHILD_젖떼기
 		TCVAR:MASTER:공복시각 = 1440 * DAY + TIME + 20
 		CALL RECOVER_PERMIL(MASTER, 30, "체력", 0, "식사에 의한 회복")
 		CALL RECOVER_PERMIL(MASTER, 30, "기력", 0, "식사에 의한 회복")
@@ -100,14 +120,9 @@ SIF CFLAG:MASTER:동침중
 	RETURN 0
 SIF !TFLAG:묘사중인아이
 	RETURN 0
-;육아중のキャラと同室の場合はTARGETにしないと実行できない（描写はされる）
-IF TFLAG:묘사중인아이 < 1000
-	IF CFLAG:MASTER:현재위치 == CFLAG:(TFLAG:묘사중인아이):현재위치 
-		SIF TARGET != TFLAG:묘사중인아이
-			RETURN 0
-	ENDIF
-ENDIF
-;기력0
+SIF !QOL_INTERACTABLE_CHILDREN()
+	RETURN
+;気力0
 SIF BASE:MASTER:기력 <= 0
 	RETURN 0
 RETURN 1
@@ -116,7 +131,7 @@ RETURN 1
 ;[아이와 만나다]の表示するコマンド名
 ;ARG  TFLAG:묘사중인아이
 ;-------------------------------------------------
-@아이소개명칭(ARG)
+@아이소개명칭(ARG) ;@子供ふれあい名称
 #FUNCTIONS
 #DIM CHARA
 #DIM CHILDNUM
@@ -124,7 +139,7 @@ RETURN 1
 #DIMS 아이의이름
 
 ;自立後
-IF TFLAG:묘사중인아이 > 1000
+IF ARG  > 1000
 	CHARA = ARG % 1000
 	CHILDNUM = ARG / 1000
 ;육아중
@@ -132,6 +147,7 @@ ELSE
 	CHARA = ARG
 	CHILDNUM = TALENT:CHARA:육아중
 ENDIF
+LOCAL:10 = DAY - CHILD_BIRTHDAY:CHARA:CHILDNUM + 1
 
 아이의행동 = %CHILD_ACT:CHARA:CHILDNUM%
 아이의이름 = %CHILDNAME:CHARA:CHILDNUM%
@@ -139,7 +155,7 @@ SELECTCASE 아이의행동
 CASE "睡眠"
 	RETURNF 조사처리(아이의이름,"을") + " 쓰다듬다"
 CASE "起床"
-	IF CFLAG:CHARA:출산경과일 < CHILD_어휘
+	IF LOCAL:10 < CHILD_어휘
 		RETURNF 조사처리(아이의이름,"을") + " 달래다"
 	ELSE
 		RETURNF 조사처리(아이의이름,"과") + " 회화"
@@ -147,13 +163,13 @@ CASE "起床"
 CASE "入浴"
 	RETURNF 조사처리(아이의이름,"을") + " 씻기다"
 CASE "식사"
-	IF CFLAG:CHARA:출산경과일 < CHILD_젖떼기
+	IF LOCAL:10 < CHILD_젖떼기
 		RETURNF 조사처리(아이의이름,"을") + " 어루만지다"
 	ELSE
 		RETURNF 조사처리(아이의이름,"과") + " 같이 식사"
 	ENDIF
 CASE "玩具"
-	IF CFLAG:CHARA:출산경과일 < CHILD_자립전
+	IF LOCAL:10 < CHILD_자립전
 		RETURNF 조사처리(아이의이름,"과") + " 놀다"
 	ELSE
 		RETURNF 조사처리(아이의이름,"과") + " 회화"

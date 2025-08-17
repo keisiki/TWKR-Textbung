@@ -65,6 +65,17 @@ CASE "평상복：원피스"
 	CALLF MAKE_INT(V_NAME, CLOTHES_ID("원피스", "원피스"))
 CASE "평상복：그외1"
 	CALLF MAKE_INT(V_NAME, CLOTHES_ID("그외1", "브로치"))
+	
+CASE "평상복：모자"
+	IF GET_MAPID(CFLAG:ARG:현재위치) == 2 && CFLAG:ARG:기본복장세트 == (100 + [[카게로]])
+		CALLF MAKE_INT(V_NAME, CLOTHES_ID("모자", "두건"))
+	ELSEIF CFLAG:ARG:구상셀렉터 == 0 && CFLAG:ARG:기본복장세트 == (100 + [[카게로]]) && TCVAR:ARG:363 == 101
+		CALLF MAKE_INT(V_NAME, CLOTHES_ID("모자", "밀짚 모자"))
+	ENDIF
+CASE "평상복：그외2"
+	IF CFLAG:ARG:구상셀렉터 == 0 && CFLAG:ARG:기본복장세트 == (100 + [[카게로]]) && TCVAR:ARG:363 == 2
+		CALLF MAKE_INT(V_NAME, CLOTHES_ID("그외2", "머플러"))
+	ENDIF
 
 CASE "고유 속옷 형용사"
 	CALLF MAKE_STR(V_NAME, "“국진 쌍피”의 도안을 곁들인")
@@ -100,7 +111,7 @@ CASE "감성：좋아함"
 CASE "감성：싫어함"
 	{
 	CALLF MAKE_STR(V_NAME, "기묘/금속/" + "화려/로리타/매니악/" * 2 
-	+ "장대/위엄/날붙이/텐구의/갓파의/오니의/" * 3 + "기계/" * 5+ "개목걸이/" * 10)
+	+ "장대/위엄/날붙이/텐구의/캇파의/오니의/" * 3 + "기계/" * 5+ "개목걸이/" * 10)
 	}
 ENDSELECT
 
@@ -132,7 +143,7 @@ RETURN 1
 ;-------------------------------------------------------------------------------------------
 @IMAGE_I63_特殊表情(CHARA)
 #DIM CHARA
-IF CFLAG:CHARA:대체적용
+IF CFLAG:CHARA:대체적용 == 1
 	;差し替え画像
 	IF FLAG:스탠딩종류
 		;顔絵
@@ -157,11 +168,11 @@ IF CFLAG:CHARA:대체적용
 					SIF IS_SEXING(CHARA)
 						RESULTS:1 = キス顔
 				ENDIF
-				IF TCVAR:362 >= 5
+				IF CFLAG:CHARA:구상셀렉터 == 0 && TCVAR:CHARA:362 >= 5
 				;前ターンに超強絶頂
 					RESULTS:0 = 絶頂
 					RESULTS:1 = キス顔
-				ELSEIF TCVAR:362 >= 2
+				ELSEIF CFLAG:CHARA:구상셀렉터 == 0 && TCVAR:CHARA:362 >= 2
 	 				RESULTS:0 = トロ顔
 					RESULTS:1 = キス顔
 				ENDIF
@@ -176,9 +187,10 @@ IF CFLAG:CHARA:대체적용
 					SIF TALENT:CHARA:자기애 >= 0 && BASE:CHARA:무드 >= 500
 						RESULTS:1 = 誘惑
 				ELSE
+					SIF !(GET_MAPID(CFLAG:CHARA:현재위치) == 2 && CFLAG:CHARA:기본복장세트 == (100 + [[카게로]]))
 					RESULTS:1 = ウィンク
 				ENDIF
-				SIF CFLAG:CHARA:임신경과일수 >= 40 && !TCVAR:63:363
+				SIF CFLAG:CHARA:구상셀렉터 == 0 && CFLAG:CHARA:임신경과일수 >= 40 && !TCVAR:CHARA:363
 					RESULTS:1 = ボテ
 			ENDIF
 		ELSE
@@ -206,7 +218,7 @@ ENDIF
 #DIM CHARA
 #DIMS エフェクト
 
-IF CFLAG:CHARA:대체적용
+IF CFLAG:CHARA:대체적용 == 1
 	;差し替え画像
 	SIF STRFIND(エフェクト, "ハート") != -1
 		RETURN 1
@@ -225,7 +237,7 @@ RETURN 0
 #DIM DYNAMIC エフェクト数 = 0
 VARSET RESULTS
 
-IF CFLAG:CHARA:대체적용
+IF CFLAG:CHARA:대체적용 == 1
 	;差し替え画像
 ;	IF FLAG:스탠딩종류
 ;		IF TALENT:CHARA:연모 && !MARK:CHARA:반발각인 && TALENT:CHARA:機嫌 >= 0
@@ -251,7 +263,7 @@ RETURN エフェクト数
 #DIM CHARA
 VARSET RESULTS
 
-IF CFLAG:CHARA:대체적용
+IF CFLAG:CHARA:대체적용 == 1
 	;差し替え画像
 	IF CHECK_NUDE(CHARA)
 		;裸
@@ -261,14 +273,36 @@ IF CFLAG:CHARA:대체적용
 			;立ち絵
 		ENDIF
 	ELSE
+		IF CHECK_CLO("bra_visible")
+			IF GROUPMATCH(EQUIP:CHARA:상반신속옷1, 11, 12, 14, 15, 19, 20)
+				RESULTS = _下着B
+			ELSE
+				RESULTS = _下着A
+			ENDIF
+		ELSEIF GET_MAPID(CFLAG:CHARA:현재위치) == 2 && CFLAG:CHARA:기본복장세트 == (100 + [[카게로]]) && !CFLAG:CHARA:우후후
+			RESULTS = _赤ずきん
 		;服
-		IF CFLAG:CHARA:의상일시변경 == 55 || (CFLAG:CHARA:기본복장세트 == 55 && CFLAG:CHARA:의상일시변경==0)
+		ELSEIF CFLAG:CHARA:의상일시변경 == 55 || (CFLAG:CHARA:기본복장세트 == 55 && CFLAG:CHARA:의상일시변경==0)
 			IF FLAG:스탠딩종류
 				;顔絵
 				RESULTS = _バニー
 			ENDIF
-		ELSEIF TCVAR:63:363 == 2
+		ELSEIF CFLAG:CHARA:구상셀렉터 == 0 && TCVAR:CHARA:363 == 2
 			RESULTS = _冬服
+		ELSEIF CFLAG:CHARA:구상셀렉터 == 0 && TCVAR:CHARA:363 == 101
+			RESULTS = _白ワンピ
 		ENDIF
 	ENDIF
 ENDIF
+;********************************************************************************************
+@IMAGE_EX_I63_PREリソースチェック(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分, 乳量)
+#DIM CHARA
+#DIMS 表示形式
+#DIMS 服装
+#DIMS 表情
+#DIMS 表情_マウスオーバー
+#DIMS 差分
+#DIMS 乳量
+
+SIF CFLAG:CHARA:대체적용 == 1
+	CALL COMPOSE_SPRITE_63

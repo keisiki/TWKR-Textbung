@@ -110,7 +110,7 @@ FOR C_ID, 1, CHARANUM
 	ENDIF
 	CALL 이력캐릭터라인변환(C_ID)
 	IF TALENT:C_ID:육아중
-		FOR LOCAL:1, 1, 11
+		FOR LOCAL:1, 1, MAXCHILD + 1
 			SIF (CHILD_BIRTHDAY:C_ID:(LOCAL:1) > CHILD_BIRTHDAY:C_ID:(LOCAL:1 - 1)) || (LOCAL:1 - 1) == 0
 				육아중의아이 = LOCAL:1
 		NEXT
@@ -181,33 +181,9 @@ FOR C_ID, 1, CHARANUM
 	FOR LOCAL:1, 1, CHARANUM
 		RELATION:C_ID:(LOCAL:1) = CSVRELATION(C_ID, LOCAL:1)
 	NEXT
-	;교체 이미지 유무 확인
-	IF CFLAG:C_ID:별도얼굴있음 < CSVCFLAG(C_ID, 562) || CFLAG:C_ID:별도스탠딩있음 < CSVCFLAG(C_ID, 563)
-		PRINTFORML %CALLNAME:C_ID%의 새로운 대체화상을 검출했습니다。
-		IF CFLAG:C_ID:별도얼굴있음 < CSVCFLAG(C_ID, 562)
-			CALL 画像セット(@"顔絵_服_通常_{C_ID}", 0, 0, 100, 0, 0, "", "デフォルト顔絵")
-			FOR LOCAL:1, 1, CSVCFLAG(C_ID, 562)+1
-				CALL 画像セット(@"\@LOCAL:1 >= 2?別顔{LOCAL:1}#別顔\@_服_通常_{C_ID}", 0, 0, 100, 0, 0, "", "差し替え顔絵")
-			NEXT
-			CALL 画像一斉表示("左", 0, 1)
-		ENDIF
-		IF CFLAG:C_ID:별도스탠딩있음 < CSVCFLAG(C_ID, 563)
-			CALL 画像セット(@"立ち絵_服_通常_{C_ID}", 0, 0, 100, 0, 0, "", "デフォルト立ち絵")
-			FOR LOCAL:1, 1, CSVCFLAG(C_ID, 563)+1
-				CALL 画像セット(@"\@LOCAL:1 >= 2?別立ち{LOCAL:1}#別立ち\@_服_通常_{C_ID}", 0, 0, 100, 0, 0, "", "差し替え立ち絵")
-			NEXT
-			CALL 画像一斉表示("左", 0, 1)
-		ENDIF
-		PRINT [0] 대체없음 
-		FOR LOCAL:1, 1, MAX(CSVCFLAG(C_ID, 562), CSVCFLAG(C_ID, 563)) + 1
-			PRINTFORM [{LOCAL:1}] 대체{LOCAL:1} 
-		NEXT
-		INPUT
-		CFLAG:C_ID:대체적용 = RESULT
-	ENDIF
-	CFLAG:C_ID:별도얼굴있음 = CSVCFLAG(C_ID, 562)
-	CFLAG:C_ID:별도스탠딩있음 = CSVCFLAG(C_ID, 563)
-	;주인 플래그
+	;差し替え画像の有無を確認
+	CALL Update_ImageSets
+	;大家フラグ
 	CFLAG:C_ID:집주인후보 = CSVCFLAG (C_ID, GETNUM(CFLAG, "집주인후보"))
 	CFLAG:C_ID:더부살이필요신뢰도 = CSVCFLAG (C_ID, GETNUM(CFLAG, "더부살이필요신뢰도"))
 	CFLAG:C_ID:집세 = CSVCFLAG (C_ID, GETNUM(CFLAG, "집세"))
@@ -230,7 +206,7 @@ FOR C_ID, 1, CHARANUM
 	CFLAG:C_ID:탄막특능 = CSVCFLAG (C_ID, GETNUM(CFLAG, "탄막특능"))
 	SIF !CFLAG:C_ID:탄막특능
 		CALL 탄막특수능력설정(C_ID)
-	; CFLAG:C_ID:口調 = CSVCFLAG (C_ID, GETNUM(CFLAG, "口調"))
+	CFLAG:C_ID:어조 = CSVCFLAG (C_ID, GETNUM(CFLAG, "어조"))
 	;최대 기력 체력이 CSV치보다 낮은 경우 CSV에 맞춘다
 	IF !CFLAG:C_ID:회복속도다운
 		SIF MAXBASE:C_ID:0 < CSVBASE (C_ID, 0)

@@ -10,21 +10,21 @@ SELECTCASE TOUPPER(ARGS)
 		RETURNF 0x990000
 	CASE "BLUE"
 		RETURNF 0x0000FF
-	CASE "P-RED", "PASTEL-RED", "파 빨강", "パ赤"
+	CASE "P-RED", "PASTEL-RED", "パ赤"
 		RETURNF 0xC07070
-	CASE "P_BLUE", "PASTEL-BLUE", "파 파랑", "パ青"
+	CASE "P_BLUE", "PASTEL-BLUE", "パ青"
 		RETURNF 0x7070C0
-	CASE "P_GREEN", "PASTEL-GREEN", "파 초록", "パ緑"
+	CASE "P_GREEN", "PASTEL-GREEN", "パ緑"
 		RETURNF 0x70C070
 	CASE "MEDSPRINGGREEN"
 		RETURNF 0x00FA9A
 	CASE "GREEN","초록", "緑"
 		RETURNF 0x00FF00
-	CASE "P_PURPLE", "PASTEL-PURPLE", "파 유카리", "パ紫"
+	CASE "P_PURPLE", "PASTEL-PURPLE", "パ紫"
 		RETURNF 0xC070C0
-	CASE "P-YELLOW", "PASTEL-YELLOW", "파 노랑", "パ黄"
+	CASE "P-YELLOW", "PASTEL-YELLOW", "パ黄"
 		RETURNF 0x505020
-	CASE "P-BGREEN", "P_BLUEGREEN", "PASTEL-BLUEGREEN", "파 청록색", "パ青緑"
+	CASE "P-BGREEN", "P_BLUEGREEN", "PASTEL-BLUEGREEN", "パ青緑"
 		RETURNF 0x205050
 	CASE "WHITE", "흰색", "白"
 		RETURNF 0xC0C0C0
@@ -102,7 +102,7 @@ RESETCOLOR
 #LOCALSIZE 5
 SIF ARG:1 <= 0
 	ARG:1 = 1
-LOCAL:1 = ARG * ARG:2 / MAX(ARG:1,1)
+LOCAL:1 = ARG * ARG:2 / ARG:1
 LOCAL:2 = GETCOLOR()
 FOR LOCAL, 1, ARG:2 + 1
 	IF LOCAL:1 >= LOCAL
@@ -213,26 +213,40 @@ RETURNF UNICODE(0x2665)
 RETURNF 캐릭터라인
 
 
-;미노리코 말로부터 꿀꺽
-;### 하트만 다른 색으로 PRINT하기 위한 함수 ##################
-;캐릭터라인중에 포함되는"HPH"를 핫 핑크 칼라의 하트로서 PRINT 해, 그 이외의캐릭터라인은 통상의 색으로 보통으로 PRINT 한다
-;ARGS "W"=PRINTSW로 표시. "L"=PRINTSL로 표시. "W"도"L"도 아니면 PRINTS로 표시
-@HPH_PRINT, 대상캐릭터라인, ARGS
-#DIMS 대상캐릭터라인
-#DIM 출력문자수
-#DIM HPH인덱스치
+;穣子口上からパクリ
+;### ハートのみ別の色でPRINTするための関数 ##################
+;文字列中に含まれる"HPH"をホットピンクカラーのハートとしてPRINTし、それ以外の文字列は通常の色で普通にPRINTする
+;ARGS "W"=PRINTSWで表示。"L"=PRINTSLで表示。"W"でも"L"でもなければPRINTSで表示
+@HPH_PRINT(対象文字列,ARGS)
+#DIMS 対象文字列
+#DIM 出力文字数
+#DIM HPHインデクス値
+#DIM BPBインデクス値
+#DIM NEXTインデクス値
 
 DO
-	HPH인덱스치 = STRFIND(대상캐릭터라인, "HPH")
+	HPHインデクス値 = STRFIND(対象文字列, "HPH")
+	BPBインデクス値 = STRFIND(対象文字列, "BPB")
+	IF HPHインデクス値 >= 0 & BPBインデクス値 < 0
+		NEXTインデクス値 = HPHインデクス値
+	ELSEIF HPHインデクス値 < 0 & BPBインデクス値 >= 0
+		NEXTインデクス値 = BPBインデクス値
+	ELSE
+		NEXTインデクス値 = MIN(HPHインデクス値, BPBインデクス値)
+	ENDIF
 	
-	;대상캐릭터라인이 HPH로 시작되지 않지만 뒤로 HPH가 있는 경우
-	IF HPH인덱스치 >= 1
-		;HPH의 직전까지 문자 표시
-		LOCALS = %SUBSTRING(대상캐릭터라인, 0, HPH인덱스치)%
+	;対象文字列がHPHまたBPBで始まらないが後ろにHPHまたBPBがある場合
+	IF NEXTインデクス値 >= 1
+		;HPHの直前まで文字表示
+		LOCALS = %SUBSTRING(対象文字列, 0, NEXTインデクス値)%
+		IF GROUPMATCH(ARGS, "DW", "DL", "dw", "dl")
+			PRINTSD @"%LOCALS%"
+		ELSE
 		PRINTS @"%LOCALS%"
-		출력문자수 = STRLENS(LOCALS)
-	;대상캐릭터라인이 HPH로 시작되는 경우
-	ELSEIF HPH인덱스치 == 0
+		ENDIF
+		出力文字数 = STRLENS(LOCALS)
+	;対象文字列がHPHで始まる場合
+	ELSEIF HPHインデクス値 == 0
 		LOCALS:1 = %GETFONT()%
 		SETFONT "Times New Roman"
 		LOCAL = GETCOLOR()
@@ -240,22 +254,37 @@ DO
 		PRINTFORM %UNICODE(0x2764)%
 		SETCOLOR LOCAL
 		SETFONT LOCALS:1
-		출력문자수 = 3
-	;HPH가 이제 없는 경우
+		出力文字数 = 3
+	;対象文字列がBPBで始まる場合
+	ELSEIF BPBインデクス値 == 0
+		LOCALS:1 = %GETFONT()%
+		SETFONT "Times New Roman"
+		LOCAL = GETCOLOR()
+		SETCOLOR C_H_PINK
+		PRINTFORM ///
+		SETCOLOR LOCAL
+		SETFONT LOCALS:1
+		出力文字数 = 3
+	;HPHとBPBがもうない場合
 	ELSE
-		;여기서 ARGS에 의한 분기
+		;ここでARGSによる分岐
 		SELECTCASE ARGS
-		CASE "W"
-			PRINTSW @"%대상캐릭터라인%"
-		CASE "L"
-			PRINTSL @"%대상캐릭터라인%"
+		CASE "DW", "dw"
+			PRINTSDW @"%対象文字列%"
+		CASE "DL", "dl"
+			PRINTSDL @"%対象文字列%"
+		;----------
+		CASE "W", "w"
+			PRINTSW @"%対象文字列%"
+		CASE "L", "l"
+			PRINTSL @"%対象文字列%"
 		CASEELSE
-			PRINTS @"%대상캐릭터라인%"
+			PRINTS @"%対象文字列%"
 		ENDSELECT
 		BREAK
 	ENDIF
 
-	;표시 끝난 문자분을 삭제해 대상캐릭터라인을 갱신한다
-	대상캐릭터라인 = %SUBSTRING(대상캐릭터라인, 출력문자수, -1)%
+	;表示済みの文字分を削除して対象文字列を更新する
+	対象文字列 = %SUBSTRING(対象文字列, 出力文字数, -1)%
 	
 LOOP 1

@@ -3,21 +3,48 @@
 ;일상계 커맨드 레벨 1
 ;-------------------------------------------------
 @COM303
-CALL SUC_FAIL(0, MIN(ABL:MASTER:화술기능 + ABL:친밀, 50))
-SELECTCASE TFLAG:193
-	;실패
-	CASE -1
-		SIF TFLAG:192 == -2
-			RETURN 0
-	;대성공
-	CASE 1
-		TFLAG:98 = 1
-		IF CHK_DATENOW(CFLAG:TARGET:데이트중)
-			CALL 붉은실발동
-			EXP:MASTER:데이트경험 ++
-			EXP:TARGET:데이트경험 ++
+IF CFLAG:패배자 && MARK:반발각인 >= 3
+	PRINTFORMW %마스터가% 한 일은 사과한다고 해서 용서받을 일이 아니다
+	RETURN -1
+ENDIF
+SELECTCASE TFLAG:192
+	;通常
+	CASE 0
+		LOCAL = RAND:110
+		LOCAL:1 = ABL:MASTER:화술기능 * 2 + ABL:친밀
+		;大成功
+		IF LOCAL < LOCAL:1
+			TFLAG:193 = 1
+			;信頼
+			TFLAG:98 = 1
+		;成功
+		ELSEIF LOCAL < LOCAL:1 + 30
+			TFLAG:193 = 0
+		;失敗
+		ELSE
+			TFLAG:193 = -1
 		ENDIF
+	;強制成功or大成功
+	CASE 1
+		;大成功
+		IF RAND:110 < ABL:MASTER:화술기능 * 2 + ABL:친밀
+			TFLAG:193 = 1
+			;信頼
+			TFLAG:98 = 1
+		;成功
+		ELSE
+			TFLAG:193 = 0
+		ENDIF
+	;強制失敗
+	CASE -1
+		TFLAG:193 = -1
+	;コマンド終了
+	CASE -2
+		TFLAG:102 = 0
+		TFLAG:193 = -1
+		RETURN 0
 ENDSELECT
+
 
 DOWNBASE:MASTER:체력 += 50
 DOWNBASE:MASTER:기력 += 200

@@ -7,7 +7,8 @@
 ;-----------------------------------------------------------
 @CHANGE_MONTH
 #DIM 운세뽑기값
-;일자가 달을 넘으면(자) 달변경
+#DIM IFS_COST
+;日付が月を跨いだら月変更
 IF DAY:3 > 31
 	DAY:3 = 1
 	DAY:2 ++
@@ -55,9 +56,11 @@ IF DAY:3 > 31
 					FLAG:식재료구독 = 0
 				CASE 1
 					MONEY -= 20000
+					CALL PAY_MONEY_YEN(20000, 2)
 					PRINTFORML 이번 달도 구독합니다.
 				CASE 2
-					MONEY:2 -= 300
+					MONEY:2 -= 30
+					CALL PAY_MONEY_CM(30, 2)
 					PRINTFORML 이번 달도 구독합니다.
 			ENDSELECT
 		ENDIF
@@ -74,10 +77,10 @@ IF DAY:3 > 31
 					PRINTFORML 구독을 정지합니다.
 					FLAG:신문구독 = 0
 				CASE 1
-					MONEY -= 3000
+					CALL PAY_MONEY_YEN(3000, 2)
 					PRINTFORML 이번 달도 구독합니다.
 				CASE 2
-					MONEY:2 -= 10
+					CALL PAY_MONEY_CM(10, 2)
 					PRINTFORML 이번 달도 구독합니다.
 			ENDSELECT
 		ENDIF
@@ -94,7 +97,7 @@ IF DAY:3 > 31
 					PRINTFORML 건강보험을 취소합니다.
 					FLAG:건강보험 = 0
 				CASE 1
-					MONEY -= 건보가격(80000)
+					CALL PAY_MONEY_YEN(건보가격(80000), 2)
 					PRINTFORML 건강보험을 유지합니다.
 			ENDSELECT
 		ENDIF
@@ -111,10 +114,10 @@ IF DAY:3 > 31
 					PRINTFORML 해약했습니다
 					FLAG:전화 = 0
 				CASE 1
-					MONEY -= 5000
+					CALL PAY_MONEY_YEN(5000, 2)
 					PRINTFORML 계약을 연장했습니다
 				CASE 2
-					MONEY:2 -= 50
+					CALL PAY_MONEY_CM(50, 2)
 					PRINTFORML 계약을 연장했습니다
 			ENDSELECT
 		ENDIF
@@ -138,24 +141,7 @@ IF DAY:3 > 31
 			ENDIF
 		ENDIF
 	ENDIF
-	IF FLAG:벌레수집서비스
-		PRINTFORMDL
-		PRINTFORMW 벌레 수집 서비스의 계약 기간이 만료되었습니다.
-		PRINTFORMW 벌레 수집 서비스를 계속하시겠습니까?
-		PRINTFORML 소지금:%금액표시(MONEY)%
-		LOCAL = CALCULATE_IFS_PRICE()
-		CALL ASK_M("갱신하지 않는다",1,@"갱신한다 (%금액표시(LOCAL)%)",MONEY >= LOCAL)
-		IF RESULT > 0
-			MONEY -= LOCAL
-			PRINTFORMW 계약을 갱신했습니다.
-			PRINTFORMDL
-			PRINTFORML 현재 벌레 채집 장소는 %GET_MAPNAME(FLAG:벌레수집서비스 - 1)%입니다.
-			PRINTFORMW 변경하고 싶다면 %CALLNAME:[[リグル]]%에게 말을 걸어주세요.
-		ELSE
-			FLAG:벌레수집서비스 = 0
-		ENDIF
-		PRINTFORMDL
-	ENDIF
+	CALL IFS_SUBSCRIBE
 ENDIF
 ;이상치를 고정 수정
 SIF DAY:3 < 1

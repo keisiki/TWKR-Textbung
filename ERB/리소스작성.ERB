@@ -1,6 +1,10 @@
 ﻿
 
 @COMPOSE_SPRITE
+;warning when this is called, as it negatively affects performance to retrieve so many assets at once
+PRINTDL ＊WARNING＊: @COMPOSE_SPRITE should not be used. Please call the relevant COMPOSE_SPRITE_{C_ID} or COMPOSE_SPRITE_PRESET({C_ID}) directly.
+
+[SKIPSTART]
 CALL COMPOSE_SPRITE_30
 CALL COMPOSE_SPRITE_55
 CALL COMPOSE_SPRITE_62
@@ -42,6 +46,7 @@ CALL COMPOSE_SPRITE_PRESET([[파르시]],"別顔2_裸_/別顔2_服_/別顔2_服_
 CALL COMPOSE_SPRITE_PRESET([[사쿠야]],"別顔2_裸_/別顔2_服_/別顔2_服_バニー_",
 "通常/笑顔/怒り/発情/トロ顔/イキ顔/通常２/笑顔２/ウィンク", 2)
 }
+[SKIPEND]
 
 @COMPOSE_SPRITE_63
 #DIM G_ID
@@ -61,7 +66,8 @@ CALL COMPOSE_SPRITE_PRESET([[사쿠야]],"別顔2_裸_/別顔2_服_/別顔2_服_
 "別顔_服_下着B_",
 "別顔_服_白ワンピ_",
 "別顔_服_バニー_",
-"別顔_服_冬服_"
+"別顔_服_冬服_",
+"別顔_服_赤ずきん_"
 }
 ;仮素体のレイヤー合成順を代入
 {
@@ -100,8 +106,8 @@ CALL 画像合成(G_ID, @"63別顔_%PAT:COUNT%")
 COUNT ++
 WEND
 ;立ち絵画像合成
-FOR 素体COUNT, 0, 7
-	FOR 表情COUNT, 0, 17
+FOR 素体COUNT, 0, VARSIZE("素体")
+	FOR 表情COUNT, 0, VARSIZE("表情")
 		G_ID = 0
 		CALL 画像合成(G_ID, @"63別顔_素体%素体:素体COUNT%")
 		CALL 画像合成(G_ID, @"63別顔_表情%表情:表情COUNT%")
@@ -223,7 +229,6 @@ SIF SPRITECREATED("別立ち_裸_通常_62") || !SPRITECREATED("62別立_裸基�
 	RETURN
 
 ;立ち絵素体ベース/胎内透視・断面図・照れ系エフェクト生成
-COUNT = 0
 WHILE PAT:COUNT != "END"
 IF PAT:COUNT == "00"
 	G_ID = 0
@@ -393,6 +398,7 @@ FOR 素体COUNT, 0, VARSIZE("素体")
 		SPRITECREATE @"%素体:素体COUNT%_%表情:表情COUNT%_30", G_ID
 		SIF 識別 == "_s" || 表情COUNT > 0
 			CONTINUE
+		SPRITEDISPOSE @"%素体:素体COUNT%_アニメ_30"
 		SPRITEANIMECREATE @"%素体:素体COUNT%_アニメ_30", 270, 270
 		SPRITEANIMEADDFRAME @"%素体:素体COUNT%_アニメ_30", G_ID, 0, 0 ,270, 270, 0, 0, 4000
 		FOR L_COUNT, 0, 3
@@ -439,8 +445,16 @@ FOR 素体COUNT, 0, 10
 	FOR 表情COUNT, 1, 15
 		SIF 表情:表情COUNT == ""
 			BREAK
+		;only load alternate image sets if they're in use
+	IF SUBSTRINGU(素体:素体COUNT, 0, 2) == "別顔"
+		LOCALS '= SUBSTRINGU(素体:素体COUNT, 2, 1)
+		IF LOCALS == "_" && CFLAG:C_ID:대체적용 != 1
+			CONTINUE
+		ELSEIF ISNUMERIC(LOCALS) && TOINT(LOCALS) != CFLAG:C_ID:대체적용
+			CONTINUE
+		ENDIF
+	ENDIF
 		G_ID = 0
-		CALL 画像合成(G_ID, "ダミー", 0, 0, 180, 180)
 		CALL 画像合成(G_ID, @"%素体:素体COUNT%通常_%TOSTR(C_ID)%")
 		IF 別顔ID
 			CALL 画像合成(G_ID, @"%TOSTR(C_ID)%別顔%TOSTR(別顔ID)%_表情%表情:表情COUNT%")

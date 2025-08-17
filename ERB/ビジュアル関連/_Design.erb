@@ -1,0 +1,740 @@
+﻿;part of my design library
+
+;from GvT
+;--------------------------------------------------
+;カラー付きバー@COLOR_BAR
+;ARG:1	現在値
+;ARG:2	最大値
+;ARG:3  ゲージの長さ
+;ARG:4  色・R		0xFFFFFF方式で色を指定することができないので注意。
+;ARG:5  色・G
+;ARG:6  色・B
+;ARG:7  背景色の色相差（ARGS:1 と ARGS:2の色の差）数値が大きいほど背景の色が薄くなる
+;ARG:8  グラデーション変化・R 加算値
+;ARG:9  グラデーション変化・G 加算値
+;ARG:10 グラデーション変化・B 加算値
+;ARG:11 グラデーション変化の頻度　数値が大きいほど変化が緩やかになる
+;ARGS:1 ゲージに使用する文字
+;ARGS:2 ゲージの背景文字
+@COLOR_BAR(ARG:1,ARG:2,ARG:3=20,ARG:4=160,ARG:5=160,ARG:6=160,ARG:7=-80,ARG:8,ARG:9,ARG:10,ARG:11=1,ARGS:1=UNICODE(0x2582),ARGS:2=UNICODE(0x2581))
+VARSET LOCAL
+LOCAL:1 = ARG:1 * ARG:3 / ARG:2
+LOCAL:2 = ARG:3 - LOCAL:1
+LOCAL:4 = ARG:4 + ARG:7
+LOCAL:5 = ARG:5 + ARG:7
+LOCAL:6 = ARG:6 + ARG:7
+SIF LOCAL:4 < 0
+	LOCAL:4 = 0
+SIF LOCAL:4 > 255
+	LOCAL:4 = 255
+SIF LOCAL:5 < 0
+	LOCAL:5 = 0
+SIF LOCAL:5 > 255
+	LOCAL:5 = 255
+SIF LOCAL:6 < 0
+	LOCAL:6 = 0
+SIF LOCAL:6 > 255
+	LOCAL:6 = 255
+FOR LOCAL,0,ARG:3
+	IF LOCAL:1 > LOCAL
+		IF LOCAL:100 < ARG:11
+			SETCOLOR ARG:4,ARG:5,ARG:6
+			LOCAL:100 += 1
+		ELSE
+			ARG:4 += ARG:8
+			ARG:5 += ARG:9
+			ARG:6 += ARG:10
+			SIF ARG:4 < 0
+				ARG:4 = 0
+			SIF ARG:4 > 255
+				ARG:4 = 255
+			SIF ARG:5 < 0
+				ARG:5 = 0
+			SIF ARG:5 > 255
+				ARG:5 = 255
+			SIF ARG:6 < 0
+				ARG:6 = 0
+			SIF ARG:6 > 255
+				ARG:6 = 255
+			SETCOLOR ARG:4,ARG:5,ARG:6
+			LOCAL:100 = 0
+		ENDIF
+		PRINTFORM %ARGS:1%
+	ELSE
+		IF !LOCAL:101
+			SETCOLOR LOCAL:4,LOCAL:5,LOCAL:6
+			LOCAL:101 = 1
+		ENDIF
+		PRINTFORM %ARGS:2%
+	ENDIF
+NEXT
+RESETCOLOR
+RETURN 1
+
+@BW_BAR(ARG:1,ARG:2,ARG:3=20,ARGS:1=UNICODE(0x2588),ARGS:2=UNICODE(0x2592))
+#FUNCTIONS
+LOCAL:1 = ARG:1 * ARG:3 / ARG:2
+LOCAL:2 = ARG:3 - LOCAL:1
+LOCALS =
+FOR LOCAL,0,ARG:3
+	IF LOCAL:1 > LOCAL
+		LOCALS += ARGS:1
+	ELSE
+		LOCALS += ARGS:2
+	ENDIF
+NEXT
+RETURNF LOCALS
+
+@PRINTLEVELBAR, ARG, ARG:1, ARG:2, ARG:3
+;PRINTFORM %@"Level {ABL:(ARG:0):レベル, 2}", ARG:1, LEFT%　  
+;CALLFORM COLORSENTENCE_BAR("EXP", ARG:0, JUEL:(ARG:0):経験値, 100, 20)
+ARG:4 = 109
+ARG:5 = 225
+ARG:6 = 255
+PRINTFORM Lv{ARG:2}
+CALL COLOR_BAR(ARG,ARG:1,20,ARG:4,ARG:5,ARG:6,-160,10,18,6,2,UNICODE(0x25AE),UNICODE(0x25AE))
+PRINTFORM Lv{ARG:3}
+
+;-------------------------------------------------
+;mostly tohoK functions, too lazy to rewrite as this already works fine
+;-------------------------------------------------
+
+@HEXTORGB, ARG
+#FUNCTIONS
+LOCAL = (ARG >> 16) & 0xFF
+LOCAL:1 = (ARG >> 8) & 0xFF
+LOCAL:2 = ARG & 0xFF
+
+LOCALS = %TOSTR(LOCAL)%//%TOSTR(LOCAL:1)%//%TOSTR(LOCAL:2)%
+RETURNF LOCALS
+
+@RGBTOHEX, ARGS
+#FUNCTION
+SPLIT ARGS, "//", LOCALS
+LOCAL = (TOINT(LOCALS:0) << 16) + (TOINT(LOCALS:1) << 8) + TOINT(LOCALS:2)
+RETURNF LOCAL
+
+;-------------------------------------------------
+;RGBカラーから色相(0～359)を取得する関数
+;-------------------------------------------------
+@RGB_TO_H(ARG:0)
+#FUNCTION
+LOCAL:0 = (ARG:0 >> 16) & 0xFF
+LOCAL:1 = (ARG:0 >> 8) & 0xFF
+LOCAL:2 = ARG:0 & 0xFF
+LOCAL:3 = MAX(LOCAL:0, LOCAL:1, LOCAL:2)
+LOCAL:4 = MIN(LOCAL:0, LOCAL:1, LOCAL:2)
+LOCAL:5 = LOCAL:3 - LOCAL:4
+
+IF LOCAL:5 <= 0
+	LOCAL:6 = 0
+ELSEIF LOCAL:0 == LOCAL:3
+	LOCAL:6 = 60 * (LOCAL:1 - LOCAL:2) / LOCAL:5
+ELSEIF LOCAL:1 == LOCAL:3
+	LOCAL:6 = 60 * (LOCAL:2 - LOCAL:0) / LOCAL:5 + 120
+ELSE
+	LOCAL:6 = 60 * (LOCAL:0 - LOCAL:1) / LOCAL:5 + 240
+ENDIF
+IF LOCAL:6 < 0
+	LOCAL:6 += 360
+ENDIF
+RETURNF LOCAL:6
+
+;-------------------------------------------------
+;RGBカラーから彩度(0～100)を取得する関数
+;-------------------------------------------------
+@RGB_TO_S(ARG:0)
+#FUNCTION
+LOCAL:0 = (ARG:0 >> 16) & 0xFF
+LOCAL:1 = (ARG:0 >> 8) & 0xFF
+LOCAL:2 = ARG:0 & 0xFF
+LOCAL:3 = MAX(LOCAL:0, LOCAL:1, LOCAL:2)
+LOCAL:4 = LOCAL:3 - MIN(LOCAL:0, LOCAL:1, LOCAL:2)
+IF LOCAL:3 <= 0
+	RETURNF 0
+ENDIF
+RETURNF LOCAL:4 * 100 / LOCAL:3
+
+;-------------------------------------------------
+;RGBカラーから明度(0～100)を取得する関数
+;-------------------------------------------------
+@RGB_TO_V(ARG:0)
+#FUNCTION
+LOCAL:0 = (ARG:0 >> 16) & 0xFF
+LOCAL:1 = (ARG:0 >> 8) & 0xFF
+LOCAL:2 = ARG:0 & 0xFF
+RETURNF MAX(LOCAL:0, LOCAL:1, LOCAL:2) * 100 / 255
+
+;-------------------------------------------------
+;HSVカラーをRGBカラーに変換する関数
+;ARG:0=色相(0～359)
+;ARG:1=彩度(0～100)
+;ARG:2=明度(0～100)
+;-------------------------------------------------
+@HSV_TO_RGB(ARG:0, ARG:1, ARG:2)
+#FUNCTION
+IF ARG:0 >= 0 && ARG:0 <= 359 && ARG:1 >= 0 && ARG:1 <= 100 && ARG:2 >= 0 && ARG:2 <= 100
+	IF ARG:1 == 0
+		LOCAL:5 = ARG:2 * 255 / 100
+		RETURNF (LOCAL:5 << 16) + (LOCAL:5 << 8) + LOCAL:5
+	ELSE
+		LOCAL:0 = ARG:0 / 60
+		LOCAL:1 = ARG:0 % 60
+		LOCAL:2 = ARG:2 * (6000 - 60 * ARG:1) * 255 / 600000
+		LOCAL:3 = ARG:2 * (6000 - LOCAL:1 * ARG:1) * 255 / 600000
+		LOCAL:4 = ARG:2 * (6000 - (60 - LOCAL:1) * ARG:1) * 255 / 600000
+		LOCAL:5 = ARG:2 * 255 / 100
+		SELECTCASE LOCAL:0
+			CASE 0
+				RETURNF (LOCAL:5 << 16) + (LOCAL:4 << 8) + LOCAL:2
+			CASE 1
+				RETURNF (LOCAL:3 << 16) + (LOCAL:5 << 8) + LOCAL:2
+			CASE 2
+				RETURNF (LOCAL:2 << 16) + (LOCAL:5 << 8) + LOCAL:4
+			CASE 3
+				RETURNF (LOCAL:2 << 16) + (LOCAL:3 << 8) + LOCAL:5
+			CASE 4
+				RETURNF (LOCAL:4 << 16) + (LOCAL:2 << 8) + LOCAL:5
+			CASE 5
+				RETURNF (LOCAL:5 << 16) + (LOCAL:2 << 8) + LOCAL:3
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURNF 0x000000
+
+;============================================================================== 
+;◆色つきのラインを指定する CALL COLOR_LINE(0, "グレー")
+;ARG:1は線の太さ、0細、1そこそこ、2太
+;============================================================================== 
+@COLOR_LINE(ARG:0 = 1, 指定カラー = C_GRAY, nLineWidth = -1, nReverse = 0 )
+	#DIM 指定カラー = GETDEFCOLOR()
+	#DIM Ｈ = 0
+	#DIM Ｓ = 0
+	#DIM Ｖ = 0
+	#DIM グラデーション開始 = 0
+	#DIM 線の太さ = 0
+	#DIM nLineWidth
+	#DIM nReverse
+	
+	#DIM nColor
+	#DIMS strFont
+	
+	SIF nLineWidth == -1
+		nLineWidth = MAXWIDTH()
+		
+	nColor = GETCOLOR()
+	strFont '= GETFONT()
+
+	;フォントのリセット
+	CALL SETFONT_MEYRYOKE
+	;カウンタ
+	LOCAL:0 = 0
+	;色の明るさを最大値として指定する用
+	LOCAL:1 = 0
+	;カウンタ２
+	LOCAL:3 = 0
+
+
+	線の太さ = ARG:0 * 10
+
+	;カラー調整
+	Ｈ = RGB_TO_H(指定カラー)
+	Ｓ = RGB_TO_S(指定カラー)
+	Ｖ = RGB_TO_V(指定カラー)
+
+	;一行に入る文字数は49文字分rectは全角１文字が100
+	グラデーション開始 = nLineWidth*40 - Ｖ / 5 * 100
+
+	IF グラデーション開始 <= 0
+		グラデーション開始 = 100
+	ENDIF
+	
+	IF nReverse
+		;最大値
+		LOCAL:1 = Ｖ / 5
+		FOR LOCAL:0, 0, 2
+			SETCOLOR HSV_TO_RGB(Ｈ, Ｓ, Ｖ)
+			LOCAL:3 += 1
+			;3回に1色相変化
+			IF LOCAL:3 % 3 == 0
+				Ｈ += 1
+				IF Ｈ >= 360
+					Ｈ = 1
+				ENDIF
+			ENDIF
+			Ｖ -= 5
+		NEXT
+		
+		FOR LOCAL:0, 0, 2
+			SETCOLOR HSV_TO_RGB(Ｈ, Ｓ, Ｖ)
+			PRINT_RECT 0, 50-(線の太さ/2), 100, 線の太さ
+			LOCAL:3 += 1
+			;3回に1色相変化
+			IF LOCAL:3 % 3 == 0
+				Ｈ -= 1
+				IF Ｈ <= 0
+					Ｈ = 1
+				ENDIF
+			ENDIF
+			Ｖ += 5
+		NEXT
+		
+		Ｈ = RGB_TO_H(指定カラー)
+		Ｓ = RGB_TO_S(指定カラー)
+		Ｖ = RGB_TO_V(指定カラー)
+	ENDIF
+	
+	;グラデーション開始する位置まで同じ色
+	SETCOLOR HSV_TO_RGB(Ｈ, Ｓ, Ｖ)
+	PRINT_RECT 0, 50-(線の太さ/2), グラデーション開始, 線の太さ
+	
+	IF !nReverse
+		LOCAL:1 = Ｖ / 2
+		FOR LOCAL:0, 0, LOCAL:1
+			SETCOLOR HSV_TO_RGB(Ｈ, Ｓ, Ｖ)
+			PRINT_RECT 0, 50-(線の太さ/2), 100, 線の太さ
+			LOCAL:3 += 1
+			;3回に1色相変化
+			IF LOCAL:3 % 3 == 0
+				Ｈ += 1
+				IF Ｈ >= 360
+					Ｈ = 1
+				ENDIF
+			ENDIF
+			Ｖ -= 2
+		NEXT
+		PRINTL
+	ENDIF
+
+	SETCOLOR nColor
+	SETFONT strFont
+
+	RETURN 0
+	
+@COLOR_LINE_REV, ARG
+CALL COLOR_LINE, , , ARG, 1
+
+;============================================================================== 
+;◆フォント・emuera.configの指定がＭＳ ゴシック（デフォルトの指定）の場合
+;　MeiryoKe_Consoleがインストールされていたらセットする CALL SETFONT_MEYRYOKE
+;============================================================================== 
+@SETFONT_MEYRYOKE
+	;デフォルト指定のフォントをチェック
+	GETFONT
+	;プレイヤーにより変更されていなければ
+	IF RESULTS == "ＭＳ ゴシック"
+		;インストール確認
+		CHKFONT "MeiryoKe_Console"
+		;存在したら
+		IF RESULT
+			SETFONT "MeiryoKe_Console"
+		ENDIF
+	ENDIF
+
+	RETURN 0
+	
+;============================================================================== 
+;◆タイトルラベル・汎用カテゴリタイトル表示   CALL TITLE_CATEGORY_GENERAL("親交", 4)
+;============================================================================== 
+; @TITLE_CATEGORY_GENERAL(ARGS:0, ARGS:1, ARG:1)
+	; IF ARGS:1 != ""
+		; LOCAL = TOINT(SPLIT_SINGLE(ARGS:1))
+		; LOCAL:1 = TOINT(SPLIT_SINGLE(ARGS:1, 1))
+		; IF LOCAL:1 ;highlight disabled/collapsed menu items with gray
+			; CALL PRINT_STR, @"HEX@{C_P_PURPLE}@◇@HEX@{C_GRAY}@BUTTONNUM@%ARGS:0%|{LOCAL}@HEX@{C_P_PURPLE}@◇@"
+		; ELSE
+			; CALL PRINT_STR, @"HEX@{C_P_PURPLE}@◇@HEX@{C_GRAY2}@BUTTONNUM@%ARGS:0%|{LOCAL}@HEX@{C_P_PURPLE}@◇@"
+		; ENDIF
+	; ELSE
+		; CALL PRINT_STR, @"HEX@{C_P_PURPLE}@◇@HEX@{C_GRAY2}@%ARGS:0%@HEX@{C_P_PURPLE}@◇@"
+	; ENDIF
+	
+@CENTERLINE
+
+LOCAL = GETCOLOR()
+
+SETCOLOR C_GRAY
+PRINTSL CENTER("─"* (MAXWIDTH()/2-4), MAXWIDTH())
+SETCOLOR LOCAL
+
+;-------------------------------------------------
+;Draw a line between the text
+;-------------------------------------------------
+@LINECENTER, ARGS, ARGS:1 = "-"
+LOCAL = STRLENS(ARGS)
+LOCALS = %ARGS:1*(16-LOCAL/2)%%ARGS%%ARGS:1*(16-LOCAL/2)%
+PRINTFORML %SUBSTRING(LOCALS, 0, 32)%
+
+
+; @DRAWLINES, ARGS, ARGS:1, ARG
+; #DIM LINE_WIDTH
+
+; LINE_WIDTH = MAXWIDTH() - 20 - STRLENS(ARGS)
+; SIF ARG
+	; LINE_WIDTH = ARG - STRLENS(ARGS)
+; LOCALS = %ARGS%
+
+; CALL COLOR_LINE_REV, 0
+
+; CALL TITLE_CATEGORY_GENERAL, LOCALS, ARGS:1
+
+; ;FOR LOCAL, 0, LINE_WIDTH
+; ;	PRINTFORM -
+; ;NEXT
+; CALL COLOR_LINE, , , LINE_WIDTH
+
+
+;--------------------------------------------------
+; MeiQ
+;--------------------------------
+@FADELINE, ARG
+
+ALIGNMENT CENTER
+FONTSTYLE 4
+FOR LOCAL ,0 ,33
+	IF LOCAL < 17
+		SETCOLOR 0x2D2D2D + ((0x0D0D0D - (65536 * ARG)) * LOCAL ) - 2*LOCAL
+	ELSE
+		SETCOLOR 0x2D2D2D + ((0x0D0D0D - (65536 * ARG)) * (33 - LOCAL)) -2 * (33 - LOCAL)
+	ENDIF
+	PRINT 　
+NEXT
+PRINTL
+;PRINTL 　　　　　
+FONTSTYLE 0
+ALIGNMENT LEFT
+RESETCOLOR
+	
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+; 色
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+
+
+;================================================================
+; カラー値の算出
+;--------------------------------
+;	nBaseColor	: 基準となるカラー値
+;	nRGB:0		: 変動値（Ｒ値)
+;	nRGB:1		: 変動値（Ｇ値)
+;	nRGB:2		: 変動値（Ｂ値)
+;--------------------------------
+; 戻り値
+;	算出したカラー値
+;================================================================
+@CALC_CALOR( nBaseColor, nRGB:0, nRGB:1, nRGB:2 )
+#FUNCTION
+	#DIM nBaseColor
+	#DIM nRGB, 3
+	#DIM nResultColor
+
+	LOCAL:0 = (nBaseColor / 256 / 256) % 256
+	LOCAL:1 = (nBaseColor / 256) % 256
+	LOCAL:2 = nBaseColor % 256
+
+	nResultColor = LIMIT( LOCAL:0 + nRGB:0, 0x00, 0xFF ) * 0x010000 + LIMIT( LOCAL:1 + nRGB:1, 0x00, 0xFF ) * 0x000100 + LIMIT( LOCAL:2 + nRGB:2, 0x00, 0xFF ) * 0x000001
+
+	RETURNF nResultColor
+	
+;================================================================
+; カラー値の算出
+;--------------------------------
+;	nHSB:0		: 色相（0～359）
+;	nHSB:1		: 彩度（0～255)
+;	nHSB:2		: 明度（0～255)
+;--------------------------------
+; 戻り値
+;	算出したカラー値
+;================================================================
+@CALC_CALOR_HSB( arrHSB:0, arrHSB:1, arrHSB:2 )
+#FUNCTION
+	#DIM arrHSB, 3
+
+	#DIM arrRGB, 3
+	#DIM nMax
+	#DIM nMin
+	#DIM nResultColor
+
+	nMax = arrHSB:2
+	nMin = nMax - (arrHSB:1 * nMax / 255)
+
+	SELECTCASE arrHSB:0
+		CASE 0 TO 59
+			arrRGB:0 = nMax
+			arrRGB:1 = nMin + ((nMax - nMin) * (arrHSB:0) / 60)
+			arrRGB:2 = nMin
+		CASE 60 TO 119
+			arrRGB:0 = nMin + ((nMax - nMin) * (120 - arrHSB:0) / 60)
+			arrRGB:1 = nMax
+			arrRGB:2 = nMin
+		CASE 120 TO 179
+			arrRGB:0 = nMin
+			arrRGB:1 = nMax
+			arrRGB:2 = nMin + ((nMax - nMin) * (arrHSB:0 - 120) / 60)
+		CASE 180 TO 239
+			arrRGB:0 = nMin
+			arrRGB:1 = nMin + ((nMax - nMin) * (240 - arrHSB:0) / 60)
+			arrRGB:2 = nMax
+		CASE 240 TO 299
+			arrRGB:0 = nMin + ((nMax - nMin) * (arrHSB:0 - 240) / 60)
+			arrRGB:1 = nMin
+			arrRGB:2 = nMax
+		CASE 300 TO 360
+			arrRGB:0 = nMax
+			arrRGB:1 = nMin
+			arrRGB:2 = nMin + ((nMax - nMin) * (360 - arrHSB:0) / 60)
+	ENDSELECT
+
+	nResultColor = (arrRGB:0 * 256 * 256) + (arrRGB:1 * 256) + (arrRGB:2)
+	RETURNF nResultColor
+	
+;--------------------------------------------------
+; Loading text
+; Original from MeiQ
+; This time it's not a faux though
+;--------------------------------
+;	nWaitCount - is the current loop position (we assume it's loop because this is where it's needed, right?)
+;	nMinVal - starting value of a loop
+;	nMaxVal - end value of a loop
+;	strText - text to display
+;--------------------------------------------------
+@ANIMATION_LOAD( nWaitCount, nMinVal = 0, nMaxVal, strText = "　Loading" )
+	#DIMS strText
+	#DIM nWaitCount
+
+	#DIM nMinVal
+	#DIM nMaxVal
+	#DIM nPeriod
+	#DIM nRedrawMem
+	#DIM nColorMem
+
+	nColorMem = GETCOLOR()
+	nRedrawMem = CURRENTREDRAW()
+
+	SIF LINEISEMPTY() == 0
+		PRINTL
+
+	REDRAW 0
+	PRINTL
+	
+	nPeriod = (nWaitCount / 2) % 4
+	CLEARLINE 1
+	LOCAL = CALC_OSCILLATION_VALUE( 0x10 * nWaitCount, 0xFF - 0x44 )
+	SETCOLOR 0x444444 + (0x010101 * LOCAL)
+	;PRINTFORM %strText%%"."*nPeriod% {INVERSE_LERP(nMinVal, nMaxVal, nWaitCount)}％
+	LOCALS =
+	LOCALS += strText + " "
+	LOCALS += LAYER_RECTBAR(nWaitCount, nMaxVal, 16, 0x7070C0, 0x202050, , , 30)
+	LOCALS += "[" + TOSTR(GETPERCENT(nWaitCount, nMaxVal, 1)) + "％]"
+	HTML_PRINT LOCALS
+
+	REDRAW nRedrawMem
+	SETCOLOR nColorMem
+	;PRINTL 
+	AWAIT
+	CLEARLINE 1
+	
+@TRIPLEDOT(ARGS:0, ARGS:1 = "...")
+LOCALS =
+FOR LOCAL, 0, 3
+	LOCALS = 　%ARGS:1*(SPLIT_CHECK(ARGS:0, "reverse") ? 3-LOCAL # LOCAL+1)%
+	PRINTSDL LOCALS
+	SIF SPLIT_CHECK(ARGS:0, "timed")
+		TWAIT 300, 0
+	SIF SPLIT_CHECK(ARGS:0, "wait")
+		WAIT
+NEXT
+
+;--------------------------------------------------------
+;Function that centers the text
+;Because emuera lacks a convenient way for this
+;Usage: %CENTER(TEXT, #Num of spaces)%
+;--------------------------------------------------------
+@CENTER(ARGS, ARG)
+#FUNCTIONS
+LOCAL = (ARG/2) - (STRLENS(ARGS) / 2)
+ARGS = %"", LOCAL%%ARGS%%"", ((LOCAL+ARG%2)-(STRLENS(ARGS)%2))%
+RETURNF ARGS
+
+@CENTERSCREEN(ARGS)
+#FUNCTIONS
+RETURNF CENTER(ARGS, MAXWIDTH())
+
+@SET_CHANGING_COLOR(ARG = 2)
+#DIM nTimeValue
+SELECTCASE ARG ;0 - white-gray, 1 - blueish, 2 - colorful, 3 - ymaem style slow green-blue
+	CASE 1
+		nTimeValue = GETMILLISECOND() / 50
+		LOCAL:0 = CALC_OSCILLATION_VALUE( 0x05 * nTimeValue, 0xAA - 0x22 )
+		LOCAL:1 = CALC_OSCILLATION_VALUE( 0x05 * nTimeValue, 0xCC - 0x44 )
+		SETCOLOR CALC_CALOR( 0x2244FF, LOCAL:0, LOCAL:1, 0x00 )
+	CASE 2
+		nTimeValue = GETMILLISECOND() / 15
+		LOCAL:0 = nTimeValue % 360
+		LOCAL:1 = 0xDD - CALC_OSCILLATION_VALUE( 0x02 * (nTimeValue / 2), 0x88 )
+		SETCOLOR CALC_CALOR_HSB( LOCAL:0, LOCAL:1, 0xFF )
+	CASE 3
+		nTimeValue = GETMILLISECOND() / 80
+		LOCAL:0 = CALC_OSCILLATION_VALUE( 0x03 * nTimeValue, 0xAA - 0x22 )
+		LOCAL:1 = CALC_OSCILLATION_VALUE( 0x03 * nTimeValue, 0xCC - 0x44 )
+		SETCOLOR CALC_CALOR( 0x005599, LOCAL:0, LOCAL:1, 0x00 )
+	CASEELSE
+		nTimeValue = GETMILLISECOND() / 50
+		LOCAL:0 = CALC_OSCILLATION_VALUE( 0x07 * nTimeValue, 0xFF - 0x66 )
+		SETCOLOR 0x666666 + (0x010101 * LOCAL)
+ENDSELECT
+
+;=============================================================================
+;Originally by eraMeiQ
+;=============================================================================
+;--------------------------------------------------
+; 背景色の変遷
+;--------------------------------
+;	nFirstBgColor	: 開始背景色
+;	nLastBgColor	: 変遷後背景色
+;	nWaitCount		: 待機回数
+;	nWaitTime		: 待機時間（単位はmsec）
+;	nChangeWaitTime	: 変遷ごとに待機時間が変化させる（変動値を設定。）
+;		※ 待機時間の範囲は 50～1000msec
+;	nExtraFlag		: 特殊なフラグ（ビット管理）
+;						&0x0001	: 改行あり
+;--------------------------------------------------
+@ANIMATION_BGCOLOR_TRANSITION( nFirstBgColor, nLastBgColor, nWaitCount, nWaitTime, nChangeWaitTime, nExtraFlag )
+	#DIM nFirstBgColor
+	#DIM nLastBgColor
+	#DIM nWaitCount
+	#DIM nWaitTime
+	#DIM nChangeWaitTime
+	#DIM nExtraFlag
+
+	#DIM colorFirst_RGB, 3
+	#DIM colorLast_RGB, 3
+	#DIM nLoop
+
+	colorFirst_RGB:0 = nFirstBgColor / 256 / 256
+	colorFirst_RGB:1 = nFirstBgColor / 256 % 256
+	colorFirst_RGB:2 = nFirstBgColor % 256
+	colorLast_RGB:0 = nLastBgColor / 256 / 256
+	colorLast_RGB:1 = nLastBgColor / 256 % 256
+	colorLast_RGB:2 = nLastBgColor % 256
+
+	FOR nLoop, 0, nWaitCount
+		LOCAL:1 = LIMIT( colorFirst_RGB:0 + (colorLast_RGB:0 - colorFirst_RGB:0) * nLoop / MAX( 1, nWaitCount - 1 ), 0, 0xFF )
+		LOCAL:2 = LIMIT( colorFirst_RGB:1 + (colorLast_RGB:1 - colorFirst_RGB:1) * nLoop / MAX( 1, nWaitCount - 1 ), 0, 0xFF )
+		LOCAL:3 = LIMIT( colorFirst_RGB:2 + (colorLast_RGB:2 - colorFirst_RGB:2) * nLoop / MAX( 1, nWaitCount - 1 ), 0, 0xFF )
+		SETBGCOLOR ((LOCAL:1 * 256 * 256) + (LOCAL:2 * 256) + (LOCAL:3))
+		LOCAL = LIMIT( nWaitTime + (nLoop * nChangeWaitTime), 50, 1000 )
+		TWAIT LOCAL, (nLoop == 0)
+		SIF nExtraFlag & 0x0001
+			PRINTL
+	NEXT
+
+;================================================================
+; 数値を、ある一定の範囲で振動する値に変換する
+;	nRange -----------------------------------------------------------------
+;			　　　／＼　　　　　　／＼
+;			　　／　　＼　　　　／　　
+;			　／　　　　＼　　／　　　
+;			／　　　　　　＼／　　　　
+;	0	   -----------------------------------------------------------------
+;--------------------------------
+;	nValue		: 対象数値
+;	nRange		: 振動幅
+;--------------------------------
+; 戻り値
+;	変換後の数値
+;--------------------------------
+; 例
+;	CALC_OSCILLATION_VALUE(  30, 40 ) = 30
+;	CALC_OSCILLATION_VALUE(  60, 40 ) = 20
+;	CALC_OSCILLATION_VALUE(  91, 40 ) = 11
+;	CALC_OSCILLATION_VALUE(  91, 50 ) =  9
+;================================================================
+@CALC_OSCILLATION_VALUE( nValue, nRange )
+#FUNCTION
+	#DIM nValue
+	#DIM nRange
+
+	LOCAL:0 = (nValue / nRange) % 2
+	LOCAL:1 = nValue % nRange
+
+	IF LOCAL:0 == 0
+		RETURNF LOCAL:1
+	ELSE
+		RETURNF nRange - LOCAL:1
+	ENDIF
+
+	RETURNF 0
+	
+;================================================================
+; 流れる文字
+; 指定した文字列を左から右へロール表示する
+;--------------------------------
+; 引数
+;	strText		: 表示文字列
+;	nPrintType	: アニメーションタイプ
+;					0 = クロール表示（指定した文字列を左から右へロール表示する）
+;					1 = テレタイプ表示（指定した文字列を先頭から１文字ずつ表示していく）
+;================================================================
+@ANIMATION_ROLL_TEXT( strText, nPrintType )
+	#DIMS strText
+	#DIM nPrintType
+	#DIM nTextLen
+	#DIMS strTextBuf
+	#DIM nLineCount
+
+	SIF LINEISEMPTY() == 0
+		PRINTL 
+
+	STRLENFORMU %strText%
+	nTextLen = RESULT
+	SETCOLOR C_YELLOW ;set a notif color
+	;IF CHECK_DIRECTION_ANIMATION() == 0
+		;アニメーション演出オフの場合
+	;	PRINTFORM %strText%
+	;	PRINTL 
+	IF nTextLen == 0
+		PRINTL 
+	ELSEIF MESSKIP()
+		PRINTFORM %strText%
+		PRINTL 
+		FORCEWAIT
+	ELSE
+		REDRAW 0
+		SELECTCASE nPrintType
+			; クロール表示
+			CASE 0
+				nLineCount = LINECOUNT
+				PRINTL 
+				LOCAL = 0
+				DO
+					SUBSTRINGU strText, nTextLen - 1 - LOCAL, LOCAL + 1
+					strTextBuf = %RESULTS:0%
+					CLEARLINE LINECOUNT - nLineCount
+					PRINTFORM %strTextBuf%
+					REDRAW 1
+					TWAIT (LOCAL + 1 < nTextLen ? 100 # 500), 0
+					REDRAW 0
+					LOCAL += 1
+				LOOP LOCAL < nTextLen
+
+			; テレタイプ表示
+			CASE 1
+				nLineCount = LINECOUNT
+				PRINTL 
+				LOCAL = 0
+				DO
+					SUBSTRINGU strText, 0, LOCAL + 1
+					strTextBuf = %RESULTS:0%
+					CLEARLINE LINECOUNT - nLineCount
+					PRINTFORM %strTextBuf%
+					REDRAW 1
+					TWAIT (LOCAL + 1 < nTextLen ? 100 # 500), 0
+					REDRAW 0
+					LOCAL += 1
+				LOOP LOCAL < nTextLen
+
+		ENDSELECT
+		REDRAW 1
+	ENDIF
+	RESETCOLOR
+	RETURN

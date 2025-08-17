@@ -1,0 +1,557 @@
+﻿;==========================================================================
+;自動行送り（日本語対応）
+;==========================================================================
+@FULLWIDTH_LB(strInput, strBreakLine = "\n", nLength = 0)
+#FUNCTIONS
+#DIM nLength
+#DIMS strInput
+#DIMS strBreakLine
+#DIMS nMaking
+
+nMaking '= REPLACE(strInput, @"(.\{1,{(nLength/2)-1}\})(.|$)", "$1$2\n")
+RETURNF SUBSTRING(nMaking, 0, HTML_STRINGLEN(nMaking) - STRLENS(strBreakLine))
+
+;--------------------------------------------------------
+;Taken from GrammarAnon's thing in eratohoK
+;Inserts line breaks at the last word space of each line for the passed string and returns it.
+;nIndent = number of spaces indented (optional)
+;strBreakLine = additional thing to print when breaking a line
+;nLength = total character width including indent (optional)
+;strMatch = character to match after which line break occurs, any space character by default
+;CHAR_PER_LINE defined in TRANSLATION.ERH
+;Use with PRINTFORM or variants, as the returned string ends in \n
+;Should there be non-whitespace characters in excess of specified width, that line will roll over to next and correct formatting will continue at next whitespace
+;--------------------------------------------------------
+@BREAKENG(strInput, nIndent = 0, strBreakLine = "\n", nLength = 0, strMatch = "\s")
+#FUNCTIONS
+#DIM LINELENGTH
+#DIM nIndent
+#DIM nLength
+#DIMS strInput
+#DIMS strBreakLine
+#DIMS strMatch
+
+SIF !nLength
+	nLength = MAXWIDTH() - 19
+LINELENGTH = nLength - nIndent
+
+IF LINELENGTH < 1
+	THROW @BREAKENG Usable length cannot be less than 1, strInput - %strInput%, nIndent - {nIndent}
+ELSE
+	LOCALS '= REPLACE(strInput, "(.{1," + TOSTR(LINELENGTH) + "})(?:" + strMatch + "|$)", " "*nIndent + "$1" + strBreakLine)
+	;remove strBreakLine contents at the end
+	RETURNF SUBSTRING(LOCALS, 0, STRLENS(LOCALS) - STRLENS(strBreakLine))
+ENDIF
+
+
+;-------------------------------------------------
+;特殊な書式の文字列ARGSを読める文章に直す
+;行や命令は_で区切る事。そしてLOCALSは99までなので手加減してくれ
+;CASEを増やして、そのうち文字列を別作成しないで済むようにしたい
+;FLAG:5で操作することができる。
+;0bit WAITを打ち消し、WをPRINTLに変換する
+;-------------------------------------------------
+@PRINT_STR, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+#DIM LCOUNT
+#DIM nInitColor
+#DIMS TEMP, 5
+#LOCALSSIZE 100
+FOR LCOUNT, 1, 10
+	SIF ARGS:LCOUNT != ""
+		ARGS = %ARGS%@%ARGS:LCOUNT%
+NEXT
+
+nInitColor = GETCOLOR()
+
+VARSET LOCALS
+
+;compatibility
+;ARGS '= REPLACE(ARGS, "_", "@")
+
+;文字列を分解する
+SPLIT ARGS, "@", LOCALS
+
+FOR LCOUNT, 0, RESULT
+	;特殊な操作
+	SELECTCASE LOCALS:LCOUNT
+	;CASE ""
+	;	BREAK
+	CASE "CALLNAME:TARGET"
+		PRINTFORM %CALLNAME:TARGET%
+		CONTINUE
+	CASE "CALLNAME:PLAYER"
+		PRINTFORM %CALLNAME:PLAYER%
+		CONTINUE
+	CASE "CALLNAME:ASSI"
+		PRINTFORM %CALLNAME:ASSI%
+		CONTINUE
+	CASE "CALLNAME:MASTER"
+		PRINTFORM %CALLNAME:MASTER%
+		CONTINUE
+	CASE "BUTTON"
+		;次の文字をボタンにする
+		LCOUNT += 1
+		PRINTBUTTON LOCALS:LCOUNT, LOCALS:LCOUNT
+		SETCOLOR nInitColor
+		FONTREGULAR
+		CONTINUE
+	;create a button that can be custom set
+	CASE "BUTTONS"
+		;次の文字をボタンにする
+		LCOUNT += 1
+		SPLIT LOCALS:LCOUNT, "|", TEMP
+		PRINTBUTTON TEMP:0, TEMP:1
+		SETCOLOR nInitColor
+		FONTREGULAR
+		CONTINUE
+	CASE "BUTTONNUM"
+		;次の文字をボタンにする
+		LCOUNT += 1
+		SPLIT LOCALS:LCOUNT, "|", TEMP
+		PRINTBUTTON TEMP:0, TOINT(TEMP:1)
+		SETCOLOR nInitColor
+		FONTREGULAR
+		CONTINUE
+	CASE "NOBUTTON"
+		;次の文字をボタンにしない
+		LCOUNT += 1
+		PRINTPLAINFORM %LOCALS:LCOUNT%
+		SETCOLOR nInitColor
+		FONTREGULAR
+		CONTINUE
+	CASE "-"
+		;次の文字に打消し線を引く
+		FONTSTYLE 4
+		CONTINUE
+	CASE "L"
+		PRINTL 
+		CONTINUE
+	CASE "W"
+		;IF GETBIT(FLAG:PRINT_STR操作, 0)
+		;	PRINTL 
+		;ELSE
+			PRINTW 
+		;ENDIF 
+		CONTINUE
+	CASE "WAIT"
+		;SIF GETBIT(FLAG:PRINT_STR操作, 0) == 0
+			WAIT
+		CONTINUE
+	CASE "FORCEWAIT"
+		FORCEWAIT
+		CONTINUE
+	CASE "H", "HEART"
+		CALL HEARTMARK
+		CONTINUE
+	;CASE "WH"
+	;	CALL WHITE_HEARTMARK
+	;	CONTINUE
+	;CASE "BH"
+	;	CALL BIG_HEARTMARK
+	;	CONTINUE
+	;CASE "HH"
+	;	SETCOLOR C_HEARTPINK;DEF_COLOR("ハートピンク")
+	;	CALL HEARTMARK
+	;	CONTINUE
+	;CASE "BHH"
+	;	SETCOLOR C_HEARTPINK;DEF_COLOR("ハートピンク")
+	;	CALL BIG_HEARTMARK
+	;	CONTINUE
+	CASE "／／／"
+		SETCOLOR C_PINK2;DEF_COLOR("ピンク")
+		PRINT ///
+		SETCOLOR nInitColor
+		CONTINUE
+	CASE "RGB"
+		LCOUNT += 1
+		SPLIT LOCALS:LCOUNT, "//", TEMP
+		SETCOLOR TOINT(TEMP:0), TOINT(TEMP:1), TOINT(TEMP:2)
+		CONTINUE
+	CASE "HEX"
+		LCOUNT += 1
+		SETCOLOR TOINT(LOCALS:LCOUNT)
+		CONTINUE
+	;CASE "ショッキングピンク", "ピンク", "ハートピンク", "赤", "紅", "黄色", "暗黄色", "イエロー", "緑", "青", "水色", "暗灰色", "灰色", "明灰色", "白"
+	;	SETCOLOR DEF_COLOR(LOCALS:LCOUNT)
+	;	CONTINUE
+	CASE "Ｂ", "BOLD"
+		FONTBOLD
+		CONTINUE
+	CASE "UNDER"
+		FONTSTYLE 8
+		CONTINUE
+	CASE "ITALIC"
+		FONTITALIC
+		CONTINUE
+	CASE "STRIKE"
+		FONTSTYLE 4
+		CONTINUE
+	ENDSELECT
+
+	PRINTFORM %LOCALS:LCOUNT%
+	SETCOLOR nInitColor
+	FONTREGULAR
+NEXT
+
+;-------------------------------------------------
+;PRINT_STRの最後の_Lと_Wを関数に織り込んだver
+;-------------------------------------------------
+@PRINT_STRL, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+CALL PRINT_STR, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+PRINTL
+
+@PRINT_STRW, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+CALL PRINT_STR, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+WAIT
+
+@CLEARSTRTAGS(ARGS)
+#FUNCTIONS
+RETURNF REPLACE(ARGS, "HEX@.*?@|@L|@|BOLD", "")
+
+; ;大きめのハートマーク
+; @BIG_HEARTMARK
+; SETFONT GET_EXFONT( 7, 8, 10 )	; "Miriam", "Verdana", "Times New Roman"
+; PRINTFORM %UNICODE(0x2764)%
+; SETFONT 
+
+; ;白抜きのハート
+; @WHITE_HEARTMARK
+; SETFONT GET_EXFONT( 7, 8, 10 )	; "Miriam", "Verdana", "Times New Roman"
+; PRINTFORM %UNICODE(0x2661)%
+; SETFONT RESULTS
+
+;-------------------------------------------------
+;types characters gradually, original from tohoJ's Flandre dialogue
+;also supports change from typed kana to kanji, which probably won't have any practical application in english
+;TODO - currently doesn't work properly if the line wasn't empty to begin with
+;@KEYTYPING
+;変換前の文字列を1文字ずつ順に表示した後でそれを消して変換後の文字列を表示する。奇数は変換前、偶数は変換後。"/"で区切る。
+;使用例：CALL KEYTYPING("あくま/悪魔", "W", 2)；あ → あく → あくま → 悪魔
+;ARGS：元の文字列
+;ARGS:1：入力待ちの有無
+;additional flags - d: use dialogue quote marks, dc: use default color for text, l: break the line after output is over, w: break the line and wait
+;multiple flags can be used with : as a separator
+;ARG：表示速度 (delay after printing each character, smaller - faster) 
+;Warning - with extra long delay (>1000) key detection becomes wonky so it's very hard to skip
+;ARG:1 - how many characters print at once
+;-------------------------------------------------
+@KEYTYPING(ARGS, ARGS:1, ARG = 1, ARG:1 = 2)
+#DIM LCOUNT, 2
+#DIM nInitColor
+#DIM nInitRedraw
+
+nInitRedraw = CURRENTREDRAW()
+;limit the arguments
+SIF ARG <= 0
+	ARG = 1
+ARG:1 = LIMIT(ARG:1, 1, 9)
+
+;process dialogue flag
+SIF SPLIT_CHECK(TOLOWER(ARGS:1), "d")
+	ARGS = 「%ARGS%」
+;remember color when it's not default, reset the color if flag is set
+nInitColor = GETCOLOR()
+SIF SPLIT_CHECK(TOLOWER(ARGS:1), "dc")
+	RESETCOLOR
+	
+VARSET LOCALS
+
+REDRAW 0
+
+;"/"で区切る
+SPLIT ARGS, "/", LOCALS, LOCAL
+IF MESSKIP() ;go here if skipping
+	$SKIP
+	FOR LCOUNT, 0, LOCAL, 2
+		SIF LOCALS:(LCOUNT + 1) == ""
+			LOCALS:(LCOUNT + 1) = %LOCALS:LCOUNT%
+		IF !LCOUNT
+			LOCALS = %LOCALS:(LCOUNT + 1)%
+		ELSE
+			LOCALS = %LOCALS%%LOCALS:(LCOUNT + 1)%
+		ENDIF
+	NEXT
+ELSE
+	;reset left mouse click detection
+	GETKEYTRIGGERED 0x01
+	;文字列を表示
+	FOR LCOUNT, 0, LOCAL, 2
+		FOR LCOUNT:1, 0, STRLENS(LOCALS:LCOUNT), ARG:1
+			LOCAL:1 = LINECOUNT
+			SIF LCOUNT
+				PRINTFORM %LOCALS%
+			PRINTFORML %SUBSTRING(LOCALS:LCOUNT, 0, LCOUNT:1)%
+			IF MESSKIP() || GETKEYTRIGGERED(0x01) ;skip on left click or if text skipping was enabled prior
+				CLEARLINE (LINECOUNT - LOCAL:1)
+				GOTO SKIP
+			ENDIF
+			TWAIT ARG, 1
+			CLEARLINE (LINECOUNT - LOCAL:1)
+		NEXT
+		SIF LOCALS:(LCOUNT + 1) == ""
+			LOCALS:(LCOUNT + 1) = %LOCALS:LCOUNT%
+		IF !LCOUNT
+			LOCALS = %LOCALS:(LCOUNT + 1)%
+		ELSE
+			LOCALS = %LOCALS%%LOCALS:(LCOUNT + 1)%
+		ENDIF
+	NEXT
+ENDIF
+
+;入力待ち
+PRINTS LOCALS
+SIF SPLIT_CHECK(TOLOWER(ARGS:1), "l")
+	PRINTL
+SIF SPLIT_CHECK(TOLOWER(ARGS:1), "w")
+	PRINTW 
+	
+SETCOLOR nInitColor
+REDRAW nInitRedraw
+
+;prints a line in a plain color
+@D_LINE
+LOCAL = GETCOLOR()
+RESETCOLOR
+DRAWLINE
+SETCOLOR LOCAL
+
+;prints a line of text in a character's color
+@CHARA_TEXT(ARG, ARGS, MODE = "l")
+#DIMS MODE
+LOCAL = GETCOLOR()
+RESETCOLOR
+SIF FLAG:구상색
+    CALL SET_KOJO_COLOR(ARG)
+SELECTCASE MODE
+    CASE "l", "L"
+        PRINTFORML %ARGS%
+    CASE "w", "W"
+        PRINTFORMW %ARGS%
+	CASE "str", "STR"
+		CALL PRINT_STR, ARGS
+	CASE "strl", "STRL"
+		CALL PRINT_STRL, ARGS
+	CASE "strw", "STRW"
+		CALL PRINT_STRW, ARGS
+    CASEELSE
+        PRINTFORM %ARGS%
+ENDSELECT
+SETCOLOR LOCAL
+
+;-------------------------------------------------
+;半角スペースの出力
+;-------------------------------------------------
+@BL(ARG)
+#FUNCTIONS
+LOCALS = 
+SIF ARG <= 0
+	RETURNF LOCALS
+LOCALS = %" "*ARG%
+RETURNF LOCALS
+
+;-------------------------------------------------
+;文字列の桁数を合わせる
+;RJは右詰、LJは左詰め
+;-------------------------------------------------
+@TEXT_RJ(ARGS, ARG)
+#FUNCTIONS
+SELECTCASE STRLENS(ARGS)
+CASE IS >= ARG
+	RETURNF ARGS
+CASEELSE
+	LOCALS = %BL(ARG-STRLENS(ARGS) )%%ARGS%
+ENDSELECT
+RETURNF LOCALS
+
+@TEXT_LJ(ARGS, ARG)
+#FUNCTIONS
+SELECTCASE STRLENS(ARGS)
+CASE IS >= ARG
+	RETURNF ARGS
+CASEELSE
+	LOCALS = %ARGS%%BL(ARG-STRLENS(ARGS) )%
+ENDSELECT
+RETURNF LOCALS
+
+;--------------------------------------------------------
+;ARG (1= 1st, (2 = 2nd, (3 = 3rd, (4 = 4th...
+;-------------------------------------------------
+@ORDINAL(ARG)
+#FUNCTIONS
+IF ARG >= 11 && ARG <= 13
+    LOCALS = th
+ELSE
+    SELECTCASE (ARG % 10)
+    CASE 1
+        LOCALS = st
+    CASE 2
+        LOCALS = nd
+    CASE 3
+        LOCALS = rd
+    CASEELSE
+        LOCALS = th
+    ENDSELECT
+ENDIF
+RETURNF TOSTR(ARG) + LOCALS
+
+;--------------------------------------------------------
+;Group the digits for the ease of reading
+;Can take any value, uses money by default
+;Custom value must be higher than 0, or it will use money
+;-------------------------------------------------
+@DIGIT_GROUP(ARG)
+#FUNCTIONS
+
+RETURNF @"\@(ARG:0 == 0) ? 0 # %TOSTR(ARG:0,"#,###")%\@"
+
+;--------------------------------------------------------
+;print dialogue line with linebreaks
+;legend: w - wait flag, d - slow type mode with default settings, dc - default color, p - parenthesis mode, t - third person quotes
+;--------------------------------------------------------
+@PRINT_DIALOGUE, ARGS, ARGS:1
+IF SPLIT_CHECK(TOLOWER(ARGS:1), "p")
+	LOCALS:0 = （
+	LOCALS:1 = ）
+ELSEIF SPLIT_CHECK(TOLOWER(ARGS:1), "t")
+	LOCALS:0 = 『
+	LOCALS:1 = 』
+ELSE
+	LOCALS:0 = 「
+	LOCALS:1 = 」
+ENDIF
+
+IF SPLIT_CHECK(TOLOWER(ARGS:1), "d")
+	CALL KEYTYPING(BREAKENG(LOCALS:0 + ARGS + LOCALS:1, 0, "\n　", MAXWIDTH() - 19), "l", 1, 2)
+ELSEIF SPLIT_CHECK(TOLOWER(ARGS:1), "dc")
+	PRINTSDL BREAKENG(LOCALS:0 + ARGS + LOCALS:1, 0, "\n　", MAXWIDTH() - 19)
+ELSE
+	PRINTSL BREAKENG(LOCALS:0 + ARGS + LOCALS:1, 0, "\n　", MAXWIDTH() - 19)
+ENDIF
+SIF SPLIT_CHECK(TOLOWER(ARGS:1), "w")
+	WAIT
+
+;--------------------------------------------------------
+;simple stutter
+;three types of stutter (actually more) - S-senpai; S...uh/um/erm...senpai; S(, /...)Senpai, we'll check the capitalization for the last type
+;--------------------------------------------------------
+@STUTTER(ARGS, ARGS:1 = "nospecial")
+#FUNCTIONS
+;additional adjustment for fucky things
+;LOCAL determines at which letter the stuttering starts
+IF STRING_STARTS_IN(ARGS, "I'm")
+	IF STRLENS(ARGS) > 3
+		LOCALS = I%SPLIT_G(", :...:-")%I'm%SUBSTRING(ARGS, 3, -1)%
+	ELSE
+		LOCALS = I%SPLIT_G(", :...:-")%I am
+	ENDIF
+	RETURNF LOCALS
+ELSEIF STRING_STARTS_IN(ARGS, "I ") && STRLENS(ARGS) > 1
+	RETURNF @"I%SPLIT_G(", :...:-")%I%SUBSTRING(ARGS, 1, -1)%"
+ELSEIF STRING_STARTS_IN(ARGS, "I") && STRLENS(ARGS) == 1
+	RETURNF @"I%SPLIT_G(", :...:-")%I"
+ELSE
+	LOCAL = RAND:2 + 1
+ENDIF
+		
+LOCALS = %SUBSTRING(ARGS, 0, STRLENS(ARGS) >= 5 ? LOCAL # 1)%
+VARSET LOCAL
+IF !SPLIT_CHECK(ARGS:1, "nospecial") && (SPLIT_CHECK(ARGS:1, "special") || RAND:3)
+	IF SPLIT_CHECK(ARGS:1, "shy") || (!RAND:3 && STRLENS(ARGS) >= 5 && !SPLIT_CHECK(ARGS:1, "noshy"))
+		LOCALS = %LOCALS%...%SPLIT_G("uh:um:erm:er")%...
+		LOCAL:1 ++
+	ELSE
+		LOCALS = %LOCALS%-
+	ENDIF
+	IF SPLIT_CHECK(ARGS:1, "ss") || (RAND:3 && !LOCAL:1 && !SPLIT_CHECK(ARGS:1, "noss")) ;super stutter
+		LOCAL:2 = RAND:2 + 1
+		SIF LOCAL:2 < LOCAL
+			LOCAL:2 = LOCAL
+		LOCALS = %LOCALS%%@"%SUBSTRING(ARGS, 0, STRLENS(ARGS) >= 5 ? LOCAL:2 # 1)%-"*(RAND:2+1)%
+	ENDIF
+		
+	LOCALS = %LOCALS%%ARGS%
+ELSE
+	LOCALS = %LOCALS%%SPLIT_G(", :...:-")%%ARGS%
+ENDIF
+;RETURNF SUBSTRING(ARGS, 0, STRLENS(ARGS) >= 5 ? RAND:2 + 1 # 1) + ( RAND:3 ? (!RAND:3 && STRLENS(ARGS) >= 5 ? @"...%SPLIT_G("uh:um:erm:er")%..." # "-") + (RAND:3 ? (SUBSTRING(ARGS, 0, STRLENS(ARGS) >= 5 ? RAND:2 + 1 # 1) + "-")*(RAND:2+1) # "") + TOLOWER(ARGS) # SPLIT_G(", :...") + ( IS_CAPITALIZED(ARGS) ? CAPITALIZE(ARGS) # ARGS ) )
+
+RETURNF LOCALS
+
+;-------------------------------------------------
+;handle capitalization
+;-------------------------------------------------
+@CAP_PROCESS(ARGS, ARG)
+#FUNCTIONS
+SELECTCASE ARG
+	CASE 1
+		RETURNF TOLOWER(ARGS)
+	CASE 2
+		RETURNF TOUPPER(ARGS)
+	CASE 3
+		RETURNF CAPITALIZE(ARGS)
+	;random capitalization, courtesy of grammar anon
+	CASE 4
+		RETURNF RAND_CAP(ARGS)
+	;capitalize every word with some limitations
+	CASE 5
+		RETURNF CAP_WORD(ARGS)
+CASEELSE
+	RETURNF ARGS
+ENDSELECT
+
+@CAPITALIZE(ARGS:0)
+#FUNCTIONS
+RETURNF TOUPPER(SUBSTRING(ARGS:0, 0, 1)) + SUBSTRING(ARGS:0, 1, -1)
+
+;when you need to only uncap the first letter of the sentence and leave the rest
+@UNCAPITALIZE(ARGS:0)
+#FUNCTIONS
+RETURNF TOLOWER(SUBSTRING(ARGS:0, 0, 1)) + SUBSTRING(ARGS:0, 1, -1)
+
+@RAND_CAP(ARGS)
+#FUNCTIONS
+LOCALS =
+LOCAL:0 = RAND:2
+
+FOR LOCAL:1, 0, STRLENS(ARGS)
+	IF RAND:3 < LOCAL:0
+		LOCALS += @"%TOUPPER(SUBSTRING(ARGS, LOCAL:1, 1))%"
+		LOCAL:0 -= 1
+	ELSE
+		LOCALS += @"%TOLOWER(SUBSTRING(ARGS, LOCAL:1, 1))%"
+		LOCAL:0 += 1
+	ENDIF
+NEXT
+RETURNF LOCALS
+
+@CAP_WORD(ARGS)
+#FUNCTIONS
+LOCALS '= ARGS
+
+LOCALS:1 =
+FOR LOCAL, 0, STRCOUNT(LOCALS, " ") + 1
+	LOCALS:1 = %CAPITALIZE(LOCALS:1) + \@ STRLENS(LOCALS:1) ? %" "%#\@%%CAPITALIZE(SPLIT_SINGLE(LOCALS, LOCAL, " "))%
+NEXT
+LOCALS '= LOCALS:1
+LOCALS:1 =
+FOR LOCAL, 0, STRCOUNT(LOCALS, "-") + 1
+	LOCALS:1 = %CAPITALIZE(LOCALS:1) + \@ STRLENS(LOCALS:1) ? %"-"%#\@%%CAPITALIZE(SPLIT_SINGLE(LOCALS, LOCAL, "-"))%
+NEXT
+LOCALS '= LOCALS:1
+
+RETURNF LOCALS
+
+;-------------------------------------------------
+;return capitalized if received string is capitalized
+;-------------------------------------------------
+@RETURN_CAP(ARGS, LOCALS)
+#FUNCTIONS
+RETURNF IS_CAPITALIZED(ARGS:0) ? CAPITALIZE(LOCALS) # LOCALS
+
+@IS_CAPITALIZED(ARGS:0)
+#FUNCTION
+IF STRCOUNT(ARGS:0,"^[A-Z]")
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
