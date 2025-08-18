@@ -101,24 +101,22 @@ FOR LOCAL, iPrintStart, FLAG:화상표시 + iPrintStart
 		デフォルトキャラ画像横幅 = 各キャラ画像サイズ:(ターゲット:LOCAL):0
 
 	;左右幅合わせ　[名前]
-	STRLENFORMU %CALLNAME:(ターゲット:LOCAL)%
 	;[]分を足す
-	RESULT += 1
-	iSpaceSize = (デフォルトキャラ画像横幅 * キャラ画像表示サイズ比/GETCONFIG("フォントサイズ") - (RESULT*100)) / 2
-	iSpaceSize = MAX(iSpaceSize, 0)
+	iSpaceSize = (デフォルトキャラ画像横幅 * キャラ画像表示サイズ比/100 - HTML_STRINGLEN(CALLNAME:(ターゲット:LOCAL), 1) - GETCONFIG("フォントサイズ")) / 2
 
-	sPrint_Text += @"<shape type = 'space' param = '{iSpaceSize}'>"
+	sPrint_Text += @"<shape type = 'space' param = '{iSpaceSize}px'>"
 	IF ターゲット:LOCAL == ターゲット
 		sPrint_Text += @"<font color='#%CONVERT(C_AQUA,16)%'>"
 	ELSEIF CFLAG:(ターゲット:LOCAL):동행
 		sPrint_Text += @"<font color='#0xffC864'>"
 	ENDIF
 
+	CHARA = ターゲット:LOCAL
 	sPrint_Text += @"<button value='{1000+ターゲット:LOCAL}' title='ターゲット{LOCAL}'>[%CALLNAME:(ターゲット:LOCAL)%]</button>"
 
 	SIF (ターゲット:LOCAL == ターゲット) || CFLAG:(ターゲット:LOCAL):동행
 		sPrint_Text += @"</font>"
-	sPrint_Text += @"<shape type = 'space' param = '{iSpaceSize}'>"
+	sPrint_Text += @"<shape type = 'space' param = '{iSpaceSize}px'>"
 NEXT
 HTML_PRINT sPrint_Text
 
@@ -149,10 +147,11 @@ FOR LOCAL, iPrintStart, FLAG:화상표시 + iPrintStart
 	SIF FLAG:시간정지
 		RESULTS:1 =
 	;0番レイヤーに基本画像をセット
-	CALL 画像セット(RESULTS:0, 縦位置, 0, キャラ画像表示サイズ比, 0, 1, @"{1000+CHARA}", CALLNAME:CHARA, RESULTS:1)
+	CALL 画像セット(RESULTS:0, 縦位置, 0, キャラ画像表示サイズ比, 0, 1, @"{1000+CHARA}", RESULTS:2, RESULTS:1)
 
 	;エフェクト画像　表示形式_エフェクト_キャラ番号_差分 (RESULTS配列に格納、RESULTにエフェクト数格納)
 	CALL GET_EFFECT_RESOURCE(CHARA)
+	LOCAL:3 = RESULT ;custom code, EagloV's alt images
 	;最大レイヤー数 < RESULT の場合、これまでのターゲットに超過したレイヤー分のダミーをセット
 	FOR LOCAL:1, 最大レイヤー数, RESULT + (FLAG:화상범위표시+FLAG:시간정지)
 		FOR LOCAL:2, iPrintStart, LOCAL
@@ -174,6 +173,9 @@ FOR LOCAL, iPrintStart, FLAG:화상표시 + iPrintStart
 	FOR LOCAL:1, 0, 最大レイヤー数 - (FLAG:화상범위표시+FLAG:시간정지)
 		IF RESULTS:(LOCAL:1) == ""
 			CALL ダミーセット(縦位置, 0, キャラ画像表示サイズ比, LOCAL:1 + 1)
+			;custom code, EagloV's alt images
+		ELSEIF RESULTS:((LOCAL:1) + LOCAL:3) != ""
+			CALL 画像セット(RESULTS:(LOCAL:1), 縦位置, 0, キャラ画像表示サイズ比, LOCAL:1 + 1, 1, @"{1000+CHARA}", CALLNAME:CHARA, RESULTS:((LOCAL:1) + LOCAL:3))
 		ELSE
 			CALL 画像セット(RESULTS:(LOCAL:1), 縦位置, 0, キャラ画像表示サイズ比, LOCAL:1 + 1)
 		ENDIF
@@ -214,7 +216,7 @@ IF FLAG:화상표시설정 ;1041
 	sPrint_Text += @"이펙트[\@FLAG:追加エフェクト?ON#OFF\@]</button>"
 	IF CFLAG:TARGET:별도얼굴있음 || CFLAG:TARGET:별도스탠딩있음
 		sPrint_Text += @"　<button value='3110' title='현재: \@CFLAG:TARGET:대체적용?ON#OFF\@'>"
-		sPrint_Text += @"대체화상[{CFLAG:TARGET:대체적용}]</button>"
+		sPrint_Text += @"대체화상[\@CFLAG:TARGET:대체적용?ON({CFLAG:TARGET:대체적용})#OFF\@] </button>"
 	ENDIF
 	sPrint_Text += "<br>"
 	;-----------------
@@ -277,6 +279,9 @@ IF iID < CHARANUM
 		CALL 모브코생성(iID,0)
 		CALL 모브코생성(iID,1)
 	ENDIF
+
+	TRYCALLFORM IMAGE_EX_I{iID}_PREリソースチェック(iID, "", "服", "通常", "", "", "")
+
 	CALL GET_BASE_RESOURCE(iID, "", "服", "通常")
 	SIF FLAG:멀티사이즈
 		デフォルトキャラ画像横幅 = SPRITEHEIGHT(RESULTS)
@@ -319,7 +324,8 @@ iEnter_Con = 0
 iFont_Hei_mag = GETCONFIG("一行の高さ") * iSize*10 / GETCONFIG("フォントサイズ")
 iFont_Hei_mag = (iFont_Hei_mag/10) + (iFont_Hei_mag%10 >= 5?1#0)
 
-HTML_PRINT @"<p align='%sAlign%'><nobr><img src='%sRes_Name%' height='{iFont_Hei_mag}'>"
+SIF SPRITECREATED(sRes_Name)
+	HTML_PRINT @"<p align='%sAlign%'><nobr><img src='%sRes_Name%' height='{iFont_Hei_mag}'>"
 iEnter_Con++
 
 IF FLAG:시간정지
@@ -358,6 +364,9 @@ SIF !FLAG:화상표시
 
 キャラ画像表示サイズ比 = 100
 
+LOCAL:2 = FLAG:스탠딩종류
+FLAG:스탠딩종류 = 1
+
 CALL GET_BASE_RESOURCE(C_ID, "顔絵", "裸", "オナニー")
 ;無ければ発情、なお無ければ通常表情
 IF !RESULT
@@ -367,21 +376,26 @@ IF !RESULT
 ENDIF
 SIF FLAG:멀티사이즈
 	デフォルトキャラ画像横幅 = SPRITEHEIGHT(RESULTS)
-
 CALL 画像セット(RESULTS, 0, 0, キャラ画像表示サイズ比, 0)
 
 CALL GET_EFFECT_RESOURCE(C_ID, "吐息")
 SIF RESULT
 	CALL 画像セット(RESULTS, 0, 0, キャラ画像表示サイズ比, 1)
 
-TRYCCALLFORM IMAGE_I{C_ID}_自慰エフェクト(C_ID)
-	FOR LOCAL, 0, RESULT
-		SIF SPRITECREATED(RESULTS:LOCAL)
-			CALL 画像セット(RESULTS:LOCAL, 0, 0, キャラ画像表示サイズ比, LOCAL + 2)
-	NEXT
-CATCH
-ENDCATCH
-
+TRYCALLFORM SPECIAL_BASE_IMAGE_{C_ID}
+IF RESULTS == "EagloV"
+	CALL GET_EFFECT_RESOURCE(C_ID, "照れ")
+	SIF RESULT
+		CALL 画像セット(RESULTS, 0, 0, キャラ画像表示サイズ比, 1)
+ELSE
+	TRYCCALLFORM IMAGE_I{C_ID}_自慰エフェクト(C_ID)
+		FOR LOCAL, 0, RESULT
+			SIF SPRITECREATED(RESULTS:LOCAL)
+				CALL 画像セット(RESULTS:LOCAL, 0, 0, キャラ画像表示サイズ比, LOCAL + 2)
+		NEXT
+	CATCH
+	ENDCATCH
+ENDIF
 CALL 画像一斉表示(0, 0, 1, -1)
 
 ;=========================================================
@@ -403,10 +417,25 @@ CALL 画像一斉表示(0, 0, 1, -1)
 #DIM CHARA_CSV_乳型
 #DIM LOOP_乳型
 RESULT = 0
+
+;custom code, EagloV's alt images
+VARSET RESULTS ;bug fix, fix reusing previous calls RESULTS
+TRYCCALLFORM SPECIAL_BASE_IMAGE_{CHARA}
+IF RESULTS != ""
+	TRYCCALLFORM %RESULTS%_GET_BASE_RESOURCE(CHARA, 服装, 表情)
+	CATCH
+		VARSET RESULTS
+	ENDCATCH
+	RETURN 1
+ENDIF
+CATCH
+ENDCATCH
+
 ;表示形式
 表示形式 = %GET_BASESTYLE(CHARA, 表示形式)%
 ;差分
 IF 差分 == ""
+	RESULTS:2 = %表情%
     TRYCCALLFORM IMAGE_I{CHARA}_差分(CHARA)
         差分 = %RESULTS%
 	CATCH
@@ -492,6 +521,10 @@ SIF 表情_マウスオーバー != ""
 
 RESULTS:0 = %表示形式%_%服装%_%RESULTS:0%_{CHARA}%差分%
 RESULTS:1 = %表示形式%_%服装%_%RESULTS:1%_{CHARA}%差分%
+;基本画像のリソースをチェック前に別途合成があるかをチェック
+TRYCCALLFORM IMAGE_EX_I{CHARA}_PREリソースチェック(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分, 乳量)
+CATCH
+ENDCATCH
 
 ;リソースのチェック 見つからない場合は0を返す
 IF !SPRITECREATED(RESULTS:0)
@@ -534,6 +567,10 @@ SIF 表情_マウスオーバー != ""
 
 ;get 巨乳拆分
 SET_RESOURCE:0 = %表示形式%_%服装%_%SET_RESOURCE:2%_%乳量%拆分_{CHARA}%差分%
+TRYCCALLFORM IMAGE_EX_I{CHARA}_PREリソースチェック(CHARA, 表示形式, 服装, 表情, 表情_マウスオーバー, 差分, 乳量)
+CATCH
+ENDCATCH
+
 IF !SPRITECREATED(SET_RESOURCE:0)
 	SET_RESOURCE:0 = %表示形式%_%服装%_%乳量%拆分_{CHARA}%差分%
 	SIF !SPRITECREATED(SET_RESOURCE:0)
@@ -579,19 +616,27 @@ RETURN 1
 #DIM CHARA
 #DIMS 表示形式
 
+LOCAL = CFLAG:CHARA:대체적용
+
 IF 表示形式=="顔絵" || (FLAG:스탠딩종류 && 表示形式=="")
-	IF CFLAG:CHARA:대체적용 && CFLAG:CHARA:별도얼굴있음
+	SIF CFLAG:CHARA:대체적용 > CFLAG:CHARA:별도얼굴있음
+		CFLAG:CHARA:대체적용 = 0
+	IF CFLAG:CHARA:대체적용 && CFLAG:CHARA:별도얼굴있음 && HAS_FACE(CHARA)
 		表示形式 = %\@CFLAG:CHARA:대체적용 >= 2 ?別顔{CFLAG:CHARA:대체적용}#別顔\@%
 	ELSE
 		表示形式 = 顔絵
 	ENDIF
 ELSEIF 表示形式=="立ち絵" || (!FLAG:스탠딩종류 && 表示形式=="")
-	IF CFLAG:CHARA:대체적용 && CFLAG:CHARA:별도스탠딩있음
+	SIF CFLAG:CHARA:대체적용 > CFLAG:CHARA:별도스탠딩있음
+		CFLAG:CHARA:대체적용 = 0
+	IF CFLAG:CHARA:대체적용 && CFLAG:CHARA:별도스탠딩있음 && HAS_STANDING(CHARA)
 		表示形式 = %\@CFLAG:CHARA:대체적용 >= 2 ?別立ち{CFLAG:CHARA:대체적용}#別立ち\@%
 	ELSE
 		表示形式 = 立ち絵
 	ENDIF
 ENDIF
+
+CFLAG:CHARA:대체적용 = LOCAL
 
 RETURNF 表示形式
 
@@ -775,6 +820,19 @@ SIF !FLAG:追加エフェクト
 	RETURN 0
 VARSET RESULTS
 
+;custom code, EagloV's alt images
+TRYCCALLFORM SPECIAL_EFFECT_IMAGE_{CHARA}
+IF RESULTS != ""
+	TRYCCALLFORM %RESULTS%_GET_EFFECT_RESOURCE(CHARA, エフェクト)
+	CATCH
+		VARSET RESULTS
+	ENDCATCH
+	RETURN RESULT
+ENDIF
+CATCH
+ENDCATCH
+
+
 表示形式 = %GET_BASESTYLE(CHARA, 表示形式)%
 IF 差分 == ""
     TRYCCALLFORM IMAGE_I{CHARA}_差分(CHARA)
@@ -841,11 +899,11 @@ IF RESULT || エフェクト == ""
 	NEXT
 ENDIF
 ;PRINTFORML 汎用エフェクトチェックが走ってるよ
-IF CSTR:CHARA:범용이펙트 != ""
+IF CSTR:(CHARA):범용이펙트 != ""
 	;PRINTFORML エフェクト「汎用エフェクト_%CSTR:CHARA:汎用エフェクト%」を確認
-	IF SPRITECREATED(@"汎用エフェクト_%CSTR:CHARA:범용이펙트%")
+	IF SPRITECREATED(@"汎用エフェクト_%CSTR:(CHARA):범용이펙트%")
 		;PRINTFORML あったよ
-		リソース:(エフェクト数) = 汎用エフェクト_%CSTR:CHARA:범용이펙트%
+		リソース:(エフェクト数) = 汎用エフェクト_%CSTR:(CHARA):범용이펙트%
 		エフェクト数 += 1
 	ENDIF
 ENDIF
@@ -906,9 +964,7 @@ SIF FLAG:시간정지
 	RETURNF 0
 
 ;うふふ1時間以上
-SPENT_TIME = (TIME - UFUFU_START_TIME) / 60
-SIF SPENT_TIME < 0
-	SPENT_TIME += 24
+SPENT_TIME = TIME_PROGRESS(UFUFU_START_TIME + UFUFU_START_DAY * 1440) / 60
 SIF SPENT_TIME > 0 && CFLAG:CHARA:우후후
 	RETURNF 1
 ;체력3/4かつ기력1/4
