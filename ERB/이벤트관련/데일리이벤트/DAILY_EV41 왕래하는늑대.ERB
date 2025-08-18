@@ -27,6 +27,7 @@ CALL DAILY_EV41
 RETURN 1
 
 @DAILY_EV41
+CALL IMAGE_EX_I63_PREリソースチェック(63)
 CFLAG:[[카게로]]:마지막내방일 = DAY
 CFLAG:[[카게로]]:마지막에만난날 = DAY
 CFLAG:[[카게로]]:1004 = 0
@@ -38,7 +39,9 @@ ENDIF
 
 ;初回用
 @DAILY_EV41_0
-CALL SPTALK, [[카게로]], "通常", 0, @"「좋은밤이야」", 1
+;CALL SPTALK, [[카게로]], "通常", 0, @"「こんばんわー」", 1
+CALL K63_PRINT_IMG("別顔_服_笑顔_63")
+PRINTFORML 「좋은밤이야」
 PRINTFORMW 문을 열자 훌륭한 산새를 들고있는 카게로가 서 있었다
 PRINTFORML 「있잖아, 이거 굉장하지? 아까 잡았어.」
 PRINTFORMW 「%CALLNAME:MASTER%, 요리 잘하지? 나누어 줄 테니까 뭔가 만들어 주지 않을래?」
@@ -51,7 +54,8 @@ PRINTFORML 「이제 와서 이런 걸 물어보는 것도 좀 그렇지만…�
 PRINTFORML 「갑자기 한밤중에 찾아와서 민폐였을까?」
 PRINTFORML 
 CALL ASK_YN("언제라도 환영","또 선물 부탁해")
-CALL PRINT_FACE, [[카게로]], "笑顔", "服", "", ""
+;CALL PRINT_FACE, [[카게로]], "笑顔", "服", "", ""
+CALL K63_PRINT_IMG("別顔_服_笑顔２_63", "汎用エフェクト_spoken_heart")
 IF !RESULT
 	PRINTFORML 「정말? 고마워!」
 ELSE
@@ -66,15 +70,21 @@ SETBIT FLAG_DAILY_EV28, 0
 @DAILY_EV41_1
 #DIM CAN_WOLFHUNT
 #DIM MANHUNT
-#DIM 변동치
+#DIM 変動値
 VARSET LOCALS
 CAN_WOLFHUNT = 0
 MANHUNT = 0
 IF CFLAG:[[카게로]]:생해금 == 2 && BASE:MASTER:정력 >= 500 && BASE:MASTER:체력 >= 1500
 	CAN_WOLFHUNT = 1
 ENDIF
+IF K63_WEAR_SAILOR() && K63_SAILOR_CALLNAME == "" && CAN_WOLFHUNT
+	CALL DAILY_EV28_COSPLAY
+	RETURN 1
+ENDIF
 
-CALL SPTALK, [[카게로]], "笑顔", 0, @"「좋은밤이야」", 1
+;CALL SPTALK, [[카게로]], "笑顔", 0, @"「こんばんわー」", 1
+CALL K63_PRINT_IMG("別顔_服_笑顔_63")
+PRINTFORML 「좋은밤이야」
 PRINTFORMW 또 카게로가 왔다
 PRINTFORMW 「올라가도 돼?」
 SELECTCASE RAND:12
@@ -122,7 +132,7 @@ IF CFLAG:[[카게로]]:1006
 ENDIF
 IF K63_KNACKER >= 20
 	PRINTFORMW 「그리고, 이건 거리의 요괴 친구로부터 받은 거야.」
-	CALL GetRandMaterial(5, 1000)
+	CALL GetRandMaterial(7, 1000)
 	K63_KNACKER = 0
 	IF FIRSTTIME("ギフトエコノミー")
 		;시체는 당연하게도 착복하고 있다
@@ -172,6 +182,10 @@ ENDIF
 
 PRINTFORMW 
 PRINTFORML 「무엇을 할까?」
+IF CAN_WOLFHUNT && !TALENT:63:임신소망 && !TALENT:63:육아중
+	CALL WOLF_MATING
+	RETURN 1
+ENDIF
 IF CAN_WOLFHUNT
 	CALL ASK_M("잡담",1,"달맞이 술(필요：청주)",ITEM:청주,"늑대 사냥",1)
 ELSE
@@ -179,10 +193,10 @@ ELSE
 ENDIF
 SELECTCASE RESULT
 	CASE 0
-		변동치 = 100
+		変動値 = 100
 	CASE 1
 		ITEM:청주 --
-		변동치 = 300
+		変動値 = 300
 	CASE 2
 		CALL WOLF_HUNTING
 		RETURN 1
@@ -199,16 +213,16 @@ SIF CFLAG:[[카게로]]:아이인원수 - CFLAG:[[카게로]]:육아인원수
 ;晴れじゃないと月見酒の効果低下
 IF !GROUPMATCH(TIME:5, 0, 1) && RESULT
 	PRINTFORML 「오늘밤은 달이 보이지 않네…」
-	변동치 = 200
+	変動値 = 200
 ENDIF
 PRINTFORML \@ RESULT == 1? 술을 즐기면서# \@ %TEXTR(@"%LOCALS%")%
 
 PRINTFORMW ………
 PRINTFORMW ……
 PRINTFORMW …
-CALL BUFF_BASE(MASTER,BASE_기력,변동치,1)
-CALL CHANGE_CFLAG(2,[[카게로]], 변동치)
-CALL CHANGE_CFLAG(4,[[카게로]], 변동치/2)
+CALL BUFF_BASE(MASTER,BASE_기력,変動値,1)
+CALL CHANGE_CFLAG(2,[[카게로]], 変動値)
+CALL CHANGE_CFLAG(4,[[카게로]], 変動値/2)
 IF TALENT:[[카게로]]:연모 && RESULT == 1 && !RAND:2
 	IF !RAND:2
 		CALL DAILY_EV41_2
@@ -222,32 +236,12 @@ PRINTFORMW 「그럼, 잘 자.」
 RETURN 1
 
 @WOLF_HUNTING
-#DIM 주입량
-#DIM 기본주입량
-#DIM 호감도상승량
-#DIM 횟수
-#DIM 경험증가수,58
-VARSET 경험증가수
-횟수 = MAX(MIN(ABL:[[카게로]]:욕망 / 2, 10) + CFLAG:[[카게로]]:욕구불만도 / 200,1)
-주입량 = 0
+#DIM 回数
 
-경험증가수:0 += 1 + RAND:(횟수 * 3) 
-경험증가수:1 += 1 + RAND:(횟수 * 5) 
-경험증가수:20 += 횟수 
-경험증가수:4 += 3 + ABL:[[카게로]]:M감각 * 2
-경험증가수:3 += RAND:(횟수 * 2) 
-경험증가수:5 += 경험증가수:0 / 2
-경험증가수:6 = 횟수 * RAND(3, 5)
-경험증가수:8 += 경험증가수:3 / 2
-경험증가수:10 += 경험증가수:0 / 2
-경험증가수:25 = 경험증가수:4
-경험증가수:27 = 경험증가수:4
-EXP:MASTER:M경험 += 경험증가수:4
-EXP:MASTER:키스경험 += 경험증가수:4
-EXP:MASTER:펠라티오경험 += 경험증가수:4
-EXP:MASTER:삽입경험 += 경험증가수:20
+回数 = MAX(MIN(ABL:[[카게로]]:욕망 / 2, 10) + CFLAG:[[카게로]]:욕구불만도 / 200,1)
 
-CALL PRINT_FACE, [[카게로]], "発情", "服", "", ""
+;CALL PRINT_FACE, [[카게로]], "発情", "服", "", ""
+CALL K63_PRINT_IMG("別顔_服_発情２_63")
 IF !GETBIT(FLAG_DAILY_EV28, 1)
 	;初回
 	PRINTFORMW 「헤? 저기, 그건……」
@@ -282,7 +276,7 @@ IF !GETBIT(FLAG_DAILY_EV28, 1)
 	PRINTFORML ………
 	PRINTFORML ……
 	PRINTFORMW …
-	CALL PRINT_FACE, [[카게로]], "オナニー", "裸", "", "吐息"
+	CALL K63_PRINT_IMG("別顔_裸_発情２_63", "別顔_ハート_63")
 	CALL HPH_PRINT,@"「하아아……HPH %CALLNAME:MASTER%에게 사냥당해버렸다……HPH」","W"
 	PRINTFORMW 「사냥한 먹잇감은 놓치면 안된다구?」
 	PRINTFORMW 카게로는 %CALLNAME:MASTER%에게 달려들어 안겼다
@@ -291,79 +285,35 @@ ELSE
 	IF CFLAG:[[카게로]]:욕구불만도 < 500
 		PRINTFORMW 「아앗… 저기……」
 		PRINTFORMW 「부드럽게 부탁해……」
+	ELSEIF !RAND:2
+		PRINTFORMW 「あら、駄目よ」
+		PRINTFORMW 「だって――」
+		PRINTFORML 浮遊感とともに視界が回転し、一瞬でベッドの上に転がされた
+		PRINTFORMW 狼女が赤い瞳で見下ろしてくる
+		CALL HPH_PRINT,@"「今夜は人間狩りだものHPH」","W"
 	ELSE
 		PRINTFORMW 「%TEXTR("응… 기대、하고있었어……/아하♪　역시 하고싶었구나/오늘밤도 많이 울고 위로받는구나……/멋진 사냥꾼에게 노려져버렸네")%」
 		CALL HPH_PRINT,@"「으응HPH」","W"
 	ENDIF
+	CALL EV28_SEX_TEXT
 	PRINTFORML ………
 	PRINTFORML ……
 	PRINTFORMW …
-	SELECTCASE RAND:3
-		CASE 0
-			CALL HPH_PRINT,@"「좋아HPH 좋아HPH 좋아HPH 」","W"
-		CASE 1
-			CALL HPH_PRINT,@"「%TEXTR("으응/아앗/아읏/후읏")%HPH %TEXTR("으응/아앗/아읏/후읏")%HPH% TEXTR("으응/아앗/아읏/후읏")%HPH」","W"
-		CASE 2
-			CALL HPH_PRINT,@"「하아아～～～～HPH HPH 」","W"
-	ENDSELECT
-	PRINTFORML ………
-	PRINTFORML ……
-	PRINTFORMW …
-	FONTBOLD
-	SELECTCASE RAND:3
-		CASE 0
-			CALL HPH_PRINT,@"「흐오옷～～～～HPH 흐오오오오--HPH 」","W"
-		CASE 1
-			CALL HPH_PRINT,@"「%TEXTR("아앗/흐오오옷/아앙～/흐에엣")%～～～～～～～HPH」","W"
-		CASE 2
-			CALL HPH_PRINT,@"「오옷HPH 오오옷HPH 오오오옷HPH 오오오오옷HPH 」","W"
-	ENDSELECT
-	FONTREGULAR
-	PRINTFORML ………
-	PRINTFORML ……
-	PRINTFORMW …
-	CALL PRINT_FACE, [[카게로]], "オナニー", "裸", "", "吐息"
+	CALL K63_PRINT_IMG("別顔_裸_発情２_63", "別顔_ハート_63")
 	CALL HPH_PRINT,@"「정말, 항상 격렬하게 해버리니까……HPH」","W"
 ENDIF
 
-기본주입량 = (ABL:[[카게로]]:질 + 1) * 20 + BASE:MASTER:정력 / 20
-FOR LOCAL,1,횟수
-	주입량 += 기본주입량 + RAND:(기본주입량)
-NEXT
 
-주입량 = MIN(주입량, BASE:MASTER:정력)
-
-CALL ADD_SAMEN_V([[카게로]], 주입량)
-SETCOLOR C_YELLOW
-FOR LOCAL,0,58
-	IF 경험증가수:LOCAL
-		PRINTFORML %EXPNAME:LOCAL% ＋{경험증가수:LOCAL}
-		EXP:[[카게로]]:LOCAL += 경험증가수:LOCAL
-	ENDIF
-NEXT
-RESETCOLOR
-CALL JUEL_UP_SPECIAL([[카게로]],"욕정","욕망",20,1)
-CALL JUEL_UP_SPECIAL([[카게로]],"쾌V","V감각",15,1)
-CALL ADD_EXP_LESNIAN(횟수 * 5, [[카게로]], "PRINT")
-호감도상승량 = 횟수 * ABL:[[카게로]]:친밀 * 10
-CALL CHANGE_CFLAG(2,[[카게로]],호감도상승량)
 ;竹林以外が拠点なら泊まっていく
-IF MAIN_MAP != 4 && !FLAG:일시체재
-	FLAG:일시체재 = [[카게로]]
-	CFLAG:[[카게로]]:본래의초기위치 = CFLAG:[[카게로]]:초기위치
-	CFLAG:[[카게로]]:초기위치 = CFLAG:MASTER:초기위치
-	CFLAG:[[카게로]]:신사거주 = CFLAG:[[카게로]]:초기위치
-ENDIF
-CFLAG:[[카게로]]:욕구불만도 = 0
-CALL RECOVER(MASTER,횟수 * -300,"체력", @"{횟수}회에 걸친 밤샘교미")
-CALL RECOVER(MASTER,횟수 * -300,"기력", @"{횟수}회에 걸친 밤샘교미")
+CALL K63_MAKELOVE(回数, 200 * 回数, @"{回数}회에 걸친 밤샘교미")
 
 CFLAG:MASTER:철야 = 1
 SETBIT FLAG_DAILY_EV28, 1
 
 ;人里長屋限定
 IF CFLAG:MASTER:초기위치 == 230
-	CALL PRINT_FACE, [[카게로]], "通常", "裸", "", ""
+	;CALL PRINT_FACE, [[카게로]], "通常", "裸", "", ""
+	CALL K63_PRINT_IMG("別顔_裸_通常_63")
 	IF !DAILY_EV41_벽쿵
 		PRINTFORML 「그런데, 한참 하는중에 옆집에서 엄청 쿵쿵 거리던데……」
 		PRINTFORML 
@@ -386,7 +336,7 @@ IF CFLAG:MASTER:초기위치 == 230
 		ENDIF
 	ENDIF
 	IF DAILY_EV41_벽쿵 >= 5
-		LOCAL = 횟수 / 3 + 1
+		LOCAL = 回数  / 3 + 1
 		CALL COLORMESSAGE(@"자위경험＋{LOCAL}（반키）",C_PINK,1)
 		EXP:[[반키]]:자위경험 += LOCAL
 		CALL JUEL_UP_SPECIAL([[반키]],"치정","자위중독", LOCAL)
@@ -443,6 +393,7 @@ ENDIF
 PRINTFORMW ………
 PRINTFORMW ……
 PRINTFORMW …
+CALL K63_PRINT_IMG("別顔_服_笑顔２_63", "汎用エフェクト_spoken_music_note")
 PRINTFORMW 「잘 먹었어! 맛있었어」
 CALL BUFF_BASE(MASTER,BASE_체력,ARG,1)
 CALL BUFF_BASE(MASTER,BASE_기력,ARG,1)
@@ -472,11 +423,11 @@ TALENT:[[카게로]]:기분 = 1
 CALL CHANGE_CFLAG(2,[[카게로]], 300)
 
 @DAILY_EV41_3
-#DIM 周回数
+#DIM 주회수
 #DIM cost
 #DIM finish
 finish = 0
-周回数 = 1
+주회수 = 1
 PRINTFORML 「후후, 취해서 와버렸어」
 PRINTFORML 「있잖아, 안아줘」
 CALL ASK_M("안아준다",1,"공주님안기한다",1,"신부안기한다",1)
@@ -484,9 +435,9 @@ PRINTFORML %마스터는% 카게로를 안아들었다
 PRINTFORML 꽤 무겁다……
 PRINTFORML 「그럼 이대로 이 근처를 한바퀴 돌아줘」
 $LOOP
-cost = 周回数 * 100
+cost = 주회수 * 100
 CALL COLORMESSAGE(@"남은 체력{BASE:MASTER:체력}",C_YELLOW,1)
-CALL ASK_M("한바퀴돈다", BASE:MASTER:체력 > cost ,"시간정지를사용해쉬면서한다", BASE:MASTER:체력 > cost/ 2 && BASE:MASTER:TSP > cost, "피곤하다", 周回数 > 1)
+CALL ASK_M("한바퀴돈다", BASE:MASTER:체력 > cost ,"시간정지를사용해쉬면서한다", BASE:MASTER:체력 > cost/ 2 && BASE:MASTER:TSP > cost, "피곤하다", 주회수 > 1)
 SELECTCASE RESULT
 	CASE 0
 		PRINTFORMW ………
@@ -496,7 +447,7 @@ SELECTCASE RESULT
 		CALL RECOVER(MASTER,cost * -1,"체력")
 		CALL BUFF_BASE([[카게로]],BASE_기력,50,1)
 		CALL CHANGE_CFLAG(2,[[카게로]], 100)
-		周回数 ++
+		주회수 ++
 	CASE 1
 		PRINTFORMW ………
 		PRINTFORMW ……
@@ -506,16 +457,16 @@ SELECTCASE RESULT
 		CALL RECOVER(MASTER,cost * -1,"TSP")
 		CALL BUFF_BASE([[카게로]],BASE_기력,30,1)
 		CALL CHANGE_CFLAG(2,[[카게로]], 30)
-		周回数 ++
+		주회수 ++
 	CASE 2
 		finish = 1
 ENDSELECT
 IF !finish
-	SIF RAND:周回数 > RAND:5 || 周回数 >= 5
+	SIF RAND:주회수 > RAND:5 || 주회수 >= 5
 		finish = 2
 ENDIF
 IF finish == 1
-	IF 周回数 < 3
+	IF 주회수 < 3
 		PRINTFORML 「벌써? 어쩔 수 없지……」
 		PRINTFORML 「어휴……　그럼 이만, 잘자」
 	ELSE
@@ -568,7 +519,6 @@ CALL BUFF_BASE([[카게로]],BASE_체력,50,1)
 CALL BUFF_BASE([[카게로]],BASE_기력,50,1)
 EXP:[[카게로]]:요리경험 ++
 
-
 ;PRINTFORMW 「어차피 나는 그저 요수일 뿐이니까ー……」
 ;CALL ASK_YN("그런말 하지마","신경쓰여？")
 ;IF !RESULT
@@ -600,3 +550,198 @@ EXP:[[카게로]]:요리경험 ++
 ;		ENDIF
 ;	ENDIF
 ;ENDIF
+
+@DAILY_EV41_COSPLAY
+IF K63_WEAR_SAILOR() && K63_SAILOR_CALLNAME == ""
+	CALL PRINT_IMAGE("別立ち_服_セーラー服_笑顔_63")
+	PRINTFORMW 「こんばんわー」
+	PRINTFORMW また影狼がやってきた
+	PRINTFORMW 「はいお土産！」
+	CALL GET_ITEM("구리꿩", 2, 1)
+	PRINTFORMW 「あ、この服？かわいいから香霖堂さんで買っちゃった」
+	PRINTFORML 「どう？似合う？」
+	PRINTFORML スカートの裾をつまみ、あざといポーズを取った
+	CALL ASK_YN("外の世界の本物よりかわいい！（以後春夏にランダムで着用）","あんまり（着用しない）")
+	IF !RESULT
+		CALL K63_PRINT_IMG("別顔_服_セーラー服_笑顔２_63", "汎用エフェクト_spoken_music_note")
+		PRINTFORMW 「ほんとー？照れるわねー！」
+		PRINTFORMW 「ところでこれ、どういう服なの？山の巫女とかも時々着てるわよね」
+		CALL ASK_YN("選ばれし戦士の服","偉大なる賢者の服")
+		PRINTFORMW 「はー、そんなご立派なものだったのね、つまり私みたいなのは本来着ちゃいけないと」
+		PRINTFORMW 「……ちょっといい気分ね！ボートクってやつ？」
+		;冒涜する気満々
+		PRINTFORMW 「そんなご大層な服なら、なにか決まり事みたいなものあったりしない？」
+		PRINTFORMW 「着るときにはこれをしなきゃ駄目とか、そういうの」
+		CALL ASK_M("特に",1,"センパイって呼んで！",1,@"%CALLNAME:MASTER%クンって呼んで！",1,"先生って呼んで！",1)
+		SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「あらそう、何かあるかと思ったんだけど」
+				K63_SAILOR_CALLNAME = @"%CALLNAME:MASTER%"
+			CASE 1
+				K63_SAILOR_CALLNAME = センパイ
+				PRINTFORMW 「つがいをそう呼ぶ、なるほど」
+			CASE 2
+				K63_SAILOR_CALLNAME '= @"%CALLNAME:MASTER%クン"
+				PRINTFORMW 「つがいをそう呼ぶ、なるほど」
+			CASE 3
+				K63_SAILOR_CALLNAME = 先生
+				PRINTFORMW 「つがいをそう呼ぶ、なるほど」
+		ENDSELECT
+		PRINTFORMW 「……ねえ%K63_SAILOR_CALLNAME%、これ着たまま交尾、したいんでしょ」
+		PRINTFORMW 「んふふ、顔でも匂いでもバレバレよ」
+		PRINTFORMW そう言う影狼の尻尾も激しく揺れる
+		CALL PRINT_IMAGE("別顔_服_セーラー服_発情２_63")
+		CALL HPH_PRINT,@"「ベッド行きましょ、%K63_SAILOR_CALLNAME%HPH」","W"
+		PRINTFORMW ………
+		PRINTFORMW ……
+		PRINTFORMW …
+		PRINTFORMW たいへん盛り上がった
+		CALL K63_MAKELOVE(7, 1200, "濃厚コスプレ交尾")
+		CALL HPH_PRINT,@"「もう、張り切りすぎだってば……HPH」","L"
+		PRINTFORML 「シワにならないかしら……割と大丈夫そう？」
+		CALL HPH_PRINT,@"「ならまた着てきてあげよっか？%K63_SAILOR_CALLNAME%HPH」","W"
+		CALL KAGEROU_STAY
+	ELSE
+		PRINTFORMW 「そう……」
+		K63_SAILOR_CALLNAME = 着ない
+		PRINTFORMW その後はあまり話も弾まないまま、お開きとなった
+	ENDIF
+	RETURN 1
+ENDIF
+
+@WOLF_MATING
+CALL PRINT_IMAGE("別顔_服_発情２_63")
+PRINTFORMW 「ねえ、%CALLNAME:MASTER%」
+PRINTFORMW 影狼の顔が近づく。頬を撫でられる。手から、吐息から、瞳から、熱を感じる。
+PRINTFORMW 「\@ EXP:63:출산경험 ? また# \@子供、欲しくない？」
+PRINTFORML 
+CALL ASK_YN("子供がいると嬉しい","影狼に子供を産んでほしい")
+PRINTFORMW 「うん、私も、%CALLNAME:MASTER%の子供、産みたい……」
+CALL HPH_PRINT,@"「今夜はたくさんつがって、狼とヒトの血を引く子供、作りましょHPH」","W"
+CALL COLORMESSAGE("影狼は【임신소망】を得た",C_YELLOW,2)
+CALL EV28_SEX_TEXT
+TALENT:63:임신소망 = 1
+CALL K63_MAKELOVE(6, 1000, @"孕みたがりの狼さんと子作り")
+CALL K63_PRINT_IMG("別顔_裸_発情２_63", "汎用エフェクト_spoken_sex")
+;CALL 画像セット("別顔_裸_発情２_63", 0, 0, 100, 0)
+;CALL 画像セット("汎用エフェクト_spoken_sex", 0, 0, 100, 1)
+;CALL 画像一斉表示(0, 0, 1, -1)
+PRINTFORMW 「ねえ、もうちょっとしたい……まだできる？」
+CALL EV28_SEX_TEXT
+CALL K63_MAKELOVE(4, 500, "孕みたがりの狼さんと第二ラウンド")
+CALL HPH_PRINT,@"「はーーっHPH はーーっHPH はーーっHPH お、お疲れ様……」","W"
+CALL HPH_PRINT,@"「この分ならすぐにデキちゃうかもね……HPH」","W"
+CALL K63_PRINT_IMG("別顔_裸_笑顔２_63", "汎用エフェクト_spoken_heart")
+CALL HPH_PRINT,@"「おやすみなさい、私の狩人さんHPH」","W"
+PRINTFORMW 疲労困憊の中、手を握り合って眠りについた
+CALL KAGEROU_STAY
+
+@K63_MAKELOVE(ARG, COST, ARGS)
+#DIM 注入量
+#DIM 超過量
+#DIM 基本注入量
+#DIM 好感度上昇量
+#DIM 経験増加数,58
+#DIM COST
+VARSET 経験増加数
+注入量 = 0
+
+経験増加数:0 += ARG + RAND:3 
+経験増加数:1 += ARG + RAND:3 + RAND:3
+経験増加数:20 += ARG 
+経験増加数:4 += 3 + ABL:[[카게로]]:M감각 * 2
+経験増加数:3 += RAND:(ARG * 2) 
+経験増加数:5 += 経験増加数:0 / 2
+経験増加数:6 = ARG * RAND(3, 5)
+経験増加数:8 += 経験増加数:3 / 2
+経験増加数:10 += 経験増加数:0 / 2
+経験増加数:25 = 経験増加数:4
+経験増加数:27 = 経験増加数:4
+EXP:MASTER:M경험 += 経験増加数:4
+EXP:MASTER:키스경험 += 経験増加数:4
+EXP:MASTER:펠라티오경험 += 経験増加数:4
+EXP:MASTER:삽입경험 += 経験増加数:20
+
+基本注入量 = (ABL:[[카게로]]:질 + 1) * 20 + BASE:MASTER:정력 / 20
+FOR LOCAL,1,ARG
+	注入量 += 基本注入量 + RAND:(基本注入量)
+NEXT
+
+超過量 = 注入量 - BASE:MASTER:정력
+IF 超過量 > 0
+	注入量 -= 超過量 / 2
+	超過量 /= 2
+ENDIF
+経験増加数:14 = 注入量 /100
+経験増加数:16 = 注入量 /100
+CALL ADD_SAMEN_V([[카게로]], 注入量)
+SETCOLOR C_YELLOW
+FOR LOCAL,0,58
+	IF 経験増加数:LOCAL
+		PRINTFORML %EXPNAME:LOCAL% ＋{経験増加数:LOCAL}
+		EXP:[[카게로]]:LOCAL += 経験増加数:LOCAL
+	ENDIF
+NEXT
+CALL JUEL_UP_SPECIAL([[카게로]],"욕정","욕망",20,1)
+CALL JUEL_UP_SPECIAL([[카게로]],"쾌V","V감각",15,1)
+CALL ADD_EXP_LESNIAN(ARG * 5, [[카게로]], "PRINT")
+好感度上昇量 = ARG * ABL:[[카게로]]:친밀 * 10
+CALL CHANGE_CFLAG(2,[[카게로]],好感度上昇量)
+CFLAG:[[카게로]]:욕구불만도 = 0
+CALL RECOVER(MASTER,-1 * COST,"체력", @"%ARGS%")
+CALL RECOVER(MASTER,-1 * COST,"기력", @"%ARGS%")
+SETCOLOR C_YELLOW
+PRINTFORML 질내사정：{注入量}
+IF 超過量 > 0
+	CALL RECOVER(MASTER,-2 * 超過量,"체력", "限界を超えて射精")
+	CALL RECOVER(MASTER,-2 * 超過量,"기력", "限界を超えて射精")
+	CALL BUFF_BASE(MASTER,BASE_精力, -1 * 超過量,1)
+ENDIF
+RESETCOLOR
+
+@KAGEROU_STAY
+IF MAIN_MAP != 4
+	FLAG:일시체재 = [[카게로]]
+	CFLAG:[[카게로]]:본래의초기위치 = CFLAG:[[카게로]]:초기위치
+	CFLAG:[[카게로]]:초기위치 = CFLAG:MASTER:초기위치
+	CFLAG:[[카게로]]:신사거주 = CFLAG:[[카게로]]:초기위치
+ENDIF
+CFLAG:[[카게로]]:1007 = 1
+
+@EV28_SEX_TEXT
+PRINTFORML ………
+PRINTFORML ……
+PRINTFORMW …
+SELECTCASE RAND:4
+	CASE 0
+		CALL HPH_PRINT,@"「すきっHPH すきっHPH すきっHPH 」","W"
+	CASE 1
+		CALL HPH_PRINT,@"「%TEXTR("んっ/あっ/あんっ/フーーッ")%HPH %TEXTR("んっ/あっ/あんっ/フーーッ")%HPH% TEXTR("んっ/あっ/あんっ/フーーッ")%HPH」","W"
+		CALL HPH_PRINT,@"「%TEXTR("んっ/あっ/あんっ/ひんっ")%HPH %TEXTR("あはあっ/あんっ/ひんっ")%HPH% TEXTR("あはあっ/あんっ/ひんっ")%HPH」","W"
+	CASE 2
+		CALL HPH_PRINT,@"「はあぁ～～～～HPH HPH 」","W"
+	CASE 3
+		CALL HPH_PRINT,@"「あっHPH はあっHPH ああっHPH はあっHPH」","W"
+ENDSELECT
+PRINTFORML ………
+PRINTFORML ……
+PRINTFORMW …
+;CALL 画像セット("別顔_裸_イキ顔_63", 0, 0, 100, 0)
+;CALL 画像セット("別顔_中出し_63", 0, 0, 100, 1)
+;CALL 画像一斉表示(0, 0, 1, -1)
+LOCAL = RAND:3
+;CALL PRINT_IMAGE(@"63_pic_sex_{LOCAL}")
+CALL K63_PRINT_IMG(@"63_pic_sex_{LOCAL}")
+FONTBOLD
+SELECTCASE RAND:4
+	CASE 0
+		CALL HPH_PRINT,@"「ほお゛おお゛～～～～HPH お゛お゛お゛お゛ーーHPH 」","W"
+	CASE 1
+		CALL HPH_PRINT,@"「%TEXTR("ああ゛/ほお゛おお゛/あ゛～/はへえ")%～～～～～～～HPH」","W"
+	CASE 2
+		CALL HPH_PRINT,@"「オ゛オ゛ーッHPH オ゛オ゛ーッHPH オ゛オ゛ーッHPH オ゛オ゛オオ゛ーッHPH 」","W"
+	CASE 3
+		CALL HPH_PRINT,@"「イ゛グぅ～～～～HPH う゛う゛う゛ーーーっHPH 」","W"
+ENDSELECT
+FONTREGULAR
+

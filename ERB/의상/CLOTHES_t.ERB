@@ -412,7 +412,7 @@ ELSEIF EQUIP_TARGET & 1
 ELSE
 	LOCAL = 0
 ENDIF
-PARTS '= COVER_CLOTHES(ARG, @"하반신복장 묘사 _%TYPE:LOCAL%")
+PARTS '= COVER_CLOTHES(ARG, @"하반신복장 묘사_%TYPE:LOCAL%")
 SIF STRLENS(PARTS)
 	RETURNF GET_STR(ARG, CLOTHES_PARTS_TO_CATEGORY(PARTS), EQUIP:ARG:PARTS, "이름")
 
@@ -459,7 +459,7 @@ ELSEIF EQUIP_TARGET & 1
 ELSE
 	LOCAL = 0
 ENDIF
-PARTS '= COVER_CLOTHES(ARG, @"하반신속옷묘사 _%TYPE:LOCAL%")
+PARTS '= COVER_CLOTHES(ARG, @"하반신속옷묘사_%TYPE:LOCAL%")
 SIF STRLENS(PARTS)
 	RETURNF GET_STR(ARG, CLOTHES_PARTS_TO_CATEGORY(PARTS), EQUIP:ARG:PARTS, "이름")
 
@@ -485,7 +485,7 @@ ELSEIF TEQUIP:ARG:1 & 2
 ELSEIF TEQUIP:ARG:1 & 1
 	LOCAL = 1
 ENDIF
-PARTS '= COVER_CLOTHES(ARG, @"상반신복장 묘사 _%TYPE:LOCAL%")
+PARTS '= COVER_CLOTHES(ARG, @"상반신복장 묘사_%TYPE:LOCAL%")
 SIF STRLENS(PARTS)
 	RETURNF GET_STR(ARG, CLOTHES_PARTS_TO_CATEGORY(PARTS), EQUIP:ARG:PARTS, "이름")
 
@@ -512,7 +512,7 @@ ELSEIF TEQUIP:ARG:1 & 2
 ELSEIF TEQUIP:ARG:1 & 1
 	LOCAL = 1
 ENDIF
-PARTS '= COVER_CLOTHES(ARG, @"상반신속옷묘사 _%TYPE:LOCAL%")
+PARTS '= COVER_CLOTHES(ARG, @"상반신속옷묘사_%TYPE:LOCAL%")
 SIF STRLENS(PARTS)
 	RETURNF GET_STR(ARG, CLOTHES_PARTS_TO_CATEGORY(PARTS), EQUIP:ARG:PARTS, "이름")
 
@@ -615,6 +615,8 @@ CASE "하반신복장 묘사_비켜 놓기 가능"
 CASE "하반신복장 묘사_치마"
 	SIF EQUIP:ARG:치마
 		RETURNF "치마"
+	SIF EQUIP:ARG:원피스
+		RETURNF "원피스"
 	SIF EQUIP:ARG:기모노
 		RETURNF "기모노"
 	SIF EQUIP:ARG:원피스
@@ -630,6 +632,8 @@ FOR LOCAL, 0, CHARANUM
 	CFLAG:LOCAL:7 = 0
 	CALL SELECT_CLOTHES(LOCAL, "오늘의 의상")
 	CALL CTRL_CLOTHES_SET(LOCAL, "현재 의상의 변경_평상복")
+	CALL CTRL_CLOTHES_SET(LOCAL, "즐겨찾는의상의 리셋")
+	CFLAG:LOCAL:지정팬티 = 0
 	CALL CLOTHES_SETTING_TRAIN(LOCAL)
 NEXT
 
@@ -638,8 +642,6 @@ NEXT
 ;EQUIP로부터 TEQUIP에 변환
 ;이 타이밍에 화탈와 전라 체크
 @CLOTHES_SETTING_TRAIN(ARG)
-SIF CFLAG:ARG:강제탈의
-	RETURN -1
 TEQUIP:ARG:0 = 0
 TEQUIP:ARG:1 = 0
 
@@ -647,13 +649,13 @@ TEQUIP:ARG:1 = 0
 IF INROOM(CFLAG:ARG:현재위치)
 	SIF EQUIP:ARG:액세서리 == 6
 		EQUIP:ARG:액세서리 = 0
-	SIF INROOM(CFLAG:ARG:현재위치) == 1
-		EQUIP:ARG:신발= 0
+	SIF INROOM(CFLAG:ARG:현재위치) == 1 && !CFLAG:ARG:우후후
+		EQUIP:ARG:신발 = 0
 ELSE
 	IF CFLAG:ARG:203
-		EQUIP:ARG:신발= CFLAG:ARG:203
+		EQUIP:ARG:신발 = CFLAG:ARG:203
 	ELSEIF CFLAG:ARG:603
-		EQUIP:ARG:신발= CFLAG:ARG:603
+		EQUIP:ARG:신발 = CFLAG:ARG:603
 	ENDIF
 	IF !EQUIP:ARG:액세서리 && CFLAG:ARG:201 == 6 && !FLAG:시간정지
 		EQUIP:ARG:액세서리 = CFLAG:ARG:201
@@ -664,6 +666,7 @@ ENDIF
 
 IF CHECK_CHARA(ARG, "전라")
 	EQUIP:ARG:0 = 0
+	EQUIP:ARG:신발 = 0
 ELSE
 	EQUIP:ARG:0 = 1
 ENDIF
@@ -763,7 +766,8 @@ RETURN 1
 #DIM C_ID      ;갈아입히기를 실시하는 캐릭터
 #DIM COS_ID    ;의상세트의 ID, 101이상이라면 캐릭터 의상이라고 보인다(캐릭터 의상을 지정하고 싶을 때는 NO + 100으로 하는 것)
 #DIMS COS_TYPE ;참조 의상 캐릭터라인, 캐릭터데이터에 기재가 있는 것이 전제이므로, 미실장이라면 완전 알몸이 된다
-TCVAR:C_ID:본래의복장 = CFLAG:C_ID:기본복장세트
+SIF !TCVAR:C_ID:본래의복장
+	TCVAR:C_ID:본래의복장 = CFLAG:C_ID:기본복장세트
 CFLAG:C_ID:기본복장세트 = COS_ID
 
 IF STRLENS(COS_TYPE)
@@ -793,17 +797,54 @@ CALL CLOTHES_SETTING_TRAIN(C_ID)
 @SET_UNDERWEAR(C_ID, TIME_TYPE)
 #DIM  C_ID
 #DIMS TIME_TYPE
-CALL SET_PANTS(C_ID, TIME_TYPE)
-CALL SET_BRA(C_ID, TIME_TYPE)
+#DIM DYNAMIC TOP_OVERRIDDEN
+#DIM DYNAMIC BOTTOM_OVERRIDDEN
 
-;팬티 세팅 함수
-;CFLAG로 설정된 의상을 덧쓰기한다
-;팬티 지정이 있는 경우에는 하반신속옷1을 해제해
-;하반신속옷1이 지정되고 있는 경우에는 팬티보다 그것을 우선한다
-@SET_PANTS(C_ID, TIME_TYPE)
+
+
+IF TIME_TYPE != "오늘의 파자마"
+	LOCAL:10 = CFLAG:C_ID:기본복장세트
+
+	IF CHECK_CLO("bra_overridden", C_ID)
+		TOP_OVERRIDDEN = 1
+		IF LOCAL:10 == 100
+			CFLAG:C_ID:207 = CFLAG:C_ID:607
+			CFLAG:C_ID:208 = CFLAG:C_ID:608
+		ELSEIF LOCAL:10 > 100 ;shouldn't be possible, but covered regardless
+			CFLAG:C_ID:207 = GET_INT(C_ID, "캐릭터데이터", LOCAL:10 - 100, @"평상복：상반신속옷1")
+			CFLAG:C_ID:208 = GET_INT(C_ID, "캐릭터데이터", LOCAL:10 - 100, @"평상복：상반신속옷2")
+		ELSE
+			CFLAG:C_ID:207 = GET_INT(C_ID, "의상세트", LOCAL:10, @"상반신속옷1")
+			CFLAG:C_ID:208 = GET_INT(C_ID, "의상세트", LOCAL:10, @"상반신속옷2")
+		ENDIF
+	ENDIF
+	IF CHECK_CLO("panties_overridden", C_ID)
+		TOP_OVERRIDDEN = 1
+		IF LOCAL:10 == 100
+			CFLAG:C_ID:205 = CFLAG:C_ID:605
+			CFLAG:C_ID:206 = CFLAG:C_ID:606
+		ELSEIF LOCAL:10 > 100 ;shouldn't be possible, but covered regardless
+			CFLAG:C_ID:205 = GET_INT(C_ID, "캐릭터데이터", LOCAL:10 - 100, @"평상복：하반신속옷1")
+			CFLAG:C_ID:206 = GET_INT(C_ID, "캐릭터데이터", LOCAL:10 - 100, @"평상복：하반신속옷2")
+		ELSE
+			CFLAG:C_ID:205 = GET_INT(C_ID, "의상세트", LOCAL:10, @"하반신속옷1")
+			CFLAG:C_ID:206 = GET_INT(C_ID, "의상세트", LOCAL:10, @"하반신속옷2")
+		ENDIF
+	ENDIF
+ENDIF
+
+CALL SET_PANTS(C_ID, TIME_TYPE, BOTTOM_OVERRIDDEN)
+CALL SET_BRA(C_ID, TIME_TYPE, TOP_OVERRIDDEN)
+
+;パンツセッティング関数
+;CFLAGに設定された衣装を上書きする
+;パンツ指定がある場合には下半身下着１を解除し
+;下半身下着１が指定されている場合にはパンツよりもそれを優先する
+@SET_PANTS(C_ID, TIME_TYPE, OVERRIDDEN)
 #DIM  C_ID
 #DIMS TIME_TYPE
 #DIM  P_ID
+#DIM  OVERRIDDEN
 IF TIME_TYPE == "오늘의 파자마"
 	IF CFLAG:C_ID:지정팬티 == 100
 		P_ID =  0
@@ -829,8 +870,17 @@ IF TIME_TYPE == "오늘의 파자마"
 	RETURN
 ENDIF
 
-IF CFLAG:C_ID:지정팬티 == 100
-;노팬티 지정
+IF OVERRIDDEN
+	IF CFLAG:C_ID:205
+		CFLAG:C_ID:206 = 0
+		RETURN
+	ELSE
+		CFLAG:C_ID:205 = 0
+		CFLAG:C_ID:오늘팬티 = CFLAG:C_ID:206
+		RETURN
+	ENDIF
+ELSEIF CFLAG:C_ID:지정팬티 == 100
+;ノーパン指定
 	P_ID =  0
 	CFLAG:C_ID:205 = 0
 ELSEIF CFLAG:C_ID:지정팬티
@@ -856,11 +906,11 @@ ENDIF
 CFLAG:C_ID:오늘팬티 = P_ID
 CFLAG:C_ID:206 = P_ID
 
-
-@SET_BRA(C_ID, TIME_TYPE)
+@SET_BRA(C_ID, TIME_TYPE, OVERRIDDEN)
 #DIM  C_ID
 #DIMS TIME_TYPE
 #DIM  DYNAMIC B_ID
+#DIM  OVERRIDDEN
 IF TIME_TYPE == "오늘의 파자마"
 	IF CFLAG:C_ID:247
 		CFLAG:C_ID:248 = 0
@@ -876,7 +926,12 @@ IF TIME_TYPE == "오늘의 파자마"
 	RETURN
 ENDIF
 
+IF OVERRIDDEN
 IF CFLAG:C_ID:207
+		CFLAG:C_ID:208 = 0
+		B_ID = CFLAG:C_ID:207
+	ENDIF
+ELSEIF CFLAG:C_ID:207
 	CFLAG:C_ID:208 = 0
 	B_ID = CFLAG:C_ID:207
 ELSEIF CFLAG:C_ID:208
@@ -1017,16 +1072,48 @@ CASE "의상 리셋"
 		CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_파자마")
 		CFLAG:C_ID:파자마 = 1
 	ELSE
+		IF TCVAR:C_ID:EVENT_CLOTHING_SET
+			SELECTCASE TCVAR:C_ID:EVENT_CLOTHING_SET
+				CASE IS < 100
+					FOR LOCAL, 1, 23
+						EQUIP:C_ID:LOCAL = GET_INT(C_ID, "의상세트", TCVAR:C_ID:EVENT_CLOTHING_SET, EQUIPNAME:LOCAL)
+					NEXT
+				CASE 101 TO 100 + 캐릭터수상한
+					FOR LOCAL, 1, 23
+						EQUIP:C_ID:LOCAL = GET_INT(C_ID, "캐릭터데이터", TCVAR:C_ID:EVENT_CLOTHING_SET - 100, @"평상복：%EQUIPNAME:LOCAL%")
+					NEXT
+			ENDSELECT
+			CALL CTRL_CLOTHES_SET(C_ID, "속옷 일괄 설정")
+	ELSE
 		SELECTCASE CFLAG:C_ID:의상일시변경
 		CASE 0
-			CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_평상복")
+					SELECTCASE CFLAG:C_ID:기본복장세트
+						CASE IS < 100
+							FOR LOCAL, 1, 23
+								SIF !GROUPMATCH(LOCAL, 6, 7)							
+									CFLAG:C_ID:(200 + LOCAL) = GET_INT(C_ID, "의상세트", CFLAG:C_ID:기본복장세트, EQUIPNAME:LOCAL)
+							NEXT
 		CASE 100
-			CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_걸러서 필요해")
-		CASE 1 TO 99
-			CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_의상세트", CFLAG:C_ID:의상일시변경)
-		CASE 101 TO 100 + 캐릭터수상한
-			CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_캐릭터 의상", CFLAG:C_ID:의상일시변경 - 100, "평상복")
-		ENDSELECT
+							FOR LOCAL, 1, 23
+								SIF !GROUPMATCH(LOCAL, 6, 7)		
+									CFLAG:C_ID:(200 + LOCAL) = CFLAG:C_ID:(600 + LOCAL)
+							NEXT
+						CASE 101 TO 100 + キャラクタ数上限
+							FOR LOCAL, 1, 23
+								SIF !GROUPMATCH(LOCAL, 6, 7)		
+									CFLAG:C_ID:(200 + LOCAL) = GET_INT(C_ID, "캐릭터데이터", CFLAG:C_ID:기본복장세트 - 100, @"평상복：%EQUIPNAME:LOCAL%")
+							NEXT
+					ENDSELECT
+
+					CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_평상복")
+				CASE 100
+					CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_걸러서 필요해")
+				CASE 1 TO 99
+					CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_의상세트", CFLAG:C_ID:의상일시변경)
+				CASE 101 TO 100 + 캐릭터수상한
+					CALL CTRL_CLOTHES_SET(C_ID, "현재 의상의 변경_캐릭터 의상", CFLAG:C_ID:의상일시변경 - 100, "평상복")
+			ENDSELECT
+		ENDIF
 		CFLAG:C_ID:파자마 = 0
 	ENDIF
 ENDSELECT
@@ -1058,18 +1145,26 @@ CASE "현재 의상의 보존_걸러서 필요해"
 	FOR LOCAL, 1, 23
 		CFLAG:C_ID:(600 + LOCAL) = EQUIP:C_ID:LOCAL
 	NEXT
-	CFLAG:ARG:즐겨찾는의상 = 1
+	CFLAG:C_ID:즐겨찾는의상 = 1
 
-;리셋
+	LOCAL = CURRENT_CLOTHES_SET(C_ID)
+	IF INRANGE(LOCAL, 0, 99)
+		CFLAG:C_ID:FAVORITE_OVERRIDE_UNDERWEAR = GET_INT(C_ID, "의상세트", LOCAL, "OVERRIDE_UNDERWEAR_TOP") || GET_INT(C_ID, "의상세트", LOCAL, "OVERRIDE_UNDERWEAR_BOTTOM")
+	ELSE
+		CFLAG:C_ID:FAVORITE_OVERRIDE_UNDERWEAR = 0
+	ENDIF
+;リセット
 CASE "즐겨찾는의상의 리셋"
 	FOR LOCAL, 0, 23
 		CFLAG:C_ID:(600 + LOCAL) = 0
 	NEXT
 	SIF CFLAG:C_ID:기본복장세트 == 100
-		CFLAG:C_ID:기본복장세트 = 0
+		CFLAG:C_ID:기본복장세트 = 100 + C_ID
 	SIF CFLAG:C_ID:파자마지정 == 300
 		CFLAG:C_ID:파자마지정 = 0
 	CFLAG:C_ID:즐겨찾는의상 = 0
+
+	CFLAG:C_ID:FAVORITE_OVERRIDE_UNDERWEAR = 0
 
 ;세트 한 의상을 로드
 ;이 근처에 아앙 갈퀴 로드 처리이며 파자마 플래그는 만지지 않기 때문에 주의군요
@@ -1091,6 +1186,7 @@ CASE "현재 의상의 변경_파자마"
 		CFLAG:C_ID:245 = 0
 		CFLAG:C_ID:246 = 0
 		CFLAG:C_ID:파자마팬티 = 0
+		SIF CFLAG:C_ID:노팬티 != 2
 		CFLAG:C_ID:노팬티 = 1
 	ELSEIF CFLAG:C_ID:노팬티 && CFLAG:C_ID:파자마팬티
 		EQUIP:C_ID:하반신속옷1 = 0
@@ -1098,6 +1194,7 @@ CASE "현재 의상의 변경_파자마"
 		SIF !CFLAG:C_ID:245
 			CFLAG:C_ID:246 = CFLAG:C_ID:파자마팬티
 		CFLAG:C_ID:파자마팬티 = 0
+		SIF CFLAG:C_ID:노팬티 != 2
 		CFLAG:C_ID:노팬티 = 0
 	ELSEIF CFLAG:C_ID:노팬티 && (EQUIP:C_ID:하반신속옷1 || EQUIP:C_ID:하반신속옷2)
 		EQUIP:C_ID:하반신속옷1 = 0
@@ -1111,7 +1208,8 @@ CASE "현재 의상의 변경_걸러서 필요해"
 	FOR LOCAL, 1, 23
 		EQUIP:C_ID:LOCAL = CFLAG:C_ID:(600 + LOCAL)
 	NEXT
-	IF CFLAG:C_ID:노팬티
+	IF CFLAG:C_ID:FAVORITE_OVERRIDE_UNDERWEAR
+	ELSEIF CFLAG:C_ID:노팬티
 		EQUIP:C_ID:하반신속옷1 = 0
 		EQUIP:C_ID:하반신속옷2 = 0
 	ELSEIF EQUIP:C_ID:하반신속옷1
@@ -1134,14 +1232,19 @@ CASE "현재 의상의 변경_캐릭터 의상"
 	CALL CTRL_CLOTHES_SET(C_ID, "속옷 일괄 설정")
 
 CASE "현재 의상의 변경_의상세트"
-;ARG로 지정된 ID의 의상세트를 참조한다
+;ARGで指定されたIDの衣装セットを参照する
+    ;as this should never happen, show a warning if a nonexisting clothing set is called
+    SIF !GET_EXIST("의상세트", ARG)
+        PRINTFORML ＊WARNING＊: Clothing set {ARG} does not exist. %CALLNAME:C_ID% will be nude.
 	CFLAG:C_ID:의상일시변경 = ARG
 	FOR LOCAL, 1, 23
 		EQUIP:C_ID:LOCAL = GET_INT(C_ID, "의상세트", ARG, EQUIPNAME:LOCAL)
 	NEXT
 	CALL CTRL_CLOTHES_SET(C_ID, "속옷 일괄 설정")
 CASE "속옷 일괄 설정"
+	SIF !GET_INT(C_ID, "의상세트", CURRENT_CLOTHES_SET(C_ID), "OVERRIDE_UNDERWEAR_BOTTOM")
 	CALL CTRL_CLOTHES_SET(C_ID, "팬티 일괄 설정")
+	SIF !GET_INT(C_ID, "의상세트", CURRENT_CLOTHES_SET(C_ID), "OVERRIDE_UNDERWEAR_TOP")
 	CALL CTRL_CLOTHES_SET(C_ID, "브라 일괄 설정")
 CASE "팬티 일괄 설정"
 	IF !CFLAG:C_ID:파자마
@@ -1551,9 +1654,12 @@ RETURNF GET_INT(0, "캐릭터데이터", CHARA, "고유 속옷 비쳐보이는(�
 #DIM CHARA
 RETURNF GET_INT(0, "캐릭터데이터", CHARA, "고유 속옷 옷감 두께")
 
-@상반신속옷표시(C_ID)
+@상반신속옷표시(C_ID) ;@上半身下着表示(C_ID)
 #FUNCTION
 #DIM C_ID
+
+SIF C_ID == MASTER
+	RETURNF 1
 
 SIF !CFLAG:C_ID:수면 && CFLAG:C_ID:상반신속옷확인
 	RETURNF 1
@@ -1561,9 +1667,12 @@ SIF CFLAG:C_ID:수면 && CFLAG:C_ID:파자마상반신속옷확인
 	RETURNF 1
 RETURNF 0
 
-@하반신속옷표시(C_ID)
+@하반신속옷표시(C_ID) ;@下半身下着表示(C_ID)
 #FUNCTION
 #DIM C_ID
+
+SIF C_ID == MASTER
+	RETURNF 1
 
 SIF !CFLAG:C_ID:수면 && CFLAG:C_ID:하반신속옷확인
 	RETURNF 1
@@ -1571,7 +1680,7 @@ SIF CFLAG:C_ID:수면 && CFLAG:C_ID:파자마하반신속옷확인
 	RETURNF 1
 RETURNF 0
 
-@상반신속옷체크(C_ID)
+@상반신속옷체크(C_ID) ;@上半身下着チェック(C_ID)
 #FUNCTION
 #DIM C_ID
 
@@ -1581,7 +1690,7 @@ ELSE
 	CFLAG:C_ID:파자마상반신속옷확인 = 1
 ENDIF
 
-@하반신속옷체크(C_ID)
+@하반신속옷체크(C_ID) ;@下半身下着チェック(C_ID)
 #FUNCTION
 #DIM C_ID
 
@@ -1591,7 +1700,7 @@ ELSE
 	CFLAG:C_ID:파자마하반신속옷확인 = 1
 ENDIF
 
-@속옷확인리셋(C_ID)
+@속옷확인리셋(C_ID) ;@下着確認リセット(C_ID)
 #DIM C_ID
 
 CFLAG:C_ID:상반신속옷확인 = 0

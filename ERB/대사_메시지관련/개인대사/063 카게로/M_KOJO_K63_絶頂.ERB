@@ -20,7 +20,37 @@
 ;-------------------------------------------------
 @M_KOJO_MESSAGE_PALAMCNG_B_K63
 #DIM TotalEX
-IF TCVAR:MASTER:이기초
+
+;-------------------------------------------------
+;噴乳
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL && NOWEX:분유
+	PRINTFORMW 
+ENDIF
+;-------------------------------------------------
+;사정했다
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL && NOWEX:사정
+	PRINTFORMW 
+ENDIF
+;-------------------------------------------------
+;放尿
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 0
+;-------------------------------------------------
+IF LOCAL && NOWEX:방뇨
+	PRINTFORMW 
+ENDIF
+;-------------------------------------------------
+;절정
+;記入チェック（=0, 非表示、1, 表示）
+LOCAL = 1
+;-------------------------------------------------
+IF NOWEX:MASTER:사정
 	IF FIRSTTIME("射精前兆")
 		PRINTFORMW （왠지 움찔거리고 있어…… 이거 혹시……）
 	ELSEIF (TEQUIP:50 == MASTER || TEQUIP:51 == MASTER)
@@ -42,39 +72,13 @@ IF TCVAR:MASTER:이기초
 		CALL HPH_PRINT,@"（%TEXTR("가고 싶은 거 참고 있는 모습… 귀여워……HPH/이제 곧이지? 가버려랏HPH　가버려HPH")%）","W"
 	ENDIF
 ENDIF
-CALL PALAM_MESSAGE_B
-;-------------------------------------------------
-;분유
-;기입체크 (=0, 비표시、1, 표시)
-LOCAL = 0
-;-------------------------------------------------
-IF LOCAL && NOWEX:분유
-	PRINTFORMW 
-ENDIF
-;-------------------------------------------------
-;사정했다
-;기입체크 (=0, 비표시、1, 표시)
-LOCAL = 0
-;-------------------------------------------------
-IF LOCAL && NOWEX:사정
-	PRINTFORMW 
-ENDIF
-;-------------------------------------------------
-;방뇨
-;기입체크 (=0, 비표시、1, 표시)
-LOCAL = 0
-;-------------------------------------------------
-IF LOCAL && NOWEX:방뇨
-	PRINTFORMW 
-ENDIF
-;-------------------------------------------------
-;절정
-;기입체크 (=0, 비표시、1, 표시)
-LOCAL = 1
-;-------------------------------------------------
 ;합계 절정수로 분기
 ;이것만으로는 어느 부위가 절정했는지 구분되지 않기 때문에, 나누어 쓰고 싶다면 임의로 분기를 가필해 주세요.
 IF LOCAL
+	IF SHIRAHU(TARGET)
+		TCVAR:361 = 1
+	ENDIF
+	IF NOWEX:TotalEX
 	SELECTCASE NOWEX:TotalEX
 		;강
 		;潜伏中と抑圧が取れるまでは堪える
@@ -113,6 +117,7 @@ IF LOCAL
 				CALL HPH_PRINT,@"「기분 좋아……HPH」","W"
 			ENDIF
 	ENDSELECT
+	ENDIF
 ENDIF
 IF TALENT:B감도 < 0 && NOWEX:B절정 >= 2
 	CALL HPH_PRINT,@"「젖가슴으로도 이렇게 기분 좋아지는구나……HPH」","L"
@@ -123,10 +128,25 @@ ENDIF
 ;노예의 수면절정시의 구상
 ;-------------------------------------------------
 @M_KOJO_MESSAGE_PALAMCNG_B2_K63
-CALL PALAM_MESSAGE_B
+
+;-------------------------------------------
+;調教後のテキスト＠調教後というかコマンド後
+;映姫口上によればうふふ等に関係なくTARGET指定中なら毎ターン読み込まれるらしい
+;-------------------------------------------
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_C_K63
+RETURN 1
+
+@M_KOJO_MESSAGE_PALAMCNG_C_K63
+;このターンの絶頂強度を記録し、次のターンでの判定に使う
+TCVAR:362 = NOWEX:TotalEX
+
 ;-------------------------------------------------
 ;수면분유
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL && NOWEX:분유
@@ -134,7 +154,7 @@ IF LOCAL && NOWEX:분유
 ENDIF
 ;-------------------------------------------------
 ;수면사정했다
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL && NOWEX:사정
@@ -142,7 +162,7 @@ IF LOCAL && NOWEX:사정
 ENDIF
 ;-------------------------------------------------
 ;수면방뇨
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL && NOWEX:방뇨
@@ -150,11 +170,11 @@ IF LOCAL && NOWEX:방뇨
 ENDIF
 ;-------------------------------------------------
 ;수면절정
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
-;합계 절정수로 분기
-;이것만으로는 어느 부위가 절정했는지 구분되지 않기 때문에, 나누어 쓰고 싶다면 임의로 분기를 가필해 주세요.
+;合計絶頂数で分岐
+;これだけではどの部位が絶頂したかは区別されないため、書き分けたければ任意で分岐を加筆されたし。
 IF LOCAL
 	SELECTCASE NOWEX:TotalEX
 		;강
@@ -171,15 +191,21 @@ ENDIF
 
 
 ;-------------------------------------------------
-;아나타가 사정했을 때에 관한 구상의 표시
-;일시적으로 TARGET을 구상주로 설정하고 있다
+;あなたが射精したときに関する口上の表示
+;一時的にTARGETを口上主に設定している
 ;-------------------------------------------------
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_00
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_00(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
-;TARGET의 손에 의한 사정으로, 사정 대상이 TARGET이 아니다
-;기입체크 (=0, 비표시、1, 표시)
+;TARGETの手による射精で、射精対象が非TARGET
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -187,12 +213,18 @@ IF LOCAL
 	RETURN 1
 ENDIF
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_0
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_0(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
-;콘돔
-;기입체크 (=0, 비표시、1, 표시)
+;コンドーム
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -200,12 +232,18 @@ IF LOCAL
 	RETURN 1
 ENDIF
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_23
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_23(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;이라마치오
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -213,12 +251,18 @@ IF LOCAL
 	RETURN 1
 ENDIF
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_22
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_22(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
-;식스나인
-;기입체크 (=0, 비표시、1, 표시)
+;シックスナイン
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -226,7 +270,7 @@ IF LOCAL
 	IF NOWEX:사정 && NOWEX:MASTER:사정
 		PRINTFORMW
 		RETURN 1
-	;TARGET만 사정
+	;TARGETだけ射精
 	ELSEIF NOWEX:사정
 		;PLAYER에게 달려있다
 		IF GETBIT(TALENT:PLAYER:성별,1)
@@ -237,7 +281,7 @@ IF LOCAL
 			PRINTFORMW
 			RETURN 1
 		ENDIF
-	;PLAYER만 사정
+	;PLAYERだけ射精
 	ELSE
 		;TARGET에게 달려있다
 		IF GETBIT(TALENT:성별,1)
@@ -252,12 +296,18 @@ IF LOCAL
 ENDIF
 CALL K63_抑圧削除
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_26
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_26(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;수유플레이
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -265,12 +315,18 @@ IF LOCAL
 	RETURN 1
 ENDIF
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_21
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_21(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;파이즈리펠라
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -279,12 +335,18 @@ IF LOCAL
 ENDIF
 CALL K63_抑圧削除
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_20
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_20(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;수음 펠라
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -294,11 +356,17 @@ ENDIF
 CALL K63_抑圧削除
 RETURN 1
 
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_9
+RETURN 0
+
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_9(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;애널봉사
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -307,11 +375,17 @@ IF LOCAL
 ENDIF
 RETURN 1
 
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_8
+RETURN 0
+
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_8(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;거품춤
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -319,7 +393,7 @@ IF LOCAL
 	IF NOWEX:사정 && NOWEX:MASTER:사정
 		PRINTFORMW
 		RETURN 1
-	;TARGET만 사정
+	;TARGETだけ射精
 	ELSEIF NOWEX:사정
 		;PLAYER에게 달려있다
 		IF GETBIT(TALENT:PLAYER:성별,1)
@@ -330,7 +404,7 @@ IF LOCAL
 			PRINTFORMW
 			RETURN 1
 		ENDIF
-	;PLAYER만 사정
+	;PLAYERだけ射精
 	ELSE
 		;TARGET에게 달려있다
 		IF GETBIT(TALENT:성별,1)
@@ -346,11 +420,17 @@ ENDIF
 CALL K63_抑圧削除
 RETURN 1
 
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_7
+RETURN 0
+
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_7(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;풋잡
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -359,12 +439,18 @@ IF LOCAL
 ENDIF
 CALL K63_抑圧削除
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_6
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_6(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;스마타
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -373,12 +459,18 @@ IF LOCAL
 ENDIF
 CALL K63_抑圧削除
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_5
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_5(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;파이즈리
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -387,12 +479,18 @@ IF LOCAL
 ENDIF
 CALL K63_抑圧削除
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_4
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_4(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;フェラチオ
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -401,12 +499,18 @@ IF LOCAL
 ENDIF
 CALL K63_抑圧削除
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_3
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_3(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;수음
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -416,11 +520,17 @@ ENDIF
 CALL K63_抑圧削除
 RETURN 1
 
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_2
+RETURN 0
+
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_2(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;애널
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -429,11 +539,17 @@ IF LOCAL
 ENDIF
 RETURN 1
 
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A_K63_1
+RETURN 0
+
 @M_KOJO_MESSAGE_PALAMCNG_A_K63_1(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;질내
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 1
 ;-------------------------------------------------
 IF FIRSTTIME("初膣内射精")
@@ -443,8 +559,13 @@ IF FIRSTTIME("初膣内射精")
 ENDIF
 IF !NOWEX:V절정
 	IF TALENT:63:자기애 >= 0
-		PRINTFORML 「앗… 나오는 거야?」
-		PRINTFORML 「정말, 그렇게 꽉 붙잡지 않아도 도망가지 않을거야」
+		SELECTCASE RAND:2
+			CASE 0
+				PRINTFORML 「앗… 나오는 거야?」
+				PRINTFORML 「정말, 그렇게 꽉 붙잡지 않아도 도망가지 않을거야」
+			CASE 1
+				PRINTFORML 「%TEXTR("んふ、気持ちいい？/まだできる？次は一緒に、ね？")%」
+		ENDSELECT
 	ELSE
 		PRINTFORML 「응읏… 또 안쪽에……」
 	ENDIF
@@ -481,21 +602,50 @@ IF NOWEX:MASTER:사정 > 1
 	IF ABL:질내사정중독 < 2
 		PRINTFORML 「또 나오고 있어……」
 	ELSE
-		CALL HPH_PRINT,@"「%TEXTR(@"아직도 움찔거리고 있어…… 사정 너무 길어………HPH/정말, 이렇게나 싸고……HPH/후후, %CALLNAME:MASTER%도 기분 좋았어?")%」」","L"
+		SELECTCASE RAND:8
+			CASE 0
+				CALL HPH_PRINT,@"「ん゛～～っHPH　もっと頂戴？」","L"
+				CALL HPH_PRINT,@"「%CALLNAME:MASTER%の全部、私のものにしたいの……HPH」","L"
+			CASE 1
+				IF TALENT:임신
+					PRINTFORML 「もう、そんなに頑張っても先客がいるから、今は赤ちゃんになれないわよ？」
+				ELSE
+					PRINTFORML 「ふふ、すごいいっぱい来てる」
+					PRINTFORML 「私の赤ちゃんになりたくて必死な感じね」
+				ENDIF
+			CASE 2
+				CALL HPH_PRINT,@"（はーーーっHPH　お腹あったか……HPH）","L"
+				PRINTFORML （%CALLNAME:MASTER%の熱が、命が、私の中に……）
+				CALL HPH_PRINT,@"（ふふ、ふふふ……HPH）","L"
+			CASEELSE
+				CALL HPH_PRINT,@"「%TEXTR(@"아직도 움찔거리고 있어…… 사정 너무 길어………HPH/정말, 이렇게나 싸고……HPH/후후, %CALLNAME:MASTER%도 기분 좋았어?")%」」","L"
+		ENDSELECT
 	ENDIF
+ELSEIF TALENT:63:자기애 >= 0
+	SELECTCASE RAND:3
+		CASE 0
+			PRINTFORML 「ふふ」
+			PRINTFORML 「一緒にイけると、通じ合ってる感じがして嬉しいわ」
+	ENDSELECT
 ENDIF
 RETURN 1
 
 ;-------------------------------------------------
-;면간(眠姦)사정에 관한 구상의 표시
-;일시적으로 TARGET을 구상주로 설정하고 있다
+;眠姦射精に関する口上の表示
+;一時的にTARGETを口上主に設定している
 ;-------------------------------------------------
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A2_K63_0
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A2_K63_0(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
-;콘돔
-;기입체크 (=0, 비표시、1, 표시)
+;コンドーム
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -503,12 +653,18 @@ IF LOCAL
 	RETURN 1
 ENDIF
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A2_K63_23
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A2_K63_23(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
-;이라마치오
-;기입체크 (=0, 비표시、1, 표시)
+;イラマチオ
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -516,12 +672,18 @@ IF LOCAL
 	RETURN 1
 ENDIF
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A2_K63_7
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A2_K63_7(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
-;풋잡
-;기입체크 (=0, 비표시、1, 표시)
+;足コキ
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -530,12 +692,18 @@ IF LOCAL
 ENDIF
 RETURN 1
 
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A2_K63_5
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A2_K63_5(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
-;파이즈리
-;기입체크 (=0, 비표시、1, 표시)
+;パイズリ
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -543,12 +711,18 @@ IF LOCAL
 	RETURN 1
 ENDIF
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A2_K63_4
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A2_K63_4(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;フェラチオ
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -556,12 +730,18 @@ IF LOCAL
 	RETURN 1
 ENDIF
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A2_K63_3
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A2_K63_3(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;수음
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -569,12 +749,18 @@ IF LOCAL
 	RETURN 1
 ENDIF
 RETURN 1
+
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A2_K63_2
+RETURN 0
 
 @M_KOJO_MESSAGE_PALAMCNG_A2_K63_2(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;애널
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -583,11 +769,17 @@ IF LOCAL
 ENDIF
 RETURN 1
 
+;==================================================
+;Optional: Determines if the standard description should be skipped.
+;Return 0 if description and KOJO should be shown, 1 if description should be hidden and KOJO shown, 2 if description should be shown and KOJO hidden, and 3 if both description and KOJO should be hidden.
+;==================================================
+@M_KOJO_MESSAGE_PALAMCNG_MESSAGECHECK_A2_K63_1
+RETURN 0
+
 @M_KOJO_MESSAGE_PALAMCNG_A2_K63_1(ARG)
-CALL PALAM_MESSAGE_A
 ;-------------------------------------------------
 ;질내
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
@@ -598,10 +790,9 @@ RETURN 1
 
 
 @M_KOJO_MESSAGE_PALAMCNG_F_K63(ARG)
-CALL PALAM_MESSAGE_F
 ;-------------------------------------------------
 ;애태우기
-;기입체크 (=0, 비표시、1, 표시)
+;記入チェック（=0, 非表示、1, 表示）
 LOCAL = 0
 ;-------------------------------------------------
 IF LOCAL
