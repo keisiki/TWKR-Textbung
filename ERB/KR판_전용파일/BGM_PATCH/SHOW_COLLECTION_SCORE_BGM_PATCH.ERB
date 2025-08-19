@@ -1,0 +1,140 @@
+﻿;-----------------------------------------------------------
+;	手に入れた楽譜の表示
+;-----------------------------------------------------------
+@SHOW_COLLECTION_SCORE_BGM_PATCH
+#DIM 이전곡
+#DIM 시리즈
+
+DRAWLINE
+$SCORE_INPUT
+CALL DISPLAY_SCORE_BY_SERIES(시리즈)
+
+PRINTL
+PRINT       
+PRINTBUTTON "◁",102    
+PRINTBUTTON "◀",100
+PRINTFORM {시리즈+1,2}
+PRINTBUTTON "▶",101
+PRINTBUTTON "▷",103
+PRINTL
+
+PRINTL
+
+CALL 소지악보개수출력
+LOADGLOBAL
+SETBGMVOLUME BGMVOLUME
+SETSOUNDVOLUME SOUNDVOLUME
+PRINT BGM. 
+IF PlayingBGM
+	PRINTFORML %STR:PlayingBGM%
+ELSE
+	PRINTL
+ENDIF
+PRINTL
+
+PRINTFORM  %@"BGM: {BGMVOLUME}\% ", 10,LEFT% 
+PRINTBUTTON "-", 1010
+PRINTBUTTON "+ ", 1011
+CALL PRINT_COLORBAR, BGMVOLUME,100, 20, UNICODE(0x25AE), UNICODE(0x25AE), 0x6de1ff, 0x00415f
+PRINTL
+
+PRINT [0] - 돌아간다 
+PRINTFORML [1] - \@ PlayingBGM ? ▶ # ❚❚ \@
+;$SCORE_INPUT
+REDRAW 0
+INPUT
+IF RESULT == 100
+	시리즈--
+	SIF 시리즈 < 0
+		시리즈 = 0
+ELSEIF RESULT == 101
+	시리즈++
+	SIF STR:(시리즈+악보시리즈명시작번호) == ""
+		시리즈--
+ELSEIF RESULT == 102
+	시리즈 -= 10
+	SIF 시리즈 < 0
+		시리즈 += 10
+ELSEIF RESULT == 103
+	시리즈 += 10
+	SIF STR:(시리즈+악보시리즈명시작번호) == ""
+		시리즈 -= 10
+ELSEIF RESULT == 0
+	REDRAW 1
+	RETURN
+ELSEIF RESULT == 1
+	IF PlayingBGM
+		CALLF STOPMUSIC()
+	ELSE
+	;	CLEARLINE 1
+		PlayingBGM = 이전곡
+		PLAYBGM @"music/score/{이전곡}.m4a"
+	ENDIF
+ELSEIF RESULT == 1010
+	BGMVOLUME = LIMIT(BGMVOLUME-10,0,100)
+	SAVEGLOBAL
+ELSEIF RESULT == 1011
+	BGMVOLUME = LIMIT(BGMVOLUME+10,0,100)
+	SAVEGLOBAL
+ELSEIF HAVE_SCORE(RESULT)
+	PlayingBGM = RESULT
+	이전곡 = PlayingBGM
+	PLAYBGM @"music/score/{RESULT}.m4a"
+ENDIF
+CLEARLINE (MAX(RESULT:1,21) + 10)
+GOTO SCORE_INPUT
+
+;시리즈별로 악보를 프린트한다
+@DISPLAY_SCORE_BY_SERIES(시리즈)
+#DIM DYNAMIC 시리즈
+#DIM DYNAMIC 악보
+#DIMS sPrint_Text
+
+;혹시모르니까 예방
+SIF STR:(시리즈+악보시리즈명시작번호) == ""
+	RETURN
+
+;소지수/총수 판정
+LOCAL:1 = EXEC_SCORES(악보처리모드：총수카운트, -1, 시리즈)
+LOCAL:2 = EXEC_SCORES(악보처리모드：소지수카운트, -1, 시리즈)
+
+RESULT:1 = LOCAL:1
+RESULT:2 = LOCAL:2
+
+PRINTFORML 【{시리즈 + 1,2}:%GET_SERIES_NAME(시리즈)%】({LOCAL:2}/{LOCAL:1})
+FOR LOCAL, 0, 50
+	악보 = 50*시리즈 + 악보명개시번호 + LOCAL
+	sPrint_Text = <p align='left'><nobr>
+	sPrint_Text += @"  <button value='{악보}' title='입수조건：%GET_SCORE_INFO_MESSAGE(악보)%'>"
+	sPrint_Text += @"{LOCAL + 1,2}:%GET_SCORE_NAME(악보, !HAVE_SCORE(악보))%"
+	sPrint_Text += @"</button>"
+	sPrint_Text += @"<br>"
+	HTML_PRINT sPrint_Text
+	;다음 악보가 없으면 return
+	IF STR:(악보+1) == ""
+		WHILE !(LOCAL:1 > 20)
+			PRINTL
+			LOCAL:1++
+		WEND
+		RETURN
+	ENDIF
+NEXT
+
+
+
+@소지악보개수출력
+#DIM DYNAMIC 시리즈
+#DIM DYNAMIC 악보갯수, 2
+
+WHILE STR:(시리즈+악보시리즈명시작번호) != ""
+
+;소지수/총수 판정
+LOCAL:1 = EXEC_SCORES(악보처리모드：총수카운트, -1, 시리즈)
+LOCAL:2 = EXEC_SCORES(악보처리모드：소지수카운트, -1, 시리즈)
+;RESULT에 소지수/총수 저장
+악보갯수:0 += LOCAL:1
+악보갯수:1 += LOCAL:2
+
+시리즈++
+WEND
+PRINTFORML 모은 악보의 수 ({악보갯수:1}/{악보갯수:0})

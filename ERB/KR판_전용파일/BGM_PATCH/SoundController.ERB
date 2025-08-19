@@ -1,0 +1,89 @@
+﻿@PLAY_THEME_MUSIC(음악넘버)
+#FUNCTION
+#DIM DYNAMIC 음악넘버
+
+SIF 음악넘버 < 악보명개시번호 ;인수가 C_ID일 경우 C_ID의 테마를 취득한다
+	음악넘버 = GET_THEME(음악넘버)
+
+PLAYBGM @"music/score/{음악넘버}.m4a"
+PlayingBGM = 음악넘버
+RETURNF PlayingBGM
+
+@RandomSong
+#FUNCTION
+#DIM DYNAMIC 음악넘버
+
+DO
+    음악넘버 = (RAND(15)*100) + RAND(70) + 악보명개시번호
+	
+    SIF 음악넘버 == 10114
+        음악넘버 = 0
+
+	IF GET_SCORE_INFO_NO(음악넘버) != -1
+        SIF PlayingBGM == 음악넘버
+		 	RETURNF PlayingBGM
+			
+		PLAYBGM @"music/score/{음악넘버}.m4a"
+		SIF 음악넘버 < 10115 && 음악넘버 > 10100
+			음악넘버 += 1
+		PlayingBGM = 음악넘버
+		RETURNF PlayingBGM
+	ENDIF
+LOOP 1
+
+
+@StopMusic()
+#FUNCTION
+STOPBGM
+VARSET PlayingBGM
+
+@StopSE()
+#FUNCTION
+STOPSOUND
+
+@StopAllSounds()
+#FUNCTION
+CALLF StopMusic()
+CALLF StopSE()
+
+@EVENTLOAD
+#LATER
+CALLF StopMusic()
+
+@EVENTEND
+#LATER
+CALLF StopAllSounds()
+
+@EVENTFIRST
+#LATER
+CALLF StopAllSounds()
+
+@GET_THEME(C_ID)
+#FUNCTION
+#DIM DYNAMIC C_ID
+#DIM DYNAMIC 음악넘버
+#DIM DYNAMIC 시리즈넘버
+#DIM DYNAMIC 카운트
+#DIM DYNAMIC 테마음악, 10
+#DIM DYNAMIC 테마음악수
+#DIM DYNAMIC 음악정보
+
+$루프시작
+FOR 카운트, 0, 50
+    음악넘버 = 악보명개시번호 + 카운트 + (시리즈넘버 * 50)
+    IF STR:(시리즈넘버+악보시리즈명시작번호) == ""
+        BREAK
+    ELSEIF STR:음악넘버 == ""
+        시리즈넘버++
+        GOTO 루프시작
+    ENDIF
+
+    IF GET_SCORE_INFO_NO(음악넘버,C_ID)
+        테마음악:테마음악수 = 음악넘버 ;음악이 C_ID의 테마곡이면 저장
+        테마음악수++ 
+    ENDIF
+NEXT
+SIF !테마음악수 ;테마음악이 없다면 return
+    RETURNF 0
+
+RETURNF 테마음악:(RAND:테마음악수)

@@ -82,11 +82,11 @@ LOCAL:99 = 0
 
 LOCAL = MARK:ARG:괘씸각인 * 15 + MARK:ARG:쾌락각인 * 15
 IF TALENT:ARG:연모
-	LOCAL += MIN(ABL:ARG:친밀 * 12, 210) + MIN(ABL:ARG:욕망 * 12,210) + MIN(ABL:ARG:봉사정신 * 12,250)
-	LOCAL += MIN(EXP:ARG:데이트경험, 210) + MIN(EXP:ARG:애정경험, 210)
-ELSEIF TALENT:ARG:사모
 	LOCAL += MIN(ABL:ARG:친밀 * 10, 100) + MIN(ABL:ARG:욕망 * 10,100) + MIN(ABL:ARG:봉사정신 * 10,100)
-	LOCAL += MIN(EXP:ARG:데이트경험, 100)
+	LOCAL += MIN(EXP:ARG:데이트경험,100) + MIN(EXP:ARG:애정경험,100)
+ELSEIF TALENT:ARG:사모
+	LOCAL += MIN(ABL:ARG:친밀 * 10, 50) + MIN(ABL:ARG:욕망 * 10,50) + MIN(ABL:ARG:봉사정신 * 10,50)
+	LOCAL += MIN(EXP:ARG:데이트경험,50)
 ENDIF
 LOCAL += GETPALAMLV(PALAM:ARG:욕정, 10) * 5 + GETPALAMLV(PALAM:ARG:호의, 10) * 5 + GETPALAMLV(PALAM:ARG:공순, 10) * 5
 ;60
@@ -158,22 +158,14 @@ ELSEIF !(CFLAG:ARG:1 & 4) && !(CFLAG:ARG:13 & 2) &&  !FLAG:고백금지 && CAN_M
 	;성공 판정
 	IF (LOCAL > 530 + TALENT:ARG:일선을넘지않음 * 20)
 		CALL KOJO_MESSAGE_SEND("SP_EVENT",2,ARG,0)
-		IF 스친연인수 == 100 && TALENT:ARG:스침
-			PRINTFORML 　- 포말의 사랑의 상대는 100명까지 밖에 기억할 수 없습니다
-			PRINTFORML 　　받았을 경우, 지금까지의 누군가의 이름을 잊어 버립니다 -
-		ELSEIF FLAG:추가연인수 > 0
-			PRINTFORML 　- 연인은{1 + FLAG:추가연인수}인까지로 밖에 취득 할 수 없습니다 -
-		ELSE
-			;나올 수 없는 경우의 수
-			PRINTFORML 　- 연인의 수에 제한은 없습니다 -
-		ENDIF
 		PRINTFORML %CALLNAME:ARG%의 고백을…
-		CALL ASK_YN("받는다","거절한다")
+		LOCALS = %\@ TALENT:MASTER:폴리아모리 ? # （연인은{FLAG:추가연인수 + 1}명 밖에 취득할 수 없습니다） \@%
+		CALL ASK_YN(@"받는다%LOCALS%","거절한다")
 		IF !RESULT
 			SETBIT CFLAG:ARG:기정사실 , 2
 			SETBIT CFLAG:MASTER:기정사실, 2
-			TALENT:MASTER:연인 = 1
-			CALL SET_연인(NO:ARG)
+			TALENT:MASTER:연인 = NO:ARG
+			TALENT:ARG:연인 = 1
 			SETBIT CFLAG:ARG:데이트후이벤트플래그 , 1
 			CALL KOJO_MESSAGE_SEND("SP_EVENT",2,ARG,1)
 			PRINTL
@@ -243,7 +235,7 @@ FOR LOCAL,1,CHARANUM
 NEXT
 RETURNF LOCAL:1
 
-@CAN_MAKE_연인()
+@CAN_MAKE_연인() ;@CAN_MAKE_恋人()
 #FUNCTION
 ;연인が今何人いるかカウント
 VARSET LOCAL
@@ -251,11 +243,11 @@ FOR LOCAL, 1, CHARANUM
 	SIF TALENT:LOCAL:연인
 		LOCAL:1 ++
 NEXT
-;KR판 오리지날 복수연인 대응용 주석처리
-;SIF LOCAL:1 < (1 + FLAG:추가연인수)
-;	RETURNF 1
-;RETURNF 0
-RETURNF 1
+SIF TALENT:MASTER:폴리아모리
+	RETURNF 1
+SIF INRANGECARRAY(TALENT:연인, 1, CHARANUM, 1, CHARANUM) <= FLAG:추가연인수
+	RETURNF 1
+RETURNF 0
 ;===========================================
 ;키스경험やファーストキス処理などをまとめてやる関数
 ;===========================================

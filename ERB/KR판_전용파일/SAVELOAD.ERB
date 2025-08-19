@@ -1,0 +1,336 @@
+﻿;[ライセンス]パブリックドメイン
+;本ファイルに係る著作権を放棄する。
+;本ファイルに係る著作人格権は行使しない。
+;2009/3/28 MinorShift(Emuera作者)
+;2010/4/2 MinorShift(Emuera作者) ver 1.736に合わせて一部修正。
+; -KR- 2024/11/2  EN판에서 함수 변형 이식
+
+;独自のセーブ・ロードシステムの例（Emuera  ver 1.736以降対象）
+;LOADGAMEの代わりにCALL LOADGAME_EX、SAVEGAMEの代わりにCALL SAVEGAME_EXを実行してください。
+;実際に使用するには旧来の@SAVEINFOに合わせて@SAVEINFO_EXを編集する必要があります。
+;使用している命令の詳細については下記のEmueraWikiを参照してください。
+;http://sourceforge.jp/projects/emuera/wiki/FrontPage
+
+
+;========================================================
+;ARG : 로딩 타입 결정
+; 0 : 로드, 1 : 세이브, 2 : 삭제
+;;========================================================
+
+@LOAD_SAVE(ARG,ARG:1 = 0)
+#DIM TYPE
+#DIM LCOUNT
+#DIM CREDRAW
+#DIM FIRST_LINE
+LOADGLOBAL
+FIRST_LINE = LINECOUNT
+TYPE = ARG
+$REPRINT
+CLEARLINE LINECOUNT - FIRST_LINE
+CREDRAW = CURRENTREDRAW()
+REDRAW 0
+SIF GLOBAL:999 < 0
+	GLOBAL:999 = 0
+SIF GLOBAL:999 > 30
+	GLOBAL:999 = 29
+DRAWLINE
+SELECTCASE TYPE
+	CASE 0
+		LOCALS:0 = 로드할 세이브를 선택해주세요
+	CASE 1
+		LOCALS:0 = 세이브할 슬롯을 선택해주세요
+	CASE 2
+		LOCALS:0 = 삭제할 세이브를 선택해주세요
+ENDSELECT
+PRINTFORML %LOCALS% - 페이지 ({GLOBAL:999+1}/10)
+CALL PRINT_SAVEDATA
+CUSTOMDRAWLINE =
+CHKDATA 300
+SETCOLOR COLOR("aqua")
+PRINTBUTTON @"[Auto] %RESULTS:0%", 300
+RESETCOLOR
+PRINTL
+CUSTOMDRAWLINE =
+PRINTFORM %@"\@ (GLOBAL:999 == 0) ? [1000] 마지막 페이지 # [1000] 이전 페이지\@",28,LEFT%
+PRINTFORM %@"[997] %TYPE == 0?"삭제한다"#(TYPE==1 ? "로드한다" # "세이브한다")%",28,LEFT%
+PRINTFORM %@"[999] 돌아간다",28,LEFT%
+PRINTFORM %@"[998] %TYPE == 0?"세이브한다"#(TYPE==1 ? "삭제한다" # "로드한다")%",28,LEFT%
+PRINTFORM %@"\@ GLOBAL:999 == 9 ? [1002] 첫 페이지 # [1002] 다음 페이지\@",28,LEFT%
+INPUT
+IF RESULT == 997
+	TYPE--
+	SIF TYPE == -1
+		TYPE = 2
+	GOTO REPRINT
+ELSEIF RESULT == 998
+	TYPE++
+	TYPE%=3
+	GOTO REPRINT
+ELSEIF (RESULT == 999)
+	RETURN
+ELSEIF RESULT == 1000
+	IF GLOBAL:999 > 0 && GLOBAL:999 < 10
+		GLOBAL:999 -= 1
+	ELSEIF GLOBAL:999 == 0
+		GLOBAL:999 = 9
+	ENDIF
+	SAVEGLOBAL
+	GOTO REPRINT
+ELSEIF RESULT == 1002
+	IF GLOBAL:999 < 9
+		GLOBAL:999 += 1
+	ELSEIF GLOBAL:999 == 9
+		GLOBAL:999 = 0
+	ENDIF
+	SAVEGLOBAL
+	GOTO REPRINT
+ELSEIF ((RESULT < 0) || (RESULT >= 200)) && (RESULT != 300)
+	PRINTFORMW Invalid value.
+	GOTO REPRINT
+ELSEIF TYPE == 1 && ARG:1 != 1
+	LCOUNT = RESULT
+	CHKDATA LCOUNT
+	;RESULT == 1は"ファイルが存在しない"
+	IF RESULT != 1
+		DRAWLINE
+		PRINTL 세이브 파일이 이미 존재합니다. 덮어쓰시겠습니까?
+		PRINTL  　[0] 네
+		PRINTL  　[1] 아니오
+		$INPUT_LOOP
+		INPUT
+		IF RESULT == 1
+			GOTO REPRINT
+		ELSEIF RESULT != 0
+			GOTO INPUT_LOOP
+		ENDIF
+	ENDIF
+	GLOBAL:998 = LCOUNT
+	SAVEGLOBAL
+	CALL SAVEINFO_EX
+	SAVEDATA LCOUNT, RESULTS
+ELSEIF TYPE == 0
+	LCOUNT = RESULT
+	CHKDATA LCOUNT
+	;RESULT == 0ならロード可能
+	IF RESULT != 0
+		GOTO REPRINT
+	ENDIF
+	GLOBAL:998 = LCOUNT
+	SAVEGLOBAL
+	LOADDATA LCOUNT
+ELSE
+	LCOUNT = RESULT
+	CHKDATA LCOUNT
+	;RESULT == 0ならロード可能
+	IF RESULT != 0
+		GOTO REPRINT
+	ENDIF
+	PRINTL 세이브 파일을 삭제하시겠습니까?
+	PRINTL *경고* 삭제된 파일은 복구할 수 없습니다
+	PRINTL  　[0] 네
+	PRINTL  　[1] 아니오
+	$INPUT_LOOP_DEL
+	INPUT
+	IF RESULT == 1
+		GOTO REPRINT
+	ELSEIF RESULT != 0
+		GOTO INPUT_LOOP_DEL
+	ENDIF
+	SAVEGLOBAL
+	DELDATA LCOUNT
+	PRINTFORMW 성공적으로 삭제했습니다
+	GOTO REPRINT
+ENDIF
+DRAWLINE
+PRINTFORMW 성공적으로 %TYPE == 0?"로드했습니다"#(TYPE==1 ? "세이브했습니다" # "삭제했습니다")%
+
+
+
+;========================================================
+;セーブ時のテキストの設定
+;;========================================================
+@PRINT_SAVEDATA
+#DIM LCOUNT
+LOADGLOBAL
+;呼び出し元でCOUNTを使っているかも知れないのでCOUNTを保護
+LCOUNT = COUNT
+;REPEAT GLOBAL:999 * 20
+LOCAL:1 = GLOBAL:999 < 10 ? GLOBAL:999 * 20  # 200
+FOR LOCAL, LOCAL:1 , LOCAL:1 + 20
+	CHKDATA LOCAL
+	SIF LOCAL == GLOBAL:998
+		SETCOLOR COLOR("orange")
+		PRINTFORML 　[{LOCAL,2}] %RESULTS:0%
+		RESETCOLOR
+;REND
+NEXT
+COUNT = LCOUNT
+RETURN
+
+;========================================================
+;SAVEDATA命令は@SAVEINFO関数を呼ばないのでPUTFORMの代わりの文字列を用意する必要がある
+;GETTIME命令でRESULTSに現在時刻を代入
+;;========================================================
+@SAVEINFO_EX
+RESULTS:0 = 
+GETTIME
+RESULTS:0 += @" {DAY,5,RIGHT}일째  %GET_MAPNAME(MAIN_MAP),28,LEFT%  %NAME:MASTER,14,LEFT%  Ver %eraTW_Version,9,LEFT%\@ FLAG:주회수 ? %" "%회차:{FLAG:주회수}#\@"
+
+
+;========================================================
+;オートセーブの処理を独自に行う場合、@SYSTEM_AUTOSAVEを定義する
+;@SYSTEM_AUTOSAVEが定義されていると、標準のオートセーブの代わりにSYSTEM_AUTOSAVEが呼ばれる。
+;;========================================================
+@SYSTEM_AUTOSAVE
+CALL SAVEINFO_EX
+SAVEDATA 300, RESULTS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;========================================================
+;セーブ時の設定
+;;========================================================
+@SAVEGAME_EX
+#DIM LCOUNT
+LOADGLOBAL
+SIF GLOBAL:999 < 0
+	GLOBAL:999 = 0
+SIF GLOBAL:999 > 30
+	GLOBAL:999 = 29
+DRAWLINE
+PRINTFORML Select a slot to save. Page {GLOBAL:999+1}/10
+DRAWLINE
+CALL PRINT_SAVEDATA
+
+PRINTFORMLC \@ (GLOBAL:999 == 0) ? [1000] Last page # [1000] Previous page\@ 
+PRINTFORMLC [999] Return
+PRINTFORMLC \@ GLOBAL:999 == 9 ? [1002] First page # [1002] Next page\@ 
+
+INPUT
+IF (RESULT == 999)
+	RETURN
+ELSEIF RESULT == 1000
+	IF GLOBAL:999 > 0 && GLOBAL:999 < 10
+		GLOBAL:999 -= 1
+	ELSEIF GLOBAL:999 == 0
+		GLOBAL:999 = 9
+	ENDIF
+	CLEARLINE 25
+	SAVEGLOBAL
+	RESTART
+ELSEIF RESULT == 1002
+	IF GLOBAL:999 < 9
+		GLOBAL:999 += 1
+	ELSEIF GLOBAL:999 == 9
+		GLOBAL:999 = 0
+	ENDIF
+	CLEARLINE 25
+	SAVEGLOBAL
+	RESTART
+ELSEIF ((RESULT < 0) || (RESULT >= 200)) && (RESULT != 300)
+	PRINTFORMW Invalid value.
+	RESTART
+ELSE
+	LCOUNT = RESULT
+	CHKDATA LCOUNT
+	;RESULT == 1は"ファイルが存在しない"
+	IF RESULT != 1
+		DRAWLINE
+		PRINTL Save already exists. Overwrite?
+		PRINTL  　[0] Yes
+		PRINTL  　[1] No
+$INPUT_LOOP
+		INPUT
+		IF RESULT == 1
+			RESTART
+		ELSEIF RESULT != 0
+			GOTO INPUT_LOOP
+		ENDIF
+	ENDIF
+	GLOBAL:998 = LCOUNT
+	SAVEGLOBAL
+	CALL SAVEINFO_EX
+	SAVEDATA LCOUNT, RESULTS
+ENDIF
+DRAWLINE
+PRINTFORMW Successfully saved.
+
+;========================================================
+;ロード時の設定
+;;========================================================
+@LOADGAME_EX
+#DIM LCOUNT
+LOADGLOBAL
+SIF GLOBAL:999 < 0
+	GLOBAL:999 = 0
+SIF GLOBAL:999 > 30
+	GLOBAL:999 = 29
+
+DRAWLINE
+PRINTFORML Select a file to load. Page {GLOBAL:999+1}/10
+DRAWLINE
+CALL PRINT_SAVEDATA
+
+CHKDATA 300
+SETCOLOR COLOR("aqua")
+PRINTBUTTON @"[Auto] %RESULTS:0%", 300
+RESETCOLOR
+PRINTL
+;PRINTFORM  [999] %"- Return",18,LEFT%
+PRINTFORMLC \@ (GLOBAL:999 == 0) ? [1000] Last page # [1000] Previous page\@ 
+PRINTFORMLC [998] Delete
+PRINTFORMLC [999] Return
+PRINTFORMLC \@ GLOBAL:999 == 9 ? [1002] First page # [1002] Next page\@ 
+
+INPUT
+
+IF RESULT == 999
+	RETURN
+	;CALL SYSTEM_TITLE
+ELSEIF RESULT == 998
+
+ELSEIF RESULT == 1000
+	IF GLOBAL:999 > 0 && GLOBAL:999 < 10
+		GLOBAL:999 -= 1
+	ELSEIF GLOBAL:999 == 0
+		GLOBAL:999 = 9
+	ENDIF
+	CLEARLINE 26
+	SAVEGLOBAL
+	RESTART
+ELSEIF RESULT == 1002
+	IF GLOBAL:999 < 9
+		GLOBAL:999 += 1
+	ELSEIF GLOBAL:999 == 9
+		GLOBAL:999 = 0
+	ENDIF
+	CLEARLINE 26
+	SAVEGLOBAL
+	RESTART
+ELSEIF ((RESULT < 0) || (RESULT >= 200)) && (RESULT != 300)
+	PRINTFORMW Invalid value.
+	RESTART
+ELSE
+	LCOUNT = RESULT
+	CHKDATA LCOUNT
+	;RESULT == 0ならロード可能
+	IF RESULT != 0
+		RESTART
+	ENDIF
+	GLOBAL:998 = LCOUNT
+	SAVEGLOBAL
+	LOADDATA LCOUNT
+ENDIF
