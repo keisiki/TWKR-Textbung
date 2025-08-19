@@ -391,18 +391,22 @@ VARSET 전회의팬티
 
 
 ;-----------------------------------------------------------
+;-KR- KR판 전용 구상 셀렉터 반영, 동일 캐릭터 구상 개수 10개까지 확장 (일단 조회는 본체 5개, KR판 5개씩 돌린다)
+;-KR- 일단은 한판 구상 번호는 30부터 할당한다. CFLAG 구상실장상황 처리가 BIT 형식이라 범위가 제한된다
 ;동일 캐릭터 구상 둘 이상 확인
 ;ARG=캐릭터번호
-;현재 동일 캐릭터 구상은 최대 4개까지 상정
+;현재 동일 캐릭터 구상은 최대 4개까지 상정 > -KR- 10개까지 확장
 ;-----------------------------------------------------------
 @KOJO_MULTIPLE(C_ID)
 #DIM C_ID
+#DIM L_COUNT
 #DIM DYNAMIC KCOLOR
 #DIM DYNAMIC 구상카운트
+#DIM DYNAMIC 구상카운터_KR
 #DIM DYNAMIC 구상수
 #DIM DYNAMIC 구상실장수
-#DIMS DYNAMIC kojoNamesList, 4
-#DIM DYNAMIC kojoIdList, 4
+#DIMS DYNAMIC kojoNamesList, 10
+#DIM DYNAMIC kojoIdList, 10
 #DIM DYNAMIC vernier
 VARSET RESULTS
 ;同キャラ口上複数確認 and record the name of kojo
@@ -430,6 +434,33 @@ FOR 구상카운트,0,5
 		ENDIF
 	ENDIF
 NEXT
+;---- EDIT START ---------------------------------
+vernier = 5 ;5에서 9까지 for 돌리도록
+FOR L_COUNT,0,5
+	RESULT = 0
+	구상카운터_KR = L_COUNT + 30
+	; IF 구상카운터_KR
+		TRYCALLFORM M_KOJO_K{C_ID}_{구상카운터_KR}
+	; ELSE
+	; 	TRYCALLFORM M_KOJO_K{C_ID}
+	; ENDIF
+	IF RESULT
+		kojoNamesList:vernier = %CALLNAME:C_ID% %RESULTS:1% 구상 (KR판 오리지널)
+		kojoIdList:vernier = 구상카운터_KR
+		vernier ++
+		IF !GETBIT(CFLAG:C_ID:구상실장상황,구상카운터_KR)
+			구상수 += 1
+			구상실장수 += 1
+			SETBIT CFLAG:C_ID:구상실장상황,구상카운터_KR
+		ELSEIF GETBIT(CFLAG:C_ID:구상실장상황,구상카운터_KR)
+			구상실장수 += 1
+		ENDIF
+		;KR판 전용 구상으로 딱 1개만 있는 캐릭터는 강제로 구상셀렉터를 할당한다
+		SIF 구상수 == 1 && CFLAG:C_ID:구상셀렉터 == 0
+			CFLAG:C_ID:구상셀렉터 = 구상카운터_KR
+	ENDIF
+NEXT
+;---- EDIT END -----------------------------------
 IF !구상수
 	SIF 구상실장수
 		RETURN 1
@@ -441,9 +472,27 @@ IF 구상실장수 > 1
 	CALL ASK_YN
 	;口上選択
 	IF !RESULT
-		LOCALS:0 = 어떤 구상을 사용할까요?
-		CALL CHOICE("어떤 구상을 사용할까요?", kojoNamesList:0, kojoNamesList:1, kojoNamesList:2, kojoNamesList:3)
-		CFLAG:C_ID:구상셀렉터 = kojoIdList:RESULT
+		;LOCALS:0 = 어느 구상을 사용하시겠습니까
+		;CALL CHOICE("어느 구상을 사용하시겠습니까", kojoNamesList:0, kojoNamesList:1, kojoNamesList:2, kojoNamesList:3)
+		;CFLAG:C_ID:구상셀렉터 = kojoIdList:RESULT
+		PRINTFORML 어느 구상을 사용하시겠습니까
+		FOR L_COUNT,0,10
+			SIF kojoNamesList:L_COUNT == ""
+				CONTINUE
+			PRINTFORML [{L_COUNT}] - %kojoNamesList:L_COUNT%
+		NEXT
+		$reinput
+		INPUT
+		L_COUNT = RESULT
+		IF !GETBIT(CFLAG:C_ID:구상실장상황,kojoIdList:L_COUNT)
+			PRINTFORMW 해당 구상은 존재하지 않습니다
+			CLEARLINE 2
+			GOTO reinput
+		ELSE
+			PRINTFORMW %kojoNamesList:L_COUNT%으로 시작합니다
+			CFLAG:C_ID:구상셀렉터 = kojoIdList:L_COUNT
+
+		ENDIF
 		RETURN 2
 	ELSE
 		PRINTFORML 변경하지 않았습니다
